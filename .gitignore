@@ -33,6 +33,11 @@ migrate_working_dir/
 /build/
 /coverage/
 /windows/
+/ios/Flutter/Flutter.framework
+/macos/
+/linux/
+/web/
+
 *.pdb
 *.dll
 *.exe
