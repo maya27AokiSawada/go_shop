@@ -1,6 +1,6 @@
 // lib/providers/navigation_provider.dart
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 class PageIndexNotifier extends StateNotifier<int> {
   // コンストラクタで初期値を0に設定

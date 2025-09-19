@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import '../screens/home_screen.dart';
-import 'package:go_shopping/flavors.dart';
+import './flavors.dart';
 // ...existing code...
 
 void main() async {

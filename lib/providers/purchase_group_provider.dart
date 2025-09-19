@@ -1,7 +1,8 @@
 // lib/providers/purchase_group_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_shopping/models/purchase_group.dart';
-import 'package:go_shopping/flavors.dart';
+import 'package:flutter_riverpod/legacy.dart';
+import '../models/purchase_group.dart';
+import '../flavors.dart';
 import '../datastore/purchase_group_repository.dart';
 import '../datastore/hive_purchase_group_repository.dart';
 
@@ -56,4 +57,6 @@ class PurchaseGroupNotifier extends StateNotifier<AsyncValue<PurchaseGroup>> {
         return 'Error';
       }
   }
+
+  Future<void> updateMembers(List<String> members) async {}
 }

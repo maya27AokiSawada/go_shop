@@ -2,7 +2,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/purchase_group.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/page_index_provider.dart';
 class PurchaseGroupPage extends ConsumerWidget {
@@ -21,7 +20,7 @@ class PurchaseGroupPage extends ConsumerWidget {
       await Future.delayed(const Duration(seconds: 1));
       if (context.mounted) {
         // pageIndexプロバイダーを0にセットしてhome_pageに遷移
-        ref.read(pageIndexProvider.notifier).state = 0;
+        ref.read(pageIndexProvider.notifier).setPageIndex(0);
         Navigator.of(context).pushReplacementNamed('/home');
       }
     });
@@ -97,5 +96,7 @@ class PurchaseGroupPage extends ConsumerWidget {
       body: Center(child: Text('エラーが発生しました: $e')),
     ),
   );
-    
+  }
+}
+
 

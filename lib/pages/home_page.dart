@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_shopping/forms/sign_up_form.dart';
+import 'package:flutter_riverpod/legacy.dart';
+import '../forms/sign_up_form.dart';
 import '../providers/auth_provider.dart';
 
   
 // login Information input form isVisible
 final showFormProvider = StateProvider<bool>((ref) => false);
 class HomePage extends ConsumerStatefulWidget {
-  const HomePage({Key? key}) : super(key: key);
+  const HomePage({super.key});
 
   @override
   ConsumerState<HomePage> createState() => _HomePageState();

@@ -1,5 +1,6 @@
 // lib/providers/hive_shopping_list_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/shopping_list.dart';
 

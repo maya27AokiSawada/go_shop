@@ -1,8 +1,8 @@
 // lib/widgets/new_member_input_form.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_shopping/models/purchase_group.dart';
-import 'package:go_shopping/providers/purchase_group_provider.dart';
+import '../models/purchase_group.dart';
+import '../providers/purchase_group_provider.dart';
 
 class PurchaseGroupMemberForm extends ConsumerStatefulWidget {
   const PurchaseGroupMemberForm({super.key});
@@ -30,7 +30,7 @@ class _PurchaseGroupMemberFormState extends ConsumerState<PurchaseGroupMemberFor
 
   @override
   Widget build(BuildContext context) {
-    final purchaseGroup = ref.watch(purchaseGroupProvider);
+    ref.watch(purchaseGroupProvider);
 
     return Form(
       key: formKey,

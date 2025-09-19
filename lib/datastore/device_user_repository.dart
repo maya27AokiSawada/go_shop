@@ -1,4 +1,4 @@
-import 'package:go_shopping/models/device_user.dart';
+import '../models/device_user.dart';
 import 'package:hive/hive.dart';
 
 class DeviceUserRepository {
