@@ -47,6 +47,7 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
     }
     return currentGroup!;
   }
+  @override
   Future<PurchaseGroup> setMemberId(PurchaseGroupMember member, String newId) async {
     final box = await Hive.openBox<PurchaseGroup>('purchaseGroups');
     final currentGroup = box.get('currentGroup');

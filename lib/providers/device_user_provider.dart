@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_shopping/datastore/device_user_repository.dart';
-import 'package:go_shopping/models/device_user.dart';
+import 'package:flutter_riverpod/legacy.dart';
+import '../datastore/device_user_repository.dart';
+import '../models/device_user.dart';
 
 final deviceUserProvider = StateNotifierProvider<DeviceUserNotifier, DeviceUser?>((ref) {
   return DeviceUserNotifier(ref);

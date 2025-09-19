@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:go_shopping/models/purchase_group.dart'; // Memberクラスをインポート
+import '../models/purchase_group.dart'; // Memberクラスをインポート
 
 
 class MemberListTile extends StatelessWidget {

@@ -1,8 +1,9 @@
-import 'package:uuid/uuid.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:uuid/uuid.dart';
 part 'purchase_group.g.dart';
 
+final uuid = const Uuid();
 // 家族の役割を定義するenum
 @HiveType(typeId: 0)
 enum PurchaseGroupRole {
@@ -69,7 +70,7 @@ class PurchaseGroup {
     required this.groupName,
     required this.members,
     String? groupID,
-  }) : groupID = groupID ?? const Uuid().v4();
+  }) : groupID = groupID ?? uuid.v4();
 
   // 新しいメンバーを追加するメソッド
   PurchaseGroup addMember(PurchaseGroupMember member) {

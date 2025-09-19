@@ -1,5 +1,5 @@
 // lib/datastore/repository/shopping_list_repository.dart
-import 'package:go_shopping/models/shopping_list.dart';
+import '../models/shopping_list.dart';
 
 abstract class ShoppingListRepository {
   Future<ShoppingList?> getShoppingList();
