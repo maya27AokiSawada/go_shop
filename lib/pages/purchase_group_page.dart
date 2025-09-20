@@ -16,15 +16,6 @@ class PurchaseGroupPage extends ConsumerStatefulWidget {
 
 class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
   late TextEditingController groupNameController;
-  late TextEditingController listNameController;
-
-  @override
-  void dispose() {
-    groupNameController.dispose();
-    listNameController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final purchaseGroupAsync = ref.watch(purchaseGroupProvider);
@@ -32,48 +23,12 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
 
     return purchaseGroupAsync.when(
       data: (purchaseGroup) {
-        groupNameController = TextEditingController(text: purchaseGroup.groupName);
-        listNameController = TextEditingController(text: purchaseGroup.groupID);
-
         return Scaffold(
           appBar: AppBar(title: const Text('グループ管理')),
           body: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                // グループ名編集
-                TextFormField(
-                  controller: groupNameController,
-                  decoration: const InputDecoration(labelText: 'グループ名'),
-                ),
-                const SizedBox(height: 8),
-                // リスト名編集
-                TextFormField(
-                  controller: listNameController,
-                  decoration: const InputDecoration(labelText: 'リスト名'),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('メンバー一覧', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    ElevatedButton(
-                      onPressed: () async {
-                        final newMember = await showDialog<PurchaseGroupMember>(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            content: PurchaseGroupMemberForm(),
-                          ),
-                        );
-                        if (newMember != null) {
-                          await ref.read(purchaseGroupProvider.notifier).addMember(newMember);
-                        }
-                      },
-                      child: const Text('メンバー追加'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
                 Expanded(
                   child: ListView.builder(
                     itemCount: purchaseGroup.members.length,
@@ -106,17 +61,15 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                     final user = authState.asData?.value;
                     if (user == null) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('ログインしてください')),
+                        const SnackBar(content: Text('サインインしないと買い物リスト共有は出来ません')),
                       );
                       return;
                     }
                     // 保存処理
-                    final updatedGroup = purchaseGroup.copyWith(
-                      groupName: groupNameController.text,
-                      groupID: listNameController.text,
-                    );
                     // 必要ならProviderのsaveメソッドを呼ぶ
-                    await ref.read(purchaseGroupProvider.notifier).updateMembers(updatedGroup.members);
+                    final updatedGroup = await ref.read(purchaseGroupProvider.notifier).repository.updateMembers(purchaseGroup.members);
+                    await notifier = ref.read(purchaseGroupProvider.notifier);
+// todo next week
                     await ref.read(purchaseGroupProvider.notifier).state = AsyncValue.data(updatedGroup);
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('保存しました')),
@@ -126,6 +79,23 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                 ),
               ],
             ),
+          ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: () async {
+              final newMember = await showDialog<PurchaseGroupMember>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  content: PurchaseGroupMemberForm(),
+                ),
+              );
+              if (newMember != null) {
+                final updatedMembers = List<PurchaseGroupMember>.from(purchaseGroup.members);
+                updatedMembers.add(newMember);
+                ref.read(purchaseGroupProvider.notifier).updateMembers(updatedMembers);
+              }
+            },
+            tooltip: 'メンバー追加',
+            child: const Icon(Icons.person_add),
           ),
         );
       },
