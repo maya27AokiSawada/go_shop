@@ -16,14 +16,10 @@ class HomePage extends ConsumerStatefulWidget {
 
 class _HomePageState extends ConsumerState<HomePage> {
   final userNameController = TextEditingController();
-  final listNameController = TextEditingController();
-  final userNameControllerLoggedIn = TextEditingController();
-  final listNameControllerLoggedIn = TextEditingController();
 
   @override
   void dispose() {
     userNameController.dispose();
-    listNameController.dispose();
     super.dispose();
   }
 
@@ -51,27 +47,22 @@ class _HomePageState extends ConsumerState<HomePage> {
           // Replace with your actual logic to check authentication state
           return authState.when(
             data: (user) {
-              if (user == null) {
+              if (user == null) { // 未ログイン状態ならサインイン・サインアップボタンを表示
                 return Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    if (!isVisible)
-                      ElevatedButton(
-                        onPressed: () {
-                          ref.read(showFormProvider.notifier).state = true;
-                        },
-                        child: const Text('ログイン / サインアップ'),
-                      ),
-                    if (isVisible) SignUpForm(),
-                    // 名前・リスト名フォームもここに
                     TextField(
                       controller: userNameController,
                       decoration: const InputDecoration(labelText: 'User Name'),
                     ),
-                    TextField(
-                      controller: listNameController,
-                      decoration: const InputDecoration(labelText: 'List Name'),
-                    ),                
+                    if (!isVisible)
+                      ElevatedButton(
+                        onPressed: () { // サインイン用入力フォーム表示
+                          ref.read(showFormProvider.notifier).state = true;
+                        },
+                        child: const Text('ログイン / サインアップ'),
+                      ),
+                    if (isVisible) SignUpForm(),                
                   ],
                 );
               } else {
@@ -80,12 +71,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                   body: Column(
                     children: [
                       TextField(
-                        controller: userNameControllerLoggedIn,
+                        controller: userNameController,
                         decoration: const InputDecoration(labelText: 'User Name'),
-                        ),
-                      TextField(
-                        decoration: const InputDecoration(labelText: 'List Name'),
-                        controller: listNameControllerLoggedIn,
                       ),
                       ElevatedButton(
                         onPressed: () async {

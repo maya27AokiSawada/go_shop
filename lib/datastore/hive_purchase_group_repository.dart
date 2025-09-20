@@ -1,9 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive/hive.dart';
 import '../models/purchase_group.dart';
 import '../datastore/purchase_group_repository.dart';
-import 'package:hive/hive.dart';
+import '../flavors.dart';
 
-
+final String currentGroupId = F.appFlavor
+  == Flavor.dev ? 'currentGroup' : 'currentGroup';
 
 class HivePurchaseGroupRepository implements PurchaseGroupRepository {
   final Ref ref;
@@ -59,6 +61,17 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
         return m;
       }).toList();
       final updatedGroup = currentGroup.copyWith(members: updatedMembers);
+      await box.put('currentGroup', updatedGroup);
+      return updatedGroup;
+    }
+    return currentGroup!;
+  }
+  @override
+  Future<PurchaseGroup> updateMembers(List<PurchaseGroupMember> members) async {
+    final box = await Hive.openBox<PurchaseGroup>('purchaseGroups');
+    final currentGroup = box.get('currentGroup');
+    if (currentGroup != null) {
+      final updatedGroup = currentGroup.copyWith(members: members);
       await box.put('currentGroup', updatedGroup);
       return updatedGroup;
     }

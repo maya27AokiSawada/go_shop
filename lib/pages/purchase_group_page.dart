@@ -116,7 +116,8 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                       groupID: listNameController.text,
                     );
                     // 必要ならProviderのsaveメソッドを呼ぶ
-                    ref.read(purchaseGroupProvider.notifier).state = AsyncValue.data(updatedGroup);
+                    await ref.read(purchaseGroupProvider.notifier).updateMembers(updatedGroup.members);
+                    await ref.read(purchaseGroupProvider.notifier).state = AsyncValue.data(updatedGroup);
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('保存しました')),
                     );
