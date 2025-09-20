@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:logger/logger.dart';
 
+var log = Logger();
 Future<void> createNewUserCollections(String userId) async {
   // Firestoreのインスタンスを取得
   final firestore = FirebaseFirestore.instance;
@@ -30,9 +33,9 @@ Future<void> createNewUserCollections(String userId) async {
       'created_at': FieldValue.serverTimestamp(),
     });
 
-    print('Successfully created collections for user: $userId');
+    log.i('Successfully created collections for user: $userId');
 
   } catch (e) {
-    print('Error creating user collections: $e');
+    log.e('Error creating user collections: $e');
   }
 }
