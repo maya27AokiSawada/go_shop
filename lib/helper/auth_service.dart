@@ -2,54 +2,57 @@
 // 25-08-29
 // lib/services/auth_service.dart
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:logging/logging.dart';
+import '../helper/misc.dart';
+
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  Future<UserCredential> signInWithEmail(String email, String password) async {
-    return await _auth.signInWithEmailAndPassword(email: email, password: password);
-  }
+  final FirebaseAuth _auth;
+  AuthService({FirebaseAuth? auth}) : _auth = auth ?? FirebaseAuth.instance;
 
-  Future<UserCredential> signUpWithEmail(String email, String password) async {
-    return await _auth.createUserWithEmailAndPassword(email: email, password: password);
-  }
-
-  Future<void> signOut() async {
-    await _auth.signOut();
-  }
   Future<User?> signIn(String email, String password) async {
     try {
-      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      final userCredential = await _auth.signInWithEmailAndPassword(email: email, password: password);
       return userCredential.user;
     } catch (e) {
-      _logger.severe('signIn error: $e'); // エラー処理（必要に応じて例外を投げるなど）
+      logger.e('signIn error: $e');
       rethrow;
     }
   }
-  final Logger _logger = Logger('AuthService');
 
   Future<User?> signUp(String email, String password) async {
     try {
-      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      final userCredential = await _auth.createUserWithEmailAndPassword(email: email, password: password);
       return userCredential.user;
     } catch (e) {
-      _logger.severe("signUp error: $e");
+      logger.e('signUp error: $e');
       rethrow;
     }
   }
-  Future<String?> getCurrentUid() async {
+
+  Future<void> signOut() async {
     try {
-      final user = _auth.currentUser;
-      return user?.uid;
+      await _auth.signOut();
     } catch (e) {
-      _logger.severe("getCurrentUid error: $e");
+      logger.e('signOut error: $e');
       rethrow;
+    }
+  }
+
+  User? getCurrentUser() {
+    try {
+      return _auth.currentUser;
+    } catch (e) {
+      logger.e('getCurrentUser error: $e');
+      return null;
+    }
+  }
+
+  String? getCurrentUid() {
+    try {
+      return _auth.currentUser?.uid;
+    } catch (e) {
+      logger.e('getCurrentUid error: $e');
+      return null;
     }
   }
 }
