@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
@@ -90,7 +89,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       ),
                       ElevatedButton(
                         onPressed: () async {
-                          await ref.read(authStateProvider).signOut();
+                          await ref.read(authProvider).signOut();
                         },
                         child: const Text('ログアウト'),
                       )
@@ -107,8 +106,4 @@ class _HomePageState extends ConsumerState<HomePage> {
     ),
   );
   }
-}
-
-extension on AsyncValue<User?> {
-  Future<void> signOut() {}
 }

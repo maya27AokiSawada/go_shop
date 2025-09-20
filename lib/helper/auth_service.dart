@@ -1,3 +1,4 @@
+
 // lib/services/auth_service.dart
 // 25-08-29
 // lib/services/auth_service.dart
@@ -6,6 +7,9 @@ import '../helper/misc.dart';
 
 
 class AuthService {
+  bool get isLoggedIn {
+    return getCurrentUser() != null;
+  }
   final FirebaseAuth _auth;
   AuthService({FirebaseAuth? auth}) : _auth = auth ?? FirebaseAuth.instance;
 
