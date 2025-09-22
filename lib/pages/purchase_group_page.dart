@@ -47,7 +47,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                             final updatedMembers = List<PurchaseGroupMember>.from(purchaseGroup.members);
                             updatedMembers[index] 
                               = editedMember.copyWith(memberID: member.memberID);
-                            ref.read(purchaseGroupProvider.notifier).updateMembers(updatedMembers);
+                            await ref.read(purchaseGroupProvider.notifier).updateMembers(updatedMembers);
                           }
                         },
                       );
@@ -66,19 +66,19 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                       return;
                     }
                     // 保存処理
-                    // 必要ならProviderのsaveメソッドを呼ぶ
-                    final updatedGroup = await ref.read(purchaseGroupProvider.notifier).repository.updateMembers(purchaseGroup.members);
-                    await notifier = ref.read(purchaseGroupProvider.notifier);
-// todo next week
-                    await ref.read(purchaseGroupProvider.notifier).state = AsyncValue.data(updatedGroup);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('保存しました')),
-                    );
+                    final notifier = ref.read(purchaseGroupProvider.notifier);
+                      // グループ情報の保存（非同期）
+                    await notifier.updateGroup(purchaseGroup);
+                    if(context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('保存しました')),
+                      );
+                    } else {return;}
                   },
                   child: const Text('保存'),
                 ),
               ],
-            ),
+            )
           ),
           floatingActionButton: FloatingActionButton(
             onPressed: () async {
@@ -91,7 +91,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
               if (newMember != null) {
                 final updatedMembers = List<PurchaseGroupMember>.from(purchaseGroup.members);
                 updatedMembers.add(newMember);
-                ref.read(purchaseGroupProvider.notifier).updateMembers(updatedMembers);
+                await ref.read(purchaseGroupProvider.notifier).updateMembers(updatedMembers);
               }
             },
             tooltip: 'メンバー追加',

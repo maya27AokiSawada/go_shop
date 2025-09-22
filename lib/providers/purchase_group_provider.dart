@@ -58,6 +58,10 @@ class PurchaseGroupNotifier extends StateNotifier<AsyncValue<PurchaseGroup>> {
       }
   }
 
+  Future<void> updateGroup(PurchaseGroup group) async {
+    final updatedGroup = await repository.updateGroup(group);
+    state = AsyncValue.data(updatedGroup);
+  }
   Future<void> updateMembers(List<PurchaseGroupMember> members) async {
     final updatedGroup = await repository.updateMembers(members);
     state = AsyncValue.data(updatedGroup);
