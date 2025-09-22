@@ -16,6 +16,23 @@ class PurchaseGroupPage extends ConsumerStatefulWidget {
 
 class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
   late TextEditingController groupNameController;
+  late TextEditingController userNameController;
+  late TextEditingController emailController;
+  @override
+  void initState() {
+    super.initState();
+    groupNameController = TextEditingController();
+    userNameController = TextEditingController();
+    emailController = TextEditingController();
+  }
+  @override
+  void dispose() {
+    groupNameController.dispose();
+    userNameController.dispose();
+    emailController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final purchaseGroupAsync = ref.watch(purchaseGroupProvider);
@@ -29,6 +46,21 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
+                TextField(
+                  controller: groupNameController,
+                  decoration: const InputDecoration(labelText: 'グループ名'),
+                                ),
+                TextField(
+                  controller: userNameController,
+                  decoration: const InputDecoration(labelText: 'ユーザー名'),
+                  onChanged: (value) {
+                    var myName = value;
+                  },
+                ),
+                TextField(
+                  controller: emailController,
+                  decoration: const InputDecoration(labelText: 'メールアドレス'),
+                ),
                 Expanded(
                   child: ListView.builder(
                     itemCount: purchaseGroup.members.length,
@@ -68,7 +100,11 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                     // 保存処理
                     final notifier = ref.read(purchaseGroupProvider.notifier);
                       // グループ情報の保存（非同期）
-                    await notifier.updateGroup(purchaseGroup);
+                    await notifier.updateGroup(PurchaseGroup(groupName: groupNameController.text,
+                      members: [
+                        PurchaseGroupMember(name: userNameController.text,
+                          contact: emailController.text, role: PurchaseGroupRole.leader),...[]
+                      ]));
                     if(context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('保存しました')),
