@@ -1,3 +1,4 @@
+import 'package:go_shop/widgets/member_list_tile_widget.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -18,34 +19,37 @@ enum PurchaseGroupRole {
 @HiveType(typeId: 1)
 class PurchaseGroupMember {
   @HiveField(0)
-  final String name;
+  String memberId;
   @HiveField(1)
-  String? memberID; //uid未判明の時はnull
+  String name;
   @HiveField(2)
-  final String contact;
+  String contact;
   @HiveField(3)
-  final PurchaseGroupRole role;
+  PurchaseGroupRole role;
   @HiveField(4)
-  final bool isSignedIn;
-  //
+  bool isSignedIn;
+  
   PurchaseGroupMember({
+    this.memberId = '',
     required this.name,
-    this.memberID, //uid未判明の時はnull
     required this.contact,
     required this.role,
     this.isSignedIn = false,
-  });
+  }):super (){
+    memberId = memberId.isNotEmpty ? memberId : uuid.v4();
+  }
+
   //
   PurchaseGroupMember copyWith({
     String? name,
-    String? memberID,
+    String? memberId,
     String? contact,
     PurchaseGroupRole? role,
     bool? isSignedIn,
   }) {
     return PurchaseGroupMember(
       name: name ?? this.name,
-      memberID: memberID ?? this.memberID,
+      memberId: memberId ?? this.memberId,
       contact: contact ?? this.contact,
       role: role ?? this.role,
       isSignedIn: isSignedIn ?? this.isSignedIn,
@@ -61,26 +65,47 @@ class PurchaseGroup {
   @HiveField(0)
   String groupName;
   @HiveField(1)
-  String groupID;
+  String groupId;
   @HiveField(2)
-  List<PurchaseGroupMember> members;
+  String? ownerName;
+  @HiveField(3)
+  String? ownerEmail;
+  @HiveField(4)
+  String? ownerUid;
+  @HiveField(5)
+  List<PurchaseGroupMember>? members;
 
   // 新しい購入グループを作成するためのコンストラクタ
   PurchaseGroup({
     required this.groupName,
+    this.ownerName,
+    this.ownerEmail,
     required this.members,
-    String? groupID,
-  }) : groupID = groupID ?? uuid.v4();
+    String? ownerUid,
+    String? groupId,
+  }) : ownerUid = ownerUid ?? uuid.v4(),
+       groupId = groupId ?? uuid.v4();
 
   // 新しいメンバーを追加するメソッド
   PurchaseGroup addMember(PurchaseGroupMember member) {
     // 新しいmemberIDを生成（既存メンバーの最大ID + 1）
       // 新しいメンバーを作成（指定されたメンバー情報にnewMemberIdを設定）
     // 新しいPurchaseGroupインスタンスを返す
+    if (this.members == null) {
+      return PurchaseGroup(
+        groupName: groupName,
+        groupId: groupId,
+        members: [PurchaseGroupMember(name: member.name,
+          contact: member.contact, role: member.role, memberId: member.memberId )
+        ],
+      );
+    } else {
     return PurchaseGroup(
       groupName: groupName,
-      groupID: groupID,
-      members: [...members, member],
+      groupId: groupId,
+      members: [...this.members, PurchaseGroupMember(name: member.name,
+        contact: member.contact, role: member.role, memberId: member.memberId)
+      ],
     );
   }
   PurchaseGroup removeMember(PurchaseGroupMember member) {
