@@ -67,6 +67,24 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
     return currentGroup!;
   }
   @override
+  Future<PurchaseGroup> updateGroup(PurchaseGroup newGroup) async {
+    final box = await Hive.openBox<PurchaseGroup>('purchaseGroups');
+    final currentGroup = box.get(newGroup.groupID);
+    if (currentGroup != null) {
+      final updatedGroup = currentGroup.copyWith(members: [...currentGroup.members]);
+      await box.put(newGroup.groupID, updatedGroup);
+      return updatedGroup;
+    } else {
+      final newGroup = PurchaseGroup(
+        groupID: '0', // 当面は1グループのみ考える
+        groupName: 'Default Group',
+        members: [PurchaseGroupMember(name: 'あなた', contact: '', role: PurchaseGroupRole.leader)],
+      );
+      await box.put('currentGroup', newGroup);
+      return newGroup;
+    }
+  }
+  @override
   Future<PurchaseGroup> updateMembers(List<PurchaseGroupMember> members) async {
     final box = await Hive.openBox<PurchaseGroup>('purchaseGroups');
     final currentGroup = box.get('currentGroup');
@@ -75,6 +93,6 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
       await box.put('currentGroup', updatedGroup);
       return updatedGroup;
     }
-    return currentGroup!;
+    throw Exception('No current group found');
   }
 }

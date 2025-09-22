@@ -7,4 +7,5 @@ abstract class PurchaseGroupRepository {
   Future<PurchaseGroup> removeMember(PurchaseGroupMember member);
   Future<PurchaseGroup> setMemberId(PurchaseGroupMember member, String newId);
   Future<PurchaseGroup> updateMembers(List<PurchaseGroupMember> members);
+  Future<PurchaseGroup> updateGroup(PurchaseGroup group);
 }
