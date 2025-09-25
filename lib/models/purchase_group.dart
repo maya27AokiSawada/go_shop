@@ -91,7 +91,7 @@ class PurchaseGroup {
     // 新しいmemberIDを生成（既存メンバーの最大ID + 1）
       // 新しいメンバーを作成（指定されたメンバー情報にnewMemberIdを設定）
     // 新しいPurchaseGroupインスタンスを返す
-    if (this.members == null) {
+    if (members == null) {
       return PurchaseGroup(
         groupName: groupName,
         groupId: groupId,
@@ -103,7 +103,7 @@ class PurchaseGroup {
     return PurchaseGroup(
       groupName: groupName,
       groupId: groupId,
-      members: [...this.members, PurchaseGroupMember(name: member.name,
+      members: [...members, PurchaseGroupMember(name: member.name,
         contact: member.contact, role: member.role, memberId: member.memberId)
       ],
     );
