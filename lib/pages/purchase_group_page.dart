@@ -53,9 +53,6 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                 TextField(
                   controller: userNameController,
                   decoration: const InputDecoration(labelText: 'ユーザー名'),
-                  onChanged: (value) {
-                    var myName = value;
-                  },
                 ),
                 TextField(
                   controller: emailController,
@@ -63,9 +60,9 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                 ),
                 Expanded(
                   child: ListView.builder(
-                    itemCount: purchaseGroup.members.length,
+                    itemCount: purchaseGroup.members?.length ?? 0,
                     itemBuilder: (context, index) {
-                      final member = purchaseGroup.members[index];
+                      final member = purchaseGroup.members![index];
                       return MemberListTile(
                         member: member,
                         onTap: () async {
@@ -76,9 +73,9 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                             ),
                           );
                           if (editedMember != null) {
-                            final updatedMembers = List<PurchaseGroupMember>.from(purchaseGroup.members);
+                            final updatedMembers = List<PurchaseGroupMember>.from(purchaseGroup.members!);
                             updatedMembers[index] 
-                              = editedMember.copyWith(memberID: member.memberID);
+                              = editedMember.copyWith(memberId: member.memberId);
                             await ref.read(purchaseGroupProvider.notifier).updateMembers(updatedMembers);
                           }
                         },
@@ -125,7 +122,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                 ),
               );
               if (newMember != null) {
-                final updatedMembers = List<PurchaseGroupMember>.from(purchaseGroup.members);
+                final updatedMembers = List<PurchaseGroupMember>.from(purchaseGroup.members!);
                 updatedMembers.add(newMember);
                 await ref.read(purchaseGroupProvider.notifier).updateMembers(updatedMembers);
               }
