@@ -17,25 +17,28 @@ class PurchaseGroupMemberAdapter extends TypeAdapter<PurchaseGroupMember> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return PurchaseGroupMember(
-      name: fields[0] as String,
-      memberID: fields[1] as String,
+      memberId: fields[0] as String,
+      name: fields[1] as String,
       contact: fields[2] as String,
       role: fields[3] as PurchaseGroupRole,
+      isSignedIn: fields[4] as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, PurchaseGroupMember obj) {
     writer
-      ..writeByte(4)
+      ..writeByte(5)
       ..writeByte(0)
-      ..write(obj.name)
+      ..write(obj.memberId)
       ..writeByte(1)
-      ..write(obj.memberID)
+      ..write(obj.name)
       ..writeByte(2)
       ..write(obj.contact)
       ..writeByte(3)
-      ..write(obj.role);
+      ..write(obj.role)
+      ..writeByte(4)
+      ..write(obj.isSignedIn);
   }
 
   @override
@@ -61,20 +64,29 @@ class PurchaseGroupAdapter extends TypeAdapter<PurchaseGroup> {
     };
     return PurchaseGroup(
       groupName: fields[0] as String,
-      members: (fields[2] as List).cast<PurchaseGroupMember>(),
-      groupID: fields[1] as String?,
+      ownerName: fields[2] as String?,
+      ownerEmail: fields[3] as String?,
+      members: (fields[5] as List?)?.cast<PurchaseGroupMember>(),
+      ownerUid: fields[4] as String?,
+      groupId: fields[1] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, PurchaseGroup obj) {
     writer
-      ..writeByte(3)
+      ..writeByte(6)
       ..writeByte(0)
       ..write(obj.groupName)
       ..writeByte(1)
-      ..write(obj.groupID)
+      ..write(obj.groupId)
       ..writeByte(2)
+      ..write(obj.ownerName)
+      ..writeByte(3)
+      ..write(obj.ownerEmail)
+      ..writeByte(4)
+      ..write(obj.ownerUid)
+      ..writeByte(5)
       ..write(obj.members);
   }
 

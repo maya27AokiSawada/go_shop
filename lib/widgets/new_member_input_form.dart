@@ -63,24 +63,20 @@ class _PurchaseGroupMemberFormState extends ConsumerState<PurchaseGroupMemberFor
             title: const Text('親'),
             value: PurchaseGroupRole.parent,
             groupValue: _selectedRole,
-            onChanged: (value) {
-              if (value != null) {
-                setState(() {
-                  _selectedRole = value;
-                });
-              }
+            onChanged: (PurchaseGroupRole? value) {
+              setState(() {
+                _selectedRole = value ?? PurchaseGroupRole.child;
+              });
             },
           ),
           RadioListTile<PurchaseGroupRole>(
             title: const Text('子'),
             value: PurchaseGroupRole.child,
             groupValue: _selectedRole,
-            onChanged: (value) {
-              if (value != null) {
-                setState(() {
-                  _selectedRole = value;
-                });
-              }
+            onChanged: (PurchaseGroupRole? value) {
+              setState(() {
+                _selectedRole = value ?? PurchaseGroupRole.child;
+              });
             },
           ),
           const SizedBox(height: 20),

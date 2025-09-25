@@ -1,69 +1,114 @@
 // lib/providers/purchase_group_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
 import '../models/purchase_group.dart';
 import '../flavors.dart';
 import '../datastore/purchase_group_repository.dart';
 import '../datastore/hive_purchase_group_repository.dart';
 
-final purchaseGroupProvider = StateNotifierProvider<PurchaseGroupNotifier,
- AsyncValue<PurchaseGroup>>((ref) {
-  if(F.appFlavor == Flavor.dev) {
-    final repository = HivePurchaseGroupRepository(ref);
-    return PurchaseGroupNotifier(repository);
-  } else {    // 本番環境用のリポジトリを返す
-    throw UnimplementedError('Production repository not implemented yet');
+// PurchaseGroupRepositoryのプロバイダー
+final purchaseGroupRepositoryProvider = Provider<PurchaseGroupRepository>((ref) {
+  // 例: flavorや設定値で切り替え
+  if (F.appFlavor == Flavor.prod) {
+    // return FirestorePurchaseGroupRepository(ref);
+    throw UnimplementedError('FirestorePurchaseGroupRepository is not implemented yet');
+  } else {
+    return HivePurchaseGroupRepository(ref);  
   }
- });
- 
-class PurchaseGroupNotifier extends StateNotifier<AsyncValue<PurchaseGroup>> {
-  final PurchaseGroupRepository repository;
+});
 
-  PurchaseGroupNotifier(this.repository) : super(const AsyncValue.loading()) {
-    _initializeGroup();
-  }
+// 現在のグループを管理するProvider
+final currentGroupIdProvider = Provider<String>((ref) => 'currentGroup');
 
-  Future<void> _initializeGroup() async {
-    final group = await repository.initializeGroup();
-    state = AsyncValue.data(group);
-  }
+// PurchaseGroupの状態を管理するAsyncNotifierProvider
+final purchaseGroupProvider = AsyncNotifierProvider<PurchaseGroupNotifier, PurchaseGroup>(
+  () => PurchaseGroupNotifier(),
+);
 
-  Future<void> addMember(PurchaseGroupMember member) async {
-    final updatedGroup = await repository.addMember(member);
-    state = AsyncValue.data(updatedGroup);
-  }
-
-  Future<void> removeMember(PurchaseGroupMember member) async {
-    final updatedGroup = await repository.removeMember(member);
-    state = AsyncValue.data(updatedGroup);
-  }
-  Future<void> setMemberId(PurchaseGroupMember member, String newId) async {
-    final updatedGroup = await repository.setMemberId(member, newId);
-    state = AsyncValue.data(updatedGroup);
-  }
-  Future<String> signedIn({
-    required String userName,
-    required String email,
-    String? groupName
-  }) async {
-  //
-  //
-    if (F.appFlavor == Flavor.dev) {
-      // 開発環境用のサインイン処理
-      // uuidを生成して返す
-      return DateTime.now().millisecondsSinceEpoch.toString();
-      } else {
-      // 本番環境用のサインイン処理
-        return 'Error';
-      }
+class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
+  @override
+  Future<PurchaseGroup> build() async {
+    final repository = ref.read(purchaseGroupRepositoryProvider);
+    final currentGroupId = ref.read(currentGroupIdProvider);
+    return await repository.getGroup(currentGroupId);
   }
 
+  // グループを更新
   Future<void> updateGroup(PurchaseGroup group) async {
-    final updatedGroup = await repository.updateGroup(group);
-    state = AsyncValue.data(updatedGroup);
+    state = const AsyncValue.loading();
+    try {
+      final repository = ref.read(purchaseGroupRepositoryProvider);
+      final updatedGroup = await repository.updateGroup(group);
+      state = AsyncValue.data(updatedGroup);
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+    }
   }
+
+  // メンバーを追加
+  Future<void> addMember(PurchaseGroupMember member) async {
+    final currentGroup = await future;
+    final updatedGroup = currentGroup.addMember(member);
+    await updateGroup(updatedGroup);
+  }
+
+  // メンバーを削除
+  Future<void> removeMember(PurchaseGroupMember member) async {
+    final currentGroup = await future;
+    final updatedGroup = currentGroup.removeMember(member);
+    await updateGroup(updatedGroup);
+  }
+
+  // 自分のIDを設定
+  Future<void> setMyId(String myId) async {
+    state = const AsyncValue.loading();
+    try {
+      final repository = ref.read(purchaseGroupRepositoryProvider);
+      final updatedGroup = await repository.setMyId(myId);
+      state = AsyncValue.data(updatedGroup);
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+    }
+  }
+
+  // グループを作成
+  Future<void> createGroup(String groupId, String groupName, PurchaseGroupMember member) async {
+    state = const AsyncValue.loading();
+    try {
+      final repository = ref.read(purchaseGroupRepositoryProvider);
+      final newGroup = await repository.createGroup(groupId, groupName, member);
+      state = AsyncValue.data(newGroup);
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+    }
+  }
+
+  // グループを削除
+  Future<void> deleteGroup(String groupId) async {
+    try {
+      final repository = ref.read(purchaseGroupRepositoryProvider);
+      await repository.deleteGroup(groupId);
+      // デフォルトグループを読み込み
+      await build();
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+    }
+  }
+
+  // メンバーを更新
   Future<void> updateMembers(List<PurchaseGroupMember> members) async {
-    final updatedGroup = await repository.updateMembers(members);
-    state = AsyncValue.data(updatedGroup);
+    state = const AsyncValue.loading();
+    try {
+      final repository = ref.read(purchaseGroupRepositoryProvider);
+      final updatedGroup = await repository.updateMembers(members);
+      state = AsyncValue.data(updatedGroup);
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+    }
   }
 }
+
+// すべてのグループを取得するプロバイダー
+final allGroupsProvider = FutureProvider<List<PurchaseGroup>>((ref) async {
+  final repository = ref.read(purchaseGroupRepositoryProvider);
+  return await repository.getAllGroups();
+});

@@ -1,4 +1,3 @@
-import 'package:go_shop/widgets/member_list_tile_widget.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -35,7 +34,7 @@ class PurchaseGroupMember {
     required this.contact,
     required this.role,
     this.isSignedIn = false,
-  }):super (){
+  }) {
     memberId = memberId.isNotEmpty ? memberId : uuid.v4();
   }
 
@@ -89,41 +88,58 @@ class PurchaseGroup {
   // 新しいメンバーを追加するメソッド
   PurchaseGroup addMember(PurchaseGroupMember member) {
     // 新しいmemberIDを生成（既存メンバーの最大ID + 1）
-      // 新しいメンバーを作成（指定されたメンバー情報にnewMemberIdを設定）
+    // 新しいメンバーを作成（指定されたメンバー情報にnewMemberIdを設定）
     // 新しいPurchaseGroupインスタンスを返す
     if (members == null) {
       return PurchaseGroup(
         groupName: groupName,
         groupId: groupId,
-        members: [PurchaseGroupMember(name: member.name,
-          contact: member.contact, role: member.role, memberId: member.memberId )
-        ],
+        members: [PurchaseGroupMember(
+          name: member.name,
+          contact: member.contact,
+          role: member.role,
+          memberId: member.memberId
+        )],
       );
     } else {
-    return PurchaseGroup(
-      groupName: groupName,
-      groupId: groupId,
-      members: [...members, PurchaseGroupMember(name: member.name,
-        contact: member.contact, role: member.role, memberId: member.memberId)
-      ],
-    );
+      return PurchaseGroup(
+        groupName: groupName,
+        groupId: groupId,
+        members: [...members!, PurchaseGroupMember(
+          name: member.name,
+          contact: member.contact,
+          role: member.role,
+          memberId: member.memberId
+        )],
+      );
+    }
   }
+
   PurchaseGroup removeMember(PurchaseGroupMember member) {
     return PurchaseGroup(
       groupName: groupName,
-      groupID: groupID,
-      members: members.where((m) => m != member).toList(),
+      groupId: groupId,
+      ownerName: ownerName,
+      ownerEmail: ownerEmail,
+      ownerUid: ownerUid,
+      members: members!.where((m) => m != member).toList(),
     );
   }
 
   PurchaseGroup copyWith({
     String? groupName,
-    String? groupID,
+    String? groupId,
+    String? ownerName,
+    String? ownerEmail,
+    String? ownerUid,
     List<PurchaseGroupMember>? members,
   }) {
     return PurchaseGroup(
       groupName: groupName ?? this.groupName,
-      groupID: groupID ?? this.groupID,
+      groupId: groupId ?? this.groupId,
+      ownerName: ownerName ?? this.ownerName,
+      ownerEmail: ownerEmail ?? this.ownerEmail,
+      ownerUid: ownerUid ?? this.ownerUid,
       members: members ?? this.members,
     );
   }

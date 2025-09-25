@@ -1,7 +1,7 @@
 import 'package:hive/hive.dart';
 part 'shopping_list.g.dart';
 
-@HiveType(typeId: 0)
+@HiveType(typeId: 3)
 class ShoppingItem {
   @HiveField(0)
   final String memberId;
@@ -58,16 +58,24 @@ class ShoppingItem {
   }
 }
 
-@HiveType(typeId: 1)
+@HiveType(typeId: 4)
 class ShoppingList {
   @HiveField(0)
+  String ownerUid;
+  @HiveField(1)
+  String groupId;
+  @HiveField(2)
+  String groupName;
+  @HiveField(3)
   final List<ShoppingItem> items;
-
-  ShoppingList({required this.items});
-
-
+  ShoppingList({
+    required this.ownerUid,
+    required this.groupId,
+    required this.groupName,
+    this.items = const [],
+  });
   @override
   String toString() {
-    return 'ShoppingList(items: $items)';
+    return 'ShoppingList(ownerUid: $ownerUid, groupId: $groupId, groupName: $groupName, items: $items)';
   }
 }

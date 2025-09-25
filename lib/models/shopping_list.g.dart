@@ -8,7 +8,7 @@ part of 'shopping_list.dart';
 
 class ShoppingItemAdapter extends TypeAdapter<ShoppingItem> {
   @override
-  final int typeId = 0;
+  final int typeId = 3;
 
   @override
   ShoppingItem read(BinaryReader reader) {
@@ -60,7 +60,7 @@ class ShoppingItemAdapter extends TypeAdapter<ShoppingItem> {
 
 class ShoppingListAdapter extends TypeAdapter<ShoppingList> {
   @override
-  final int typeId = 1;
+  final int typeId = 4;
 
   @override
   ShoppingList read(BinaryReader reader) {
@@ -69,15 +69,24 @@ class ShoppingListAdapter extends TypeAdapter<ShoppingList> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return ShoppingList(
-      items: (fields[0] as List).cast<ShoppingItem>(),
+      ownerUid: fields[0] as String,
+      groupId: fields[1] as String,
+      groupName: fields[2] as String,
+      items: (fields[3] as List).cast<ShoppingItem>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, ShoppingList obj) {
     writer
-      ..writeByte(1)
+      ..writeByte(4)
       ..writeByte(0)
+      ..write(obj.ownerUid)
+      ..writeByte(1)
+      ..write(obj.groupId)
+      ..writeByte(2)
+      ..write(obj.groupName)
+      ..writeByte(3)
       ..write(obj.items);
   }
 
