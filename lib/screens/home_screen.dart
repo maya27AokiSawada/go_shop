@@ -12,7 +12,7 @@ class HomeScreen extends ConsumerWidget {
     final pageIndex = ref.watch(pageIndexProvider);
     final List<Widget> pages = [
     const HomePage(),
-    const PurchaseGroupPage(),
+//    const PurchaseGroupPage(),
     const ShoppingListPage(),
   ];
 
@@ -25,9 +25,9 @@ class HomeScreen extends ConsumerWidget {
        },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'ホーム'),
-          BottomNavigationBarItem(icon: Icon(Icons.group), label: 'グループ'),
+      //    BottomNavigationBarItem(icon: Icon(Icons.group), label: 'グループ'),
           BottomNavigationBarItem(icon: Icon(Icons.list), label: '買い物リスト'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: '設定'),
+//          BottomNavigationBarItem(icon: Icon(Icons.settings), label: '設定'),
         ],
       ),
     );

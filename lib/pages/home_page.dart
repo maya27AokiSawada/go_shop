@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
+import 'package:state_notifier/state_notifier.dart';
 import '../forms/sign_up_form.dart';
 import '../providers/auth_provider.dart';
+import '../providers/purchase_group_provider.dart';
+import '../models/purchase_group.dart';
 
-  
-// login Information input form isVisible
-final showFormProvider = StateProvider<bool>((ref) => false);
+// 状態管理用のNotifier
+
+
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
@@ -37,8 +39,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
-    final isVisible = ref.watch(showFormProvider);
-
+    bool isFormVisible = false;
     return Scaffold(
     appBar: AppBar(title: const Text('Go Shopping')),
     body: Center(
@@ -55,33 +56,34 @@ class _HomePageState extends ConsumerState<HomePage> {
                       controller: userNameController,
                       decoration: const InputDecoration(labelText: 'User Name'),
                     ),
-                    if (!isVisible)
+                    if (!isFormVisible)
                       ElevatedButton(
                         onPressed: () { // サインイン用入力フォーム表示
-                          ref.read(showFormProvider.notifier).state = true;
+                          isFormVisible = true;
                         },
                         child: const Text('ログイン / サインアップ'),
                       ),
-                    if (isVisible) SignUpForm(),                
+                    if (isFormVisible) SignUpForm(),                    
+                    ElevatedButton(
+                      onPressed: () async => await userInfoSave(),
+                      child: const Text('保存')
+                    ),
                   ],
                 );
               } else {
                 // ログイン済みUI
-                return Scaffold(
-                  body: Column(
-                    children: [
-                      TextField(
-                        controller: userNameController,
-                        decoration: const InputDecoration(labelText: 'User Name'),
-                      ),
-                      ElevatedButton(
-                        onPressed: () async {
-                          await ref.read(authProvider).signOut();
-                        },
-                        child: const Text('ログアウト'),
-                      )
-                    ],
-                  ),
+                return Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('ようこそ、${user.email ?? "ユーザー"}さん'),
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: () async {
+                        await ref.read(authProvider).signOut();
+                      },
+                      child: const Text('ログアウト'),
+                    ),
+                  ],
                 );
               }
             },
@@ -93,4 +95,49 @@ class _HomePageState extends ConsumerState<HomePage> {
     ),
   );
   }
+
+  Future<void> userInfoSave() async {
+  final userName = userNameController.text;
+  
+  if (userName.isNotEmpty && email.isNotEmpty) {
+    try {
+      // デフォルトグループを作成
+      final defaultGroup = PurchaseGroup(
+        groupId: 'defaultGroup',
+        groupName: 'あなたのグループ',
+        members: [
+          PurchaseGroupMember(
+            name: 'あなた',
+            contact: '',
+            role: PurchaseGroupRole.leader,
+          )
+        ],
+      );
+      
+      // Hiveボックスにセーブ
+      await ref.read(saveDefaultGroupProvider(defaultGroup).future);
+      
+      // 成功メッセージ
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('デフォルトグループを保存しました')),
+        );
+      }
+    } catch (e) {
+      // エラーメッセージ
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('保存に失敗しました: $e')),
+        );
+      }
+    }
+  } else {
+    // 入力不足のメッセージ
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ユーザー名とメールアドレスを入力してください')),
+      );
+    }
+  }
+}
 }
