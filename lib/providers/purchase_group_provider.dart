@@ -1,6 +1,5 @@
 // lib/providers/purchase_group_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive/hive.dart';
 import '../models/purchase_group.dart';
 import '../flavors.dart';
 import '../datastore/purchase_group_repository.dart';
@@ -15,32 +14,6 @@ final purchaseGroupRepositoryProvider = Provider<PurchaseGroupRepository>((ref) 
   } else {
     return HivePurchaseGroupRepository(ref);  
   }
-});
-
-// PurchaseGroupBoxのプロバイダー
-final purchaseGroupBoxProvider = FutureProvider<Box<PurchaseGroup>>((ref) async {
-  final box = await Hive.openBox<PurchaseGroup>('purchaseGroups');
-  return box;
-});
-
-// 特定のgroupIdを持つグループを取得するプロバイダー
-final purchaseGroupByIdProvider = FutureProvider.family<PurchaseGroup?, String>((ref, groupId) async {
-  final box = await ref.watch(purchaseGroupBoxProvider.future);
-  return box.get(groupId);
-});
-
-// すべてのグループを取得するプロバイダー
-final allPurchaseGroupsProvider = FutureProvider<List<PurchaseGroup>>((ref) async {
-  final box = await ref.watch(purchaseGroupBoxProvider.future);
-  return box.values.toList();
-});
-
-// 条件で絞り込むプロバイダー（グループ名で検索）
-final purchaseGroupsByNameProvider = FutureProvider.family<List<PurchaseGroup>, String>((ref, namePattern) async {
-  final box = await ref.watch(purchaseGroupBoxProvider.future);
-  return box.values
-      .where((group) => group.groupName.contains(namePattern))
-      .toList();
 });
 
 // 現在のグループを管理するProvider
