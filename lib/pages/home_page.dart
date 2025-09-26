@@ -23,16 +23,16 @@ class _HomePageState extends ConsumerState<HomePage> {
     super.dispose();
   }
 
-  @override
-  void initState() {
-    super.initState();
-    // 開発中メッセージを表示
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('開発中')),
-      );
-    });
-  }
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   // 開発中メッセージを表示
+  //   WidgetsBinding.instance.addPostFrameCallback((_) {
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       SnackBar(content: Text('開発中')),
+  //     );
+  //   });
+  // }
 
   @override
   Widget build(BuildContext context) {
