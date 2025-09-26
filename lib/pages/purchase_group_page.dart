@@ -97,10 +97,13 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                     // 保存処理
                     final notifier = ref.read(purchaseGroupProvider.notifier);
                       // グループ情報の保存（非同期）
-                    await notifier.updateGroup(PurchaseGroup(groupName: groupNameController.text,
+                    await notifier.updateGroup(PurchaseGroup.create(
+                      groupName: groupNameController.text,
                       members: [
-                        PurchaseGroupMember(name: userNameController.text,
-                          contact: emailController.text, role: PurchaseGroupRole.leader),...[]
+                        PurchaseGroupMember.create(
+                          name: userNameController.text,
+                          contact: emailController.text, 
+                          role: PurchaseGroupRole.leader),
                       ]));
                     if(context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(

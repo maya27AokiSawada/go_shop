@@ -64,11 +64,11 @@ class PurchaseGroupAdapter extends TypeAdapter<PurchaseGroup> {
     };
     return PurchaseGroup(
       groupName: fields[0] as String,
+      groupId: fields[1] as String,
       ownerName: fields[2] as String?,
       ownerEmail: fields[3] as String?,
-      members: (fields[5] as List?)?.cast<PurchaseGroupMember>(),
       ownerUid: fields[4] as String?,
-      groupId: fields[1] as String?,
+      members: (fields[5] as List?)?.cast<PurchaseGroupMember>(),
     );
   }
 

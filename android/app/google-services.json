@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "895658199748",
+    "project_id": "gotoshop-572b7",
+    "storage_bucket": "gotoshop-572b7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:895658199748:android:285106960feb149318d791",
+        "android_client_info": {
+          "package_name": "com.example.go_shop"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCiPnY6GaBSrUfnCkFzJu-Y3p7D8Cqg1aI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:895658199748:android:763e86cacf571dd218d791",
+        "android_client_info": {
+          "package_name": "net.sumomo_planning.goshopping"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCiPnY6GaBSrUfnCkFzJu-Y3p7D8Cqg1aI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:895658199748:android:9b5e162d2d6220e218d791",
+        "android_client_info": {
+          "package_name": "net.sumomo_planning.gotoshop"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCiPnY6GaBSrUfnCkFzJu-Y3p7D8Cqg1aI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
