@@ -8,6 +8,12 @@ import 'flavors.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  Hive.initFlutter();
+  Hive.registerAdapter(PurchaseGroupRoleAdapter());
+  Hive.registerAdapter(PurchaseGroupMemberAdapter());
+  Hive.registerAdapter(PurchaseGroupAdapter());
+  Hive.registerAdapter(ShoppingItemAdapter());
+  Hive.registerAdapter(ShoppingListAdapter());
   
   // フレーバーの設定
   F.appFlavor = Flavor.dev;
