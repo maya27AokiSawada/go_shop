@@ -1,7 +1,9 @@
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
 part 'purchase_group.g.dart';
+part 'purchase_group.freezed.dart';
 
 final uuid = const Uuid();
 // 家族の役割を定義するenum
@@ -16,30 +18,38 @@ enum PurchaseGroupRole {
 }
 
 @HiveType(typeId: 1)
-class PurchaseGroupMember {
-  @HiveField(0)
-  String memberId;
-  @HiveField(1)
-  String name;
-  @HiveField(2)
-  String contact;
-  @HiveField(3)
-  PurchaseGroupRole role;
-  @HiveField(4)
-  bool isSignedIn;
+@freezed
+class PurchaseGroupMember with _$PurchaseGroupMember {
+  const factory PurchaseGroupMember({
+    @HiveField(0) @Default('') String memberId,
+    @HiveField(1) required String name,
+    @HiveField(2) required String contact,
+    @HiveField(3) required PurchaseGroupRole role,
+    @HiveField(4) @Default(false) bool isSignedIn,
+  }) = _PurchaseGroupMember;
   
-  PurchaseGroupMember({
-    this.memberId = '',
-    required this.name,
-    required this.contact,
-    required this.role,
-    this.isSignedIn = false,
+  // カスタムコンストラクタでmemberIdを自動生成
+  factory PurchaseGroupMember.create({
+    String? memberId,
+    required String name,
+    required String contact,
+    required PurchaseGroupRole role,
+    bool isSignedIn = false,
   }) {
-    memberId = memberId.isNotEmpty ? memberId : uuid.v4();
+    return PurchaseGroupMember(
+      memberId: memberId?.isNotEmpty == true ? memberId! : uuid.v4(),
+      name: name,
+      contact: contact,
+      role: role,
+      isSignedIn: isSignedIn,
+    );
   }
+}
 
-  //
-  PurchaseGroupMember copyWith({
+// 拡張メソッドでcopyWithをHive用に追加
+extension PurchaseGroupMemberExtension on PurchaseGroupMember {
+  // Hive のアダプターに対応するためのメソッド
+  PurchaseGroupMember copyWithExtra({
     String? name,
     String? memberId,
     String? contact,
@@ -57,76 +67,63 @@ class PurchaseGroupMember {
 }
   
 
-/// 家族メンバーのデータを管理するクラス
-/// @JsonSerializable()アノテーションを追加
+/// グループのデータを管理するクラス
 @HiveType(typeId: 2)
-class PurchaseGroup {
-  @HiveField(0)
-  String groupName;
-  @HiveField(1)
-  String groupId;
-  @HiveField(2)
-  String? ownerName;
-  @HiveField(3)
-  String? ownerEmail;
-  @HiveField(4)
-  String? ownerUid;
-  @HiveField(5)
-  List<PurchaseGroupMember>? members;
+@freezed
+class PurchaseGroup with _$PurchaseGroup {
+  const factory PurchaseGroup({
+    @HiveField(0) required String groupName,
+    @HiveField(1) required String groupId,
+    @HiveField(2) String? ownerName,
+    @HiveField(3) String? ownerEmail,
+    @HiveField(4) String? ownerUid,
+    @HiveField(5) List<PurchaseGroupMember>? members,
+  }) = _PurchaseGroup;
 
-  // 新しい購入グループを作成するためのコンストラクタ
-  PurchaseGroup({
-    required this.groupName,
-    this.ownerName,
-    this.ownerEmail,
-    required this.members,
+  // カスタムコンストラクタでIDを自動生成
+  factory PurchaseGroup.create({
+    required String groupName,
+    String? ownerName,
+    String? ownerEmail,
+    required List<PurchaseGroupMember>? members,
     String? ownerUid,
     String? groupId,
-  }) : ownerUid = ownerUid ?? uuid.v4(),
-       groupId = groupId ?? uuid.v4();
+  }) {
+    return PurchaseGroup(
+      groupName: groupName,
+      groupId: groupId ?? uuid.v4(),
+      ownerName: ownerName,
+      ownerEmail: ownerEmail,
+      ownerUid: ownerUid ?? uuid.v4(),
+      members: members,
+    );
+  }
+}
 
+// 拡張メソッドでaddMemberとremoveMemberを追加
+extension PurchaseGroupExtension on PurchaseGroup {
   // 新しいメンバーを追加するメソッド
   PurchaseGroup addMember(PurchaseGroupMember member) {
-    // 新しいmemberIDを生成（既存メンバーの最大ID + 1）
-    // 新しいメンバーを作成（指定されたメンバー情報にnewMemberIdを設定）
-    // 新しいPurchaseGroupインスタンスを返す
     if (members == null) {
-      return PurchaseGroup(
-        groupName: groupName,
-        groupId: groupId,
-        members: [PurchaseGroupMember(
-          name: member.name,
-          contact: member.contact,
-          role: member.role,
-          memberId: member.memberId
-        )],
+      return copyWith(
+        members: [member],
       );
     } else {
-      return PurchaseGroup(
-        groupName: groupName,
-        groupId: groupId,
-        members: [...members!, PurchaseGroupMember(
-          name: member.name,
-          contact: member.contact,
-          role: member.role,
-          memberId: member.memberId
-        )],
+      return copyWith(
+        members: [...members!, member],
       );
     }
   }
 
   PurchaseGroup removeMember(PurchaseGroupMember member) {
-    return PurchaseGroup(
-      groupName: groupName,
-      groupId: groupId,
-      ownerName: ownerName,
-      ownerEmail: ownerEmail,
-      ownerUid: ownerUid,
+    if (members == null) return this;
+    return copyWith(
       members: members!.where((m) => m != member).toList(),
     );
   }
 
-  PurchaseGroup copyWith({
+  // Hive のアダプターに対応するためのメソッド
+  PurchaseGroup copyWithExtra({
     String? groupName,
     String? groupId,
     String? ownerName,
