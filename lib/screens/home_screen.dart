@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/page_index_provider.dart';
 import '../pages/home_page.dart';
-import '../pages/purchase_group_page.dart';
+// 当面はグループページは使用しない　firestore対応時に実装
+// import '../pages/purchase_group_page.dart';
 import '../pages/shopping_list_page.dart';
 
 class HomeScreen extends ConsumerWidget {

@@ -1,17 +1,15 @@
-// lib/providers/navigation_provider.dart
+// lib/providers/page_index_provider.dart
 
-import 'package:flutter_riverpod/legacy.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+part 'page_index_provider.g.dart';
 
-class PageIndexNotifier extends StateNotifier<int> {
-  // コンストラクタで初期値を0に設定
-  PageIndexNotifier() : super(0);
+@riverpod
+class PageIndexProvider extends _$PageIndexProvider {
+  @override
+  int build() => 0;
 
-  // pageIndexの値を更新するメソッド
-  void setPageIndex(int newIndex) {
-    state = newIndex;
+  void setPageIndex(int index) {
+    state = index;
   }
-  int getState() => state;
 }
-final pageIndexProvider = StateNotifierProvider<PageIndexNotifier, int>((ref) {
-  return PageIndexNotifier();
-});

@@ -2,15 +2,18 @@
 import '../models/purchase_group.dart';
 
 abstract class PurchaseGroupRepository {
-  Future<PurchaseGroup> initializeGroup();
-  Future<PurchaseGroup> addMember(PurchaseGroupMember member);
-  Future<PurchaseGroup> removeMember(PurchaseGroupMember member);
-  Future<PurchaseGroup> setMemberId(PurchaseGroupMember member, String newId);
-  Future<PurchaseGroup> updateMembers(List<PurchaseGroupMember> members);
+// firestore対応するまでgroupIdはdefaultGroupで固定
+  Future<PurchaseGroup> addMember(String groupId, PurchaseGroupMember member);
+  Future<PurchaseGroup> removeMember(String groupId, PurchaseGroupMember member);
+  Future<PurchaseGroup> updateMembers(String groupId, List<PurchaseGroupMember> members);
   Future<List<PurchaseGroup>> getAllGroups();
   Future<PurchaseGroup> createGroup(String groupId, String groupName, PurchaseGroupMember member);
   Future<PurchaseGroup> deleteGroup(String groupId);
-  Future<PurchaseGroup> setMyId(String myId);
+// setMemberIdはユーザーがログインした際に確定したuidを仮のuuidから置き換えるために使用
+//　purchaseGroup全体のcontactもしくは仮uuidが一致するメンバーを更新
+// defaultGroupのみの当面は実装しない。
+// ToDo　firestore対応時に実装　
+  Future<PurchaseGroup> setMemberId(String oldId, String newId, String? contact);
   Future<PurchaseGroup> getGroup(String groupId);
-  Future<PurchaseGroup> updateGroup(PurchaseGroup group);
+  Future<PurchaseGroup> updateGroup(String groupId, PurchaseGroup group);
 }
