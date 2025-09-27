@@ -6,9 +6,6 @@ import '../providers/auth_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../models/purchase_group.dart';
 
-// 状態管理用のNotifier
-
-
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
