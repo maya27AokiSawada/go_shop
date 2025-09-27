@@ -20,7 +20,7 @@ class ShoppingItemAdapter extends TypeAdapter<ShoppingItem> {
       memberId: fields[0] as String,
       name: fields[1] as String,
       quantity: fields[2] as int,
-      registeredDate: fields[3] as DateTime?,
+      registeredDate: fields[3] as DateTime,
       purchaseDate: fields[4] as DateTime?,
       isPurchased: fields[5] as bool,
       shoppingInterval: fields[6] as int,

@@ -1,19 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:hive/hive.dart';
 import '../models/purchase_group.dart';
 import '../datastore/purchase_group_repository.dart';
 import '../flavors.dart';
-part 'hive_purchase_group_repository.g.dart';
 
 final String currentGroupId = F.appFlavor
   == Flavor.dev ? 'currentGroup' : 'currentGroup';
 
-@Riverpod(keepAlive: true) // Boxはアプリケーション全体で保持するためkeepAlive: true
-Future<Box<PurchaseGroup>> purchaseGroupBox(PurchaseGroupBoxRef ref) async {
-  // Boxを開く
+// シンプルなFutureProviderでBoxを提供
+final purchaseGroupBoxProvider = FutureProvider<Box<PurchaseGroup>>((ref) async {
   return Hive.openBox<PurchaseGroup>('purchaseGroups');
-}
+});
 
 class HivePurchaseGroupRepository implements PurchaseGroupRepository {
   final Ref ref;

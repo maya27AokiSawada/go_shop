@@ -1,23 +1,19 @@
 // lib/providers/purchase_group_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../models/purchase_group.dart';
 import '../flavors.dart';
 import '../datastore/purchase_group_repository.dart';
 import '../datastore/hive_purchase_group_repository.dart';
 
-// PurchaseGroupRepositoryのプロバイダー
-final purchaseGroupRepositoryProvider = Provider<PurchaseGroupRepository>((ref) {
-  // 例: flavorや設定値で切り替え
-  if (F.appFlavor == Flavor.prod) {
-    // return FirestorePurchaseGroupRepository(ref);
-    throw UnimplementedError('FirestorePurchaseGroupRepository is not implemented yet');
-  } else {
-    return HivePurchaseGroupRepository(ref);  
+@riverpod
+class AllGroups extends _$AllGroups {
+  @override
+  Future<List<PurchaseGroup>> build() async {
+    
+    return await repository.getAllGroups();
   }
-});
-
-// 現在のグループを管理するProvider
-final currentGroupIdProvider = Provider<String>((ref) => 'currentGroup');
+}
 
 // PurchaseGroupの状態を管理するAsyncNotifierProvider
 final purchaseGroupProvider = AsyncNotifierProvider<PurchaseGroupNotifier, PurchaseGroup>(
@@ -106,6 +102,12 @@ class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
     }
   }
 }
+
+// defaultGroupを取得するプロバイダー
+final defaultGroupProvider = FutureProvider<PurchaseGroup>((ref) async {
+  final repository = ref.read(purchaseGroupRepositoryProvider);
+  return await repository.getGroup('defaultGroup');
+});
 
 // すべてのグループを取得するプロバイダー
 final allGroupsProvider = FutureProvider<List<PurchaseGroup>>((ref) async {
