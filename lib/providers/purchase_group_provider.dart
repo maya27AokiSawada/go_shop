@@ -1,31 +1,15 @@
 // lib/providers/purchase_group_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
-import '../models/purchase_group.dart';
-import '../flavors.dart';
-import '../datastore/purchase_group_repository.dart';
 import '../datastore/hive_purchase_group_repository.dart';
-
-@riverpod
-class AllGroups extends _$AllGroups {
-  @override
-  Future<List<PurchaseGroup>> build() async {
-    
-    return await repository.getAllGroups();
-  }
-}
+import '../models/purchase_group.dart';
 
 // PurchaseGroupの状態を管理するAsyncNotifierProvider
-final purchaseGroupProvider = AsyncNotifierProvider<PurchaseGroupNotifier, PurchaseGroup>(
-  () => PurchaseGroupNotifier(),
-);
-
 class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
   @override
   Future<PurchaseGroup> build() async {
     final repository = ref.read(purchaseGroupRepositoryProvider);
     final currentGroupId = ref.read(currentGroupIdProvider);
-    return await repository.getGroup(currentGroupId);
+    return await repository.getGroupById(currentGroupId);
   }
 
   // グループを更新
@@ -33,7 +17,7 @@ class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
     state = const AsyncValue.loading();
     try {
       final repository = ref.read(purchaseGroupRepositoryProvider);
-      final updatedGroup = await repository.updateGroup(group);
+      final updatedGroup = await repository.updateGroup(group.groupId, group);
       state = AsyncValue.data(updatedGroup);
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
@@ -59,7 +43,7 @@ class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
     state = const AsyncValue.loading();
     try {
       final repository = ref.read(purchaseGroupRepositoryProvider);
-      final updatedGroup = await repository.setMyId(myId);
+      final updatedGroup = await repository.setMemberId('tempId', myId, null);
       state = AsyncValue.data(updatedGroup);
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
@@ -90,23 +74,30 @@ class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
     }
   }
 
-  // メンバーを更新
+  // メンバーを更新（カスタム実装）
   Future<void> updateMembers(List<PurchaseGroupMember> members) async {
     state = const AsyncValue.loading();
     try {
+      final currentGroup = await future;
+      final updatedGroup = currentGroup.copyWith(members: members);
       final repository = ref.read(purchaseGroupRepositoryProvider);
-      final updatedGroup = await repository.updateMembers(members);
-      state = AsyncValue.data(updatedGroup);
+      final result = await repository.updateGroup(updatedGroup.groupId, updatedGroup);
+      state = AsyncValue.data(result);
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
     }
   }
 }
 
+// PurchaseGroupNotifierのプロバイダー
+final purchaseGroupProvider = AsyncNotifierProvider<PurchaseGroupNotifier, PurchaseGroup>(
+  () => PurchaseGroupNotifier(),
+);
+
 // defaultGroupを取得するプロバイダー
 final defaultGroupProvider = FutureProvider<PurchaseGroup>((ref) async {
   final repository = ref.read(purchaseGroupRepositoryProvider);
-  return await repository.getGroup('defaultGroup');
+  return await repository.getGroupById('defaultGroup');
 });
 
 // すべてのグループを取得するプロバイダー
