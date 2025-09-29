@@ -1,25 +1,32 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/purchase_group.dart';
 import '../datastore/purchase_group_repository.dart';
 import '../providers/hive_provider.dart';
-import '../flavors.dart';
 
 class HivePurchaseGroupRepository implements PurchaseGroupRepository {
-  final Ref ref;
-  
-  HivePurchaseGroupRepository(this.ref);
-  
-  Box<PurchaseGroup> get box => ref.read(purchaseGroupBoxProvider);
-  
-  @override
-  Future<List<PurchaseGroup>> getAllGroups() async {
-    return box.values.toList();
+  // Riverpod Refを使用してBoxにアクセス
+  final Ref _ref;
+
+  // コンストラクタでRefを受け取る
+  HivePurchaseGroupRepository(this._ref);
+
+  // Boxへのアクセスをプロバイダ経由で取得
+  Box<PurchaseGroup> get _box => _ref.read(purchaseGroupBoxProvider);
+
+  // CRUDメソッド
+  Future<void> saveGroup(PurchaseGroup group) async {
+    await _box.put(group.groupId, group);
   }
 
   @override
-  Future<PurchaseGroup> getGroup(String groupId) async {
-    final group = box.get(groupId);
+  Future<List<PurchaseGroup>> getAllGroups() async {
+    return _box.values.toList();
+  }
+
+  @override
+  Future<PurchaseGroup> getGroupById(String groupId) async {
+    final group =  _box.get(groupId);
     if (group != null) {
       return group;
     }
@@ -28,16 +35,16 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
 
   @override
   Future<PurchaseGroup> updateGroup(String groupId, PurchaseGroup group) async {
-    await box.put(groupId, group);
+    await _box.put(groupId, group);
     return group;
   }
 
   @override
   Future<PurchaseGroup> addMember(String groupId, PurchaseGroupMember member) async {
-    final group = box.get(groupId);
+    final group = _box.get(groupId);
     if (group != null) {
       final updatedGroup = group.addMember(member);
-      await box.put(groupId, updatedGroup);
+      await _box.put(groupId, updatedGroup);
       return updatedGroup;
     }
     throw Exception('Group not found');
@@ -45,21 +52,10 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
 
   @override
   Future<PurchaseGroup> removeMember(String groupId, PurchaseGroupMember member) async {
-    final group = box.get(groupId);
+    final group = _box.get(groupId);
     if (group != null) {
       final updatedGroup = group.removeMember(member);
-      await box.put(groupId, updatedGroup);
-      return updatedGroup;
-    }
-    throw Exception('Group not found');
-  }
-
-  @override
-  Future<PurchaseGroup> updateMembers(String groupId, List<PurchaseGroupMember> members) async {
-    final group = box.get(groupId);
-    if (group != null) {
-      final updatedGroup = group.copyWith(members: members);
-      await box.put(groupId, updatedGroup);
+      await _box.put(groupId, updatedGroup);
       return updatedGroup;
     }
     throw Exception('Group not found');
@@ -72,15 +68,15 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
       groupName: groupName,
       members: [member],
     );
-    await box.put(groupId, newGroup);
+    await _box.put(groupId, newGroup);
     return newGroup;
   }
 
   @override
   Future<PurchaseGroup> deleteGroup(String groupId) async {
-    final group = box.get(groupId);
+    final group = _box.get(groupId);
     if (group != null) {
-      await box.delete(groupId);
+      await _box.delete(groupId);
       return group;
     }
     throw Exception('Group not found');
@@ -89,7 +85,7 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
   @override
   Future<PurchaseGroup> setMemberId(String oldId, String newId, String? contact) async {
     const groupId = 'defaultGroup';
-    final group = box.get(groupId);
+    final group = _box.get(groupId);
     if (group != null) {
       final updatedMembers = group.members?.map((member) {
         if (member.memberId == oldId || member.contact == contact) {
@@ -98,26 +94,42 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
         return member;
       }).toList();
       final updatedGroup = group.copyWith(members: updatedMembers);
-      await box.put(groupId, updatedGroup);
+      await _box.put(groupId, updatedGroup);
       return updatedGroup;
     }
     throw Exception('Default group not found');
   }
+
+  Future<PurchaseGroup> updateMembers(String groupId, List<PurchaseGroupMember> members) async {
+    final group = _box.get(groupId);
+    if (group != null) {
+      final updatedGroup = group.copyWith(members: members);
+      await _box.put(groupId, updatedGroup);
+      return updatedGroup;
+    }
+    throw Exception('Group not found');
+  }
+
+  Future<PurchaseGroup> getGroup(String groupId) async {
+    return await getGroupById(groupId);
+  }
 }
 
 // HivePurchaseGroupRepositoryのプロバイダー
-final hivePurchaseGroupRepositoryProvider = Provider<PurchaseGroupRepository>((ref) {
+final hivePurchaseGroupRepositoryProvider = Provider<HivePurchaseGroupRepository>((ref) {
   return HivePurchaseGroupRepository(ref);
 });
 
-// 環境に応じたリポジトリプロバイダー
+// 抽象インターフェース用のプロバイダー
 final purchaseGroupRepositoryProvider = Provider<PurchaseGroupRepository>((ref) {
-  if (F.appFlavor == Flavor.prod) {
-    throw UnimplementedError('FirestorePurchaseGroupRepository is not implemented yet');
-  } else {
-    return ref.read(hivePurchaseGroupRepositoryProvider);
-  }
+  return ref.read(hivePurchaseGroupRepositoryProvider);
 });
 
-// 現在のグループIDプロバイダー
+// 現在のグループIDプロバイダー（デフォルトグループ用）
 final currentGroupIdProvider = Provider<String>((ref) => 'defaultGroup');
+
+// デフォルトグループ保存用のプロバイダー
+final saveDefaultGroupProvider = FutureProvider.family<void, PurchaseGroup>((ref, group) async {
+  final repository = ref.read(purchaseGroupRepositoryProvider);
+  await repository.updateGroup(group.groupId, group);
+});

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:state_notifier/state_notifier.dart';
 import '../forms/sign_up_form.dart';
 import '../providers/auth_provider.dart';
 import '../providers/purchase_group_provider.dart';
@@ -15,6 +14,7 @@ class HomePage extends ConsumerStatefulWidget {
 
 class _HomePageState extends ConsumerState<HomePage> {
   final userNameController = TextEditingController();
+  bool isFormVisible = false;
 
   @override
   void dispose() {
@@ -36,7 +36,6 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
-    bool isFormVisible = false;
     return Scaffold(
     appBar: AppBar(title: const Text('Go Shopping')),
     body: Center(
@@ -56,7 +55,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                     if (!isFormVisible)
                       ElevatedButton(
                         onPressed: () { // サインイン用入力フォーム表示
-                          isFormVisible = true;
+                          setState(() {
+                            isFormVisible = true;
+                          });
                         },
                         child: const Text('ログイン / サインアップ'),
                       ),
@@ -96,7 +97,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   Future<void> userInfoSave() async {
   final userName = userNameController.text;
   
-  if (userName.isNotEmpty && email.isNotEmpty) {
+  if (userName.isNotEmpty) {
     try {
       // デフォルトグループを作成
       final defaultGroup = PurchaseGroup(
@@ -104,17 +105,13 @@ class _HomePageState extends ConsumerState<HomePage> {
         groupName: 'あなたのグループ',
         members: [
           PurchaseGroupMember(
-            name: 'あなた',
+            name: userName,
             contact: '',
             role: PurchaseGroupRole.leader,
           )
         ],
       );
-      
-      // Hiveボックスにセーブ
-      await ref.read(saveDefaultGroupProvider(defaultGroup).future);
-      
-      // 成功メッセージ
+      await ref.read(purchaseGroupProvider.notifier).updateGroup(defaultGroup);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('デフォルトグループを保存しました')),
@@ -132,7 +129,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     // 入力不足のメッセージ
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('ユーザー名とメールアドレスを入力してください')),
+        const SnackBar(content: Text('ユーザー名を入力してください')),
       );
     }
   }

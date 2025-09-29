@@ -15,6 +15,7 @@ class PurchaseGroupPage extends ConsumerStatefulWidget {
 }
 
 class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
+
   late TextEditingController groupNameController;
   @override
   Widget build(BuildContext context) {
