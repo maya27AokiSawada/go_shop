@@ -31,29 +31,44 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
             child: Column(
               children: [
                 Expanded(
-                  child: ListView.builder(
-                    itemCount: purchaseGroup.members.length,
-                    itemBuilder: (context, index) {
-                      final member = purchaseGroup.members[index];
-                      return MemberListTile(
-                        member: member,
-                        onTap: () async {
-                          final editedMember = await showDialog<PurchaseGroupMember>(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              content: PurchaseGroupMemberForm(),
-                            ),
-                          );
-                          if (editedMember != null) {
-                            final updatedMembers = List<PurchaseGroupMember>.from(purchaseGroup.members);
-                            updatedMembers[index] 
-                              = editedMember.copyWith(memberID: member.memberID);
-                            ref.read(purchaseGroupProvider.notifier).updateMembers(updatedMembers);
-                          }
-                        },
-                      );
-                    },
-                  ),
+                  child: (purchaseGroup.members?.isEmpty ?? true)
+                      ? const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.group_add, size: 64, color: Colors.grey),
+                              SizedBox(height: 16),
+                              Text(
+                                'メンバーがいません\n新しいメンバーを追加してください',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: purchaseGroup.members!.length,
+                          itemBuilder: (context, index) {
+                            final member = purchaseGroup.members![index];
+                            return MemberListTile(
+                              member: member,
+                              onTap: () async {
+                                final editedMember = await showDialog<PurchaseGroupMember>(
+                                  context: context,
+                                  builder: (context) => const AlertDialog(
+                                    content: PurchaseGroupMemberForm(),
+                                  ),
+                                );
+                                if (editedMember != null) {
+                                  final updatedMembers = List<PurchaseGroupMember>.from(purchaseGroup.members ?? []);
+                                  updatedMembers[index] 
+                                    = editedMember.copyWith(memberId: member.memberId);
+                                  await ref.read(purchaseGroupProvider.notifier).updateMembers(updatedMembers);
+                                }
+                              },
+                            );
+                          },
+                        ),
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(
@@ -66,13 +81,23 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                       );
                       return;
                     }
-                    // 保存処理
-                    // 必要ならProviderのsaveメソッドを呼ぶ
-                    await ref.read(purchaseGroupProvider.notifier).updateMembers(updatedGroup.members);
-                    ref.read(purchaseGroupProvider.notifier).state = AsyncValue.data(updatedGroup);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('保存しました')),
-                    );
+                    // 保存処理（現在のグループを保存）
+                    try {
+                      await ref.read(purchaseGroupProvider.notifier).updateGroup(purchaseGroup);
+                      if (mounted) {
+                        // ignore: use_build_context_synchronously
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('保存しました')),
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        // ignore: use_build_context_synchronously
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('保存に失敗しました: $e')),
+                        );
+                      }
+                    }
                   },
                   child: const Text('保存'),
                 ),

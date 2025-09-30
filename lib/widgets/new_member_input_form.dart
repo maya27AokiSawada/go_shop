@@ -62,7 +62,9 @@ class _PurchaseGroupMemberFormState extends ConsumerState<PurchaseGroupMemberFor
           RadioListTile<PurchaseGroupRole>(
             title: const Text('親'),
             value: PurchaseGroupRole.parent,
+            // ignore: deprecated_member_use
             groupValue: _selectedRole,
+            // ignore: deprecated_member_use
             onChanged: (PurchaseGroupRole? value) {
               setState(() {
                 _selectedRole = value ?? PurchaseGroupRole.child;
@@ -72,7 +74,9 @@ class _PurchaseGroupMemberFormState extends ConsumerState<PurchaseGroupMemberFor
           RadioListTile<PurchaseGroupRole>(
             title: const Text('子'),
             value: PurchaseGroupRole.child,
+            // ignore: deprecated_member_use
             groupValue: _selectedRole,
+            // ignore: deprecated_member_use
             onChanged: (PurchaseGroupRole? value) {
               setState(() {
                 _selectedRole = value ?? PurchaseGroupRole.child;

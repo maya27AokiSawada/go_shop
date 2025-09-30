@@ -68,6 +68,7 @@ dev_dependencies:
   # Linting
   lints: ^2.1.1
   custom_lint: ^0.5.11
+  flutter_lints: ^2.0.3
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
