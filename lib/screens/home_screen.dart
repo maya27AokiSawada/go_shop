@@ -11,6 +11,7 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final pageIndex = ref.watch(pageIndexProvider);
+    ref.watch(isFormVisibleProvider);
     final List<Widget> pages = [
     const HomePage(),
 //    const PurchaseGroupPage(),

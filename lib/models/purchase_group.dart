@@ -5,7 +5,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'purchase_group.g.dart';
 part 'purchase_group.freezed.dart';
 
-final uuid = const Uuid();
+const uuid = Uuid();
 // 家族の役割を定義するenum
 @HiveType(typeId: 0)
 enum PurchaseGroupRole {

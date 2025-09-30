@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../providers/page_index_provider.dart';
+import '../flavors.dart';
 class SignUpForm extends ConsumerStatefulWidget {
   const SignUpForm({super.key});
 
@@ -63,8 +64,14 @@ class _SignUpFormState extends ConsumerState<SignUpForm> {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
       try{
-        await ref.read(authProvider).signUp(_email, _password);
+        final user = await ref.read(authProvider).signUp(_email, _password);
         if (!mounted) return;
+        
+        // Mock環境では状態を更新
+        if (F.appFlavor == Flavor.dev && user != null) {
+          ref.read(mockAuthStateProvider.notifier).state = user;
+        }
+        
         ref.read(pageIndexProvider.notifier).setPageIndex(0);
         Navigator.of(context).pop();
       } catch (e) {
@@ -84,10 +91,61 @@ class _SignUpFormState extends ConsumerState<SignUpForm> {
         ref.read(pageIndexProvider.notifier).setPageIndex(0);
         Navigator.of(context).pop();
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Sign In Failed: $e')),
-        );
+        // サインイン失敗時にサインアップ確認ダイアログを表示
+        if (!mounted) return;
+        _showSignUpConfirmationDialog();
       }
+    }
+  }
+
+  Future<void> _showSignUpConfirmationDialog() async {
+    final bool? shouldSignUp = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('アカウントが見つかりません'),
+          content: Text('メールアドレス "$_email" のアカウントが見つかりませんでした。\n新しいアカウントを作成しますか？'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('キャンセル'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('アカウント作成'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldSignUp == true && mounted) {
+      await _performSignUp();
+    }
+  }
+
+  Future<void> _performSignUp() async {
+    try {
+      final user = await ref.read(authProvider).signUp(_email, _password);
+      if (!mounted) return;
+      
+      // Mock環境では状態を更新
+      if (F.appFlavor == Flavor.dev && user != null) {
+        ref.read(mockAuthStateProvider.notifier).state = user;
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('アカウントを作成しました')),
+      );
+      
+      ref.read(pageIndexProvider.notifier).setPageIndex(0);
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('アカウント作成に失敗しました: $e')),
+      );
     }
   }
 }

@@ -9,7 +9,7 @@ plugins {
 }
 
 android {
-    namespace = "net.sumomo_planning.goshop"
+    namespace = "net.sumomo_planning.go_shop"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -24,7 +24,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "net.sumomo_planning.goshop"
+        applicationId = "net.sumomo_planning.go_shop"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
