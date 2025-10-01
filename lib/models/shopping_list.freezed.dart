@@ -30,7 +30,10 @@ mixin _$ShoppingItem {
   bool get isPurchased =>
       throw _privateConstructorUsedError; // true: 購入済み、 false: 未購入
   @HiveField(6)
-  int get shoppingInterval => throw _privateConstructorUsedError;
+  int get shoppingInterval =>
+      throw _privateConstructorUsedError; // 0:　繰り返し購入ではない　other:　繰り返し購入間隔（日数）
+  @HiveField(7)
+  DateTime? get deadline => throw _privateConstructorUsedError;
 
   @JsonKey(ignore: true)
   $ShoppingItemCopyWith<ShoppingItem> get copyWith =>
@@ -50,7 +53,8 @@ abstract class $ShoppingItemCopyWith<$Res> {
       @HiveField(3) DateTime registeredDate,
       @HiveField(4) DateTime? purchaseDate,
       @HiveField(5) bool isPurchased,
-      @HiveField(6) int shoppingInterval});
+      @HiveField(6) int shoppingInterval,
+      @HiveField(7) DateTime? deadline});
 }
 
 /// @nodoc
@@ -73,6 +77,7 @@ class _$ShoppingItemCopyWithImpl<$Res, $Val extends ShoppingItem>
     Object? purchaseDate = freezed,
     Object? isPurchased = null,
     Object? shoppingInterval = null,
+    Object? deadline = freezed,
   }) {
     return _then(_value.copyWith(
       memberId: null == memberId
@@ -103,6 +108,10 @@ class _$ShoppingItemCopyWithImpl<$Res, $Val extends ShoppingItem>
           ? _value.shoppingInterval
           : shoppingInterval // ignore: cast_nullable_to_non_nullable
               as int,
+      deadline: freezed == deadline
+          ? _value.deadline
+          : deadline // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
     ) as $Val);
   }
 }
@@ -122,7 +131,8 @@ abstract class _$$ShoppingItemImplCopyWith<$Res>
       @HiveField(3) DateTime registeredDate,
       @HiveField(4) DateTime? purchaseDate,
       @HiveField(5) bool isPurchased,
-      @HiveField(6) int shoppingInterval});
+      @HiveField(6) int shoppingInterval,
+      @HiveField(7) DateTime? deadline});
 }
 
 /// @nodoc
@@ -143,6 +153,7 @@ class __$$ShoppingItemImplCopyWithImpl<$Res>
     Object? purchaseDate = freezed,
     Object? isPurchased = null,
     Object? shoppingInterval = null,
+    Object? deadline = freezed,
   }) {
     return _then(_$ShoppingItemImpl(
       memberId: null == memberId
@@ -173,6 +184,10 @@ class __$$ShoppingItemImplCopyWithImpl<$Res>
           ? _value.shoppingInterval
           : shoppingInterval // ignore: cast_nullable_to_non_nullable
               as int,
+      deadline: freezed == deadline
+          ? _value.deadline
+          : deadline // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
     ));
   }
 }
@@ -187,7 +202,8 @@ class _$ShoppingItemImpl implements _ShoppingItem {
       @HiveField(3) required this.registeredDate,
       @HiveField(4) this.purchaseDate,
       @HiveField(5) this.isPurchased = false,
-      @HiveField(6) this.shoppingInterval = 0});
+      @HiveField(6) this.shoppingInterval = 0,
+      @HiveField(7) this.deadline});
 
   @override
   @HiveField(0)
@@ -218,10 +234,14 @@ class _$ShoppingItemImpl implements _ShoppingItem {
   @JsonKey()
   @HiveField(6)
   final int shoppingInterval;
+// 0:　繰り返し購入ではない　other:　繰り返し購入間隔（日数）
+  @override
+  @HiveField(7)
+  final DateTime? deadline;
 
   @override
   String toString() {
-    return 'ShoppingItem(memberId: $memberId, name: $name, quantity: $quantity, registeredDate: $registeredDate, purchaseDate: $purchaseDate, isPurchased: $isPurchased, shoppingInterval: $shoppingInterval)';
+    return 'ShoppingItem(memberId: $memberId, name: $name, quantity: $quantity, registeredDate: $registeredDate, purchaseDate: $purchaseDate, isPurchased: $isPurchased, shoppingInterval: $shoppingInterval, deadline: $deadline)';
   }
 
   @override
@@ -241,12 +261,14 @@ class _$ShoppingItemImpl implements _ShoppingItem {
             (identical(other.isPurchased, isPurchased) ||
                 other.isPurchased == isPurchased) &&
             (identical(other.shoppingInterval, shoppingInterval) ||
-                other.shoppingInterval == shoppingInterval));
+                other.shoppingInterval == shoppingInterval) &&
+            (identical(other.deadline, deadline) ||
+                other.deadline == deadline));
   }
 
   @override
   int get hashCode => Object.hash(runtimeType, memberId, name, quantity,
-      registeredDate, purchaseDate, isPurchased, shoppingInterval);
+      registeredDate, purchaseDate, isPurchased, shoppingInterval, deadline);
 
   @JsonKey(ignore: true)
   @override
@@ -263,7 +285,8 @@ abstract class _ShoppingItem implements ShoppingItem {
       @HiveField(3) required final DateTime registeredDate,
       @HiveField(4) final DateTime? purchaseDate,
       @HiveField(5) final bool isPurchased,
-      @HiveField(6) final int shoppingInterval}) = _$ShoppingItemImpl;
+      @HiveField(6) final int shoppingInterval,
+      @HiveField(7) final DateTime? deadline}) = _$ShoppingItemImpl;
 
   @override
   @HiveField(0)
@@ -286,6 +309,9 @@ abstract class _ShoppingItem implements ShoppingItem {
   @override // true: 購入済み、 false: 未購入
   @HiveField(6)
   int get shoppingInterval;
+  @override // 0:　繰り返し購入ではない　other:　繰り返し購入間隔（日数）
+  @HiveField(7)
+  DateTime? get deadline;
   @override
   @JsonKey(ignore: true)
   _$$ShoppingItemImplCopyWith<_$ShoppingItemImpl> get copyWith =>

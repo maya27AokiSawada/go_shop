@@ -15,6 +15,8 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
   String? selectedListId;
   final _itemNameController = TextEditingController();
   final _quantityController = TextEditingController();
+  DateTime? _selectedDeadline;
+  DateTime? _selectedRepeatDate; // 繰り返し購入日
   bool _isLoading = false;
   
   @override
@@ -126,6 +128,12 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
                 final unpurchasedItems = shoppingList.items.where((item) => !item.isPurchased).toList();
                 final purchasedItems = shoppingList.items.where((item) => item.isPurchased).toList();
                 
+                // 未購入アイテムをdeadlineでソート（期限が近い順）
+                _sortItemsByDeadline(unpurchasedItems);
+                
+                // 購入済みアイテムを購入日でソート（新しい順）
+                _sortPurchasedItemsByDate(purchasedItems);
+                
                 return ListView(
                   children: [
                     if (unpurchasedItems.isNotEmpty) ...[
@@ -170,8 +178,15 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
   }
 
   Widget _buildShoppingItemTile(ShoppingItem item) {
+    // 期限による背景色を決定
+    Color? backgroundColor;
+    if (item.deadline != null && !item.isPurchased) {
+      backgroundColor = _getDeadlineColor(item.deadline!);
+    }
+    
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+      color: backgroundColor,
       child: GestureDetector(
         // タップで編集
         onTap: () => _showEditItemDialog(context, item),
@@ -205,7 +220,30 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
               color: item.isPurchased ? Colors.grey : null,
             ),
           ),
-          subtitle: Text('数量: ${item.quantity}'),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('数量: ${item.quantity}'),
+              if (item.deadline != null)
+                Text(
+                  '期限: ${_formatDate(item.deadline!)} (${_getDaysUntilDeadlineText(item.deadline!)})',
+                  style: TextStyle(
+                    color: _isDeadlinePassed(item.deadline!) 
+                      ? Colors.red 
+                      : Colors.orange,
+                    fontSize: 12,
+                  ),
+                ),
+              if (item.shoppingInterval > 0)
+                Text(
+                  '繰り返し: ${item.shoppingInterval}日間隔',
+                  style: const TextStyle(
+                    color: Colors.blue,
+                    fontSize: 12,
+                  ),
+                ),
+            ],
+          ),
           trailing: item.isPurchased
               ? const Icon(Icons.check_circle, color: Colors.green)
               : null,
@@ -217,6 +255,8 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
   void _showAddItemDialog(BuildContext context) {
     _itemNameController.clear();
     _quantityController.text = '1';
+    _selectedDeadline = null;
+    _selectedRepeatDate = null;
     
     showDialog(
       context: context,
@@ -244,6 +284,78 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
                 ),
                 keyboardType: TextInputType.number,
                 enabled: !_isLoading,
+              ),
+              const SizedBox(height: 16),
+              InkWell(
+                onTap: _isLoading ? null : () => _selectDeadline(context, setState),
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Icon(Icons.calendar_today, color: _isLoading ? Colors.grey : null),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _selectedDeadline == null
+                              ? '購入期限を選択（任意）'
+                              : '期限: ${_formatDate(_selectedDeadline!)}',
+                          style: TextStyle(
+                            color: _selectedDeadline == null ? Colors.grey : null,
+                          ),
+                        ),
+                      ),
+                      if (_selectedDeadline != null)
+                        IconButton(
+                          icon: const Icon(Icons.clear, size: 16),
+                          onPressed: _isLoading ? null : () {
+                            setState(() {
+                              _selectedDeadline = null;
+                            });
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              InkWell(
+                onTap: _isLoading ? null : () => _selectRepeatDate(context, setState),
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Icon(Icons.repeat, color: _isLoading ? Colors.grey : null),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _selectedRepeatDate == null
+                              ? '次回購入予定日（任意）'
+                              : '次回: ${_formatDate(_selectedRepeatDate!)} (${_calculateInterval(_selectedRepeatDate!)}日間隔)',
+                          style: TextStyle(
+                            color: _selectedRepeatDate == null ? Colors.grey : null,
+                          ),
+                        ),
+                      ),
+                      if (_selectedRepeatDate != null)
+                        IconButton(
+                          icon: const Icon(Icons.clear, size: 16),
+                          onPressed: _isLoading ? null : () {
+                            setState(() {
+                              _selectedRepeatDate = null;
+                            });
+                          },
+                        ),
+                    ],
+                  ),
+                ),
               ),
               if (_isLoading) ...[
                 const SizedBox(height: 16),
@@ -286,6 +398,10 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
   void _showEditItemDialog(BuildContext context, ShoppingItem item) {
     _itemNameController.text = item.name;
     _quantityController.text = item.quantity.toString();
+    _selectedDeadline = item.deadline;
+    _selectedRepeatDate = item.shoppingInterval > 0 
+        ? DateTime.now().add(Duration(days: item.shoppingInterval)) 
+        : null;
     
     showDialog(
       context: context,
@@ -312,6 +428,78 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
                 ),
                 keyboardType: TextInputType.number,
                 enabled: !_isLoading,
+              ),
+              const SizedBox(height: 16),
+              InkWell(
+                onTap: _isLoading ? null : () => _selectDeadline(context, setState),
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Icon(Icons.calendar_today, color: _isLoading ? Colors.grey : null),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _selectedDeadline == null
+                              ? '購入期限を選択（任意）'
+                              : '期限: ${_formatDate(_selectedDeadline!)}',
+                          style: TextStyle(
+                            color: _selectedDeadline == null ? Colors.grey : null,
+                          ),
+                        ),
+                      ),
+                      if (_selectedDeadline != null)
+                        IconButton(
+                          icon: const Icon(Icons.clear, size: 16),
+                          onPressed: _isLoading ? null : () {
+                            setState(() {
+                              _selectedDeadline = null;
+                            });
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              InkWell(
+                onTap: _isLoading ? null : () => _selectRepeatDate(context, setState),
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Icon(Icons.repeat, color: _isLoading ? Colors.grey : null),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _selectedRepeatDate == null
+                              ? '次回購入予定日（任意）'
+                              : '次回: ${_formatDate(_selectedRepeatDate!)} (${_calculateInterval(_selectedRepeatDate!)}日間隔)',
+                          style: TextStyle(
+                            color: _selectedRepeatDate == null ? Colors.grey : null,
+                          ),
+                        ),
+                      ),
+                      if (_selectedRepeatDate != null)
+                        IconButton(
+                          icon: const Icon(Icons.clear, size: 16),
+                          onPressed: _isLoading ? null : () {
+                            setState(() {
+                              _selectedRepeatDate = null;
+                            });
+                          },
+                        ),
+                    ],
+                  ),
+                ),
               ),
               if (_isLoading) ...[
                 const SizedBox(height: 16),
@@ -416,6 +604,8 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
         memberId: 'defaultUser',
         name: name,
         quantity: quantity,
+        deadline: _selectedDeadline,
+        shoppingInterval: _selectedRepeatDate != null ? _calculateInterval(_selectedRepeatDate!) : 0,
       );
       
       await ref.read(shoppingListProvider.notifier).addItem(newItem);
@@ -439,6 +629,141 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
         });
       }
     }
+  }
+
+  Future<void> _selectDeadline(BuildContext context, StateSetter setState) async {
+    try {
+      final now = DateTime.now();
+      final tomorrow = DateTime(now.year, now.month, now.day + 1);
+      final oneYearLater = DateTime(now.year + 1, now.month, now.day);
+      
+      final DateTime? picked = await showDatePicker(
+        context: context,
+        initialDate: _selectedDeadline ?? tomorrow,
+        firstDate: tomorrow,
+        lastDate: oneYearLater,
+        // Webでの互換性のためlocaleを削除
+      );
+      
+      if (picked != null) {
+        setState(() {
+          _selectedDeadline = picked;
+        });
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('日付選択エラー: $e')),
+        );
+      }
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.year}/${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}';
+  }
+
+  bool _isDeadlinePassed(DateTime deadline) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final deadlineDate = DateTime(deadline.year, deadline.month, deadline.day);
+    return deadlineDate.isBefore(today);
+  }
+
+  int _getDaysUntilDeadline(DateTime deadline) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final deadlineDate = DateTime(deadline.year, deadline.month, deadline.day);
+    return deadlineDate.difference(today).inDays;
+  }
+
+  Color _getDeadlineColor(DateTime deadline) {
+    final daysUntil = _getDaysUntilDeadline(deadline);
+    
+    if (daysUntil < 0) {
+      return Colors.red.shade100; // 期限切れ - 赤
+    } else if (daysUntil == 0) {
+      return Colors.orange.shade100; // 今日期限 - オレンジ
+    } else if (daysUntil == 1) {
+      return Colors.yellow.shade100; // 明日期限 - 黄色
+    } else if (daysUntil <= 3) {
+      return Colors.blue.shade50; // 3日以内 - 薄い青
+    } else {
+      return Colors.white; // 余裕あり - 白
+    }
+  }
+
+  String _getDaysUntilDeadlineText(DateTime deadline) {
+    final daysUntil = _getDaysUntilDeadline(deadline);
+    
+    if (daysUntil < 0) {
+      return '${-daysUntil}日超過';
+    } else if (daysUntil == 0) {
+      return '今日期限';
+    } else if (daysUntil == 1) {
+      return '明日期限';
+    } else {
+      return 'あと${daysUntil}日';
+    }
+  }
+
+  void _sortItemsByDeadline(List<ShoppingItem> items) {
+    items.sort((a, b) {
+      // 期限なしのアイテムは最後に
+      if (a.deadline == null && b.deadline == null) return 0;
+      if (a.deadline == null) return 1;
+      if (b.deadline == null) return -1;
+      
+      // 期限が近い順（昇順）
+      return a.deadline!.compareTo(b.deadline!);
+    });
+  }
+
+  void _sortPurchasedItemsByDate(List<ShoppingItem> items) {
+    items.sort((a, b) {
+      // 購入日なしのアイテムは最後に
+      if (a.purchaseDate == null && b.purchaseDate == null) return 0;
+      if (a.purchaseDate == null) return 1;
+      if (b.purchaseDate == null) return -1;
+      
+      // 購入日が新しい順（降順）
+      return b.purchaseDate!.compareTo(a.purchaseDate!);
+    });
+  }
+
+  Future<void> _selectRepeatDate(BuildContext context, StateSetter setState) async {
+    try {
+      final now = DateTime.now();
+      final tomorrow = DateTime(now.year, now.month, now.day + 1);
+      final oneYearLater = DateTime(now.year + 1, now.month, now.day);
+      
+      final DateTime? picked = await showDatePicker(
+        context: context,
+        initialDate: _selectedRepeatDate ?? tomorrow,
+        firstDate: tomorrow,
+        lastDate: oneYearLater,
+        helpText: '次回購入予定日を選択',
+      );
+      
+      if (picked != null) {
+        setState(() {
+          _selectedRepeatDate = picked;
+        });
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('日付選択エラー: $e')),
+        );
+      }
+    }
+  }
+
+  int _calculateInterval(DateTime nextPurchaseDate) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final targetDate = DateTime(nextPurchaseDate.year, nextPurchaseDate.month, nextPurchaseDate.day);
+    return targetDate.difference(today).inDays;
   }
 
   Future<void> _updateItemWithLoading(BuildContext context, ShoppingItem oldItem, StateSetter setState) async {
@@ -472,7 +797,8 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
         registeredDate: oldItem.registeredDate,
         purchaseDate: oldItem.purchaseDate,
         isPurchased: oldItem.isPurchased,
-        shoppingInterval: oldItem.shoppingInterval,
+        shoppingInterval: _selectedRepeatDate != null ? _calculateInterval(_selectedRepeatDate!) : 0,
+        deadline: _selectedDeadline,
       );
       
       await ref.read(shoppingListProvider.notifier).updateItem(oldItem, updatedItem);

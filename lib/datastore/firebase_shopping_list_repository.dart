@@ -198,7 +198,9 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
         final hiveList = await _hiveRepo.getShoppingList(groupId);
         
         if (hiveList == null || _shouldUpdateFromFirebase(hiveList, firebaseList)) {
-          await _hiveRepo.addItem(firebaseList);
+          // 繰り返し購入アイテムの処理を追加
+          final processedList = _processRepeatPurchases(firebaseList);
+          await _hiveRepo.addItem(processedList);
           logger.i('🔥 Firebase -> Hive sync completed');
         } else {
           logger.i('Hive data is current - Skipping sync');
@@ -251,6 +253,7 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
         'purchaseDate': item.purchaseDate?.toIso8601String(),
         'isPurchased': item.isPurchased,
         'shoppingInterval': item.shoppingInterval,
+        'deadline': item.deadline?.toIso8601String(),
       }).toList(),
       'lastUpdated': FieldValue.serverTimestamp(),
     };
@@ -271,6 +274,9 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
             : null,
         isPurchased: itemMap['isPurchased'] ?? false,
         shoppingInterval: itemMap['shoppingInterval'] ?? 0,
+        deadline: itemMap['deadline'] != null 
+            ? DateTime.parse(itemMap['deadline'])
+            : null,
       );
     }).toList();
 
@@ -280,6 +286,68 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
       groupName: data['groupName'] ?? '',
       items: items,
     );
+  }
+
+  /// 繰り返し購入アイテムの処理
+  ShoppingList _processRepeatPurchases(ShoppingList list) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final processedItems = <ShoppingItem>[];
+    
+    for (final item in list.items) {
+      processedItems.add(item);
+      
+      // 繰り返し購入の条件をチェック
+      if (item.shoppingInterval > 0 && 
+          item.isPurchased && 
+          item.purchaseDate != null) {
+        
+        final purchaseDate = DateTime(
+          item.purchaseDate!.year, 
+          item.purchaseDate!.month, 
+          item.purchaseDate!.day
+        );
+        
+        final nextPurchaseDate = purchaseDate.add(Duration(days: item.shoppingInterval));
+        
+        // 次回購入予定日が今日以降で、同じ名前の未購入アイテムが存在しない場合
+        if ((nextPurchaseDate.isBefore(today) || nextPurchaseDate.isAtSameMomentAs(today)) &&
+            !_hasUnpurchasedItemWithSameName(processedItems, item.name)) {
+          
+          // 1週間以内の間隔の場合は期限を1日後に、それ以外は間隔分延長
+          DateTime? newDeadline;
+          if (item.shoppingInterval <= 7) {
+            newDeadline = DateTime.now().add(const Duration(days: 1));
+          } else if (item.deadline != null) {
+            newDeadline = item.deadline!.add(Duration(days: item.shoppingInterval));
+          }
+          
+          final newItem = ShoppingItem.createNow(
+            memberId: item.memberId,
+            name: item.name,
+            quantity: item.quantity,
+            isPurchased: false,
+            shoppingInterval: item.shoppingInterval,
+            deadline: newDeadline,
+          );
+          
+          processedItems.add(newItem);
+          logger.i('🔄 Created repeat purchase item: ${item.name} (${item.shoppingInterval} days interval)');
+        }
+      }
+    }
+    
+    return ShoppingList(
+      ownerUid: list.ownerUid,
+      groupId: list.groupId,
+      groupName: list.groupName,
+      items: processedItems,
+    );
+  }
+
+  /// 同じ名前の未購入アイテムが存在するかチェック
+  bool _hasUnpurchasedItemWithSameName(List<ShoppingItem> items, String name) {
+    return items.any((item) => item.name == name && !item.isPurchased);
   }
 
   /// Firebaseからの更新が必要かどうかを判断
