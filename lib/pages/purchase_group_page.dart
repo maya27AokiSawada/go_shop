@@ -6,6 +6,7 @@ import '../providers/purchase_group_provider.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/new_member_input_form.dart';
 import '../widgets/member_list_tile_widget.dart';
+import '../services/invitation_service.dart';
 
 class PurchaseGroupPage extends ConsumerStatefulWidget {
   const PurchaseGroupPage({super.key});
@@ -101,6 +102,27 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                   },
                   child: const Text('保存'),
                 ),
+                const SizedBox(height: 16),
+                
+                // 🎯 招待機能ボタンを追加
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    final user = authState.asData?.value;
+                    if (user == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('サインインが必要です')),
+                      );
+                      return;
+                    }
+                    await _showInviteDialog(context, purchaseGroup);
+                  },
+                  icon: const Icon(Icons.person_add),
+                  label: const Text('メンバーを招待'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
               ],
             ),
           ),
@@ -111,6 +133,131 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
       ),
       error: (e, st) => Scaffold(
         body: Center(child: Text('エラーが発生しました: $e')),
+      ),
+    );
+  }
+
+  /// 招待ダイアログを表示
+  Future<void> _showInviteDialog(BuildContext context, PurchaseGroup group) async {
+    final emailController = TextEditingController();
+    PurchaseGroupRole selectedRole = PurchaseGroupRole.child;
+
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('メンバーを招待'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: emailController,
+                    decoration: const InputDecoration(
+                      labelText: 'メールアドレス',
+                      border: OutlineInputBorder(),
+                      hintText: 'example@email.com',
+                    ),
+                    keyboardType: TextInputType.emailAddress,
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<PurchaseGroupRole>(
+                    value: selectedRole,
+                    decoration: const InputDecoration(
+                      labelText: '権限',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: PurchaseGroupRole.values.map((role) {
+                      String displayName;
+                      switch (role) {
+                        case PurchaseGroupRole.leader:
+                          displayName = 'リーダー';
+                          break;
+                        case PurchaseGroupRole.parent:
+                          displayName = '親';
+                          break;
+                        case PurchaseGroupRole.child:
+                          displayName = '子';
+                          break;
+                      }
+                      return DropdownMenuItem(
+                        value: role,
+                        child: Text(displayName),
+                      );
+                    }).toList(),
+                    onChanged: (role) {
+                      setState(() {
+                        selectedRole = role!;
+                      });
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('キャンセル'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (emailController.text.isNotEmpty) {
+                      try {
+                        final invitationService = InvitationService();
+                        final inviteLink = await invitationService.inviteUserToGroup(
+                          groupId: group.groupId,
+                          inviteeEmail: emailController.text,
+                          role: selectedRole,
+                        );
+                        
+                        Navigator.of(context).pop();
+                        
+                        // 招待リンクを表示
+                        _showInviteLinkDialog(context, inviteLink);
+                        
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('招待に失敗しました: $e')),
+                        );
+                      }
+                    }
+                  },
+                  child: const Text('招待する'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// 招待リンクを表示するダイアログ
+  void _showInviteLinkDialog(BuildContext context, String inviteLink) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('招待リンクが生成されました'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('以下のリンクを相手に送信してください：'),
+            const SizedBox(height: 8),
+            SelectableText(
+              inviteLink,
+              style: const TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('閉じる'),
+          ),
+        ],
       ),
     );
   }
