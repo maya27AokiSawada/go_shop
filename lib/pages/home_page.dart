@@ -8,6 +8,7 @@ import '../providers/user_name_provider.dart';
 import '../models/purchase_group.dart';
 import '../models/shopping_list.dart';
 import '../flavors.dart';
+import '../helper/firebase_diagnostics.dart';
 
 class IsFormVisible extends StateNotifier<bool> {
   IsFormVisible() : super(false);
@@ -225,22 +226,30 @@ class _HomePageState extends ConsumerState<HomePage> {
                             child: const Text('ユーザー名のみ保存')
                           ),
                           
-                          // 🔥 開発環境でのみFirebase接続テストボタンを表示
-                          if (F.appFlavor == Flavor.dev) ...[
-                            const SizedBox(height: 16),
-                            const Divider(),
-                            const Text('🔧 開発者ツール', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                            const SizedBox(height: 8),
-                            ElevatedButton.icon(
-                              onPressed: () async => await _firebaseConnectionTest(),
-                              icon: const Icon(Icons.wifi_tethering),
-                              label: const Text('Firebase接続テスト'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue,
-                                foregroundColor: Colors.white,
-                              ),
+                          // 🔥 Firebase接続診断ボタン（本番環境でも表示）
+                          const SizedBox(height: 16),
+                          const Divider(),
+                          const Text('🔧 Firebase診断', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                          const SizedBox(height: 8),
+                          ElevatedButton.icon(
+                            onPressed: () async => await _runFirebaseDiagnostics(),
+                            icon: const Icon(Icons.medical_services),
+                            label: const Text('Firebase完全診断'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange,
+                              foregroundColor: Colors.white,
                             ),
-                          ],
+                          ),
+                          const SizedBox(height: 8),
+                          ElevatedButton.icon(
+                            onPressed: () async => await _firebaseConnectionTest(),
+                            icon: const Icon(Icons.wifi_tethering),
+                            label: const Text('Firebase接続テスト'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
                         ],
                       ],
                     ),
@@ -586,6 +595,64 @@ class _HomePageState extends ConsumerState<HomePage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('ユーザー名を入力してください')),
+        );
+      }
+    }
+  }
+
+  /// 🔥 Firebase包括診断
+  Future<void> _runFirebaseDiagnostics() async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('🩺 Firebase完全診断開始...'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+
+      print('🩺 === Firebase完全診断開始 ===');
+      
+      // Firebase診断実行
+      final diagnostics = await FirebaseDiagnostics.runDiagnostics();
+      final solutions = FirebaseDiagnostics.getSolutions(diagnostics);
+      
+      // 結果をログ出力
+      print('📊 診断結果:');
+      diagnostics.forEach((key, value) {
+        print('  $key: $value');
+      });
+      
+      print('💡 推奨解決策:');
+      for (final solution in solutions) {
+        print('  $solution');
+      }
+      
+      // UI表示
+      if (mounted) {
+        final isHealthy = diagnostics['firestore_connection'] == true && 
+                         diagnostics['firestore_write'] == true;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isHealthy 
+                ? '✅ Firebase診断完了: 全て正常'
+                : '⚠️ Firebase診断完了: 問題を検出 (コンソール確認)'
+            ),
+            backgroundColor: isHealthy ? Colors.green : Colors.orange,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+      
+    } catch (e) {
+      print('⛔ Firebase診断エラー: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Firebase診断失敗: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }

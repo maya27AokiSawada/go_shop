@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shopping_list.dart';
 import '../providers/auth_provider.dart';
+import '../helper/mock_auth_service.dart';
 import 'shopping_list_repository.dart';
 import 'hive_shopping_list_repository.dart';
 import '../main.dart'; // For logger access
@@ -18,11 +19,33 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
   
   /// 現在のユーザーを取得
   User? get _currentUser {
+    // 開発フレーバーではMockAuthServiceを優先
+    final authService = ref.read(authProvider);
+    logger.i('FirebaseRepo: AuthService type: ${authService.runtimeType}');
+    
+    if (authService is MockAuthService) {
+      final mockUser = authService.currentUser;
+      logger.i('FirebaseRepo: MockAuthService user: ${mockUser?.email} (uid: ${mockUser?.uid})');
+      if (mockUser != null) {
+        return mockUser;
+      }
+    }
+    
+    // 通常のFirebaseAuth
     final authState = ref.read(authStateProvider);
     return authState.when(
-      data: (user) => user,
-      loading: () => null,
-      error: (_, __) => null,
+      data: (user) {
+        logger.i('FirebaseRepo: Using FirebaseAuth user: ${user?.email}');
+        return user;
+      },
+      loading: () {
+        logger.i('FirebaseRepo: Auth loading...');
+        return null;
+      },
+      error: (_, __) {
+        logger.w('FirebaseRepo: Auth error');
+        return null;
+      },
     );
   }
   
@@ -158,7 +181,14 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
     try {
       logger.i('🔥 Firebase -> Hive sync started');
       
-      final doc = await collection.doc(groupId).get();
+      // 10秒のタイムアウトを設定
+      final doc = await collection.doc(groupId).get().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          logger.w('⏰ Firebase read timeout - continuing with Hive data');
+          throw Exception('Firebase read timeout');
+        },
+      );
       
       if (doc.exists) {
         final data = doc.data() as Map<String, dynamic>;
@@ -177,8 +207,8 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
         logger.i('No data on Firebase side');
       }
     } catch (e) {
-      logger.e('Firebase read error: $e');
-      rethrow;
+      logger.e('⛔ Firebase read error: $e');
+      // エラー時はHiveから読み込み継続（rethrowしない）
     }
   }
 
@@ -190,11 +220,20 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
     try {
       logger.i('🔥 Hive -> Firebase sync started');
       final data = _shoppingListToMap(list);
-      await collection.doc(list.groupId).set(data, SetOptions(merge: true));
+      
+      // 10秒のタイムアウトを設定
+      await collection.doc(list.groupId).set(data, SetOptions(merge: true)).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          logger.w('⏰ Firebase write timeout - data saved to Hive only');
+          throw Exception('Firebase write timeout');
+        },
+      );
+      
       logger.i('🔥 Hive -> Firebase sync completed');
     } catch (e) {
-      logger.e('Firebase write error: $e');
-      rethrow;
+      logger.e('⛔ Firebase write error: $e');
+      // エラー時はHive保存は完了しているので続行（rethrowしない）
     }
   }
 
@@ -245,12 +284,22 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
 
   /// Firebaseからの更新が必要かどうかを判断
   bool _shouldUpdateFromFirebase(ShoppingList hiveList, ShoppingList firebaseList) {
-    // 簡単な比較: アイテム数やアイテムの内容が異なる場合は更新
+    // アイテム数が異なる場合は更新
     if (hiveList.items.length != firebaseList.items.length) {
+      logger.i('📊 Item count differs: Hive=${hiveList.items.length}, Firebase=${firebaseList.items.length}');
       return true;
     }
     
-    // より詳細な比較も可能だが、とりあえずアイテム数の比較のみ
+    // 各アイテムの内容を比較
+    final hiveItemsSet = hiveList.items.map((item) => '${item.name}_${item.memberId}_${item.isPurchased}').toSet();
+    final firebaseItemsSet = firebaseList.items.map((item) => '${item.name}_${item.memberId}_${item.isPurchased}').toSet();
+    
+    if (!hiveItemsSet.containsAll(firebaseItemsSet) || !firebaseItemsSet.containsAll(hiveItemsSet)) {
+      logger.i('🔄 Item content differs - updating from Firebase');
+      return true;
+    }
+    
+    logger.i('✅ Hive and Firebase data are identical');
     return false;
   }
 

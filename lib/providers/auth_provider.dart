@@ -9,18 +9,23 @@ import '../flavors.dart';
 final mockAuthStateProvider = StateProvider<User?>((ref) => null);
 
 final authProvider = Provider<AuthService>((ref) {
-  // 開発環境ではMockAuthServiceを使用
-  if (F.appFlavor == Flavor.dev) {
-    return MockAuthService();
+  // 本番環境では実際のFirebase Authを使用
+  if (F.appFlavor == Flavor.prod) {
+    return AuthService();
   }
-  return AuthService();
+  // 開発環境ではMockAuthServiceを使用（Singleton）
+  return _mockAuthServiceInstance ??= MockAuthService();
 });
 
+// MockAuthServiceのSingletonインスタンス
+MockAuthService? _mockAuthServiceInstance;
+
 final authStateProvider = StreamProvider<User?>((ref) {
-  if (F.appFlavor == Flavor.dev) {
-    // MockAuthServiceの場合はmockAuthStateProviderの値を監視
-    final mockUser = ref.watch(mockAuthStateProvider);
-    return Stream.value(mockUser);
+  // 本番環境では実際のFirebase Auth状態を監視
+  if (F.appFlavor == Flavor.prod) {
+    return FirebaseAuth.instance.authStateChanges();
   }
-  return FirebaseAuth.instance.authStateChanges();
+  // 開発環境ではMockAuthServiceの状態を監視
+  final mockUser = ref.watch(mockAuthStateProvider);
+  return Stream.value(mockUser);
 });

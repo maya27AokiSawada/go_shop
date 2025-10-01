@@ -16,9 +16,10 @@ final shoppingListBoxProvider = Provider<Box<ShoppingList>>((ref) {
 // ShoppingListRepositoryのプロバイダー
 final shoppingListRepositoryProvider = Provider<ShoppingListRepository>((ref) {
   if (F.appFlavor == Flavor.prod) {
-    throw UnimplementedError('Firestore ShoppingListRepository is not implemented yet');
+    // 本番環境: Firebase同期リポジトリを使用（Real Firebase Auth）
+    return FirebaseSyncShoppingListRepository(ref);
   } else {
-    // 開発環境でもFirebase同期リポジトリを使用
+    // 開発環境: Firebase同期リポジトリを使用（Mock Auth）
     return FirebaseSyncShoppingListRepository(ref);
   }
 });
