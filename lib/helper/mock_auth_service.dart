@@ -11,6 +11,16 @@ class MockAuthService extends AuthService {
     logger.i("Mock signInWithEmail: $email");
     // 開発用のダミー認証
     await Future.delayed(const Duration(milliseconds: 500)); // 実際のAPIコールをシミュレート
+    
+    // 🔑 テスト用認証情報でのみ成功
+    if (email == 'pisce.plum@gmail.com' && password == 'TestPassword123!') {
+      final mockUser = MockUser(email: email, uid: 'C3LO8EaKwiZPt2rhi5pKoITBUSg');
+      _currentUser = mockUser;
+      logger.i("Mock signInWithEmail successful for: $email");
+      return MockUserCredential(user: mockUser);
+    }
+    
+    // その他の認証情報では失敗
     throw FirebaseAuthException(code: 'user-not-found', message: 'Mock user not found');
   }
 
@@ -18,6 +28,14 @@ class MockAuthService extends AuthService {
   Future<UserCredential> signUpWithEmail(String email, String password) async {
     logger.i("Mock signUpWithEmail: $email");
     await Future.delayed(const Duration(milliseconds: 500));
+    
+    // 🔑 テスト用認証情報でのみ成功（新規登録として扱う）
+    if (email == 'pisce.plum@gmail.com' && password == 'TestPassword123!') {
+      final mockUser = MockUser(email: email, uid: 'C3LO8EaKwiZPt2rhi5pKoITBUSg');
+      _currentUser = mockUser;
+      logger.i("Mock signUpWithEmail successful for: $email");
+      return MockUserCredential(user: mockUser);
+    }
     
     // ダミーのUserCredentialを返す
     final mockUser = MockUser(email: email, uid: 'mock_${email.hashCode}');
@@ -35,18 +53,34 @@ class MockAuthService extends AuthService {
   Future<User?> signIn(String email, String password) async {
     logger.i("Mock signIn: $email");
     await Future.delayed(const Duration(milliseconds: 500));
+    
+    // 🔑 テスト用認証情報でのみ成功
+    if (email == 'pisce.plum@gmail.com' && password == 'TestPassword123!') {
+      final mockUser = MockUser(email: email, uid: 'C3LO8EaKwiZPt2rhi5pKoITBUSg');
+      _currentUser = mockUser;
+      logger.i("Mock sign-in successful for: $email");
+      return mockUser;
+    }
+    
+    // その他の認証情報では失敗
     throw FirebaseAuthException(code: 'user-not-found', message: 'Mock user not found for signIn');
   }
 
   @override
   Future<User?> signUp(String email, String password) async {
-    logger.i("Mock signUp: $email");
+    logger.i("Mock signUp: $email with password");
     await Future.delayed(const Duration(milliseconds: 500));
     
-    final mockUser = MockUser(email: email, uid: 'mock_${email.hashCode}');
-    _currentUser = mockUser;
-    logger.i("Mock account created successfully for: $email");
-    return mockUser;
+    // 🔑 テスト用認証情報でのみ成功  
+    if (email == 'pisce.plum@gmail.com' && password == 'TestPassword123!') {
+      final mockUser = MockUser(email: email, uid: 'C3LO8EaKwiZPt2rhi5pKoITBUSg');
+      _currentUser = mockUser;
+      logger.i("Mock account created successfully for: $email");
+      return mockUser;
+    }
+    
+    // その他では失敗
+    throw FirebaseAuthException(code: 'weak-password', message: 'Mock signup failed');
   }
 
   @override
