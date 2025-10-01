@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../providers/auth_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/shopping_list_provider.dart';
@@ -223,6 +224,23 @@ class _HomePageState extends ConsumerState<HomePage> {
                             onPressed: () async => await userInfoSave(),
                             child: const Text('ユーザー名のみ保存')
                           ),
+                          
+                          // 🔥 開発環境でのみFirebase接続テストボタンを表示
+                          if (F.appFlavor == Flavor.dev) ...[
+                            const SizedBox(height: 16),
+                            const Divider(),
+                            const Text('🔧 開発者ツール', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            const SizedBox(height: 8),
+                            ElevatedButton.icon(
+                              onPressed: () async => await _firebaseConnectionTest(),
+                              icon: const Icon(Icons.wifi_tethering),
+                              label: const Text('Firebase接続テスト'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue,
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                          ],
                         ],
                       ],
                     ),
@@ -564,12 +582,75 @@ class _HomePageState extends ConsumerState<HomePage> {
         }
       }
     } else {
-    // 入力不足のメッセージ
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('ユーザー名を入力してください')),
-      );
+      // 入力不足のメッセージ
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('ユーザー名を入力してください')),
+        );
+      }
     }
   }
-}
+
+  /// 🔥 Firebase接続テスト
+  Future<void> _firebaseConnectionTest() async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('🔍 Firebase接続テスト開始...'),
+          backgroundColor: Colors.blue,
+        ),
+      );
+
+      // Firestoreインスタンスを取得
+      final firestore = FirebaseFirestore.instance;
+      
+      // テスト用ドキュメントを作成
+      final testDocRef = firestore
+          .collection('connection_test')
+          .doc('test_${DateTime.now().millisecondsSinceEpoch}');
+      
+      print('🔥 Firebase接続テスト: Firestoreへの書き込みを試行中...');
+      
+      // Firestoreに書き込み
+      await testDocRef.set({
+        'timestamp': FieldValue.serverTimestamp(),
+        'test_data': 'Firebase connection test from Go Shop app',
+        'user_agent': 'Flutter Web',
+      });
+      
+      print('✅ Firebase接続テスト: 書き込み成功');
+      
+      // 書き込み直後に読み込みテスト
+      final doc = await testDocRef.get();
+      if (doc.exists) {
+        print('✅ Firebase接続テスト: 読み込み成功');
+        print('📄 Document data: ${doc.data()}');
+        
+        // テスト用ドキュメントを削除
+        await testDocRef.delete();
+        print('🗑️ Firebase接続テスト: クリーンアップ完了');
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Firebase接続テスト成功！読み書き共に正常'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        throw Exception('Document was not created');
+      }
+    } catch (e) {
+      print('⛔ Firebase接続テストエラー: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Firebase接続テスト失敗: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 }
