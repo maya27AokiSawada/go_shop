@@ -275,6 +275,36 @@ class _HomePageState extends ConsumerState<HomePage> {
                       },
                       child: const Text('ログアウト'),
                     ),
+                    
+                    // 🔥 ログイン後でもFirebase診断ボタンを表示
+                    const SizedBox(height: 30),
+                    const Divider(),
+                    const Text('🔧 Firebase診断', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () async => await _runFirebaseDiagnostics(),
+                      icon: const Icon(Icons.medical_services),
+                      label: const Text('Firebase完全診断'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ElevatedButton.icon(
+                      onPressed: () async => await _firebaseConnectionTest(),
+                      icon: const Icon(Icons.wifi_tethering),
+                      label: const Text('Firebase接続テスト'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'ログイン状態: ${user.email}',
+                      style: const TextStyle(fontSize: 12, color: Colors.green),
+                    ),
                   ],
                 );
               }

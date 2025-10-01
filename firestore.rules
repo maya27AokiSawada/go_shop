@@ -1,0 +1,19 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ユーザーが認証済みの場合のみ、自分のデータにアクセス可能
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // グループデータへのアクセス
+      match /groups/{groupId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+    
+    // 開発用：認証済みユーザーは全てのデータにアクセス可能（本番では削除）
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
