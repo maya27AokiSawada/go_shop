@@ -6,17 +6,37 @@ import 'misc.dart';
 class MockAuthService extends AuthService {
   User? _currentUser;
 
+  /// 現在のユーザーを取得
+  User? get currentUser {
+    logger.i("MockAuthService currentUser getter called: ${_currentUser?.email} (uid: ${_currentUser?.uid})");
+    return _currentUser;
+  }
+
   @override
   Future<UserCredential> signInWithEmail(String email, String password) async {
     logger.i("Mock signInWithEmail: $email");
     // 開発用のダミー認証
     await Future.delayed(const Duration(milliseconds: 500)); // 実際のAPIコールをシミュレート
     
-    // 🔑 テスト用認証情報でのみ成功
-    if (email == 'pisce.plum@gmail.com' && password == 'TestPassword123!') {
+    // 🔑 テスト用認証情報でのみ成功（複数メール対応）
+    if ((email == 'pisce.plum@gmail.com' || email == 'pisces.plum@gmail.com') && password == 'TestPassword123!') {
       final mockUser = MockUser(email: email, uid: 'C3LO8EaKwiZPt2rhi5pKoITBUSg');
       _currentUser = mockUser;
+      
+      // 🚀 FirebaseAuth.instanceと同期（開発モード限定）
+      try {
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: email, 
+          password: password
+        );
+        logger.i("Firebase authentication also successful");
+      } catch (e) {
+        logger.w("Firebase auth failed (expected in dev): $e");
+        // Firebase認証が失敗してもMock認証は成功とする
+      }
+      
       logger.i("Mock signInWithEmail successful for: $email");
+      logger.i("Mock signInWithEmail: _currentUser set to: ${_currentUser?.email} (uid: ${_currentUser?.uid})");
       return MockUserCredential(user: mockUser);
     }
     
@@ -30,16 +50,18 @@ class MockAuthService extends AuthService {
     await Future.delayed(const Duration(milliseconds: 500));
     
     // 🔑 テスト用認証情報でのみ成功（新規登録として扱う）
-    if (email == 'pisce.plum@gmail.com' && password == 'TestPassword123!') {
+    if ((email == 'pisce.plum@gmail.com' || email == 'pisces.plum@gmail.com') && password == 'TestPassword123!') {
       final mockUser = MockUser(email: email, uid: 'C3LO8EaKwiZPt2rhi5pKoITBUSg');
       _currentUser = mockUser;
       logger.i("Mock signUpWithEmail successful for: $email");
+      logger.i("Mock signUpWithEmail: _currentUser set to: ${_currentUser?.email} (uid: ${_currentUser?.uid})");
       return MockUserCredential(user: mockUser);
     }
     
     // ダミーのUserCredentialを返す
     final mockUser = MockUser(email: email, uid: 'mock_${email.hashCode}');
     _currentUser = mockUser;
+    logger.i("Mock signUpWithEmail: _currentUser set to dummy: ${_currentUser?.email} (uid: ${_currentUser?.uid})");
     return MockUserCredential(user: mockUser);
   }
 
@@ -47,6 +69,14 @@ class MockAuthService extends AuthService {
   Future<void> signOut() async {
     logger.i("Mock signOut");
     _currentUser = null;
+    
+    // 🚀 FirebaseAuth.instanceからもサインアウト
+    try {
+      await FirebaseAuth.instance.signOut();
+      logger.i("Firebase signOut also successful");
+    } catch (e) {
+      logger.w("Firebase signOut failed: $e");
+    }
   }
 
   @override
@@ -54,11 +84,12 @@ class MockAuthService extends AuthService {
     logger.i("Mock signIn: $email");
     await Future.delayed(const Duration(milliseconds: 500));
     
-    // 🔑 テスト用認証情報でのみ成功
-    if (email == 'pisce.plum@gmail.com' && password == 'TestPassword123!') {
+    // 🔑 テスト用認証情報でのみ成功（複数メール対応）
+    if ((email == 'pisce.plum@gmail.com' || email == 'pisces.plum@gmail.com') && password == 'TestPassword123!') {
       final mockUser = MockUser(email: email, uid: 'C3LO8EaKwiZPt2rhi5pKoITBUSg');
       _currentUser = mockUser;
-      logger.i("Mock sign-in successful for: $email");
+      logger.i("Mock signIn successful for: $email");
+      logger.i("Mock signIn: _currentUser set to: ${_currentUser?.email} (uid: ${_currentUser?.uid})");
       return mockUser;
     }
     
@@ -71,11 +102,12 @@ class MockAuthService extends AuthService {
     logger.i("Mock signUp: $email with password");
     await Future.delayed(const Duration(milliseconds: 500));
     
-    // 🔑 テスト用認証情報でのみ成功  
-    if (email == 'pisce.plum@gmail.com' && password == 'TestPassword123!') {
+    // 🔑 テスト用認証情報でのみ成功（複数メール対応）
+    if ((email == 'pisce.plum@gmail.com' || email == 'pisces.plum@gmail.com') && password == 'TestPassword123!') {
       final mockUser = MockUser(email: email, uid: 'C3LO8EaKwiZPt2rhi5pKoITBUSg');
       _currentUser = mockUser;
-      logger.i("Mock account created successfully for: $email");
+      logger.i("Mock signUp successful for: $email");
+      logger.i("Mock signUp: _currentUser set to: ${_currentUser?.email} (uid: ${_currentUser?.uid})");
       return mockUser;
     }
     

@@ -23,8 +23,8 @@ void main() async {
   logger.i("Firebase initialized: ${firebaseApp.name}");
   logger.i("Firebase options: ${DefaultFirebaseOptions.currentPlatform.projectId}");
   
-  // フレーバーの設定 - 一時的にMockを使用
-  F.appFlavor = Flavor.dev;
+  // フレーバーの設定 - 本番環境でFirebase Auth & Firestoreを使用
+  F.appFlavor = Flavor.prod;
   
   // Hive初期化
   await _initializeHive();
