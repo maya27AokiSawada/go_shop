@@ -4,7 +4,6 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../models/shopping_list.dart';
 import '../providers/purchase_group_provider.dart';
 import '../datastore/shopping_list_repository.dart';
-import '../datastore/hive_shopping_list_repository.dart';
 import '../datastore/firebase_shopping_list_repository.dart';
 import '../flavors.dart';
 
@@ -167,14 +166,31 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
       final currentList = await future;
       final updatedItems = currentList.items.map((i) {
         if (i.memberId == item.memberId && i.name == item.name) {
+          // 未購入に戻す時のdeadline処理
+          DateTime? newDeadline;
+          if (i.isPurchased) {
+            // 購入済み → 未購入に戻す場合
+            if (i.shoppingInterval > 0 && i.shoppingInterval <= 7) {
+              // 1週間以内の間隔の場合、deadline を1日後に設定
+              newDeadline = DateTime.now().add(const Duration(days: 1));
+            } else {
+              // 元のdeadlineを保持
+              newDeadline = i.deadline;
+            }
+          } else {
+            // 未購入 → 購入済みの場合、元のdeadlineを保持
+            newDeadline = i.deadline;
+          }
+          
           return ShoppingItem(
             memberId: i.memberId,
             name: i.name,
             quantity: i.quantity,
             registeredDate: i.registeredDate,
-            purchaseDate: i.isPurchased ? null : DateTime.now(),
+            purchaseDate: i.isPurchased ? null : DateTime.now(), // 購入時に現在日時を設定
             isPurchased: !i.isPurchased,
             shoppingInterval: i.shoppingInterval,
+            deadline: newDeadline,
           );
         }
         return i;

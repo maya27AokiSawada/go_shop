@@ -15,6 +15,7 @@ class ShoppingItem with _$ShoppingItem {
     @HiveField(4) DateTime? purchaseDate, // 購入日
     @HiveField(5) @Default(false) bool isPurchased, // true: 購入済み、 false: 未購入
     @HiveField(6) @Default(0) int shoppingInterval, // 0:　繰り返し購入ではない　other:　繰り返し購入間隔（日数）
+    @HiveField(7) DateTime? deadline, // 購入期限
   }) = _ShoppingItem;
 
   // ファクトリーコンストラクタでカスタムロジック
@@ -24,6 +25,7 @@ class ShoppingItem with _$ShoppingItem {
     int quantity = 1,
     bool isPurchased = false,
     int shoppingInterval = 0,
+    DateTime? deadline, // 購入期限を追加
   }) {
     return ShoppingItem(
       memberId: memberId,
@@ -32,6 +34,7 @@ class ShoppingItem with _$ShoppingItem {
       registeredDate: DateTime.now(),
       isPurchased: isPurchased,
       shoppingInterval: shoppingInterval,
+      deadline: deadline,
     );
   }
 }

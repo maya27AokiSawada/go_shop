@@ -24,13 +24,14 @@ class ShoppingItemAdapter extends TypeAdapter<ShoppingItem> {
       purchaseDate: fields[4] as DateTime?,
       isPurchased: fields[5] as bool,
       shoppingInterval: fields[6] as int,
+      deadline: fields[7] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, ShoppingItem obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.memberId)
       ..writeByte(1)
@@ -44,7 +45,9 @@ class ShoppingItemAdapter extends TypeAdapter<ShoppingItem> {
       ..writeByte(5)
       ..write(obj.isPurchased)
       ..writeByte(6)
-      ..write(obj.shoppingInterval);
+      ..write(obj.shoppingInterval)
+      ..writeByte(7)
+      ..write(obj.deadline);
   }
 
   @override
