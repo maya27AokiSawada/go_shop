@@ -1,19 +1,53 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // ユーザーが認証済みの場合のみ、自分のデータにアクセス可能
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-      
-      // グループデータへのアクセス
-      match /groups/{groupId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-      }
-    }
     
-    // 開発用：認証済みユーザーは全てのデータにアクセス可能（本番では削除）
+    // 開発環境では認証済みユーザーに全アクセスを許可
+    // 本番環境では以下の詳細ルールを使用すること
     match /{document=**} {
       allow read, write: if request.auth != null;
     }
+    
+    /*
+    // 本番環境用の詳細セキュリティルール
+    // 現在はコメントアウト - 開発完了後に有効化
+    
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    match /purchaseGroups/{groupId} {
+      allow read: if request.auth != null && (
+        resource.data.ownerUid == request.auth.uid ||
+        existsInMembersList(resource.data.members, request.auth.uid)
+      );
+      
+      allow write: if request.auth != null && 
+        resource.data.ownerUid == request.auth.uid;
+      
+      allow create: if request.auth != null && 
+        request.resource.data.ownerUid == request.auth.uid;
+    }
+    
+    match /shoppingLists/{listId} {
+      allow read, write: if request.auth != null && (
+        resource.data.ownerUid == request.auth.uid ||
+        hasGroupAccess(resource.data.groupId, request.auth.uid)
+      );
+      
+      allow create: if request.auth != null && 
+        request.resource.data.ownerUid == request.auth.uid;
+    }
+
+    function existsInMembersList(members, uid) {
+      return members.where('memberId', '==', uid).size() > 0;
+    }
+    
+    function hasGroupAccess(groupId, uid) {
+      let group = get(/databases/$(database)/documents/purchaseGroups/$(groupId));
+      return group.data.ownerUid == uid || 
+             existsInMembersList(group.data.members, uid);
+    }
+    */
   }
 }

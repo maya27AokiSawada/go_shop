@@ -1,3 +1,5 @@
+// 🚨 未使用ウィジェット - PurchaseGroupPageでの実装時に使用予定
+// TODO: PurchaseGroupPageでメンバー追加フォーム実装時に import して使用
 // lib/widgets/new_member_input_form.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

@@ -26,7 +26,7 @@ class FirebaseDiagnostics {
       try {
         // 簡単な読み取りテスト
         final testRef = FirebaseFirestore.instance.collection('_test');
-        await testRef.limit(1).get().timeout(Duration(seconds: 5));
+        await testRef.limit(1).get().timeout(const Duration(seconds: 5));
         
         final endTime = DateTime.now();
         final latency = endTime.difference(startTime).inMilliseconds;
@@ -53,7 +53,7 @@ class FirebaseDiagnostics {
           await testDoc.set({
             'timestamp': FieldValue.serverTimestamp(),
             'test_data': 'Firebase diagnostics test',
-          }).timeout(Duration(seconds: 5));
+          }).timeout(const Duration(seconds: 5));
           
           results['firestore_write'] = true;
           logger.i('✅ Firestore書き込み成功');
