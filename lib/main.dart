@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:logger/logger.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
 import 'models/purchase_group.dart';
 import 'models/shopping_list.dart';
 import 'screens/home_screen.dart';
@@ -14,17 +12,18 @@ final logger = Logger();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Firebase初期化
-  final firebaseApp = await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  
   final logger = Logger();
-  logger.i("Firebase initialized: ${firebaseApp.name}");
-  logger.i("Firebase options: ${DefaultFirebaseOptions.currentPlatform.projectId}");
   
-  // フレーバーの設定 - 本番環境でFirebase Auth & Firestoreを使用
-  F.appFlavor = Flavor.prod;
+  // フレーバーの設定
+  F.appFlavor = Flavor.dev;
+  
+  // 本番環境のみFirebaseを初期化
+  if (F.appFlavor == Flavor.prod) {
+    // 本番環境では実際のFirebaseを初期化する
+    throw UnimplementedError('Production Firebase initialization not implemented yet');
+  } else {
+    logger.i("Starting Go Shop app in DEV mode (Hive only, no Firebase)");
+  }
   
   // Hive初期化
   await _initializeHive();

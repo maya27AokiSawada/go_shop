@@ -5,6 +5,7 @@ import '../models/shopping_list.dart';
 import '../providers/purchase_group_provider.dart';
 import '../datastore/shopping_list_repository.dart';
 import '../datastore/firebase_shopping_list_repository.dart';
+import '../datastore/hive_shopping_list_repository.dart';
 import '../flavors.dart';
 
 // ShoppingListのBox管理
@@ -18,8 +19,8 @@ final shoppingListRepositoryProvider = Provider<ShoppingListRepository>((ref) {
     // 本番環境: Firebase同期リポジトリを使用（Real Firebase Auth）
     return FirebaseSyncShoppingListRepository(ref);
   } else {
-    // 開発環境: Firebase同期リポジトリを使用（Mock Auth）
-    return FirebaseSyncShoppingListRepository(ref);
+    // 開発環境: Hiveリポジトリを使用（ローカルのみ）
+    return HiveShoppingListRepository(ref);
   }
 });
 
