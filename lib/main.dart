@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:logger/logger.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'models/purchase_group.dart';
 import 'models/shopping_list.dart';
+import 'models/user_settings.dart';
 import 'screens/home_screen.dart';
 import 'flavors.dart';
 
@@ -17,10 +20,13 @@ void main() async {
   // フレーバーの設定
   F.appFlavor = Flavor.dev;
   
-  // 本番環境のみFirebaseを初期化
+  // Firebase初期化
   if (F.appFlavor == Flavor.prod) {
-    // 本番環境では実際のFirebaseを初期化する
-    throw UnimplementedError('Production Firebase initialization not implemented yet');
+    logger.i("🔥 Starting Go Shop app in PRODUCTION mode with Firebase");
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    logger.i("✅ Firebase initialized successfully");
   } else {
     logger.i("Starting Go Shop app in DEV mode (Hive only, no Firebase)");
   }
@@ -47,37 +53,54 @@ Future<void> _initializeHive() async {
     Hive.registerAdapter(PurchaseGroupAdapter());
     Hive.registerAdapter(ShoppingItemAdapter());
     Hive.registerAdapter(ShoppingListAdapter());
+    Hive.registerAdapter(UserSettingsAdapter());
     logger.i('📝 Hive adapters registered');
     
     // 全てのBoxを事前に開く
     await Future.wait([
       Hive.openBox<PurchaseGroup>('purchaseGroups'),
       Hive.openBox<ShoppingList>('shoppingLists'),
-      Hive.openBox('userSettings'), // ユーザー設定用のBox
+      Hive.openBox<UserSettings>('userSettings'), // ユーザー設定用のBox
     ]);
     
     // データ保存状況をデバッグ出力
     final purchaseGroupBox = Hive.box<PurchaseGroup>('purchaseGroups');
     final shoppingListBox = Hive.box<ShoppingList>('shoppingLists');
-    final userSettingsBox = Hive.box('userSettings');
+    final userSettingsBox = Hive.box<UserSettings>('userSettings');
     
     logger.i('📊 Hive boxes opened successfully:');
     logger.i('  - PurchaseGroups: ${purchaseGroupBox.length} items');
     logger.i('  - ShoppingLists: ${shoppingListBox.length} items');
     logger.i('  - UserSettings: ${userSettingsBox.length} items');
     
-    // UserSettings内容の詳細確認
-    if (userSettingsBox.isNotEmpty) {
-      logger.i('👤 UserSettings contents:');
-      for (final key in userSettingsBox.keys) {
-        final value = userSettingsBox.get(key);
+  // UserSettings内容の詳細確認と修復
+  if (userSettingsBox.isNotEmpty) {
+    logger.i('👤 UserSettings contents:');
+    bool needsClearing = false;
+    for (final key in userSettingsBox.keys) {
+      try {
+        final dynamic value = userSettingsBox.get(key);
         logger.i('  - Key: $key, Value: $value (${value.runtimeType})');
+        
+        // 期待されるUserSettings型でない場合
+        if (value is String || (value != null && value is! UserSettings)) {
+          logger.w('  - Invalid type found, will clear box');
+          needsClearing = true;
+        }
+      } catch (e) {
+        logger.e('  - Error reading key $key: $e');
+        needsClearing = true;
       }
-    } else {
-      logger.w('⚠️  UserSettings box is empty - no saved data found');
     }
     
-    // ShoppingLists内容の詳細確認
+    // 不正なデータがある場合はボックスをクリア
+    if (needsClearing) {
+      logger.w('🧹 Clearing corrupted UserSettings box');
+      await userSettingsBox.clear();
+    }
+  } else {
+    logger.w('⚠️  UserSettings box is empty - no saved data found');
+  }    // ShoppingLists内容の詳細確認
     if (shoppingListBox.isNotEmpty) {
       logger.i('🛒 ShoppingLists contents:');
       for (int i = 0; i < shoppingListBox.length; i++) {

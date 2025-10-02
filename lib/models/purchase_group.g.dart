@@ -22,13 +22,17 @@ class PurchaseGroupMemberAdapter extends TypeAdapter<PurchaseGroupMember> {
       contact: fields[2] as String,
       role: fields[3] as PurchaseGroupRole,
       isSignedIn: fields[4] as bool,
+      isInvited: fields[5] as bool,
+      isInvitationAccepted: fields[6] as bool,
+      invitedAt: fields[7] as DateTime?,
+      acceptedAt: fields[8] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, PurchaseGroupMember obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.memberId)
       ..writeByte(1)
@@ -38,7 +42,15 @@ class PurchaseGroupMemberAdapter extends TypeAdapter<PurchaseGroupMember> {
       ..writeByte(3)
       ..write(obj.role)
       ..writeByte(4)
-      ..write(obj.isSignedIn);
+      ..write(obj.isSignedIn)
+      ..writeByte(5)
+      ..write(obj.isInvited)
+      ..writeByte(6)
+      ..write(obj.isInvitationAccepted)
+      ..writeByte(7)
+      ..write(obj.invitedAt)
+      ..writeByte(8)
+      ..write(obj.acceptedAt);
   }
 
   @override
@@ -109,20 +121,20 @@ class PurchaseGroupRoleAdapter extends TypeAdapter<PurchaseGroupRole> {
   PurchaseGroupRole read(BinaryReader reader) {
     switch (reader.readByte()) {
       case 0:
-        return PurchaseGroupRole.leader;
+        return PurchaseGroupRole.owner;
       case 1:
         return PurchaseGroupRole.parent;
       case 2:
         return PurchaseGroupRole.child;
       default:
-        return PurchaseGroupRole.leader;
+        return PurchaseGroupRole.owner;
     }
   }
 
   @override
   void write(BinaryWriter writer, PurchaseGroupRole obj) {
     switch (obj) {
-      case PurchaseGroupRole.leader:
+      case PurchaseGroupRole.owner:
         writer.writeByte(0);
         break;
       case PurchaseGroupRole.parent:

@@ -46,21 +46,15 @@ class _HomePageState extends ConsumerState<HomePage> {
   void _initializeUserName() async {
     print('🔧 _initializeUserName開始');
     
-    // まずHiveから直接ユーザー名を強制再読み込み
-    await ref.read(userNameProvider.notifier).reloadFromHive();
-    
+    // 設定から現在のユーザー名を確認
     final currentUserName = ref.read(userNameProvider);
-    print('🔧 プロバイダーのユーザー名: $currentUserName');
+    print('👤 現在のユーザー名（設定から）: $currentUserName');
     
     if (currentUserName != null && currentUserName.isNotEmpty) {
-      print('✅ プロバイダーからユーザー名を復元: $currentUserName');
-      if (mounted) {
-        setState(() {
-          userNameController.text = currentUserName;
-        });
-      }
+      userNameController.text = currentUserName;
+      print('✅ ユーザー名が設定から復元されました: $currentUserName');
     } else {
-      print('⚠️ プロバイダーにユーザー名がないため、グループから読み込み');
+      print('⚠️ 設定にユーザー名がないため、グループから読み込み');
       _loadUserNameFromDefaultGroup();
     }
   }
@@ -271,7 +265,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                           ref.read(mockAuthStateProvider.notifier).state = null;
                         }
                         // ログアウト時にユーザー名もクリア
-                        ref.read(userNameProvider.notifier).clearUserName();
+                        // ユーザー名をクリア（今回はコメントアウト）
+                        // await ref.read(userNameNotifierProvider.notifier).clearUserName();
                       },
                       child: const Text('ログアウト'),
                     ),
@@ -347,11 +342,11 @@ class _HomePageState extends ConsumerState<HomePage> {
                 
                 // 認証状態に関係なく、leaderのユーザー名を取得
                 if (group.members != null && group.members!.isNotEmpty) {
-                  // leaderを優先して探す
+                  // ownerを優先して探す
                   var currentMember = group.members!.firstWhere(
-                    (member) => member.role == PurchaseGroupRole.leader,
+                    (member) => member.role == PurchaseGroupRole.owner,
                     orElse: () {
-                      print('⚠️ leaderが見つからないので最初のメンバーを使用');
+                      print('⚠️ ownerが見つからないので最初のメンバーを使用');
                       return group.members!.first;
                     },
                   );
@@ -376,7 +371,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   
                   if (currentMember.name.isNotEmpty) {
                     print('✅ ユーザー名をプロバイダーに設定: ${currentMember.name}');
-                    await ref.read(userNameProvider.notifier).setUserName(currentMember.name);
+                    await ref.read(userNameNotifierProvider.notifier).setUserName(currentMember.name);
                     if (mounted) {
                       setState(() {
                         userNameController.text = currentMember.name;
@@ -532,23 +527,32 @@ class _HomePageState extends ConsumerState<HomePage> {
         
         PurchaseGroup defaultGroup;
         if (existingGroup != null) {
-          // 既存グループのleaderメンバーを更新
+          print('userInfoSave: 既存グループを更新 - ユーザー名: $userName');
+          // 既存グループのownerメンバーを更新
           final updatedMembers = existingGroup.members?.map((member) {
-            if (member.role == PurchaseGroupRole.leader) {
+            print('userInfoSave: メンバーチェック - ${member.name} (${member.role})');
+            if (member.role == PurchaseGroupRole.owner) {
+              print('userInfoSave: ownerメンバーを更新: ${member.name} -> $userName');
               return member.copyWith(name: userName);
             }
             return member;
           }).toList() ?? [];
           
-          // leaderが存在しない場合は新規作成
-          if (!updatedMembers.any((m) => m.role == PurchaseGroupRole.leader)) {
+          // ownerが存在しない場合は新規作成
+          if (!updatedMembers.any((m) => m.role == PurchaseGroupRole.owner)) {
+            print('userInfoSave: ownerが存在しないため新規作成: $userName');
             updatedMembers.add(PurchaseGroupMember(
               memberId: 'defaultUser',
               name: userName,
               contact: 'default@example.com',
-              role: PurchaseGroupRole.leader,
+              role: PurchaseGroupRole.owner,
               isSignedIn: true,
             ));
+          }
+          
+          print('userInfoSave: 更新後のメンバー数: ${updatedMembers.length}');
+          for (var member in updatedMembers) {
+            print('  - ${member.name} (${member.role}) - ${member.contact}');
           }
           
           defaultGroup = existingGroup.copyWith(members: updatedMembers);
@@ -562,7 +566,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 memberId: 'defaultUser',
                 name: userName,
                 contact: 'default@example.com',
-                role: PurchaseGroupRole.leader,
+                role: PurchaseGroupRole.owner,
                 isSignedIn: true,
               )
             ],
@@ -598,9 +602,11 @@ class _HomePageState extends ConsumerState<HomePage> {
         
         // 購入グループを保存
         await ref.read(purchaseGroupProvider.notifier).updateGroup(defaultGroup);
+        print('userInfoSave: グループ保存完了');
         
         // ユーザー名プロバイダーにも保存（重要！）
-        await ref.read(userNameProvider.notifier).setUserName(userName);
+        await ref.read(userNameNotifierProvider.notifier).setUserName(userName);
+        print('userInfoSave: ユーザー名プロバイダー保存完了');
         
         // デバッグ用ログ
         print('userInfoSave: ユーザー名 "$userName" で デフォルトグループを更新しました');

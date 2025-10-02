@@ -10,7 +10,7 @@ const uuid = Uuid();
 @HiveType(typeId: 0)
 enum PurchaseGroupRole {
   @HiveField(0)
-  leader,
+  owner,
   @HiveField(1)
   parent,
   @HiveField(2)
@@ -23,9 +23,13 @@ class PurchaseGroupMember with _$PurchaseGroupMember {
   const factory PurchaseGroupMember({
     @HiveField(0) @Default('') String memberId,
     @HiveField(1) required String name,
-    @HiveField(2) required String contact,
+    @HiveField(2) required String contact, // email または phone
     @HiveField(3) required PurchaseGroupRole role,
     @HiveField(4) @Default(false) bool isSignedIn,
+    @HiveField(5) @Default(false) bool isInvited, // 招待済みかどうか
+    @HiveField(6) @Default(false) bool isInvitationAccepted, // 招待受諾済みかどうか
+    @HiveField(7) DateTime? invitedAt, // 招待日時
+    @HiveField(8) DateTime? acceptedAt, // 受諾日時
   }) = _PurchaseGroupMember;
   
   // カスタムコンストラクタでmemberIdを自動生成
@@ -35,6 +39,10 @@ class PurchaseGroupMember with _$PurchaseGroupMember {
     required String contact,
     required PurchaseGroupRole role,
     bool isSignedIn = false,
+    bool isInvited = false,
+    bool isInvitationAccepted = false,
+    DateTime? invitedAt,
+    DateTime? acceptedAt,
   }) {
     return PurchaseGroupMember(
       memberId: memberId?.isNotEmpty == true ? memberId! : uuid.v4(),
@@ -42,6 +50,10 @@ class PurchaseGroupMember with _$PurchaseGroupMember {
       contact: contact,
       role: role,
       isSignedIn: isSignedIn,
+      isInvited: isInvited,
+      isInvitationAccepted: isInvitationAccepted,
+      invitedAt: invitedAt,
+      acceptedAt: acceptedAt,
     );
   }
 }
@@ -55,6 +67,10 @@ extension PurchaseGroupMemberExtension on PurchaseGroupMember {
     String? contact,
     PurchaseGroupRole? role,
     bool? isSignedIn,
+    bool? isInvited,
+    bool? isInvitationAccepted,
+    DateTime? invitedAt,
+    DateTime? acceptedAt,
   }) {
     return PurchaseGroupMember(
       name: name ?? this.name,
@@ -62,6 +78,10 @@ extension PurchaseGroupMemberExtension on PurchaseGroupMember {
       contact: contact ?? this.contact,
       role: role ?? this.role,
       isSignedIn: isSignedIn ?? this.isSignedIn,
+      isInvited: isInvited ?? this.isInvited,
+      isInvitationAccepted: isInvitationAccepted ?? this.isInvitationAccepted,
+      invitedAt: invitedAt ?? this.invitedAt,
+      acceptedAt: acceptedAt ?? this.acceptedAt,
     );
   }
 }
@@ -120,6 +140,60 @@ extension PurchaseGroupExtension on PurchaseGroup {
     return copyWith(
       members: members!.where((m) => m != member).toList(),
     );
+  }
+
+  // 招待機能メソッド
+  PurchaseGroup inviteMember({
+    required String name,
+    required String contact, // email または phone
+    required PurchaseGroupRole role,
+  }) {
+    final newMember = PurchaseGroupMember.create(
+      name: name,
+      contact: contact,
+      role: role,
+      isInvited: true,
+      isInvitationAccepted: false,
+      invitedAt: DateTime.now(),
+    );
+    return addMember(newMember);
+  }
+
+  // 招待を受諾
+  PurchaseGroup acceptInvitation(String memberId) {
+    if (members == null) return this;
+    
+    final updatedMembers = members!.map((member) {
+      if (member.memberId == memberId && member.isInvited && !member.isInvitationAccepted) {
+        return member.copyWith(
+          isInvitationAccepted: true,
+          acceptedAt: DateTime.now(),
+        );
+      }
+      return member;
+    }).toList();
+    
+    return copyWith(members: updatedMembers);
+  }
+
+  // 招待をキャンセル
+  PurchaseGroup cancelInvitation(String memberId) {
+    if (members == null) return this;
+    return copyWith(
+      members: members!.where((m) => m.memberId != memberId).toList(),
+    );
+  }
+
+  // 招待待ちメンバーのリストを取得
+  List<PurchaseGroupMember> get pendingInvitations {
+    if (members == null) return [];
+    return members!.where((m) => m.isInvited && !m.isInvitationAccepted).toList();
+  }
+
+  // アクティブなメンバー（招待受諾済み）のリストを取得
+  List<PurchaseGroupMember> get activeMembers {
+    if (members == null) return [];
+    return members!.where((m) => !m.isInvited || m.isInvitationAccepted).toList();
   }
 
   // Hive のアダプターに対応するためのメソッド

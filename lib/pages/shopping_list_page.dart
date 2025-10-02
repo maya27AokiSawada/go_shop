@@ -703,7 +703,7 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
     } else if (daysUntil == 1) {
       return '明日期限';
     } else {
-      return 'あと${daysUntil}日';
+      return 'あと$daysUntil日';
     }
   }
 

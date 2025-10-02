@@ -2,14 +2,43 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../datastore/hive_purchase_group_repository.dart';
 import '../models/purchase_group.dart';
+import 'user_settings_provider.dart';
+
+// 現在選択中のグループIDを管理するStateNotifier
+class SelectedGroupIdNotifier extends StateNotifier<String> {
+  final Ref _ref;
+  
+  SelectedGroupIdNotifier(this._ref) : super('defaultGroup') {
+    _loadFromSettings();
+  }
+  
+  // 設定から初期値を読み込み
+  void _loadFromSettings() {
+    final lastUsedGroupId = _ref.read(lastUsedGroupIdProvider);
+    if (lastUsedGroupId.isNotEmpty) {
+      state = lastUsedGroupId;
+    }
+  }
+  
+  Future<void> selectGroup(String groupId) async {
+    state = groupId;
+    // 設定に保存
+    await _ref.read(userSettingsProvider.notifier).updateLastUsedGroupId(groupId);
+  }
+}
+
+// 現在選択中のグループIDプロバイダー
+final selectedGroupIdProvider = StateNotifierProvider<SelectedGroupIdNotifier, String>((ref) {
+  return SelectedGroupIdNotifier(ref);
+});
 
 // PurchaseGroupの状態を管理するAsyncNotifierProvider
 class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
   @override
   Future<PurchaseGroup> build() async {
     final repository = ref.read(purchaseGroupRepositoryProvider);
-    final currentGroupId = ref.read(currentGroupIdProvider);
-    return await repository.getGroupById(currentGroupId);
+    final selectedGroupId = ref.watch(selectedGroupIdProvider);
+    return await repository.getGroupById(selectedGroupId);
   }
 
   // グループを更新
@@ -67,8 +96,57 @@ class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
     try {
       final repository = ref.read(purchaseGroupRepositoryProvider);
       await repository.deleteGroup(groupId);
-      // デフォルトグループを読み込み
-      await build();
+      
+      // 現在選択中のグループが削除された場合はデフォルトグループに切り替え
+      final selectedGroupId = ref.read(selectedGroupIdProvider);
+      if (selectedGroupId == groupId) {
+        ref.read(selectedGroupIdProvider.notifier).selectGroup('defaultGroup');
+      }
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+    }
+  }
+  
+  // 新しいグループを作成
+  Future<void> createNewGroup(String groupName) async {
+    state = const AsyncValue.loading();
+    try {
+      final repository = ref.read(purchaseGroupRepositoryProvider);
+      final userName = ref.read(userNameFromSettingsProvider);
+      final finalUserName = userName.isEmpty ? 'Unknown User' : userName;
+      
+      // 新しいグループIDを生成
+      final newGroupId = 'group_${DateTime.now().millisecondsSinceEpoch}';
+      
+      // オーナーメンバーを作成
+      final ownerMember = PurchaseGroupMember(
+        memberId: 'defaultUser',
+        name: finalUserName,
+        contact: 'default@example.com',
+        role: PurchaseGroupRole.owner,
+        isSignedIn: true,
+      );
+      
+      // グループを作成
+      final newGroup = await repository.createGroup(newGroupId, groupName, ownerMember);
+      
+      // 新しく作成したグループを選択
+      ref.read(selectedGroupIdProvider.notifier).selectGroup(newGroupId);
+      
+      state = AsyncValue.data(newGroup);
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+    }
+  }
+  
+  // グループを切り替え
+  Future<void> switchToGroup(String groupId) async {
+    state = const AsyncValue.loading();
+    try {
+      ref.read(selectedGroupIdProvider.notifier).selectGroup(groupId);
+      final repository = ref.read(purchaseGroupRepositoryProvider);
+      final group = await repository.getGroupById(groupId);
+      state = AsyncValue.data(group);
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
     }

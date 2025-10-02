@@ -21,11 +21,20 @@ mixin _$PurchaseGroupMember {
   @HiveField(1)
   String get name => throw _privateConstructorUsedError;
   @HiveField(2)
-  String get contact => throw _privateConstructorUsedError;
+  String get contact => throw _privateConstructorUsedError; // email または phone
   @HiveField(3)
   PurchaseGroupRole get role => throw _privateConstructorUsedError;
   @HiveField(4)
   bool get isSignedIn => throw _privateConstructorUsedError;
+  @HiveField(5)
+  bool get isInvited => throw _privateConstructorUsedError; // 招待済みかどうか
+  @HiveField(6)
+  bool get isInvitationAccepted =>
+      throw _privateConstructorUsedError; // 招待受諾済みかどうか
+  @HiveField(7)
+  DateTime? get invitedAt => throw _privateConstructorUsedError; // 招待日時
+  @HiveField(8)
+  DateTime? get acceptedAt => throw _privateConstructorUsedError;
 
   @JsonKey(ignore: true)
   $PurchaseGroupMemberCopyWith<PurchaseGroupMember> get copyWith =>
@@ -43,7 +52,11 @@ abstract class $PurchaseGroupMemberCopyWith<$Res> {
       @HiveField(1) String name,
       @HiveField(2) String contact,
       @HiveField(3) PurchaseGroupRole role,
-      @HiveField(4) bool isSignedIn});
+      @HiveField(4) bool isSignedIn,
+      @HiveField(5) bool isInvited,
+      @HiveField(6) bool isInvitationAccepted,
+      @HiveField(7) DateTime? invitedAt,
+      @HiveField(8) DateTime? acceptedAt});
 }
 
 /// @nodoc
@@ -64,6 +77,10 @@ class _$PurchaseGroupMemberCopyWithImpl<$Res, $Val extends PurchaseGroupMember>
     Object? contact = null,
     Object? role = null,
     Object? isSignedIn = null,
+    Object? isInvited = null,
+    Object? isInvitationAccepted = null,
+    Object? invitedAt = freezed,
+    Object? acceptedAt = freezed,
   }) {
     return _then(_value.copyWith(
       memberId: null == memberId
@@ -86,6 +103,22 @@ class _$PurchaseGroupMemberCopyWithImpl<$Res, $Val extends PurchaseGroupMember>
           ? _value.isSignedIn
           : isSignedIn // ignore: cast_nullable_to_non_nullable
               as bool,
+      isInvited: null == isInvited
+          ? _value.isInvited
+          : isInvited // ignore: cast_nullable_to_non_nullable
+              as bool,
+      isInvitationAccepted: null == isInvitationAccepted
+          ? _value.isInvitationAccepted
+          : isInvitationAccepted // ignore: cast_nullable_to_non_nullable
+              as bool,
+      invitedAt: freezed == invitedAt
+          ? _value.invitedAt
+          : invitedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      acceptedAt: freezed == acceptedAt
+          ? _value.acceptedAt
+          : acceptedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
     ) as $Val);
   }
 }
@@ -103,7 +136,11 @@ abstract class _$$PurchaseGroupMemberImplCopyWith<$Res>
       @HiveField(1) String name,
       @HiveField(2) String contact,
       @HiveField(3) PurchaseGroupRole role,
-      @HiveField(4) bool isSignedIn});
+      @HiveField(4) bool isSignedIn,
+      @HiveField(5) bool isInvited,
+      @HiveField(6) bool isInvitationAccepted,
+      @HiveField(7) DateTime? invitedAt,
+      @HiveField(8) DateTime? acceptedAt});
 }
 
 /// @nodoc
@@ -122,6 +159,10 @@ class __$$PurchaseGroupMemberImplCopyWithImpl<$Res>
     Object? contact = null,
     Object? role = null,
     Object? isSignedIn = null,
+    Object? isInvited = null,
+    Object? isInvitationAccepted = null,
+    Object? invitedAt = freezed,
+    Object? acceptedAt = freezed,
   }) {
     return _then(_$PurchaseGroupMemberImpl(
       memberId: null == memberId
@@ -144,6 +185,22 @@ class __$$PurchaseGroupMemberImplCopyWithImpl<$Res>
           ? _value.isSignedIn
           : isSignedIn // ignore: cast_nullable_to_non_nullable
               as bool,
+      isInvited: null == isInvited
+          ? _value.isInvited
+          : isInvited // ignore: cast_nullable_to_non_nullable
+              as bool,
+      isInvitationAccepted: null == isInvitationAccepted
+          ? _value.isInvitationAccepted
+          : isInvitationAccepted // ignore: cast_nullable_to_non_nullable
+              as bool,
+      invitedAt: freezed == invitedAt
+          ? _value.invitedAt
+          : invitedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      acceptedAt: freezed == acceptedAt
+          ? _value.acceptedAt
+          : acceptedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
     ));
   }
 }
@@ -156,7 +213,11 @@ class _$PurchaseGroupMemberImpl implements _PurchaseGroupMember {
       @HiveField(1) required this.name,
       @HiveField(2) required this.contact,
       @HiveField(3) required this.role,
-      @HiveField(4) this.isSignedIn = false});
+      @HiveField(4) this.isSignedIn = false,
+      @HiveField(5) this.isInvited = false,
+      @HiveField(6) this.isInvitationAccepted = false,
+      @HiveField(7) this.invitedAt,
+      @HiveField(8) this.acceptedAt});
 
   @override
   @JsonKey()
@@ -168,6 +229,7 @@ class _$PurchaseGroupMemberImpl implements _PurchaseGroupMember {
   @override
   @HiveField(2)
   final String contact;
+// email または phone
   @override
   @HiveField(3)
   final PurchaseGroupRole role;
@@ -175,10 +237,27 @@ class _$PurchaseGroupMemberImpl implements _PurchaseGroupMember {
   @JsonKey()
   @HiveField(4)
   final bool isSignedIn;
+  @override
+  @JsonKey()
+  @HiveField(5)
+  final bool isInvited;
+// 招待済みかどうか
+  @override
+  @JsonKey()
+  @HiveField(6)
+  final bool isInvitationAccepted;
+// 招待受諾済みかどうか
+  @override
+  @HiveField(7)
+  final DateTime? invitedAt;
+// 招待日時
+  @override
+  @HiveField(8)
+  final DateTime? acceptedAt;
 
   @override
   String toString() {
-    return 'PurchaseGroupMember(memberId: $memberId, name: $name, contact: $contact, role: $role, isSignedIn: $isSignedIn)';
+    return 'PurchaseGroupMember(memberId: $memberId, name: $name, contact: $contact, role: $role, isSignedIn: $isSignedIn, isInvited: $isInvited, isInvitationAccepted: $isInvitationAccepted, invitedAt: $invitedAt, acceptedAt: $acceptedAt)';
   }
 
   @override
@@ -192,12 +271,20 @@ class _$PurchaseGroupMemberImpl implements _PurchaseGroupMember {
             (identical(other.contact, contact) || other.contact == contact) &&
             (identical(other.role, role) || other.role == role) &&
             (identical(other.isSignedIn, isSignedIn) ||
-                other.isSignedIn == isSignedIn));
+                other.isSignedIn == isSignedIn) &&
+            (identical(other.isInvited, isInvited) ||
+                other.isInvited == isInvited) &&
+            (identical(other.isInvitationAccepted, isInvitationAccepted) ||
+                other.isInvitationAccepted == isInvitationAccepted) &&
+            (identical(other.invitedAt, invitedAt) ||
+                other.invitedAt == invitedAt) &&
+            (identical(other.acceptedAt, acceptedAt) ||
+                other.acceptedAt == acceptedAt));
   }
 
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, memberId, name, contact, role, isSignedIn);
+  int get hashCode => Object.hash(runtimeType, memberId, name, contact, role,
+      isSignedIn, isInvited, isInvitationAccepted, invitedAt, acceptedAt);
 
   @JsonKey(ignore: true)
   @override
@@ -213,7 +300,11 @@ abstract class _PurchaseGroupMember implements PurchaseGroupMember {
       @HiveField(1) required final String name,
       @HiveField(2) required final String contact,
       @HiveField(3) required final PurchaseGroupRole role,
-      @HiveField(4) final bool isSignedIn}) = _$PurchaseGroupMemberImpl;
+      @HiveField(4) final bool isSignedIn,
+      @HiveField(5) final bool isInvited,
+      @HiveField(6) final bool isInvitationAccepted,
+      @HiveField(7) final DateTime? invitedAt,
+      @HiveField(8) final DateTime? acceptedAt}) = _$PurchaseGroupMemberImpl;
 
   @override
   @HiveField(0)
@@ -224,12 +315,24 @@ abstract class _PurchaseGroupMember implements PurchaseGroupMember {
   @override
   @HiveField(2)
   String get contact;
-  @override
+  @override // email または phone
   @HiveField(3)
   PurchaseGroupRole get role;
   @override
   @HiveField(4)
   bool get isSignedIn;
+  @override
+  @HiveField(5)
+  bool get isInvited;
+  @override // 招待済みかどうか
+  @HiveField(6)
+  bool get isInvitationAccepted;
+  @override // 招待受諾済みかどうか
+  @HiveField(7)
+  DateTime? get invitedAt;
+  @override // 招待日時
+  @HiveField(8)
+  DateTime? get acceptedAt;
   @override
   @JsonKey(ignore: true)
   _$$PurchaseGroupMemberImplCopyWith<_$PurchaseGroupMemberImpl> get copyWith =>

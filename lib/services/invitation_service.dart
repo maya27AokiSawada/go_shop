@@ -118,8 +118,8 @@ class InvitationService {
 
   PurchaseGroupRole _parseRole(String roleString) {
     switch (roleString) {
-      case 'leader':
-        return PurchaseGroupRole.leader;
+      case 'owner':
+        return PurchaseGroupRole.owner;
       case 'parent':
         return PurchaseGroupRole.parent;
       case 'child':

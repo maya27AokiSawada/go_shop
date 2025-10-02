@@ -1,3 +1,5 @@
+// 🚨 未使用ウィジェット - PurchaseGroupPageでの実装時に使用予定
+// TODO: PurchaseGroupPageでメンバーリスト表示時に import して使用
 import 'package:flutter/material.dart';
 import '../models/purchase_group.dart'; // Memberクラスをインポート
 

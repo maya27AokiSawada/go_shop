@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
+import 'dart:developer' as developer;
 import '../models/shopping_list.dart';
 import '../providers/hive_provider.dart';
 import 'shopping_list_repository.dart';
@@ -20,18 +21,18 @@ class HiveShoppingListRepository implements ShoppingListRepository {
   Future<void> addItem(ShoppingList list) async {
     try {
       await box.put(list.groupId, list);
-      print('💾 HiveShoppingListRepository: データを保存 - Key: ${list.groupId}, Items: ${list.items.length}個');
-      print('📦 Box contents after save: ${box.length} lists total');
+      developer.log('💾 HiveShoppingListRepository: データを保存 - Key: ${list.groupId}, Items: ${list.items.length}個');
+      developer.log('📦 Box contents after save: ${box.length} lists total');
       
       // 保存確認
       final saved = box.get(list.groupId);
       if (saved != null) {
-        print('✅ 保存確認成功: ${saved.items.length}個のアイテム');
+        developer.log('✅ 保存確認成功: ${saved.items.length}個のアイテム');
       } else {
-        print('❌ 保存確認失敗: データが見つかりません');
+        developer.log('❌ 保存確認失敗: データが見つかりません');
       }
     } catch (e) {
-      print('❌ HiveShoppingListRepository: 保存エラー - $e');
+      developer.log('❌ HiveShoppingListRepository: 保存エラー - $e');
       rethrow;
     }
   }
@@ -71,12 +72,15 @@ class HiveShoppingListRepository implements ShoppingListRepository {
   Future<void> removeShoppingItem(String groupId, ShoppingItem item) async {
     final list = box.get(groupId);
     if (list != null) {
+      // より厳密な比較でアイテムを特定（登録日時も考慮）
       final updatedItems = list.items.where((existingItem) => 
-        existingItem.name != item.name || 
-        existingItem.memberId != item.memberId
+        !(existingItem.name == item.name && 
+          existingItem.memberId == item.memberId &&
+          existingItem.registeredDate == item.registeredDate)
       ).toList();
       final updatedList = list.copyWith(items: updatedItems);
       await box.put(groupId, updatedList);
+      developer.log('🗑️ アイテム削除: ${item.name} (${updatedItems.length}個残存)');
     }
   }
 
@@ -85,7 +89,9 @@ class HiveShoppingListRepository implements ShoppingListRepository {
     final list = box.get(groupId);
     if (list != null) {
       final updatedItems = list.items.map((existingItem) {
-        if (existingItem.name == item.name && existingItem.memberId == item.memberId) {
+        if (existingItem.name == item.name && 
+            existingItem.memberId == item.memberId &&
+            existingItem.registeredDate == item.registeredDate) {
           return existingItem.copyWith(
             isPurchased: isPurchased,
             purchaseDate: isPurchased ? DateTime.now() : null,
@@ -96,16 +102,20 @@ class HiveShoppingListRepository implements ShoppingListRepository {
       
       final updatedList = list.copyWith(items: updatedItems);
       await box.put(groupId, updatedList);
+      developer.log('✅ アイテムステータス更新: ${item.name} → ${isPurchased ? "購入済み" : "未購入"}');
     }
   }
 
   // 追加のヘルパーメソッド（抽象クラスには無いが便利）
   Future<void> deleteList(String groupId) async {
     await box.delete(groupId);
+    developer.log('🗑️ リスト削除: $groupId');
   }
 
   List<ShoppingList> getAllLists() {
-    return box.values.toList();
+    final lists = box.values.toList();
+    developer.log('📋 全リスト取得: ${lists.length}個');
+    return lists;
   }
 
   Future<ShoppingList> getOrCreateList(String groupId, String groupName) async {
