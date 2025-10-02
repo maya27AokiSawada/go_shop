@@ -32,6 +32,11 @@ final shoppingListProvider = AsyncNotifierProvider<ShoppingListNotifier, Shoppin
   () => ShoppingListNotifier(),
 );
 
+// グループ別のShoppingListプロバイダー
+final shoppingListForGroupProvider = AsyncNotifierProvider.family<ShoppingListForGroupNotifier, ShoppingList, String>(
+  () => ShoppingListForGroupNotifier(),
+);
+
 class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
   static const String _key = 'current_list';
 
@@ -292,3 +297,134 @@ final itemsByMemberProvider = Provider.family<List<ShoppingItem>, String>((ref, 
     error: (error, stack) => [],
   );
 });
+
+// グループ別のShoppingListNotifier
+class ShoppingListForGroupNotifier extends FamilyAsyncNotifier<ShoppingList, String> {
+  @override
+  Future<ShoppingList> build(String groupId) async {
+    final repository = ref.read(shoppingListRepositoryProvider);
+    
+    try {
+      // 指定されたグループIDのリストを取得または作成
+      final existingList = await repository.getOrCreateList(groupId, '${groupId}のリスト');
+      logger.i('🛒 ShoppingListForGroupNotifier: グループ$groupId のリストを読み込み (${existingList.items.length}アイテム)');
+      return existingList;
+    } catch (e) {
+      logger.e('❌ ShoppingListForGroupNotifier: グループ$groupId のリスト読み込みエラー: $e');
+      // エラー時は空のリストを作成
+      return ShoppingList(
+        ownerUid: '',
+        groupId: groupId,
+        groupName: '${groupId}のリスト',
+        items: [],
+      );
+    }
+  }
+
+  Future<void> addItem(ShoppingItem item) async {
+    try {
+      final repository = ref.read(shoppingListRepositoryProvider);
+      final currentList = await future;
+      final updatedItems = [...currentList.items, item];
+      final updatedList = currentList.copyWith(items: updatedItems);
+      
+      // リポジトリに保存
+      await repository.addItem(updatedList);
+      logger.i('🛒 ShoppingListForGroupNotifier: アイテム「${item.name}」を追加');
+      
+      // 状態を更新
+      state = AsyncValue.data(updatedList);
+    } catch (e) {
+      logger.e('❌ ShoppingListForGroupNotifier: アイテム追加エラー: $e');
+      state = AsyncValue.error(e, StackTrace.current);
+    }
+  }
+
+  Future<void> removeItem(ShoppingItem item) async {
+    try {
+      final repository = ref.read(shoppingListRepositoryProvider);
+      final currentList = await future;
+      final updatedItems = currentList.items.where((i) =>
+        i.memberId != item.memberId || i.name != item.name
+      ).toList();
+      final updatedList = currentList.copyWith(items: updatedItems);
+      
+      // リポジトリに保存
+      await repository.addItem(updatedList);
+      logger.i('🛒 ShoppingListForGroupNotifier: アイテム「${item.name}」を削除');
+      
+      // 状態を更新
+      state = AsyncValue.data(updatedList);
+    } catch (e) {
+      logger.e('❌ ShoppingListForGroupNotifier: アイテム削除エラー: $e');
+      state = AsyncValue.error(e, StackTrace.current);
+    }
+  }
+
+  Future<void> togglePurchased(ShoppingItem item) async {
+    try {
+      final repository = ref.read(shoppingListRepositoryProvider);
+      final currentList = await future;
+      final updatedItems = currentList.items.map((i) {
+        if (i.memberId == item.memberId && i.name == item.name) {
+          return i.copyWith(isPurchased: !i.isPurchased);
+        }
+        return i;
+      }).toList();
+      final updatedList = currentList.copyWith(items: updatedItems);
+      
+      // リポジトリに保存
+      await repository.addItem(updatedList);
+      logger.i('🛒 ShoppingListForGroupNotifier: アイテム「${item.name}」の購入状態を切り替え');
+      
+      // 状態を更新
+      state = AsyncValue.data(updatedList);
+    } catch (e) {
+      logger.e('❌ ShoppingListForGroupNotifier: 購入状態切り替えエラー: $e');
+      state = AsyncValue.error(e, StackTrace.current);
+    }
+  }
+
+  Future<void> updateItem(ShoppingItem oldItem, ShoppingItem newItem) async {
+    try {
+      final repository = ref.read(shoppingListRepositoryProvider);
+      final currentList = await future;
+      final updatedItems = currentList.items.map((i) {
+        if (i.memberId == oldItem.memberId && i.name == oldItem.name) {
+          return newItem;
+        }
+        return i;
+      }).toList();
+      final updatedList = currentList.copyWith(items: updatedItems);
+      
+      // リポジトリに保存
+      await repository.addItem(updatedList);
+      logger.i('🛒 ShoppingListForGroupNotifier: アイテム「${oldItem.name}」を「${newItem.name}」に更新');
+      
+      // 状態を更新
+      state = AsyncValue.data(updatedList);
+    } catch (e) {
+      logger.e('❌ ShoppingListForGroupNotifier: アイテム更新エラー: $e');
+      state = AsyncValue.error(e, StackTrace.current);
+    }
+  }
+
+  Future<void> clearPurchasedItems() async {
+    try {
+      final repository = ref.read(shoppingListRepositoryProvider);
+      final currentList = await future;
+      final updatedItems = currentList.items.where((item) => !item.isPurchased).toList();
+      final updatedList = currentList.copyWith(items: updatedItems);
+      
+      // リポジトリに保存
+      await repository.addItem(updatedList);
+      logger.i('🛒 ShoppingListForGroupNotifier: 購入済みアイテムをクリア');
+      
+      // 状態を更新
+      state = AsyncValue.data(updatedList);
+    } catch (e) {
+      logger.e('❌ ShoppingListForGroupNotifier: 購入済みアイテムクリアエラー: $e');
+      state = AsyncValue.error(e, StackTrace.current);
+    }
+  }
+}

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../datastore/hive_purchase_group_repository.dart';
 import '../models/purchase_group.dart';
 import 'user_settings_provider.dart';
+import 'shopping_list_provider.dart';
 
 // 現在選択中のグループIDを管理するStateNotifier
 class SelectedGroupIdNotifier extends StateNotifier<String> {
@@ -24,6 +25,9 @@ class SelectedGroupIdNotifier extends StateNotifier<String> {
     state = groupId;
     // 設定に保存
     await _ref.read(userSettingsProvider.notifier).updateLastUsedGroupId(groupId);
+    
+    // 関連プロバイダーを更新
+    _ref.read(purchaseGroupProvider.notifier).refreshForSelectedGroup();
   }
 }
 
@@ -37,7 +41,7 @@ class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
   @override
   Future<PurchaseGroup> build() async {
     final repository = ref.read(purchaseGroupRepositoryProvider);
-    final selectedGroupId = ref.watch(selectedGroupIdProvider);
+    final selectedGroupId = ref.read(selectedGroupIdProvider);
     return await repository.getGroupById(selectedGroupId);
   }
 
@@ -112,6 +116,7 @@ class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
     state = const AsyncValue.loading();
     try {
       final repository = ref.read(purchaseGroupRepositoryProvider);
+      final shoppingListRepository = ref.read(shoppingListRepositoryProvider);
       final userName = ref.read(userNameFromSettingsProvider);
       final finalUserName = userName.isEmpty ? 'Unknown User' : userName;
       
@@ -130,8 +135,14 @@ class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
       // グループを作成
       final newGroup = await repository.createGroup(newGroupId, groupName, ownerMember);
       
+      // 対応するショッピングリストを自動作成
+      await shoppingListRepository.getOrCreateList(newGroupId, groupName);
+      
       // 新しく作成したグループを選択
-      ref.read(selectedGroupIdProvider.notifier).selectGroup(newGroupId);
+      await ref.read(selectedGroupIdProvider.notifier).selectGroup(newGroupId);
+      
+      // allGroupsProviderを更新（Dropdownメニューで表示されるように）
+      await ref.read(allGroupsProvider.notifier).refresh();
       
       state = AsyncValue.data(newGroup);
     } catch (e, stack) {
@@ -143,9 +154,21 @@ class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
   Future<void> switchToGroup(String groupId) async {
     state = const AsyncValue.loading();
     try {
-      ref.read(selectedGroupIdProvider.notifier).selectGroup(groupId);
       final repository = ref.read(purchaseGroupRepositoryProvider);
       final group = await repository.getGroupById(groupId);
+      state = AsyncValue.data(group);
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+    }
+  }
+
+  // 選択されたグループの変更に応じてプロバイダーを更新
+  Future<void> refreshForSelectedGroup() async {
+    state = const AsyncValue.loading();
+    try {
+      final repository = ref.read(purchaseGroupRepositoryProvider);
+      final selectedGroupId = ref.read(selectedGroupIdProvider);
+      final group = await repository.getGroupById(selectedGroupId);
       state = AsyncValue.data(group);
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
@@ -178,8 +201,28 @@ final defaultGroupProvider = FutureProvider<PurchaseGroup>((ref) async {
   return await repository.getGroupById('defaultGroup');
 });
 
+// すべてのグループを管理するAsyncNotifierProvider
+class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
+  @override
+  Future<List<PurchaseGroup>> build() async {
+    final repository = ref.read(purchaseGroupRepositoryProvider);
+    return await repository.getAllGroups();
+  }
+
+  // グループリストを更新
+  Future<void> refresh() async {
+    state = const AsyncValue.loading();
+    try {
+      final repository = ref.read(purchaseGroupRepositoryProvider);
+      final groups = await repository.getAllGroups();
+      state = AsyncValue.data(groups);
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+    }
+  }
+}
+
 // すべてのグループを取得するプロバイダー
-final allGroupsProvider = FutureProvider<List<PurchaseGroup>>((ref) async {
-  final repository = ref.read(purchaseGroupRepositoryProvider);
-  return await repository.getAllGroups();
+final allGroupsProvider = AsyncNotifierProvider<AllGroupsNotifier, List<PurchaseGroup>>(() {
+  return AllGroupsNotifier();
 });

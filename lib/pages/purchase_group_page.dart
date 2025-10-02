@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/user_name_provider.dart';
+import '../providers/page_index_provider.dart';
 import '../models/purchase_group.dart';
 
 class PurchaseGroupPage extends ConsumerStatefulWidget {
@@ -31,17 +32,32 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
       appBar: AppBar(
         title: const Text('グループ管理'),
         actions: [
-          // グループ追加ボタン
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _showAddGroupDialog(context),
+          // 設定メニュー
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.settings),
+            onSelected: (value) {
+              switch (value) {
+                case 'delete_group':
+                  if (selectedGroupId != 'defaultGroup') {
+                    _showDeleteGroupDialog(context, selectedGroupId);
+                  }
+                  break;
+              }
+            },
+            itemBuilder: (context) => [
+              if (selectedGroupId != 'defaultGroup')
+                const PopupMenuItem(
+                  value: 'delete_group',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete, color: Colors.red),
+                      SizedBox(width: 8),
+                      Text('グループを削除'),
+                    ],
+                  ),
+                ),
+            ],
           ),
-          // グループ削除ボタン（デフォルトグループ以外）
-          if (selectedGroupId != 'defaultGroup')
-            IconButton(
-              icon: const Icon(Icons.delete),
-              onPressed: () => _showDeleteGroupDialog(context, selectedGroupId),
-            ),
         ],
       ),
       body: Padding(
@@ -54,7 +70,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
             // グループ内容表示
             Expanded(
               child: purchaseGroupAsync.when(
-                data: (purchaseGroup) => _buildGroupContent(purchaseGroup, currentUserName),
+                data: (purchaseGroup) => _buildGroupContent(purchaseGroup, currentUserName, ref),
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (error, stack) => Center(child: Text('エラー: $error')),
               ),
@@ -62,33 +78,40 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
           ],
         ),
       ),
+      floatingActionButton: _buildFloatingActionButton(context, selectedGroupId),
     );
   }
 
   Widget _buildGroupDropdown(AsyncValue<List<PurchaseGroup>> allGroupsAsync, String? selectedGroupId) {
     return allGroupsAsync.when(
-      data: (groups) => DropdownButtonFormField<String>(
-        decoration: const InputDecoration(
-          labelText: 'グループを選択',
-          border: OutlineInputBorder(),
-        ),
-        initialValue: selectedGroupId,
-        items: groups.map((group) => DropdownMenuItem(
-          value: group.groupId,
-          child: Text(group.groupId == 'defaultGroup' ? 'デフォルトグループ' : group.groupName),
-        )).toList(),
-        onChanged: (newGroupId) {
-          if (newGroupId != null) {
-            ref.read(selectedGroupIdProvider.notifier).selectGroup(newGroupId);
-          }
-        },
-      ),
+      data: (groups) {
+        // 選択されたグループが存在するかチェック
+        final groupExists = groups.any((group) => group.groupId == selectedGroupId);
+        final validSelectedGroupId = groupExists ? selectedGroupId : (groups.isNotEmpty ? groups.first.groupId : null);
+        
+        return DropdownButtonFormField<String>(
+          decoration: const InputDecoration(
+            labelText: 'グループを選択',
+            border: OutlineInputBorder(),
+          ),
+          value: validSelectedGroupId,
+          items: groups.map((group) => DropdownMenuItem(
+            value: group.groupId,
+            child: Text(group.groupId == 'defaultGroup' ? 'デフォルトグループ' : group.groupName),
+          )).toList(),
+          onChanged: (newGroupId) {
+            if (newGroupId != null) {
+              ref.read(selectedGroupIdProvider.notifier).selectGroup(newGroupId);
+            }
+          },
+        );
+      },
       loading: () => const CircularProgressIndicator(),
       error: (error, stack) => Text('エラー: $error'),
     );
   }
 
-  Widget _buildGroupContent(PurchaseGroup purchaseGroup, String? currentUserName) {
+  Widget _buildGroupContent(PurchaseGroup purchaseGroup, String? currentUserName, WidgetRef ref) {
     return Column(
       children: [
         Card(
@@ -147,7 +170,10 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
         ),
         const SizedBox(height: 16),
         ElevatedButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            // ショッピングリストページ（インデックス2）に移動
+            ref.read(pageIndexProvider.notifier).setPageIndex(2);
+          },
           child: const Text('買い物リストへ'),
         ),
       ],
@@ -244,5 +270,158 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
         );
       },
     );
+  }
+
+  // フローティングアクションボタンの構築
+  Widget _buildFloatingActionButton(BuildContext context, String? selectedGroupId) {
+    return FloatingActionButton.extended(
+      onPressed: () => _showActionMenu(context),
+      label: const Text('追加'),
+      icon: const Icon(Icons.add),
+      backgroundColor: Theme.of(context).primaryColor,
+    );
+  }
+
+  // アクションメニューを表示（グループ追加・メンバー追加）
+  void _showActionMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text(
+                '追加メニュー',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.group_add),
+              title: const Text('新しいグループを追加'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _showAddGroupDialog(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_add),
+              title: const Text('メンバーを追加'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _showAddMemberDialog(context);
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // メンバー追加ダイアログ
+  void _showAddMemberDialog(BuildContext context) {
+    final nameController = TextEditingController();
+    final contactController = TextEditingController();
+    PurchaseGroupRole selectedRole = PurchaseGroupRole.child;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('メンバーを追加'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: '名前',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: contactController,
+                decoration: const InputDecoration(
+                  labelText: '連絡先（メールまたは電話番号）',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<PurchaseGroupRole>(
+                value: selectedRole,
+                decoration: const InputDecoration(
+                  labelText: '役割',
+                  border: OutlineInputBorder(),
+                ),
+                items: PurchaseGroupRole.values.map((role) {
+                  String roleText;
+                  switch (role) {
+                    case PurchaseGroupRole.owner:
+                      roleText = 'オーナー';
+                      break;
+                    case PurchaseGroupRole.parent:
+                      roleText = '保護者';
+                      break;
+                    case PurchaseGroupRole.child:
+                      roleText = '子ども';
+                      break;
+                  }
+                  return DropdownMenuItem(
+                    value: role,
+                    child: Text(roleText),
+                  );
+                }).toList(),
+                onChanged: (role) {
+                  if (role != null) {
+                    setState(() {
+                      selectedRole = role;
+                    });
+                  }
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('キャンセル'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (nameController.text.isNotEmpty && contactController.text.isNotEmpty) {
+                  _addMemberToGroup(nameController.text, contactController.text, selectedRole);
+                  Navigator.of(context).pop();
+                }
+              },
+              child: const Text('追加'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // グループにメンバーを追加
+  void _addMemberToGroup(String name, String contact, PurchaseGroupRole role) {
+    final purchaseGroupNotifier = ref.read(purchaseGroupProvider.notifier);
+
+    // 招待機能を使用してメンバーを追加
+    final currentGroup = ref.read(purchaseGroupProvider).value;
+    if (currentGroup != null) {
+      final updatedGroup = currentGroup.inviteMember(
+        name: name,
+        contact: contact,
+        role: role,
+      );
+      purchaseGroupNotifier.updateGroup(updatedGroup);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$nameさんを招待しました')),
+      );
+    }
   }
 }

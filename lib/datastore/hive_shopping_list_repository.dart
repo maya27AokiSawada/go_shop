@@ -118,6 +118,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
     return lists;
   }
 
+  @override
   Future<ShoppingList> getOrCreateList(String groupId, String groupName) async {
     final existingList = box.get(groupId);
     if (existingList != null) {

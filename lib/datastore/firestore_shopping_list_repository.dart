@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/firestore_shopping_list.dart';
+import '../models/shopping_list.dart';
+import 'shopping_list_repository.dart';
 import '../flavors.dart';
 
-class FirestoreShoppingListRepository {
+class FirestoreShoppingListRepository implements ShoppingListRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
   CollectionReference get _collection => _firestore.collection('shoppingLists');
@@ -123,6 +125,50 @@ class FirestoreShoppingListRepository {
           .map((doc) => FirestoreShoppingList.fromFirestore(doc))
           .toList();
     });
+  }
+
+  // リストを取得または作成
+  @override
+  Future<ShoppingList> getOrCreateList(String groupId, String groupName) async {
+    // 既存のリストを検索
+    final querySnapshot = await _collection
+        .where('groupId', isEqualTo: groupId)
+        .limit(1)
+        .get();
+    
+    if (querySnapshot.docs.isNotEmpty) {
+      // 既存のリストが存在する場合
+      final firestoreList = FirestoreShoppingList.fromFirestore(querySnapshot.docs.first);
+      return ShoppingList(
+        ownerUid: firestoreList.ownerUid,
+        groupId: firestoreList.groupId,
+        groupName: groupName,
+        items: firestoreList.items.map((item) => ShoppingItem(
+          memberId: item['memberId'] ?? '',
+          name: item['name'] ?? '',
+          quantity: item['quantity'] ?? 1,
+          registeredDate: DateTime.tryParse(item['registeredDate'] ?? '') ?? DateTime.now(),
+          purchaseDate: DateTime.tryParse(item['purchaseDate'] ?? ''),
+          isPurchased: item['isPurchased'] ?? false,
+          shoppingInterval: item['shoppingInterval'] ?? 0,
+          deadline: DateTime.tryParse(item['deadline'] ?? ''),
+        )).toList(),
+      );
+    } else {
+      // 新しいリストを作成
+      final firestoreList = await createShoppingList(
+        ownerUid: 'defaultUser', // PurchaseGroupから取得すべき
+        groupId: groupId,
+        listName: '${groupName}のリスト',
+        items: [],
+      );
+      return ShoppingList(
+        ownerUid: firestoreList.ownerUid,
+        groupId: firestoreList.groupId,
+        groupName: groupName,
+        items: [],
+      );
+    }
   }
 }
 

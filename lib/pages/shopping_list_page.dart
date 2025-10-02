@@ -4,6 +4,9 @@ import '../models/shopping_list.dart';
 import '../providers/shopping_list_provider.dart';
 import '../providers/purchase_group_provider.dart';
 
+// 選択されたグループIDを管理するプロバイダー
+final selectedGroupIdProvider = StateProvider<String?>((ref) => null);
+
 class ShoppingListPage extends ConsumerStatefulWidget {
   const ShoppingListPage({super.key});
 
@@ -20,6 +23,32 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
   bool _isLoading = false;
   
   @override
+  void initState() {
+    super.initState();
+    // ページ表示時に初回のグループを設定
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeSelectedGroup();
+    });
+  }
+  
+  void _initializeSelectedGroup() async {
+    final allGroupsAsync = ref.read(allGroupsProvider);
+    await allGroupsAsync.when(
+      data: (groups) async {
+        if (groups.isNotEmpty && selectedListId == null) {
+          final firstGroupId = groups.first.groupId;
+          setState(() {
+            selectedListId = firstGroupId;
+          });
+          ref.read(selectedGroupIdProvider.notifier).state = firstGroupId;
+        }
+      },
+      loading: () {},
+      error: (error, stack) {},
+    );
+  }
+  
+  @override
   void dispose() {
     _itemNameController.dispose();
     _quantityController.dispose();
@@ -28,16 +57,22 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
 
   @override
   Widget build(BuildContext context) {
-    final shoppingListAsync = ref.watch(shoppingListProvider);
-    final purchaseGroupAsync = ref.watch(purchaseGroupProvider);
+    final allGroupsAsync = ref.watch(allGroupsProvider);
+    final selectedGroupId = ref.watch(selectedGroupIdProvider);
+    
+    // 選択されたグループIDに基づいてショッピングリストを取得
+    final shoppingListAsync = selectedGroupId != null 
+        ? ref.watch(shoppingListForGroupProvider(selectedGroupId))
+        : ref.watch(shoppingListProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('買い物リスト'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _showAddItemDialog(context),
+            icon: const Icon(Icons.playlist_add),
+            onPressed: () => _showAddShoppingListDialog(context),
+            tooltip: 'リスト追加',
           ),
           PopupMenuButton<String>(
             onSelected: (value) {
@@ -59,8 +94,8 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
           // ドロップダウンでリスト選択
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: purchaseGroupAsync.when(
-              data: (group) => Card(
+            child: allGroupsAsync.when(
+              data: (groups) => Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Row(
@@ -68,25 +103,26 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
                       const Icon(Icons.list_alt),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: selectedListId ?? 'current_list',
-                            isExpanded: true,
-                            hint: const Text('リストを選択'),
-                            items: [
-                              DropdownMenuItem<String>(
-                                value: 'current_list',
-                                child: Text(group.groupName),
+                        child: groups.isNotEmpty
+                          ? DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: selectedListId ?? groups.first.groupId,
+                                isExpanded: true,
+                                hint: const Text('リストを選択'),
+                                items: groups.map((group) => DropdownMenuItem<String>(
+                                  value: group.groupId,
+                                  child: Text(group.groupName),
+                                )).toList(),
+                                onChanged: (String? value) {
+                                  setState(() {
+                                    selectedListId = value;
+                                  });
+                                  // 選択されたグループIDをプロバイダーに保存
+                                  ref.read(selectedGroupIdProvider.notifier).state = value;
+                                },
                               ),
-                              // 将来的に複数リスト対応時はここで追加
-                            ],
-                            onChanged: (String? value) {
-                              setState(() {
-                                selectedListId = value;
-                              });
-                            },
-                          ),
-                        ),
+                            )
+                          : const Text('グループが見つかりません'),
                       ),
                     ],
                   ),
@@ -174,6 +210,7 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
           ),
         ],
       ),
+      floatingActionButton: _buildFloatingActionButton(context),
     );
   }
 
@@ -192,7 +229,12 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
         onTap: () => _showEditItemDialog(context, item),
         // ダブルタップで購入済み切り替え
         onDoubleTap: () {
-          ref.read(shoppingListProvider.notifier).togglePurchased(item);
+          final selectedGroupId = ref.read(selectedGroupIdProvider);
+          if (selectedGroupId != null) {
+            ref.read(shoppingListForGroupProvider(selectedGroupId).notifier).togglePurchased(item);
+          } else {
+            ref.read(shoppingListProvider.notifier).togglePurchased(item);
+          }
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
@@ -210,7 +252,12 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
           leading: Checkbox(
             value: item.isPurchased,
             onChanged: (bool? value) {
-              ref.read(shoppingListProvider.notifier).togglePurchased(item);
+              final selectedGroupId = ref.read(selectedGroupIdProvider);
+              if (selectedGroupId != null) {
+                ref.read(shoppingListForGroupProvider(selectedGroupId).notifier).togglePurchased(item);
+              } else {
+                ref.read(shoppingListProvider.notifier).togglePurchased(item);
+              }
             },
           ),
           title: Text(
@@ -553,7 +600,12 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
           ElevatedButton(
             onPressed: () async {
               try {
-                await ref.read(shoppingListProvider.notifier).removeItem(item);
+                final selectedGroupId = ref.read(selectedGroupIdProvider);
+                if (selectedGroupId != null) {
+                  await ref.read(shoppingListForGroupProvider(selectedGroupId).notifier).removeItem(item);
+                } else {
+                  await ref.read(shoppingListProvider.notifier).removeItem(item);
+                }
                 if (context.mounted) {
                   Navigator.of(context).pop();
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -607,10 +659,13 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
         deadline: _selectedDeadline,
         shoppingInterval: _selectedRepeatDate != null ? _calculateInterval(_selectedRepeatDate!) : 0,
       );
-      
-      await ref.read(shoppingListProvider.notifier).addItem(newItem);
-      
-      if (context.mounted) {
+
+      final selectedGroupId = ref.read(selectedGroupIdProvider);
+      if (selectedGroupId != null) {
+        await ref.read(shoppingListForGroupProvider(selectedGroupId).notifier).addItem(newItem);
+      } else {
+        await ref.read(shoppingListProvider.notifier).addItem(newItem);
+      }      if (context.mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('「$name」を追加しました')),
@@ -838,7 +893,12 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
           ElevatedButton(
             onPressed: () async {
               try {
-                await ref.read(shoppingListProvider.notifier).clearPurchasedItems();
+                final selectedGroupId = ref.read(selectedGroupIdProvider);
+                if (selectedGroupId != null) {
+                  await ref.read(shoppingListForGroupProvider(selectedGroupId).notifier).clearPurchasedItems();
+                } else {
+                  await ref.read(shoppingListProvider.notifier).clearPurchasedItems();
+                }
                 if (context.mounted) {
                   Navigator.of(context).pop();
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -854,6 +914,74 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
               }
             },
             child: const Text('削除'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // フローティングアクションボタンの構築
+  Widget _buildFloatingActionButton(BuildContext context) {
+    return FloatingActionButton.extended(
+      onPressed: () => _showAddItemDialog(context),
+      label: const Text('アイテム追加'),
+      icon: const Icon(Icons.add_shopping_cart),
+      backgroundColor: Theme.of(context).primaryColor,
+    );
+  }
+
+  // 新しいショッピングリスト追加ダイアログ
+  void _showAddShoppingListDialog(BuildContext context) {
+    final listNameController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('新しいリスト作成'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: listNameController,
+              decoration: const InputDecoration(
+                labelText: 'リスト名',
+                hintText: '例: 今週の買い物',
+              ),
+              autofocus: true,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              '※現在は1つのリストのみサポートしています',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              listNameController.dispose();
+              Navigator.of(context).pop();
+            },
+            child: const Text('キャンセル'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final listName = listNameController.text.trim();
+              if (listName.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('リスト名を入力してください')),
+                );
+                return;
+              }
+              
+              // 将来の機能として準備（現在は未実装）
+              listNameController.dispose();
+              Navigator.of(context).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('複数リスト機能は将来リリース予定です')),
+              );
+            },
+            child: const Text('作成'),
           ),
         ],
       ),
