@@ -137,7 +137,7 @@ class FirestorePurchaseGroupRepository {
       ownerUid: ownerUid,
       groupId: groupId,
       listName: listName,
-      authorizedUids: group.allAuthorizedUids, // グループメンバー全員に権限
+      // 権限はgroupIdベースで管理されるためauthorizedUidsは不要
     );
 
     final docRef = await _listsCollection.add(newList.toFirestore());
@@ -166,16 +166,12 @@ class FirestorePurchaseGroupRepository {
     return lists;
   }
 
-  // ShoppingListの権限をグループメンバーと同期
+  // ShoppingListの権限をグループメンバーと同期（現在は不要）
+  // groupIdベースのアクセス制御のため、明示的な同期は不要
   Future<void> _syncShoppingListPermissions(FirestorePurchaseGroup group) async {
-    for (final listId in group.shoppingListIds) {
-      final doc = await _listsCollection.doc(listId).get();
-      if (doc.exists) {
-        final list = FirestoreShoppingList.fromFirestore(doc);
-        final updatedList = list.syncAuthorizedUids(group.allAuthorizedUids);
-        await _listsCollection.doc(listId).update(updatedList.toFirestore());
-      }
-    }
+    // グループメンバーの変更は自動的にアクセス権限に反映される
+    // ため、明示的な同期処理は不要
+    return;
   }
 
   // リアルタイムリスナー

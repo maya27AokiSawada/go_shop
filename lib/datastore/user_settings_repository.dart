@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:logger/logger.dart';
 import '../models/user_settings.dart';
+
+final logger = Logger();
 
 abstract class UserSettingsRepository {
   Future<UserSettings> getSettings();
@@ -29,13 +32,13 @@ class HiveUserSettingsRepository implements UserSettingsRepository {
         return rawSettings;
       } else if (rawSettings != null) {
         // 不正な型の場合、削除してデフォルト値を返す
-        print('Warning: Invalid UserSettings type found (${rawSettings.runtimeType}), clearing...');
+        logger.i('Warning: Invalid UserSettings type found (${rawSettings.runtimeType}), clearing...');
         await _box.delete(_settingsKey);
       }
       
       return const UserSettings();
     } catch (e) {
-      print('Error loading UserSettings: $e');
+      logger.i('Error loading UserSettings: $e');
       // エラーの場合は念のためキーを削除してデフォルト値を返す
       try {
         await _box.delete(_settingsKey);

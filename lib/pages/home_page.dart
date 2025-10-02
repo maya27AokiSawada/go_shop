@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:logger/logger.dart';
 import '../providers/auth_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/shopping_list_provider.dart';
@@ -9,6 +10,8 @@ import '../models/purchase_group.dart';
 import '../models/shopping_list.dart';
 import '../flavors.dart';
 import '../helper/firebase_diagnostics.dart';
+
+final logger = Logger();
 
 class IsFormVisible extends StateNotifier<bool> {
   IsFormVisible() : super(false);
@@ -34,27 +37,27 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   void initState() {
     super.initState();
-    print('🏠 HomePage: initState開始');
+    logger.i('🏠 HomePage: initState開始');
     // デフォルトグループからユーザー名を読み込み
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      print('🏠 HomePage: PostFrameCallback実行');
+      logger.i('🏠 HomePage: PostFrameCallback実行');
       _initializeUserName();
     });
   }
 
   // ユーザー名の初期化処理
   void _initializeUserName() async {
-    print('🔧 _initializeUserName開始');
+    logger.i('🔧 _initializeUserName開始');
     
     // 設定から現在のユーザー名を確認
     final currentUserName = ref.read(userNameProvider);
-    print('👤 現在のユーザー名（設定から）: $currentUserName');
+    logger.i('👤 現在のユーザー名（設定から）: $currentUserName');
     
     if (currentUserName != null && currentUserName.isNotEmpty) {
       userNameController.text = currentUserName;
-      print('✅ ユーザー名が設定から復元されました: $currentUserName');
+      logger.i('✅ ユーザー名が設定から復元されました: $currentUserName');
     } else {
-      print('⚠️ 設定にユーザー名がないため、グループから読み込み');
+      logger.i('⚠️ 設定にユーザー名がないため、グループから読み込み');
       _loadUserNameFromDefaultGroup();
     }
   }
@@ -85,17 +88,17 @@ class _HomePageState extends ConsumerState<HomePage> {
     
     // 認証状態が変わった時にユーザー名をチェック
     ref.listen(authStateProvider, (previous, next) {
-      print('🔎 認証状態変更を検知');
+      logger.i('🔎 認証状態変更を検知');
       next.whenData((user) {
-        print('🔐 ユーザー: ${user?.email ?? "null"}, 現在のユーザー名: $currentUserName');
+        logger.i('🔐 ユーザー: ${user?.email ?? "null"}, 現在のユーザー名: $currentUserName');
         if (currentUserName == null || currentUserName.isEmpty) {
-          print('🔄 ユーザー名がないのでグループから読み込みを実行');
+          logger.i('🔄 ユーザー名がないのでグループから読み込みを実行');
           // ユーザー名がない場合は認証状態に関係なくグループから読み込み
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _loadUserNameFromDefaultGroup();
           });
         } else {
-          print('🚫 ユーザー名読み込みをスキップ: ユーザー名が既に存在=$currentUserName');
+          logger.i('🚫 ユーザー名読み込みをスキップ: ユーザー名が既に存在=$currentUserName');
         }
       });
     });
@@ -315,30 +318,30 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   // デフォルトグループからユーザー名を読み込む
   void _loadUserNameFromDefaultGroup() async {
-    print('🔍 _loadUserNameFromDefaultGroup 開始');
+    logger.i('🔍 _loadUserNameFromDefaultGroup 開始');
     try {
       final purchaseGroupAsync = ref.read(purchaseGroupProvider);
       final authState = ref.read(authStateProvider);
       final currentUserName = ref.read(userNameProvider);
       
-      print('📊 現在のuserNameProviderの値: $currentUserName');
+      logger.i('📊 現在のuserNameProviderの値: $currentUserName');
       
       await Future.wait([
         purchaseGroupAsync.when(
           data: (group) async {
-            print('📋 グループデータ取得成功: ${group.groupName}');
-            print('👥 メンバー数: ${group.members?.length ?? 0}');
+            logger.i('📋 グループデータ取得成功: ${group.groupName}');
+            logger.i('👥 メンバー数: ${group.members?.length ?? 0}');
             
             if (group.members != null) {
               for (var i = 0; i < group.members!.length; i++) {
                 final member = group.members![i];
-                print('👤 メンバー$i: ${member.name} (${member.role}) - ${member.contact}');
+                logger.i('👤 メンバー$i: ${member.name} (${member.role}) - ${member.contact}');
               }
             }
             
             await authState.when(
               data: (user) async {
-                print('🔐 認証ユーザー: ${user?.email ?? "null"}');
+                logger.i('🔐 認証ユーザー: ${user?.email ?? "null"}');
                 
                 // 認証状態に関係なく、leaderのユーザー名を取得
                 if (group.members != null && group.members!.isNotEmpty) {
@@ -346,67 +349,67 @@ class _HomePageState extends ConsumerState<HomePage> {
                   var currentMember = group.members!.firstWhere(
                     (member) => member.role == PurchaseGroupRole.owner,
                     orElse: () {
-                      print('⚠️ ownerが見つからないので最初のメンバーを使用');
+                      logger.i('⚠️ ownerが見つからないので最初のメンバーを使用');
                       return group.members!.first;
                     },
                   );
                   
-                  print('🏆 選択されたメンバー: ${currentMember.name} (${currentMember.role})');
+                  logger.i('🏆 選択されたメンバー: ${currentMember.name} (${currentMember.role})');
                   
                   // ログイン済みの場合のみメールアドレスでマッチするメンバーを再検索
                   if (user != null && currentMember.contact != user.email && user.email != null) {
-                    print('📬 メールアドレスでメンバーを再検索: ${user.email}');
+                    logger.i('📬 メールアドレスでメンバーを再検索: ${user.email}');
                     final emailMatchMember = group.members!.firstWhere(
                       (member) => member.contact == user.email,
                       orElse: () {
-                        print('📬 メールアドレスマッチなし、leaderを使用');
+                        logger.i('📬 メールアドレスマッチなし、leaderを使用');
                         return currentMember;
                       },
                     );
                     if (emailMatchMember.name.isNotEmpty) {
-                      print('📬 メールマッチメンバーを使用: ${emailMatchMember.name}');
+                      logger.i('📬 メールマッチメンバーを使用: ${emailMatchMember.name}');
                       currentMember = emailMatchMember;
                     }
                   }
                   
                   if (currentMember.name.isNotEmpty) {
-                    print('✅ ユーザー名をプロバイダーに設定: ${currentMember.name}');
+                    logger.i('✅ ユーザー名をプロバイダーに設定: ${currentMember.name}');
                     await ref.read(userNameNotifierProvider.notifier).setUserName(currentMember.name);
                     if (mounted) {
                       setState(() {
                         userNameController.text = currentMember.name;
                       });
-                      print('✅ UIを更新しました');
+                      logger.i('✅ UIを更新しました');
                     } else {
-                      print('⚠️ ウィジェットがmountedではないためUI更新をスキップ');
+                      logger.i('⚠️ ウィジェットがmountedではないためUI更新をスキップ');
                     }
                   } else {
-                    print('⚠️ メンバー名が空です');
+                    logger.i('⚠️ メンバー名が空です');
                   }
                 } else {
-                  print('⚠️ メンバーがいません');
+                  logger.i('⚠️ メンバーがいません');
                 }
               },
               loading: () async {
-                print('🔄 認証状態ロード中...');
+                logger.i('🔄 認証状態ロード中...');
               },
               error: (err, stack) async {
-                print('❌ 認証エラー: $err');
+                logger.i('❌ 認証エラー: $err');
               },
             );
           },
           loading: () async {
-            print('🔄 グループデータロード中...');
+            logger.i('🔄 グループデータロード中...');
           },
           error: (err, stack) async {
-            print('❌ グループエラー: $err');
+            logger.i('❌ グループエラー: $err');
           },
         ),
       ]);
     } catch (e) {
-      print('❌ ユーザー名の読み込みに失敗: $e');
+      logger.i('❌ ユーザー名の読み込みに失敗: $e');
     }
-    print('🏁 _loadUserNameFromDefaultGroup 終了');
+    logger.i('🏁 _loadUserNameFromDefaultGroup 終了');
   }
 
   // ユーザー名を保存するメソッド
@@ -527,12 +530,12 @@ class _HomePageState extends ConsumerState<HomePage> {
         
         PurchaseGroup defaultGroup;
         if (existingGroup != null) {
-          print('userInfoSave: 既存グループを更新 - ユーザー名: $userName');
+          logger.i('userInfoSave: 既存グループを更新 - ユーザー名: $userName');
           // 既存グループのownerメンバーを更新
           final updatedMembers = existingGroup.members?.map((member) {
-            print('userInfoSave: メンバーチェック - ${member.name} (${member.role})');
+            logger.i('userInfoSave: メンバーチェック - ${member.name} (${member.role})');
             if (member.role == PurchaseGroupRole.owner) {
-              print('userInfoSave: ownerメンバーを更新: ${member.name} -> $userName');
+              logger.i('userInfoSave: ownerメンバーを更新: ${member.name} -> $userName');
               return member.copyWith(name: userName);
             }
             return member;
@@ -540,7 +543,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           
           // ownerが存在しない場合は新規作成
           if (!updatedMembers.any((m) => m.role == PurchaseGroupRole.owner)) {
-            print('userInfoSave: ownerが存在しないため新規作成: $userName');
+            logger.i('userInfoSave: ownerが存在しないため新規作成: $userName');
             updatedMembers.add(PurchaseGroupMember(
               memberId: 'defaultUser',
               name: userName,
@@ -550,9 +553,9 @@ class _HomePageState extends ConsumerState<HomePage> {
             ));
           }
           
-          print('userInfoSave: 更新後のメンバー数: ${updatedMembers.length}');
+          logger.i('userInfoSave: 更新後のメンバー数: ${updatedMembers.length}');
           for (var member in updatedMembers) {
-            print('  - ${member.name} (${member.role}) - ${member.contact}');
+            logger.i('  - ${member.name} (${member.role}) - ${member.contact}');
           }
           
           defaultGroup = existingGroup.copyWith(members: updatedMembers);
@@ -576,13 +579,13 @@ class _HomePageState extends ConsumerState<HomePage> {
         // デフォルトShoppingListを作成（既存の場合は更新しない）
         try {
           final existingShoppingList = await ref.read(shoppingListProvider.future);
-          print('userInfoSave: 既存のShoppingListを発見: ${existingShoppingList.items.length}個のアイテム');
+          logger.i('userInfoSave: 既存のShoppingListを発見: ${existingShoppingList.items.length}個のアイテム');
           for (var item in existingShoppingList.items) {
-            print('  - ${item.name} (数量: ${item.quantity}, 購入済み: ${item.isPurchased})');
+            logger.i('  - ${item.name} (数量: ${item.quantity}, 購入済み: ${item.isPurchased})');
           }
           // 既に存在する場合は何もしない
         } catch (e) {
-          print('userInfoSave: ShoppingListが存在しないため新規作成します');
+          logger.i('userInfoSave: ShoppingListが存在しないため新規作成します');
           // 存在しない場合のみ作成
           final defaultShoppingList = ShoppingList(
             ownerUid: 'defaultUser',
@@ -597,20 +600,20 @@ class _HomePageState extends ConsumerState<HomePage> {
             ],
           );
           await ref.read(shoppingListProvider.notifier).updateShoppingList(defaultShoppingList);
-          print('userInfoSave: デフォルトShoppingListを作成しました（サンプル商品含む）');
+          logger.i('userInfoSave: デフォルトShoppingListを作成しました（サンプル商品含む）');
         }
         
         // 購入グループを保存
         await ref.read(purchaseGroupProvider.notifier).updateGroup(defaultGroup);
-        print('userInfoSave: グループ保存完了');
+        logger.i('userInfoSave: グループ保存完了');
         
         // ユーザー名プロバイダーにも保存（重要！）
         await ref.read(userNameNotifierProvider.notifier).setUserName(userName);
-        print('userInfoSave: ユーザー名プロバイダー保存完了');
+        logger.i('userInfoSave: ユーザー名プロバイダー保存完了');
         
         // デバッグ用ログ
-        print('userInfoSave: ユーザー名 "$userName" で デフォルトグループを更新しました');
-        print('userInfoSave: プロバイダーにもユーザー名 "$userName" を保存しました');
+        logger.i('userInfoSave: ユーザー名 "$userName" で デフォルトグループを更新しました');
+        logger.i('userInfoSave: プロバイダーにもユーザー名 "$userName" を保存しました');
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -619,7 +622,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         }
       } catch (e) {
         // エラーメッセージ
-        print('userInfoSave エラー: $e');
+        logger.i('userInfoSave エラー: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('保存に失敗しました: $e')),
@@ -646,21 +649,21 @@ class _HomePageState extends ConsumerState<HomePage> {
         ),
       );
 
-      print('🩺 === Firebase完全診断開始 ===');
+      logger.i('🩺 === Firebase完全診断開始 ===');
       
       // Firebase診断実行
       final diagnostics = await FirebaseDiagnostics.runDiagnostics();
       final solutions = FirebaseDiagnostics.getSolutions(diagnostics);
       
       // 結果をログ出力
-      print('📊 診断結果:');
+      logger.i('📊 診断結果:');
       diagnostics.forEach((key, value) {
-        print('  $key: $value');
+        logger.i('  $key: $value');
       });
       
-      print('💡 推奨解決策:');
+      logger.i('💡 推奨解決策:');
       for (final solution in solutions) {
-        print('  $solution');
+        logger.i('  $solution');
       }
       
       // UI表示
@@ -682,7 +685,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       }
       
     } catch (e) {
-      print('⛔ Firebase診断エラー: $e');
+      logger.i('⛔ Firebase診断エラー: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -712,7 +715,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           .collection('connection_test')
           .doc('test_${DateTime.now().millisecondsSinceEpoch}');
       
-      print('🔥 Firebase接続テスト: Firestoreへの書き込みを試行中...');
+      logger.i('🔥 Firebase接続テスト: Firestoreへの書き込みを試行中...');
       
       // Firestoreに書き込み
       await testDocRef.set({
@@ -721,17 +724,17 @@ class _HomePageState extends ConsumerState<HomePage> {
         'user_agent': 'Flutter Web',
       });
       
-      print('✅ Firebase接続テスト: 書き込み成功');
+      logger.i('✅ Firebase接続テスト: 書き込み成功');
       
       // 書き込み直後に読み込みテスト
       final doc = await testDocRef.get();
       if (doc.exists) {
-        print('✅ Firebase接続テスト: 読み込み成功');
-        print('📄 Document data: ${doc.data()}');
+        logger.i('✅ Firebase接続テスト: 読み込み成功');
+        logger.i('📄 Document data: ${doc.data()}');
         
         // テスト用ドキュメントを削除
         await testDocRef.delete();
-        print('🗑️ Firebase接続テスト: クリーンアップ完了');
+        logger.i('🗑️ Firebase接続テスト: クリーンアップ完了');
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -745,7 +748,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         throw Exception('Document was not created');
       }
     } catch (e) {
-      print('⛔ Firebase接続テストエラー: $e');
+      logger.i('⛔ Firebase接続テストエラー: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

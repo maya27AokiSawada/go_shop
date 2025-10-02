@@ -1,12 +1,15 @@
 // lib/providers/shopping_list_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:logger/logger.dart';
 import '../models/shopping_list.dart';
 import '../providers/purchase_group_provider.dart';
 import '../datastore/shopping_list_repository.dart';
 import '../datastore/firebase_shopping_list_repository.dart';
 import '../datastore/hive_shopping_list_repository.dart';
 import '../flavors.dart';
+
+final logger = Logger();
 
 // ShoppingListのBox管理
 final shoppingListBoxProvider = Provider<Box<ShoppingList>>((ref) {
@@ -41,7 +44,7 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
       data: (purchaseGroup) async {
         final savedList = await repository.getShoppingList(_key);
         if (savedList != null) {
-          print('🛒 ShoppingListNotifier: Hiveから既存リストを読み込み (${savedList.items.length}アイテム)');
+          logger.i('🛒 ShoppingListNotifier: Hiveから既存リストを読み込み (${savedList.items.length}アイテム)');
           // 既存リストのグループ情報を更新
           final updatedList = ShoppingList(
             ownerUid: purchaseGroup.ownerUid ?? '',
@@ -53,7 +56,7 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
           await repository.addItem(updatedList.copyWith(groupId: _key));
           return updatedList;
         } else {
-          print('🛒 ShoppingListNotifier: 新しいリストを作成');
+          logger.i('🛒 ShoppingListNotifier: 新しいリストを作成');
           // 新しいリストを作成してHiveに保存
           final newList = ShoppingList(
             ownerUid: purchaseGroup.ownerUid ?? '',
@@ -94,12 +97,12 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
       
       // Hiveに保存
       await repository.addItem(updatedList.copyWith(groupId: _key));
-      print('🛒 ShoppingListNotifier: アイテム「${item.name}」を追加してHiveに保存');
+      logger.i('🛒 ShoppingListNotifier: アイテム「${item.name}」を追加してHiveに保存');
       
       // 状態を更新
       state = AsyncValue.data(updatedList);
     } catch (e) {
-      print('❌ ShoppingListNotifier: アイテム追加エラー: $e');
+      logger.i('❌ ShoppingListNotifier: アイテム追加エラー: $e');
       state = AsyncValue.error(e, StackTrace.current);
     }
   }
@@ -121,12 +124,12 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
       
       // Hiveに保存
       await repository.addItem(updatedList.copyWith(groupId: _key));
-      print('🛒 ShoppingListNotifier: アイテム「${item.name}」を削除してHiveに保存');
+      logger.i('🛒 ShoppingListNotifier: アイテム「${item.name}」を削除してHiveに保存');
       
       // 状態を更新
       state = AsyncValue.data(updatedList);
     } catch (e) {
-      print('❌ ShoppingListNotifier: アイテム削除エラー: $e');
+      logger.i('❌ ShoppingListNotifier: アイテム削除エラー: $e');
       state = AsyncValue.error(e, StackTrace.current);
     }
   }
@@ -151,12 +154,12 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
       
       // Hiveに保存
       await repository.addItem(updatedList.copyWith(groupId: _key));
-      print('🛒 ShoppingListNotifier: アイテム「${newItem.name}」を更新してHiveに保存');
+      logger.i('🛒 ShoppingListNotifier: アイテム「${newItem.name}」を更新してHiveに保存');
       
       // 状態を更新
       state = AsyncValue.data(updatedList);
     } catch (e) {
-      print('❌ ShoppingListNotifier: アイテム更新エラー: $e');
+      logger.i('❌ ShoppingListNotifier: アイテム更新エラー: $e');
       state = AsyncValue.error(e, StackTrace.current);
     }
   }
@@ -206,12 +209,12 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
       
       // Hiveに保存
       await repository.addItem(updatedList.copyWith(groupId: _key));
-      print('🛒 ShoppingListNotifier: アイテム「${item.name}」の購入状態を変更してHiveに保存');
+      logger.i('🛒 ShoppingListNotifier: アイテム「${item.name}」の購入状態を変更してHiveに保存');
       
       // 状態を更新
       state = AsyncValue.data(updatedList);
     } catch (e) {
-      print('❌ ShoppingListNotifier: 購入状態変更エラー: $e');
+      logger.i('❌ ShoppingListNotifier: 購入状態変更エラー: $e');
       state = AsyncValue.error(e, StackTrace.current);
     }
   }
@@ -231,12 +234,12 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
       
       // Hiveに保存
       await repository.addItem(updatedList.copyWith(groupId: _key));
-      print('🛒 ShoppingListNotifier: 購入済みアイテムを削除してHiveに保存');
+      logger.i('🛒 ShoppingListNotifier: 購入済みアイテムを削除してHiveに保存');
       
       // 状態を更新
       state = AsyncValue.data(updatedList);
     } catch (e) {
-      print('❌ ShoppingListNotifier: 購入済みアイテム削除エラー: $e');
+      logger.i('❌ ShoppingListNotifier: 購入済みアイテム削除エラー: $e');
       state = AsyncValue.error(e, StackTrace.current);
     }
   }
@@ -247,12 +250,12 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
       final repository = ref.read(shoppingListRepositoryProvider);
       // Hiveに保存
       await repository.addItem(newShoppingList.copyWith(groupId: _key));
-      print('🛒 ShoppingListNotifier: ShoppingList全体を更新してHiveに保存');
+      logger.i('🛒 ShoppingListNotifier: ShoppingList全体を更新してHiveに保存');
       
       // 状態を更新
       state = AsyncValue.data(newShoppingList);
     } catch (e) {
-      print('❌ ShoppingListNotifier: ShoppingList更新エラー: $e');
+      logger.i('❌ ShoppingListNotifier: ShoppingList更新エラー: $e');
       state = AsyncValue.error(e, StackTrace.current);
     }
   }
