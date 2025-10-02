@@ -56,11 +56,22 @@ Future<void> _initializeHive() async {
     Hive.registerAdapter(UserSettingsAdapter());
     logger.i('📝 Hive adapters registered');
     
-    // 全てのBoxを事前に開く
+    // 全てのBoxを事前に開く（エラー時はクリアして再試行）
+    await _openHiveBoxesSafely();
+    
+    logger.i('✅ Hive initialization completed successfully');
+  } catch (e) {
+    logger.e('❌ Hive initialization failed: $e');
+    rethrow;
+  }
+}
+
+Future<void> _openHiveBoxesSafely() async {
+  try {
     await Future.wait([
       Hive.openBox<PurchaseGroup>('purchaseGroups'),
       Hive.openBox<ShoppingList>('shoppingLists'),
-      Hive.openBox<UserSettings>('userSettings'), // ユーザー設定用のBox
+      Hive.openBox<UserSettings>('userSettings'),
     ]);
     
     // データ保存状況をデバッグ出力
@@ -73,6 +84,45 @@ Future<void> _initializeHive() async {
     logger.i('  - ShoppingLists: ${shoppingListBox.length} items');
     logger.i('  - UserSettings: ${userSettingsBox.length} items');
     
+    await _validateAndCleanBoxes();
+    
+  } catch (e) {
+    logger.w('⚠️ Hive box opening failed (likely schema change): $e');
+    logger.i('🧹 Clearing all Hive data and retrying...');
+    
+    // データをクリアして再試行
+    await _clearAndReopenBoxes();
+  }
+}
+
+Future<void> _clearAndReopenBoxes() async {
+  try {
+    // 既存のBoxをクリア
+    await Hive.deleteBoxFromDisk('purchaseGroups');
+    await Hive.deleteBoxFromDisk('shoppingLists');
+    await Hive.deleteBoxFromDisk('userSettings');
+    
+    logger.i('🗑️ Cleared existing Hive data');
+    
+    // 再度開く
+    await Future.wait([
+      Hive.openBox<PurchaseGroup>('purchaseGroups'),
+      Hive.openBox<ShoppingList>('shoppingLists'),
+      Hive.openBox<UserSettings>('userSettings'),
+    ]);
+    
+    logger.i('✅ Successfully reopened Hive boxes with clean data');
+    
+  } catch (e) {
+    logger.e('❌ Failed to clear and reopen Hive boxes: $e');
+    rethrow;
+  }
+}
+
+Future<void> _validateAndCleanBoxes() async {
+  final userSettingsBox = Hive.box<UserSettings>('userSettings');
+  final shoppingListBox = Hive.box<ShoppingList>('shoppingLists');
+
   // UserSettings内容の詳細確認と修復
   if (userSettingsBox.isNotEmpty) {
     logger.i('👤 UserSettings contents:');
@@ -99,28 +149,24 @@ Future<void> _initializeHive() async {
       await userSettingsBox.clear();
     }
   } else {
-    logger.w('⚠️  UserSettings box is empty - no saved data found');
-  }    // ShoppingLists内容の詳細確認
-    if (shoppingListBox.isNotEmpty) {
-      logger.i('🛒 ShoppingLists contents:');
-      for (int i = 0; i < shoppingListBox.length; i++) {
-        final shoppingList = shoppingListBox.getAt(i);
-        logger.i('  - Index $i: ${shoppingList?.groupName} (${shoppingList?.items.length} items)');
-      }
-    } else {
-      logger.w('⚠️  ShoppingLists box is empty - no saved lists found');
-    }
-    
-    // IndexedDBの状況確認（ブラウザのみ）
-    logger.i('🌐 Browser storage info:');
-    logger.i('  - Current URL: ${Uri.base}');
-    logger.i('  - Storage path: ${Hive.box('userSettings').path ?? "IndexedDB"}');
-    
-    logger.i('✅ Hive initialization completed successfully');
-  } catch (e) {
-    logger.e('❌ Hive initialization failed: $e');
-    rethrow;
+    logger.w('⚠️ UserSettings box is empty - no saved data found');
   }
+  
+  // ShoppingLists内容の詳細確認
+  if (shoppingListBox.isNotEmpty) {
+    logger.i('🛒 ShoppingLists contents:');
+    for (int i = 0; i < shoppingListBox.length; i++) {
+      final shoppingList = shoppingListBox.getAt(i);
+      logger.i('  - Index $i: ${shoppingList?.groupName} (${shoppingList?.items.length} items)');
+    }
+  } else {
+    logger.w('⚠️ ShoppingLists box is empty - no saved lists found');
+  }
+  
+  // IndexedDBの状況確認（ブラウザのみ）
+  logger.i('🌐 Browser storage info:');
+  logger.i('  - Current URL: ${Uri.base}');
+  logger.i('  - Storage path: ${Hive.box('userSettings').path ?? "IndexedDB"}');
 }
 
 class MyApp extends StatelessWidget {
