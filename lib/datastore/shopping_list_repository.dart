@@ -9,4 +9,5 @@ abstract class ShoppingListRepository {
   Future<void> removeShoppingItem(String groupId, ShoppingItem item);
   Future<void> updateShoppingItemStatus(String groupId, ShoppingItem item,
        {required bool isPurchased});
+  Future<ShoppingList> getOrCreateList(String groupId, String groupName);
 }

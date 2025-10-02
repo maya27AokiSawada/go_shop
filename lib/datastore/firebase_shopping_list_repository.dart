@@ -389,6 +389,7 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
     return _hiveRepo.getAllLists();
   }
 
+  @override
   Future<ShoppingList> getOrCreateList(String groupId, String groupName) async {
     // ログイン状態なら先にFirebaseから同期を試行
     final user = _currentUser;

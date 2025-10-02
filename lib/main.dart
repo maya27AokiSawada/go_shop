@@ -44,7 +44,7 @@ void main() async {
 Future<void> _initializeHive() async {
   try {
     // Hive初期化
-    await Hive.initFlutter();
+    await Hive.initFlutter('hive_db'); // カスタムサブディレクトリを指定
     logger.i('📦 Hive initFlutter completed');
     
     // アダプター登録
