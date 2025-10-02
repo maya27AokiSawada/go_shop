@@ -21,10 +21,7 @@ class DefaultFirebaseOptions {
           'you can reconfigure this by running the FlutterFire CLI again.',
         );
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -61,5 +58,14 @@ class DefaultFirebaseOptions {
     projectId: 'gotoshop-572b7',
     storageBucket: 'gotoshop-572b7.firebasestorage.app',
     iosBundleId: 'net.sumomo.planning.go.shop',
+  );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyCiPnY6GaBSrUfnCkFzJu-Y3p7D8Cqg1aI',
+    appId: '1:895658199748:web:d24f3552522ea53318d791',
+    messagingSenderId: '895658199748',
+    projectId: 'gotoshop-572b7',
+    authDomain: 'gotoshop-572b7.firebaseapp.com',
+    storageBucket: 'gotoshop-572b7.firebasestorage.app',
   );
 }

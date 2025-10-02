@@ -1,7 +1,7 @@
 // lib/providers/user_name_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
-import 'dart:html' as html;
+import 'package:shared_preferences/shared_preferences.dart';
 
 // ユーザー名を管理するプロバイダー
 class UserNameNotifier extends StateNotifier<String?> {
@@ -9,7 +9,7 @@ class UserNameNotifier extends StateNotifier<String?> {
     _loadUserName();
   }
 
-  // Hiveからユーザー名を読み込み（LocalStorageもフォールバック）
+  // Hiveからユーザー名を読み込み（SharedPreferencesもフォールバック）
   Future<void> _loadUserName() async {
     try {
       print('📥 UserNameNotifier: Hiveからユーザー名を読み込み中...');
@@ -23,16 +23,17 @@ class UserNameNotifier extends StateNotifier<String?> {
         return;
       }
       
-      // Hiveに無い場合、LocalStorageからも確認
-      print('🔄 UserNameNotifier: LocalStorageからも確認中...');
-      final localStorageName = html.window.localStorage['user_name'];
-      print('📥 UserNameNotifier: LocalStorage読み込み結果: $localStorageName');
+      // Hiveに無い場合、SharedPreferencesからも確認
+      print('🔄 UserNameNotifier: SharedPreferencesからも確認中...');
+      final prefs = await SharedPreferences.getInstance();
+      final prefsName = prefs.getString('user_name');
+      print('📥 UserNameNotifier: SharedPreferences読み込み結果: $prefsName');
       
-      if (localStorageName != null && localStorageName.isNotEmpty) {
-        state = localStorageName;
-        print('✅ UserNameNotifier: LocalStorageからユーザー名を復元: $localStorageName');
+      if (prefsName != null && prefsName.isNotEmpty) {
+        state = prefsName;
+        print('✅ UserNameNotifier: SharedPreferencesからユーザー名を復元: $prefsName');
         // Hiveにもバックアップとして保存
-        await _saveToHive(localStorageName);
+        await _saveToHive(prefsName);
       } else {
         print('⚠️ UserNameNotifier: どちらにも保存されたユーザー名がありません');
       }
@@ -42,7 +43,7 @@ class UserNameNotifier extends StateNotifier<String?> {
     }
   }
 
-  // ユーザー名を設定し、HiveとLocalStorageの両方に保存
+  // ユーザー名を設定し、HiveとSharedPreferencesの両方に保存
   Future<void> setUserName(String userName) async {
     print('📤 UserNameNotifier: ユーザー名を設定: $userName');
     state = userName;
@@ -50,12 +51,13 @@ class UserNameNotifier extends StateNotifier<String?> {
     // Hiveに保存
     await _saveToHive(userName);
     
-    // LocalStorageにも保存（フォールバック）
+    // SharedPreferencesにも保存（フォールバック）
     try {
-      html.window.localStorage['user_name'] = userName;
-      print('✅ UserNameNotifier: LocalStorageに保存完了: $userName');
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_name', userName);
+      print('✅ UserNameNotifier: SharedPreferencesに保存完了: $userName');
     } catch (e) {
-      print('⚠️ UserNameNotifier: LocalStorage保存エラー: $e');
+      print('⚠️ UserNameNotifier: SharedPreferences保存エラー: $e');
     }
   }
 
@@ -70,7 +72,7 @@ class UserNameNotifier extends StateNotifier<String?> {
     }
   }
 
-  // ユーザー名をクリアし、HiveとLocalStorageの両方から削除
+  // ユーザー名をクリアし、HiveとSharedPreferencesの両方から削除
   Future<void> clearUserName() async {
     print('🗑️ UserNameNotifier: ユーザー名をクリア');
     state = null;
@@ -84,12 +86,13 @@ class UserNameNotifier extends StateNotifier<String?> {
       print('❌ UserNameNotifier: Hive削除エラー: $e');
     }
     
-    // LocalStorageからも削除
+    // SharedPreferencesからも削除
     try {
-      html.window.localStorage.remove('user_name');
-      print('✅ UserNameNotifier: LocalStorageから削除完了');
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('user_name');
+      print('✅ UserNameNotifier: SharedPreferencesから削除完了');
     } catch (e) {
-      print('⚠️ UserNameNotifier: LocalStorage削除エラー: $e');
+      print('⚠️ UserNameNotifier: SharedPreferences削除エラー: $e');
     }
   }
 

@@ -26,9 +26,8 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
     if (authService is MockAuthService) {
       final mockUser = authService.currentUser;
       logger.i('FirebaseRepo: MockAuthService user: ${mockUser?.email} (uid: ${mockUser?.uid})');
-      if (mockUser != null) {
-        return mockUser;
-      }
+      // devフレーバーでFirebase repositoryの使用は禁止
+      throw UnimplementedError('Firebase repository should not be used in dev mode. Use Hive repository instead.');
     }
     
     // 通常のFirebaseAuth
