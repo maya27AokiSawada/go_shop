@@ -5,6 +5,7 @@ import '../models/shopping_list.dart';
 import '../providers/purchase_group_provider.dart';
 import '../datastore/shopping_list_repository.dart';
 import '../datastore/hive_shopping_list_repository.dart';
+import '../datastore/firebase_shopping_list_repository.dart';
 import '../flavors.dart';
 
 // ShoppingListのBox管理
@@ -17,7 +18,8 @@ final shoppingListRepositoryProvider = Provider<ShoppingListRepository>((ref) {
   if (F.appFlavor == Flavor.prod) {
     throw UnimplementedError('Firestore ShoppingListRepository is not implemented yet');
   } else {
-    return HiveShoppingListRepository(ref);
+    // 開発環境でもFirebase同期リポジトリを使用
+    return FirebaseSyncShoppingListRepository(ref);
   }
 });
 
