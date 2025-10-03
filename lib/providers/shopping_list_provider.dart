@@ -4,7 +4,6 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../models/shopping_list.dart';
 import '../providers/purchase_group_provider.dart';
 import '../datastore/shopping_list_repository.dart';
-import '../datastore/hive_shopping_list_repository.dart';
 import '../datastore/firebase_shopping_list_repository.dart';
 import '../flavors.dart';
 

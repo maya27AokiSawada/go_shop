@@ -41,7 +41,7 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
 
   // デフォルトグループを作成
   Future<PurchaseGroup> _createDefaultGroup() async {
-    final defaultGroup = PurchaseGroup(
+    const defaultGroup = PurchaseGroup(
       groupId: 'defaultGroup',
       groupName: 'デフォルトグループ',
       ownerName: 'デフォルトユーザー',
