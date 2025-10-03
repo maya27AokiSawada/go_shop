@@ -16,7 +16,7 @@ class PurchaseGroupMemberForm extends ConsumerStatefulWidget {
 class _PurchaseGroupMemberFormState extends ConsumerState<PurchaseGroupMemberForm> {
   final formKey = GlobalKey<FormState>();
   String name = '';
-  PurchaseGroupRole _selectedRole = PurchaseGroupRole.child;
+  PurchaseGroupRole _selectedRole = PurchaseGroupRole.member;
   String contact = '';
 
   String? validateEmail(String? value) {
@@ -62,26 +62,14 @@ class _PurchaseGroupMemberFormState extends ConsumerState<PurchaseGroupMemberFor
           const SizedBox(height: 16.0),
           const Text('役割を選択してください:', style: TextStyle(fontSize: 16)),
           RadioListTile<PurchaseGroupRole>(
-            title: const Text('親'),
-            value: PurchaseGroupRole.parent,
+            title: const Text('メンバー'),
+            value: PurchaseGroupRole.member,
             // ignore: deprecated_member_use
             groupValue: _selectedRole,
             // ignore: deprecated_member_use
             onChanged: (PurchaseGroupRole? value) {
               setState(() {
-                _selectedRole = value ?? PurchaseGroupRole.child;
-              });
-            },
-          ),
-          RadioListTile<PurchaseGroupRole>(
-            title: const Text('子'),
-            value: PurchaseGroupRole.child,
-            // ignore: deprecated_member_use
-            groupValue: _selectedRole,
-            // ignore: deprecated_member_use
-            onChanged: (PurchaseGroupRole? value) {
-              setState(() {
-                _selectedRole = value ?? PurchaseGroupRole.child;
+                _selectedRole = value ?? PurchaseGroupRole.member;
               });
             },
           ),

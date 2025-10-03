@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/user_name_provider.dart';
-import '../providers/page_index_provider.dart';
+import '../providers/security_provider.dart';
 import '../models/purchase_group.dart';
 
 class PurchaseGroupPage extends ConsumerStatefulWidget {
@@ -23,6 +23,35 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
 
   @override
   Widget build(BuildContext context) {
+    // セキュリティチェック
+    final canViewData = ref.watch(dataVisibilityProvider);
+    final authRequired = ref.watch(authRequiredProvider);
+    
+    if (!canViewData && authRequired) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('グループ管理')),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.lock, size: 64, color: Colors.grey),
+              SizedBox(height: 16),
+              Text(
+                'シークレットモードが有効です',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'グループデータを表示するにはログインが必要です',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
     final purchaseGroupAsync = ref.watch(purchaseGroupProvider);
     final allGroupsAsync = ref.watch(allGroupsProvider);
     final selectedGroupId = ref.watch(selectedGroupIdProvider);
@@ -94,7 +123,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
             labelText: 'グループを選択',
             border: OutlineInputBorder(),
           ),
-          value: validSelectedGroupId,
+          initialValue: validSelectedGroupId,
           items: groups.map((group) => DropdownMenuItem(
             value: group.groupId,
             child: Text(group.groupId == 'defaultGroup' ? 'デフォルトグループ' : group.groupName),
@@ -167,14 +196,6 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                     );
                   },
                 ),
-        ),
-        const SizedBox(height: 16),
-        ElevatedButton(
-          onPressed: () {
-            // ショッピングリストページ（インデックス2）に移動
-            ref.read(pageIndexProvider.notifier).setPageIndex(2);
-          },
-          child: const Text('買い物リストへ'),
         ),
       ],
     );
@@ -324,7 +345,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
   void _showAddMemberDialog(BuildContext context) {
     final nameController = TextEditingController();
     final contactController = TextEditingController();
-    PurchaseGroupRole selectedRole = PurchaseGroupRole.child;
+    PurchaseGroupRole selectedRole = PurchaseGroupRole.member;
 
     showDialog(
       context: context,
@@ -352,7 +373,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<PurchaseGroupRole>(
-                value: selectedRole,
+                initialValue: selectedRole,
                 decoration: const InputDecoration(
                   labelText: '役割',
                   border: OutlineInputBorder(),
@@ -363,11 +384,8 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                     case PurchaseGroupRole.owner:
                       roleText = 'オーナー';
                       break;
-                    case PurchaseGroupRole.parent:
-                      roleText = '保護者';
-                      break;
-                    case PurchaseGroupRole.child:
-                      roleText = '子ども';
+                    case PurchaseGroupRole.member:
+                      roleText = 'メンバー';
                       break;
                   }
                   return DropdownMenuItem(
@@ -409,18 +427,26 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
   void _addMemberToGroup(String name, String contact, PurchaseGroupRole role) {
     final purchaseGroupNotifier = ref.read(purchaseGroupProvider.notifier);
 
-    // 招待機能を使用してメンバーを追加
+    // 直接メンバーとして追加（招待ではなく）
     final currentGroup = ref.read(purchaseGroupProvider).value;
     if (currentGroup != null) {
-      final updatedGroup = currentGroup.inviteMember(
+      // 新しいメンバーを作成（サインイン済みとして）
+      final newMember = PurchaseGroupMember(
+        memberId: DateTime.now().millisecondsSinceEpoch.toString(), // 一意のID
         name: name,
         contact: contact,
         role: role,
+        isSignedIn: true, // サインイン済みとして追加
+        isInvited: false,
+        isInvitationAccepted: true,
+        acceptedAt: DateTime.now(),
       );
+      
+      final updatedGroup = currentGroup.addMember(newMember);
       purchaseGroupNotifier.updateGroup(updatedGroup);
       
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$nameさんを招待しました')),
+        SnackBar(content: Text('$nameさんをメンバーに追加しました')),
       );
     }
   }

@@ -1,0 +1,52 @@
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:logger/logger.dart';
+
+final logger = Logger();
+
+/// 端末固有の設定管理サービス
+class DeviceSettingsService {
+  static DeviceSettingsService? _instance;
+  static DeviceSettingsService get instance => _instance ??= DeviceSettingsService._();
+  
+  DeviceSettingsService._();
+  
+  // 設定キー
+  static const String _secretModeKey = 'device_secret_mode';
+  
+  /// シークレットモードが有効かどうかを取得
+  Future<bool> isSecretModeEnabled() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final isEnabled = prefs.getBool(_secretModeKey) ?? false;
+      logger.i('🔐 Secret mode status: $isEnabled');
+      return isEnabled;
+    } catch (e) {
+      logger.e('❌ Error getting secret mode: $e');
+      return false;
+    }
+  }
+  
+  /// シークレットモードのON/OFFを設定
+  Future<void> setSecretMode(bool enabled) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_secretModeKey, enabled);
+      logger.i('💾 Secret mode set to: $enabled');
+    } catch (e) {
+      logger.e('❌ Error setting secret mode: $e');
+      rethrow;
+    }
+  }
+  
+  /// すべての端末設定をクリア
+  Future<void> clearAllSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_secretModeKey);
+      logger.i('🗑️ All device settings cleared');
+    } catch (e) {
+      logger.e('❌ Error clearing settings: $e');
+      rethrow;
+    }
+  }
+}

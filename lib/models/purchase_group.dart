@@ -6,15 +6,13 @@ part 'purchase_group.g.dart';
 part 'purchase_group.freezed.dart';
 
 const uuid = Uuid();
-// 家族の役割を定義するenum
+// グループの役割を定義するenum
 @HiveType(typeId: 0)
 enum PurchaseGroupRole {
   @HiveField(0)
   owner,
   @HiveField(1)
-  parent,
-  @HiveField(2)
-  child,
+  member,
 }
 
 @HiveType(typeId: 1)

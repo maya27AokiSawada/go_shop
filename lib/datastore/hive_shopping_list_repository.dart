@@ -3,6 +3,7 @@ import 'package:hive/hive.dart';
 import 'dart:developer' as developer;
 import '../models/shopping_list.dart';
 import '../providers/hive_provider.dart';
+import '../providers/auth_provider.dart';
 import 'shopping_list_repository.dart';
 
 class HiveShoppingListRepository implements ShoppingListRepository {
@@ -10,22 +11,55 @@ class HiveShoppingListRepository implements ShoppingListRepository {
   
   HiveShoppingListRepository(this.ref);
   
-  Box<ShoppingList> get box => ref.read(shoppingListBoxProvider);
+  Box<ShoppingList> get box {
+    try {
+      if (!Hive.isBoxOpen('shoppingLists')) {
+        throw StateError('ShoppingList box is not open. This may occur during app restart.');
+      }
+      return ref.read(shoppingListBoxProvider);
+    } on StateError catch (e) {
+      developer.log('⚠️ Box not available (normal during restart): $e');
+      rethrow;
+    } catch (e) {
+      developer.log('❌ Failed to access ShoppingList box: $e');
+      rethrow;
+    }
+  }
+  
+  // ユーザーIDベースのキー生成
+  String _getUserSpecificKey(String groupId) {
+    // 認証状態からユーザーIDを取得
+    final authState = ref.read(authStateProvider);
+    return authState.when(
+      data: (user) {
+        if (user != null) {
+          // Firebase UserまたはMockUserの場合、emailまたはuidを使用
+          final userId = user.email ?? user.uid ?? 'anonymous';
+          return '${userId}_$groupId';
+        }
+        return 'anonymous_$groupId';
+      },
+      loading: () => 'loading_$groupId',
+      error: (_, __) => 'error_$groupId',
+    );
+  }
 
   @override
   Future<ShoppingList?> getShoppingList(String groupId) async {
-    return box.get(groupId);
+    final userKey = _getUserSpecificKey(groupId);
+    return box.get(userKey);
   }
 
   @override
   Future<void> addItem(ShoppingList list) async {
     try {
-      await box.put(list.groupId, list);
-      developer.log('💾 HiveShoppingListRepository: データを保存 - Key: ${list.groupId}, Items: ${list.items.length}個');
+      final userKey = _getUserSpecificKey(list.groupId);
+      await box.put(userKey, list);
+      developer.log('💾 HiveShoppingListRepository: データを保存 - Key: $userKey, Items: ${list.items.length}個');
       developer.log('📦 Box contents after save: ${box.length} lists total');
       
       // 保存確認
-      final saved = box.get(list.groupId);
+      final saved = box.get(userKey);
       if (saved != null) {
         developer.log('✅ 保存確認成功: ${saved.items.length}個のアイテム');
       } else {
@@ -39,20 +73,22 @@ class HiveShoppingListRepository implements ShoppingListRepository {
 
   @override
   Future<void> clearShoppingList(String groupId) async {
-    final list = box.get(groupId);
+    final userKey = _getUserSpecificKey(groupId);
+    final list = box.get(userKey);
     if (list != null) {
       final clearedList = list.copyWith(items: []);
-      await box.put(groupId, clearedList);
+      await box.put(userKey, clearedList);
     }
   }
 
   @override
   Future<void> addShoppingItem(String groupId, ShoppingItem item) async {
-    final list = box.get(groupId);
+    final userKey = _getUserSpecificKey(groupId);
+    final list = box.get(userKey);
     if (list != null) {
       final updatedItems = [...list.items, item];
       final updatedList = list.copyWith(items: updatedItems);
-      await box.put(groupId, updatedList);
+      await box.put(userKey, updatedList);
     } else {
       // PurchaseGroupから情報を取得して新規リストを作成
       final purchaseGroupBox = ref.read(purchaseGroupBoxProvider);
@@ -64,13 +100,14 @@ class HiveShoppingListRepository implements ShoppingListRepository {
         groupName: purchaseGroup?.groupName ?? 'Shopping List',
         items: [item],
       );
-      await box.put(groupId, newList);
+      await box.put(userKey, newList);
     }
   }
 
   @override
   Future<void> removeShoppingItem(String groupId, ShoppingItem item) async {
-    final list = box.get(groupId);
+    final userKey = _getUserSpecificKey(groupId);
+    final list = box.get(userKey);
     if (list != null) {
       // より厳密な比較でアイテムを特定（登録日時も考慮）
       final updatedItems = list.items.where((existingItem) => 
@@ -79,14 +116,15 @@ class HiveShoppingListRepository implements ShoppingListRepository {
           existingItem.registeredDate == item.registeredDate)
       ).toList();
       final updatedList = list.copyWith(items: updatedItems);
-      await box.put(groupId, updatedList);
+      await box.put(userKey, updatedList);
       developer.log('🗑️ アイテム削除: ${item.name} (${updatedItems.length}個残存)');
     }
   }
 
   @override
   Future<void> updateShoppingItemStatus(String groupId, ShoppingItem item, {required bool isPurchased}) async {
-    final list = box.get(groupId);
+    final userKey = _getUserSpecificKey(groupId);
+    final list = box.get(userKey);
     if (list != null) {
       final updatedItems = list.items.map((existingItem) {
         if (existingItem.name == item.name && 
@@ -101,15 +139,16 @@ class HiveShoppingListRepository implements ShoppingListRepository {
       }).toList();
       
       final updatedList = list.copyWith(items: updatedItems);
-      await box.put(groupId, updatedList);
+      await box.put(userKey, updatedList);
       developer.log('✅ アイテムステータス更新: ${item.name} → ${isPurchased ? "購入済み" : "未購入"}');
     }
   }
 
   // 追加のヘルパーメソッド（抽象クラスには無いが便利）
   Future<void> deleteList(String groupId) async {
-    await box.delete(groupId);
-    developer.log('🗑️ リスト削除: $groupId');
+    final userKey = _getUserSpecificKey(groupId);
+    await box.delete(userKey);
+    developer.log('🗑️ リスト削除: $userKey');
   }
 
   List<ShoppingList> getAllLists() {
@@ -120,7 +159,8 @@ class HiveShoppingListRepository implements ShoppingListRepository {
 
   @override
   Future<ShoppingList> getOrCreateList(String groupId, String groupName) async {
-    final existingList = box.get(groupId);
+    final userKey = _getUserSpecificKey(groupId);
+    final existingList = box.get(userKey);
     if (existingList != null) {
       // 既存のリストがある場合、PurchaseGroupと同期して更新するかチェック
       final purchaseGroupBox = ref.read(purchaseGroupBoxProvider);
@@ -132,7 +172,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
           groupName: purchaseGroup.groupName,
           ownerUid: purchaseGroup.ownerUid ?? existingList.ownerUid,
         );
-        await box.put(groupId, updatedList);
+        await box.put(userKey, updatedList);
         return updatedList;
       }
       return existingList;
@@ -148,13 +188,14 @@ class HiveShoppingListRepository implements ShoppingListRepository {
       groupName: purchaseGroup?.groupName ?? groupName,
       items: [],
     );
-    await box.put(groupId, defaultList);
+    await box.put(userKey, defaultList);
     return defaultList;
   }
 
   // PurchaseGroupとの同期メソッド
   Future<void> syncWithPurchaseGroup(String groupId) async {
-    final list = box.get(groupId);
+    final userKey = _getUserSpecificKey(groupId);
+    final list = box.get(userKey);
     final purchaseGroupBox = ref.read(purchaseGroupBoxProvider);
     final purchaseGroup = purchaseGroupBox.get(groupId);
     
@@ -166,7 +207,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
           groupName: purchaseGroup.groupName,
           ownerUid: purchaseGroup.ownerUid ?? list.ownerUid,
         );
-        await box.put(groupId, syncedList);
+        await box.put(userKey, syncedList);
       }
     }
   }

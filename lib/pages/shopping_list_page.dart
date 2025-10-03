@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shopping_list.dart';
 import '../providers/shopping_list_provider.dart';
 import '../providers/purchase_group_provider.dart';
+import '../providers/security_provider.dart';
+
 
 // 選択されたグループIDを管理するプロバイダー
 final selectedGroupIdProvider = StateProvider<String?>((ref) => null);
@@ -57,6 +59,35 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
 
   @override
   Widget build(BuildContext context) {
+    // セキュリティチェック
+    final canViewData = ref.watch(dataVisibilityProvider);
+    final authRequired = ref.watch(authRequiredProvider);
+    
+    if (!canViewData && authRequired) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('買い物リスト')),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.lock, size: 64, color: Colors.grey),
+              SizedBox(height: 16),
+              Text(
+                'シークレットモードが有効です',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text(
+                '買い物リストを表示するにはログインが必要です',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
     final allGroupsAsync = ref.watch(allGroupsProvider);
     final selectedGroupId = ref.watch(selectedGroupIdProvider);
     
