@@ -120,12 +120,10 @@ class InvitationService {
     switch (roleString) {
       case 'owner':
         return PurchaseGroupRole.owner;
-      case 'parent':
-        return PurchaseGroupRole.parent;
-      case 'child':
-        return PurchaseGroupRole.child;
+      case 'member':
+        return PurchaseGroupRole.member;
       default:
-        return PurchaseGroupRole.child;
+        return PurchaseGroupRole.member;
     }
   }
 }

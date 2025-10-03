@@ -306,7 +306,7 @@ class ShoppingListForGroupNotifier extends FamilyAsyncNotifier<ShoppingList, Str
     
     try {
       // 指定されたグループIDのリストを取得または作成
-      final existingList = await repository.getOrCreateList(groupId, '${groupId}のリスト');
+      final existingList = await repository.getOrCreateList(groupId, '$groupIdのリスト');
       logger.i('🛒 ShoppingListForGroupNotifier: グループ$groupId のリストを読み込み (${existingList.items.length}アイテム)');
       return existingList;
     } catch (e) {
@@ -315,7 +315,7 @@ class ShoppingListForGroupNotifier extends FamilyAsyncNotifier<ShoppingList, Str
       return ShoppingList(
         ownerUid: '',
         groupId: groupId,
-        groupName: '${groupId}のリスト',
+        groupName: '$groupIdのリスト',
         items: [],
       );
     }

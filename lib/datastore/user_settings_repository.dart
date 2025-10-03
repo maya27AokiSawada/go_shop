@@ -11,6 +11,9 @@ abstract class UserSettingsRepository {
   Future<void> updateUserName(String userName);
   Future<void> updateLastUsedGroupId(String groupId);
   Future<void> updateLastUsedShoppingListId(String shoppingListId);
+  Future<void> clearAllSettings();
+  Future<void> updateUserId(String userId);
+  Future<bool> hasUserIdChanged(String newUserId);
 }
 
 class HiveUserSettingsRepository implements UserSettingsRepository {
@@ -71,6 +74,42 @@ class HiveUserSettingsRepository implements UserSettingsRepository {
     final currentSettings = await getSettings();
     final updatedSettings = currentSettings.copyWith(lastUsedShoppingListId: shoppingListId);
     await saveSettings(updatedSettings);
+  }
+
+  @override
+  Future<void> clearAllSettings() async {
+    await _box.delete(_settingsKey);
+    logger.i('🗑️ 全ユーザー設定を削除しました');
+  }
+
+  @override
+  Future<void> updateUserId(String userId) async {
+    final currentSettings = await getSettings();
+    final updatedSettings = currentSettings.copyWith(userId: userId);
+    await saveSettings(updatedSettings);
+    logger.i('🆔 ユーザーIDを更新: $userId');
+  }
+
+  @override
+  Future<bool> hasUserIdChanged(String newUserId) async {
+    final currentSettings = await getSettings();
+    final currentUserId = currentSettings.userId;
+    
+    // 初回サインイン時（前回のUIDが空）はfalseを返す
+    if (currentUserId.isEmpty) {
+      logger.i('🆕 初回UID設定: $newUserId');
+      return false;
+    }
+    
+    // UIDが変更されたかチェック
+    final hasChanged = currentUserId != newUserId;
+    if (hasChanged) {
+      logger.i('🔄 UID変更を検知: $currentUserId → $newUserId');
+    } else {
+      logger.i('✅ 同じUIDでサインイン: $newUserId');
+    }
+    
+    return hasChanged;
   }
 }
 

@@ -52,7 +52,7 @@ class AccessControlHelper {
     final activeMembers = group.activeMembers;
     final userMember = activeMembers.where((member) => member.memberId == uid).firstOrNull;
     
-    return userMember?.role == PurchaseGroupRole.parent;
+    return userMember?.role == PurchaseGroupRole.owner;
   }
 
   /// Firestore用：PurchaseGroupからアクセス権限のあるUIDs（memberIds）を抽出

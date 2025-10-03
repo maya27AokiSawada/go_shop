@@ -1,3 +1,7 @@
+// TODO: Firestore対応時に実装
+// 現在は開発中のため、コンパイルエラーを回避するためコメントアウト
+
+/*
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/firestore_shopping_list.dart';
@@ -5,6 +9,8 @@ import '../models/shopping_list.dart';
 import 'shopping_list_repository.dart';
 import '../flavors.dart';
 
+// TODO: Firestore対応時に有効化
+// 現在は開発中のため、コンパイルエラーを回避するためコメントアウト
 class FirestoreShoppingListRepository implements ShoppingListRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
@@ -197,3 +203,4 @@ final watchGroupShoppingListsProvider = StreamProvider.family<List<FirestoreShop
   final repository = ref.read(firestoreShoppingListRepositoryProvider);
   return repository.watchGroupShoppingLists(groupId);
 });
+*/

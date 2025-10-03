@@ -2,14 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:logger/logger.dart';
+import 'dart:io' show Platform;
+import 'dart:developer' as developer;
 import '../providers/auth_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/shopping_list_provider.dart';
 import '../providers/user_name_provider.dart';
+import '../providers/user_settings_provider.dart';
+import '../providers/user_specific_hive_provider.dart';
+import '../providers/device_settings_provider.dart';
 import '../models/purchase_group.dart';
 import '../models/shopping_list.dart';
 import '../flavors.dart';
 import '../helper/firebase_diagnostics.dart';
+import '../widgets/user_data_migration_dialog.dart';
 
 final logger = Logger();
 
@@ -70,6 +76,103 @@ class _HomePageState extends ConsumerState<HomePage> {
     super.dispose();
   }
 
+  // Firebase UserとMockUserの両方からemailを取得するヘルパーメソッド
+  String? _getUserEmail(dynamic user) {
+    if (user == null) return null;
+    // Firebase UserまたはMockUserの場合
+    return user.email;
+  }
+
+  // UID変更をハンドリングするメソッド
+  Future<void> _handleUserIdChange(String newUserId, String userEmail) async {
+    try {
+      final userSettings = ref.read(userSettingsProvider.notifier);
+      final hiveService = ref.read(userSpecificHiveProvider);
+      final hasChanged = await userSettings.hasUserIdChanged(newUserId);
+      final isWindows = Platform.isWindows;
+      
+      if (hasChanged) {
+        // UIDが変更された場合、ユーザーに選択を求める
+        if (mounted) {
+          final shouldKeepData = await UserDataMigrationDialog.show(
+            context,
+            previousUser: '前回のユーザー',
+            newUser: userEmail,
+          );
+          
+          if (shouldKeepData == false) {
+            // データを消去する場合
+            logger.i('🗑️ ユーザーがデータ消去を選択');
+            
+            if (isWindows) {
+              // Windows版: ユーザー固有のHiveデータベースに切り替え
+              await hiveService.initializeForUser(newUserId);
+              // TODO: clearCurrentUserData メソッドを実装
+            } else {
+              // Android/iOS版: 現在のHiveデータをクリア（フォルダは変更しない）
+              // TODO: clearCurrentUserData メソッドを実装
+            }
+            
+            // 安全にプロバイダーを無効化（遅延実行で順次）
+            await Future.delayed(const Duration(milliseconds: 200));
+            ref.invalidate(userSettingsProvider);
+            await Future.delayed(const Duration(milliseconds: 200));
+            ref.invalidate(shoppingListProvider);
+            await Future.delayed(const Duration(milliseconds: 200));
+            ref.invalidate(purchaseGroupProvider);
+            
+          } else {
+            // データを引き継ぐ場合
+            logger.i('🔄 ユーザーがデータ引き継ぎを選択');
+            
+            if (isWindows) {
+              // Windows版: ユーザー固有フォルダに切り替え
+              await hiveService.initializeForUser(newUserId);
+              // TODO: migrateDataFromDefault メソッドを実装
+            }
+            // Android/iOS版: 何もしない（既存データをそのまま使用）
+            
+            // 安全にプロバイダーを無効化（遅延実行で順次）
+            await Future.delayed(const Duration(milliseconds: 200));
+            ref.invalidate(userSettingsProvider);
+            await Future.delayed(const Duration(milliseconds: 200));
+            ref.invalidate(shoppingListProvider);
+            await Future.delayed(const Duration(milliseconds: 200));
+            ref.invalidate(purchaseGroupProvider);
+          }
+        }
+      } else {
+        // UIDが変更されていない場合
+        if (isWindows && hiveService.currentUserId != newUserId) {
+          // Windows版のみ: 適切なユーザーデータベースに切り替え
+          logger.i('🔄 [Windows] Switching to user-specific Hive database: $newUserId');
+          await hiveService.initializeForUser(newUserId);
+          
+          // プロバイダーの無効化を大幅に遅延させて競合を回避
+          await Future.delayed(const Duration(milliseconds: 500));
+          ref.invalidate(userSettingsProvider);
+          await Future.delayed(const Duration(milliseconds: 500));
+          ref.invalidate(shoppingListProvider);
+          await Future.delayed(const Duration(milliseconds: 500));
+          ref.invalidate(purchaseGroupProvider);
+        }
+        // Android/iOS版: 何もしない（既存のHiveをそのまま使用）
+      }
+      
+      // 新しいUIDを保存（Hive初期化完了後に実行）
+      await Future.delayed(const Duration(milliseconds: 500));
+      await userSettings.updateUserId(newUserId);
+      
+    } catch (e) {
+      logger.i('❌ UID変更処理エラー: $e');
+    }
+  }
+
+  // ユーザーがログインしているかどうかをチェックするヘルパーメソッド
+  bool _isUserLoggedIn(dynamic user) {
+    return user != null;
+  }
+
   // @override
   // void initState() {
   //   super.initState();
@@ -85,33 +188,107 @@ class _HomePageState extends ConsumerState<HomePage> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
     final currentUserName = ref.watch(userNameProvider);
+    final hiveInitialized = ref.watch(hiveInitializationStatusProvider);
     
-    // 認証状態が変わった時にユーザー名をチェック
+    // Hive初期化を監視（バックグラウンドで自動実行）
+    ref.watch(hiveUserInitializationProvider);
+    
+    // Windows版のみHive初期化待ちのローディング表示
+    // Android/iOS版は常にデータを表示（アプリ再開時に未ログインでもHiveをそのまま使用）
+    if (Platform.isWindows && !hiveInitialized) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              const Text('データベースを初期化中...'),
+            ],
+          ),
+        ),
+      );
+    }
+    
+    // 認証状態が変わった時の処理（UIDベースでユーザー切り替えを判定）
     ref.listen(authStateProvider, (previous, next) {
       logger.i('🔎 認証状態変更を検知');
-      next.whenData((user) {
-        logger.i('🔐 ユーザー: ${user?.email ?? "null"}, 現在のユーザー名: $currentUserName');
-        if (currentUserName == null || currentUserName.isEmpty) {
+      next.whenData((user) async {
+        final currentUserEmail = _getUserEmail(user);
+        final currentUserId = user?.uid ?? '';
+        
+        logger.i('🔐 現在のユーザー: ${currentUserEmail ?? "null"}, UID: $currentUserId, ユーザー名: $currentUserName');
+        
+        if (currentUserId.isNotEmpty) {
+          // サインイン済みの場合、UID変更をチェック
+          await _handleUserIdChange(currentUserId, currentUserEmail ?? 'メール未設定');
+        } else {
+          // サインアウト時は何もしない
+          logger.i('� サインアウト状態 - 処理をスキップ');
+        }
+        
+        // 初回サインイン時またはユーザー名がない場合のみグループから読み込み
+        if ((currentUserName == null || currentUserName.isEmpty) && currentUserId.isNotEmpty) {
           logger.i('🔄 ユーザー名がないのでグループから読み込みを実行');
-          // ユーザー名がない場合は認証状態に関係なくグループから読み込み
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _loadUserNameFromDefaultGroup();
           });
-        } else {
-          logger.i('🚫 ユーザー名読み込みをスキップ: ユーザー名が既に存在=$currentUserName');
         }
       });
     });
     
     return Scaffold(
-    appBar: AppBar(title: const Text('Go Shopping')),
+    appBar: AppBar(
+      title: const Text('Go Shopping'),
+      actions: [
+        // シークレットモード設定ボタン
+        Consumer(
+          builder: (context, ref, child) {
+            final isSecretMode = ref.watch(secretModeProvider);
+            return IconButton(
+              icon: Icon(
+                isSecretMode ? Icons.visibility_off : Icons.visibility,
+                color: isSecretMode ? Colors.red : null,
+              ),
+              tooltip: isSecretMode ? 'シークレットモード ON' : 'シークレットモード OFF',
+              onPressed: () async {
+                try {
+                  await ref.read(secretModeProvider.notifier).toggleSecretMode();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          !isSecretMode 
+                            ? 'シークレットモードを有効にしました。ログインが必要になります。'
+                            : 'シークレットモードを無効にしました。',
+                        ),
+                        duration: const Duration(seconds: 3),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('設定の変更に失敗しました: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+            );
+          },
+        ),
+      ],
+    ),
     body: Center(
       child: Builder(
         builder: (context) {
           // Replace with your actual logic to check authentication state
           return authState.when(
             data: (user) {
-              if (user == null) { // 未ログイン状態ならサインイン・サインアップボタンを表示
+              if (!_isUserLoggedIn(user)) { // 未ログイン状態ならサインイン・サインアップボタンを表示
                 return Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Form(
@@ -135,24 +312,26 @@ class _HomePageState extends ConsumerState<HomePage> {
                         ),
                         const SizedBox(height: 16),
                         
-                        // サインインボタン（カーソル位置）
-                        ElevatedButton(
-                          onPressed: () {
-                            if (userNameController.text.isNotEmpty) {
-                              setState(() {
-                                showSignInForm = true;
-                              });
-                              // ユーザー名を保存
-                              _saveUserName();
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('ユーザー名を入力してください')),
-                              );
-                            }
-                          },
-                          child: const Text('サインイン'),
-                        ),
-                        const SizedBox(height: 16),
+                        // サインインボタン（フォームが表示されていない時のみ表示）
+                        if (!showSignInForm) ...[
+                          ElevatedButton(
+                            onPressed: () {
+                              if (userNameController.text.isNotEmpty) {
+                                setState(() {
+                                  showSignInForm = true;
+                                });
+                                // ユーザー名を保存
+                                _saveUserName();
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('ユーザー名を入力してください')),
+                                );
+                              }
+                            },
+                            child: const Text('サインイン'),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
                         
                         // メールアドレスとパスワード入力欄（サインインボタンが押された後に表示）
                         if (showSignInForm) ...[
@@ -258,18 +437,39 @@ class _HomePageState extends ConsumerState<HomePage> {
                 return Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text('ようこそ、${savedUserName ?? user.email ?? "ユーザー"}さん'),
+                    Text('ようこそ、${savedUserName ?? _getUserEmail(user) ?? "ユーザー"}さん'),
                     const SizedBox(height: 20),
                     ElevatedButton(
                       onPressed: () async {
-                        await ref.read(authProvider).signOut();
-                        // Mock環境では状態を手動でクリア
-                        if (F.appFlavor == Flavor.dev) {
-                          ref.read(mockAuthStateProvider.notifier).state = null;
+                        try {
+                          // 1. Windows版のみユーザー固有Hiveサービスをデフォルトに切り替え
+                          if (Platform.isWindows) {
+                            final hiveService = ref.read(userSpecificHiveProvider);
+                            await hiveService.initializeForDefaultUser();
+                            logger.i('🚪 [Windows] Switched to default Hive folder');
+                          }
+                          // Android/iOS版: Hiveフォルダはそのまま維持
+                          
+                          // 2. Firebase認証のサインアウト
+                          await ref.read(authProvider).signOut();
+                          
+                          // 3. Mock環境では状態を手動でクリア
+                          if (F.appFlavor == Flavor.dev) {
+                            ref.read(mockAuthStateProvider.notifier).state = null;
+                          }
+                          
+                          // 4. 全ての設定をクリア
+                          await ref.read(userSettingsProvider.notifier).clearAllSettings();
+                          
+                          // 5. グループデータとショッピングリストも無効化
+                          ref.invalidate(purchaseGroupProvider);
+                          ref.invalidate(shoppingListProvider);
+                          ref.invalidate(userSettingsProvider);
+                          
+                          developer.log('🚪 完全サインアウト完了 - 全状態がクリアされました');
+                        } catch (e) {
+                          developer.log('❌ サインアウトエラー: $e');
                         }
-                        // ログアウト時にユーザー名もクリア
-                        // ユーザー名をクリア（今回はコメントアウト）
-                        // await ref.read(userNameNotifierProvider.notifier).clearUserName();
                       },
                       child: const Text('ログアウト'),
                     ),
@@ -300,7 +500,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'ログイン状態: ${user.email}',
+                      'ログイン状態: ${_getUserEmail(user) ?? "不明"}',
                       style: const TextStyle(fontSize: 12, color: Colors.green),
                     ),
                   ],
@@ -357,10 +557,11 @@ class _HomePageState extends ConsumerState<HomePage> {
                   logger.i('🏆 選択されたメンバー: ${currentMember.name} (${currentMember.role})');
                   
                   // ログイン済みの場合のみメールアドレスでマッチするメンバーを再検索
-                  if (user != null && currentMember.contact != user.email && user.email != null) {
-                    logger.i('📬 メールアドレスでメンバーを再検索: ${user.email}');
+                  final userEmail = _getUserEmail(user);
+                  if (_isUserLoggedIn(user) && currentMember.contact != userEmail && userEmail != null) {
+                    logger.i('📬 メールアドレスでメンバーを再検索: $userEmail');
                     final emailMatchMember = group.members!.firstWhere(
-                      (member) => member.contact == user.email,
+                      (member) => member.contact == userEmail,
                       orElse: () {
                         logger.i('📬 メールアドレスマッチなし、leaderを使用');
                         return currentMember;
@@ -448,31 +649,58 @@ class _HomePageState extends ConsumerState<HomePage> {
         passwordController.clear();
       }
     } catch (e) {
+      logger.e('🚨 ログイン失敗: $e');
       if (mounted) {
-        // サインイン失敗時の処理
-        final bool? shouldSignUp = await showDialog<bool>(
-          context: context,
-          barrierDismissible: false,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text('ログインに失敗しました'),
-              content: Text('メールアドレス "$email" でのログインに失敗しました。\n新しいアカウントを作成しますか？'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('キャンセル'),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  child: const Text('アカウント作成'),
-                ),
-              ],
-            );
-          },
-        );
+        String errorMessage = 'ログインに失敗しました';
+        bool offerSignUp = false;
+        
+        // Firebaseエラーの詳細を判定
+        if (e.toString().contains('user-not-found')) {
+          errorMessage = 'このメールアドレスは登録されていません';
+          offerSignUp = true;
+        } else if (e.toString().contains('wrong-password')) {
+          errorMessage = 'パスワードが間違っています';
+        } else if (e.toString().contains('invalid-email')) {
+          errorMessage = 'メールアドレスの形式が正しくありません';
+        } else if (e.toString().contains('too-many-requests')) {
+          errorMessage = 'ログイン試行回数が多すぎます。しばらく待ってから再試行してください';
+        }
+        
+        if (offerSignUp) {
+          // ユーザーが見つからない場合のみアカウント作成を提案
+          final bool? shouldSignUp = await showDialog<bool>(
+            context: context,
+            barrierDismissible: false,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text('アカウントが見つかりません'),
+                content: Text('メールアドレス "$email" は登録されていません。\n新しいアカウントを作成しますか？'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text('キャンセル'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: const Text('アカウント作成'),
+                  ),
+                ],
+              );
+            },
+          );
 
-        if (shouldSignUp == true && mounted) {
-          await _performSignUp();
+          if (shouldSignUp == true && mounted) {
+            await _performSignUp();
+          }
+        } else {
+          // パスワード間違いやその他のエラーの場合は単純にエラーメッセージを表示
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMessage),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+            ),
+          );
         }
       }
     }

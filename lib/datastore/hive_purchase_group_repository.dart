@@ -4,6 +4,7 @@ import 'dart:developer' as developer;
 import '../models/purchase_group.dart';
 import '../datastore/purchase_group_repository.dart';
 import '../providers/hive_provider.dart';
+import '../providers/user_specific_hive_provider.dart';
 import '../flavors.dart';
 
 class HivePurchaseGroupRepository implements PurchaseGroupRepository {
@@ -13,14 +14,38 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
   // コンストラクタでRefを受け取る
   HivePurchaseGroupRepository(this._ref);
 
-  // Boxへのアクセスをプロバイダ経由で取得
-  Box<PurchaseGroup> get _box => _ref.read(purchaseGroupBoxProvider);
+  // Boxへのアクセスをプロバイダ経由で取得（安全性チェック付き）
+  Box<PurchaseGroup> get _box {
+    try {
+      // Hive初期化が完了しているかチェック
+      final isInitialized = _ref.read(hiveInitializationStatusProvider);
+      if (!isInitialized) {
+        throw Exception('Hive is not initialized yet. Please wait for initialization to complete.');
+      }
+      
+      // Boxが利用可能かチェック
+      if (!Hive.isBoxOpen('purchaseGroups')) {
+        throw StateError('PurchaseGroup box is not open. This may occur during app restart.');
+      }
+      
+      return _ref.read(purchaseGroupBoxProvider);
+    } on StateError catch (e) {
+      developer.log('⚠️ Box state error (normal during restart): $e');
+      rethrow;
+    } catch (e) {
+      developer.log('❌ Failed to access PurchaseGroup box: $e');
+      rethrow;
+    }
+  }
 
   // CRUDメソッド
   Future<void> saveGroup(PurchaseGroup group) async {
     try {
       await _box.put(group.groupId, group);
       developer.log('💾 PurchaseGroup保存: ${group.groupName} (${group.members?.length ?? 0}メンバー)');
+    } on StateError catch (e) {
+      developer.log('⚠️ Box not available during saveGroup (app may be restarting): $e');
+      rethrow;
     } catch (e) {
       developer.log('❌ PurchaseGroup保存エラー: $e');
       rethrow;
@@ -33,6 +58,9 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
       final groups = _box.values.toList();
       developer.log('📋 全グループ取得: ${groups.length}グループ');
       return groups;
+    } on StateError catch (e) {
+      developer.log('⚠️ Box not available during getAllGroups (app may be restarting): $e');
+      return []; // 空のリストを返してクラッシュを防ぐ
     } catch (e) {
       developer.log('❌ 全グループ取得エラー: $e');
       rethrow;
@@ -329,9 +357,8 @@ final hivePurchaseGroupRepositoryProvider = Provider<HivePurchaseGroupRepository
 // 抽象インターフェース用のプロバイダー（フレーバー切り替え対応）
 final purchaseGroupRepositoryProvider = Provider<PurchaseGroupRepository>((ref) {
   if (F.appFlavor == Flavor.prod) {
-    // 本番環境: Firestore + Hive hybrid repository （TODO: 実装予定）
-    // return FirestorePurchaseGroupRepository(ref);
-    throw UnimplementedError('FirestorePurchaseGroupRepository integration not implemented yet');
+    // 本番環境: 現在はHiveを使用（Firestore連携は将来実装予定）
+    return ref.read(hivePurchaseGroupRepositoryProvider);
   } else {
     // 開発環境: Hiveのみ
     return ref.read(hivePurchaseGroupRepositoryProvider);

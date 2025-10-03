@@ -21,13 +21,14 @@ class MockAuthService {
     logger.i("Mock signInWithEmail: $email");
     await Future.delayed(const Duration(milliseconds: 500));
     
-    if ((email == "pisce.plum@gmail.com" || email == "pisces.plum@gmail.com") && password == "TestPassword123!") {
-      final mockUser = MockUser(email: email, uid: "C3LO8EaKwiZPt2rhi5pKoITBUSg");
+    // DEVモードでは任意のメール/パスワードでログイン可能
+    if (email.isNotEmpty && password.isNotEmpty) {
+      final mockUser = MockUser(email: email, uid: "mock_${email.hashCode}");
       _currentUser = mockUser;
       logger.i("Mock signInWithEmail successful for: $email");
       return MockUserCredential(user: mockUser);
     } else {
-      throw Exception("無効な認証情報です。開発モードでは pisce.plum@gmail.com / TestPassword123! を使用してください。");
+      throw Exception("メールアドレスとパスワードを入力してください。");
     }
   }
   
