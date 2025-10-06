@@ -13,19 +13,28 @@ final purchaseGroupRepositoryProvider = Provider<PurchaseGroupRepository>((ref) 
   }
 });
 
-// PurchaseGroup state notifier
+// PurchaseGroup state notifier - selected group に基づいて動作
 class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
   @override
   Future<PurchaseGroup> build() async {
     final repository = ref.read(purchaseGroupRepositoryProvider);
+    final selectedGroupId = ref.watch(selectedGroupIdProvider);
     
     try {
+      // 指定されたグループIDのグループを取得
       final groups = await repository.getAllGroups();
+      PurchaseGroup? targetGroup;
+      
       if (groups.isNotEmpty) {
-        final defaultGroup = groups.first;
-        return await _fixLegacyMemberRoles(defaultGroup);
+        // 選択されたグループIDのグループを探す
+        targetGroup = groups.where((group) => group.groupId == selectedGroupId).firstOrNull;
+        
+        // 見つからない場合はデフォルトグループまたは最初のグループを使用
+        targetGroup ??= groups.first;
+        
+        return await _fixLegacyMemberRoles(targetGroup);
       } else {
-        // Create default group using the repository
+        // グループが存在しない場合はデフォルトグループを作成
         final ownerMember = PurchaseGroupMember.create(
           name: 'デフォルトユーザー',
           contact: 'default@example.com',
@@ -43,26 +52,47 @@ class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
   Future<PurchaseGroup> _fixLegacyMemberRoles(PurchaseGroup group) async {
     final repository = ref.read(purchaseGroupRepositoryProvider);
     
+    if (group.members == null || group.members!.isEmpty) {
+      return group;
+    }
+    
     bool needsUpdate = false;
-    final fixedMembers = group.members?.map((member) {
-      PurchaseGroupRole fixedRole = member.role;
-      
-      if (member == group.members?.first) {
-        if (member.role != PurchaseGroupRole.owner) {
-          fixedRole = PurchaseGroupRole.owner;
+    final originalMembers = group.members!;
+    
+    // Find the first owner or the first member to be the owner
+    PurchaseGroupMember? owner;
+    final List<PurchaseGroupMember> nonOwners = [];
+    
+    // First pass: separate owners and non-owners
+    for (final member in originalMembers) {
+      if (member.role == PurchaseGroupRole.owner) {
+        if (owner == null) {
+          owner = member; // Keep the first owner
+        } else {
+          // Convert additional owners to members
+          nonOwners.add(member.copyWith(role: PurchaseGroupRole.member));
           needsUpdate = true;
         }
       } else {
-        if (member.role != PurchaseGroupRole.member && member.role != PurchaseGroupRole.owner) {
-          fixedRole = PurchaseGroupRole.member;
+        // Convert any legacy roles (parent, child) to member
+        if (member.role != PurchaseGroupRole.member) {
+          nonOwners.add(member.copyWith(role: PurchaseGroupRole.member));
           needsUpdate = true;
+        } else {
+          nonOwners.add(member);
         }
       }
-      
-      return member.copyWith(role: fixedRole);
-    }).toList();
-
-    if (needsUpdate && fixedMembers != null) {
+    }
+    
+    // If no owner found, make the first member an owner
+    if (owner == null && nonOwners.isNotEmpty) {
+      final firstMember = nonOwners.removeAt(0);
+      owner = firstMember.copyWith(role: PurchaseGroupRole.owner);
+      needsUpdate = true;
+    }
+    
+    if (needsUpdate && owner != null) {
+      final fixedMembers = [owner, ...nonOwners];
       final updatedGroup = group.copyWith(members: fixedMembers);
       await repository.updateGroup(group.groupId, updatedGroup);
       return updatedGroup;
@@ -81,8 +111,152 @@ class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
       state = AsyncError(e, StackTrace.current);
     }
   }
+
+  /// Load specific group by ID
+  Future<void> loadGroup(String groupId) async {
+    final repository = ref.read(purchaseGroupRepositoryProvider);
+    
+    try {
+      final group = await repository.getGroupById(groupId);
+      final fixedGroup = await _fixLegacyMemberRoles(group);
+      state = AsyncData(fixedGroup);
+      
+      // Update selected group ID
+      ref.read(selectedGroupIdProvider.notifier).selectGroup(groupId);
+    } catch (e) {
+      state = AsyncError(e, StackTrace.current);
+    }
+  }
+  Future<void> updateGroup(PurchaseGroup group) async {
+    await saveGroup(group);
+  }
+
+  /// Add a new member to the current group
+  Future<void> addMember(PurchaseGroupMember newMember) async {
+    final currentGroup = state.value;
+    if (currentGroup == null) return;
+
+    final repository = ref.read(purchaseGroupRepositoryProvider);
+    
+    try {
+      await repository.addMember(currentGroup.groupId, newMember);
+      // Reload the group to get updated data
+      final updatedGroup = await repository.getGroupById(currentGroup.groupId);
+      state = AsyncData(updatedGroup);
+    } catch (e) {
+      state = AsyncError(e, StackTrace.current);
+    }
+  }
+
+  /// Create a new group
+  Future<void> createNewGroup(String groupName) async {
+    final repository = ref.read(purchaseGroupRepositoryProvider);
+    
+    try {
+      final ownerMember = PurchaseGroupMember.create(
+        name: 'デフォルトユーザー',
+        contact: 'default@example.com',
+        role: PurchaseGroupRole.owner,
+        isSignedIn: true,
+      );
+      
+      final newGroup = await repository.createGroup(
+        'group_${DateTime.now().millisecondsSinceEpoch}',
+        groupName,
+        ownerMember,
+      );
+      
+      state = AsyncData(newGroup);
+      
+      // Refresh the all groups list so dropdown updates
+      ref.read(allGroupsProvider.notifier).refresh();
+    } catch (e) {
+      state = AsyncError(e, StackTrace.current);
+    }
+  }
+
+  /// Delete a group
+  Future<void> deleteGroup(String groupId) async {
+    final repository = ref.read(purchaseGroupRepositoryProvider);
+    
+    try {
+      await repository.deleteGroup(groupId);
+      // After deletion, try to load another group or create default
+      final groups = await repository.getAllGroups();
+      if (groups.isNotEmpty) {
+        state = AsyncData(groups.first);
+      } else {
+        // Create default group if no groups exist
+        final ownerMember = PurchaseGroupMember.create(
+          name: 'デフォルトユーザー',
+          contact: 'default@example.com',
+          role: PurchaseGroupRole.owner,
+          isSignedIn: true,
+        );
+        final defaultGroup = await repository.createGroup('defaultGroup', 'デフォルトグループ', ownerMember);
+        state = AsyncData(defaultGroup);
+      }
+      
+      // Refresh the all groups list so dropdown updates
+      ref.read(allGroupsProvider.notifier).refresh();
+    } catch (e) {
+      state = AsyncError(e, StackTrace.current);
+    }
+  }
 }
 
+// Group selection management
+class SelectedGroupIdNotifier extends StateNotifier<String> {
+  SelectedGroupIdNotifier() : super('defaultGroup');
+
+  void selectGroup(String groupId) {
+    state = groupId;
+  }
+}
+
+// All groups provider
+class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
+  @override
+  Future<List<PurchaseGroup>> build() async {
+    final repository = ref.read(purchaseGroupRepositoryProvider);
+    
+    try {
+      return await repository.getAllGroups();
+    } catch (e) {
+      throw Exception('Failed to load all groups: $e');
+    }
+  }
+
+  Future<void> refresh() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() => build());
+  }
+}
+
+// Providers
 final purchaseGroupProvider = AsyncNotifierProvider<PurchaseGroupNotifier, PurchaseGroup>(
   () => PurchaseGroupNotifier(),
 );
+
+final selectedGroupIdProvider = StateNotifierProvider<SelectedGroupIdNotifier, String>(
+  (ref) => SelectedGroupIdNotifier(),
+);
+
+final allGroupsProvider = AsyncNotifierProvider<AllGroupsNotifier, List<PurchaseGroup>>(
+  () => AllGroupsNotifier(),
+);
+
+// 選択されたグループIDに基づいて特定のグループを取得するプロバイダー
+final selectedGroupProvider = Provider<AsyncValue<PurchaseGroup?>>((ref) {
+  final selectedGroupId = ref.watch(selectedGroupIdProvider);
+  final allGroupsAsync = ref.watch(allGroupsProvider);
+  
+  return allGroupsAsync.when(
+    data: (groups) {
+      final selectedGroup = groups.where((group) => group.groupId == selectedGroupId).firstOrNull;
+      return AsyncValue.data(selectedGroup);
+    },
+    loading: () => const AsyncValue.loading(),
+    error: (error, stack) => AsyncValue.error(error, stack),
+  );
+});

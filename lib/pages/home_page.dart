@@ -196,14 +196,14 @@ class _HomePageState extends ConsumerState<HomePage> {
     // Windows版のみHive初期化待ちのローディング表示
     // Android/iOS版は常にデータを表示（アプリ再開時に未ログインでもHiveをそのまま使用）
     if (Platform.isWindows && !hiveInitialized) {
-      return Scaffold(
+      return const Scaffold(
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const CircularProgressIndicator(),
-              const SizedBox(height: 16),
-              const Text('データベースを初期化中...'),
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('データベースを初期化中...'),
             ],
           ),
         ),
@@ -252,6 +252,29 @@ class _HomePageState extends ConsumerState<HomePage> {
               ),
               tooltip: isSecretMode ? 'シークレットモード ON' : 'シークレットモード OFF',
               onPressed: () async {
+                // シークレットモードOFF→ONの場合は認証チェック
+                if (isSecretMode) {
+                  // ON→OFFにする場合は認証必須
+                  final authState = ref.read(authStateProvider);
+                  final isAuthenticated = authState.when(
+                    data: (user) => user != null,
+                    loading: () => false,
+                    error: (_, __) => false,
+                  );
+                  
+                  if (!isAuthenticated) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('シークレットモードを無効にするにはログインが必要です'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                    }
+                    return;
+                  }
+                }
+                
                 try {
                   await ref.read(secretModeProvider.notifier).toggleSecretMode();
                   if (context.mounted) {
@@ -296,27 +319,35 @@ class _HomePageState extends ConsumerState<HomePage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // ユーザー名入力
-                        TextFormField(
-                          controller: userNameController,
-                          decoration: const InputDecoration(
-                            labelText: 'User Name',
-                            border: OutlineInputBorder(),
+                        // ユーザー名が未設定で初回利用の場合のみユーザー名入力を表示
+                        if (currentUserName == null || currentUserName.isEmpty) ...[
+                          TextFormField(
+                            controller: userNameController,
+                            decoration: const InputDecoration(
+                              labelText: 'User Name',
+                              border: OutlineInputBorder(),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'ユーザー名を入力してください';
+                              }
+                              return null;
+                            },
                           ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'ユーザー名を入力してください';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
+                          const SizedBox(height: 16),
+                        ],
                         
                         // サインインボタン（フォームが表示されていない時のみ表示）
                         if (!showSignInForm) ...[
                           ElevatedButton(
                             onPressed: () {
-                              if (userNameController.text.isNotEmpty) {
+                              // ユーザー名が既に設定されている場合は直接サインイン画面へ
+                              // 新規ユーザーの場合はユーザー名入力チェック
+                              if (currentUserName != null && currentUserName.isNotEmpty) {
+                                setState(() {
+                                  showSignInForm = true;
+                                });
+                              } else if (userNameController.text.isNotEmpty) {
                                 setState(() {
                                   showSignInForm = true;
                                 });
@@ -328,7 +359,11 @@ class _HomePageState extends ConsumerState<HomePage> {
                                 );
                               }
                             },
-                            child: const Text('サインイン'),
+                            child: Text(
+                              currentUserName != null && currentUserName.isNotEmpty 
+                                ? '($currentUserName) でサインイン' 
+                                : 'サインイン'
+                            ),
                           ),
                           const SizedBox(height: 16),
                         ],
@@ -641,6 +676,11 @@ class _HomePageState extends ConsumerState<HomePage> {
           const SnackBar(content: Text('ログインしました')),
         );
         
+        // サインイン成功後、ユーザー名を自動復元
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _loadUserNameFromDefaultGroup();
+        });
+        
         // フォームをリセット
         setState(() {
           showSignInForm = false;
@@ -723,6 +763,11 @@ class _HomePageState extends ConsumerState<HomePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('アカウントを作成してログインしました')),
         );
+        
+        // サインアップ成功後、ユーザー名を自動復元
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _loadUserNameFromDefaultGroup();
+        });
         
         // フォームをリセット
         setState(() {
