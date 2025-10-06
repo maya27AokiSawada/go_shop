@@ -8,7 +8,8 @@ import 'user_settings_provider.dart';
 // Repository provider
 final purchaseGroupRepositoryProvider = Provider<PurchaseGroupRepository>((ref) {
   if (F.appFlavor == Flavor.prod) {
-    throw UnimplementedError('FirestorePurchaseGroupRepository is not implemented yet');
+    // 本番環境でもHiveを使用（Firestoreリポジトリ実装後に変更予定）
+    return HivePurchaseGroupRepository(ref);
   } else {
     return HivePurchaseGroupRepository(ref);
   }
@@ -177,6 +178,9 @@ class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
         groupName,
         ownerMember,
       );
+      
+      // 新しいグループを選択状態に設定
+      ref.read(selectedGroupIdProvider.notifier).selectGroup(newGroup.groupId);
       
       state = AsyncData(newGroup);
       

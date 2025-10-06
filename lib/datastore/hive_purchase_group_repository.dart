@@ -1,5 +1,6 @@
 import 'package:hive/hive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 import 'dart:developer' as developer;
 import '../models/purchase_group.dart';
 import '../models/user_settings.dart';
@@ -345,8 +346,8 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
         throw Exception('Member already exists: $email');
       }
 
-      // 仮のmemberIdを生成
-      final tempMemberId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
+      // 仮のmemberIdを生成（UUIDベース）
+      final tempMemberId = 'temp_${const Uuid().v4()}';
       
       final pendingMember = PurchaseGroupMember(
         memberId: tempMemberId,

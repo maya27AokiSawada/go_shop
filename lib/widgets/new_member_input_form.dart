@@ -3,6 +3,7 @@
 // lib/widgets/new_member_input_form.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 import '../models/purchase_group.dart';
 import '../providers/purchase_group_provider.dart';
 
@@ -79,6 +80,7 @@ class _PurchaseGroupMemberFormState extends ConsumerState<PurchaseGroupMemberFor
               if (formKey.currentState!.validate()) {
                 formKey.currentState!.save();
                 final newMember = PurchaseGroupMember(
+                  memberId: const Uuid().v4(), // ユニークなIDを生成
                   name: name,
                   contact: contact,
                   role: _selectedRole,

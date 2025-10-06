@@ -41,6 +41,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  final _userNameFormKey = GlobalKey<FormState>(); // ユーザー名編集用のFormKey
   bool showSignInForm = false;
 
   @override
@@ -58,16 +59,29 @@ class _HomePageState extends ConsumerState<HomePage> {
   void _initializeUserName() async {
     logger.i('🔧 _initializeUserName開始');
     
+    // 少し待ってからプロバイダーの値を取得（Riverpodの初期化完了を待つ）
+    await Future.delayed(const Duration(milliseconds: 300));
+    
     // 設定から現在のユーザー名を確認
     final currentUserName = ref.read(userNameProvider);
     logger.i('👤 現在のユーザー名（設定から）: $currentUserName');
     
     if (currentUserName != null && currentUserName.isNotEmpty) {
-      userNameController.text = currentUserName;
-      logger.i('✅ ユーザー名が設定から復元されました: $currentUserName');
+      if (mounted) {
+        userNameController.text = currentUserName;
+        logger.i('✅ ユーザー名が設定から復元されました: $currentUserName');
+      }
     } else {
       logger.i('⚠️ 設定にユーザー名がないため、グループから読み込み');
       _loadUserNameFromDefaultGroup();
+      
+      // グループからロード後、少し待ってから再度チェック
+      await Future.delayed(const Duration(milliseconds: 200));
+      final updatedUserName = ref.read(userNameProvider);
+      if (updatedUserName != null && updatedUserName.isNotEmpty && mounted) {
+        userNameController.text = updatedUserName;
+        logger.i('✅ ユーザー名がグループから復元されました: $updatedUserName');
+      }
     }
   }
 
@@ -423,29 +437,11 @@ class _HomePageState extends ConsumerState<HomePage> {
                         if (!showSignInForm) ...[
                           ElevatedButton(
                             onPressed: () {
-                              // ユーザー名が既に設定されている場合は直接サインイン画面へ
-                              // 新規ユーザーの場合はユーザー名入力チェック
-                              if (currentUserName != null && currentUserName.isNotEmpty) {
-                                setState(() {
-                                  showSignInForm = true;
-                                });
-                              } else if (userNameController.text.isNotEmpty) {
-                                setState(() {
-                                  showSignInForm = true;
-                                });
-                                // ユーザー名を保存
-                                _saveUserName();
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('ユーザー名を入力してください')),
-                                );
-                              }
+                              setState(() {
+                                showSignInForm = true;
+                              });
                             },
-                            child: Text(
-                              currentUserName != null && currentUserName.isNotEmpty 
-                                ? '($currentUserName) でサインイン' 
-                                : 'サインイン'
-                            ),
+                            child: const Text('サインイン'),
                           ),
                           const SizedBox(height: 16),
                         ],
@@ -551,12 +547,104 @@ class _HomePageState extends ConsumerState<HomePage> {
               } else {
                 // ログイン済みUI
                 final savedUserName = ref.watch(userNameProvider);
-                return Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text('ようこそ、${savedUserName ?? _getUserEmail(user) ?? "ユーザー"}さん'),
-                    const SizedBox(height: 20),
-                    ElevatedButton(
+                return Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'ようこそ、${savedUserName ?? _getUserEmail(user) ?? "ユーザー"}さん',
+                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 30),
+                      
+                      // ユーザー名編集セクション
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Form(
+                            key: _userNameFormKey,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'ユーザー名設定',
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 12),
+                                Consumer(
+                                  builder: (context, ref, child) {
+                                    // ユーザー名プロバイダーを監視してテキストフィールドを更新
+                                    final currentUserName = ref.watch(userNameProvider);
+                                    
+                                    // テキストフィールドが空または異なる値の場合のみ更新
+                                    if (currentUserName != null && 
+                                        currentUserName.isNotEmpty && 
+                                        userNameController.text != currentUserName) {
+                                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                                        userNameController.text = currentUserName;
+                                      });
+                                    }
+                                    
+                                    return TextFormField(
+                                      controller: userNameController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'ユーザー名',
+                                        border: OutlineInputBorder(),
+                                        hintText: '表示名を入力してください',
+                                      ),
+                                      validator: (value) {
+                                        if (value == null || value.trim().isEmpty) {
+                                          return 'ユーザー名を入力してください';
+                                        }
+                                        return null;
+                                      },
+                                    );
+                                  },
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: ElevatedButton.icon(
+                                        onPressed: _saveUserName,
+                                        icon: const Icon(Icons.save),
+                                        label: const Text('ユーザー名を保存'),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                // デバッグ用: 現在の状態確認ボタン
+                                ElevatedButton(
+                                  onPressed: () async {
+                                    logger.i('🔍 デバッグ: 現在の状態確認');
+                                    final currentUserName = ref.read(userNameProvider);
+                                    final userSettings = await ref.read(userSettingsProvider.future);
+                                    logger.i('🔍 userNameProvider: $currentUserName');
+                                    logger.i('🔍 userSettings.userName: ${userSettings.userName}');
+                                    logger.i('🔍 userNameController.text: ${userNameController.text}');
+                                    
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Provider: $currentUserName, Settings: ${userSettings.userName}, Controller: ${userNameController.text}'
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                  child: const Text('状態確認'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 30),
+                      ElevatedButton(
                       onPressed: () async {
                         try {
                           // 1. Windows版のみユーザー固有Hiveサービスをデフォルトに切り替え
@@ -621,7 +709,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                       style: const TextStyle(fontSize: 12, color: Colors.green),
                     ),
                   ],
-                );
+                ),
+              );
               }
             },
             loading: () => const CircularProgressIndicator(),
@@ -730,12 +819,146 @@ class _HomePageState extends ConsumerState<HomePage> {
     logger.i('🏁 _loadUserNameFromDefaultGroup 終了');
   }
 
+  // 全グループで同じUID/メールアドレスのメンバー名を更新するメソッド
+  Future<void> _updateUserNameInAllGroups(String newUserName, String userEmail) async {
+    try {
+      logger.i('🌍 _updateUserNameInAllGroups開始: 名前="$newUserName", メール="$userEmail"');
+      
+      // 現在のログインユーザーのUIDを取得
+      final authState = ref.read(authStateProvider);
+      final currentUserId = authState.when(
+        data: (user) => user?.uid ?? '',
+        loading: () => '',
+        error: (_, __) => '',
+      );
+      logger.i('🔐 現在のユーザーID: $currentUserId');
+      
+      // 全グループを取得
+      final repository = ref.read(purchaseGroupRepositoryProvider);
+      final allGroups = await repository.getAllGroups();
+      logger.i('🌍 全グループ取得完了: ${allGroups.length}個のグループ');
+      
+      for (final group in allGroups) {
+        logger.i('🔍 グループ "${group.groupName}" (ID: ${group.groupId}) をチェック中...');
+        
+        bool groupUpdated = false;
+        final updatedMembers = <PurchaseGroupMember>[];
+        
+        // 各メンバーをチェック
+        for (final member in group.members ?? []) {
+          bool shouldUpdate = false;
+          
+          // 1. メールアドレスが一致する場合
+          if (member.contact == userEmail && userEmail.isNotEmpty) {
+            shouldUpdate = true;
+            logger.i('📧 メールアドレス一致: ${member.name} → $newUserName (メール: ${member.contact})');
+          }
+          
+          // 2. デフォルトユーザーの場合（UID: defaultUser）
+          if (member.memberId == 'defaultUser') {
+            shouldUpdate = true;
+            logger.i('🆔 デフォルトユーザー: ${member.name} → $newUserName (ID: ${member.memberId})');
+          }
+          
+          // 3. 現在のログインユーザーのUIDと一致する場合
+          if (currentUserId.isNotEmpty && member.memberId == currentUserId) {
+            shouldUpdate = true;
+            logger.i('🔐 UID一致: ${member.name} → $newUserName (UID: ${member.memberId})');
+          }
+          
+          if (shouldUpdate && member.name != newUserName) {
+            // メンバー名を更新
+            final updatedMember = member.copyWith(name: newUserName);
+            updatedMembers.add(updatedMember);
+            groupUpdated = true;
+            logger.i('✅ メンバー更新: ${member.name} → $newUserName (グループ: ${group.groupName})');
+          } else {
+            // 更新不要、そのまま追加
+            updatedMembers.add(member);
+          }
+        }
+        
+        // グループが更新された場合のみ保存
+        if (groupUpdated) {
+          final updatedGroup = group.copyWith(
+            members: updatedMembers,
+            // オーナー情報も更新（オーナーが変更対象の場合）
+            ownerName: group.ownerEmail == userEmail || group.ownerUid == 'defaultUser' || group.ownerUid == currentUserId 
+                ? newUserName 
+                : group.ownerName,
+          );
+          
+          await repository.updateGroup(group.groupId, updatedGroup);
+          logger.i('💾 グループ "${group.groupName}" を更新しました');
+        } else {
+          logger.i('⏭️ グループ "${group.groupName}" は更新不要');
+        }
+      }
+      
+      logger.i('✅ _updateUserNameInAllGroups完了');
+    } catch (e) {
+      logger.e('❌ _updateUserNameInAllGroups エラー: $e');
+    }
+  }
+
   // ユーザー名を保存するメソッド
   void _saveUserName() async {
-    final userName = userNameController.text;
-    if (userName.isNotEmpty) {
-      // userInfoSaveが全てを処理するので、これだけで十分
-      await userInfoSave();
+    if (_userNameFormKey.currentState?.validate() ?? false) {
+      try {
+        final newUserName = userNameController.text.trim();
+        
+        if (newUserName.isNotEmpty) {
+          logger.i('💾 ユーザー名保存開始: $newUserName');
+          
+          // 1. UserSettingsにユーザー名を保存
+          await ref.read(userSettingsProvider.notifier).updateUserName(newUserName);
+          logger.i('✅ UserSettingsに保存完了');
+          
+          // 2. プロバイダーを無効化して最新データを反映
+          ref.invalidate(userNameProvider);
+          
+          // 3. 少し待ってから確認
+          await Future.delayed(const Duration(milliseconds: 100));
+          final savedUserName = ref.read(userNameProvider);
+          logger.i('🔍 保存後のユーザー名確認: $savedUserName');
+          
+          // 4. デフォルトグループの情報も更新
+          await userInfoSave();
+          logger.i('✅ デフォルトグループ更新完了');
+          
+          logger.i('✅ ユーザー名を保存しました: $newUserName');
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('ユーザー名「$newUserName」を保存しました'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        logger.e('❌ ユーザー名保存エラー: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('ユーザー名の保存に失敗しました: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } else {
+      // バリデーションエラーがある場合
+      logger.w('⚠️ ユーザー名のバリデーションエラー');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('ユーザー名を正しく入力してください'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
     }
   }
 
@@ -746,7 +969,14 @@ class _HomePageState extends ConsumerState<HomePage> {
     final password = passwordController.text;
     
     try {
-      final user = await ref.read(authProvider).signIn(email, password);
+      logger.i('🔧 _performSignIn: サインイン開始');
+      logger.i('🔧 _performSignIn: フレーバー = ${F.appFlavor}');
+      logger.i('🔧 _performSignIn: email = $email');
+      
+      final authService = ref.read(authProvider);
+      logger.i('🔧 _performSignIn: authService = ${authService.runtimeType}');
+      
+      final user = await authService.signIn(email, password);
       logger.i('🔧 _performSignIn: signIn完了 - user: $user (type: ${user.runtimeType})');
       
       // Mock環境では状態を手動で更新
@@ -825,6 +1055,11 @@ class _HomePageState extends ConsumerState<HomePage> {
       }
     } catch (e) {
       logger.e('🚨 ログイン失敗: $e');
+      logger.e('🚨 エラーの詳細: ${e.runtimeType}');
+      if (e.toString().contains('FirebaseAuthException')) {
+        logger.e('🚨 Firebase Auth エラーコード: ${e.toString()}');
+      }
+      
       if (mounted) {
         String errorMessage = 'ログインに失敗しました';
         bool offerSignUp = false;
@@ -839,33 +1074,111 @@ class _HomePageState extends ConsumerState<HomePage> {
           errorMessage = 'メールアドレスの形式が正しくありません';
         } else if (e.toString().contains('too-many-requests')) {
           errorMessage = 'ログイン試行回数が多すぎます。しばらく待ってから再試行してください';
+        } else if (e.toString().contains('unknown-error')) {
+          errorMessage = 'ログインに失敗しました。アカウントが存在しない可能性があります';
+          offerSignUp = true;  // unknown-errorの場合もサインアップを提案
         }
         
         if (offerSignUp) {
-          // ユーザーが見つからない場合のみアカウント作成を提案
-          final bool? shouldSignUp = await showDialog<bool>(
-            context: context,
-            barrierDismissible: false,
-            builder: (BuildContext context) {
-              return AlertDialog(
-                title: const Text('アカウントが見つかりません'),
-                content: Text('メールアドレス "$email" は登録されていません。\n新しいアカウントを作成しますか？'),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(false),
-                    child: const Text('キャンセル'),
-                  ),
-                  ElevatedButton(
-                    onPressed: () => Navigator.of(context).pop(true),
-                    child: const Text('アカウント作成'),
-                  ),
-                ],
-              );
-            },
-          );
+          // ユーザー名が保存されているかをチェック
+          final currentUserName = ref.read(userNameProvider);
+          final inputUserName = userNameController.text.trim();
+          
+          if ((currentUserName == null || currentUserName.isEmpty) && 
+              (inputUserName.isEmpty)) {
+            // ユーザー名が設定されていない場合、ユーザー名の設定を促す
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (BuildContext context) {
+                return AlertDialog(
+                  title: const Text('ユーザー名が必要です'),
+                  content: const Text('サインアップするには、まずユーザー名を設定してください。\n\n画面上部のユーザー名入力欄にお名前を入力してから再度お試しください。'),
+                  actions: [
+                    ElevatedButton(
+                      onPressed: () async {
+                        Navigator.of(context).pop();
+                        // サインインフォームを閉じて、ユーザー名入力にフォーカスを促す
+                        setState(() {
+                          showSignInForm = false;
+                        });
+                        
+                        // もしユーザー名が入力されていたら、それを保存
+                        final inputUserName = userNameController.text.trim();
+                        if (inputUserName.isNotEmpty) {
+                          try {
+                            logger.i('💾 ダイアログからユーザー名保存開始: $inputUserName');
+                            
+                            // UserSettingsとデフォルトグループ両方に保存
+                            await ref.read(userSettingsProvider.notifier).updateUserName(inputUserName);
+                            await userInfoSave(); // デフォルトグループも更新
+                            
+                            logger.i('✅ ダイアログからユーザー名保存完了: $inputUserName');
+                            
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('ユーザー名「$inputUserName」を保存しました'),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            logger.e('❌ ダイアログからユーザー名保存エラー: $e');
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('ユーザー名の保存に失敗しました: $e'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        }
+                        
+                        // ユーザー名入力欄にフォーカスを当てる（オプション）
+                        FocusScope.of(context).requestFocus(FocusNode());
+                      },
+                      child: const Text('了解'),
+                    ),
+                  ],
+                );
+              },
+            );
+          } else {
+            // ユーザー名が設定されている場合、従来通りサインアップを提案
+            final bool? shouldSignUp = await showDialog<bool>(
+              context: context,
+              barrierDismissible: false,
+              builder: (BuildContext context) {
+                String dialogTitle = 'アカウントが見つかりません';
+                String dialogContent = 'メールアドレス "$email" は登録されていません。\n新しいアカウントを作成しますか？';
+                
+                if (e.toString().contains('unknown-error')) {
+                  dialogTitle = 'ログインエラー';
+                  dialogContent = 'メールアドレス "$email" でのログインに失敗しました。\n新しいアカウントを作成しますか？';
+                }
+                
+                return AlertDialog(
+                  title: Text(dialogTitle),
+                  content: Text(dialogContent),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('キャンセル'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('アカウント作成'),
+                    ),
+                  ],
+                );
+              },
+            );
 
-          if (shouldSignUp == true && mounted) {
-            await _performSignUp();
+            if (shouldSignUp == true && mounted) {
+              await _performSignUp();
+            }
           }
         } else {
           // パスワード間違いやその他のエラーの場合は単純にエラーメッセージを表示
@@ -976,26 +1289,37 @@ class _HomePageState extends ConsumerState<HomePage> {
   Future<void> userInfoSave() async {
     logger.i('🚀 userInfoSave() 開始');
     
-    // ユーザー名を複数の方法で取得
-    String userName = userNameController.text;
+    // ユーザー名を複数の方法で取得（優先順位付き）
+    String userName = '';
+    
+    // 1. まずフォームから取得
+    if (userNameController.text.trim().isNotEmpty) {
+      userName = userNameController.text.trim();
+      logger.i('🚀 userInfoSave: フォームからユーザー名取得 = "$userName"');
+    }
+    
+    // 2. フォームが空の場合、設定から取得
     if (userName.isEmpty) {
-      // フォームが空の場合、認証状態から取得
-      final authState = ref.read(authStateProvider);
-      authState.whenData((user) {
-        if (user != null && user.displayName != null && user.displayName!.isNotEmpty) {
-          userName = user.displayName!;
-          logger.i('🚀 userInfoSave: 認証状態からユーザー名取得 = "$userName"');
-        }
-      });
-      
-      // それでも空の場合、設定から取得
-      if (userName.isEmpty) {
-        final settingsUserName = ref.read(userNameProvider);
-        if (settingsUserName != null && settingsUserName.isNotEmpty) {
-          userName = settingsUserName;
-          logger.i('🚀 userInfoSave: 設定からユーザー名取得 = "$userName"');
-        }
+      final settingsUserName = ref.read(userNameProvider);
+      if (settingsUserName != null && settingsUserName.isNotEmpty) {
+        userName = settingsUserName;
+        logger.i('🚀 userInfoSave: 設定からユーザー名取得 = "$userName"');
       }
+    }
+    
+    // 3. それでも空の場合、認証状態から取得
+    if (userName.isEmpty) {
+      final authState = ref.read(authStateProvider);
+      await authState.when(
+        data: (user) async {
+          if (user != null && user.displayName != null && user.displayName!.isNotEmpty) {
+            userName = user.displayName!;
+            logger.i('🚀 userInfoSave: 認証状態からユーザー名取得 = "$userName"');
+          }
+        },
+        loading: () async {},
+        error: (error, stack) async {},
+      );
     }
     
     logger.i('🚀 userInfoSave() - 使用するユーザー名: "$userName"');
@@ -1178,7 +1502,10 @@ class _HomePageState extends ConsumerState<HomePage> {
         
         // 購入グループを保存
         await ref.read(purchaseGroupProvider.notifier).updateGroup(defaultGroup);
-        logger.i('userInfoSave: グループ保存完了');
+        logger.i('userInfoSave: デフォルトグループ保存完了');
+        
+        // 🌟 新機能: 全グループで同じUID/メールアドレスのメンバー名を更新
+        await _updateUserNameInAllGroups(userName, userEmail);
         
         // ユーザー名プロバイダーにも保存（重要！）
         await ref.read(userNameNotifierProvider.notifier).setUserName(userName);
