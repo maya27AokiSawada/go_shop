@@ -4,6 +4,7 @@ import 'dart:developer' as developer;
 import '../models/shopping_list.dart';
 import '../providers/hive_provider.dart';
 import '../providers/auth_provider.dart';
+import '../helpers/validation_service.dart';
 import 'shopping_list_repository.dart';
 
 class HiveShoppingListRepository implements ShoppingListRepository {
@@ -86,6 +87,12 @@ class HiveShoppingListRepository implements ShoppingListRepository {
     final userKey = _getUserSpecificKey(groupId);
     final list = box.get(userKey);
     if (list != null) {
+      // アイテム名の重複チェック
+      final validation = ValidationService.validateItemName(item.name, list.items, item.memberId);
+      if (validation.hasError) {
+        throw Exception(validation.errorMessage);
+      }
+      
       final updatedItems = [...list.items, item];
       final updatedList = list.copyWith(items: updatedItems);
       await box.put(userKey, updatedList);

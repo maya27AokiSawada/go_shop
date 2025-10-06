@@ -4,7 +4,8 @@ import "misc.dart";
 class MockUser {
   final String uid;
   final String email;
-  MockUser({required this.uid, required this.email});
+  final String? displayName;
+  MockUser({required this.uid, required this.email, this.displayName});
 }
 
 class MockUserCredential {
@@ -23,9 +24,15 @@ class MockAuthService {
     
     // DEVモードでは任意のメール/パスワードでログイン可能
     if (email.isNotEmpty && password.isNotEmpty) {
-      final mockUser = MockUser(email: email, uid: "mock_${email.hashCode}");
+      // メールアドレスの@マーク前の部分をユーザー名として使用
+      final displayName = email.split('@').first;
+      final mockUser = MockUser(
+        email: email, 
+        uid: "mock_${email.hashCode}", 
+        displayName: displayName
+      );
       _currentUser = mockUser;
-      logger.i("Mock signInWithEmail successful for: $email");
+      logger.i("Mock signInWithEmail successful for: $email (displayName: $displayName)");
       return MockUserCredential(user: mockUser);
     } else {
       throw Exception("メールアドレスとパスワードを入力してください。");
@@ -36,9 +43,15 @@ class MockAuthService {
     logger.i("Mock signUpWithEmail: $email");
     await Future.delayed(const Duration(milliseconds: 500));
     
-    final mockUser = MockUser(email: email, uid: "mock_${DateTime.now().millisecondsSinceEpoch}");
+    // メールアドレスの@マーク前の部分をユーザー名として使用
+    final displayName = email.split('@').first;
+    final mockUser = MockUser(
+      email: email, 
+      uid: "mock_${DateTime.now().millisecondsSinceEpoch}",
+      displayName: displayName
+    );
     _currentUser = mockUser;
-    logger.i("Mock signUpWithEmail successful for: $email");
+    logger.i("Mock signUpWithEmail successful for: $email (displayName: $displayName)");
     return MockUserCredential(user: mockUser);
   }
   

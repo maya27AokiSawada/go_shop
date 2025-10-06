@@ -137,10 +137,17 @@ class UserSpecificHiveService {
       
       logger.i('📁 Default Hive path: $defaultPath');
       
+      // ディレクトリが存在しない場合は作成
+      final hiveDir = Directory(defaultPath);
+      if (!await hiveDir.exists()) {
+        await hiveDir.create(recursive: true);
+        logger.i('📁 Created Hive directory: $defaultPath');
+      }
+      
       // Hiveをデフォルトパスで初期化
       Hive.init(defaultPath);
       
-      // Boxを開く
+      // Boxを順番に開く
       await _openUserBoxes();
       
       _currentUserId = 'default';
@@ -188,15 +195,19 @@ class UserSpecificHiveService {
     return '${directory.path}/go_shop_data/users/$userId';
   }
   
-  /// 必要なBoxをすべて開く
+  /// 必要なBoxをすべて開く（順番に開いて競合を回避）
   Future<void> _openUserBoxes() async {
     try {
-      await Future.wait([
-        Hive.openBox<PurchaseGroup>('purchaseGroups'),
-        Hive.openBox<ShoppingList>('shoppingLists'),
-        Hive.openBox<UserSettings>('userSettings'),
-      ]);
-      logger.i('📦 User-specific boxes opened');
+      logger.i('📦 Opening PurchaseGroup box...');
+      await Hive.openBox<PurchaseGroup>('purchaseGroups');
+      
+      logger.i('📦 Opening ShoppingList box...');
+      await Hive.openBox<ShoppingList>('shoppingLists');
+      
+      logger.i('📦 Opening UserSettings box...');
+      await Hive.openBox<UserSettings>('userSettings');
+      
+      logger.i('📦 All user-specific boxes opened successfully');
     } catch (e) {
       logger.e('❌ Failed to open user boxes: $e');
       rethrow;

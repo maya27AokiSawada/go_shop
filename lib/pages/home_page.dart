@@ -8,9 +8,12 @@ import '../providers/auth_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/shopping_list_provider.dart';
 import '../providers/user_name_provider.dart';
+import '../helper/mock_auth_service.dart';
 import '../providers/user_settings_provider.dart';
 import '../providers/user_specific_hive_provider.dart';
 import '../providers/device_settings_provider.dart';
+import '../providers/hive_provider.dart' as hive_provider;
+import '../datastore/user_settings_repository.dart';
 import '../models/purchase_group.dart';
 import '../models/shopping_list.dart';
 import '../flavors.dart';
@@ -303,6 +306,85 @@ class _HomePageState extends ConsumerState<HomePage> {
             );
           },
         ),
+        // デバッグ用：Hiveデータクリアボタン（開発環境のみ）
+        if (F.appFlavor == Flavor.dev)
+          IconButton(
+            icon: const Icon(Icons.delete_forever, color: Colors.red),
+            tooltip: 'Hiveデータクリア（デバッグ用）',
+            onPressed: () async {
+              final shouldClear = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Hiveデータクリア'),
+                  content: const Text('全てのローカルデータが削除されます。続行しますか？'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('キャンセル'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('削除', style: TextStyle(color: Colors.red)),
+                    ),
+                  ],
+                ),
+              );
+              
+              if (shouldClear == true) {
+                try {
+                  // 全ての設定をクリア
+                  await ref.read(userSettingsProvider.notifier).clearAllSettings();
+                  
+                  // Hiveボックスをクリア
+                  final purchaseGroupBox = ref.read(hive_provider.purchaseGroupBoxProvider);
+                  final shoppingListBox = ref.read(hive_provider.shoppingListBoxProvider);
+                  final userSettingsBox = ref.read(hive_provider.userSettingsBoxProvider);
+                  
+                  await purchaseGroupBox.clear();
+                  await shoppingListBox.clear();
+                  await userSettingsBox.clear();
+                  
+                  // 認証状態をクリア
+                  ref.read(mockAuthStateProvider.notifier).state = null;
+                  
+                  // プロバイダーを無効化
+                  ref.invalidate(purchaseGroupProvider);
+                  ref.invalidate(shoppingListProvider);
+                  ref.invalidate(userSettingsProvider);
+                  
+                  logger.i('🗑️ 全てのHiveデータをクリアしました');
+                  
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Hiveデータをクリアしました'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                  
+                  // ページをリフレッシュ
+                  setState(() {
+                    userNameController.clear();
+                    emailController.clear();
+                    passwordController.clear();
+                    showSignInForm = false;
+                  });
+                  
+                } catch (e) {
+                  logger.e('🗑️ Hiveデータクリアエラー: $e');
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('データクリアに失敗しました: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              }
+            },
+          ),
       ],
     ),
     body: Center(
@@ -665,10 +747,17 @@ class _HomePageState extends ConsumerState<HomePage> {
     
     try {
       final user = await ref.read(authProvider).signIn(email, password);
+      logger.i('🔧 _performSignIn: signIn完了 - user: $user (type: ${user.runtimeType})');
       
       // Mock環境では状態を手動で更新
       if (F.appFlavor == Flavor.dev && user != null) {
         ref.read(mockAuthStateProvider.notifier).state = user;
+        logger.i('🔧 _performSignIn: mockAuthStateProvider更新完了');
+        
+        // 更新後の状態を確認
+        final updatedMockState = ref.read(mockAuthStateProvider);
+        logger.i('🔧 _performSignIn: 更新後のmockAuthStateProvider: $updatedMockState');
+        logger.i('🔧 _performSignIn: 更新後のemail: ${updatedMockState?.email}');
       }
       
       if (mounted) {
@@ -676,8 +765,54 @@ class _HomePageState extends ConsumerState<HomePage> {
           const SnackBar(content: Text('ログインしました')),
         );
         
-        // サインイン成功後、ユーザー名を自動復元
-        WidgetsBinding.instance.addPostFrameCallback((_) {
+        // サインイン成功後、メールアドレスを含むユーザー情報を更新
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          // 認証状態から現在のユーザー名を取得してメールアドレスを更新
+          final authState = ref.read(authStateProvider);
+          String? currentUserName;
+          
+          authState.whenData((user) {
+            if (user != null) {
+              logger.i('🔧 PostFrameCallback: user type = ${user.runtimeType}');
+              logger.i('🔧 PostFrameCallback: user.email = ${user.email}');
+              
+              // MockUserかFirebase Userかによって処理を分ける
+              if (user is MockUser) {
+                currentUserName = user.displayName;
+                logger.i('🔧 PostFrameCallback: MockUser displayName = "${user.displayName}"');
+              } else {
+                // Firebase User
+                currentUserName = user.displayName;
+                logger.i('🔧 PostFrameCallback: Firebase User displayName = "${user.displayName}"');
+              }
+              
+              logger.i('🔧 PostFrameCallback: 最終的なユーザー名 = "$currentUserName"');
+            }
+          });
+          
+          // ユーザー名が取得できない場合は、入力フォームまたは設定から取得
+          if (currentUserName == null || currentUserName!.isEmpty) {
+            currentUserName = userNameController.text;
+            if (currentUserName == null || currentUserName!.isEmpty) {
+              final settingsUserName = ref.read(userNameProvider);
+              if (settingsUserName != null && settingsUserName.isNotEmpty) {
+                currentUserName = settingsUserName;
+                logger.i('🔧 PostFrameCallback: 設定からユーザー名取得 = "$currentUserName"');
+              }
+            }
+          }
+          
+          if (currentUserName != null && currentUserName!.isNotEmpty) {
+            logger.i('🔧 サインイン後のuserInfoSave()を実行します...');
+            await userInfoSave(); // メールアドレスを含む情報を更新
+            
+            // 強制的にプロバイダーを再読み込みして最新のデータを反映
+            ref.invalidate(purchaseGroupProvider);
+            
+            logger.i('🔧 サインイン後のユーザー情報更新完了');
+          } else {
+            logger.w('🔧 認証済みユーザー名が取得できないため、userInfoSave()をスキップします');
+          }
           _loadUserNameFromDefaultGroup();
         });
         
@@ -753,10 +888,17 @@ class _HomePageState extends ConsumerState<HomePage> {
     
     try {
       final user = await ref.read(authProvider).signUp(email, password);
+      logger.i('🔧 _performSignUp: signUp完了 - user: $user (type: ${user.runtimeType})');
       
       // Mock環境では状態を手動で更新
       if (F.appFlavor == Flavor.dev && user != null) {
         ref.read(mockAuthStateProvider.notifier).state = user;
+        logger.i('🔧 _performSignUp: mockAuthStateProvider更新完了');
+        
+        // 更新後の状態を確認
+        final updatedMockState = ref.read(mockAuthStateProvider);
+        logger.i('🔧 _performSignUp: 更新後のmockAuthStateProvider: $updatedMockState');
+        logger.i('🔧 _performSignUp: 更新後のemail: ${updatedMockState?.email}');
       }
       
       if (mounted) {
@@ -764,8 +906,54 @@ class _HomePageState extends ConsumerState<HomePage> {
           const SnackBar(content: Text('アカウントを作成してログインしました')),
         );
         
-        // サインアップ成功後、ユーザー名を自動復元
-        WidgetsBinding.instance.addPostFrameCallback((_) {
+        // サインアップ成功後、ユーザー情報を更新（サインイン処理と同様）
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          // 認証状態から現在のユーザー名を取得してメールアドレスを更新
+          final authState = ref.read(authStateProvider);
+          String? currentUserName;
+          
+          authState.whenData((user) {
+            if (user != null) {
+              logger.i('🔧 PostFrameCallback(SignUp): user type = ${user.runtimeType}');
+              logger.i('🔧 PostFrameCallback(SignUp): user.email = ${user.email}');
+              
+              // MockUserかFirebase Userかによって処理を分ける
+              if (user is MockUser) {
+                currentUserName = user.displayName;
+                logger.i('🔧 PostFrameCallback(SignUp): MockUser displayName = "${user.displayName}"');
+              } else {
+                // Firebase User
+                currentUserName = user.displayName;
+                logger.i('🔧 PostFrameCallback(SignUp): Firebase User displayName = "${user.displayName}"');
+              }
+              
+              logger.i('🔧 PostFrameCallback(SignUp): 最終的なユーザー名 = "$currentUserName"');
+            }
+          });
+          
+          // ユーザー名が取得できない場合は、入力フォームまたは設定から取得
+          if (currentUserName == null || currentUserName!.isEmpty) {
+            currentUserName = userNameController.text;
+            if (currentUserName == null || currentUserName!.isEmpty) {
+              final settingsUserName = ref.read(userNameProvider);
+              if (settingsUserName != null && settingsUserName.isNotEmpty) {
+                currentUserName = settingsUserName;
+                logger.i('🔧 PostFrameCallback(SignUp): 設定からユーザー名取得 = "$currentUserName"');
+              }
+            }
+          }
+          
+          if (currentUserName != null && currentUserName!.isNotEmpty) {
+            logger.i('🔧 サインアップ後のuserInfoSave()を実行します...');
+            await userInfoSave(); // メールアドレスを含む情報を更新
+            
+            // 強制的にプロバイダーを再読み込みして最新のデータを反映
+            ref.invalidate(purchaseGroupProvider);
+            
+            logger.i('🔧 サインアップ後のユーザー情報更新完了');
+          } else {
+            logger.w('🔧 認証済みユーザー名が取得できないため、userInfoSave()をスキップします');
+          }
           _loadUserNameFromDefaultGroup();
         });
         
@@ -786,11 +974,116 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Future<void> userInfoSave() async {
-    final userName = userNameController.text;
+    logger.i('🚀 userInfoSave() 開始');
+    
+    // ユーザー名を複数の方法で取得
+    String userName = userNameController.text;
+    if (userName.isEmpty) {
+      // フォームが空の場合、認証状態から取得
+      final authState = ref.read(authStateProvider);
+      authState.whenData((user) {
+        if (user != null && user.displayName != null && user.displayName!.isNotEmpty) {
+          userName = user.displayName!;
+          logger.i('🚀 userInfoSave: 認証状態からユーザー名取得 = "$userName"');
+        }
+      });
+      
+      // それでも空の場合、設定から取得
+      if (userName.isEmpty) {
+        final settingsUserName = ref.read(userNameProvider);
+        if (settingsUserName != null && settingsUserName.isNotEmpty) {
+          userName = settingsUserName;
+          logger.i('🚀 userInfoSave: 設定からユーザー名取得 = "$userName"');
+        }
+      }
+    }
+    
+    logger.i('🚀 userInfoSave() - 使用するユーザー名: "$userName"');
     
     if (userName.isNotEmpty) {
       try {
         const groupId = 'defaultGroup';
+        
+        // 現在の認証状態から実際のメールアドレスを取得（非同期対応）
+        String userEmail = 'default@example.com'; // デフォルト値
+        
+        try {
+          // デバッグ: 複数の認証状態をチェック
+          logger.i('🔍 userInfoSave: 認証状態をデバッグ開始');
+          
+          // 1. authStateProviderから確認
+          final authState = ref.read(authStateProvider);
+          logger.i('🔍 authStateProvider状態: $authState');
+          
+          final currentUser = await authState.when(
+            data: (user) async {
+              logger.i('🔍 authStateProvider.data: $user (type: ${user.runtimeType})');
+              if (user != null) {
+                logger.i('🔍 user.email: ${user.email}');
+                logger.i('🔍 user.uid: ${user.uid}');
+                if (user is MockUser) {
+                  logger.i('🔍 MockUser.displayName: ${user.displayName}');
+                }
+              }
+              return user;
+            },
+            loading: () async {
+              logger.i('🔍 authStateProvider.loading');
+              return null;
+            },
+            error: (err, stack) async {
+              logger.i('🔍 authStateProvider.error: $err');
+              return null;
+            },
+          );
+          
+          // 2. 直接authProviderから確認
+          final authService = ref.read(authProvider);
+          final directUser = authService.currentUser;
+          logger.i('🔍 authProvider.currentUser: $directUser (type: ${directUser.runtimeType})');
+          if (directUser != null) {
+            logger.i('🔍 directUser.email: ${directUser.email}');
+          }
+          
+          // 3. mockAuthStateProviderから直接確認（DEV環境の場合）
+          if (F.appFlavor == Flavor.dev) {
+            final mockUser = ref.read(mockAuthStateProvider);
+            logger.i('🔍 mockAuthStateProvider: $mockUser');
+            if (mockUser != null) {
+              logger.i('🔍 mockUser.email: ${mockUser.email}');
+            }
+          }
+          
+          // 実際のメールアドレスを決定
+          String? actualEmail;
+          
+          if (currentUser != null) {
+            actualEmail = _getUserEmail(currentUser);
+            logger.i('🔍 _getUserEmail(currentUser): $actualEmail');
+          }
+          
+          // もし空の場合、直接認証サービスから取得
+          if ((actualEmail == null || actualEmail.isEmpty) && directUser != null) {
+            actualEmail = _getUserEmail(directUser);
+            logger.i('🔍 _getUserEmail(directUser): $actualEmail');
+          }
+          
+          // メールアドレスの設定
+          if (actualEmail != null && actualEmail.isNotEmpty) {
+            userEmail = actualEmail;
+            logger.i('userInfoSave: 認証済みユーザーのメールアドレス: $userEmail');
+          } else {
+            // DEV環境では入力されたメールアドレスを使用
+            if (emailController.text.isNotEmpty) {
+              userEmail = emailController.text;
+              logger.i('userInfoSave: フォーム入力のメールアドレスを使用: $userEmail');
+            } else {
+              logger.i('userInfoSave: メールアドレスが取得できないため、デフォルトを使用: $userEmail');
+            }
+          }
+        } catch (e) {
+          logger.w('userInfoSave: 認証状態取得エラー、デフォルトメールアドレスを使用: $e');
+        }
         
         // 既存のデフォルトグループを取得
         PurchaseGroup? existingGroup;
@@ -804,34 +1097,41 @@ class _HomePageState extends ConsumerState<HomePage> {
         PurchaseGroup defaultGroup;
         if (existingGroup != null) {
           logger.i('userInfoSave: 既存グループを更新 - ユーザー名: $userName');
-          // 既存グループのownerメンバーを更新
-          final updatedMembers = existingGroup.members?.map((member) {
-            logger.i('userInfoSave: メンバーチェック - ${member.name} (${member.role})');
-            if (member.role == PurchaseGroupRole.owner) {
-              logger.i('userInfoSave: ownerメンバーを更新: ${member.name} -> $userName');
-              return member.copyWith(name: userName);
-            }
-            return member;
-          }).toList() ?? [];
           
-          // ownerが存在しない場合は新規作成
-          if (!updatedMembers.any((m) => m.role == PurchaseGroupRole.owner)) {
-            logger.i('userInfoSave: ownerが存在しないため新規作成: $userName');
-            updatedMembers.add(PurchaseGroupMember(
-              memberId: 'defaultUser',
-              name: userName,
-              contact: 'default@example.com',
-              role: PurchaseGroupRole.owner,
-              isSignedIn: true,
-            ));
+          // 新しいサインインユーザーを必ずオーナーにする
+          final updatedMembers = <PurchaseGroupMember>[];
+          
+          // 既存のメンバーから非オーナーのみを保持
+          for (var member in (existingGroup.members ?? [])) {
+            if (member.role != PurchaseGroupRole.owner) {
+              updatedMembers.add(member);
+              logger.i('userInfoSave: 非オーナーメンバーを保持: ${member.name} (${member.role})');
+            } else {
+              logger.i('userInfoSave: 既存オーナーを削除: ${member.name}');
+            }
           }
+          
+          // 新しいオーナーを追加
+          updatedMembers.add(PurchaseGroupMember(
+            memberId: 'defaultUser',
+            name: userName,
+            contact: userEmail,
+            role: PurchaseGroupRole.owner,
+            isSignedIn: true,
+          ));
+          logger.i('userInfoSave: 新しいオーナーを追加: $userName ($userEmail)');
           
           logger.i('userInfoSave: 更新後のメンバー数: ${updatedMembers.length}');
           for (var member in updatedMembers) {
             logger.i('  - ${member.name} (${member.role}) - ${member.contact}');
           }
           
-          defaultGroup = existingGroup.copyWith(members: updatedMembers);
+          defaultGroup = existingGroup.copyWith(
+            members: updatedMembers,
+            ownerName: userName,
+            ownerEmail: userEmail,
+            ownerUid: 'defaultUser',
+          );
         } else {
           // 新しいデフォルトグループを作成
           defaultGroup = PurchaseGroup(
@@ -841,7 +1141,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               PurchaseGroupMember(
                 memberId: 'defaultUser',
                 name: userName,
-                contact: 'default@example.com',
+                contact: userEmail, // 動的に取得したメールアドレスを使用
                 role: PurchaseGroupRole.owner,
                 isSignedIn: true,
               )
@@ -884,9 +1184,30 @@ class _HomePageState extends ConsumerState<HomePage> {
         await ref.read(userNameNotifierProvider.notifier).setUserName(userName);
         logger.i('userInfoSave: ユーザー名プロバイダー保存完了');
         
+        // 保存後の確認ログ
+        try {
+          final savedGroup = await ref.read(purchaseGroupProvider.future);
+          final ownerMember = savedGroup.members?.firstWhere((m) => m.role == PurchaseGroupRole.owner);
+          logger.i('userInfoSave確認: 保存後のownerメンバー - 名前: ${ownerMember?.name}, メール: ${ownerMember?.contact}');
+        } catch (e) {
+          logger.w('userInfoSave確認: 保存確認でエラー: $e');
+        }
+        
         // デバッグ用ログ
         logger.i('userInfoSave: ユーザー名 "$userName" で デフォルトグループを更新しました');
         logger.i('userInfoSave: プロバイダーにもユーザー名 "$userName" を保存しました');
+        logger.i('userInfoSave: 使用したメールアドレス: $userEmail');
+        
+        // UserSettingsにもユーザー情報を保存
+        logger.i('userInfoSave: UserSettingsにユーザー情報を保存開始');
+        try {
+          final userSettingsRepository = ref.read(userSettingsRepositoryProvider);
+          await userSettingsRepository.updateUserName(userName);
+          await userSettingsRepository.updateUserEmail(userEmail);
+          logger.i('userInfoSave: UserSettings保存完了 - 名前: $userName, メール: $userEmail');
+        } catch (e) {
+          logger.w('userInfoSave: UserSettings保存エラー: $e');
+        }
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

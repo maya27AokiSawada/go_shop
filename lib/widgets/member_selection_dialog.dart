@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/purchase_group.dart';
 import '../providers/purchase_group_provider.dart';
+import '../helpers/validation_service.dart';
 
 enum MemberSelectionType {
   fromPool,    // プールから選択
@@ -29,6 +30,8 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
   // 重複確認用
   PurchaseGroupMember? duplicateMember;
   bool showDuplicateConfirmation = false;
+  String? emailValidationError;
+  String? nameValidationError;
 
   @override
   void initState() {
@@ -73,11 +76,51 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
         setState(() {
           duplicateMember = existing;
           showDuplicateConfirmation = true;
+          emailValidationError = null;
+        });
+      } else {
+        setState(() {
+          showDuplicateConfirmation = false;
+          emailValidationError = null;
         });
       }
     } catch (e) {
       // エラーは無視して続行
     }
+  }
+  
+  // メンバー名とメールアドレスのバリデーション
+  void _validateMemberInputs() {
+    if (selectedType != MemberSelectionType.newMember) return;
+    
+    final currentGroupAsync = ref.read(purchaseGroupProvider);
+    currentGroupAsync.whenData((currentGroup) {
+      final existingMembers = currentGroup.members ?? [];
+      
+      // 名前のバリデーション
+      final nameValidation = ValidationService.validateMemberName(
+        nameController.text, 
+        existingMembers
+      );
+      
+      // メールアドレスのバリデーション
+      final emailValidation = ValidationService.validateMemberEmail(
+        contactController.text, 
+        existingMembers
+      );
+      
+      setState(() {
+        nameValidationError = nameValidation.hasError ? nameValidation.errorMessage : null;
+        emailValidationError = emailValidation.hasError ? emailValidation.errorMessage : null;
+        
+        // 重複の場合は別途処理
+        if (emailValidation.hasDuplicate) {
+          duplicateMember = emailValidation.duplicateMember;
+          showDuplicateConfirmation = true;
+          emailValidationError = null;
+        }
+      });
+    });
   }
 
   @override
@@ -93,8 +136,7 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
             Row(
               children: [
                 Expanded(
-                  child: RadioListTile<MemberSelectionType>(
-                    title: const Text('プールから選択'),
+                  child: Radio<MemberSelectionType>(
                     value: MemberSelectionType.fromPool,
                     groupValue: selectedType,
                     onChanged: (value) {
@@ -105,9 +147,11 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
                     },
                   ),
                 ),
+                const Expanded(
+                  child: Text('プールから選択'),
+                ),
                 Expanded(
-                  child: RadioListTile<MemberSelectionType>(
-                    title: const Text('新規メンバー'),
+                  child: Radio<MemberSelectionType>(
                     value: MemberSelectionType.newMember,
                     groupValue: selectedType,
                     onChanged: (value) {
@@ -117,6 +161,9 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
                       });
                     },
                   ),
+                ),
+                const Expanded(
+                  child: Text('新規メンバー'),
                 ),
               ],
             ),
@@ -196,30 +243,37 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
       children: [
         TextField(
           controller: nameController,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: '名前',
-            border: OutlineInputBorder(),
+            border: const OutlineInputBorder(),
+            errorText: nameValidationError,
           ),
+          onChanged: (_) {
+            _validateMemberInputs();
+          },
         ),
         const SizedBox(height: 16),
         TextField(
           controller: contactController,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: 'メールアドレス',
-            border: OutlineInputBorder(),
+            border: const OutlineInputBorder(),
+            errorText: emailValidationError,
           ),
           keyboardType: TextInputType.emailAddress,
           onChanged: (_) {
             // メールアドレス変更時に重複チェック
             setState(() {
               showDuplicateConfirmation = false;
+              emailValidationError = null;
             });
+            _validateMemberInputs();
             _checkForDuplicate();
           },
         ),
         const SizedBox(height: 16),
         DropdownButtonFormField<PurchaseGroupRole>(
-          value: selectedRole,
+          initialValue: selectedRole,
           decoration: const InputDecoration(
             labelText: '役割',
             border: OutlineInputBorder(),
@@ -296,7 +350,11 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
     if (selectedType == MemberSelectionType.fromPool) {
       return selectedPoolMember != null;
     } else {
-      return nameController.text.isNotEmpty && contactController.text.isNotEmpty;
+      // 新規メンバーの場合：必要な情報が入力され、かつバリデーションエラーがない
+      return nameController.text.isNotEmpty && 
+             contactController.text.isNotEmpty &&
+             nameValidationError == null &&
+             emailValidationError == null;
     }
   }
 

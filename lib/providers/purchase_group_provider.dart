@@ -3,6 +3,7 @@ import '../models/purchase_group.dart';
 import '../datastore/purchase_group_repository.dart';
 import '../datastore/hive_purchase_group_repository.dart';
 import '../flavors.dart';
+import 'user_settings_provider.dart';
 
 // Repository provider
 final purchaseGroupRepositoryProvider = Provider<PurchaseGroupRepository>((ref) {
@@ -35,9 +36,13 @@ class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
         return await _fixLegacyMemberRoles(targetGroup);
       } else {
         // グループが存在しない場合はデフォルトグループを作成
+        final userSettings = ref.read(userSettingsProvider).value;
+        final userName = userSettings?.userName ?? 'デフォルトユーザー';
+        final userEmail = userSettings?.userEmail ?? 'default@example.com';
+        
         final ownerMember = PurchaseGroupMember.create(
-          name: 'デフォルトユーザー',
-          contact: 'default@example.com',
+          name: userName,
+          contact: userEmail,
           role: PurchaseGroupRole.owner,
           isSignedIn: true,
         );
@@ -153,9 +158,16 @@ class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
     final repository = ref.read(purchaseGroupRepositoryProvider);
     
     try {
+      // UserSettingsから現在のユーザー情報を取得
+      final userSettings = await ref.read(userSettingsProvider.future);
+      
+      // ユーザー情報が存在する場合はそれを使用、そうでなければデフォルト
+      final userName = (userSettings.userName.isNotEmpty) ? userSettings.userName : 'デフォルトユーザー';
+      final userEmail = (userSettings.userEmail.isNotEmpty) ? userSettings.userEmail : 'default@example.com';
+      
       final ownerMember = PurchaseGroupMember.create(
-        name: 'デフォルトユーザー',
-        contact: 'default@example.com',
+        name: userName,
+        contact: userEmail,
         role: PurchaseGroupRole.owner,
         isSignedIn: true,
       );
@@ -187,9 +199,13 @@ class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
         state = AsyncData(groups.first);
       } else {
         // Create default group if no groups exist
+        final userSettings = await ref.read(userSettingsProvider.future);
+        final userName = (userSettings.userName.isNotEmpty) ? userSettings.userName : 'デフォルトユーザー';
+        final userEmail = (userSettings.userEmail.isNotEmpty) ? userSettings.userEmail : 'default@example.com';
+        
         final ownerMember = PurchaseGroupMember.create(
-          name: 'デフォルトユーザー',
-          contact: 'default@example.com',
+          name: userName,
+          contact: userEmail,
           role: PurchaseGroupRole.owner,
           isSignedIn: true,
         );

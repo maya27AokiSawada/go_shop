@@ -13,6 +13,7 @@ abstract class UserSettingsRepository {
   Future<void> updateLastUsedShoppingListId(String shoppingListId);
   Future<void> clearAllSettings();
   Future<void> updateUserId(String userId);
+  Future<void> updateUserEmail(String userEmail);
   Future<bool> hasUserIdChanged(String newUserId);
 }
 
@@ -88,6 +89,14 @@ class HiveUserSettingsRepository implements UserSettingsRepository {
     final updatedSettings = currentSettings.copyWith(userId: userId);
     await saveSettings(updatedSettings);
     logger.i('🆔 ユーザーIDを更新: $userId');
+  }
+
+  @override
+  Future<void> updateUserEmail(String userEmail) async {
+    final currentSettings = await getSettings();
+    final updatedSettings = currentSettings.copyWith(userEmail: userEmail);
+    await saveSettings(updatedSettings);
+    logger.i('📧 ユーザーメールアドレスを更新: $userEmail');
   }
 
   @override

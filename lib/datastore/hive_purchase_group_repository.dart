@@ -2,10 +2,12 @@ import 'package:hive/hive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:developer' as developer;
 import '../models/purchase_group.dart';
+import '../models/user_settings.dart';
 import '../datastore/purchase_group_repository.dart';
 import '../providers/hive_provider.dart';
 import '../providers/user_specific_hive_provider.dart';
 import '../flavors.dart';
+import '../helpers/validation_service.dart';
 
 class HivePurchaseGroupRepository implements PurchaseGroupRepository {
   // Riverpod Refを使用してBoxにアクセス
@@ -86,17 +88,24 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
 
   // デフォルトグループを作成
   Future<PurchaseGroup> _createDefaultGroup() async {
-    const defaultGroup = PurchaseGroup(
+    // UserSettingsから現在のユーザー情報を取得
+    final userSettingsBox = Hive.box<UserSettings>('userSettings');
+    final userSettings = userSettingsBox.get('settings');
+    
+    final userName = (userSettings?.userName.isNotEmpty == true) ? userSettings!.userName : 'デフォルトユーザー';
+    final userEmail = (userSettings?.userEmail.isNotEmpty == true) ? userSettings!.userEmail : 'default@example.com';
+    
+    final defaultGroup = PurchaseGroup(
       groupId: 'defaultGroup',
       groupName: 'デフォルトグループ',
-      ownerName: 'デフォルトユーザー',
-      ownerEmail: 'default@example.com',
+      ownerName: userName,
+      ownerEmail: userEmail,
       ownerUid: 'defaultUser',
       members: [
         PurchaseGroupMember(
           memberId: 'defaultUser',
-          name: 'デフォルトユーザー',
-          contact: 'default@example.com',
+          name: userName,
+          contact: userEmail,
           role: PurchaseGroupRole.owner,
           isSignedIn: true,
         ),
@@ -121,14 +130,15 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
         throw Exception('Group not found: $groupId');
       }
       
-      // 重複メンバーチェック
-      final memberExists = group.members?.any(
-        (existingMember) => existingMember.memberId == member.memberId || 
-                           existingMember.contact == member.contact,
-      ) ?? false;
+      // ValidationServiceを使った重複チェック
+      final emailValidation = ValidationService.validateMemberEmail(member.contact, group.members ?? []);
+      if (emailValidation.hasError) {
+        throw Exception(emailValidation.errorMessage);
+      }
       
-      if (memberExists) {
-        throw Exception('Member already exists: ${member.name}');
+      final nameValidation = ValidationService.validateMemberName(member.name, group.members ?? []);
+      if (nameValidation.hasError) {
+        throw Exception(nameValidation.errorMessage);
       }
       
       final updatedGroup = group.addMember(member);
@@ -175,6 +185,13 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
       final existingGroup = _box.get(groupId);
       if (existingGroup != null) {
         throw Exception('Group already exists: $groupId');
+      }
+      
+      // グループ名の重複チェック
+      final allGroups = await getAllGroups();
+      final validation = ValidationService.validateGroupName(groupName, allGroups);
+      if (validation.hasError) {
+        throw Exception(validation.errorMessage);
       }
       
       final newGroup = PurchaseGroup(
