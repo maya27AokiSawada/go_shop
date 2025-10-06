@@ -5,6 +5,7 @@ import '../providers/user_name_provider.dart';
 import '../providers/security_provider.dart';
 import '../models/purchase_group.dart';
 import '../widgets/member_selection_dialog.dart';
+import '../helpers/validation_service.dart';
 
 class PurchaseGroupPage extends ConsumerStatefulWidget {
   const PurchaseGroupPage({super.key});
@@ -225,6 +226,31 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                 final groupName = _groupNameController.text.trim();
                 if (groupName.isNotEmpty) {
                   try {
+                    // 既存グループを取得して重複チェック
+                    final allGroupsAsync = ref.read(allGroupsProvider);
+                    final allGroups = allGroupsAsync.when(
+                      data: (groups) => groups,
+                      loading: () => <PurchaseGroup>[],
+                      error: (_, __) => <PurchaseGroup>[],
+                    );
+                    
+                    // バリデーション実行
+                    final validation = ValidationService.validateGroupName(groupName, allGroups);
+                    
+                    if (validation.hasError) {
+                      // エラー表示
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(validation.errorMessage!),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                      return;
+                    }
+                    
+                    // グループ作成実行
                     await ref.read(purchaseGroupProvider.notifier).createNewGroup(groupName);
                     _groupNameController.clear();
                     if (mounted) {

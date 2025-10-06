@@ -4,6 +4,7 @@ import '../models/shopping_list.dart';
 import '../providers/shopping_list_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/security_provider.dart';
+import '../helpers/validation_service.dart';
 
 
 // 選択されたグループIDを管理するプロバイダー
@@ -676,6 +677,52 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
         const SnackBar(content: Text('数量は1以上の数値で入力してください')),
       );
       return;
+    }
+
+    // 既存アイテムの重複チェック
+    final selectedGroupId = ref.read(selectedGroupIdProvider);
+    try {
+      final currentListAsync = selectedGroupId != null 
+          ? ref.read(shoppingListForGroupProvider(selectedGroupId))
+          : ref.read(shoppingListProvider);
+      
+      await currentListAsync.when(
+        data: (currentList) async {
+          // バリデーション実行
+          final validation = ValidationService.validateItemName(
+            name, 
+            currentList.items, 
+            'defaultUser'
+          );
+          
+          if (validation.hasWarning) {
+            // 警告の場合は確認ダイアログを表示
+            final shouldContinue = await showDialog<bool>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('重複確認'),
+                content: Text(validation.errorMessage!),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text('キャンセル'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: const Text('追加する'),
+                  ),
+                ],
+              ),
+            );
+            
+            if (shouldContinue != true) return;
+          }
+        },
+        loading: () {},
+        error: (_, __) {},
+      );
+    } catch (e) {
+      // エラー時は重複チェックをスキップして続行
     }
 
     setState(() {

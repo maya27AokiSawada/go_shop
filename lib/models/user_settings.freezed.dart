@@ -28,6 +28,8 @@ mixin _$UserSettings {
   String get lastUsedShoppingListId => throw _privateConstructorUsedError;
   @HiveField(3)
   String get userId => throw _privateConstructorUsedError;
+  @HiveField(4)
+  String get userEmail => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
@@ -45,7 +47,8 @@ abstract class $UserSettingsCopyWith<$Res> {
       {@HiveField(0) String userName,
       @HiveField(1) String lastUsedGroupId,
       @HiveField(2) String lastUsedShoppingListId,
-      @HiveField(3) String userId});
+      @HiveField(3) String userId,
+      @HiveField(4) String userEmail});
 }
 
 /// @nodoc
@@ -65,6 +68,7 @@ class _$UserSettingsCopyWithImpl<$Res, $Val extends UserSettings>
     Object? lastUsedGroupId = null,
     Object? lastUsedShoppingListId = null,
     Object? userId = null,
+    Object? userEmail = null,
   }) {
     return _then(_value.copyWith(
       userName: null == userName
@@ -83,6 +87,10 @@ class _$UserSettingsCopyWithImpl<$Res, $Val extends UserSettings>
           ? _value.userId
           : userId // ignore: cast_nullable_to_non_nullable
               as String,
+      userEmail: null == userEmail
+          ? _value.userEmail
+          : userEmail // ignore: cast_nullable_to_non_nullable
+              as String,
     ) as $Val);
   }
 }
@@ -99,7 +107,8 @@ abstract class _$$UserSettingsImplCopyWith<$Res>
       {@HiveField(0) String userName,
       @HiveField(1) String lastUsedGroupId,
       @HiveField(2) String lastUsedShoppingListId,
-      @HiveField(3) String userId});
+      @HiveField(3) String userId,
+      @HiveField(4) String userEmail});
 }
 
 /// @nodoc
@@ -117,6 +126,7 @@ class __$$UserSettingsImplCopyWithImpl<$Res>
     Object? lastUsedGroupId = null,
     Object? lastUsedShoppingListId = null,
     Object? userId = null,
+    Object? userEmail = null,
   }) {
     return _then(_$UserSettingsImpl(
       userName: null == userName
@@ -135,6 +145,10 @@ class __$$UserSettingsImplCopyWithImpl<$Res>
           ? _value.userId
           : userId // ignore: cast_nullable_to_non_nullable
               as String,
+      userEmail: null == userEmail
+          ? _value.userEmail
+          : userEmail // ignore: cast_nullable_to_non_nullable
+              as String,
     ));
   }
 }
@@ -146,7 +160,8 @@ class _$UserSettingsImpl implements _UserSettings {
       {@HiveField(0) this.userName = '',
       @HiveField(1) this.lastUsedGroupId = 'defaultGroup',
       @HiveField(2) this.lastUsedShoppingListId = '',
-      @HiveField(3) this.userId = ''});
+      @HiveField(3) this.userId = '',
+      @HiveField(4) this.userEmail = ''});
 
   factory _$UserSettingsImpl.fromJson(Map<String, dynamic> json) =>
       _$$UserSettingsImplFromJson(json);
@@ -167,10 +182,14 @@ class _$UserSettingsImpl implements _UserSettings {
   @JsonKey()
   @HiveField(3)
   final String userId;
+  @override
+  @JsonKey()
+  @HiveField(4)
+  final String userEmail;
 
   @override
   String toString() {
-    return 'UserSettings(userName: $userName, lastUsedGroupId: $lastUsedGroupId, lastUsedShoppingListId: $lastUsedShoppingListId, userId: $userId)';
+    return 'UserSettings(userName: $userName, lastUsedGroupId: $lastUsedGroupId, lastUsedShoppingListId: $lastUsedShoppingListId, userId: $userId, userEmail: $userEmail)';
   }
 
   @override
@@ -184,13 +203,15 @@ class _$UserSettingsImpl implements _UserSettings {
                 other.lastUsedGroupId == lastUsedGroupId) &&
             (identical(other.lastUsedShoppingListId, lastUsedShoppingListId) ||
                 other.lastUsedShoppingListId == lastUsedShoppingListId) &&
-            (identical(other.userId, userId) || other.userId == userId));
+            (identical(other.userId, userId) || other.userId == userId) &&
+            (identical(other.userEmail, userEmail) ||
+                other.userEmail == userEmail));
   }
 
   @JsonKey(ignore: true)
   @override
-  int get hashCode => Object.hash(
-      runtimeType, userName, lastUsedGroupId, lastUsedShoppingListId, userId);
+  int get hashCode => Object.hash(runtimeType, userName, lastUsedGroupId,
+      lastUsedShoppingListId, userId, userEmail);
 
   @JsonKey(ignore: true)
   @override
@@ -211,7 +232,8 @@ abstract class _UserSettings implements UserSettings {
       {@HiveField(0) final String userName,
       @HiveField(1) final String lastUsedGroupId,
       @HiveField(2) final String lastUsedShoppingListId,
-      @HiveField(3) final String userId}) = _$UserSettingsImpl;
+      @HiveField(3) final String userId,
+      @HiveField(4) final String userEmail}) = _$UserSettingsImpl;
 
   factory _UserSettings.fromJson(Map<String, dynamic> json) =
       _$UserSettingsImpl.fromJson;
@@ -228,6 +250,9 @@ abstract class _UserSettings implements UserSettings {
   @override
   @HiveField(3)
   String get userId;
+  @override
+  @HiveField(4)
+  String get userEmail;
   @override
   @JsonKey(ignore: true)
   _$$UserSettingsImplCopyWith<_$UserSettingsImpl> get copyWith =>
