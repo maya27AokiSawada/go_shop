@@ -15,4 +15,10 @@ abstract class PurchaseGroupRepository {
   Future<PurchaseGroup> setMemberId(String oldId, String newId, String? contact);
   Future<PurchaseGroup> getGroupById(String groupId);
   Future<PurchaseGroup> updateGroup(String groupId, PurchaseGroup group);
+  
+  // メンバープール関連
+  Future<PurchaseGroup> getOrCreateMemberPool();
+  Future<void> syncMemberPool();
+  Future<List<PurchaseGroupMember>> searchMembersInPool(String query);
+  Future<PurchaseGroupMember?> findMemberByEmail(String email);
 }

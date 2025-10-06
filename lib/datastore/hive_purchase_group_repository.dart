@@ -56,8 +56,10 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
   Future<List<PurchaseGroup>> getAllGroups() async {
     try {
       final groups = _box.values.toList();
-      developer.log('📋 全グループ取得: ${groups.length}グループ');
-      return groups;
+      // 隠しグループを除外
+      final visibleGroups = groups.where((group) => group.groupId != '__member_pool__').toList();
+      developer.log('📋 全グループ取得: ${visibleGroups.length}グループ (隠しグループ除外)');
+      return visibleGroups;
     } on StateError catch (e) {
       developer.log('⚠️ Box not available during getAllGroups (app may be restarting): $e');
       return []; // 空のリストを返してクラッシュを防ぐ
@@ -345,6 +347,116 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
     } catch (e) {
       developer.log('❌ 仮メンバー追加エラー: $e');
       rethrow;
+    }
+  }
+
+  // ============ メンバープール管理メソッド ============
+
+  /// 隠しグループ（メンバープール）の取得・作成
+  @override
+  Future<PurchaseGroup> getOrCreateMemberPool() async {
+    try {
+      const poolGroupId = '__member_pool__';
+      final existingPool = _box.get(poolGroupId);
+      
+      if (existingPool != null) {
+        return existingPool;
+      }
+      
+      // 新しいメンバープールを作成
+      const memberPool = PurchaseGroup(
+        groupId: poolGroupId,
+        groupName: 'Member Pool (Hidden)',
+        ownerUid: 'system',
+        ownerName: 'System',
+        ownerEmail: 'system@app.local',
+        members: [],
+      );
+      
+      await _box.put(poolGroupId, memberPool);
+      developer.log('🔒 メンバープール作成完了');
+      return memberPool;
+    } catch (e) {
+      developer.log('❌ メンバープール取得エラー: $e');
+      rethrow;
+    }
+  }
+
+  /// すべてのグループから一意のメンバーを収集してプールに追加
+  @override
+  Future<void> syncMemberPool() async {
+    try {
+      final allGroups = await getAllGroups();
+      final memberPool = await getOrCreateMemberPool();
+      
+      // 全グループから一意のメンバーを収集
+      final Map<String, PurchaseGroupMember> uniqueMembers = {};
+      
+      for (final group in allGroups) {
+        // 隠しグループは除外
+        if (group.groupId == '__member_pool__') continue;
+        
+        if (group.members != null) {
+          for (final member in group.members!) {
+            // メールアドレスでユニーク性を判定
+            if (member.contact.isNotEmpty) {
+              uniqueMembers[member.contact] = member;
+            }
+          }
+        }
+      }
+      
+      // プールを更新
+      final updatedPool = memberPool.copyWith(
+        members: uniqueMembers.values.toList(),
+      );
+      
+      await _box.put('__member_pool__', updatedPool);
+      developer.log('🔄 メンバープール同期完了: ${uniqueMembers.length}件');
+    } catch (e) {
+      developer.log('❌ メンバープール同期エラー: $e');
+      rethrow;
+    }
+  }
+
+  /// メンバープール内でメンバーを検索
+  @override
+  Future<List<PurchaseGroupMember>> searchMembersInPool(String query) async {
+    try {
+      final memberPool = await getOrCreateMemberPool();
+      final members = memberPool.members ?? [];
+      
+      if (query.isEmpty) {
+        return members;
+      }
+      
+      // 名前または連絡先で部分一致検索
+      return members.where((member) =>
+        member.name.toLowerCase().contains(query.toLowerCase()) ||
+        member.contact.toLowerCase().contains(query.toLowerCase())
+      ).toList();
+    } catch (e) {
+      developer.log('❌ プール内検索エラー: $e');
+      return [];
+    }
+  }
+
+  /// プール内でメールアドレスからメンバーを検索
+  @override
+  Future<PurchaseGroupMember?> findMemberByEmail(String email) async {
+    try {
+      final memberPool = await getOrCreateMemberPool();
+      final members = memberPool.members ?? [];
+      
+      for (final member in members) {
+        if (member.contact.toLowerCase() == email.toLowerCase()) {
+          return member;
+        }
+      }
+      return null;
+    } catch (e) {
+      developer.log('❌ メールアドレス検索エラー: $e');
+      return null;
     }
   }
 }
