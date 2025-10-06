@@ -4,6 +4,7 @@ import '../providers/purchase_group_provider.dart';
 import '../providers/user_name_provider.dart';
 import '../providers/security_provider.dart';
 import '../models/purchase_group.dart';
+import '../widgets/member_selection_dialog.dart';
 
 class PurchaseGroupPage extends ConsumerStatefulWidget {
   const PurchaseGroupPage({super.key});
@@ -342,111 +343,28 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
   }
 
   // メンバー追加ダイアログ
-  void _showAddMemberDialog(BuildContext context) {
-    final nameController = TextEditingController();
-    final contactController = TextEditingController();
-    PurchaseGroupRole selectedRole = PurchaseGroupRole.member;
-
-    showDialog(
+  void _showAddMemberDialog(BuildContext context) async {
+    final selectedMember = await showDialog<PurchaseGroupMember>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('メンバーを追加'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: '名前',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: contactController,
-                decoration: const InputDecoration(
-                  labelText: '連絡先（メールまたは電話番号）',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<PurchaseGroupRole>(
-                initialValue: selectedRole,
-                decoration: const InputDecoration(
-                  labelText: '役割',
-                  border: OutlineInputBorder(),
-                ),
-                items: PurchaseGroupRole.values.map((role) {
-                  String roleText;
-                  switch (role) {
-                    case PurchaseGroupRole.owner:
-                      roleText = 'オーナー';
-                      break;
-                    case PurchaseGroupRole.member:
-                      roleText = 'メンバー';
-                      break;
-                  }
-                  return DropdownMenuItem(
-                    value: role,
-                    child: Text(roleText),
-                  );
-                }).toList(),
-                onChanged: (role) {
-                  if (role != null) {
-                    setState(() {
-                      selectedRole = role;
-                    });
-                  }
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('キャンセル'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (nameController.text.isNotEmpty && contactController.text.isNotEmpty) {
-                  _addMemberToGroup(nameController.text, contactController.text, selectedRole);
-                  Navigator.of(context).pop();
-                }
-              },
-              child: const Text('追加'),
-            ),
-          ],
-        ),
-      ),
+      builder: (context) => const MemberSelectionDialog(),
     );
+
+    if (selectedMember != null) {
+      _addMemberToGroup(selectedMember);
+    }
   }
 
   // グループにメンバーを追加
-  void _addMemberToGroup(String name, String contact, PurchaseGroupRole role) {
+  void _addMemberToGroup(PurchaseGroupMember member) {
     final purchaseGroupNotifier = ref.read(purchaseGroupProvider.notifier);
 
-    // 直接メンバーとして追加（招待ではなく）
     final currentGroup = ref.read(purchaseGroupProvider).value;
     if (currentGroup != null) {
-      // 新しいメンバーを作成（サインイン済みとして）
-      final newMember = PurchaseGroupMember(
-        memberId: DateTime.now().millisecondsSinceEpoch.toString(), // 一意のID
-        name: name,
-        contact: contact,
-        role: role,
-        isSignedIn: true, // サインイン済みとして追加
-        isInvited: false,
-        isInvitationAccepted: true,
-        acceptedAt: DateTime.now(),
-      );
-      
-      final updatedGroup = currentGroup.addMember(newMember);
+      final updatedGroup = currentGroup.addMember(member);
       purchaseGroupNotifier.updateGroup(updatedGroup);
       
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$nameさんをメンバーに追加しました')),
+        SnackBar(content: Text('${member.name}さんをメンバーに追加しました')),
       );
     }
   }

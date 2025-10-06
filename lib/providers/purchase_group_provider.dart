@@ -253,7 +253,9 @@ final selectedGroupProvider = Provider<AsyncValue<PurchaseGroup?>>((ref) {
   
   return allGroupsAsync.when(
     data: (groups) {
-      final selectedGroup = groups.where((group) => group.groupId == selectedGroupId).firstOrNull;
+      // 隠しグループ（メンバープール）を除外
+      final visibleGroups = groups.where((group) => group.groupId != '__member_pool__').toList();
+      final selectedGroup = visibleGroups.where((group) => group.groupId == selectedGroupId).firstOrNull;
       return AsyncValue.data(selectedGroup);
     },
     loading: () => const AsyncValue.loading(),
