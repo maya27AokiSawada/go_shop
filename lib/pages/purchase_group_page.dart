@@ -125,7 +125,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
             labelText: 'グループを選択',
             border: OutlineInputBorder(),
           ),
-          initialValue: validSelectedGroupId,
+          value: validSelectedGroupId,
           items: groups.map((group) => DropdownMenuItem(
             value: group.groupId,
             child: Text(group.groupId == 'defaultGroup' ? 'デフォルトグループ' : group.groupName),

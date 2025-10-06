@@ -58,9 +58,20 @@ class HiveUserSettingsRepository implements UserSettingsRepository {
   
   @override
   Future<void> updateUserName(String userName) async {
+    logger.i('💾 ユーザー名更新開始: $userName');
+    
     final currentSettings = await getSettings();
+    logger.i('📖 現在の設定: ${currentSettings.toString()}');
+    
     final updatedSettings = currentSettings.copyWith(userName: userName);
+    logger.i('🔄 更新後の設定: ${updatedSettings.toString()}');
+    
     await saveSettings(updatedSettings);
+    logger.i('✅ ユーザー名更新完了: $userName');
+    
+    // 確認のため再読み込み
+    final verifySettings = await getSettings();
+    logger.i('🔍 保存確認: ${verifySettings.userName}');
   }
   
   @override

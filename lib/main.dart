@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
-// import 'package:firebase_core/firebase_core.dart';  // 一時的にコメントアウト
-// import 'firebase_options.dart';  // 一時的にコメントアウト
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'screens/home_screen.dart';
 import 'services/user_specific_hive_service.dart';
 import 'flavors.dart';
@@ -15,18 +15,18 @@ void main() async {
   final logger = Logger();
   
   // フレーバーの設定
-  F.appFlavor = Flavor.dev; // 安全なDEVモードを継続
+  F.appFlavor = Flavor.prod; // Firebase Authenticationを有効にするためPRODモードに変更
   
-  // Firebase初期化 (一時的にコメントアウト - Firebase SDK ダウンロード時間を回避)
-  // if (F.appFlavor == Flavor.prod) {
-  //   logger.i("🔥 Starting Go Shop app in PRODUCTION mode with Firebase");
-  //   await Firebase.initializeApp(
-  //     options: DefaultFirebaseOptions.currentPlatform,
-  //   );
-  //   logger.i("✅ Firebase initialized successfully");
-  // } else {
+  // Firebase初期化
+  if (F.appFlavor == Flavor.prod) {
+    logger.i("🔥 Starting Go Shop app in PRODUCTION mode with Firebase");
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    logger.i("✅ Firebase initialized successfully");
+  } else {
     logger.i("💡 Starting Go Shop app in DEV mode (Hive only, no Firebase)");
-  // }
+  }
   
   // グローバルHive初期化（アダプター登録のみ）
   // Windows版: UserSpecificHiveServiceでUID固有フォルダ管理
