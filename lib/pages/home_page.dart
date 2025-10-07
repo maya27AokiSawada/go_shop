@@ -415,23 +415,39 @@ class _HomePageState extends ConsumerState<HomePage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // ユーザー名が未設定で初回利用の場合のみユーザー名入力を表示
-                        if (currentUserName == null || currentUserName.isEmpty) ...[
-                          TextFormField(
-                            controller: userNameController,
-                            decoration: const InputDecoration(
-                              labelText: 'User Name',
-                              border: OutlineInputBorder(),
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'ユーザー名を入力してください';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 16),
-                        ],
+                        // 未ログイン状態では常にユーザー名入力欄を表示
+                        Consumer(
+                          builder: (context, ref, child) {
+                            final currentUserName = ref.watch(userNameProvider);
+                            
+                            // ユーザー名プロバイダーの値が変更された時にテキストフィールドを更新
+                            if (currentUserName != null && 
+                                currentUserName.isNotEmpty && 
+                                userNameController.text != currentUserName) {
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                if (mounted) {
+                                  userNameController.text = currentUserName;
+                                }
+                              });
+                            }
+                            
+                            return TextFormField(
+                              controller: userNameController,
+                              decoration: const InputDecoration(
+                                labelText: 'User Name',
+                                border: OutlineInputBorder(),
+                                hintText: 'ユーザー名を入力してください',
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'ユーザー名を入力してください';
+                                }
+                                return null;
+                              },
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 16),
                         
                         // サインインボタン（フォームが表示されていない時のみ表示）
                         if (!showSignInForm) ...[

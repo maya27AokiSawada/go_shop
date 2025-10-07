@@ -13,6 +13,8 @@ enum PurchaseGroupRole {
   owner,
   @HiveField(1)
   member,
+  @HiveField(2)
+  manager,
 }
 
 @HiveType(typeId: 1)

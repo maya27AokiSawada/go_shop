@@ -1,8 +1,10 @@
-// lib/providers/auth_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:logger/logger.dart';
 import '../helper/mock_auth_service.dart';
 import '../flavors.dart';
+
+final _logger = Logger();
 
 // Mock認証状態を管理するProvider
 final mockAuthStateProvider = StateProvider<MockUser?>((ref) => null);
@@ -22,23 +24,23 @@ class FirebaseAuthService implements AuthServiceInterface {
   @override
   Future<User?> signIn(String email, String password) async {
     try {
-      print('🔥 FirebaseAuthService: signIn開始 - email: $email');
-      print('🔥 FirebaseAuth instance: ${_auth.toString()}');
-      print('🔥 FirebaseAuth currentUser: ${_auth.currentUser}');
+      _logger.d('🔥 FirebaseAuthService: signIn開始 - email: $email');
+      _logger.d('🔥 FirebaseAuth instance: ${_auth.toString()}');
+      _logger.d('🔥 FirebaseAuth currentUser: ${_auth.currentUser}');
       
       final credential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
       
-      print('🔥 FirebaseAuthService: signIn成功 - user: ${credential.user}');
+      _logger.d('🔥 FirebaseAuthService: signIn成功 - user: ${credential.user}');
       return credential.user;
     } catch (e) {
-      print('🔥 FirebaseAuthService: signInでエラー発生');
-      print('🔥 エラータイプ: ${e.runtimeType}');
-      print('🔥 エラー内容: $e');
+      _logger.e('🔥 FirebaseAuthService: signInでエラー発生');
+      _logger.e('🔥 エラータイプ: ${e.runtimeType}');
+      _logger.e('🔥 エラー内容: $e');
       if (e.toString().contains('FirebaseAuthException')) {
-        print('🔥 FirebaseAuthException詳細: $e');
+        _logger.e('🔥 FirebaseAuthException詳細: $e');
       }
       rethrow; // エラーを再スローして上位でキャッチ
     }
@@ -47,19 +49,19 @@ class FirebaseAuthService implements AuthServiceInterface {
   @override
   Future<User?> signUp(String email, String password) async {
     try {
-      print('🔥 FirebaseAuthService: signUp開始 - email: $email');
+      _logger.d('🔥 FirebaseAuthService: signUp開始 - email: $email');
       
       final credential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
       
-      print('🔥 FirebaseAuthService: signUp成功 - user: ${credential.user}');
+      _logger.d('🔥 FirebaseAuthService: signUp成功 - user: ${credential.user}');
       return credential.user;
     } catch (e) {
-      print('🔥 FirebaseAuthService: signUpでエラー発生');
-      print('🔥 エラータイプ: ${e.runtimeType}');
-      print('🔥 エラー内容: $e');
+      _logger.e('🔥 FirebaseAuthService: signUpでエラー発生');
+      _logger.e('🔥 エラータイプ: ${e.runtimeType}');
+      _logger.e('🔥 エラー内容: $e');
       rethrow; // エラーを再スローして上位でキャッチ
     }
   }

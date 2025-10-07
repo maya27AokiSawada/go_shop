@@ -55,6 +55,20 @@ class AccessControlHelper {
     return userMember?.role == PurchaseGroupRole.owner;
   }
 
+  /// グループの管理者権限（オーナーまたは管理者）を持つかチェック（将来の招待機能用）
+  static bool hasManagerPermission(PurchaseGroup? group, String? uid) {
+    if (group == null || uid == null || uid.isEmpty) return false;
+    
+    // グループオーナーなら管理者権限あり
+    if (group.ownerUid == uid) return true;
+    
+    final activeMembers = group.activeMembers;
+    final userMember = activeMembers.where((member) => member.memberId == uid).firstOrNull;
+    
+    return userMember?.role == PurchaseGroupRole.owner || 
+           userMember?.role == PurchaseGroupRole.manager;
+  }
+
   /// Firestore用：PurchaseGroupからアクセス権限のあるUIDs（memberIds）を抽出
   static List<String> extractAuthorizedUids(PurchaseGroup group) {
     final List<String> uids = [group.ownerUid ?? ''];
