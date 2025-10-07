@@ -19,6 +19,8 @@ import '../models/shopping_list.dart';
 import '../flavors.dart';
 import '../helper/firebase_diagnostics.dart';
 import '../widgets/user_data_migration_dialog.dart';
+import 'hybrid_sync_test_page.dart';
+import 'help_page.dart';
 
 final logger = Logger();
 
@@ -398,6 +400,61 @@ class _HomePageState extends ConsumerState<HomePage> {
                 }
               }
             },
+          ),
+          
+          // テストページボタン（ハイブリッド同期テスト用）
+          if (F.appFlavor == Flavor.prod) // PRODモードでハイブリッド同期テスト可能
+            IconButton(
+              icon: const Icon(Icons.science),
+              tooltip: 'ハイブリッド同期テスト',
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const HybridSyncTestPage(),
+                  ),
+                );
+              },
+            ),
+            
+          // 三点メニュー
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (String value) {
+              switch (value) {
+                case 'help':
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const HelpPage(),
+                    ),
+                  );
+                  break;
+                case 'about':
+                  _showAboutDialog(context);
+                  break;
+              }
+            },
+            itemBuilder: (BuildContext context) => [
+              const PopupMenuItem<String>(
+                value: 'help',
+                child: Row(
+                  children: [
+                    Icon(Icons.help_outline),
+                    SizedBox(width: 8),
+                    Text('ヘルプ'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'about',
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline),
+                    SizedBox(width: 8),
+                    Text('アプリについて'),
+                  ],
+                ),
+              ),
+            ],
           ),
       ],
     ),
@@ -1695,5 +1752,41 @@ class _HomePageState extends ConsumerState<HomePage> {
         );
       }
     }
+  }
+
+  // アプリについてダイアログを表示
+  void _showAboutDialog(BuildContext context) {
+    showAboutDialog(
+      context: context,
+      applicationName: 'Go Shop',
+      applicationVersion: '1.0.0',
+      applicationIcon: Container(
+        width: 64,
+        height: 64,
+        decoration: BoxDecoration(
+          color: Colors.blue[700],
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Icon(
+          Icons.shopping_cart,
+          color: Colors.white,
+          size: 32,
+        ),
+      ),
+      children: [
+        const Text('家族やグループで買い物リストを共有できるアプリです。'),
+        const SizedBox(height: 16),
+        const Text('主な機能:'),
+        const Text('• グループでの買い物リスト共有'),
+        const Text('• リアルタイム同期'),
+        const Text('• オフライン対応'),
+        const Text('• メンバー管理'),
+        const SizedBox(height: 16),
+        const Text('開発者: 青木沢田 真矢'),
+        const Text('お問い合わせ: maya27AokiSawada@example.com'),
+        const SizedBox(height: 16),
+        const Text('© 2024 Go Shop. All rights reserved.'),
+      ],
+    );
   }
 }

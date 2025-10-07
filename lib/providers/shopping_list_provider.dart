@@ -1,12 +1,11 @@
-// lib/providers/shopping_list_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:logger/logger.dart';
 import '../models/shopping_list.dart';
 import '../providers/purchase_group_provider.dart';
 import '../datastore/shopping_list_repository.dart';
-import '../datastore/firebase_shopping_list_repository.dart';
 import '../datastore/hive_shopping_list_repository.dart';
+import '../datastore/hybrid_shopping_list_repository.dart';
 import '../flavors.dart';
 
 final logger = Logger();
@@ -16,11 +15,11 @@ final shoppingListBoxProvider = Provider<Box<ShoppingList>>((ref) {
   return Hive.box<ShoppingList>('shoppingLists');
 });
 
-// ShoppingListRepositoryのプロバイダー
+// ShoppingListRepositoryのプロバイダー - ハイブリッド構成に統一
 final shoppingListRepositoryProvider = Provider<ShoppingListRepository>((ref) {
   if (F.appFlavor == Flavor.prod) {
-    // 本番環境: Firebase同期リポジトリを使用（Real Firebase Auth）
-    return FirebaseSyncShoppingListRepository(ref);
+    // 本番環境: ハイブリッド（Hive + Firestore）を使用
+    return HybridShoppingListRepository(ref);
   } else {
     // 開発環境: Hiveリポジトリを使用（ローカルのみ）
     return HiveShoppingListRepository(ref);

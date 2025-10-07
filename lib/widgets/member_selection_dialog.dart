@@ -25,7 +25,7 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
   // 新規メンバー用
   final nameController = TextEditingController();
   final contactController = TextEditingController();
-  PurchaseGroupRole selectedRole = PurchaseGroupRole.member;
+  PurchaseGroupRole selectedRole = PurchaseGroupRole.member; // オーナー以外を初期値に設定
   
   // 重複確認用
   PurchaseGroupMember? duplicateMember;
@@ -267,8 +267,8 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
               ),
               subtitle: Text(
                 isAlreadyMember 
-                  ? '${member.contact} (${member.role.name}) - すでにメンバーです'
-                  : '${member.contact} (${member.role.name})',
+                  ? '${member.contact} (${_getRoleDisplayName(member.role)}) - すでにメンバーです'
+                  : '${member.contact} (${_getRoleDisplayName(member.role)})',
                 style: TextStyle(
                   color: isAlreadyMember ? Colors.grey : null,
                 ),
@@ -324,12 +324,15 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
           decoration: const InputDecoration(
             labelText: '役割',
             border: OutlineInputBorder(),
+            helperText: 'オーナーは作成者が自動的に設定されます',
           ),
-          items: PurchaseGroupRole.values.map((role) {
+          items: PurchaseGroupRole.values
+            .where((role) => role != PurchaseGroupRole.owner) // オーナーロールを除外
+            .map((role) {
             String roleName;
             switch (role) {
               case PurchaseGroupRole.owner:
-                roleName = 'オーナー';
+                roleName = 'オーナー'; // この場合は表示されない
                 break;
               case PurchaseGroupRole.manager:
                 roleName = '管理者';
@@ -445,6 +448,18 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
     }
     
     Navigator.of(context).pop(memberToAdd);
+  }
+
+  // ロール名を日本語で表示するヘルパーメソッド
+  String _getRoleDisplayName(PurchaseGroupRole role) {
+    switch (role) {
+      case PurchaseGroupRole.owner:
+        return 'オーナー';
+      case PurchaseGroupRole.manager:
+        return '管理者';
+      case PurchaseGroupRole.member:
+        return 'メンバー';
+    }
   }
 
   @override

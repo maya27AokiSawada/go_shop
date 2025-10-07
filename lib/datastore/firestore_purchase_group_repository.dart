@@ -1,31 +1,54 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/firestore_purchase_group.dart';
-import '../models/firestore_shopping_list.dart';
+import '../models/purchase_group.dart';
+import '../datastore/purchase_group_repository.dart';
 import '../flavors.dart';
+import 'dart:developer' as developer;
 
-class FirestorePurchaseGroupRepository {
+class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
   CollectionReference get _groupsCollection => _firestore.collection('purchaseGroups');
-  CollectionReference get _listsCollection => _firestore.collection('shoppingLists');
 
-  // PurchaseGroupを作成
-  Future<FirestorePurchaseGroup> createPurchaseGroup({
-    required String groupName,
-    required String ownerUid,
-    required String ownerEmail,
-  }) async {
-    final newGroup = FirestorePurchaseGroup(
-      id: '', // Firestoreで自動生成
-      groupName: groupName,
-      ownerUid: ownerUid,
-      ownerEmail: ownerEmail,
-      memberUids: [ownerUid], // オーナーをメンバーに追加
-    );
+  @override
+  Future<PurchaseGroup> createGroup(String groupId, String groupName, PurchaseGroupMember member) async {
+    try {
+      final newGroup = PurchaseGroup.create(
+        groupId: groupId,
+        groupName: groupName,
+        ownerName: member.name,
+        ownerEmail: member.contact,
+        ownerUid: member.memberId,
+        members: [member],
+      );
 
-    final docRef = await _groupsCollection.add(newGroup.toFirestore());
-    return newGroup.copyWith(id: docRef.id);
+      await _groupsCollection.doc(groupId).set({
+        'groupName': newGroup.groupName,
+        'groupId': newGroup.groupId,
+        'ownerName': newGroup.ownerName,
+        'ownerEmail': newGroup.ownerEmail,
+        'ownerUid': newGroup.ownerUid,
+        'members': newGroup.members?.map((m) => {
+          'memberId': m.memberId,
+          'name': m.name,
+          'contact': m.contact,
+          'role': m.role.index,
+          'isSignedIn': m.isSignedIn,
+          'isInvited': m.isInvited,
+          'isInvitationAccepted': m.isInvitationAccepted,
+          'invitedAt': m.invitedAt?.millisecondsSinceEpoch,
+          'acceptedAt': m.acceptedAt?.millisecondsSinceEpoch,
+        }).toList(),
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      developer.log('🔥 Created in Firestore: $groupName');
+      return newGroup;
+    } catch (e) {
+      developer.log('❌ Firestore createGroup error: $e');
+      rethrow;
+    }
   }
 
   // PurchaseGroupを取得
