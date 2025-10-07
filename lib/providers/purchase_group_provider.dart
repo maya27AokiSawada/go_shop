@@ -2,15 +2,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/purchase_group.dart';
 import '../datastore/purchase_group_repository.dart';
 import '../datastore/hive_purchase_group_repository.dart';
+import '../datastore/hybrid_purchase_group_repository.dart';
 import '../flavors.dart';
 import 'user_settings_provider.dart';
 
-// Repository provider
+// Repository provider - ハイブリッドリポジトリを使用
 final purchaseGroupRepositoryProvider = Provider<PurchaseGroupRepository>((ref) {
   if (F.appFlavor == Flavor.prod) {
-    // 本番環境でもHiveを使用（Firestoreリポジトリ実装後に変更予定）
-    return HivePurchaseGroupRepository(ref);
+    // 本番環境ではハイブリッド（Hive + Firestore）を使用
+    return HybridPurchaseGroupRepository(ref);
   } else {
+    // 開発環境ではHiveのみ
     return HivePurchaseGroupRepository(ref);
   }
 });
@@ -164,7 +166,9 @@ class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
       // 作成前の全グループ数を確認
       final beforeGroups = await repository.getAllGroups();
       print('📊 作成前のグループ数: ${beforeGroups.length}');
-      beforeGroups.forEach((g) => print('  - ${g.groupName} (${g.groupId})'));
+      for (var g in beforeGroups) {
+        print('  - ${g.groupName} (${g.groupId})');
+      }
       
       // UserSettingsから現在のユーザー情報を取得
       final userSettings = await ref.read(userSettingsProvider.future);
@@ -191,7 +195,9 @@ class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
       // 作成後の全グループ数を確認
       final afterGroups = await repository.getAllGroups();
       print('📊 作成後のグループ数: ${afterGroups.length}');
-      afterGroups.forEach((g) => print('  - ${g.groupName} (${g.groupId})'));
+      for (var g in afterGroups) {
+        print('  - ${g.groupName} (${g.groupId})');
+      }
       
       // 新しいグループを選択状態に設定
       ref.read(selectedGroupIdProvider.notifier).selectGroup(newGroup.groupId);
@@ -210,7 +216,9 @@ class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
       updatedAllGroups.when(
         data: (groups) {
           print('📋 更新後のallGroupsProvider: ${groups.length}グループ');
-          groups.forEach((g) => print('  - ${g.groupName} (${g.groupId})'));
+          for (var g in groups) {
+            print('  - ${g.groupName} (${g.groupId})');
+          }
         },
         loading: () => print('⏳ allGroupsProviderロード中'),
         error: (e, _) => print('❌ allGroupsProviderエラー: $e'),
@@ -313,3 +321,52 @@ final selectedGroupProvider = Provider<AsyncValue<PurchaseGroup?>>((ref) {
     error: (error, stack) => AsyncValue.error(error, stack),
   );
 });
+
+// =================================================================
+// ハイブリッド同期管理
+// =================================================================
+
+/// ハイブリッドリポジトリへのアクセス（本番環境のみ）
+final hybridRepositoryProvider = Provider<HybridPurchaseGroupRepository?>((ref) {
+  final repo = ref.read(purchaseGroupRepositoryProvider);
+  if (repo is HybridPurchaseGroupRepository) {
+    return repo;
+  }
+  return null;
+});
+
+/// 手動同期トリガー
+final forceSyncProvider = FutureProvider<void>((ref) async {
+  final hybridRepo = ref.read(hybridRepositoryProvider);
+  if (hybridRepo != null) {
+    await hybridRepo.forceSyncFromFirestore();
+    // 同期後にAllGroupsProviderを更新
+    ref.invalidate(allGroupsProvider);
+  }
+});
+
+/// 同期状態プロバイダー
+final syncStatusProvider = Provider<SyncStatus>((ref) {
+  final hybridRepo = ref.read(hybridRepositoryProvider);
+  if (hybridRepo == null) {
+    return SyncStatus.localOnly;
+  }
+  
+  if (!hybridRepo.isOnline) {
+    return SyncStatus.offline;
+  }
+  
+  if (hybridRepo.isSyncing) {
+    return SyncStatus.syncing;
+  }
+  
+  return SyncStatus.synced;
+});
+
+/// 同期状態enum
+enum SyncStatus {
+  localOnly,  // ローカルのみ（dev環境）
+  offline,    // オフライン
+  syncing,    // 同期中
+  synced,     // 同期済み
+}
