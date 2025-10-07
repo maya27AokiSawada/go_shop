@@ -15,7 +15,7 @@ void main() async {
   final logger = Logger();
   
   // フレーバーの設定
-  F.appFlavor = Flavor.prod; // Firebase Authenticationを有効にするためPRODモードに変更
+  F.appFlavor = Flavor.dev; // 一時的にDEVモードでAndroid起動テスト
   
   // Firebase初期化
   if (F.appFlavor == Flavor.prod) {

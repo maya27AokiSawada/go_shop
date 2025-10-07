@@ -23,6 +23,87 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
     super.dispose();
   }
 
+  String _getRoleDisplayName(PurchaseGroupRole role) {
+    switch (role) {
+      case PurchaseGroupRole.owner:
+        return 'オーナー';
+      case PurchaseGroupRole.manager:
+        return '管理者';
+      case PurchaseGroupRole.member:
+        return 'メンバー';
+    }
+  }
+
+  Future<void> _editMember(PurchaseGroupMember member, int index) async {
+    final result = await showDialog<PurchaseGroupMember>(
+      context: context,
+      builder: (context) => _EditMemberDialog(member: member),
+    );
+    
+    if (result != null) {
+      try {
+        final currentGroup = ref.read(purchaseGroupProvider).value;
+        if (currentGroup != null) {
+          final updatedMembers = List<PurchaseGroupMember>.from(currentGroup.members ?? []);
+          updatedMembers[index] = result;
+          final updatedGroup = currentGroup.copyWith(members: updatedMembers);
+          await ref.read(purchaseGroupProvider.notifier).updateGroup(updatedGroup);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('メンバーの更新に失敗しました: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _deleteMember(PurchaseGroupMember member, int index) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('メンバーを削除'),
+        content: Text('${member.name}をこのグループから削除しますか？\n\nこの操作は取り消せません。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('キャンセル'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('削除'),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirmed == true) {
+      try {
+        final currentGroup = ref.read(purchaseGroupProvider).value;
+        if (currentGroup != null) {
+          final updatedMembers = List<PurchaseGroupMember>.from(currentGroup.members ?? []);
+          updatedMembers.removeAt(index);
+          final updatedGroup = currentGroup.copyWith(members: updatedMembers);
+          await ref.read(purchaseGroupProvider.notifier).updateGroup(updatedGroup);
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('${member.name}を削除しました')),
+            );
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('メンバーの削除に失敗しました: $e')),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // セキュリティチェック
@@ -125,7 +206,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
             labelText: 'グループを選択',
             border: OutlineInputBorder(),
           ),
-          value: validSelectedGroupId,
+          initialValue: validSelectedGroupId,
           items: groups.map((group) => DropdownMenuItem(
             value: group.groupId,
             child: Text(group.groupId == 'defaultGroup' ? 'デフォルトグループ' : group.groupName),
@@ -188,12 +269,20 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                     return Card(
                       child: ListTile(
                         leading: Icon(
-                          member.role.name == 'owner' ? Icons.star : Icons.person,
-                          color: member.role.name == 'owner' ? Colors.amber : null,
+                          member.role == PurchaseGroupRole.owner ? Icons.star :
+                          member.role == PurchaseGroupRole.manager ? Icons.admin_panel_settings :
+                          Icons.person,
+                          color: member.role == PurchaseGroupRole.owner ? Colors.amber :
+                                 member.role == PurchaseGroupRole.manager ? Colors.blue :
+                                 null,
                         ),
                         title: Text(member.name),
-                        subtitle: Text('${member.role.name} - ${member.contact}'),
+                        subtitle: Text('${_getRoleDisplayName(member.role)} - ${member.contact}'),
                         trailing: isCurrentUser ? const Icon(Icons.check_circle, color: Colors.green) : null,
+                        onTap: () => _editMember(member, index),
+                        onLongPress: member.role != PurchaseGroupRole.owner 
+                          ? () => _deleteMember(member, index)
+                          : null,
                       ),
                     );
                   },
@@ -225,6 +314,10 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
               onPressed: () async {
                 final groupName = _groupNameController.text.trim();
                 if (groupName.isNotEmpty) {
+                  // BuildContextを事前に保存
+                  final navigator = Navigator.of(context);
+                  final messenger = ScaffoldMessenger.of(context);
+                  
                   try {
                     // 既存グループを取得して重複チェック
                     final allGroupsAsync = ref.read(allGroupsProvider);
@@ -240,7 +333,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                     if (validation.hasError) {
                       // エラー表示
                       if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        messenger.showSnackBar(
                           SnackBar(
                             content: Text(validation.errorMessage!),
                             backgroundColor: Colors.red,
@@ -252,16 +345,17 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                     
                     // グループ作成実行
                     await ref.read(purchaseGroupProvider.notifier).createNewGroup(groupName);
+                    
                     _groupNameController.clear();
                     if (mounted) {
-                      Navigator.of(context).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      navigator.pop();
+                      messenger.showSnackBar(
                         SnackBar(content: Text('グループ「$groupName」を作成しました')),
                       );
                     }
                   } catch (e) {
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      messenger.showSnackBar(
                         SnackBar(content: Text('グループの作成に失敗しました: $e')),
                       );
                     }
@@ -296,17 +390,21 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                 foregroundColor: Colors.white,
               ),
               onPressed: () async {
+                // BuildContextを事前に保存
+                final navigator = Navigator.of(context);
+                final messenger = ScaffoldMessenger.of(context);
+                
                 try {
                   await ref.read(purchaseGroupProvider.notifier).deleteGroup(groupId);
                   if (mounted) {
-                    Navigator.of(context).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    navigator.pop();
+                    messenger.showSnackBar(
                       SnackBar(content: Text('グループ「$groupId」を削除しました')),
                     );
                   }
                 } catch (e) {
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    messenger.showSnackBar(
                       SnackBar(content: Text('グループの削除に失敗しました: $e')),
                     );
                   }
@@ -393,5 +491,120 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
         SnackBar(content: Text('${member.name}さんをメンバーに追加しました')),
       );
     }
+  }
+}
+
+class _EditMemberDialog extends StatefulWidget {
+  final PurchaseGroupMember member;
+
+  const _EditMemberDialog({required this.member});
+
+  @override
+  State<_EditMemberDialog> createState() => _EditMemberDialogState();
+}
+
+class _EditMemberDialogState extends State<_EditMemberDialog> {
+  late TextEditingController _nameController;
+  late TextEditingController _contactController;
+  late PurchaseGroupRole _selectedRole;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.member.name);
+    _contactController = TextEditingController(text: widget.member.contact);
+    _selectedRole = widget.member.role;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _contactController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('メンバー編集'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                labelText: '名前',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _contactController,
+              decoration: const InputDecoration(
+                labelText: '連絡先',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.emailAddress,
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<PurchaseGroupRole>(
+              initialValue: _selectedRole,
+              decoration: const InputDecoration(
+                labelText: '役割',
+                border: OutlineInputBorder(),
+              ),
+              items: PurchaseGroupRole.values.map((role) {
+                String roleName;
+                switch (role) {
+                  case PurchaseGroupRole.owner:
+                    roleName = 'オーナー';
+                    break;
+                  case PurchaseGroupRole.manager:
+                    roleName = '管理者';
+                    break;
+                  case PurchaseGroupRole.member:
+                    roleName = 'メンバー';
+                    break;
+                }
+                return DropdownMenuItem(
+                  value: role,
+                  child: Text(roleName),
+                );
+              }).toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    _selectedRole = value;
+                  });
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('キャンセル'),
+        ),
+        ElevatedButton(
+          onPressed: _canSave() ? () {
+            final updatedMember = widget.member.copyWith(
+              name: _nameController.text.trim(),
+              contact: _contactController.text.trim(),
+              role: _selectedRole,
+            );
+            Navigator.of(context).pop(updatedMember);
+          } : null,
+          child: const Text('保存'),
+        ),
+      ],
+    );
+  }
+
+  bool _canSave() {
+    return _nameController.text.trim().isNotEmpty &&
+           _contactController.text.trim().isNotEmpty;
   }
 }

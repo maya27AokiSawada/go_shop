@@ -159,6 +159,13 @@ class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
     final repository = ref.read(purchaseGroupRepositoryProvider);
     
     try {
+      print('🆕 グループ作成開始: $groupName');
+      
+      // 作成前の全グループ数を確認
+      final beforeGroups = await repository.getAllGroups();
+      print('📊 作成前のグループ数: ${beforeGroups.length}');
+      beforeGroups.forEach((g) => print('  - ${g.groupName} (${g.groupId})'));
+      
       // UserSettingsから現在のユーザー情報を取得
       final userSettings = await ref.read(userSettingsProvider.future);
       
@@ -179,14 +186,38 @@ class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
         ownerMember,
       );
       
+      print('✅ グループ作成完了: ${newGroup.groupName} (${newGroup.groupId})');
+      
+      // 作成後の全グループ数を確認
+      final afterGroups = await repository.getAllGroups();
+      print('📊 作成後のグループ数: ${afterGroups.length}');
+      afterGroups.forEach((g) => print('  - ${g.groupName} (${g.groupId})'));
+      
       // 新しいグループを選択状態に設定
       ref.read(selectedGroupIdProvider.notifier).selectGroup(newGroup.groupId);
+      print('🎯 選択グループIDを設定: ${newGroup.groupId}');
       
       state = AsyncData(newGroup);
       
       // Refresh the all groups list so dropdown updates
-      ref.read(allGroupsProvider.notifier).refresh();
+      print('🔄 allGroupsProviderを更新開始');
+      ref.invalidate(allGroupsProvider);
+      await ref.read(allGroupsProvider.future);
+      print('🔄 allGroupsProviderの更新完了');
+      
+      // 確認のため最新の状態を取得
+      final updatedAllGroups = ref.read(allGroupsProvider);
+      updatedAllGroups.when(
+        data: (groups) {
+          print('📋 更新後のallGroupsProvider: ${groups.length}グループ');
+          groups.forEach((g) => print('  - ${g.groupName} (${g.groupId})'));
+        },
+        loading: () => print('⏳ allGroupsProviderロード中'),
+        error: (e, _) => print('❌ allGroupsProviderエラー: $e'),
+      );
+      
     } catch (e) {
+      print('❌ グループ作成エラー: $e');
       state = AsyncError(e, StackTrace.current);
     }
   }

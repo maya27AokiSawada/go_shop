@@ -9,10 +9,13 @@ class MemberListTile extends StatelessWidget {
   final VoidCallback? onTap;
 
   String makeTitle( PurchaseGroupRole role) {
-   if ( role == PurchaseGroupRole.owner ) {
-     return 'オーナー: ${member.name}';
-   } else {
-     return 'メンバー: ${member.name}';
+   switch (role) {
+     case PurchaseGroupRole.owner:
+       return 'オーナー: ${member.name}';
+     case PurchaseGroupRole.manager:
+       return '管理者: ${member.name}';
+     case PurchaseGroupRole.member:
+       return 'メンバー: ${member.name}';
    }
  }
   const MemberListTile({

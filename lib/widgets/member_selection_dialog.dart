@@ -51,6 +51,19 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
       setState(() {
         poolMembers = members;
         isLoadingPool = false;
+        
+        // 選択されているメンバーがすでにグループメンバーなら選択解除
+        if (selectedPoolMember != null) {
+          final currentGroup = ref.read(purchaseGroupProvider).value;
+          final isAlreadyMember = currentGroup?.members?.any(
+            (groupMember) => groupMember.memberId == selectedPoolMember!.memberId || 
+                           groupMember.contact == selectedPoolMember!.contact
+          ) ?? false;
+          
+          if (isAlreadyMember) {
+            selectedPoolMember = null;
+          }
+        }
       });
     } catch (e) {
       setState(() {
@@ -133,37 +146,39 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             // 選択タイプ
-            Row(
+            Column(
               children: [
-                Expanded(
-                  child: Radio<MemberSelectionType>(
-                    value: MemberSelectionType.fromPool,
-                    groupValue: selectedType,
-                    onChanged: (value) {
+                Card(
+                  color: selectedType == MemberSelectionType.fromPool ? Colors.blue.shade50 : null,
+                  child: ListTile(
+                    leading: Icon(
+                      selectedType == MemberSelectionType.fromPool ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                      color: selectedType == MemberSelectionType.fromPool ? Colors.blue : Colors.grey,
+                    ),
+                    title: const Text('プールから選択'),
+                    onTap: () {
                       setState(() {
-                        selectedType = value!;
+                        selectedType = MemberSelectionType.fromPool;
                         showDuplicateConfirmation = false;
                       });
                     },
                   ),
                 ),
-                const Expanded(
-                  child: Text('プールから選択'),
-                ),
-                Expanded(
-                  child: Radio<MemberSelectionType>(
-                    value: MemberSelectionType.newMember,
-                    groupValue: selectedType,
-                    onChanged: (value) {
+                Card(
+                  color: selectedType == MemberSelectionType.newMember ? Colors.blue.shade50 : null,
+                  child: ListTile(
+                    leading: Icon(
+                      selectedType == MemberSelectionType.newMember ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                      color: selectedType == MemberSelectionType.newMember ? Colors.blue : Colors.grey,
+                    ),
+                    title: const Text('新規メンバー'),
+                    onTap: () {
                       setState(() {
-                        selectedType = value!;
+                        selectedType = MemberSelectionType.newMember;
                         showDuplicateConfirmation = false;
                       });
                     },
                   ),
-                ),
-                const Expanded(
-                  child: Text('新規メンバー'),
                 ),
               ],
             ),
@@ -222,16 +237,48 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
         itemCount: poolMembers.length,
         itemBuilder: (context, index) {
           final member = poolMembers[index];
-          return RadioListTile<PurchaseGroupMember>(
-            title: Text(member.name),
-            subtitle: Text('${member.contact} (${member.role.name})'),
-            value: member,
-            groupValue: selectedPoolMember,
-            onChanged: (value) {
-              setState(() {
-                selectedPoolMember = value;
-              });
-            },
+          final isSelected = selectedPoolMember == member;
+          
+          // 現在のグループのメンバーかチェック
+          final currentGroup = ref.watch(purchaseGroupProvider).value;
+          final isAlreadyMember = currentGroup?.members?.any(
+            (groupMember) => groupMember.memberId == member.memberId || 
+                           groupMember.contact == member.contact
+          ) ?? false;
+          
+          return Card(
+            color: isSelected ? Colors.blue.shade50 : 
+                   isAlreadyMember ? Colors.grey.shade100 : null,
+            child: ListTile(
+              enabled: !isAlreadyMember,
+              leading: Icon(
+                isSelected ? Icons.radio_button_checked : 
+                isAlreadyMember ? Icons.block : 
+                Icons.radio_button_unchecked,
+                color: isSelected ? Colors.blue : 
+                       isAlreadyMember ? Colors.grey : 
+                       Colors.grey,
+              ),
+              title: Text(
+                member.name,
+                style: TextStyle(
+                  color: isAlreadyMember ? Colors.grey : null,
+                ),
+              ),
+              subtitle: Text(
+                isAlreadyMember 
+                  ? '${member.contact} (${member.role.name}) - すでにメンバーです'
+                  : '${member.contact} (${member.role.name})',
+                style: TextStyle(
+                  color: isAlreadyMember ? Colors.grey : null,
+                ),
+              ),
+              onTap: isAlreadyMember ? null : () {
+                setState(() {
+                  selectedPoolMember = member;
+                });
+              },
+            ),
           );
         },
       ),
@@ -279,9 +326,21 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
             border: OutlineInputBorder(),
           ),
           items: PurchaseGroupRole.values.map((role) {
+            String roleName;
+            switch (role) {
+              case PurchaseGroupRole.owner:
+                roleName = 'オーナー';
+                break;
+              case PurchaseGroupRole.manager:
+                roleName = '管理者';
+                break;
+              case PurchaseGroupRole.member:
+                roleName = 'メンバー';
+                break;
+            }
             return DropdownMenuItem(
               value: role,
-              child: Text(role == PurchaseGroupRole.owner ? 'オーナー' : 'メンバー'),
+              child: Text(roleName),
             );
           }).toList(),
           onChanged: (value) {
@@ -348,7 +407,16 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
 
   bool _canConfirm() {
     if (selectedType == MemberSelectionType.fromPool) {
-      return selectedPoolMember != null;
+      if (selectedPoolMember == null) return false;
+      
+      // 現在のグループのメンバーかチェック
+      final currentGroup = ref.read(purchaseGroupProvider).value;
+      final isAlreadyMember = currentGroup?.members?.any(
+        (groupMember) => groupMember.memberId == selectedPoolMember!.memberId || 
+                       groupMember.contact == selectedPoolMember!.contact
+      ) ?? false;
+      
+      return !isAlreadyMember;
     } else {
       // 新規メンバーの場合：必要な情報が入力され、かつバリデーションエラーがない
       return nameController.text.isNotEmpty && 
