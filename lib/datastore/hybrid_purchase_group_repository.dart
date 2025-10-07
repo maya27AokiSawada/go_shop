@@ -3,7 +3,7 @@ import 'dart:developer' as developer;
 import '../models/purchase_group.dart';
 import '../datastore/purchase_group_repository.dart';
 import '../datastore/hive_purchase_group_repository.dart';
-import '../datastore/firestore_purchase_group_repository_new.dart';
+import '../datastore/firestore_purchase_group_repository.dart';
 import '../providers/hive_provider.dart';
 import '../flavors.dart';
 
