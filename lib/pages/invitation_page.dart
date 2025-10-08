@@ -123,7 +123,8 @@ class _InvitationPageState extends ConsumerState<InvitationPage> {
     setState(() => _isLoading = true);
 
     try {
-      await _invitationService.acceptInvitation(widget.invitationId);
+      // 新しいAPIでは招待コードを使用
+      await _invitationService.acceptInvitation(inviteCode: widget.invitationId);
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

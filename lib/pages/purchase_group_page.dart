@@ -5,6 +5,7 @@ import '../providers/user_name_provider.dart';
 import '../providers/security_provider.dart';
 import '../models/purchase_group.dart';
 import '../widgets/member_selection_dialog.dart';
+import '../widgets/invitation_dialog.dart';
 import '../helpers/validation_service.dart';
 
 class PurchaseGroupPage extends ConsumerStatefulWidget {
@@ -240,6 +241,15 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                 Text('グループID: ${purchaseGroup.groupId}'),
                 const SizedBox(height: 8),
                 Text('メンバー数: ${purchaseGroup.members?.length ?? 0}'),
+                const SizedBox(height: 16),
+                // 招待ボタン
+                Row(
+                  children: [
+                    Expanded(
+                      child: InviteButton(group: purchaseGroup),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),

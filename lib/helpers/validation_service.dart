@@ -196,11 +196,11 @@ class ValidationService {
     {int? maxLength, bool allowEmpty = false}
   ) {
     if (!allowEmpty && text.trim().isEmpty) {
-      return ValidationResult.error('${fieldName}を入力してください');
+      return ValidationResult.error('$fieldNameを入力してください');
     }
     
     if (maxLength != null && text.trim().length > maxLength) {
-      return ValidationResult.error('${fieldName}は${maxLength}文字以内で入力してください');
+      return ValidationResult.error('$fieldNameは$maxLength文字以内で入力してください');
     }
     
     return ValidationResult.valid();
@@ -213,20 +213,20 @@ class ValidationService {
     {int? min, int? max}
   ) {
     if (numberStr.trim().isEmpty) {
-      return ValidationResult.error('${fieldName}を入力してください');
+      return ValidationResult.error('$fieldNameを入力してください');
     }
     
     final number = int.tryParse(numberStr.trim());
     if (number == null) {
-      return ValidationResult.error('${fieldName}は数値で入力してください');
+      return ValidationResult.error('$fieldNameは数値で入力してください');
     }
     
     if (min != null && number < min) {
-      return ValidationResult.error('${fieldName}は${min}以上で入力してください');
+      return ValidationResult.error('$fieldNameは$min以上で入力してください');
     }
     
     if (max != null && number > max) {
-      return ValidationResult.error('${fieldName}は${max}以下で入力してください');
+      return ValidationResult.error('$fieldNameは$max以下で入力してください');
     }
     
     return ValidationResult.valid();

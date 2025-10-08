@@ -35,9 +35,9 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
         title: const Text('🧪 ハイブリッド同期テスト'),
         backgroundColor: Colors.blue[700],
         foregroundColor: Colors.white,
-        actions: [
+        actions: const [
           Padding(
-            padding: const EdgeInsets.only(right: 16),
+            padding: EdgeInsets.only(right: 16),
             child: SyncStatusWidget(showLabel: true),
           ),
         ],
@@ -129,11 +129,11 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
-                const Icon(Icons.science),
-                const SizedBox(width: 8),
-                const Text(
+                Icon(Icons.science),
+                SizedBox(width: 8),
+                Text(
                   'テスト機能',
                   style: TextStyle(
                     fontSize: 16,
@@ -497,7 +497,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
         
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('📊 Firestore: ${groupCount}グループ (例: $groupNames)'),
+            content: Text('📊 Firestore: $groupCountグループ (例: $groupNames)'),
             backgroundColor: Colors.blue,
             duration: const Duration(seconds: 4),
           ),
@@ -539,8 +539,8 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
       final firestoreCount = groupsSnapshot.docs.length;
       
       String resultMessage = '📋 データ比較結果:\n';
-      resultMessage += '• Hive (ローカル): ${localCount}グループ\n';
-      resultMessage += '• Firestore (クラウド): ${firestoreCount}グループ\n';
+      resultMessage += '• Hive (ローカル): $localCountグループ\n';
+      resultMessage += '• Firestore (クラウド): $firestoreCountグループ\n';
       
       if (localCount == firestoreCount) {
         resultMessage += '✅ データ数は一致しています';
@@ -559,7 +559,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
       for (final doc in groupsSnapshot.docs) {
         final data = doc.data();
         final memberCount = (data['members'] as List?)?.length ?? 0;
-        print('  - ${data['groupName']} (${memberCount} members) [${doc.id}]');
+        print('  - ${data['groupName']} ($memberCount members) [${doc.id}]');
       }
       
       // 最新データの詳細表示

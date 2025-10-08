@@ -107,7 +107,7 @@ class SyncManagementWidget extends ConsumerWidget {
       return const Card(
         child: Padding(
           padding: EdgeInsets.all(16),
-          child:                 const Text(
+          child:                 Text(
                   'ローカルモード（同期機能なし）',
                 ),
         ),
@@ -120,18 +120,18 @@ class SyncManagementWidget extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
-                const Icon(Icons.sync),
-                const SizedBox(width: 8),
-                const Text(
+                Icon(Icons.sync),
+                SizedBox(width: 8),
+                Text(
                   '同期管理',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const Spacer(),
+                Spacer(),
                 SyncStatusWidget(showLabel: true),
               ],
             ),
