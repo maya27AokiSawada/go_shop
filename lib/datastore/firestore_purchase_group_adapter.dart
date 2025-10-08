@@ -213,7 +213,7 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
   @override
   Future<PurchaseGroup> getOrCreateMemberPool() async {
     // TODO: Firestore対応
-    return PurchaseGroup(
+    return const PurchaseGroup(
       groupId: 'memberPool',
       groupName: 'Member Pool',
       members: [],

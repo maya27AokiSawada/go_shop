@@ -4,7 +4,9 @@ import 'package:logger/logger.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'screens/home_screen.dart';
+import 'pages/invitation_accept_page.dart';
 import 'services/user_specific_hive_service.dart';
+import 'services/deep_link_service.dart';
 import 'flavors.dart';
 
 final logger = Logger();
@@ -15,7 +17,7 @@ void main() async {
   final logger = Logger();
   
   // フレーバーの設定
-  F.appFlavor = Flavor.prod; // ハイブリッド同期テストのためPRODモード
+  F.appFlavor = Flavor.prod; // 招待機能テストのためPRODモード
   
   // Firebase初期化
   if (F.appFlavor == Flavor.prod) {
@@ -53,6 +55,17 @@ class MyApp extends StatelessWidget {
       ),
       debugShowCheckedModeBanner: F.appFlavor != Flavor.prod,
       home: const HomeScreen(),
+      routes: {
+        '/invitation_accept': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments as Map<String, String>;
+          return InvitationAcceptPage(inviteCode: args['inviteCode']!);
+        },
+      },
+      builder: (context, child) {
+        // アプリ起動時にディープリンクを初期化
+        DeepLinkService.initializeDeepLinks(context);
+        return child!;
+      },
     );
   }
 }

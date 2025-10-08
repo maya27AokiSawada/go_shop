@@ -19,7 +19,7 @@ class _HelpPageState extends ConsumerState<HelpPage> {
   
   // ヘルプセクション
   final List<HelpSection> _helpSections = [
-    HelpSection(
+    const HelpSection(
       title: '📋 はじめに',
       content: '''
 # Go Shop へようこそ！
@@ -36,7 +36,7 @@ Go Shop は家族やグループで買い物リストを共有できるアプリ
       keywords: ['はじめに', '概要', '機能', 'Go Shop'],
     ),
     
-    HelpSection(
+    const HelpSection(
       title: '👥 グループ管理',
       content: '''
 # グループ管理
@@ -71,7 +71,7 @@ Go Shop は家族やグループで買い物リストを共有できるアプリ
       keywords: ['グループ', 'メンバー', '追加', '削除', '役割', 'オーナー', '管理者'],
     ),
     
-    HelpSection(
+    const HelpSection(
       title: '🛒 買い物リスト',
       content: '''
 # 買い物リスト
@@ -108,7 +108,7 @@ Go Shop は家族やグループで買い物リストを共有できるアプリ
       keywords: ['買い物', 'リスト', 'アイテム', '追加', '削除', '購入', '定期購入', 'クリア'],
     ),
     
-    HelpSection(
+    const HelpSection(
       title: '⚙️ 設定とカスタマイズ',
       content: '''
 # 設定とカスタマイズ
@@ -135,7 +135,7 @@ Go Shop は家族やグループで買い物リストを共有できるアプリ
       keywords: ['設定', 'ユーザー名', '変更', '通知', 'バックアップ', '同期', 'バージョン'],
     ),
     
-    HelpSection(
+    const HelpSection(
       title: '🔧 トラブルシューティング',
       content: '''
 # トラブルシューティング
@@ -180,7 +180,7 @@ A: はい。すべてのデータは暗号化されてクラウドに保存さ�
       keywords: ['トラブル', 'エラー', '起動しない', '同期されない', 'よくある質問', 'FAQ', '問題', '解決'],
     ),
     
-    HelpSection(
+    const HelpSection(
       title: '📱 便利な使い方',
       content: '''
 # 便利な使い方
@@ -513,7 +513,7 @@ A: はい。すべてのデータは暗号化されてクラウドに保存さ�
               children: [
                 const Text('• '),
                 Text(
-                  parts[0].replaceAll('**', '') + ':',
+                  '${parts[0].replaceAll('**', '')}:',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 Expanded(

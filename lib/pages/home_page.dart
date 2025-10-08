@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
 import 'dart:io' show Platform;
 import 'dart:developer' as developer;
@@ -45,6 +46,8 @@ class _HomePageState extends ConsumerState<HomePage> {
   final _formKey = GlobalKey<FormState>();
   final _userNameFormKey = GlobalKey<FormState>(); // ユーザー名編集用のFormKey
   bool showSignInForm = false;
+  bool _isPasswordVisible = false; // パスワード表示状態
+  bool _isPasswordResetLoading = false; // パスワードリセット中の状態
 
   @override
   void initState() {
@@ -542,11 +545,22 @@ class _HomePageState extends ConsumerState<HomePage> {
                           
                           TextFormField(
                             controller: passwordController,
-                            decoration: const InputDecoration(
+                            decoration: InputDecoration(
                               labelText: 'パスワード',
-                              border: OutlineInputBorder(),
+                              border: const OutlineInputBorder(),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _isPasswordVisible = !_isPasswordVisible;
+                                  });
+                                },
+                                tooltip: _isPasswordVisible ? 'パスワードを隠す' : 'パスワードを表示',
+                              ),
                             ),
-                            obscureText: true,
+                            obscureText: !_isPasswordVisible,
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'パスワードを入力してください';
@@ -567,6 +581,28 @@ class _HomePageState extends ConsumerState<HomePage> {
                               }
                             },
                             child: const Text('ログイン'),
+                          ),
+                          const SizedBox(height: 8),
+                          
+                          // パスワードリセットリンク
+                          TextButton(
+                            onPressed: _isPasswordResetLoading ? null : () async {
+                              await _sendPasswordResetEmail();
+                            },
+                            child: _isPasswordResetLoading 
+                                ? const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text('送信中...'),
+                                    ],
+                                  )
+                                : const Text('パスワードを忘れた場合'),
                           ),
                           const SizedBox(height: 8),
                           
@@ -1629,6 +1665,87 @@ class _HomePageState extends ConsumerState<HomePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('ユーザー名を入力してください')),
         );
+      }
+    }
+  }
+
+  /// パスワードリセットメール送信
+  Future<void> _sendPasswordResetEmail() async {
+    final email = emailController.text.trim();
+    
+    if (email.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('パスワードリセットにはメールアドレスが必要です'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
+    if (!email.contains('@')) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('有効なメールアドレスを入力してください'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() {
+      _isPasswordResetLoading = true;
+    });
+
+    try {
+      // Firebase Auth パスワードリセット
+      if (F.appFlavor == Flavor.prod) {
+        await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      } else {
+        // Dev環境では模擬処理
+        await Future.delayed(const Duration(seconds: 1));
+        logger.i('🔄 Dev環境: パスワードリセットメール送信模擬完了');
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('パスワードリセットメールを $email に送信しました'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      logger.e('❌ パスワードリセット送信エラー: $e');
+      
+      String errorMessage = 'パスワードリセットに失敗しました';
+      if (e.toString().contains('user-not-found')) {
+        errorMessage = 'このメールアドレスは登録されていません';
+      } else if (e.toString().contains('invalid-email')) {
+        errorMessage = 'メールアドレスの形式が正しくありません';
+      } else if (e.toString().contains('too-many-requests')) {
+        errorMessage = 'リクエストが多すぎます。しばらく待ってから再試行してください';
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPasswordResetLoading = false;
+        });
       }
     }
   }
