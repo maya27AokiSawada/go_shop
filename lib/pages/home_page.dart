@@ -1783,7 +1783,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         const Text('• メンバー管理'),
         const SizedBox(height: 16),
         const Text('開発者: 金ヶ江 真也 ファーティマ (Maya Fatima Kanagae)'),
-        const Text('お問い合わせ: maya27.kanagae@example.com'),
+        const Text('お問い合わせ: fatima.sumomo@gmail.com'),
         const SizedBox(height: 16),
         const Text('© 2024 Go Shop. All rights reserved.'),
       ],

@@ -145,7 +145,7 @@ Go Shop は家族やグループで買い物リストをリアルタイム共有
 
 **金ヶ江 真也 ファーティマ (Maya Fatima Kanagae)**
 - GitHub: [@maya27AokiSawada](https://github.com/maya27AokiSawada)
-- Email: maya27.kanagae@example.com
+- Email: fatima.sumomo@gmail.com
 
 ---
 

@@ -346,7 +346,7 @@ Go Shopは自動的にデータを同期します：
 
 ### お問い合わせ
 - **開発者**: 金ヶ江 真也 ファーティマ (Maya Fatima Kanagae)
-- **メール**: maya27.kanagae@example.com
+- **メール**: fatima.sumomo@gmail.com
 - **GitHubリポジトリ**: https://github.com/maya27AokiSawada/go_shop
 
 ### 問題報告時に必要な情報
