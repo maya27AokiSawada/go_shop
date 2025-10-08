@@ -1,16 +1,162 @@
-# go_shop
+# Go Shop - 家族向け買い物リスト共有アプリ
 
-A new Flutter project.
+**開発者**: 金ヶ江 真也 ファーティマ (Maya Fatima Kanagae)
 
-## Getting Started
+## 🎯 プロジェクト概要
 
-This project is a starting point for a Flutter application.
+Go Shop は家族やグループで買い物リストをリアルタイム共有できるFlutter デスクトップアプリケーションです。Firebase との ハイブリッド同期システムにより、オフライン時も快適に利用でき、オンライン復帰時に自動同期されます。
 
-A few resources to get you started if this is your first Flutter project:
+## 🛠️ 技術スタック
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+### **フロントエンド**
+- **Flutter 3.35.5** - Windows Desktop アプリケーション
+- **Riverpod 2.6.1** - 状態管理
+- **Hive** - ローカルデータベース（キャッシュ）
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### **バックエンド・インフラ**
+- **Firebase** - クラウドデータベース・認証
+- **Firestore** - NoSQLドキュメントデータベース
+- **Firebase Auth** - ユーザー認証システム
+
+### **アーキテクチャパターン**
+- **Repository Pattern** - データアクセス層の抽象化
+- **Hybrid Sync System** - オフライン・オンライン対応
+- **Provider Pattern** - 依存性注入・状態管理
+
+## 🚀 主要機能
+
+### 📋 **グループ管理**
+- グループ作成・削除
+- メンバー招待・役割管理（オーナー・管理者・メンバー）
+- 権限ベースのアクセス制御
+
+### 🛒 **買い物リスト管理**
+- アイテム追加・編集・削除
+- 購入状態の切り替え
+- 定期購入アイテム設定
+- リストの一括クリア
+
+### 🔄 **リアルタイム同期**
+- Firebase Firestore によるリアルタイム同期
+- オフライン時は Hive によるローカル保存
+- オンライン復帰時の自動データ同期
+- 競合解決機能
+
+### 📖 **ヘルプシステム**
+- 内蔵ヘルプ（6つの主要セクション）
+- 外部マークダウンファイル対応
+- 検索機能付きヘルプ
+- 操作ガイド・FAQ
+
+## 🏗️ システム アーキテクチャ
+
+### **ハイブリッド同期システム**
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   UI Layer      │    │   Repository     │    │   Data Layer    │
+│   (Flutter)     │◄──►│   Pattern        │◄──►│   (Hive +       │
+│                 │    │                  │    │    Firestore)   │
+├─────────────────┤    ├──────────────────┤    ├─────────────────┤
+│ • Pages         │    │ • Abstract Repo  │    │ • Hive Cache    │
+│ • Widgets       │    │ • Hybrid Repo    │    │ • Firebase Sync │
+│ • Providers     │    │ • Cache Strategy │    │ • Data Models   │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+```
+
+### **データフロー**
+1. **オフライン時**: UI ↔ Repository ↔ Hive (ローカル)
+2. **オンライン時**: UI ↔ Repository ↔ Hive + Firestore (同期)
+3. **競合解決**: タイムスタンプベースのマージ処理
+
+## 💻 開発環境構築
+
+### **前提条件**
+- Flutter SDK 3.35.5+
+- Windows 10/11
+- Firebase プロジェクト
+
+### **セットアップ手順**
+
+1. **リポジトリクローン**
+   ```bash
+   git clone https://github.com/maya27AokiSawada/go_shop.git
+   cd go_shop
+   ```
+
+2. **依存関係インストール**
+   ```bash
+   flutter pub get
+   ```
+
+3. **Firebase設定**
+   ```bash
+   # firebase_options.dart に実際の設定値を記入
+   # (セキュリティのため、リポジトリにはダミー値を配置)
+   ```
+
+4. **アプリ実行**
+   ```bash
+   flutter run -d windows
+   ```
+
+## 🤔 技術的チャレンジと解決策
+
+### **チャレンジ1: オフライン・オンライン対応**
+**課題**: ネットワーク状況に関係なく快適な操作を実現  
+**解決策**: Hive によるローカルキャッシュと Firebase の組み合わせによるハイブリッド同期システム
+
+### **チャレンジ2: データ競合の解決**
+**課題**: 複数ユーザーが同時編集した際のデータ整合性  
+**解決策**: タイムスタンプベースの競合解決とマージ処理
+
+### **チャレンジ3: 状態管理の複雑性**
+**課題**: 複数のデータソース（Hive + Firestore）の状態管理  
+**解決策**: Riverpod の AsyncNotifierProvider を活用した統一的な状態管理
+
+## 📚 学習成果
+
+### **技術スキル**
+- Flutter による デスクトップアプリ開発
+- Firebase 統合とリアルタイム同期
+- 複雑な状態管理（Riverpod）
+- Repository パターンによる設計
+
+### **設計スキル**
+- ユーザー中心設計（UCD）
+- アクセシビリティ考慮
+- エラーハンドリング戦略
+- データモデリング
+
+## 🚀 今後の展開
+
+### **短期的改善**
+- [ ] Android/iOS版の開発
+- [ ] プッシュ通知機能
+- [ ] 商品画像添付機能
+- [ ] 予算管理機能
+
+### **長期的展開**
+- [ ] 機械学習による商品推薦
+- [ ] 在庫管理システム連携
+- [ ] 小売店舗との API 連携
+- [ ] 多言語対応
+
+## 👤 開発者情報
+
+**金ヶ江 真也 ファーティマ (Maya Fatima Kanagae)**
+- GitHub: [@maya27AokiSawada](https://github.com/maya27AokiSawada)
+- Email: maya27.kanagae@example.com
+
+---
+
+### 🎯 プロジェクトハイライト
+
+このプロジェクトは、実用的なアプリケーション開発を通じて以下のスキルを実証しています：
+
+- **フルスタック開発**: フロントエンド（Flutter）+ バックエンド（Firebase）
+- **クラウドネイティブ**: Firebase を活用したサーバーレス アーキテクチャ
+- **UX/UI デザイン**: ユーザー中心の直感的なインターフェース設計
+- **データ設計**: 効率的なNoSQLデータモデリング
+- **品質管理**: テスト戦略とドキュメント作成
+
+*このプロジェクトが私の技術力と問題解決能力を示す代表作となることを願っています。*
