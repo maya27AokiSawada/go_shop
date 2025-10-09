@@ -37,23 +37,35 @@ class _InvitationDialogState extends ConsumerState<InvitationDialog> {
       _isLoading = true;
     });
     try {
-      final repo = ref.read(purchaseGroupRepositoryProvider);
-      await repo.syncMemberPool();
-      final pool = await repo.getOrCreateMemberPool();
       final group = widget.group;
-      final groupMemberIds = (group.members ?? []).map((m) => m.memberId).toSet();
-      final groupContacts = (group.members ?? []).map((m) => m.contact).toSet();
-    bool isFirebaseUid(String id) {
-    // Firebase UIDは28文字の英数字
-    final reg = RegExp(r'^[A-Za-z0-9]{28}$');
-    return reg.hasMatch(id);
-    }
-    final candidates = (pool.members ?? [])
-      .where((m) =>
-        !groupMemberIds.contains(m.memberId) &&
-        !groupContacts.contains(m.contact) &&
-        !isFirebaseUid(m.memberId))
-      .toList();
+      
+      bool isFirebaseUid(String id) {
+        // Firebase UIDは28文字の英数字
+        final reg = RegExp(r'^[A-Za-z0-9]{28}$');
+        return reg.hasMatch(id);
+      }
+      
+      // 購入グループのメンバーリストから招待候補者を選択
+      final candidates = (group.members ?? [])
+        .where((m) {
+          // 既に招待受諾済み（参加済み）のユーザーは除外
+          if (m.isInvitationAccepted) {
+            return false;
+          }
+          
+          // 🔧 デバッグ: メンバー情報をログ出力
+          print('📋 メンバー: ${m.name}, memberId: ${m.memberId}, isInvited: ${m.isInvited}, isInvitationAccepted: ${m.isInvitationAccepted}');
+          
+          // Firebase UIDを持つユーザー（既にサインイン済み）は除外
+          // ただし、実際のサインイン状態（isSignedIn）もチェック
+          if (isFirebaseUid(m.memberId) && m.isSignedIn) {
+            return false;
+          }
+          
+          // 未招待または招待中のユーザーを表示
+          return true;
+        })
+        .toList();
       setState(() {
         _candidateMembers = candidates;
         _selectedMember = candidates.isNotEmpty ? candidates.first : null;
@@ -71,6 +83,37 @@ class _InvitationDialogState extends ConsumerState<InvitationDialog> {
     }
   }
 
+
+  /// グループメンバーの招待状態を更新
+  Future<void> _updateGroupMemberInvitationStatus(PurchaseGroupMember member, String inviteCode) async {
+    try {
+      final group = widget.group;
+      
+      // 該当メンバーの状態を更新
+      final updatedMembers = (group.members ?? []).map((m) {
+        if (m.memberId == member.memberId || m.contact == member.contact) {
+          return m.copyWith(
+            isInvited: true,
+            isInvitationAccepted: false,
+            invitedAt: DateTime.now(),
+          );
+        }
+        return m;
+      }).toList();
+      
+      final updatedGroup = group.copyWith(members: updatedMembers);
+      
+      // グループを更新
+      final repo = ref.read(purchaseGroupRepositoryProvider);
+      await repo.updateGroup(group.groupId, updatedGroup);
+      
+      // Providerを無効化して再読み込みを促す
+      ref.invalidate(purchaseGroupProvider);
+    } catch (e) {
+      print('⚠️ グループメンバー更新エラー: $e');
+      // エラーが発生してもメール送信は成功しているので、続行
+    }
+  }
 
   Future<void> _sendInvitation() async {
     if (_selectedMember == null) {
@@ -109,11 +152,19 @@ class _InvitationDialogState extends ConsumerState<InvitationDialog> {
         groupId: widget.group.groupId,
         groupName: widget.group.groupName,
         inviteeEmail: _selectedMember!.contact,
+        inviterName: 'Go Shop User', // TODO: 実際のユーザー名に置き換える
       );
+      // 招待成功後、メンバープールの状態を更新
+      await _updateGroupMemberInvitationStatus(_selectedMember!, inviteCode);
+      
       setState(() {
         _generatedCode = inviteCode;
         _isLoading = false;
       });
+      
+      // 候補リストを再読み込みして表示を更新
+      await _loadCandidateMembers();
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -143,13 +194,25 @@ class _InvitationDialogState extends ConsumerState<InvitationDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'グループ「${widget.group.groupName}」に招待',
-              style: Theme.of(context).textTheme.titleLarge,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    'グループ「${widget.group.groupName}」に招待',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close),
+                  tooltip: 'キャンセル',
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             Text(
-              '未認証ユーザーの中から招待したいユーザー名を選択してください。\n（すでに認証済みのユーザーやグループ参加済みユーザーは表示されません）',
+              '招待したいユーザー名を選択してください。\n• [招待中] マークがあるユーザーは再送確認が表示されます\n• 既にグループ参加済み・認証済みのユーザーは表示されません',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Colors.grey[600],
               ),
@@ -158,14 +221,66 @@ class _InvitationDialogState extends ConsumerState<InvitationDialog> {
             if (_isLoading)
               const Center(child: CircularProgressIndicator()),
             if (!_isLoading && _candidateMembers.isEmpty)
-              const Text('招待可能な未認証ユーザーがいません'),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  border: Border.all(color: Colors.grey[300]!),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.blue),
+                        SizedBox(width: 8),
+                        Text(
+                          '招待可能なユーザーがいません',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '• 新しいメンバーをメンバープールに追加してください\n• 既に参加済みのユーザーは表示されません\n• 認証済み（Firebase UID）のユーザーは表示されません',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             if (!_isLoading && _candidateMembers.isNotEmpty)
               DropdownButtonFormField<PurchaseGroupMember>(
                 initialValue: _selectedMember,
-                items: _candidateMembers.map((m) => DropdownMenuItem(
-                  value: m,
-                  child: Text('${m.name}（${m.contact}）'),
-                )).toList(),
+                items: _candidateMembers.map((m) {
+                  // 招待状態を確認
+                  final isInvited = m.isInvited && !m.isInvitationAccepted;
+                  final statusText = isInvited ? ' [招待中]' : '';
+                  final textColor = isInvited ? Colors.orange : null;
+                  
+                  return DropdownMenuItem(
+                    value: m,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${m.name}（${m.contact}）$statusText',
+                            style: TextStyle(color: textColor),
+                          ),
+                        ),
+                        if (isInvited)
+                          const Icon(
+                            Icons.mail_outline,
+                            size: 16,
+                            color: Colors.orange,
+                          ),
+                      ],
+                    ),
+                  );
+                }).toList(),
                 onChanged: _isLoading ? null : (member) {
                   setState(() {
                     _selectedMember = member;
@@ -217,22 +332,26 @@ class _InvitationDialogState extends ConsumerState<InvitationDialog> {
             ],
             const SizedBox(height: 24),
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                TextButton(
-                  onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
-                  child: const Text('キャンセル'),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+                    child: const Text('キャンセル'),
+                  ),
                 ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: _isLoading || _selectedMember == null ? null : _sendInvitation,
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('招待を送信'),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _isLoading || _selectedMember == null ? null : _sendInvitation,
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Text('招待を送信'),
+                  ),
                 ),
               ],
             ),

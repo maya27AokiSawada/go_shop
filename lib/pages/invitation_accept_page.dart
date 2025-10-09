@@ -63,17 +63,15 @@ class _InvitationAcceptPageState extends ConsumerState<InvitationAcceptPage> {
 
     try {
       final invitationService = ref.read(invitationServiceProvider);
-      final result = await invitationService.acceptInvitation(
-        inviteCode: widget.inviteCode,
-      );
+      await invitationService.acceptInvitation(widget.inviteCode);
 
       if (mounted) {
         // グループリストを更新
         ref.invalidate(allGroupsProvider);
         
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('「${result['groupName']}」グループに参加しました！'),
+          const SnackBar(
+            content: Text('グループに参加しました！'),
             backgroundColor: Colors.green,
           ),
         );

@@ -5,7 +5,7 @@ import '../providers/user_name_provider.dart';
 import '../providers/security_provider.dart';
 import '../models/purchase_group.dart';
 import '../widgets/member_selection_dialog.dart';
-import '../widgets/invitation_dialog.dart';
+import '../widgets/auto_invite_button.dart';
 import '../helpers/validation_service.dart';
 
 class PurchaseGroupPage extends ConsumerStatefulWidget {
@@ -246,7 +246,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                 Row(
                   children: [
                     Expanded(
-                      child: InviteButton(group: purchaseGroup),
+                      child: AutoInviteButton(group: purchaseGroup),
                     ),
                   ],
                 ),
@@ -286,8 +286,67 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                                  member.role == PurchaseGroupRole.manager ? Colors.blue :
                                  null,
                         ),
-                        title: Text(member.name),
-                        subtitle: Text('${_getRoleDisplayName(member.role)} - ${member.contact}'),
+                        title: Row(
+                          children: [
+                            Text(member.name),
+                            const SizedBox(width: 8),
+                            if (member.isInvited && !member.isInvitationAccepted)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange[100],
+                                  border: Border.all(color: Colors.orange),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Text(
+                                  '招待中',
+                                  style: TextStyle(fontSize: 10, color: Colors.orange),
+                                ),
+                              ),
+                            if (member.isInvited && member.isInvitationAccepted)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.green[100],
+                                  border: Border.all(color: Colors.green),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Text(
+                                  '参加済み',
+                                  style: TextStyle(fontSize: 10, color: Colors.green),
+                                ),
+                              ),
+                            if (!member.isInvited)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[100],
+                                  border: Border.all(color: Colors.grey),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Text(
+                                  '未招待',
+                                  style: TextStyle(fontSize: 10, color: Colors.grey),
+                                ),
+                              ),
+                          ],
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('${_getRoleDisplayName(member.role)} - ${member.contact}'),
+                            if (member.invitedAt != null)
+                              Text(
+                                '招待日時: ${member.invitedAt!.toLocal().toString().substring(0, 16)}',
+                                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              ),
+                            if (member.acceptedAt != null)
+                              Text(
+                                '参加日時: ${member.acceptedAt!.toLocal().toString().substring(0, 16)}',
+                                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              ),
+                          ],
+                        ),
                         trailing: isCurrentUser ? const Icon(Icons.check_circle, color: Colors.green) : null,
                         onTap: () => _editMember(member, index),
                         onLongPress: member.role != PurchaseGroupRole.owner 

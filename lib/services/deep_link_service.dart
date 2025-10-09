@@ -124,12 +124,15 @@ class DeepLinkService {
       }
 
       // 招待を受諾
-      final result = await invitationService.acceptInvitation(
-        inviteCode: inviteCode,
-      );
-
-      _logger.i('✅ Invitation accepted successfully: ${result['groupName']}');
-      return result;
+      final success = await invitationService.acceptInvitation(inviteCode);
+      
+      if (success) {
+        _logger.i('✅ Invitation accepted successfully');
+        return invitationInfo;
+      } else {
+        _logger.w('⚠️ Failed to accept invitation');
+        return null;
+      }
       
     } catch (e) {
       _logger.e('❌ Failed to handle invitation link: $e');

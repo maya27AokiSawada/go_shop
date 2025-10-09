@@ -238,28 +238,32 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
   }
 
   // =================================================================
-  // メンバープール（ローカル優先）
+  // メンバープール（ローカル専用 - 個人情報保護）
   // =================================================================
-
+  
+  /// メンバープールは個人情報保護の観点からHiveローカルDBにのみ保存
+  /// Firestoreには一切同期しない
   @override
   Future<PurchaseGroup> getOrCreateMemberPool() async {
-    // メンバープールはローカル専用
+    // 🔒 個人情報保護: メンバープールはローカルのみ
     return await _hiveRepo.getOrCreateMemberPool();
   }
 
   @override
   Future<void> syncMemberPool() async {
-    // メンバープールはローカル専用
+    // 🔒 個人情報保護: メンバープールはローカルのみ
     return await _hiveRepo.syncMemberPool();
   }
 
   @override
   Future<List<PurchaseGroupMember>> searchMembersInPool(String query) async {
+    // 🔒 個人情報保護: メンバープールはローカルのみ
     return await _hiveRepo.searchMembersInPool(query);
   }
 
   @override
   Future<PurchaseGroupMember?> findMemberByEmail(String email) async {
+    // 🔒 個人情報保護: メンバープールはローカルのみ
     return await _hiveRepo.findMemberByEmail(email);
   }
 

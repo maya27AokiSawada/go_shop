@@ -131,24 +131,26 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
     }
   }
 
-  // メンバープール関連（Firestoreでは未実装）
+  // 🔒 メンバープール関連（個人情報保護のため Firestore では実装しない）
   @override
   Future<PurchaseGroup> getOrCreateMemberPool() async {
-    throw UnimplementedError('Member pool not supported in Firestore mode');
+    throw UnimplementedError('🔒 Member pool is local-only for privacy protection');
   }
 
   @override
   Future<void> syncMemberPool() async {
-    // Firestoreでは不要
+    // 🔒 個人情報保護: メンバープールはFirestoreに同期しない
   }
 
   @override
   Future<List<PurchaseGroupMember>> searchMembersInPool(String query) async {
+    // 🔒 個人情報保護: メンバープールはローカルのみ
     return [];
   }
 
   @override
   Future<PurchaseGroupMember?> findMemberByEmail(String email) async {
+    // 🔒 個人情報保護: メンバープールはローカルのみ
     return null;
   }
 
