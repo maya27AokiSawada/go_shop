@@ -20,8 +20,13 @@ import '../models/shopping_list.dart';
 import '../flavors.dart';
 import '../helper/firebase_diagnostics.dart';
 import '../widgets/user_data_migration_dialog.dart';
+import '../widgets/ad_banner_widget.dart';
+import '../widgets/news_widget.dart';
+import '../widgets/payment_reminder_widget.dart';
+import '../providers/subscription_provider.dart';
 import 'hybrid_sync_test_page.dart';
 import 'help_page.dart';
+import 'premium_page.dart';
 
 final logger = Logger();
 
@@ -424,6 +429,13 @@ class _HomePageState extends ConsumerState<HomePage> {
             icon: const Icon(Icons.more_vert),
             onSelected: (String value) {
               switch (value) {
+                case 'premium':
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const PremiumPage(),
+                    ),
+                  );
+                  break;
                 case 'help':
                   Navigator.of(context).push(
                     MaterialPageRoute(
@@ -437,6 +449,16 @@ class _HomePageState extends ConsumerState<HomePage> {
               }
             },
             itemBuilder: (BuildContext context) => [
+              const PopupMenuItem<String>(
+                value: 'premium',
+                child: Row(
+                  children: [
+                    Icon(Icons.star, color: Colors.amber),
+                    SizedBox(width: 8),
+                    Text('プレミアム'),
+                  ],
+                ),
+              ),
               const PopupMenuItem<String>(
                 value: 'help',
                 child: Row(
@@ -468,13 +490,15 @@ class _HomePageState extends ConsumerState<HomePage> {
           return authState.when(
             data: (user) {
               if (!_isUserLoggedIn(user)) { // 未ログイン状態ならサインイン・サインアップボタンを表示
-                return Padding(
+                return SingleChildScrollView(
                   padding: const EdgeInsets.all(16.0),
                   child: Form(
                     key: _formKey,
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        // � 未ログイン時もニュース表示
+                        const NewsWidget(),
                         // 未ログイン状態では常にユーザー名入力欄を表示
                         Consumer(
                           builder: (context, ref, child) {
@@ -656,7 +680,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               } else {
                 // ログイン済みUI
                 final savedUserName = ref.watch(userNameProvider);
-                return Padding(
+                return SingleChildScrollView(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -665,7 +689,17 @@ class _HomePageState extends ConsumerState<HomePage> {
                         'ようこそ、${savedUserName ?? _getUserEmail(user) ?? "ユーザー"}さん',
                         style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                       ),
-                      const SizedBox(height: 30),
+                      const SizedBox(height: 20),
+                      
+                      // � Firestoreニュース表示
+                      const NewsWidget(),
+                      
+                      // 💳 支払いリマインダー（認証済みユーザー向け）
+                      const PaymentReminderWidget(),
+                      
+                      // 📱 ホーム画面広告バナー
+                      const HomeAdBannerWidget(),
+                      const SizedBox(height: 20),
                       
                       // ユーザー名編集セクション
                       Card(
@@ -1368,6 +1402,24 @@ class _HomePageState extends ConsumerState<HomePage> {
           if (currentUserName != null && currentUserName!.isNotEmpty) {
             logger.i('🔧 サインアップ後のuserInfoSave()を実行します...');
             await userInfoSave(); // メールアドレスを含む情報を更新
+            
+            // 🎉 サインアップ時に1か月間の無料期間を開始
+            try {
+              await ref.read(subscriptionProvider.notifier).startSignupFreePeriod();
+              logger.i('🎉 サインアップ特典: 1か月間の無料期間を開始しました');
+              
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('🎉 サインアップありがとうございます！1か月間広告なしでご利用いただけます'),
+                    backgroundColor: Colors.green,
+                    duration: Duration(seconds: 4),
+                  ),
+                );
+              }
+            } catch (e) {
+              logger.e('❌ 無料期間開始エラー: $e');
+            }
             
             // 強制的にプロバイダーを再読み込みして最新のデータを反映
             ref.invalidate(purchaseGroupProvider);

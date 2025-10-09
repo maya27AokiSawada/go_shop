@@ -6,6 +6,7 @@ import 'dart:io';
 import '../models/purchase_group.dart';
 import '../models/shopping_list.dart';
 import '../models/user_settings.dart';
+import '../models/invitation.dart';
 
 final logger = Logger();
 
@@ -51,8 +52,9 @@ class UserSpecificHiveService {
       Hive.registerAdapter(PurchaseGroupAdapter());
       Hive.registerAdapter(ShoppingItemAdapter());
       Hive.registerAdapter(ShoppingListAdapter());
+      Hive.registerAdapter(InvitationAdapter());
       Hive.registerAdapter(UserSettingsAdapter());
-      logger.i('📝 Hive adapters registered globally');
+      logger.i('📝 Hive adapters registered globally (including Invitation)');
     }
   }
   
@@ -167,7 +169,7 @@ class UserSpecificHiveService {
       logger.i('📦 Attempting to close all Hive boxes safely...');
       
       // 個別のBoxを順次閉じる（Hive.close()は使わない）
-      final boxesToClose = ['purchaseGroups', 'shoppingLists', 'userSettings'];
+      final boxesToClose = ['purchaseGroups', 'shoppingLists', 'userSettings', 'subscriptions'];
       
       for (String boxName in boxesToClose) {
         try {
@@ -206,6 +208,9 @@ class UserSpecificHiveService {
       
       logger.i('📦 Opening UserSettings box...');
       await Hive.openBox<UserSettings>('userSettings');
+      
+      logger.i('📦 Opening Subscriptions box...');
+      await Hive.openBox<Map>('subscriptions');
       
       logger.i('📦 All user-specific boxes opened successfully');
     } catch (e) {
