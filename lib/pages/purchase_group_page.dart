@@ -5,7 +5,8 @@ import '../providers/user_name_provider.dart';
 import '../providers/security_provider.dart';
 import '../models/purchase_group.dart';
 import '../widgets/member_selection_dialog.dart';
-import '../widgets/auto_invite_button.dart';
+// import '../widgets/auto_invite_button.dart'; // QRコード招待に変更
+import '../widgets/qr_invitation_widgets.dart';
 import '../helpers/validation_service.dart';
 
 class PurchaseGroupPage extends ConsumerStatefulWidget {
@@ -242,7 +243,25 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                 const SizedBox(height: 8),
                 Text('メンバー数: ${purchaseGroup.members?.length ?? 0}'),
                 const SizedBox(height: 16),
-                // 招待ボタン
+                // QRコード招待ボタン
+                Row(
+                  children: [
+                    Expanded(
+                      child: QRInviteButton(
+                        shoppingListId: 'default_shopping_list', // TODO: 実際のShoppingListIDを取得
+                        purchaseGroupId: purchaseGroup.groupId,
+                        customMessage: '${purchaseGroup.groupName}グループへの招待です',
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: QRScanButton(),
+                    ),
+                  ],
+                ),
+                
+                // メール招待（コメントアウト）
+                /*
                 Row(
                   children: [
                     Expanded(
@@ -250,6 +269,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                     ),
                   ],
                 ),
+                */
               ],
             ),
           ),

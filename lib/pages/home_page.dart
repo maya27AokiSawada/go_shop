@@ -23,7 +23,8 @@ import '../widgets/user_data_migration_dialog.dart';
 import '../widgets/ad_banner_widget.dart';
 import '../widgets/news_widget.dart';
 import '../widgets/payment_reminder_widget.dart';
-import '../widgets/email_test_button.dart';
+// import '../widgets/email_test_button.dart'; // QRコード招待に変更
+import '../widgets/qr_invitation_widgets.dart';
 import '../providers/subscription_provider.dart';
 import 'hybrid_sync_test_page.dart';
 import 'help_page.dart';
@@ -797,6 +798,30 @@ class _HomePageState extends ConsumerState<HomePage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
+                                '🔗 QRコード招待システム',
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'QRコードで簡単にグループ招待・参加',
+                                style: TextStyle(fontSize: 12, color: Colors.grey),
+                              ),
+                              const SizedBox(height: 16),
+                              
+                              // QRコード招待ボタン（サンプル用）
+                              QRInviteButton(
+                                shoppingListId: 'sample_list_id',
+                                purchaseGroupId: 'sample_group_id',
+                                customMessage: 'Go Shopグループへようこそ！',
+                              ),
+                              const SizedBox(height: 12),
+                              
+                              // QRコード読み取りボタン
+                              const QRScanButton(),
+                              
+                              // メール送信テスト（コメントアウト）
+                              /*
+                              const Text(
                                 '🧪 メール送信テスト',
                                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                               ),
@@ -809,6 +834,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                               const EmailTestButton(),
                               const SizedBox(height: 12),
                               const EmailDiagnosticsWidget(),
+                              */
                             ],
                           ),
                         ),
