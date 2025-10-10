@@ -23,6 +23,7 @@ import '../widgets/user_data_migration_dialog.dart';
 import '../widgets/ad_banner_widget.dart';
 import '../widgets/news_widget.dart';
 import '../widgets/payment_reminder_widget.dart';
+import '../widgets/email_test_button.dart';
 import '../providers/subscription_provider.dart';
 import 'hybrid_sync_test_page.dart';
 import 'help_page.dart';
@@ -782,6 +783,33 @@ class _HomePageState extends ConsumerState<HomePage> {
                                 ),
                               ],
                             ),
+                          ),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 20),
+                      
+                      // 🧪 メール送信テストセクション
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                '🧪 メール送信テスト',
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'Firebase Extensions Trigger Email の動作確認用',
+                                style: TextStyle(fontSize: 12, color: Colors.grey),
+                              ),
+                              const SizedBox(height: 16),
+                              const EmailTestButton(),
+                              const SizedBox(height: 12),
+                              const EmailDiagnosticsWidget(),
+                            ],
                           ),
                         ),
                       ),
