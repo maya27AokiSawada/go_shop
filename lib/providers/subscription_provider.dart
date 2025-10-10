@@ -245,7 +245,7 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
   String get paymentReminderMessage {
     final remainingDays = state.remainingTrialDays;
     if (remainingDays > 0) {
-      return '無料期間は残り${remainingDays}日です。継続利用には課金が必要になります。';
+      return '無料期間は残り$remainingDays日です。継続利用には課金が必要になります。';
     } else {
       return '無料期間が終了しました。プレミアムプランにアップグレードしてください。';
     }

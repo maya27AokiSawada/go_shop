@@ -101,7 +101,7 @@ class HomeAdBannerWidget extends ConsumerWidget {
                 Icon(Icons.timer, color: Colors.blue[600], size: 20),
                 const SizedBox(width: 8),
                 Text(
-                  '無料体験期間 残り${remainingDays}日',
+                  '無料体験期間 残り$remainingDays日',
                   style: TextStyle(
                     color: Colors.blue[700],
                     fontWeight: FontWeight.bold,

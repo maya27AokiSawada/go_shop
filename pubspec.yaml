@@ -61,7 +61,8 @@ dependencies:
   
   # QR Code
   qr_flutter: ^4.1.0
-  qr_code_scanner: ^1.0.1
+  # qr_code_scanner: ^1.0.1  # Androidビルドエラー回避のため一時的に無効化
+  mobile_scanner: ^5.0.0  # 代替QRコードスキャナー
 
 dev_dependencies:
   flutter_test:

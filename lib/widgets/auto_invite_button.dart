@@ -239,9 +239,9 @@ class AutoInviteButton extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('✅ 成功: ${successCount}件'),
+            Text('✅ 成功: $successCount件'),
             if (errorCount > 0) ...[
-              Text('❌ 失敗: ${errorCount}件', style: const TextStyle(color: Colors.red)),
+              Text('❌ 失敗: $errorCount件', style: const TextStyle(color: Colors.red)),
               const SizedBox(height: 8),
               const Text('エラー詳細:'),
               ...errorMessages.map((msg) => Text('• $msg', style: const TextStyle(fontSize: 12))),

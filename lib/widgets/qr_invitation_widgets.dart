@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:qr_code_scanner/qr_code_scanner.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/qr_invitation_service.dart';
 
@@ -225,9 +225,14 @@ class QRScannerPage extends ConsumerStatefulWidget {
 }
 
 class _QRScannerPageState extends ConsumerState<QRScannerPage> {
-  final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
-  QRViewController? controller;
+  MobileScannerController? controller;
   bool isProcessing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = MobileScannerController();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -236,6 +241,16 @@ class _QRScannerPageState extends ConsumerState<QRScannerPage> {
         title: const Text('QRコードを読み取り'),
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            onPressed: () => controller?.toggleTorch(),
+            icon: const Icon(Icons.flash_on),
+          ),
+          IconButton(
+            onPressed: () => controller?.switchCamera(),
+            icon: const Icon(Icons.camera_rear),
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -259,16 +274,9 @@ class _QRScannerPageState extends ConsumerState<QRScannerPage> {
           
           // QRスキャナー
           Expanded(
-            child: QRView(
-              key: qrKey,
-              onQRViewCreated: _onQRViewCreated,
-              overlay: QrScannerOverlayShape(
-                borderColor: Colors.green,
-                borderRadius: 10,
-                borderLength: 30,
-                borderWidth: 10,
-                cutOutSize: 300,
-              ),
+            child: MobileScanner(
+              controller: controller,
+              onDetect: _onQRDetected,
             ),
           ),
           
@@ -290,13 +298,13 @@ class _QRScannerPageState extends ConsumerState<QRScannerPage> {
     );
   }
 
-  void _onQRViewCreated(QRViewController controller) {
-    this.controller = controller;
-    controller.scannedDataStream.listen((scanData) async {
-      if (!isProcessing && scanData.code != null) {
-        await _handleQRScan(scanData.code!);
+  void _onQRDetected(BarcodeCapture capture) async {
+    if (!isProcessing && capture.barcodes.isNotEmpty) {
+      final qrData = capture.barcodes.first.rawValue;
+      if (qrData != null) {
+        await _handleQRScan(qrData);
       }
-    });
+    }
   }
 
   Future<void> _handleQRScan(String qrData) async {
