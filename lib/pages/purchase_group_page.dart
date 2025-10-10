@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/user_name_provider.dart';
 import '../providers/security_provider.dart';
@@ -7,6 +8,8 @@ import '../models/purchase_group.dart';
 import '../widgets/member_selection_dialog.dart';
 // import '../widgets/auto_invite_button.dart'; // QRコード招待に変更
 import '../widgets/qr_invitation_widgets.dart';
+import '../widgets/member_role_management_widget.dart';
+import '../widgets/owner_message_widget.dart';
 import '../helpers/validation_service.dart';
 
 class PurchaseGroupPage extends ConsumerStatefulWidget {
@@ -34,6 +37,32 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
       case PurchaseGroupRole.member:
         return 'メンバー';
     }
+  }
+
+  /// 現在のユーザーが招待権限を持っているかチェック（管理者以上）
+  bool _hasInvitePermission(PurchaseGroup purchaseGroup, String currentUserUid) {
+    // オーナーは常に招待可能
+    if (purchaseGroup.ownerUid == currentUserUid) {
+      return true;
+    }
+    
+    // メンバーリストから現在のユーザーを検索
+    final currentMember = purchaseGroup.members?.firstWhere(
+      (member) => member.contact == FirebaseAuth.instance.currentUser?.email,
+      orElse: () => PurchaseGroupMember.create(
+        name: '',
+        contact: '',
+        role: PurchaseGroupRole.member,
+      ),
+    );
+    
+    // 管理者の場合は招待可能
+    return currentMember?.role == PurchaseGroupRole.manager;
+  }
+
+  /// 現在のユーザーがオーナーかチェック
+  bool _isOwner(PurchaseGroup purchaseGroup, String currentUserUid) {
+    return purchaseGroup.ownerUid == currentUserUid;
   }
 
   Future<void> _editMember(PurchaseGroupMember member, int index) async {
@@ -242,18 +271,88 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                 Text('グループID: ${purchaseGroup.groupId}'),
                 const SizedBox(height: 8),
                 Text('メンバー数: ${purchaseGroup.members?.length ?? 0}'),
+                const SizedBox(height: 8),
+                // 権限説明
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue[200]!),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.info, color: Colors.blue[700], size: 16),
+                          const SizedBox(width: 4),
+                          Text(
+                            '権限について',
+                            style: TextStyle(
+                              color: Colors.blue[700],
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '• オーナー・管理者: メンバー招待・Role変更が可能\n'
+                        '• メンバー: 招待不可（QRスキャンで参加のみ可能）',
+                        style: TextStyle(
+                          color: Colors.blue[700],
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 16),
-                // QRコード招待ボタン
+                
+                // オーナーからのメッセージ
+                OwnerMessageWidget(
+                  purchaseGroup: purchaseGroup,
+                  isOwner: _isOwner(purchaseGroup, FirebaseAuth.instance.currentUser?.uid ?? ''),
+                ),
+                
+                // QRコード招待・スキャンボタン
                 Row(
                   children: [
-                    Expanded(
-                      child: QRInviteButton(
-                        shoppingListId: 'default_shopping_list', // TODO: 実際のShoppingListIDを取得
-                        purchaseGroupId: purchaseGroup.groupId,
-                        customMessage: '${purchaseGroup.groupName}グループへの招待です',
+                    // QR招待ボタン（管理者以上のみ表示）
+                    if (_hasInvitePermission(purchaseGroup, FirebaseAuth.instance.currentUser?.uid ?? ''))
+                      Expanded(
+                        child: QRInviteButton(
+                          shoppingListId: 'default_shopping_list', // TODO: 実際のShoppingListIDを取得
+                          purchaseGroupId: purchaseGroup.groupId,
+                          customMessage: '${purchaseGroup.groupName}グループへの招待です',
+                        ),
+                      )
+                    else
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.grey[300]!),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.lock, color: Colors.grey[600], size: 16),
+                              const SizedBox(width: 8),
+                              Text(
+                                '招待権限なし',
+                                style: TextStyle(color: Colors.grey[600]),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
                     const SizedBox(width: 8),
+                    // QRスキャンボタン（全メンバー利用可能）
                     Expanded(
                       child: QRScanButton(),
                     ),
@@ -376,6 +475,12 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                     );
                   },
                 ),
+        ),
+        const SizedBox(height: 16),
+        // オーナー専用: メンバーのRole管理ウィジェット
+        MemberRoleManagementWidget(
+          purchaseGroup: purchaseGroup,
+          currentUserUid: FirebaseAuth.instance.currentUser?.uid ?? '',
         ),
       ],
     );

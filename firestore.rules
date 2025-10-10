@@ -12,33 +12,57 @@ service cloud.firestore {
     // 本番環境用の詳細セキュリティルール
     // 現在はコメントアウト - 開発完了後に有効化
     
+    // 🔒 新アーキテクチャ対応セキュリティルール
+    
+    // ユーザードキュメント（基本情報）
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // 受諾招待コレクション：誰でも書き込み可能（招待受諾用）
+      match /acceptedInvitations/{acceptorUid} {
+        // 📝 重要: 認証済みユーザーなら誰でも作成可能（招待受諾記録用）
+        allow create: if request.auth != null && 
+                         request.auth.uid == acceptorUid &&
+                         request.resource.data.acceptorUid == acceptorUid;
+        
+        // 読み取り・更新・削除は招待元（親ドキュメントオーナー）のみ
+        allow read, update, delete: if request.auth != null && 
+                                       request.auth.uid == userId;
+      }
     }
     
+    // PurchaseGroup：allowedUidsベースのアクセス制御
     match /purchaseGroups/{groupId} {
       allow read: if request.auth != null && (
         resource.data.ownerUid == request.auth.uid ||
-        existsInMembersList(resource.data.members, request.auth.uid)
+        request.auth.uid in resource.data.allowedUids
       );
       
-      allow write: if request.auth != null && 
+      allow write, update: if request.auth != null && 
         resource.data.ownerUid == request.auth.uid;
       
       allow create: if request.auth != null && 
         request.resource.data.ownerUid == request.auth.uid;
+      
+      allow delete: if request.auth != null && 
+        resource.data.ownerUid == request.auth.uid;
     }
     
+    // ShoppingList：allowedUidsベースのアクセス制御
     match /shoppingLists/{listId} {
       allow read, write: if request.auth != null && (
         resource.data.ownerUid == request.auth.uid ||
-        hasGroupAccess(resource.data.groupId, request.auth.uid)
+        request.auth.uid in resource.data.allowedUids
       );
       
       allow create: if request.auth != null && 
         request.resource.data.ownerUid == request.auth.uid;
+      
+      allow delete: if request.auth != null && 
+        resource.data.ownerUid == request.auth.uid;
     }
 
+    // レガシー関数（互換性維持）
     function existsInMembersList(members, uid) {
       return members.where('memberId', '==', uid).size() > 0;
     }
@@ -46,7 +70,7 @@ service cloud.firestore {
     function hasGroupAccess(groupId, uid) {
       let group = get(/databases/$(database)/documents/purchaseGroups/$(groupId));
       return group.data.ownerUid == uid || 
-             existsInMembersList(group.data.members, uid);
+             uid in group.data.allowedUids;
     }
     */
   }

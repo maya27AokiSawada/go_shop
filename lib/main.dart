@@ -7,6 +7,7 @@ import 'screens/home_screen.dart';
 import 'pages/invitation_accept_page.dart';
 import 'services/user_specific_hive_service.dart';
 import 'services/deep_link_service.dart';
+import 'services/user_initialization_service.dart';
 import 'flavors.dart';
 
 final logger = Logger();
@@ -42,8 +43,24 @@ void main() async {
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
+
+  @override
+  ConsumerState<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends ConsumerState<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+    
+    // ユーザー初期化サービスを開始
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final userInitService = ref.read(userInitializationServiceProvider);
+      userInitService.startAuthStateListener();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

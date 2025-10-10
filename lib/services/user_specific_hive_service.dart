@@ -7,6 +7,7 @@ import '../models/purchase_group.dart';
 import '../models/shopping_list.dart';
 import '../models/user_settings.dart';
 import '../models/invitation.dart';
+import '../models/accepted_invitation.dart';
 
 final logger = Logger();
 
@@ -53,8 +54,9 @@ class UserSpecificHiveService {
       Hive.registerAdapter(ShoppingItemAdapter());
       Hive.registerAdapter(ShoppingListAdapter());
       Hive.registerAdapter(InvitationAdapter());
+      Hive.registerAdapter(AcceptedInvitationAdapter());
       Hive.registerAdapter(UserSettingsAdapter());
-      logger.i('📝 Hive adapters registered globally (including Invitation)');
+      logger.i('📝 Hive adapters registered globally (including AcceptedInvitation)');
     }
   }
   

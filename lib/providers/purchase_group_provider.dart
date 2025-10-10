@@ -1,9 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/purchase_group.dart';
 import '../datastore/purchase_group_repository.dart';
 import '../datastore/hive_purchase_group_repository.dart';
 import '../datastore/hybrid_purchase_group_repository.dart';
 import '../flavors.dart';
+import '../helper/security_validator.dart';
 import 'user_settings_provider.dart';
 
 // Repository provider - ハイブリッドリポジトリを使用
@@ -260,6 +262,34 @@ class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
       ref.read(allGroupsProvider.notifier).refresh();
     } catch (e) {
       state = AsyncError(e, StackTrace.current);
+    }
+  }
+
+  /// Update owner message for the current group
+  Future<void> updateOwnerMessage(String groupId, String message) async {
+    final repository = ref.read(purchaseGroupRepositoryProvider);
+    
+    try {
+      final currentGroup = await repository.getGroupById(groupId);
+      
+      // 🔒 セキュリティチェック: オーナー権限確認
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null && F.appFlavor == Flavor.prod) {
+        SecurityValidator.validateFirestoreRuleCompliance(
+          operation: 'write',
+          resourceType: 'purchaseGroup',
+          group: currentGroup,
+          currentUid: currentUser.uid,
+        );
+      }
+      
+      final updatedGroup = currentGroup.copyWith(ownerMessage: message);
+      
+      await repository.updateGroup(groupId, updatedGroup);
+      state = AsyncData(updatedGroup);
+    } catch (e) {
+      state = AsyncError(e, StackTrace.current);
+      rethrow;
     }
   }
 }

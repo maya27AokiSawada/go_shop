@@ -353,6 +353,8 @@ mixin _$PurchaseGroup {
   String? get ownerUid => throw _privateConstructorUsedError;
   @HiveField(5)
   List<PurchaseGroupMember>? get members => throw _privateConstructorUsedError;
+  @HiveField(6)
+  String? get ownerMessage => throw _privateConstructorUsedError;
 
   @JsonKey(ignore: true)
   $PurchaseGroupCopyWith<PurchaseGroup> get copyWith =>
@@ -371,7 +373,8 @@ abstract class $PurchaseGroupCopyWith<$Res> {
       @HiveField(2) String? ownerName,
       @HiveField(3) String? ownerEmail,
       @HiveField(4) String? ownerUid,
-      @HiveField(5) List<PurchaseGroupMember>? members});
+      @HiveField(5) List<PurchaseGroupMember>? members,
+      @HiveField(6) String? ownerMessage});
 }
 
 /// @nodoc
@@ -393,6 +396,7 @@ class _$PurchaseGroupCopyWithImpl<$Res, $Val extends PurchaseGroup>
     Object? ownerEmail = freezed,
     Object? ownerUid = freezed,
     Object? members = freezed,
+    Object? ownerMessage = freezed,
   }) {
     return _then(_value.copyWith(
       groupName: null == groupName
@@ -419,6 +423,10 @@ class _$PurchaseGroupCopyWithImpl<$Res, $Val extends PurchaseGroup>
           ? _value.members
           : members // ignore: cast_nullable_to_non_nullable
               as List<PurchaseGroupMember>?,
+      ownerMessage: freezed == ownerMessage
+          ? _value.ownerMessage
+          : ownerMessage // ignore: cast_nullable_to_non_nullable
+              as String?,
     ) as $Val);
   }
 }
@@ -437,7 +445,8 @@ abstract class _$$PurchaseGroupImplCopyWith<$Res>
       @HiveField(2) String? ownerName,
       @HiveField(3) String? ownerEmail,
       @HiveField(4) String? ownerUid,
-      @HiveField(5) List<PurchaseGroupMember>? members});
+      @HiveField(5) List<PurchaseGroupMember>? members,
+      @HiveField(6) String? ownerMessage});
 }
 
 /// @nodoc
@@ -457,6 +466,7 @@ class __$$PurchaseGroupImplCopyWithImpl<$Res>
     Object? ownerEmail = freezed,
     Object? ownerUid = freezed,
     Object? members = freezed,
+    Object? ownerMessage = freezed,
   }) {
     return _then(_$PurchaseGroupImpl(
       groupName: null == groupName
@@ -483,6 +493,10 @@ class __$$PurchaseGroupImplCopyWithImpl<$Res>
           ? _value._members
           : members // ignore: cast_nullable_to_non_nullable
               as List<PurchaseGroupMember>?,
+      ownerMessage: freezed == ownerMessage
+          ? _value.ownerMessage
+          : ownerMessage // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -496,7 +510,8 @@ class _$PurchaseGroupImpl implements _PurchaseGroup {
       @HiveField(2) this.ownerName,
       @HiveField(3) this.ownerEmail,
       @HiveField(4) this.ownerUid,
-      @HiveField(5) final List<PurchaseGroupMember>? members})
+      @HiveField(5) final List<PurchaseGroupMember>? members,
+      @HiveField(6) this.ownerMessage})
       : _members = members;
 
   @override
@@ -526,8 +541,12 @@ class _$PurchaseGroupImpl implements _PurchaseGroup {
   }
 
   @override
+  @HiveField(6)
+  final String? ownerMessage;
+
+  @override
   String toString() {
-    return 'PurchaseGroup(groupName: $groupName, groupId: $groupId, ownerName: $ownerName, ownerEmail: $ownerEmail, ownerUid: $ownerUid, members: $members)';
+    return 'PurchaseGroup(groupName: $groupName, groupId: $groupId, ownerName: $ownerName, ownerEmail: $ownerEmail, ownerUid: $ownerUid, members: $members, ownerMessage: $ownerMessage)';
   }
 
   @override
@@ -544,12 +563,21 @@ class _$PurchaseGroupImpl implements _PurchaseGroup {
                 other.ownerEmail == ownerEmail) &&
             (identical(other.ownerUid, ownerUid) ||
                 other.ownerUid == ownerUid) &&
-            const DeepCollectionEquality().equals(other._members, _members));
+            const DeepCollectionEquality().equals(other._members, _members) &&
+            (identical(other.ownerMessage, ownerMessage) ||
+                other.ownerMessage == ownerMessage));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, groupName, groupId, ownerName,
-      ownerEmail, ownerUid, const DeepCollectionEquality().hash(_members));
+  int get hashCode => Object.hash(
+      runtimeType,
+      groupName,
+      groupId,
+      ownerName,
+      ownerEmail,
+      ownerUid,
+      const DeepCollectionEquality().hash(_members),
+      ownerMessage);
 
   @JsonKey(ignore: true)
   @override
@@ -560,13 +588,13 @@ class _$PurchaseGroupImpl implements _PurchaseGroup {
 
 abstract class _PurchaseGroup implements PurchaseGroup {
   const factory _PurchaseGroup(
-          {@HiveField(0) required final String groupName,
-          @HiveField(1) required final String groupId,
-          @HiveField(2) final String? ownerName,
-          @HiveField(3) final String? ownerEmail,
-          @HiveField(4) final String? ownerUid,
-          @HiveField(5) final List<PurchaseGroupMember>? members}) =
-      _$PurchaseGroupImpl;
+      {@HiveField(0) required final String groupName,
+      @HiveField(1) required final String groupId,
+      @HiveField(2) final String? ownerName,
+      @HiveField(3) final String? ownerEmail,
+      @HiveField(4) final String? ownerUid,
+      @HiveField(5) final List<PurchaseGroupMember>? members,
+      @HiveField(6) final String? ownerMessage}) = _$PurchaseGroupImpl;
 
   @override
   @HiveField(0)
@@ -586,6 +614,9 @@ abstract class _PurchaseGroup implements PurchaseGroup {
   @override
   @HiveField(5)
   List<PurchaseGroupMember>? get members;
+  @override
+  @HiveField(6)
+  String? get ownerMessage;
   @override
   @JsonKey(ignore: true)
   _$$PurchaseGroupImplCopyWith<_$PurchaseGroupImpl> get copyWith =>

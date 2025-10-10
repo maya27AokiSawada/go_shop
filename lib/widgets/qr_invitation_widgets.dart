@@ -419,6 +419,7 @@ class QRInvitationAcceptDialog extends ConsumerWidget {
       final success = await qrService.acceptQRInvitation(
         invitationData: invitationData,
         acceptorUid: currentUser.uid,
+        ref: ref,
       );
 
       if (context.mounted) {

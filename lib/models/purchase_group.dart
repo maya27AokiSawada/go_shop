@@ -98,6 +98,7 @@ class PurchaseGroup with _$PurchaseGroup {
     @HiveField(3) String? ownerEmail,
     @HiveField(4) String? ownerUid,
     @HiveField(5) List<PurchaseGroupMember>? members,
+    @HiveField(6) String? ownerMessage, // オーナーからメンバーへのメッセージ
   }) = _PurchaseGroup;
 
   // カスタムコンストラクタでIDを自動生成
@@ -108,6 +109,7 @@ class PurchaseGroup with _$PurchaseGroup {
     required List<PurchaseGroupMember>? members,
     String? ownerUid,
     String? groupId,
+    String? ownerMessage,
   }) {
     return PurchaseGroup(
       groupName: groupName,
@@ -116,6 +118,7 @@ class PurchaseGroup with _$PurchaseGroup {
       ownerEmail: ownerEmail,
       ownerUid: ownerUid ?? uuid.v4(),
       members: members,
+      ownerMessage: ownerMessage,
     );
   }
 }
