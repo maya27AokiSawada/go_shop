@@ -41,28 +41,82 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
 
   /// 現在のユーザーが招待権限を持っているかチェック（管理者以上）
   bool _hasInvitePermission(PurchaseGroup purchaseGroup, String currentUserUid) {
-    // オーナーは常に招待可能
-    if (purchaseGroup.ownerUid == currentUserUid) {
-      return true;
+    print('🔐 [PERMISSION CHECK] 権限チェック開始');
+    print('🔐 [PERMISSION CHECK] currentUserUid: $currentUserUid');
+    print('🔐 [PERMISSION CHECK] purchaseGroup.groupId: ${purchaseGroup.groupId}');
+    print('🔐 [PERMISSION CHECK] purchaseGroup.groupName: ${purchaseGroup.groupName}');
+    print('🔐 [PERMISSION CHECK] purchaseGroup.ownerUid: ${purchaseGroup.ownerUid}');
+    print('🔐 [PERMISSION CHECK] members count: ${purchaseGroup.members?.length ?? 0}');
+    
+    // 全メンバーの詳細を出力
+    if (purchaseGroup.members != null) {
+      for (int i = 0; i < purchaseGroup.members!.length; i++) {
+        final member = purchaseGroup.members![i];
+        print('🔐 [PERMISSION CHECK] member[$i]: {memberId: ${member.memberId}, name: ${member.name}, role: ${member.role}, contact: ${member.contact}}');
+      }
+    } else {
+      print('🔐 [PERMISSION CHECK] メンバーリストがnullです');
     }
     
-    // メンバーリストから現在のユーザーを検索
+    // メンバーリストから現在のユーザーを検索（memberIdで検索）
     final currentMember = purchaseGroup.members?.firstWhere(
-      (member) => member.contact == FirebaseAuth.instance.currentUser?.email,
-      orElse: () => PurchaseGroupMember.create(
-        name: '',
-        contact: '',
-        role: PurchaseGroupRole.member,
-      ),
+      (member) {
+        print('🔐 [PERMISSION CHECK] comparing: ${member.memberId} == $currentUserUid ? ${member.memberId == currentUserUid}');
+        return member.memberId == currentUserUid;
+      },
+      orElse: () {
+        print('🔐 [PERMISSION CHECK] 現在のユーザーがメンバーリストに見つかりませんでした');
+        return const PurchaseGroupMember(
+          memberId: '',
+          name: '',
+          contact: '',
+          role: PurchaseGroupRole.member,
+        );
+      },
     );
     
-    // 管理者の場合は招待可能
-    return currentMember?.role == PurchaseGroupRole.manager;
+    print('🔐 [PERMISSION CHECK] currentMember found: ${currentMember?.name}, role: ${currentMember?.role}, memberId: ${currentMember?.memberId}');
+    
+    // 管理者またはオーナーの場合は招待可能
+    final hasPermission = currentMember?.role == PurchaseGroupRole.manager || 
+                         currentMember?.role == PurchaseGroupRole.owner;
+                         
+    print('🔐 [PERMISSION CHECK] 最終権限チェック結果: $hasPermission');
+    print('🔐 [PERMISSION CHECK] 権限チェック終了');
+    return hasPermission;
   }
 
   /// 現在のユーザーがオーナーかチェック
   bool _isOwner(PurchaseGroup purchaseGroup, String currentUserUid) {
-    return purchaseGroup.ownerUid == currentUserUid;
+    print('👑 [OWNER CHECK] オーナーチェック開始');
+    print('👑 [OWNER CHECK] currentUserUid: $currentUserUid');
+    print('👑 [OWNER CHECK] purchaseGroup.ownerUid: ${purchaseGroup.ownerUid}');
+    print('👑 [OWNER CHECK] FirebaseAuth.currentUser?.uid: ${FirebaseAuth.instance.currentUser?.uid}');
+    print('👑 [OWNER CHECK] FirebaseAuth.currentUser?.email: ${FirebaseAuth.instance.currentUser?.email}');
+    
+    // メンバーリストから現在のユーザーを検索し、オーナーロールかチェック
+    final currentMember = purchaseGroup.members?.firstWhere(
+      (member) {
+        print('👑 [OWNER CHECK] checking member: ${member.memberId} vs $currentUserUid');
+        return member.memberId == currentUserUid;
+      },
+      orElse: () {
+        print('👑 [OWNER CHECK] メンバーが見つかりません - デフォルトメンバーを返します');
+        return const PurchaseGroupMember(
+          memberId: '',
+          name: '', 
+          contact: '', 
+          role: PurchaseGroupRole.member,
+        );
+      },
+    );
+    
+    print('👑 [OWNER CHECK] 見つかったメンバー: ${currentMember?.name}, role: ${currentMember?.role}, memberId: ${currentMember?.memberId}');
+    final isOwner = currentMember?.role == PurchaseGroupRole.owner;
+    print('👑 [OWNER CHECK] オーナーチェック結果: $isOwner');
+    print('👑 [OWNER CHECK] オーナーチェック終了');
+    
+    return isOwner;
   }
 
   Future<void> _editMember(PurchaseGroupMember member, int index) async {
@@ -137,6 +191,14 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Firebase認証情報のデバッグログ
+    final currentUser = FirebaseAuth.instance.currentUser;
+    print('🔥 [BUILD] Firebase Auth Debug Info:');
+    print('🔥 [BUILD] currentUser: ${currentUser?.uid}');
+    print('🔥 [BUILD] currentUser.email: ${currentUser?.email}');
+    print('🔥 [BUILD] currentUser.displayName: ${currentUser?.displayName}');
+    print('🔥 [BUILD] isAnonymous: ${currentUser?.isAnonymous}');
+    
     // セキュリティチェック
     final canViewData = ref.watch(dataVisibilityProvider);
     final authRequired = ref.watch(authRequiredProvider);
@@ -240,7 +302,22 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
           initialValue: validSelectedGroupId,
           items: groups.map((group) => DropdownMenuItem(
             value: group.groupId,
-            child: Text(group.groupId == 'defaultGroup' ? 'デフォルトグループ' : group.groupName),
+            child: Row(
+              children: [
+                Icon(
+                  group.groupId == 'defaultGroup' ? Icons.home : Icons.group,
+                  size: 16,
+                  color: Colors.grey[600],
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    group.groupId == 'defaultGroup' ? 'マイグループ' : group.groupName,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
           )).toList(),
           onChanged: (newGroupId) {
             if (newGroupId != null) {
@@ -263,52 +340,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'グループ名: ${purchaseGroup.groupName}',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 8),
-                Text('グループID: ${purchaseGroup.groupId}'),
-                const SizedBox(height: 8),
                 Text('メンバー数: ${purchaseGroup.members?.length ?? 0}'),
-                const SizedBox(height: 8),
-                // 権限説明
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue[50],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue[200]!),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.info, color: Colors.blue[700], size: 16),
-                          const SizedBox(width: 4),
-                          Text(
-                            '権限について',
-                            style: TextStyle(
-                              color: Colors.blue[700],
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '• オーナー・管理者: メンバー招待・Role変更が可能\n'
-                        '• メンバー: 招待不可（QRスキャンで参加のみ可能）',
-                        style: TextStyle(
-                          color: Colors.blue[700],
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
                 const SizedBox(height: 16),
                 
                 // オーナーからのメッセージ

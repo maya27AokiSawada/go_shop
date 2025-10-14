@@ -7,6 +7,7 @@ import '../datastore/hybrid_purchase_group_repository.dart';
 import '../flavors.dart';
 import '../helper/security_validator.dart';
 import 'user_settings_provider.dart';
+import 'auth_provider.dart';
 
 // Repository provider - ハイブリッドリポジトリを使用
 final purchaseGroupRepositoryProvider = Provider<PurchaseGroupRepository>((ref) {
@@ -45,7 +46,13 @@ class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
         final userName = userSettings?.userName ?? 'デフォルトユーザー';
         final userEmail = userSettings?.userEmail ?? 'default@example.com';
         
+        // 現在のユーザーIDを取得
+        final authService = ref.read(authProvider);
+        final currentUser = authService.currentUser;
+        final currentUserId = currentUser?.uid ?? '';
+        
         final ownerMember = PurchaseGroupMember.create(
+          memberId: currentUserId,  // 現在のユーザーIDを明示的に設定
           name: userName,
           contact: userEmail,
           role: PurchaseGroupRole.owner,
@@ -66,8 +73,46 @@ class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
       return group;
     }
     
+    // 現在のFirebaseユーザーIDを取得
+    final authService = ref.read(authProvider);
+    final currentUser = authService.currentUser;
+    final currentUserId = currentUser?.uid ?? '';
+    
     bool needsUpdate = false;
     final originalMembers = group.members!;
+    
+    // 現在のユーザーが既存のメンバーに含まれているかチェック
+    final hasCurrentUser = originalMembers.any((member) => member.memberId == currentUserId);
+    
+    print('🔧 [LEGACY FIX] currentUserId: $currentUserId');
+    print('🔧 [LEGACY FIX] hasCurrentUser in group: $hasCurrentUser');
+    
+    // 現在のユーザーがメンバーリストにいない場合は、オーナーのmemberIdを更新
+    if (!hasCurrentUser && currentUserId.isNotEmpty) {
+      // オーナーメンバーを見つけて、そのmemberIdを現在のユーザーIDに変更
+      final List<PurchaseGroupMember> updatedMembers = [];
+      bool ownerUpdated = false;
+      
+      for (final member in originalMembers) {
+        if (member.role == PurchaseGroupRole.owner && !ownerUpdated) {
+          // オーナーのmemberIdを現在のFirebaseユーザーIDに更新
+          final updatedOwner = member.copyWith(memberId: currentUserId);
+          updatedMembers.add(updatedOwner);
+          ownerUpdated = true;
+          needsUpdate = true;
+          print('🔧 [LEGACY FIX] Updated owner memberId from ${member.memberId} to $currentUserId');
+        } else {
+          updatedMembers.add(member);
+        }
+      }
+      
+      if (needsUpdate) {
+        final updatedGroup = group.copyWith(members: updatedMembers);
+        await repository.updateGroup(updatedGroup.groupId, updatedGroup);
+        print('🔧 [LEGACY FIX] Group updated with corrected member IDs');
+        return updatedGroup;
+      }
+    }
     
     // Find the first owner or the first member to be the owner
     PurchaseGroupMember? owner;

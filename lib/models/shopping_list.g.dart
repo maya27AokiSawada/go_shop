@@ -76,7 +76,7 @@ class ShoppingListAdapter extends TypeAdapter<ShoppingList> {
       groupId: fields[1] as String,
       groupName: fields[2] as String,
       items: (fields[3] as List).cast<ShoppingItem>(),
-      listId: fields[4] as String,
+      listId: fields[4] as String? ?? 'list_${DateTime.now().millisecondsSinceEpoch}',
       listName: fields[5] as String,
       description: fields[6] as String,
       createdAt: fields[7] as DateTime,

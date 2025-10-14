@@ -12,13 +12,25 @@ import 'flavors.dart';
 
 final logger = Logger();
 
+// /// 【デバッグ用】Hiveデータをクリアする関数 - 使用済み
+// /// memberID問題解決のため、既存の問題があるデータを削除
+// Future<void> _clearHiveDataForDebugging() async {
+//   try {
+//     logger.w("🗑️ デバッグ用: Hiveデータをクリア中...");
+//     await Hive.deleteFromDisk();
+//     logger.i("✅ Hiveデータのクリアが完了");
+//   } catch (e) {
+//     logger.e("❌ Hiveデータクリア中にエラー: $e");
+//   }
+// }
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   final logger = Logger();
   
   // フレーバーの設定
-  F.appFlavor = Flavor.prod; // 招待機能テストのためPRODモード
+  F.appFlavor = Flavor.dev; // デバッグ用にDEVモード
   
   // Firebase初期化
   if (F.appFlavor == Flavor.prod) {
@@ -30,6 +42,10 @@ void main() async {
   } else {
     logger.i("💡 Starting Go Shop app in DEV mode (Hive only, no Firebase)");
   }
+  
+  // 【デバッグ用】既存のHiveデータをクリア（memberID問題のため）
+  // TODO: この部分は問題解決後に削除する
+  // await _clearHiveDataForDebugging(); // 既にクリア済み
   
   // グローバルHive初期化（アダプター登録のみ）
   // Windows版: UserSpecificHiveServiceでUID固有フォルダ管理

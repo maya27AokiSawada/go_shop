@@ -357,7 +357,7 @@ mixin _$PurchaseGroup {
   String? get ownerMessage =>
       throw _privateConstructorUsedError; // オーナーからメンバーへのメッセージ
   @HiveField(7)
-  List<String> get shoppingListIds => throw _privateConstructorUsedError;
+  List<String>? get shoppingListIds => throw _privateConstructorUsedError;
 
   @JsonKey(ignore: true)
   $PurchaseGroupCopyWith<PurchaseGroup> get copyWith =>
@@ -378,7 +378,7 @@ abstract class $PurchaseGroupCopyWith<$Res> {
       @HiveField(4) String? ownerUid,
       @HiveField(5) List<PurchaseGroupMember>? members,
       @HiveField(6) String? ownerMessage,
-      @HiveField(7) List<String> shoppingListIds});
+      @HiveField(7) List<String>? shoppingListIds});
 }
 
 /// @nodoc
@@ -401,7 +401,7 @@ class _$PurchaseGroupCopyWithImpl<$Res, $Val extends PurchaseGroup>
     Object? ownerUid = freezed,
     Object? members = freezed,
     Object? ownerMessage = freezed,
-    Object? shoppingListIds = null,
+    Object? shoppingListIds = freezed,
   }) {
     return _then(_value.copyWith(
       groupName: null == groupName
@@ -432,10 +432,10 @@ class _$PurchaseGroupCopyWithImpl<$Res, $Val extends PurchaseGroup>
           ? _value.ownerMessage
           : ownerMessage // ignore: cast_nullable_to_non_nullable
               as String?,
-      shoppingListIds: null == shoppingListIds
+      shoppingListIds: freezed == shoppingListIds
           ? _value.shoppingListIds
           : shoppingListIds // ignore: cast_nullable_to_non_nullable
-              as List<String>,
+              as List<String>?,
     ) as $Val);
   }
 }
@@ -456,7 +456,7 @@ abstract class _$$PurchaseGroupImplCopyWith<$Res>
       @HiveField(4) String? ownerUid,
       @HiveField(5) List<PurchaseGroupMember>? members,
       @HiveField(6) String? ownerMessage,
-      @HiveField(7) List<String> shoppingListIds});
+      @HiveField(7) List<String>? shoppingListIds});
 }
 
 /// @nodoc
@@ -477,7 +477,7 @@ class __$$PurchaseGroupImplCopyWithImpl<$Res>
     Object? ownerUid = freezed,
     Object? members = freezed,
     Object? ownerMessage = freezed,
-    Object? shoppingListIds = null,
+    Object? shoppingListIds = freezed,
   }) {
     return _then(_$PurchaseGroupImpl(
       groupName: null == groupName
@@ -508,10 +508,10 @@ class __$$PurchaseGroupImplCopyWithImpl<$Res>
           ? _value.ownerMessage
           : ownerMessage // ignore: cast_nullable_to_non_nullable
               as String?,
-      shoppingListIds: null == shoppingListIds
+      shoppingListIds: freezed == shoppingListIds
           ? _value._shoppingListIds
           : shoppingListIds // ignore: cast_nullable_to_non_nullable
-              as List<String>,
+              as List<String>?,
     ));
   }
 }
@@ -527,7 +527,7 @@ class _$PurchaseGroupImpl implements _PurchaseGroup {
       @HiveField(4) this.ownerUid,
       @HiveField(5) final List<PurchaseGroupMember>? members,
       @HiveField(6) this.ownerMessage,
-      @HiveField(7) final List<String> shoppingListIds = const []})
+      @HiveField(7) final List<String>? shoppingListIds})
       : _members = members,
         _shoppingListIds = shoppingListIds;
 
@@ -561,15 +561,16 @@ class _$PurchaseGroupImpl implements _PurchaseGroup {
   @HiveField(6)
   final String? ownerMessage;
 // オーナーからメンバーへのメッセージ
-  final List<String> _shoppingListIds;
+  final List<String>? _shoppingListIds;
 // オーナーからメンバーへのメッセージ
   @override
-  @JsonKey()
   @HiveField(7)
-  List<String> get shoppingListIds {
+  List<String>? get shoppingListIds {
+    final value = _shoppingListIds;
+    if (value == null) return null;
     if (_shoppingListIds is EqualUnmodifiableListView) return _shoppingListIds;
     // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_shoppingListIds);
+    return EqualUnmodifiableListView(value);
   }
 
   @override
@@ -626,7 +627,7 @@ abstract class _PurchaseGroup implements PurchaseGroup {
       @HiveField(4) final String? ownerUid,
       @HiveField(5) final List<PurchaseGroupMember>? members,
       @HiveField(6) final String? ownerMessage,
-      @HiveField(7) final List<String> shoppingListIds}) = _$PurchaseGroupImpl;
+      @HiveField(7) final List<String>? shoppingListIds}) = _$PurchaseGroupImpl;
 
   @override
   @HiveField(0)
@@ -651,7 +652,7 @@ abstract class _PurchaseGroup implements PurchaseGroup {
   String? get ownerMessage;
   @override // オーナーからメンバーへのメッセージ
   @HiveField(7)
-  List<String> get shoppingListIds;
+  List<String>? get shoppingListIds;
   @override
   @JsonKey(ignore: true)
   _$$PurchaseGroupImplCopyWith<_$PurchaseGroupImpl> get copyWith =>

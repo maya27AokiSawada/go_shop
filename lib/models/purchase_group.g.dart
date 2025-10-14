@@ -82,7 +82,7 @@ class PurchaseGroupAdapter extends TypeAdapter<PurchaseGroup> {
       ownerUid: fields[4] as String?,
       members: (fields[5] as List?)?.cast<PurchaseGroupMember>(),
       ownerMessage: fields[6] as String?,
-      shoppingListIds: (fields[7] as List).cast<String>(),
+      shoppingListIds: (fields[7] as List?)?.cast<String>(),
     );
   }
 

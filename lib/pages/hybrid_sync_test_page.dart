@@ -736,10 +736,11 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
       final repository = ref.read(shoppingListRepositoryProvider);
       
       // テスト用買い物リストを作成
-      final testList = ShoppingList(
+      final testList = ShoppingList.create(
         ownerUid: testGroup.ownerUid ?? 'test',
         groupId: groupId,
         groupName: testGroup.groupName,
+        listName: 'テストリスト',
         items: [
           ShoppingItem(
             memberId: 'test',

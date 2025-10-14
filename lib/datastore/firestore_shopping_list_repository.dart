@@ -145,10 +145,11 @@ class FirestoreShoppingListRepository implements ShoppingListRepository {
     if (querySnapshot.docs.isNotEmpty) {
       // 既存のリストが存在する場合
       final firestoreList = FirestoreShoppingList.fromFirestore(querySnapshot.docs.first);
-      return ShoppingList(
+      return ShoppingList.create(
         ownerUid: firestoreList.ownerUid,
         groupId: firestoreList.groupId,
         groupName: groupName,
+        listName: firestoreList.listName,
         items: firestoreList.items.map((item) => ShoppingItem(
           memberId: item['memberId'] ?? '',
           name: item['name'] ?? '',
@@ -168,10 +169,11 @@ class FirestoreShoppingListRepository implements ShoppingListRepository {
         listName: '${groupName}のリスト',
         items: [],
       );
-      return ShoppingList(
+      return ShoppingList.create(
         ownerUid: firestoreList.ownerUid,
         groupId: firestoreList.groupId,
         groupName: groupName,
+        listName: firestoreList.listName,
         items: [],
       );
     }

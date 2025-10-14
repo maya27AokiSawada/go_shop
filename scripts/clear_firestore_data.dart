@@ -1,0 +1,105 @@
+import 'dart:io';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../lib/firebase_options.dart';
+
+/// Firestoreの全データをクリアするスクリプト
+/// 
+/// 使用方法:
+/// dart run scripts/clear_firestore_data.dart
+/// 
+/// このスクリプトは以下のコレクションをクリアします:
+/// - users
+/// - purchase_groups
+/// - shopping_lists
+/// - invitations
+/// - その他全てのコレクション
+
+Future<void> main() async {
+  print('🧹 Firestore データクリア開始...');
+  
+  try {
+    // Firebase初期化
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    
+    final firestore = FirebaseFirestore.instance;
+    
+    // 削除対象のコレクション一覧
+    final collections = [
+      'users',
+      'purchase_groups', 
+      'shopping_lists',
+      'invitations',
+      'accepted_invitations',
+      'user_settings',
+      'notifications',
+    ];
+    
+    // 確認メッセージ
+    print('⚠️  以下のFirestoreコレクションを削除します:');
+    for (final collection in collections) {
+      print('   - $collection');
+    }
+    print('\n続行しますか？ (y/N): ');
+    
+    final input = stdin.readLineSync();
+    if (input?.toLowerCase() != 'y') {
+      print('❌ 操作がキャンセルされました');
+      return;
+    }
+    
+    // 各コレクションの削除実行
+    for (final collectionName in collections) {
+      await clearCollection(firestore, collectionName);
+    }
+    
+    print('\n✅ 全てのFirestoreデータがクリアされました');
+    print('💡 アプリを再起動して初期状態から開始してください');
+    
+  } catch (e) {
+    print('❌ エラーが発生しました: $e');
+  }
+}
+
+/// 指定されたコレクションの全ドキュメントを削除
+Future<void> clearCollection(FirebaseFirestore firestore, String collectionName) async {
+  print('🗑️  $collectionName コレクションをクリア中...');
+  
+  try {
+    final collection = firestore.collection(collectionName);
+    final snapshot = await collection.get();
+    
+    if (snapshot.docs.isEmpty) {
+      print('   📭 $collectionName は既に空です');
+      return;
+    }
+    
+    // バッチ削除 (最大500件まで)
+    final batch = firestore.batch();
+    int count = 0;
+    
+    for (final doc in snapshot.docs) {
+      batch.delete(doc.reference);
+      count++;
+      
+      // バッチサイズ上限に達したら実行
+      if (count >= 500) {
+        await batch.commit();
+        print('   🗑️  ${count}件削除完了');
+        count = 0;
+      }
+    }
+    
+    // 残りのドキュメントを削除
+    if (count > 0) {
+      await batch.commit();
+    }
+    
+    print('   ✅ $collectionName コレクション完全削除 (${snapshot.docs.length}件)');
+    
+  } catch (e) {
+    print('   ❌ $collectionName の削除に失敗: $e');
+  }
+}

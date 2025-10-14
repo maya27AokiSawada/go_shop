@@ -99,7 +99,7 @@ class PurchaseGroup with _$PurchaseGroup {
     @HiveField(4) String? ownerUid,
     @HiveField(5) List<PurchaseGroupMember>? members,
     @HiveField(6) String? ownerMessage, // オーナーからメンバーへのメッセージ
-    @HiveField(7) @Default([]) List<String> shoppingListIds, // 複数のショッピングリストID管理
+    @HiveField(7) List<String>? shoppingListIds, // 複数のショッピングリストID管理（古いデータ互換のためnullable）
   }) = _PurchaseGroup;
 
   // カスタムコンストラクタでIDを自動生成
@@ -111,7 +111,7 @@ class PurchaseGroup with _$PurchaseGroup {
     String? ownerUid,
     String? groupId,
     String? ownerMessage,
-    List<String> shoppingListIds = const [],
+    List<String>? shoppingListIds,
   }) {
     return PurchaseGroup(
       groupName: groupName,
@@ -121,7 +121,7 @@ class PurchaseGroup with _$PurchaseGroup {
       ownerUid: ownerUid ?? uuid.v4(),
       members: members,
       ownerMessage: ownerMessage,
-      shoppingListIds: shoppingListIds,
+      shoppingListIds: shoppingListIds ?? [], // nullの場合は空リストを設定
     );
   }
 }
@@ -228,31 +228,34 @@ extension PurchaseGroupExtension on PurchaseGroup {
   /// ショッピングリスト管理メソッド
   // 新しいショッピングリストIDを追加
   PurchaseGroup addShoppingList(String listId) {
-    if (shoppingListIds.contains(listId)) return this;
+    final currentList = shoppingListIds ?? [];
+    if (currentList.contains(listId)) return this;
     return copyWith(
-      shoppingListIds: [...shoppingListIds, listId],
+      shoppingListIds: [...currentList, listId],
     );
   }
 
   // ショッピングリストIDを削除
   PurchaseGroup removeShoppingList(String listId) {
+    final currentList = shoppingListIds ?? [];
     return copyWith(
-      shoppingListIds: shoppingListIds.where((id) => id != listId).toList(),
+      shoppingListIds: currentList.where((id) => id != listId).toList(),
     );
   }
 
   // 指定したショッピングリストが存在するか確認
   bool hasShoppingList(String listId) {
-    return shoppingListIds.contains(listId);
+    return shoppingListIds?.contains(listId) ?? false;
   }
 
   // メインのショッピングリストID（最初のリスト）を取得
   String? get primaryShoppingListId {
-    return shoppingListIds.isEmpty ? null : shoppingListIds.first;
+    final currentList = shoppingListIds ?? [];
+    return currentList.isEmpty ? null : currentList.first;
   }
 
   // ショッピングリスト数を取得
   int get shoppingListCount {
-    return shoppingListIds.length;
+    return shoppingListIds?.length ?? 0;
   }
 }

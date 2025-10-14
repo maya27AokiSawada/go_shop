@@ -270,6 +270,14 @@ class _HomePageState extends ConsumerState<HomePage> {
     appBar: AppBar(
       title: const Text('Go Shopping'),
       actions: [
+        // QRコード読み取りボタン（招待受け取り用）
+        IconButton(
+          icon: const Icon(Icons.qr_code_scanner),
+          tooltip: 'QRコードで招待を受け取る',
+          onPressed: () {
+            _showQrCodeScanDialog(context, ref);
+          },
+        ),
         // シークレットモード設定ボタン
         Consumer(
           builder: (context, ref, child) {
@@ -693,8 +701,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                       ),
                       const SizedBox(height: 20),
                       
-                      // � Firestoreニュース表示
-                      const NewsWidget(),
+                      // � Firestoreニュース表示（一時的にコメントアウト）
+                      // const NewsWidget(),
                       
                       // 💳 支払いリマインダー（認証済みユーザー向け）
                       const PaymentReminderWidget(),
@@ -1699,10 +1707,11 @@ class _HomePageState extends ConsumerState<HomePage> {
         } catch (e) {
           logger.i('userInfoSave: ShoppingListが存在しないため新規作成します');
           // 存在しない場合のみ作成
-          final defaultShoppingList = ShoppingList(
+          final defaultShoppingList = ShoppingList.create(
             ownerUid: 'defaultUser',
             groupId: groupId,
             groupName: 'あなたのグループ',
+            listName: 'メインリスト',
             items: [
               ShoppingItem.createNow(
                 memberId: 'defaultUser',
@@ -2011,5 +2020,76 @@ class _HomePageState extends ConsumerState<HomePage> {
         const Text('© 2024 Go Shop. All rights reserved.'),
       ],
     );
+  }
+
+  /// QRコード読み取りダイアログを表示（招待受け取り用）
+  void _showQrCodeScanDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('QRコード招待'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.qr_code_scanner,
+              size: 64,
+              color: Colors.blue,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'グループ招待QRコードをスキャンして\nグループに参加できます',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _scanQrCode(context, ref);
+              },
+              child: const Text('QRコードをスキャン'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('キャンセル'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// QRコードスキャン処理
+  Future<void> _scanQrCode(BuildContext context, WidgetRef ref) async {
+    try {
+      // TODO: 実際のQRコードスキャン実装
+      // 現在はデモ用のダイアログを表示
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('開発中'),
+            content: const Text('QRコードスキャン機能は開発中です。\n手動で招待コードを入力する機能を実装予定です。'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('QRコードスキャンエラー: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

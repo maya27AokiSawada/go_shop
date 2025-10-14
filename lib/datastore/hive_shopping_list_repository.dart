@@ -261,7 +261,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
       final purchaseGroupBox = ref.read(purchaseGroupBoxProvider);
       final purchaseGroup = purchaseGroupBox.get(groupId);
       if (purchaseGroup != null) {
-        final updatedShoppingListIds = [...(purchaseGroup.shoppingListIds), newList.listId];
+        final updatedShoppingListIds = <String>[...(purchaseGroup.shoppingListIds ?? []), newList.listId];
         final updatedGroup = purchaseGroup.copyWith(shoppingListIds: updatedShoppingListIds);
         await purchaseGroupBox.put(groupId, updatedGroup);
         developer.log('📝 グループ「${purchaseGroup.groupName}」にリストID追加: ${newList.listId}');
@@ -292,13 +292,14 @@ class HiveShoppingListRepository implements ShoppingListRepository {
       final purchaseGroupBox = ref.read(purchaseGroupBoxProvider);
       final purchaseGroup = purchaseGroupBox.get(groupId);
       
-      if (purchaseGroup?.shoppingListIds == null || purchaseGroup!.shoppingListIds.isEmpty) {
+      final shoppingListIds = purchaseGroup?.shoppingListIds;
+      if (shoppingListIds == null || shoppingListIds.isEmpty) {
         developer.log('📋 グループ「$groupId」のリストなし');
         return [];
       }
       
       final lists = <ShoppingList>[];
-      for (final listId in purchaseGroup.shoppingListIds) {
+      for (final listId in shoppingListIds) {
         final list = box.get(listId);
         if (list != null) {
           lists.add(list);
@@ -338,7 +339,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
         final purchaseGroupBox = ref.read(purchaseGroupBoxProvider);
         final purchaseGroup = purchaseGroupBox.get(list.groupId);
         if (purchaseGroup != null) {
-          final updatedShoppingListIds = purchaseGroup.shoppingListIds.where((id) => id != listId).toList();
+          final updatedShoppingListIds = (purchaseGroup.shoppingListIds ?? []).where((id) => id != listId).toList().cast<String>();
           final updatedGroup = purchaseGroup.copyWith(shoppingListIds: updatedShoppingListIds);
           await purchaseGroupBox.put(list.groupId, updatedGroup);
           developer.log('📝 グループ「${purchaseGroup.groupName}」からリストID削除: $listId');
