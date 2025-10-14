@@ -2,12 +2,55 @@
 import '../models/shopping_list.dart';
 
 abstract class ShoppingListRepository {
+  // === Legacy Methods (for backward compatibility) ===
+  @deprecated
   Future<ShoppingList?> getShoppingList(String groupId);
   Future<void> addItem(ShoppingList list);
+  @deprecated
   Future<void> clearShoppingList(String groupId);
+  @deprecated
   Future<void> addShoppingItem(String groupId, ShoppingItem item);
+  @deprecated
   Future<void> removeShoppingItem(String groupId, ShoppingItem item);
+  @deprecated
   Future<void> updateShoppingItemStatus(String groupId, ShoppingItem item,
        {required bool isPurchased});
+  @deprecated
   Future<ShoppingList> getOrCreateList(String groupId, String groupName);
+
+  // === New Multi-List Methods ===
+  /// Create a new shopping list for a group
+  Future<ShoppingList> createShoppingList({
+    required String ownerUid,
+    required String groupId,
+    required String listName,
+    String? description,
+  });
+
+  /// Get a specific shopping list by listId
+  Future<ShoppingList?> getShoppingListById(String listId);
+
+  /// Get all shopping lists for a specific group
+  Future<List<ShoppingList>> getShoppingListsByGroup(String groupId);
+
+  /// Update an entire shopping list
+  Future<void> updateShoppingList(ShoppingList list);
+
+  /// Delete a shopping list by listId
+  Future<void> deleteShoppingList(String listId);
+
+  /// Add item to a specific shopping list (by listId)
+  Future<void> addItemToList(String listId, ShoppingItem item);
+
+  /// Remove item from a specific shopping list (by listId)
+  Future<void> removeItemFromList(String listId, ShoppingItem item);
+
+  /// Update item status in a specific shopping list
+  Future<void> updateItemStatusInList(String listId, ShoppingItem item, {required bool isPurchased});
+
+  /// Clear all purchased items from a specific shopping list
+  Future<void> clearPurchasedItemsFromList(String listId);
+
+  /// Get or create default list for a group (backward compatibility)
+  Future<ShoppingList> getOrCreateDefaultList(String groupId, String groupName);
 }

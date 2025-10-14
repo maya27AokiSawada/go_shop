@@ -267,4 +267,89 @@ class HybridShoppingListRepository implements ShoppingListRepository {
     _isOnline = true;
     developer.log('🔄 Connection status reset');
   }
+
+  // === Multi-List Methods Implementation ===
+  
+  @override
+  Future<ShoppingList> createShoppingList({
+    required String ownerUid,
+    required String groupId,
+    required String listName,
+    String? description,
+  }) async {
+    try {
+      // Hive側で新規作成
+      final newList = await _hiveRepo.createShoppingList(
+        ownerUid: ownerUid,
+        groupId: groupId,
+        listName: listName,
+        description: description,
+      );
+      
+      // Firestoreにも同期（オンライン時のみ）
+      if (_isOnline && F.appFlavor == Flavor.prod) {
+        try {
+          await _firestoreRepo.createShoppingList(
+            ownerUid: ownerUid,
+            groupId: groupId,
+            listName: listName,
+            description: description,
+          );
+          developer.log('☁️ Hybrid: リスト「$listName」をFirestoreに同期');
+        } catch (e) {
+          developer.log('⚠️ Hybrid: Firestore同期失敗、Hiveのみで作成: $e');
+        }
+      }
+      
+      return newList;
+    } catch (e) {
+      developer.log('❌ Hybrid: リスト作成エラー: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<ShoppingList?> getShoppingListById(String listId) async {
+    return await _hiveRepo.getShoppingListById(listId);
+  }
+
+  @override
+  Future<List<ShoppingList>> getShoppingListsByGroup(String groupId) async {
+    return await _hiveRepo.getShoppingListsByGroup(groupId);
+  }
+
+  @override
+  Future<void> updateShoppingList(ShoppingList list) async {
+    await _hiveRepo.updateShoppingList(list);
+  }
+
+  @override
+  Future<void> deleteShoppingList(String listId) async {
+    await _hiveRepo.deleteShoppingList(listId);
+  }
+
+  @override
+  Future<void> addItemToList(String listId, ShoppingItem item) async {
+    await _hiveRepo.addItemToList(listId, item);
+  }
+
+  @override
+  Future<void> removeItemFromList(String listId, ShoppingItem item) async {
+    await _hiveRepo.removeItemFromList(listId, item);
+  }
+
+  @override
+  Future<void> updateItemStatusInList(String listId, ShoppingItem item, {required bool isPurchased}) async {
+    await _hiveRepo.updateItemStatusInList(listId, item, isPurchased: isPurchased);
+  }
+
+  @override
+  Future<void> clearPurchasedItemsFromList(String listId) async {
+    await _hiveRepo.clearPurchasedItemsFromList(listId);
+  }
+
+  @override
+  Future<ShoppingList> getOrCreateDefaultList(String groupId, String groupName) async {
+    return await _hiveRepo.getOrCreateDefaultList(groupId, groupName);
+  }
 }

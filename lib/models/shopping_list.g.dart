@@ -76,13 +76,18 @@ class ShoppingListAdapter extends TypeAdapter<ShoppingList> {
       groupId: fields[1] as String,
       groupName: fields[2] as String,
       items: (fields[3] as List).cast<ShoppingItem>(),
+      listId: fields[4] as String,
+      listName: fields[5] as String,
+      description: fields[6] as String,
+      createdAt: fields[7] as DateTime,
+      updatedAt: fields[8] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, ShoppingList obj) {
     writer
-      ..writeByte(4)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.ownerUid)
       ..writeByte(1)
@@ -90,7 +95,17 @@ class ShoppingListAdapter extends TypeAdapter<ShoppingList> {
       ..writeByte(2)
       ..write(obj.groupName)
       ..writeByte(3)
-      ..write(obj.items);
+      ..write(obj.items)
+      ..writeByte(4)
+      ..write(obj.listId)
+      ..writeByte(5)
+      ..write(obj.listName)
+      ..writeByte(6)
+      ..write(obj.description)
+      ..writeByte(7)
+      ..write(obj.createdAt)
+      ..writeByte(8)
+      ..write(obj.updatedAt);
   }
 
   @override

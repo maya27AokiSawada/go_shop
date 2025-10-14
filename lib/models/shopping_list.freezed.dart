@@ -328,6 +328,16 @@ mixin _$ShoppingList {
   String get groupName => throw _privateConstructorUsedError;
   @HiveField(3)
   List<ShoppingItem> get items => throw _privateConstructorUsedError;
+  @HiveField(4)
+  String get listId => throw _privateConstructorUsedError; // 追加: リストID
+  @HiveField(5)
+  String get listName => throw _privateConstructorUsedError; // 追加: リスト名
+  @HiveField(6)
+  String get description => throw _privateConstructorUsedError; // 追加: リスト説明
+  @HiveField(7)
+  DateTime get createdAt => throw _privateConstructorUsedError; // 追加: 作成日時
+  @HiveField(8)
+  DateTime? get updatedAt => throw _privateConstructorUsedError;
 
   @JsonKey(ignore: true)
   $ShoppingListCopyWith<ShoppingList> get copyWith =>
@@ -344,7 +354,12 @@ abstract class $ShoppingListCopyWith<$Res> {
       {@HiveField(0) String ownerUid,
       @HiveField(1) String groupId,
       @HiveField(2) String groupName,
-      @HiveField(3) List<ShoppingItem> items});
+      @HiveField(3) List<ShoppingItem> items,
+      @HiveField(4) String listId,
+      @HiveField(5) String listName,
+      @HiveField(6) String description,
+      @HiveField(7) DateTime createdAt,
+      @HiveField(8) DateTime? updatedAt});
 }
 
 /// @nodoc
@@ -364,6 +379,11 @@ class _$ShoppingListCopyWithImpl<$Res, $Val extends ShoppingList>
     Object? groupId = null,
     Object? groupName = null,
     Object? items = null,
+    Object? listId = null,
+    Object? listName = null,
+    Object? description = null,
+    Object? createdAt = null,
+    Object? updatedAt = freezed,
   }) {
     return _then(_value.copyWith(
       ownerUid: null == ownerUid
@@ -382,6 +402,26 @@ class _$ShoppingListCopyWithImpl<$Res, $Val extends ShoppingList>
           ? _value.items
           : items // ignore: cast_nullable_to_non_nullable
               as List<ShoppingItem>,
+      listId: null == listId
+          ? _value.listId
+          : listId // ignore: cast_nullable_to_non_nullable
+              as String,
+      listName: null == listName
+          ? _value.listName
+          : listName // ignore: cast_nullable_to_non_nullable
+              as String,
+      description: null == description
+          ? _value.description
+          : description // ignore: cast_nullable_to_non_nullable
+              as String,
+      createdAt: null == createdAt
+          ? _value.createdAt
+          : createdAt // ignore: cast_nullable_to_non_nullable
+              as DateTime,
+      updatedAt: freezed == updatedAt
+          ? _value.updatedAt
+          : updatedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
     ) as $Val);
   }
 }
@@ -398,7 +438,12 @@ abstract class _$$ShoppingListImplCopyWith<$Res>
       {@HiveField(0) String ownerUid,
       @HiveField(1) String groupId,
       @HiveField(2) String groupName,
-      @HiveField(3) List<ShoppingItem> items});
+      @HiveField(3) List<ShoppingItem> items,
+      @HiveField(4) String listId,
+      @HiveField(5) String listName,
+      @HiveField(6) String description,
+      @HiveField(7) DateTime createdAt,
+      @HiveField(8) DateTime? updatedAt});
 }
 
 /// @nodoc
@@ -416,6 +461,11 @@ class __$$ShoppingListImplCopyWithImpl<$Res>
     Object? groupId = null,
     Object? groupName = null,
     Object? items = null,
+    Object? listId = null,
+    Object? listName = null,
+    Object? description = null,
+    Object? createdAt = null,
+    Object? updatedAt = freezed,
   }) {
     return _then(_$ShoppingListImpl(
       ownerUid: null == ownerUid
@@ -434,6 +484,26 @@ class __$$ShoppingListImplCopyWithImpl<$Res>
           ? _value._items
           : items // ignore: cast_nullable_to_non_nullable
               as List<ShoppingItem>,
+      listId: null == listId
+          ? _value.listId
+          : listId // ignore: cast_nullable_to_non_nullable
+              as String,
+      listName: null == listName
+          ? _value.listName
+          : listName // ignore: cast_nullable_to_non_nullable
+              as String,
+      description: null == description
+          ? _value.description
+          : description // ignore: cast_nullable_to_non_nullable
+              as String,
+      createdAt: null == createdAt
+          ? _value.createdAt
+          : createdAt // ignore: cast_nullable_to_non_nullable
+              as DateTime,
+      updatedAt: freezed == updatedAt
+          ? _value.updatedAt
+          : updatedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
     ));
   }
 }
@@ -445,7 +515,12 @@ class _$ShoppingListImpl implements _ShoppingList {
       {@HiveField(0) required this.ownerUid,
       @HiveField(1) required this.groupId,
       @HiveField(2) required this.groupName,
-      @HiveField(3) final List<ShoppingItem> items = const []})
+      @HiveField(3) final List<ShoppingItem> items = const [],
+      @HiveField(4) required this.listId,
+      @HiveField(5) required this.listName,
+      @HiveField(6) this.description = '',
+      @HiveField(7) required this.createdAt,
+      @HiveField(8) this.updatedAt})
       : _items = items;
 
   @override
@@ -468,8 +543,29 @@ class _$ShoppingListImpl implements _ShoppingList {
   }
 
   @override
+  @HiveField(4)
+  final String listId;
+// 追加: リストID
+  @override
+  @HiveField(5)
+  final String listName;
+// 追加: リスト名
+  @override
+  @JsonKey()
+  @HiveField(6)
+  final String description;
+// 追加: リスト説明
+  @override
+  @HiveField(7)
+  final DateTime createdAt;
+// 追加: 作成日時
+  @override
+  @HiveField(8)
+  final DateTime? updatedAt;
+
+  @override
   String toString() {
-    return 'ShoppingList(ownerUid: $ownerUid, groupId: $groupId, groupName: $groupName, items: $items)';
+    return 'ShoppingList(ownerUid: $ownerUid, groupId: $groupId, groupName: $groupName, items: $items, listId: $listId, listName: $listName, description: $description, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -482,12 +578,30 @@ class _$ShoppingListImpl implements _ShoppingList {
             (identical(other.groupId, groupId) || other.groupId == groupId) &&
             (identical(other.groupName, groupName) ||
                 other.groupName == groupName) &&
-            const DeepCollectionEquality().equals(other._items, _items));
+            const DeepCollectionEquality().equals(other._items, _items) &&
+            (identical(other.listId, listId) || other.listId == listId) &&
+            (identical(other.listName, listName) ||
+                other.listName == listName) &&
+            (identical(other.description, description) ||
+                other.description == description) &&
+            (identical(other.createdAt, createdAt) ||
+                other.createdAt == createdAt) &&
+            (identical(other.updatedAt, updatedAt) ||
+                other.updatedAt == updatedAt));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, ownerUid, groupId, groupName,
-      const DeepCollectionEquality().hash(_items));
+  int get hashCode => Object.hash(
+      runtimeType,
+      ownerUid,
+      groupId,
+      groupName,
+      const DeepCollectionEquality().hash(_items),
+      listId,
+      listName,
+      description,
+      createdAt,
+      updatedAt);
 
   @JsonKey(ignore: true)
   @override
@@ -501,7 +615,12 @@ abstract class _ShoppingList implements ShoppingList {
       {@HiveField(0) required final String ownerUid,
       @HiveField(1) required final String groupId,
       @HiveField(2) required final String groupName,
-      @HiveField(3) final List<ShoppingItem> items}) = _$ShoppingListImpl;
+      @HiveField(3) final List<ShoppingItem> items,
+      @HiveField(4) required final String listId,
+      @HiveField(5) required final String listName,
+      @HiveField(6) final String description,
+      @HiveField(7) required final DateTime createdAt,
+      @HiveField(8) final DateTime? updatedAt}) = _$ShoppingListImpl;
 
   @override
   @HiveField(0)
@@ -515,6 +634,21 @@ abstract class _ShoppingList implements ShoppingList {
   @override
   @HiveField(3)
   List<ShoppingItem> get items;
+  @override
+  @HiveField(4)
+  String get listId;
+  @override // 追加: リストID
+  @HiveField(5)
+  String get listName;
+  @override // 追加: リスト名
+  @HiveField(6)
+  String get description;
+  @override // 追加: リスト説明
+  @HiveField(7)
+  DateTime get createdAt;
+  @override // 追加: 作成日時
+  @HiveField(8)
+  DateTime? get updatedAt;
   @override
   @JsonKey(ignore: true)
   _$$ShoppingListImplCopyWith<_$ShoppingListImpl> get copyWith =>

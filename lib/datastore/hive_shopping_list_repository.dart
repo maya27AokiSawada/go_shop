@@ -101,10 +101,12 @@ class HiveShoppingListRepository implements ShoppingListRepository {
       final purchaseGroupBox = ref.read(purchaseGroupBoxProvider);
       final purchaseGroup = purchaseGroupBox.get(groupId);
       
-      final newList = ShoppingList(
+      final newList = ShoppingList.create(
         ownerUid: purchaseGroup?.ownerUid ?? 'defaultUser',
         groupId: groupId,
         groupName: purchaseGroup?.groupName ?? 'Shopping List',
+        listName: purchaseGroup?.groupName ?? 'Shopping List',
+        description: '',
         items: [item],
       );
       await box.put(userKey, newList);
@@ -189,10 +191,12 @@ class HiveShoppingListRepository implements ShoppingListRepository {
     final purchaseGroupBox = ref.read(purchaseGroupBoxProvider);
     final purchaseGroup = purchaseGroupBox.get(groupId);
     
-    final defaultList = ShoppingList(
+    final defaultList = ShoppingList.create(
       ownerUid: purchaseGroup?.ownerUid ?? 'defaultUser',
       groupId: groupId,
       groupName: purchaseGroup?.groupName ?? groupName,
+      listName: purchaseGroup?.groupName ?? groupName,
+      description: 'デフォルトリスト',
       items: [],
     );
     await box.put(userKey, defaultList);
@@ -227,6 +231,262 @@ class HiveShoppingListRepository implements ShoppingListRepository {
     if (purchaseGroup?.members == null) return false;
     
     return purchaseGroup!.members!.any((member) => member.memberId == memberId);
+  }
+
+  // === New Multi-List Methods Implementation ===
+
+  @override
+  Future<ShoppingList> createShoppingList({
+    required String ownerUid,
+    required String groupId,
+    required String listName,
+    String? description,
+  }) async {
+    try {
+      // Create new shopping list with generated listId
+      final newList = ShoppingList.create(
+        ownerUid: ownerUid,
+        groupId: groupId,
+        groupName: listName, // Note: groupName is required, use listName for now
+        listName: listName,
+        description: description ?? '',
+        items: [],
+      );
+      
+      // Save to Hive using listId as key
+      await box.put(newList.listId, newList);
+      developer.log('🆕 新規リスト作成: ${newList.listName} (ID: ${newList.listId})');
+      
+      // Update PurchaseGroup's shoppingListIds
+      final purchaseGroupBox = ref.read(purchaseGroupBoxProvider);
+      final purchaseGroup = purchaseGroupBox.get(groupId);
+      if (purchaseGroup != null) {
+        final updatedShoppingListIds = [...(purchaseGroup.shoppingListIds), newList.listId];
+        final updatedGroup = purchaseGroup.copyWith(shoppingListIds: updatedShoppingListIds);
+        await purchaseGroupBox.put(groupId, updatedGroup);
+        developer.log('📝 グループ「${purchaseGroup.groupName}」にリストID追加: ${newList.listId}');
+      }
+      
+      return newList;
+    } catch (e) {
+      developer.log('❌ リスト作成エラー: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<ShoppingList?> getShoppingListById(String listId) async {
+    try {
+      final list = box.get(listId);
+      developer.log('🔍 リスト取得 (ID: $listId): ${list != null ? "成功" : "見つからない"}');
+      return list;
+    } catch (e) {
+      developer.log('❌ リスト取得エラー (ID: $listId): $e');
+      return null;
+    }
+  }
+
+  @override
+  Future<List<ShoppingList>> getShoppingListsByGroup(String groupId) async {
+    try {
+      final purchaseGroupBox = ref.read(purchaseGroupBoxProvider);
+      final purchaseGroup = purchaseGroupBox.get(groupId);
+      
+      if (purchaseGroup?.shoppingListIds == null || purchaseGroup!.shoppingListIds.isEmpty) {
+        developer.log('📋 グループ「$groupId」のリストなし');
+        return [];
+      }
+      
+      final lists = <ShoppingList>[];
+      for (final listId in purchaseGroup.shoppingListIds) {
+        final list = box.get(listId);
+        if (list != null) {
+          lists.add(list);
+        } else {
+          developer.log('⚠️ リストID「$listId」が見つからない (グループ: $groupId)');
+        }
+      }
+      
+      developer.log('📋 グループ「$groupId」のリスト取得: ${lists.length}個');
+      return lists;
+    } catch (e) {
+      developer.log('❌ グループリスト取得エラー (Group: $groupId): $e');
+      return [];
+    }
+  }
+
+  @override
+  Future<void> updateShoppingList(ShoppingList list) async {
+    try {
+      await box.put(list.listId, list);
+      developer.log('💾 リスト更新: ${list.listName} (ID: ${list.listId})');
+    } catch (e) {
+      developer.log('❌ リスト更新エラー (ID: ${list.listId}): $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> deleteShoppingList(String listId) async {
+    try {
+      final list = box.get(listId);
+      if (list != null) {
+        // Remove from Hive
+        await box.delete(listId);
+        
+        // Remove from PurchaseGroup's shoppingListIds
+        final purchaseGroupBox = ref.read(purchaseGroupBoxProvider);
+        final purchaseGroup = purchaseGroupBox.get(list.groupId);
+        if (purchaseGroup != null) {
+          final updatedShoppingListIds = purchaseGroup.shoppingListIds.where((id) => id != listId).toList();
+          final updatedGroup = purchaseGroup.copyWith(shoppingListIds: updatedShoppingListIds);
+          await purchaseGroupBox.put(list.groupId, updatedGroup);
+          developer.log('📝 グループ「${purchaseGroup.groupName}」からリストID削除: $listId');
+        }
+        
+        developer.log('🗑️ リスト削除: ${list.listName} (ID: $listId)');
+      } else {
+        developer.log('⚠️ 削除対象リストが見つからない (ID: $listId)');
+      }
+    } catch (e) {
+      developer.log('❌ リスト削除エラー (ID: $listId): $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> addItemToList(String listId, ShoppingItem item) async {
+    try {
+      final list = box.get(listId);
+      if (list == null) {
+        throw Exception('リストが見つかりません (ID: $listId)');
+      }
+      
+      // Validation
+      final validation = ValidationService.validateItemName(item.name, list.items, item.memberId);
+      if (validation.hasError) {
+        throw Exception(validation.errorMessage);
+      }
+      
+      final updatedList = list.copyWith(
+        items: [...list.items, item],
+        updatedAt: DateTime.now(),
+      );
+      await box.put(listId, updatedList);
+      developer.log('➕ アイテム追加: ${item.name} → リスト「${list.listName}」');
+    } catch (e) {
+      developer.log('❌ アイテム追加エラー (ListID: $listId): $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> removeItemFromList(String listId, ShoppingItem item) async {
+    try {
+      final list = box.get(listId);
+      if (list == null) {
+        throw Exception('リストが見つかりません (ID: $listId)');
+      }
+      
+      final updatedItems = list.items.where((existingItem) => 
+        !(existingItem.name == item.name && 
+          existingItem.memberId == item.memberId &&
+          existingItem.registeredDate == item.registeredDate)
+      ).toList();
+      
+      final updatedList = list.copyWith(
+        items: updatedItems,
+        updatedAt: DateTime.now(),
+      );
+      await box.put(listId, updatedList);
+      developer.log('➖ アイテム削除: ${item.name} ← リスト「${list.listName}」');
+    } catch (e) {
+      developer.log('❌ アイテム削除エラー (ListID: $listId): $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> updateItemStatusInList(String listId, ShoppingItem item, {required bool isPurchased}) async {
+    try {
+      final list = box.get(listId);
+      if (list == null) {
+        throw Exception('リストが見つかりません (ID: $listId)');
+      }
+      
+      final updatedItems = list.items.map((existingItem) {
+        if (existingItem.name == item.name && 
+            existingItem.memberId == item.memberId &&
+            existingItem.registeredDate == item.registeredDate) {
+          return existingItem.copyWith(
+            isPurchased: isPurchased,
+            purchaseDate: isPurchased ? DateTime.now() : null,
+          );
+        }
+        return existingItem;
+      }).toList();
+      
+      final updatedList = list.copyWith(
+        items: updatedItems,
+        updatedAt: DateTime.now(),
+      );
+      await box.put(listId, updatedList);
+      developer.log('✅ アイテムステータス更新: ${item.name} → ${isPurchased ? "購入済み" : "未購入"} (リスト: ${list.listName})');
+    } catch (e) {
+      developer.log('❌ アイテムステータス更新エラー (ListID: $listId): $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> clearPurchasedItemsFromList(String listId) async {
+    try {
+      final list = box.get(listId);
+      if (list == null) {
+        throw Exception('リストが見つかりません (ID: $listId)');
+      }
+      
+      final unpurchasedItems = list.items.where((item) => !item.isPurchased).toList();
+      final updatedList = list.copyWith(
+        items: unpurchasedItems,
+        updatedAt: DateTime.now(),
+      );
+      await box.put(listId, updatedList);
+      developer.log('🧹 購入済みアイテムクリア: リスト「${list.listName}」 (残り: ${unpurchasedItems.length}個)');
+    } catch (e) {
+      developer.log('❌ 購入済みアイテムクリアエラー (ListID: $listId): $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<ShoppingList> getOrCreateDefaultList(String groupId, String groupName) async {
+    try {
+      // Check if group has any existing lists
+      final existingLists = await getShoppingListsByGroup(groupId);
+      if (existingLists.isNotEmpty) {
+        // Return the first list as default
+        developer.log('📋 デフォルトリスト取得: ${existingLists.first.listName}');
+        return existingLists.first;
+      }
+      
+      // Create new default list
+      final purchaseGroupBox = ref.read(purchaseGroupBoxProvider);
+      final purchaseGroup = purchaseGroupBox.get(groupId);
+      
+      final defaultList = await createShoppingList(
+        ownerUid: purchaseGroup?.ownerUid ?? 'defaultUser',
+        groupId: groupId,
+        listName: '$groupNameのリスト',
+        description: 'デフォルトの買い物リスト',
+      );
+      
+      developer.log('🆕 デフォルトリスト作成: ${defaultList.listName}');
+      return defaultList;
+    } catch (e) {
+      developer.log('❌ デフォルトリスト取得/作成エラー (Group: $groupId): $e');
+      rethrow;
+    }
   }
 }
 

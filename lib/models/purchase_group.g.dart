@@ -82,13 +82,14 @@ class PurchaseGroupAdapter extends TypeAdapter<PurchaseGroup> {
       ownerUid: fields[4] as String?,
       members: (fields[5] as List?)?.cast<PurchaseGroupMember>(),
       ownerMessage: fields[6] as String?,
+      shoppingListIds: (fields[7] as List).cast<String>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, PurchaseGroup obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.groupName)
       ..writeByte(1)
@@ -102,7 +103,9 @@ class PurchaseGroupAdapter extends TypeAdapter<PurchaseGroup> {
       ..writeByte(5)
       ..write(obj.members)
       ..writeByte(6)
-      ..write(obj.ownerMessage);
+      ..write(obj.ownerMessage)
+      ..writeByte(7)
+      ..write(obj.shoppingListIds);
   }
 
   @override

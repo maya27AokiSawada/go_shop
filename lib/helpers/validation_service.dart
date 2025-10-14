@@ -139,7 +139,7 @@ class ValidationService {
       (list) => list.groupName.toLowerCase() == trimmedName.toLowerCase() &&
                 list.groupId == groupId &&
                 list.groupId != excludeListId,
-      orElse: () => const ShoppingList(ownerUid: '', groupId: '', groupName: ''),
+      orElse: () => ShoppingList.create(ownerUid: '', groupId: '', groupName: '', listName: '', description: '', items: []),
     );
     
     if (duplicateList.groupName.isNotEmpty) {

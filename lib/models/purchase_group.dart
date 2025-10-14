@@ -99,6 +99,7 @@ class PurchaseGroup with _$PurchaseGroup {
     @HiveField(4) String? ownerUid,
     @HiveField(5) List<PurchaseGroupMember>? members,
     @HiveField(6) String? ownerMessage, // オーナーからメンバーへのメッセージ
+    @HiveField(7) @Default([]) List<String> shoppingListIds, // 複数のショッピングリストID管理
   }) = _PurchaseGroup;
 
   // カスタムコンストラクタでIDを自動生成
@@ -110,6 +111,7 @@ class PurchaseGroup with _$PurchaseGroup {
     String? ownerUid,
     String? groupId,
     String? ownerMessage,
+    List<String> shoppingListIds = const [],
   }) {
     return PurchaseGroup(
       groupName: groupName,
@@ -119,6 +121,7 @@ class PurchaseGroup with _$PurchaseGroup {
       ownerUid: ownerUid ?? uuid.v4(),
       members: members,
       ownerMessage: ownerMessage,
+      shoppingListIds: shoppingListIds,
     );
   }
 }
@@ -207,6 +210,8 @@ extension PurchaseGroupExtension on PurchaseGroup {
     String? ownerEmail,
     String? ownerUid,
     List<PurchaseGroupMember>? members,
+    String? ownerMessage,
+    List<String>? shoppingListIds,
   }) {
     return PurchaseGroup(
       groupName: groupName ?? this.groupName,
@@ -215,6 +220,39 @@ extension PurchaseGroupExtension on PurchaseGroup {
       ownerEmail: ownerEmail ?? this.ownerEmail,
       ownerUid: ownerUid ?? this.ownerUid,
       members: members ?? this.members,
+      ownerMessage: ownerMessage ?? this.ownerMessage,
+      shoppingListIds: shoppingListIds ?? this.shoppingListIds,
     );
+  }
+
+  /// ショッピングリスト管理メソッド
+  // 新しいショッピングリストIDを追加
+  PurchaseGroup addShoppingList(String listId) {
+    if (shoppingListIds.contains(listId)) return this;
+    return copyWith(
+      shoppingListIds: [...shoppingListIds, listId],
+    );
+  }
+
+  // ショッピングリストIDを削除
+  PurchaseGroup removeShoppingList(String listId) {
+    return copyWith(
+      shoppingListIds: shoppingListIds.where((id) => id != listId).toList(),
+    );
+  }
+
+  // 指定したショッピングリストが存在するか確認
+  bool hasShoppingList(String listId) {
+    return shoppingListIds.contains(listId);
+  }
+
+  // メインのショッピングリストID（最初のリスト）を取得
+  String? get primaryShoppingListId {
+    return shoppingListIds.isEmpty ? null : shoppingListIds.first;
+  }
+
+  // ショッピングリスト数を取得
+  int get shoppingListCount {
+    return shoppingListIds.length;
   }
 }

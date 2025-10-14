@@ -279,10 +279,12 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
       );
     }).toList();
 
-    return ShoppingList(
+    return ShoppingList.create(
       ownerUid: data['ownerUid'] ?? '',
       groupId: data['groupId'] ?? '',
       groupName: data['groupName'] ?? '',
+      listName: data['groupName'] ?? '',
+      description: '',
       items: items,
     );
   }
@@ -336,12 +338,7 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
       }
     }
     
-    return ShoppingList(
-      ownerUid: list.ownerUid,
-      groupId: list.groupId,
-      groupName: list.groupName,
-      items: processedItems,
-    );
+    return list.copyWith(items: processedItems);
   }
 
   /// 同じ名前の未購入アイテムが存在するかチェック
@@ -402,5 +399,62 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
     }
     
     return await _hiveRepo.getOrCreateList(groupId, groupName);
+  }
+
+  // === Multi-List Methods - Not Implemented Yet ===
+  
+  @override
+  Future<ShoppingList> createShoppingList({
+    required String ownerUid,
+    required String groupId,
+    required String listName,
+    String? description,
+  }) async {
+    throw UnimplementedError('FirebaseRepository multi-list support not implemented yet');
+  }
+
+  @override
+  Future<ShoppingList?> getShoppingListById(String listId) async {
+    throw UnimplementedError('FirebaseRepository multi-list support not implemented yet');
+  }
+
+  @override
+  Future<List<ShoppingList>> getShoppingListsByGroup(String groupId) async {
+    throw UnimplementedError('FirebaseRepository multi-list support not implemented yet');
+  }
+
+  @override
+  Future<void> updateShoppingList(ShoppingList list) async {
+    throw UnimplementedError('FirebaseRepository multi-list support not implemented yet');
+  }
+
+  @override
+  Future<void> deleteShoppingList(String listId) async {
+    throw UnimplementedError('FirebaseRepository multi-list support not implemented yet');
+  }
+
+  @override
+  Future<void> addItemToList(String listId, ShoppingItem item) async {
+    throw UnimplementedError('FirebaseRepository multi-list support not implemented yet');
+  }
+
+  @override
+  Future<void> removeItemFromList(String listId, ShoppingItem item) async {
+    throw UnimplementedError('FirebaseRepository multi-list support not implemented yet');
+  }
+
+  @override
+  Future<void> updateItemStatusInList(String listId, ShoppingItem item, {required bool isPurchased}) async {
+    throw UnimplementedError('FirebaseRepository multi-list support not implemented yet');
+  }
+
+  @override
+  Future<void> clearPurchasedItemsFromList(String listId) async {
+    throw UnimplementedError('FirebaseRepository multi-list support not implemented yet');
+  }
+
+  @override
+  Future<ShoppingList> getOrCreateDefaultList(String groupId, String groupName) async {
+    return await getOrCreateList(groupId, groupName);
   }
 }

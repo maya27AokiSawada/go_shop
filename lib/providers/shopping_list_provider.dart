@@ -50,8 +50,8 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
         if (savedList != null) {
           logger.i('🛒 ShoppingListNotifier: Hiveから既存リストを読み込み (${savedList.items.length}アイテム)');
           // 既存リストのグループ情報を更新
-          final updatedList = ShoppingList(
-            ownerUid: purchaseGroup.ownerUid ?? '',
+          final updatedList = savedList.copyWith(
+            ownerUid: purchaseGroup.ownerUid ?? savedList.ownerUid,
             groupId: purchaseGroup.groupId,
             groupName: purchaseGroup.groupName,
             items: savedList.items,
@@ -62,26 +62,32 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
         } else {
           logger.i('🛒 ShoppingListNotifier: 新しいリストを作成');
           // 新しいリストを作成してHiveに保存
-          final newList = ShoppingList(
+          final newList = ShoppingList.create(
             ownerUid: purchaseGroup.ownerUid ?? '',
             groupId: purchaseGroup.groupId,
             groupName: purchaseGroup.groupName,
+            listName: purchaseGroup.groupName,
+            description: '',
             items: [],
           );
           await repository.addItem(newList.copyWith(groupId: _key));
           return newList;
         }
       },
-      loading: () => const ShoppingList(
+      loading: () => ShoppingList.create(
         ownerUid: '',
         groupId: 'loading',
         groupName: 'Loading...',
+        listName: 'Loading...',
+        description: '',
         items: [],
       ),
-      error: (error, stack) => const ShoppingList(
+      error: (error, stack) => ShoppingList.create(
         ownerUid: '',
         groupId: 'error',
         groupName: 'Error',
+        listName: 'Error',
+        description: '',
         items: [],
       ),
     );
@@ -92,12 +98,7 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
       final repository = ref.read(shoppingListRepositoryProvider);
       final currentList = await future;
       final updatedItems = [...currentList.items, item];
-      final updatedList = ShoppingList(
-        ownerUid: currentList.ownerUid,
-        groupId: currentList.groupId,
-        groupName: currentList.groupName,
-        items: updatedItems,
-      );
+      final updatedList = currentList.copyWith(items: updatedItems);
       
       // Hiveに保存
       await repository.addItem(updatedList.copyWith(groupId: _key));
@@ -119,12 +120,7 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
         i.memberId != item.memberId || i.name != item.name
       ).toList();
       
-      final updatedList = ShoppingList(
-        ownerUid: currentList.ownerUid,
-        groupId: currentList.groupId,
-        groupName: currentList.groupName,
-        items: updatedItems,
-      );
+      final updatedList = currentList.copyWith(items: updatedItems);
       
       // Hiveに保存
       await repository.addItem(updatedList.copyWith(groupId: _key));
@@ -149,12 +145,7 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
         return item;
       }).toList();
       
-      final updatedList = ShoppingList(
-        ownerUid: currentList.ownerUid,
-        groupId: currentList.groupId,
-        groupName: currentList.groupName,
-        items: updatedItems,
-      );
+      final updatedList = currentList.copyWith(items: updatedItems);
       
       // Hiveに保存
       await repository.addItem(updatedList.copyWith(groupId: _key));
@@ -204,12 +195,7 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
         return i;
       }).toList();
       
-      final updatedList = ShoppingList(
-        ownerUid: currentList.ownerUid,
-        groupId: currentList.groupId,
-        groupName: currentList.groupName,
-        items: updatedItems,
-      );
+      final updatedList = currentList.copyWith(items: updatedItems);
       
       // Hiveに保存
       await repository.addItem(updatedList.copyWith(groupId: _key));
@@ -229,12 +215,7 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
       final currentList = await future;
       final unpurchasedItems = currentList.items.where((item) => !item.isPurchased).toList();
       
-      final updatedList = ShoppingList(
-        ownerUid: currentList.ownerUid,
-        groupId: currentList.groupId,
-        groupName: currentList.groupName,
-        items: unpurchasedItems,
-      );
+      final updatedList = currentList.copyWith(items: unpurchasedItems);
       
       // Hiveに保存
       await repository.addItem(updatedList.copyWith(groupId: _key));
@@ -311,10 +292,12 @@ class ShoppingListForGroupNotifier extends FamilyAsyncNotifier<ShoppingList, Str
     } catch (e) {
       logger.e('❌ ShoppingListForGroupNotifier: グループ$groupId のリスト読み込みエラー: $e');
       // エラー時は空のリストを作成
-      return ShoppingList(
+      return ShoppingList.create(
         ownerUid: '',
         groupId: groupId,
         groupName: '$groupIdのリスト',
+        listName: '$groupIdのリスト',
+        description: '',
         items: [],
       );
     }

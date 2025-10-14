@@ -1,8 +1,11 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart';
+import 'package:uuid/uuid.dart';
 
 part 'shopping_list.freezed.dart';
 part 'shopping_list.g.dart';
+
+const uuid = Uuid();
 
 @HiveType(typeId: 3)
 @freezed
@@ -47,5 +50,34 @@ class ShoppingList with _$ShoppingList {
     @HiveField(1) required String groupId,
     @HiveField(2) required String groupName,
     @HiveField(3) @Default([]) List<ShoppingItem> items,
+    @HiveField(4) required String listId, // 追加: リストID
+    @HiveField(5) required String listName, // 追加: リスト名
+    @HiveField(6) @Default('') String description, // 追加: リスト説明
+    @HiveField(7) required DateTime createdAt, // 追加: 作成日時
+    @HiveField(8) DateTime? updatedAt, // 追加: 更新日時
   }) = _ShoppingList;
+
+  // ファクトリーコンストラクタでIDと日時を自動生成
+  factory ShoppingList.create({
+    required String ownerUid,
+    required String groupId,
+    required String groupName,
+    required String listName,
+    String? listId,
+    String description = '',
+    List<ShoppingItem> items = const [],
+  }) {
+    final now = DateTime.now();
+    return ShoppingList(
+      ownerUid: ownerUid,
+      groupId: groupId,
+      groupName: groupName,
+      listName: listName,
+      listId: listId ?? uuid.v4(),
+      description: description,
+      items: items,
+      createdAt: now,
+      updatedAt: now,
+    );
+  }
 }
