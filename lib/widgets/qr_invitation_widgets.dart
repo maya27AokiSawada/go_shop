@@ -9,14 +9,18 @@ import '../services/qr_invitation_service.dart';
 class QRInviteButton extends ConsumerWidget {
   final String shoppingListId;
   final String purchaseGroupId;
+  final String groupName;
+  final String groupOwnerUid;
   final String? customMessage;
 
   const QRInviteButton({
-    Key? key,
+    super.key,
     required this.shoppingListId,
     required this.purchaseGroupId,
+    required this.groupName,
+    required this.groupOwnerUid,
     this.customMessage,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -38,6 +42,8 @@ class QRInviteButton extends ConsumerWidget {
       final invitationData = await qrService.createQRInvitationData(
         shoppingListId: shoppingListId,
         purchaseGroupId: purchaseGroupId,
+        groupName: groupName,
+        groupOwnerUid: groupOwnerUid,
         customMessage: customMessage,
       );
       
@@ -220,6 +226,8 @@ class QRScanButton extends ConsumerWidget {
 
 /// QRコードスキャナーページ
 class QRScannerPage extends ConsumerStatefulWidget {
+  const QRScannerPage({super.key});
+
   @override
   ConsumerState<QRScannerPage> createState() => _QRScannerPageState();
 }

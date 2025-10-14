@@ -16,7 +16,7 @@ import '../flavors.dart';
 class HybridShoppingListRepository implements ShoppingListRepository {
   final Ref _ref;
   late final HiveShoppingListRepository _hiveRepo;
-  late final FirebaseSyncShoppingListRepository _firestoreRepo;
+  FirebaseSyncShoppingListRepository? _firestoreRepo;
   
   // 接続状態管理
   bool _isOnline = true;
@@ -24,7 +24,10 @@ class HybridShoppingListRepository implements ShoppingListRepository {
   
   HybridShoppingListRepository(this._ref) {
     _hiveRepo = HiveShoppingListRepository(_ref);
-    _firestoreRepo = FirebaseSyncShoppingListRepository(_ref);
+    // DEVモードではFirestoreリポジトリを初期化しない
+    if (F.appFlavor != Flavor.dev) {
+      _firestoreRepo = FirebaseSyncShoppingListRepository(_ref);
+    }
   }
 
   /// オンライン状態をチェック
@@ -88,12 +91,12 @@ class HybridShoppingListRepository implements ShoppingListRepository {
       // 1. まずHiveをクリア
       await _hiveRepo.clearShoppingList(groupId);
       
-      if (F.appFlavor == Flavor.dev || !_isOnline) {
+      if (F.appFlavor == Flavor.dev || !_isOnline || _firestoreRepo == null) {
         return;
       }
       
       // 2. Firestoreも同期でクリア
-      await _firestoreRepo.clearShoppingList(groupId);
+      await _firestoreRepo!.clearShoppingList(groupId);
       
     } catch (e) {
       developer.log('❌ HybridShoppingList.clearShoppingList error: $e');
@@ -192,14 +195,14 @@ class HybridShoppingListRepository implements ShoppingListRepository {
   // バックグラウンド同期処理
   // =================================================================
 
-  /// Firestoreからバックグラウンド同期（非ブロッキング）
+  /// Firestoreからバックグラウンド同期(非ブロッキング)
   void _syncFromFirestoreBackground(String groupId) {
-    if (_isSyncing) return;
+    if (_isSyncing || _firestoreRepo == null) return;
     
     Future.microtask(() async {
       _isSyncing = true;
       try {
-        final firestoreList = await _firestoreRepo.getShoppingList(groupId);
+        final firestoreList = await _firestoreRepo!.getShoppingList(groupId);
         if (firestoreList != null) {
           // Hiveと比較して新しければ更新
           final hiveList = await _hiveRepo.getShoppingList(groupId);
@@ -217,11 +220,13 @@ class HybridShoppingListRepository implements ShoppingListRepository {
     });
   }
 
-  /// Firestoreへバックグラウンド同期（非ブロッキング）
+  /// Firestoreへバックグラウンド同期(非ブロッキング)
   void _syncToFirestoreBackground(ShoppingList list) {
+    if (_firestoreRepo == null) return;
+    
     Future.microtask(() async {
       try {
-        await _firestoreRepo.addItem(list);
+        await _firestoreRepo!.addItem(list);
         developer.log('🔄 Background sync: Hive→Firestore完了');
         _isOnline = true; // 成功時はオンライン状態を確認
       } catch (e) {
@@ -286,10 +291,10 @@ class HybridShoppingListRepository implements ShoppingListRepository {
         description: description,
       );
       
-      // Firestoreにも同期（オンライン時のみ）
-      if (_isOnline && F.appFlavor == Flavor.prod) {
+      // Firestoreにも同期(オンライン時のみ)
+      if (_isOnline && F.appFlavor == Flavor.prod && _firestoreRepo != null) {
         try {
-          await _firestoreRepo.createShoppingList(
+          await _firestoreRepo!.createShoppingList(
             ownerUid: ownerUid,
             groupId: groupId,
             listName: listName,

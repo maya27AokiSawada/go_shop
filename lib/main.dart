@@ -30,7 +30,7 @@ void main() async {
   final logger = Logger();
   
   // フレーバーの設定
-  F.appFlavor = Flavor.dev; // デバッグ用にDEVモード
+  F.appFlavor = Flavor.prod; // Firebase統合デバッグのためPRODモード
   
   // Firebase初期化
   if (F.appFlavor == Flavor.prod) {

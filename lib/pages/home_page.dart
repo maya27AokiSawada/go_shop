@@ -55,6 +55,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   bool showSignInForm = false;
   bool _isPasswordVisible = false; // パスワード表示状態
   bool _isPasswordResetLoading = false; // パスワードリセット中の状態
+  bool _rememberEmail = false; // メールアドレスを保存するかどうか
 
   @override
   void initState() {
@@ -64,7 +65,41 @@ class _HomePageState extends ConsumerState<HomePage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       logger.i('🏠 HomePage: PostFrameCallback実行');
       _initializeUserName();
+      _loadSavedEmail(); // 保存されたメールアドレスを読み込み
     });
+  }
+
+  // 保存されたメールアドレスを読み込む
+  Future<void> _loadSavedEmail() async {
+    try {
+      final deviceSettings = ref.read(deviceSettingsServiceProvider);
+      final savedEmail = await deviceSettings.getSavedEmail();
+      if (savedEmail != null && savedEmail.isNotEmpty) {
+        setState(() {
+          emailController.text = savedEmail;
+          _rememberEmail = true;
+        });
+        logger.i('📧 保存されたメールアドレスを復元: $savedEmail');
+      }
+    } catch (e) {
+      logger.e('❌ メールアドレス読み込みエラー: $e');
+    }
+  }
+
+  // メールアドレスを保存または削除
+  Future<void> _saveOrClearEmail() async {
+    try {
+      final deviceSettings = ref.read(deviceSettingsServiceProvider);
+      if (_rememberEmail && emailController.text.isNotEmpty) {
+        await deviceSettings.saveEmail(emailController.text);
+        logger.i('💾 メールアドレスを保存: ${emailController.text}');
+      } else {
+        await deviceSettings.clearSavedEmail();
+        logger.i('🗑️ 保存されたメールアドレスを削除');
+      }
+    } catch (e) {
+      logger.e('❌ メールアドレス保存エラー: $e');
+    }
   }
 
   // ユーザー名の初期化処理
@@ -605,6 +640,21 @@ class _HomePageState extends ConsumerState<HomePage> {
                               return null;
                             },
                           ),
+                          const SizedBox(height: 8),
+                          
+                          // メールアドレス保存チェックボックス
+                          CheckboxListTile(
+                            value: _rememberEmail,
+                            onChanged: (value) {
+                              setState(() {
+                                _rememberEmail = value ?? false;
+                              });
+                            },
+                            title: const Text('メールアドレスを保存する'),
+                            controlAffinity: ListTileControlAffinity.leading,
+                            contentPadding: EdgeInsets.zero,
+                            dense: true,
+                          ),
                           const SizedBox(height: 16),
                           
                           // サインイン実行ボタン
@@ -820,6 +870,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                               QRInviteButton(
                                 shoppingListId: 'sample_list_id',
                                 purchaseGroupId: 'sample_group_id',
+                                groupName: 'サンプルグループ',
+                                groupOwnerUid: FirebaseAuth.instance.currentUser?.uid ?? '',
                                 customMessage: 'Go Shopグループへようこそ！',
                               ),
                               const SizedBox(height: 12),
@@ -1194,6 +1246,9 @@ class _HomePageState extends ConsumerState<HomePage> {
         logger.i('🔧 _performSignIn: 更新後のmockAuthStateProvider: $updatedMockState');
         logger.i('🔧 _performSignIn: 更新後のemail: ${updatedMockState?.email}');
       }
+      
+      // メールアドレスの保存/削除を実行
+      await _saveOrClearEmail();
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

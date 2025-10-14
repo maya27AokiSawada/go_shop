@@ -17,7 +17,7 @@ import '../flavors.dart';
 class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
   final Ref _ref;
   late final HivePurchaseGroupRepository _hiveRepo;
-  late final FirestorePurchaseGroupRepository _firestoreRepo;
+  FirestorePurchaseGroupRepository? _firestoreRepo;
   
   // 接続状態管理
   bool _isOnline = true;
@@ -25,7 +25,10 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
   
   HybridPurchaseGroupRepository(this._ref) {
     _hiveRepo = HivePurchaseGroupRepository(_ref);
-    _firestoreRepo = FirestorePurchaseGroupRepository();
+    // DEVモードではFirestoreリポジトリを初期化しない
+    if (F.appFlavor != Flavor.dev) {
+      _firestoreRepo = FirestorePurchaseGroupRepository();
+    }
   }
 
   /// オンライン状態をチェック
@@ -61,9 +64,9 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
       developer.log('❌ getAllGroups error: $e');
       
       // Hiveでエラーの場合、Firestoreから直接取得を試行
-      if (_isOnline && F.appFlavor == Flavor.prod) {
+      if (_isOnline && F.appFlavor == Flavor.prod && _firestoreRepo != null) {
         try {
-          final firestoreGroups = await _firestoreRepo.getAllGroups();
+          final firestoreGroups = await _firestoreRepo!.getAllGroups();
           developer.log('🔥 Fallback to Firestore: ${firestoreGroups.length}グループ');
           return firestoreGroups;
         } catch (firestoreError) {
@@ -92,9 +95,9 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
       
     } catch (e) {
       // Hiveで見つからない場合、Firestoreから取得してキャッシュ
-      if (_isOnline && F.appFlavor == Flavor.prod) {
+      if (_isOnline && F.appFlavor == Flavor.prod && _firestoreRepo != null) {
         try {
-          final firestoreGroup = await _firestoreRepo.getGroupById(groupId);
+          final firestoreGroup = await _firestoreRepo!.getGroupById(groupId);
           
           // Hiveにキャッシュ
           await _hiveRepo.saveGroup(firestoreGroup);
@@ -120,12 +123,12 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
       // 1. まずHiveに保存（楽観的更新）
       final newGroup = await _hiveRepo.createGroup(groupId, groupName, member);
       
-      if (F.appFlavor == Flavor.dev || !_isOnline) {
+      if (F.appFlavor == Flavor.dev || !_isOnline || _firestoreRepo == null) {
         return newGroup;
       }
       
       // 2. Firestoreに非同期保存
-      _unawaited(_firestoreRepo.createGroup(groupId, groupName, member).then((_) {
+      _unawaited(_firestoreRepo!.createGroup(groupId, groupName, member).then((_) {
         developer.log('🔄 Created synced to Firestore: $groupName');
       }).catchError((e) {
         developer.log('⚠️ Failed to sync create to Firestore: $e');
@@ -146,12 +149,12 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
       // 1. Hiveを即座に更新
       await _hiveRepo.saveGroup(group);
       
-      if (F.appFlavor == Flavor.dev || !_isOnline) {
+      if (F.appFlavor == Flavor.dev || !_isOnline || _firestoreRepo == null) {
         return group;
       }
       
       // 2. Firestoreに非同期同期
-      _unawaited(_firestoreRepo.updateGroup(groupId, group).then((updatedGroup) async {
+      _unawaited(_firestoreRepo!.updateGroup(groupId, group).then((updatedGroup) async {
         // Firestoreで更新された場合、差分をHiveに反映
         if (updatedGroup.hashCode != group.hashCode) {
           await _hiveRepo.saveGroup(updatedGroup);
@@ -176,12 +179,12 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
       // 1. Hiveから削除
       final deletedGroup = await _hiveRepo.deleteGroup(groupId);
       
-      if (F.appFlavor == Flavor.dev || !_isOnline) {
+      if (F.appFlavor == Flavor.dev || !_isOnline || _firestoreRepo == null) {
         return deletedGroup;
       }
       
       // 2. Firestoreから非同期削除
-      _unawaited(_firestoreRepo.deleteGroup(groupId).then((_) {
+      _unawaited(_firestoreRepo!.deleteGroup(groupId).then((_) {
         developer.log('🔄 Delete synced to Firestore: $groupId');
       }).catchError((e) {
         developer.log('⚠️ Failed to sync delete to Firestore: $e');
@@ -204,8 +207,8 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
     try {
       final updatedGroup = await _hiveRepo.addMember(groupId, member);
       
-      if (_isOnline && F.appFlavor == Flavor.prod) {
-        _unawaited(_firestoreRepo.addMember(groupId, member).then((_) {
+      if (_isOnline && F.appFlavor == Flavor.prod && _firestoreRepo != null) {
+        _unawaited(_firestoreRepo!.addMember(groupId, member).then((_) {
           developer.log('🔄 AddMember synced to Firestore');
         }).catchError((e) {
           developer.log('⚠️ Failed to sync addMember to Firestore: $e');
@@ -223,8 +226,8 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
     try {
       final updatedGroup = await _hiveRepo.removeMember(groupId, member);
       
-      if (_isOnline && F.appFlavor == Flavor.prod) {
-        _unawaited(_firestoreRepo.removeMember(groupId, member).then((_) {
+      if (_isOnline && F.appFlavor == Flavor.prod && _firestoreRepo != null) {
+        _unawaited(_firestoreRepo!.removeMember(groupId, member).then((_) {
           developer.log('🔄 RemoveMember synced to Firestore');
         }).catchError((e) {
           developer.log('⚠️ Failed to sync removeMember to Firestore: $e');
@@ -272,8 +275,8 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
     try {
       final updatedGroup = await _hiveRepo.setMemberId(oldId, newId, contact);
       
-      if (_isOnline && F.appFlavor == Flavor.prod) {
-        _unawaited(_firestoreRepo.setMemberId(oldId, newId, contact).then((_) {
+      if (_isOnline && F.appFlavor == Flavor.prod && _firestoreRepo != null) {
+        _unawaited(_firestoreRepo!.setMemberId(oldId, newId, contact).then((_) {
           developer.log('🔄 SetMemberId synced to Firestore');
         }).catchError((e) {
           developer.log('⚠️ Failed to sync setMemberId to Firestore: $e');
@@ -292,10 +295,10 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
 
   /// Firestoreから全グループを非同期で同期
   void _syncFromFirestoreInBackground() {
-    if (_isSyncing || F.appFlavor == Flavor.dev) return;
+    if (_isSyncing || F.appFlavor == Flavor.dev || _firestoreRepo == null) return;
     
     _isSyncing = true;
-    _unawaited(_firestoreRepo.getAllGroups().then((firestoreGroups) async {
+    _unawaited(_firestoreRepo!.getAllGroups().then((firestoreGroups) async {
       // 差分を検出してHiveに同期
       for (final firestoreGroup in firestoreGroups) {
         try {
@@ -322,9 +325,9 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
 
   /// 特定グループをFirestoreから同期
   void _syncGroupFromFirestoreInBackground(String groupId) {
-    if (F.appFlavor == Flavor.dev || !_isOnline) return;
+    if (F.appFlavor == Flavor.dev || !_isOnline || _firestoreRepo == null) return;
     
-    _unawaited(_firestoreRepo.getGroupById(groupId).then((firestoreGroup) async {
+    _unawaited(_firestoreRepo!.getGroupById(groupId).then((firestoreGroup) async {
       final cachedGroup = await _hiveRepo.getGroupById(groupId);
       
       if (cachedGroup.hashCode != firestoreGroup.hashCode) {
@@ -349,14 +352,14 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
 
   /// 手動でFirestoreからフル同期
   Future<void> forceSyncFromFirestore() async {
-    if (F.appFlavor == Flavor.dev) {
+    if (F.appFlavor == Flavor.dev || _firestoreRepo == null) {
       developer.log('🔧 Force sync skipped in dev mode');
       return;
     }
     
     try {
       _isSyncing = true;
-      final firestoreGroups = await _firestoreRepo.getAllGroups();
+      final firestoreGroups = await _firestoreRepo!.getAllGroups();
       
       // すべてのFirestoreデータでHiveを更新
       for (final group in firestoreGroups) {
@@ -377,14 +380,14 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
 
   /// 未同期のローカル変更をFirestoreにプッシュ
   Future<void> pushLocalChangesToFirestore() async {
-    if (F.appFlavor == Flavor.dev) return;
+    if (F.appFlavor == Flavor.dev || _firestoreRepo == null) return;
     
     try {
       final localGroups = await _hiveRepo.getAllGroups();
       
       for (final group in localGroups) {
         try {
-          await _firestoreRepo.updateGroup(group.groupId, group);
+          await _firestoreRepo!.updateGroup(group.groupId, group);
           developer.log('📤 Pushed to Firestore: ${group.groupName}');
         } catch (e) {
           developer.log('⚠️ Failed to push ${group.groupName}: $e');

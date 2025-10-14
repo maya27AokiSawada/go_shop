@@ -12,6 +12,46 @@ class DeviceSettingsService {
   
   // 設定キー
   static const String _secretModeKey = 'device_secret_mode';
+  static const String _savedEmailKey = 'saved_email_address';
+  
+  /// 保存されたメールアドレスを取得
+  Future<String?> getSavedEmail() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final email = prefs.getString(_savedEmailKey);
+      if (email != null) {
+        logger.i('📧 Saved email loaded: $email');
+      }
+      return email;
+    } catch (e) {
+      logger.e('❌ Error getting saved email: $e');
+      return null;
+    }
+  }
+  
+  /// メールアドレスを保存
+  Future<void> saveEmail(String email) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_savedEmailKey, email);
+      logger.i('💾 Email saved: $email');
+    } catch (e) {
+      logger.e('❌ Error saving email: $e');
+      rethrow;
+    }
+  }
+  
+  /// 保存されたメールアドレスをクリア
+  Future<void> clearSavedEmail() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_savedEmailKey);
+      logger.i('🗑️ Saved email cleared');
+    } catch (e) {
+      logger.e('❌ Error clearing saved email: $e');
+      rethrow;
+    }
+  }
   
   /// シークレットモードが有効かどうかを取得
   Future<bool> isSecretModeEnabled() async {
@@ -43,6 +83,7 @@ class DeviceSettingsService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_secretModeKey);
+      await prefs.remove(_savedEmailKey);
       logger.i('🗑️ All device settings cleared');
     } catch (e) {
       logger.e('❌ Error clearing settings: $e');

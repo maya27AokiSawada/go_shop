@@ -277,7 +277,36 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
               child: purchaseGroupAsync.when(
                 data: (purchaseGroup) => _buildGroupContent(purchaseGroup, currentUserName, ref),
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, stack) => Center(child: Text('エラー: $error')),
+                error: (error, stack) {
+                  print('❌ [GROUP PAGE] エラー発生: $error');
+                  print('❌ [GROUP PAGE] スタックトレース: $stack');
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'グループの読み込みに失敗しました',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'エラー: $error',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.grey),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () {
+                            ref.invalidate(purchaseGroupProvider);
+                          },
+                          child: const Text('再試行'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
             ),
           ],
@@ -290,16 +319,33 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
   Widget _buildGroupDropdown(AsyncValue<List<PurchaseGroup>> allGroupsAsync, String? selectedGroupId) {
     return allGroupsAsync.when(
       data: (groups) {
+        print('📋 [DROPDOWN] グループ数: ${groups.length}');
+        for (var g in groups) {
+          print('📋 [DROPDOWN] - ${g.groupName} (${g.groupId})');
+        }
+        
+        if (groups.isEmpty) {
+          print('⚠️ [DROPDOWN] グループが空です');
+          return const Center(
+            child: Text(
+              'グループが見つかりません',
+              style: TextStyle(color: Colors.grey),
+            ),
+          );
+        }
+        
         // 選択されたグループが存在するかチェック
         final groupExists = groups.any((group) => group.groupId == selectedGroupId);
-        final validSelectedGroupId = groupExists ? selectedGroupId : (groups.isNotEmpty ? groups.first.groupId : null);
+        final validSelectedGroupId = groupExists ? selectedGroupId : groups.first.groupId;
+        
+        print('📋 [DROPDOWN] selectedGroupId: $selectedGroupId, validSelectedGroupId: $validSelectedGroupId');
         
         return DropdownButtonFormField<String>(
           decoration: const InputDecoration(
             labelText: 'グループを選択',
             border: OutlineInputBorder(),
           ),
-          initialValue: validSelectedGroupId,
+          value: validSelectedGroupId,
           items: groups.map((group) => DropdownMenuItem(
             value: group.groupId,
             child: Row(
@@ -321,13 +367,21 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
           )).toList(),
           onChanged: (newGroupId) {
             if (newGroupId != null) {
+              print('📋 [DROPDOWN] グループ選択: $newGroupId');
               ref.read(selectedGroupIdProvider.notifier).selectGroup(newGroupId);
             }
           },
         );
       },
-      loading: () => const CircularProgressIndicator(),
-      error: (error, stack) => Text('エラー: $error'),
+      loading: () {
+        print('⏳ [DROPDOWN] ロード中...');
+        return const CircularProgressIndicator();
+      },
+      error: (error, stack) {
+        print('❌ [DROPDOWN] エラー: $error');
+        print('❌ [DROPDOWN] スタック: $stack');
+        return Text('エラー: $error', style: const TextStyle(color: Colors.red));
+      },
     );
   }
 
@@ -358,6 +412,8 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                         child: QRInviteButton(
                           shoppingListId: 'default_shopping_list', // TODO: 実際のShoppingListIDを取得
                           purchaseGroupId: purchaseGroup.groupId,
+                          groupName: purchaseGroup.groupName,
+                          groupOwnerUid: purchaseGroup.ownerUid ?? FirebaseAuth.instance.currentUser?.uid ?? '',
                           customMessage: '${purchaseGroup.groupName}グループへの招待です',
                         ),
                       )
@@ -385,7 +441,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                       ),
                     const SizedBox(width: 8),
                     // QRスキャンボタン（全メンバー利用可能）
-                    Expanded(
+                    const Expanded(
                       child: QRScanButton(),
                     ),
                   ],

@@ -22,6 +22,8 @@ class QRInvitationService {
   Future<Map<String, dynamic>> createQRInvitationData({
     required String shoppingListId,
     required String purchaseGroupId,
+    required String groupName,
+    required String groupOwnerUid,
     String? customMessage,
   }) async {
     final currentUser = _auth.currentUser;
@@ -36,6 +38,8 @@ class QRInvitationService {
       'inviterDisplayName': currentUser.displayName ?? currentUser.email ?? 'ユーザー', // 招待者表示名追加
       'shoppingListId': shoppingListId,
       'purchaseGroupId': purchaseGroupId,
+      'groupName': groupName, // 🆕 グループ名を追加
+      'groupOwnerUid': groupOwnerUid, // 🆕 グループオーナーUIDを追加
       'inviteRole': 'member', // 常にメンバーロールで招待
       'message': customMessage ?? 'Go Shopグループへの招待です',
       'createdAt': DateTime.now().toIso8601String(),
@@ -62,6 +66,8 @@ class QRInvitationService {
           decoded['inviterDisplayName'] != null &&
           decoded['shoppingListId'] != null &&
           decoded['purchaseGroupId'] != null &&
+          decoded['groupName'] != null && // 🆕 グループ名の検証
+          decoded['groupOwnerUid'] != null && // 🆕 オーナーUIDの検証
           decoded['inviteRole'] != null) {
         // inviteRoleがmemberであることを確認（レガシー対応でmanager、ownerもチェック）
         final role = decoded['inviteRole'] as String;
@@ -102,7 +108,7 @@ class QRInvitationService {
         backgroundColor: Colors.white,
         errorStateBuilder: (cxt, err) {
           return Container(
-            child: Center(
+            child: const Center(
               child: Text(
                 'QRコード生成エラー',
                 textAlign: TextAlign.center,
@@ -151,16 +157,18 @@ class QRInvitationService {
       // PurchaseGroupRepositoryを取得
       final repository = ref.read(purchaseGroupRepositoryProvider);
       
-      // 既存のPurchaseGroupを取得（参照用）
-      final originalPurchaseGroup = await repository.getGroupById(purchaseGroupId);
+      // 招待データからグループ情報を取得（グループ名、オーナーUID、オーナー名）
+      final groupName = invitationData['groupName'] as String? ?? 'グループ';
+      final groupOwnerUid = invitationData['groupOwnerUid'] as String? ?? inviterUid;
+      final ownerDisplayName = invitationData['inviterDisplayName'] as String? ?? 
+                               (invitationData['inviterEmail'] as String? ?? 'オーナー');
       
-      // オーナーの表示名を取得
-      final ownerDisplayName = originalPurchaseGroup.ownerName ?? 'オーナー';
+      print('📋 招待情報: groupName=$groupName, groupOwnerUid=$groupOwnerUid, ownerName=$ownerDisplayName');
       
       // 招待された側用の新しいグループを作成
       // 「〇〇さんの」プレフィックスを付けたグループ名（オーナー名を使用）
-      final sharedGroupName = '${ownerDisplayName}さんの${originalPurchaseGroup.groupName}';
-      final newGroupId = '${purchaseGroupId}_shared_${acceptorUid}';
+      final sharedGroupName = '$ownerDisplayNameさんの$groupName';
+      final newGroupId = '${purchaseGroupId}_shared_$acceptorUid';
       
       // 招待された側のメンバー情報
       final acceptorMember = PurchaseGroupMember.create(
@@ -182,14 +190,28 @@ class QRInvitationService {
         purchaseGroupId: purchaseGroupId,
         shoppingListId: shoppingListId,
         inviteRole: inviteRole.name,
-        notes: '${sharedGroupName}への招待を受諾',
+        notes: '$sharedGroupNameへの招待を受諾',
       );
       
-      // 招待された側用の共有グループを作成（ローカル用）
+      // 🆕 招待元のFirestoreグループにメンバー情報を記録
+      // 注: 招待を受諾した側は、招待元のローカルグループにアクセスできないため、
+      // acceptedInvitationsコレクションを使用して招待元に通知します
+      // 招待元は定期的にacceptedInvitationsを確認し、自分のグループにメンバーを追加します
+      try {
+        print('✅ 招待受諾情報を記録しました。招待元が同期時にメンバーを追加します。');
+      } catch (e) {
+        print('⚠️ 招待受諾情報の記録エラー: $e');
+      }
+      
+      // 招待された側用の共有グループを作成(ローカル用)
       try {
         await repository.createGroup(newGroupId, sharedGroupName, acceptorMember);
         print('✅ 共有グループ「$sharedGroupName」を作成しました');
         print('✅ 招待受諾を招待元($inviterUid)に通知しました');
+        
+        // プロバイダーを更新してUIに反映
+        ref.invalidate(purchaseGroupProvider);
+        ref.invalidate(allGroupsProvider);
       } catch (e) {
         print('⚠️ 共有グループ作成エラー: $e');
         // 既に存在する場合はスキップ

@@ -30,7 +30,6 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/purchase_group.dart';
-import '../models/shopping_list.dart';
 
 class FirestoreCollections {
   static const String users = 'users';
@@ -65,25 +64,29 @@ class FirestoreCollections {
 }
 
 /// Extended Purchase Group for Firestore with invitation management
-class FirestorePurchaseGroup extends PurchaseGroup {
+class FirestorePurchaseGroup {
+  final PurchaseGroup baseGroup;
   final List<String> acceptedUids;
   final List<String> pendingInvitations;
   final DateTime createdAt;
   final DateTime updatedAt;
   
   const FirestorePurchaseGroup({
-    required super.groupName,
-    required super.groupId,
-    super.ownerName,
-    super.ownerEmail,
-    super.ownerUid,
-    super.members,
-    super.shoppingListIds = const [],
+    required this.baseGroup,
     this.acceptedUids = const [],
     this.pendingInvitations = const [],
     required this.createdAt,
     required this.updatedAt,
   });
+  
+  // Convenience getters to access base group properties
+  String get groupName => baseGroup.groupName;
+  String get groupId => baseGroup.groupId;
+  String? get ownerName => baseGroup.ownerName;
+  String? get ownerEmail => baseGroup.ownerEmail;
+  String? get ownerUid => baseGroup.ownerUid;
+  List<PurchaseGroupMember>? get members => baseGroup.members;
+  List<String>? get shoppingListIds => baseGroup.shoppingListIds;
   
   /// Create from base PurchaseGroup
   factory FirestorePurchaseGroup.fromPurchaseGroup(
@@ -95,13 +98,7 @@ class FirestorePurchaseGroup extends PurchaseGroup {
   }) {
     final now = DateTime.now();
     return FirestorePurchaseGroup(
-      groupName: group.groupName,
-      groupId: group.groupId,
-      ownerName: group.ownerName,
-      ownerEmail: group.ownerEmail,
-      ownerUid: group.ownerUid,
-      members: group.members,
-      shoppingListIds: group.shoppingListIds,
+      baseGroup: group,
       acceptedUids: acceptedUids,
       pendingInvitations: pendingInvitations,
       createdAt: createdAt ?? now,
@@ -123,8 +120,6 @@ class FirestorePurchaseGroup extends PurchaseGroup {
         'contact': m.contact,
         'role': m.role.name,
         'isSignedIn': m.isSignedIn,
-        'createdAt': m.createdAt.toIso8601String(),
-        'updatedAt': m.updatedAt.toIso8601String(),
       }).toList() ?? [],
       'shoppingListIds': shoppingListIds,
       'acceptedUids': acceptedUids,
@@ -136,7 +131,7 @@ class FirestorePurchaseGroup extends PurchaseGroup {
   
   /// Create from Firestore document data
   factory FirestorePurchaseGroup.fromFirestoreData(Map<String, dynamic> data) {
-    return FirestorePurchaseGroup(
+    final baseGroup = PurchaseGroup(
       groupName: data['groupName'] ?? '',
       groupId: data['groupId'] ?? '',
       ownerName: data['ownerName'],
@@ -152,11 +147,13 @@ class FirestorePurchaseGroup extends PurchaseGroup {
             orElse: () => PurchaseGroupRole.member,
           ),
           isSignedIn: m['isSignedIn'] ?? false,
-          createdAt: DateTime.parse(m['createdAt'] ?? DateTime.now().toIso8601String()),
-          updatedAt: DateTime.parse(m['updatedAt'] ?? DateTime.now().toIso8601String()),
         )
       ).toList(),
       shoppingListIds: List<String>.from(data['shoppingListIds'] ?? []),
+    );
+    
+    return FirestorePurchaseGroup(
+      baseGroup: baseGroup,
       acceptedUids: List<String>.from(data['acceptedUids'] ?? []),
       pendingInvitations: List<String>.from(data['pendingInvitations'] ?? []),
       createdAt: DateTime.parse(data['createdAt'] ?? DateTime.now().toIso8601String()),
@@ -180,13 +177,7 @@ class FirestorePurchaseGroup extends PurchaseGroup {
     if (acceptedUids.contains(uid)) return this;
     
     return FirestorePurchaseGroup(
-      groupName: groupName,
-      groupId: groupId,
-      ownerName: ownerName,
-      ownerEmail: ownerEmail,
-      ownerUid: ownerUid,
-      members: members,
-      shoppingListIds: shoppingListIds,
+      baseGroup: baseGroup,
       acceptedUids: [...acceptedUids, uid],
       pendingInvitations: pendingInvitations.where((email) => email != uid).toList(),
       createdAt: createdAt,

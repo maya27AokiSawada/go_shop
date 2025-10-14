@@ -143,7 +143,7 @@ class EnhancedInvitationService {
     updatedMembers.removeWhere((m) => m.contact.toLowerCase() == targetEmail.toLowerCase());
     updatedMembers.add(newMember);
     
-    final updatedGroup = FirestorePurchaseGroup(
+    final baseGroup = PurchaseGroup(
       groupName: firestoreGroup.groupName,
       groupId: firestoreGroup.groupId,
       ownerName: firestoreGroup.ownerName,
@@ -151,6 +151,10 @@ class EnhancedInvitationService {
       ownerUid: firestoreGroup.ownerUid,
       members: updatedMembers,
       shoppingListIds: firestoreGroup.shoppingListIds,
+    );
+    
+    final updatedGroup = FirestorePurchaseGroup(
+      baseGroup: baseGroup,
       acceptedUids: firestoreGroup.acceptedUids,
       pendingInvitations: updatedPendingInvitations,
       createdAt: firestoreGroup.createdAt,
@@ -163,7 +167,7 @@ class EnhancedInvitationService {
     // TODO: Send actual email invitation
     // await _sendEmailInvitation(firestoreGroup, targetEmail, customMessage);
     
-    developer.log('📧 招待送信完了: ${targetEmail} → グループ「${firestoreGroup.groupName}」');
+    developer.log('📧 招待送信完了: $targetEmail → グループ「${firestoreGroup.groupName}」');
   }
   
   /// Accept invitation by adding UID to acceptedUids list
@@ -200,7 +204,7 @@ class EnhancedInvitationService {
           return member;
         }).toList();
         
-        final finalGroup = FirestorePurchaseGroup(
+        final finalBaseGroup = PurchaseGroup(
           groupName: updatedGroup.groupName,
           groupId: updatedGroup.groupId,
           ownerName: updatedGroup.ownerName,
@@ -208,6 +212,10 @@ class EnhancedInvitationService {
           ownerUid: updatedGroup.ownerUid,
           members: updatedMembers,
           shoppingListIds: updatedGroup.shoppingListIds,
+        );
+        
+        final finalGroup = FirestorePurchaseGroup(
+          baseGroup: finalBaseGroup,
           acceptedUids: updatedGroup.acceptedUids,
           pendingInvitations: updatedGroup.pendingInvitations,
           createdAt: updatedGroup.createdAt,

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/purchase_group.dart';
 import '../services/enhanced_invitation_service.dart';
-import 'dart:developer' as developer;
 
 /// Dialog for selecting multiple groups to invite a user to
 class MultiGroupInvitationDialog extends ConsumerStatefulWidget {
