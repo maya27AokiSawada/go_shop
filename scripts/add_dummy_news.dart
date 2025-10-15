@@ -1,0 +1,41 @@
+/// Firestoreのnewsコレクションにダミーニュースを追加するための手順
+/// 
+/// Firebase Console を使用して手動で追加してください:
+/// 
+/// 1. https://console.firebase.google.com/ を開く
+/// 2. プロジェクト「gotoshop-572b7」を選択
+/// 3. 左メニューから「Firestore Database」を選択
+/// 4. 「コレクションを開始」をクリック (既に存在する場合はスキップ)
+/// 5. コレクションID: furestorenews
+/// 6. ドキュメントID: current_news
+/// 7. フィールドを追加:
+///    - title (string): "Go Shopへようこそ！"
+///    - content (string): "Go Shopをご利用いただき、ありがとうございます。このアプリは家族やグループで買い物リストを共有できる便利なアプリです。"
+///    - timestamp (timestamp): 現在の日時
+///    - isActive (boolean): true
+///    - priority (number): 1
+/// 8. 「保存」をクリック
+
+void main() {
+  print('📰 ダミーニュース追加手順');
+  print('');
+  print('Firebase Console を使用して手動で追加してください:');
+  print('');
+  print('1. https://console.firebase.google.com/ を開く');
+  print('2. プロジェクト「gotoshop-572b7」を選択');
+  print('3. 左メニューから「Firestore Database」を選択');
+  print('4. 「コレクションを開始」をクリック');
+  print('');
+  print('コレクションID: furestorenews');
+  print('ドキュメントID: current_news');
+  print('');
+  print('フィールド:');
+  print('  - title (string): "Go Shopへようこそ！"');
+  print('  - content (string): "Go Shopをご利用いただき、ありがとうございます。"');
+  print('  - timestamp (timestamp): 現在の日時');
+  print('  - isActive (boolean): true');
+  print('  - priority (number): 1');
+  print('');
+  print('💡 Firestoreのルールで読み取りを許可してください:');
+  print('   allow read: if true;');
+}

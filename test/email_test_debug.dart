@@ -1,8 +1,8 @@
 // test/email_test_debug.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../lib/services/email_test_service.dart';
-import '../lib/widgets/email_test_button.dart';
+import 'package:go_shop/services/email_test_service.dart';
+import 'package:go_shop/widgets/email_test_button.dart';
 
 void main() {
   runApp(const ProviderScope(child: EmailTestDebugApp()));

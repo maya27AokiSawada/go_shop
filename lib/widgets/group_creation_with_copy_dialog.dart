@@ -101,7 +101,7 @@ class _GroupCreationWithCopyDialogState extends ConsumerState<GroupCreationWithC
                 const SizedBox(height: 8),
                 
                 DropdownButtonFormField<PurchaseGroup>(
-                  value: _selectedSourceGroup,
+                  initialValue: _selectedSourceGroup,
                   decoration: const InputDecoration(
                     hintText: 'グループを選択...',
                     border: OutlineInputBorder(),

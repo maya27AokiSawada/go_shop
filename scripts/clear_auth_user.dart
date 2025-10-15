@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../lib/firebase_options.dart';
+import 'package:go_shop/firebase_options.dart';
 
 /// Firebase Authentication の現在のユーザーを削除するスクリプト
 /// 

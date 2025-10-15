@@ -218,7 +218,7 @@ class QRScanButton extends ConsumerWidget {
   Future<void> _showQRScanner(BuildContext context, WidgetRef ref) async {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => QRScannerPage(),
+        builder: (context) => const QRScannerPage(),
       ),
     );
   }

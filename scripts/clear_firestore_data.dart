@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../lib/firebase_options.dart';
+import 'package:go_shop/firebase_options.dart';
 
 /// Firestoreの全データをクリアするスクリプト
 /// 
@@ -87,7 +87,7 @@ Future<void> clearCollection(FirebaseFirestore firestore, String collectionName)
       // バッチサイズ上限に達したら実行
       if (count >= 500) {
         await batch.commit();
-        print('   🗑️  ${count}件削除完了');
+        print('   🗑️  $count件削除完了');
         count = 0;
       }
     }
