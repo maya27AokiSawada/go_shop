@@ -29,6 +29,7 @@ import '../providers/subscription_provider.dart';
 import 'hybrid_sync_test_page.dart';
 import 'help_page.dart';
 import 'premium_page.dart';
+import 'debug_email_test_page.dart';
 
 final logger = Logger();
 
@@ -454,6 +455,20 @@ class _HomePageState extends ConsumerState<HomePage> {
               }
             },
           ),
+          
+          // デバッグ用：メール送信テストボタン（開発環境のみ）
+          if (F.appFlavor == Flavor.dev)
+            IconButton(
+              icon: const Icon(Icons.email, color: Colors.blue),
+              tooltip: 'メール送信テスト（デバッグ用）',
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const DebugEmailTestPage(),
+                  ),
+                );
+              },
+            ),
           
           // テストページボタン（ハイブリッド同期テスト用）
           if (F.appFlavor == Flavor.prod) // PRODモードでハイブリッド同期テスト可能
@@ -1313,9 +1328,12 @@ class _HomePageState extends ConsumerState<HomePage> {
         emailController.clear();
         passwordController.clear();
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       logger.e('🚨 ログイン失敗: $e');
       logger.e('🚨 エラーの詳細: ${e.runtimeType}');
+      logger.e('🚨 エラーのtoString(): ${e.toString()}');
+      logger.e('🚨 スタックトレース: $stackTrace');
+      
       if (e.toString().contains('FirebaseAuthException')) {
         logger.e('🚨 Firebase Auth エラーコード: ${e.toString()}');
       }
@@ -1328,6 +1346,9 @@ class _HomePageState extends ConsumerState<HomePage> {
         if (e.toString().contains('user-not-found')) {
           errorMessage = 'このメールアドレスは登録されていません';
           offerSignUp = true;
+        } else if (e.toString().contains('invalid-credential')) {
+          errorMessage = 'ログイン情報が正しくありません。アカウントが存在しない可能性があります';
+          offerSignUp = true;  // invalid-credentialの場合もサインアップを提案
         } else if (e.toString().contains('wrong-password')) {
           errorMessage = 'パスワードが間違っています';
         } else if (e.toString().contains('invalid-email')) {

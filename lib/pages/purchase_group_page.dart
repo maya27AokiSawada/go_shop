@@ -345,7 +345,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
             labelText: 'グループを選択',
             border: OutlineInputBorder(),
           ),
-          value: validSelectedGroupId,
+          initialValue: validSelectedGroupId,
           items: groups.map((group) => DropdownMenuItem(
             value: group.groupId,
             child: Row(

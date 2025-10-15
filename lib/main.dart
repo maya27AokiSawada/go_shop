@@ -30,17 +30,22 @@ void main() async {
   final logger = Logger();
   
   // フレーバーの設定
-  F.appFlavor = Flavor.prod; // Firebase統合デバッグのためPRODモード
+  F.appFlavor = Flavor.dev; // Firebase統合デバッグのためDEVモード
   
-  // Firebase初期化
-  if (F.appFlavor == Flavor.prod) {
-    logger.i("🔥 Starting Go Shop app in PRODUCTION mode with Firebase");
+  // Firebase初期化（DEV/PROD両方で初期化）
+  try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    if (F.appFlavor == Flavor.prod) {
+      logger.i("🔥 Starting Go Shop app in PRODUCTION mode with Firebase");
+    } else {
+      logger.i("🔥 Starting Go Shop app in DEV mode with Firebase");
+    }
     logger.i("✅ Firebase initialized successfully");
-  } else {
-    logger.i("💡 Starting Go Shop app in DEV mode (Hive only, no Firebase)");
+  } catch (e) {
+    logger.e("❌ Firebase initialization failed: $e");
+    // Firebase初期化に失敗してもアプリは続行（Hiveで動作）
   }
   
   // 【デバッグ用】既存のHiveデータをクリア（memberID問題のため）

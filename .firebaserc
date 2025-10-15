@@ -1,0 +1,11 @@
+{
+  "projects": {},
+  "targets": {},
+  "etags": {
+    "gotoshop-572b7": {
+      "extensionInstances": {
+        "firestore-send-email": "dfd06b9e9012cd6a0821c8cd0796d935f9964b5b2bba1072734293ca30b32e0d"
+      }
+    }
+  }
+}
