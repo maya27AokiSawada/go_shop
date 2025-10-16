@@ -6,10 +6,11 @@ import '../providers/user_name_provider.dart';
 import '../providers/security_provider.dart';
 import '../models/purchase_group.dart';
 import '../widgets/member_selection_dialog.dart';
+import '../pages/group_invitation_page.dart';
 // import '../widgets/auto_invite_button.dart'; // QRコード招待に変更
-import '../widgets/qr_invitation_widgets.dart';
+// import '../widgets/qr_invitation_widgets.dart'; // 一時的にコメントアウト
 import '../widgets/member_role_management_widget.dart';
-import '../widgets/owner_message_widget.dart';
+// import '../widgets/owner_message_widget.dart'; // 一時的にコメントアウト
 import '../helpers/validation_service.dart';
 
 class PurchaseGroupPage extends ConsumerStatefulWidget {
@@ -36,87 +37,86 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
         return '管理者';
       case PurchaseGroupRole.member:
         return 'メンバー';
+      case PurchaseGroupRole.friend:
+        return 'フレンド';
     }
   }
 
   /// 現在のユーザーが招待権限を持っているかチェック（管理者以上）
   bool _hasInvitePermission(PurchaseGroup purchaseGroup, String currentUserUid) {
-    print('🔐 [PERMISSION CHECK] 権限チェック開始');
-    print('🔐 [PERMISSION CHECK] currentUserUid: $currentUserUid');
-    print('🔐 [PERMISSION CHECK] purchaseGroup.groupId: ${purchaseGroup.groupId}');
-    print('🔐 [PERMISSION CHECK] purchaseGroup.groupName: ${purchaseGroup.groupName}');
-    print('🔐 [PERMISSION CHECK] purchaseGroup.ownerUid: ${purchaseGroup.ownerUid}');
-    print('🔐 [PERMISSION CHECK] members count: ${purchaseGroup.members?.length ?? 0}');
-    
-    // 全メンバーの詳細を出力
-    if (purchaseGroup.members != null) {
-      for (int i = 0; i < purchaseGroup.members!.length; i++) {
-        final member = purchaseGroup.members![i];
-        print('🔐 [PERMISSION CHECK] member[$i]: {memberId: ${member.memberId}, name: ${member.name}, role: ${member.role}, contact: ${member.contact}}');
-      }
-    } else {
-      print('🔐 [PERMISSION CHECK] メンバーリストがnullです');
+    if (currentUserUid.isEmpty || purchaseGroup.members?.isEmpty == true) {
+      return false;
     }
     
     // メンバーリストから現在のユーザーを検索（memberIdで検索）
     final currentMember = purchaseGroup.members?.firstWhere(
-      (member) {
-        print('🔐 [PERMISSION CHECK] comparing: ${member.memberId} == $currentUserUid ? ${member.memberId == currentUserUid}');
-        return member.memberId == currentUserUid;
-      },
-      orElse: () {
-        print('🔐 [PERMISSION CHECK] 現在のユーザーがメンバーリストに見つかりませんでした');
-        return const PurchaseGroupMember(
-          memberId: '',
-          name: '',
-          contact: '',
-          role: PurchaseGroupRole.member,
-        );
-      },
+      (member) => member.memberId == currentUserUid,
+      orElse: () => const PurchaseGroupMember(
+        memberId: '',
+        name: '',
+        contact: '',
+        role: PurchaseGroupRole.member,
+      ),
     );
     
-    print('🔐 [PERMISSION CHECK] currentMember found: ${currentMember?.name}, role: ${currentMember?.role}, memberId: ${currentMember?.memberId}');
-    
     // 管理者またはオーナーの場合は招待可能
-    final hasPermission = currentMember?.role == PurchaseGroupRole.manager || 
-                         currentMember?.role == PurchaseGroupRole.owner;
-                         
-    print('🔐 [PERMISSION CHECK] 最終権限チェック結果: $hasPermission');
-    print('🔐 [PERMISSION CHECK] 権限チェック終了');
-    return hasPermission;
+    return currentMember?.role == PurchaseGroupRole.manager || 
+           currentMember?.role == PurchaseGroupRole.owner;
   }
 
   /// 現在のユーザーがオーナーかチェック
   bool _isOwner(PurchaseGroup purchaseGroup, String currentUserUid) {
-    print('👑 [OWNER CHECK] オーナーチェック開始');
-    print('👑 [OWNER CHECK] currentUserUid: $currentUserUid');
-    print('👑 [OWNER CHECK] purchaseGroup.ownerUid: ${purchaseGroup.ownerUid}');
-    print('👑 [OWNER CHECK] FirebaseAuth.currentUser?.uid: ${FirebaseAuth.instance.currentUser?.uid}');
-    print('👑 [OWNER CHECK] FirebaseAuth.currentUser?.email: ${FirebaseAuth.instance.currentUser?.email}');
+    if (currentUserUid.isEmpty || purchaseGroup.members?.isEmpty == true) {
+      return false;
+    }
     
     // メンバーリストから現在のユーザーを検索し、オーナーロールかチェック
     final currentMember = purchaseGroup.members?.firstWhere(
-      (member) {
-        print('👑 [OWNER CHECK] checking member: ${member.memberId} vs $currentUserUid');
-        return member.memberId == currentUserUid;
-      },
-      orElse: () {
-        print('👑 [OWNER CHECK] メンバーが見つかりません - デフォルトメンバーを返します');
-        return const PurchaseGroupMember(
-          memberId: '',
-          name: '', 
-          contact: '', 
-          role: PurchaseGroupRole.member,
-        );
-      },
+      (member) => member.memberId == currentUserUid,
+      orElse: () => const PurchaseGroupMember(
+        memberId: '',
+        name: '', 
+        contact: '', 
+        role: PurchaseGroupRole.member,
+      ),
     );
     
-    print('👑 [OWNER CHECK] 見つかったメンバー: ${currentMember?.name}, role: ${currentMember?.role}, memberId: ${currentMember?.memberId}');
-    final isOwner = currentMember?.role == PurchaseGroupRole.owner;
-    print('👑 [OWNER CHECK] オーナーチェック結果: $isOwner');
-    print('👑 [OWNER CHECK] オーナーチェック終了');
-    
-    return isOwner;
+    return currentMember?.role == PurchaseGroupRole.owner;
+  }
+
+  /// 現在のユーザーをグループのオーナーとして追加
+  Future<void> _addCurrentUserAsOwner(PurchaseGroup purchaseGroup, String userName, String userUid, WidgetRef ref) async {
+    try {
+      final newMember = PurchaseGroupMember.create(
+        memberId: userUid,
+        name: userName,
+        contact: '', // メールアドレスは後で設定可能
+        role: PurchaseGroupRole.owner,
+        isSignedIn: true,
+      );
+      
+      final updatedMembers = List<PurchaseGroupMember>.from(purchaseGroup.members ?? []);
+      updatedMembers.add(newMember);
+      
+      final updatedGroup = purchaseGroup.copyWith(
+        members: updatedMembers,
+        ownerUid: userUid,
+      );
+      
+      await ref.read(purchaseGroupProvider.notifier).updateGroup(updatedGroup);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${purchaseGroup.groupName}に参加しました')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('グループへの参加に失敗しました: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _editMember(PurchaseGroupMember member, int index) async {
@@ -191,13 +191,9 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Firebase認証情報のデバッグログ
+    // Firebase認証情報を一度だけ取得
     final currentUser = FirebaseAuth.instance.currentUser;
-    print('🔥 [BUILD] Firebase Auth Debug Info:');
-    print('🔥 [BUILD] currentUser: ${currentUser?.uid}');
-    print('🔥 [BUILD] currentUser.email: ${currentUser?.email}');
-    print('🔥 [BUILD] currentUser.displayName: ${currentUser?.displayName}');
-    print('🔥 [BUILD] isAnonymous: ${currentUser?.isAnonymous}');
+    final currentUserUid = currentUser?.uid ?? '';
     
     // セキュリティチェック
     final canViewData = ref.watch(dataVisibilityProvider);
@@ -233,6 +229,10 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
     final selectedGroupId = ref.watch(selectedGroupIdProvider);
     final currentUserName = ref.watch(userNameProvider);
 
+    print('🏷️ [PAGE BUILD] selectedGroupId: $selectedGroupId');
+    print('🏷️ [PAGE BUILD] allGroupsAsync状態: ${allGroupsAsync.runtimeType}');
+    print('🏷️ [PAGE BUILD] purchaseGroupAsync状態: ${purchaseGroupAsync.runtimeType}');
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('グループ管理'),
@@ -265,51 +265,76 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            // グループ選択ドロップダウン
-            _buildGroupDropdown(allGroupsAsync, selectedGroupId),
-            const SizedBox(height: 16),
-            // グループ内容表示
-            Expanded(
-              child: purchaseGroupAsync.when(
-                data: (purchaseGroup) => _buildGroupContent(purchaseGroup, currentUserName, ref),
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, stack) {
-                  print('❌ [GROUP PAGE] エラー発生: $error');
-                  print('❌ [GROUP PAGE] スタックトレース: $stack');
-                  return Center(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // グループ選択ドロップダウン - 最小限のレイアウト
+              Container(
+                constraints: const BoxConstraints(minHeight: 60),
+                child: _buildGroupDropdown(allGroupsAsync, selectedGroupId),
+              ),
+              const SizedBox(height: 16),
+              // グループ内容表示 - 簡素化版
+              Expanded(
+                child: purchaseGroupAsync.when(
+                  data: (purchaseGroup) {
+                    return SingleChildScrollView(
+                      child: Container(
+                        constraints: BoxConstraints(
+                          minHeight: MediaQuery.of(context).size.height * 0.6,
+                        ),
+                        child: _buildGroupContent(purchaseGroup, currentUserName, currentUserUid, ref),
+                      ),
+                    );
+                  },
+                  loading: () => const Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'グループの読み込みに失敗しました',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'エラー: $error',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.grey),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () {
-                            ref.invalidate(purchaseGroupProvider);
-                          },
-                          child: const Text('再試行'),
-                        ),
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('グループを読み込み中...'),
                       ],
                     ),
-                  );
-                },
+                  ),
+                  error: (error, stack) {
+                    print('❌ [GROUP PAGE] エラー発生: $error');
+                    return Center(
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'グループの読み込みに失敗しました',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'エラー: $error',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: Colors.grey, fontSize: 12),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: () => ref.invalidate(purchaseGroupProvider),
+                              child: const Text('再試行'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
       floatingActionButton: _buildFloatingActionButton(context, selectedGroupId),
@@ -317,19 +342,48 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
   }
 
   Widget _buildGroupDropdown(AsyncValue<List<PurchaseGroup>> allGroupsAsync, String? selectedGroupId) {
+    print('📋 [DROPDOWN] 呼び出し開始 - 状態: ${allGroupsAsync.runtimeType}');
+    
     return allGroupsAsync.when(
       data: (groups) {
-        print('📋 [DROPDOWN] グループ数: ${groups.length}');
+        print('📋 [DROPDOWN] データ取得成功 - グループ数: ${groups.length}');
         for (var g in groups) {
-          print('📋 [DROPDOWN] - ${g.groupName} (${g.groupId})');
+          print('📋 [DROPDOWN] - ${g.groupName} (${g.groupId}) メンバー数: ${g.members?.length ?? 0}');
         }
         
         if (groups.isEmpty) {
-          print('⚠️ [DROPDOWN] グループが空です');
-          return const Center(
-            child: Text(
-              'グループが見つかりません',
-              style: TextStyle(color: Colors.grey),
+          print('⚠️ [DROPDOWN] グループが空です - デフォルトグループ作成を試行');
+          
+          // デフォルトグループが存在しない場合は作成ボタンを表示
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'グループが見つかりません',
+                  style: TextStyle(color: Colors.grey),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton(
+                  onPressed: () async {
+                    print('🔄 [DROPDOWN] デフォルトグループ作成開始');
+                    try {
+                      final repository = ref.read(purchaseGroupRepositoryProvider);
+                      await repository.getGroupById('defaultGroup'); // これで自動作成される
+                      ref.invalidate(allGroupsProvider);
+                      print('✅ [DROPDOWN] デフォルトグループ作成完了');
+                    } catch (e) {
+                      print('❌ [DROPDOWN] デフォルトグループ作成失敗: $e');
+                    }
+                  },
+                  child: const Text('デフォルトグループを作成'),
+                ),
+              ],
             ),
           );
         }
@@ -340,52 +394,76 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
         
         print('📋 [DROPDOWN] selectedGroupId: $selectedGroupId, validSelectedGroupId: $validSelectedGroupId');
         
-        return DropdownButtonFormField<String>(
-          decoration: const InputDecoration(
-            labelText: 'グループを選択',
-            border: OutlineInputBorder(),
-          ),
-          initialValue: validSelectedGroupId,
-          items: groups.map((group) => DropdownMenuItem(
-            value: group.groupId,
-            child: Row(
-              children: [
-                Icon(
-                  group.groupId == 'defaultGroup' ? Icons.home : Icons.group,
-                  size: 16,
-                  color: Colors.grey[600],
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    group.groupId == 'defaultGroup' ? 'マイグループ' : group.groupName,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: DropdownButtonFormField<String>(
+              decoration: const InputDecoration(
+                labelText: 'グループを選択',
+                border: OutlineInputBorder(),
+              ),
+              value: validSelectedGroupId,
+              items: groups.map((group) {
+                final displayName = group.groupId == 'defaultGroup' ? 'マイグループ' : group.groupName;
+                return DropdownMenuItem<String>(
+                  value: group.groupId,
+                  child: Text(displayName),
+                );
+              }).toList(),
+              onChanged: (newGroupId) {
+                if (newGroupId != null) {
+                  print('📋 [DROPDOWN] グループ選択: $newGroupId');
+                  ref.read(selectedGroupIdProvider.notifier).selectGroup(newGroupId);
+                }
+              },
             ),
-          )).toList(),
-          onChanged: (newGroupId) {
-            if (newGroupId != null) {
-              print('📋 [DROPDOWN] グループ選択: $newGroupId');
-              ref.read(selectedGroupIdProvider.notifier).selectGroup(newGroupId);
-            }
-          },
+          ),
         );
       },
       loading: () {
         print('⏳ [DROPDOWN] ロード中...');
-        return const CircularProgressIndicator();
+        return Container(
+          padding: const EdgeInsets.all(16),
+          child: const Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('グループを読み込み中...'),
+            ],
+          ),
+        );
       },
       error: (error, stack) {
         print('❌ [DROPDOWN] エラー: $error');
         print('❌ [DROPDOWN] スタック: $stack');
-        return Text('エラー: $error', style: const TextStyle(color: Colors.red));
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.red.shade50,
+            border: Border.all(color: Colors.red),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('エラー: $error', style: const TextStyle(color: Colors.red)),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: () => ref.invalidate(allGroupsProvider),
+                child: const Text('再試行'),
+              ),
+            ],
+          ),
+        );
       },
     );
   }
 
-  Widget _buildGroupContent(PurchaseGroup purchaseGroup, String? currentUserName, WidgetRef ref) {
+  Widget _buildGroupContent(PurchaseGroup purchaseGroup, String? currentUserName, String currentUserUid, WidgetRef ref) {
+    // 現在のユーザーがグループのメンバーに含まれているかチェック
+    final isUserMember = purchaseGroup.members?.any((member) => member.memberId == currentUserUid) ?? false;
+    
     return Column(
       children: [
         Card(
@@ -394,55 +472,114 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('メンバー数: ${purchaseGroup.members?.length ?? 0}'),
-                const SizedBox(height: 16),
-                
-                // オーナーからのメッセージ
-                OwnerMessageWidget(
-                  purchaseGroup: purchaseGroup,
-                  isOwner: _isOwner(purchaseGroup, FirebaseAuth.instance.currentUser?.uid ?? ''),
-                ),
-                
-                // QRコード招待・スキャンボタン
                 Row(
                   children: [
-                    // QR招待ボタン（管理者以上のみ表示）
-                    if (_hasInvitePermission(purchaseGroup, FirebaseAuth.instance.currentUser?.uid ?? ''))
-                      Expanded(
-                        child: QRInviteButton(
-                          shoppingListId: 'default_shopping_list', // TODO: 実際のShoppingListIDを取得
-                          purchaseGroupId: purchaseGroup.groupId,
-                          groupName: purchaseGroup.groupName,
-                          groupOwnerUid: purchaseGroup.ownerUid ?? FirebaseAuth.instance.currentUser?.uid ?? '',
-                          customMessage: '${purchaseGroup.groupName}グループへの招待です',
+                    Text('メンバー数: ${purchaseGroup.members?.length ?? 0}'),
+                    const Spacer(),
+                    if (!isUserMember && currentUserUid.isNotEmpty)
+                      ElevatedButton.icon(
+                        onPressed: () => _addCurrentUserAsOwner(purchaseGroup, currentUserName ?? 'Unknown User', currentUserUid, ref),
+                        icon: const Icon(Icons.person_add, size: 16),
+                        label: const Text('グループに参加', style: TextStyle(fontSize: 12)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                      ),
+                  ],
+                ),
+                if (!isUserMember && currentUserUid.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.orange[50],
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.orange[200]!),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.warning, color: Colors.orange, size: 16),
+                        SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            'あなたはこのグループのメンバーではありません',
+                            style: TextStyle(color: Colors.orange, fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                const SizedBox(height: 16),
+                
+                // オーナーからのメッセージ（一時的にシンプルなカードに変更）
+                if (_isOwner(purchaseGroup, currentUserUid))
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue[200]!),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.info, color: Colors.blue, size: 16),
+                        SizedBox(width: 8),
+                        Text('あなたはこのグループのオーナーです'),
+                      ],
+                    ),
+                  ),
+                
+                const SizedBox(height: 8),
+                
+                // 招待ボタン（一時的にシンプルなボタンに変更）
+                Column(
+                  children: [
+                    // 招待ボタン（管理者以上のみ表示）
+                    if (_hasInvitePermission(purchaseGroup, currentUserUid))
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () => _navigateToInvitationPage(purchaseGroup),
+                          icon: const Icon(Icons.qr_code),
+                          label: const Text('招待ページを開く'),
                         ),
                       )
                     else
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[200],
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.grey[300]!),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.lock, color: Colors.grey[600], size: 16),
-                              const SizedBox(width: 8),
-                              Text(
-                                '招待権限なし',
-                                style: TextStyle(color: Colors.grey[600]),
-                              ),
-                            ],
-                          ),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey[300]!),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.lock, color: Colors.grey[600], size: 16),
+                            const SizedBox(width: 8),
+                            Text(
+                              '招待権限なし',
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                          ],
                         ),
                       ),
-                    const SizedBox(width: 8),
-                    // QRスキャンボタン（全メンバー利用可能）
-                    const Expanded(
-                      child: QRScanButton(),
+                    const SizedBox(height: 8),
+                    // スキャンボタン（全メンバー利用可能）
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('QRスキャン機能は準備中です')),
+                          );
+                        },
+                        icon: const Icon(Icons.qr_code_scanner),
+                        label: const Text('QRスキャン'),
+                      ),
                     ),
                   ],
                 ),
@@ -488,9 +625,11 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                         leading: Icon(
                           member.role == PurchaseGroupRole.owner ? Icons.star :
                           member.role == PurchaseGroupRole.manager ? Icons.admin_panel_settings :
+                          member.role == PurchaseGroupRole.friend ? Icons.favorite :
                           Icons.person,
                           color: member.role == PurchaseGroupRole.owner ? Colors.amber :
                                  member.role == PurchaseGroupRole.manager ? Colors.blue :
+                                 member.role == PurchaseGroupRole.friend ? Colors.pink :
                                  null,
                         ),
                         title: Row(
@@ -710,6 +849,15 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
     );
   }
 
+  // 招待ページに遷移
+  void _navigateToInvitationPage(PurchaseGroup group) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => GroupInvitationPage(group: group),
+      ),
+    );
+  }
+
   // アクションメニューを表示（グループ追加・メンバー追加）
   void _showActionMenu(BuildContext context) {
     showModalBottomSheet(
@@ -735,7 +883,8 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
             ),
             ListTile(
               leading: const Icon(Icons.person_add),
-              title: const Text('メンバーを追加'),
+              title: const Text('プールメンバーを追加'),
+              subtitle: const Text('メンバープールから選択'),
               onTap: () {
                 Navigator.of(context).pop();
                 _showAddMemberDialog(context);
@@ -847,6 +996,9 @@ class _EditMemberDialogState extends State<_EditMemberDialog> {
                     break;
                   case PurchaseGroupRole.member:
                     roleName = 'メンバー';
+                    break;
+                  case PurchaseGroupRole.friend:
+                    roleName = 'フレンド';
                     break;
                 }
                 return DropdownMenuItem(

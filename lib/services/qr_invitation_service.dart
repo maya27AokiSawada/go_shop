@@ -4,9 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import '../models/purchase_group.dart';
-import '../providers/purchase_group_provider.dart';
-import '../services/accepted_invitation_service.dart';
+
 
 // QRコード招待サービスプロバイダー
 final qrInvitationServiceProvider = Provider<QRInvitationService>((ref) {
@@ -18,12 +16,13 @@ class QRInvitationService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   /// QRコード用の招待データを作成
-  /// 招待元のUID、ShoppingListID、PurchaseGroupIDを含む（常にメンバーロールで招待）
+  /// 招待元のUID、ShoppingListID、PurchaseGroupIDを含む
   Future<Map<String, dynamic>> createQRInvitationData({
     required String shoppingListId,
     required String purchaseGroupId,
     required String groupName,
     required String groupOwnerUid,
+    required String invitationType, // 'individual' または 'friend'
     String? customMessage,
   }) async {
     final currentUser = _auth.currentUser;
@@ -31,20 +30,21 @@ class QRInvitationService {
       throw Exception('ユーザーが認証されていません');
     }
 
-    // 招待データを作成（常にメンバーロールで招待）
+    // 招待データを作成
     final invitationData = {
       'inviterUid': currentUser.uid,
       'inviterEmail': currentUser.email ?? '',
-      'inviterDisplayName': currentUser.displayName ?? currentUser.email ?? 'ユーザー', // 招待者表示名追加
+      'inviterDisplayName': currentUser.displayName ?? currentUser.email ?? 'ユーザー',
       'shoppingListId': shoppingListId,
       'purchaseGroupId': purchaseGroupId,
-      'groupName': groupName, // 🆕 グループ名を追加
-      'groupOwnerUid': groupOwnerUid, // 🆕 グループオーナーUIDを追加
-      'inviteRole': 'member', // 常にメンバーロールで招待
+      'groupName': groupName,
+      'groupOwnerUid': groupOwnerUid,
+      'invitationType': invitationType, // 'individual' または 'friend'
+      'inviteRole': 'member',
       'message': customMessage ?? 'Go Shopグループへの招待です',
       'createdAt': DateTime.now().toIso8601String(),
       'type': 'qr_invitation',
-      'version': '1.0',
+      'version': '2.0', // バージョンアップ
     };
 
     return invitationData;
@@ -134,109 +134,23 @@ class QRInvitationService {
       }
 
       final inviterUid = invitationData['inviterUid'] as String;
-      final shoppingListId = invitationData['shoppingListId'] as String;
-      final purchaseGroupId = invitationData['purchaseGroupId'] as String;
-      final inviteRoleStr = invitationData['inviteRole'] as String;
-
+      
       // 自分自身への招待を防ぐ
       if (inviterUid == acceptorUid) {
         throw Exception('自分自身を招待することはできません');
       }
 
-      // ロール文字列をPurchaseGroupRoleに変換（常にmemberとして扱う）
-      PurchaseGroupRole inviteRole = PurchaseGroupRole.member;
+      // 招待タイプを取得（デフォルトは個別招待）
+      final invitationType = invitationData['invitationType'] as String? ?? 'individual';
       
-      // レガシー招待データとの互換性チェック
-      if (inviteRoleStr == 'owner') {
-        throw Exception('オーナー権限での招待は受諾できません');
-      }
-      
-      // 他のロールでも安全のため全てmemberとして扱う
-      print('💡 招待ロール: $inviteRoleStr → member として受諾');
+      print('💡 招待タイプ: $invitationType');
 
-      // PurchaseGroupRepositoryを取得
-      final repository = ref.read(purchaseGroupRepositoryProvider);
-      
-      // 招待データからグループ情報を取得（グループ名、オーナーUID、オーナー名）
-      final groupName = invitationData['groupName'] as String? ?? 'グループ';
-      final groupOwnerUid = invitationData['groupOwnerUid'] as String? ?? inviterUid;
-      final ownerDisplayName = invitationData['inviterDisplayName'] as String? ?? 
-                               (invitationData['inviterEmail'] as String? ?? 'オーナー');
-      
-      print('📋 招待情報: groupName=$groupName, groupOwnerUid=$groupOwnerUid, ownerName=$ownerDisplayName');
-      
-      // 招待された側用の新しいグループを作成
-      // 「〇〇さんの」プレフィックスを付けたグループ名（オーナー名を使用）
-      final sharedGroupName = '$ownerDisplayNameさんの$groupName';
-      final newGroupId = '${purchaseGroupId}_shared_$acceptorUid';
-      
-      // 招待された側のメンバー情報
-      final acceptorMember = PurchaseGroupMember.create(
-        memberId: currentUser.uid, // 🔒 Firebase Auth UIDを確実に設定
-        name: currentUser.displayName ?? currentUser.email ?? 'ユーザー',
-        contact: currentUser.email ?? '',
-        role: inviteRole, // 招待時に指定されたロール（owner以外）
-        isSignedIn: true, // Firebase Auth済み
-        isInvited: true,
-        isInvitationAccepted: true,
-        invitedAt: DateTime.now(),
-        acceptedAt: DateTime.now(),
-      );
-      
-      // 🆕 新アーキテクチャ: 招待元のacceptedInvitationsに書き込み
-      final acceptedInvitationService = ref.read(acceptedInvitationServiceProvider);
-      await acceptedInvitationService.recordAcceptedInvitation(
-        inviterUid: inviterUid,
-        purchaseGroupId: purchaseGroupId,
-        shoppingListId: shoppingListId,
-        inviteRole: inviteRole.name,
-        notes: '$sharedGroupNameへの招待を受諾',
-      );
-      
-      // 🆕 招待元のFirestoreグループにメンバー情報を記録
-      // 注: 招待を受諾した側は、招待元のローカルグループにアクセスできないため、
-      // acceptedInvitationsコレクションを使用して招待元に通知します
-      // 招待元は定期的にacceptedInvitationsを確認し、自分のグループにメンバーを追加します
-      try {
-        print('✅ 招待受諾情報を記録しました。招待元が同期時にメンバーを追加します。');
-      } catch (e) {
-        print('⚠️ 招待受諾情報の記録エラー: $e');
+      // 招待タイプによって処理を分岐
+      if (invitationType == 'friend') {
+        await _processFriendInvitation(inviterUid, acceptorUid);
+      } else {
+        await _processIndividualInvitation(invitationData, acceptorUid);
       }
-      
-      // 招待された側用の共有グループを作成(ローカル用)
-      try {
-        await repository.createGroup(newGroupId, sharedGroupName, acceptorMember);
-        print('✅ 共有グループ「$sharedGroupName」を作成しました');
-        print('✅ 招待受諾を招待元($inviterUid)に通知しました');
-        
-        // プロバイダーを更新してUIに反映
-        ref.invalidate(purchaseGroupProvider);
-        ref.invalidate(allGroupsProvider);
-      } catch (e) {
-        print('⚠️ 共有グループ作成エラー: $e');
-        // 既に存在する場合はスキップ
-      }
-
-      // Firestoreに招待受諾記録を保存
-      await _firestore.collection('invitation_acceptances').add({
-        'inviterUid': inviterUid,
-        'acceptorUid': acceptorUid,
-        'acceptorEmail': currentUser.email ?? '',
-        'shoppingListId': shoppingListId,
-        'purchaseGroupId': purchaseGroupId,
-        'inviteRole': inviteRoleStr,
-        'acceptedAt': FieldValue.serverTimestamp(),
-        'type': 'qr_invitation_accepted',
-        'originalInvitation': invitationData,
-      });
-
-      // 招待者に通知を送信（オプション）
-      await _sendAcceptanceNotification(
-        inviterUid: inviterUid,
-        acceptorEmail: currentUser.email ?? '',
-        shoppingListId: shoppingListId,
-        purchaseGroupId: purchaseGroupId,
-      );
 
       return true;
     } catch (e) {
@@ -245,78 +159,152 @@ class QRInvitationService {
     }
   }
 
-  /// 招待受諾通知を送信
-  Future<void> _sendAcceptanceNotification({
-    required String inviterUid,
-    required String acceptorEmail,
-    required String shoppingListId,
-    required String purchaseGroupId,
-  }) async {
+  /// フレンド招待を処理 - 招待者の全グループへのアクセスを許可
+  Future<void> _processFriendInvitation(String inviterUid, String acceptorUid) async {
     try {
-      await _firestore.collection('notifications').add({
-        'recipientUid': inviterUid,
-        'type': 'invitation_accepted',
-        'message': '$acceptorEmail さんがあなたの招待を受諾しました',
-        'shoppingListId': shoppingListId,
-        'purchaseGroupId': purchaseGroupId,
-        'acceptorEmail': acceptorEmail,
-        'createdAt': FieldValue.serverTimestamp(),
-        'read': false,
+      print('🤝 フレンド招待を処理中...');
+      
+      // 1. フレンドリストに追加
+      await _firestore.collection('users').doc(inviterUid).collection('friends').doc(acceptorUid).set({
+        'uid': acceptorUid,
+        'addedAt': FieldValue.serverTimestamp(),
+        'addedBy': 'invitation',
       });
-    } catch (e) {
-      print('招待受諾通知送信エラー: $e');
-      // 通知送信失敗は非致命的なので、エラーを投げない
-    }
-  }
-
-  /// 招待受諾記録を取得
-  Future<List<Map<String, dynamic>>> getAcceptedInvitations(String uid) async {
-    try {
-      final snapshot = await _firestore
-          .collection('invitation_acceptances')
-          .where('inviterUid', isEqualTo: uid)
-          .orderBy('acceptedAt', descending: true)
+      
+      await _firestore.collection('users').doc(acceptorUid).collection('friends').doc(inviterUid).set({
+        'uid': inviterUid,
+        'addedAt': FieldValue.serverTimestamp(),
+        'addedBy': 'invitation_acceptance',
+      });
+      
+      // 2. 招待者のプールユーザー管理グループ（隠しグループ）にフレンドとして追加
+      await _addToPoolUsersGroup(inviterUid, acceptorUid, 'friend');
+      
+      // 3. 招待者の全グループ・リストにアクセス権限を付与
+      final inviterGroups = await _firestore
+          .collection('purchaseGroups')
+          .where('ownerId', isEqualTo: inviterUid)
           .get();
-
-      return snapshot.docs.map((doc) => {
-        'id': doc.id,
-        ...doc.data(),
-      }).toList();
+          
+      for (final doc in inviterGroups.docs) {
+        // グループのallowedUidsに追加
+        await doc.reference.update({
+          'allowedUids': FieldValue.arrayUnion([acceptorUid])
+        });
+        
+        // 関連するショッピングリストも更新
+        final lists = await _firestore
+            .collection('shoppingLists')
+            .where('purchaseGroupId', isEqualTo: doc.id)
+            .get();
+            
+        for (final listDoc in lists.docs) {
+          await listDoc.reference.update({
+            'allowedUids': FieldValue.arrayUnion([acceptorUid])
+          });
+        }
+      }
+      
+      print('✅ フレンド招待処理完了');
     } catch (e) {
-      print('招待受諾記録取得エラー: $e');
-      return [];
+      print('❌ フレンド招待処理エラー: $e');
+      throw e;
     }
   }
-
-  /// 通知を取得
-  Future<List<Map<String, dynamic>>> getNotifications(String uid) async {
+  
+  /// 個別招待を処理 - 特定のグループのみへのアクセスを許可
+  Future<void> _processIndividualInvitation(Map<String, dynamic> invitationData, String acceptorUid) async {
     try {
-      final snapshot = await _firestore
-          .collection('notifications')
-          .where('recipientUid', isEqualTo: uid)
-          .orderBy('createdAt', descending: true)
-          .limit(20)
+      print('👤 個別招待を処理中...');
+      
+      final purchaseGroupId = invitationData['purchaseGroupId'] as String;
+      final shoppingListId = invitationData['shoppingListId'] as String?;
+      final inviterUid = invitationData['inviterUid'] as String;
+      
+      // 1. 招待者のプールユーザー管理グループ（隠しグループ）にメンバーとして追加
+      await _addToPoolUsersGroup(inviterUid, acceptorUid, 'member');
+      
+      // 2. 指定されたグループのallowedUidsに追加
+      await _firestore.collection('purchaseGroups').doc(purchaseGroupId).update({
+        'allowedUids': FieldValue.arrayUnion([acceptorUid])
+      });
+      
+      // 3. 指定されたショッピングリストがある場合は、それにもアクセス権限を付与
+      if (shoppingListId != null) {
+        await _firestore.collection('shoppingLists').doc(shoppingListId).update({
+          'allowedUids': FieldValue.arrayUnion([acceptorUid])
+        });
+      }
+      
+      print('✅ 個別招待処理完了');
+    } catch (e) {
+      print('❌ 個別招待処理エラー: $e');
+      throw e;
+    }
+  }
+  
+  /// プールユーザー管理グループ（隠しグループ）にメンバーを追加
+  Future<void> _addToPoolUsersGroup(String inviterUid, String acceptorUid, String roleType) async {
+    try {
+      // 招待者のプールユーザー管理グループを検索
+      // グループ名の規則: "_pool_users_{inviterUid}" または類似のパターン
+      final poolGroupQuery = await _firestore
+          .collection('purchaseGroups')
+          .where('ownerId', isEqualTo: inviterUid)
+          .where('groupName', isGreaterThanOrEqualTo: '_pool_')
+          .where('groupName', isLessThan: '_pool_\uf8ff')
           .get();
-
-      return snapshot.docs.map((doc) => {
-        'id': doc.id,
-        ...doc.data(),
-      }).toList();
+      
+      String poolGroupId;
+      
+      if (poolGroupQuery.docs.isEmpty) {
+        // プールユーザー管理グループが存在しない場合は作成
+        poolGroupId = 'pool_users_$inviterUid';
+        await _firestore.collection('purchaseGroups').doc(poolGroupId).set({
+          'groupId': poolGroupId,
+          'groupName': '_pool_users_$inviterUid',
+          'ownerId': inviterUid,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+          'isHidden': true, // 隠しグループフラグ
+          'members': [],
+          'allowedUids': [inviterUid],
+        });
+        print('📦 プールユーザー管理グループを作成: $poolGroupId');
+      } else {
+        poolGroupId = poolGroupQuery.docs.first.id;
+        print('📦 既存のプールユーザー管理グループを使用: $poolGroupId');
+      }
+      
+      // ユーザー情報を取得
+      final acceptorUser = await _auth.currentUser;
+      final acceptorEmail = acceptorUser?.email ?? '';
+      final acceptorName = acceptorUser?.displayName ?? acceptorEmail;
+      
+      // ロールを決定（friend招待 -> friend, 個別招待 -> member）
+      final role = roleType == 'friend' ? 'friend' : 'member';
+      
+      // プールユーザー管理グループにメンバーを追加
+      await _firestore.collection('purchaseGroups').doc(poolGroupId).update({
+        'members': FieldValue.arrayUnion([{
+          'memberId': acceptorUid,
+          'name': acceptorName,
+          'contact': acceptorEmail,
+          'role': role,
+          'isSignedIn': true,
+          'isInvited': true,
+          'isInvitationAccepted': true,
+          'invitedAt': FieldValue.serverTimestamp(),
+          'acceptedAt': FieldValue.serverTimestamp(),
+        }]),
+        'allowedUids': FieldValue.arrayUnion([acceptorUid]),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      
+      print('✅ プールユーザー管理グループにメンバー追加完了: $acceptorUid as $role');
     } catch (e) {
-      print('通知取得エラー: $e');
-      return [];
-    }
-  }
-
-  /// 通知を既読にする
-  Future<void> markNotificationAsRead(String notificationId) async {
-    try {
-      await _firestore
-          .collection('notifications')
-          .doc(notificationId)
-          .update({'read': true});
-    } catch (e) {
-      print('通知既読エラー: $e');
+      print('❌ プールユーザー管理グループ追加エラー: $e');
+      // 非致命的エラーとして処理し、招待処理自体は継続
     }
   }
 }

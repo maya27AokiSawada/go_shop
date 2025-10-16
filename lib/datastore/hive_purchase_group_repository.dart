@@ -61,8 +61,54 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
       final groups = _box.values.toList();
       // 隠しグループを除外
       final visibleGroups = groups.where((group) => group.groupId != '__member_pool__').toList();
-      developer.log('📋 全グループ取得: ${visibleGroups.length}グループ (隠しグループ除外)');
-      return visibleGroups;
+      
+      // 現在のユーザーIDを取得
+      final currentUserId = _ref.read(currentUserIdProvider) ?? 'mock_926522594';
+      developer.log('📋 [FILTER] フィルタリング開始 - currentUserId: $currentUserId, 全グループ数: ${visibleGroups.length}');
+      
+      // 現在のユーザーが関係するグループのみをフィルタリング（レガシー修正前の元データで判定）
+      final userRelatedGroups = visibleGroups.where((group) {
+        developer.log('🔍 [FILTER] グループチェック: ${group.groupName} (ownerUid: ${group.ownerUid})');
+        
+        // オーナーの場合
+        if (group.ownerUid == currentUserId) {
+          developer.log('✅ [FILTER] オーナーとして含める: ${group.groupName}');
+          return true;
+        }
+        
+        // メンバーの場合（レガシー修正前の元のmemberIdで判定）
+        final isMember = group.members?.any((member) => member.memberId == currentUserId) == true;
+        if (isMember) {
+          developer.log('✅ [FILTER] メンバーとして含める: ${group.groupName}');
+          return true;
+        }
+        
+        // デフォルトグループは常に表示（後方互換性のため）
+        if (group.groupId == 'defaultGroup') {
+          developer.log('✅ [FILTER] デフォルトグループとして含める: ${group.groupName}');
+          return true;
+        }
+        
+        // 現在のユーザーのメールアドレスと一致するメンバーがいる場合も含める（メールベース判定）
+        final userSettingsBox = Hive.box<UserSettings>('userSettings');
+        final userSettings = userSettingsBox.get('settings');
+        final currentUserEmail = userSettings?.userEmail ?? '';
+        
+        if (currentUserEmail.isNotEmpty) {
+          final hasMatchingEmail = group.members?.any((member) => 
+            member.contact.toLowerCase() == currentUserEmail.toLowerCase()) == true;
+          if (hasMatchingEmail) {
+            developer.log('✅ [FILTER] メールアドレスマッチで含める: ${group.groupName} (email: $currentUserEmail)');
+            return true;
+          }
+        }
+        
+        developer.log('❌ [FILTER] 除外: ${group.groupName}');
+        return false;
+      }).toList();
+      
+      developer.log('📋 [FILTER] フィルタリング完了: ${userRelatedGroups.length}グループ (元: ${visibleGroups.length}グループ)');
+      return userRelatedGroups;
     } on StateError catch (e) {
       developer.log('⚠️ Box not available during getAllGroups (app may be restarting): $e');
       return []; // 空のリストを返してクラッシュを防ぐ

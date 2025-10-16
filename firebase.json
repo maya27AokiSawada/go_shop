@@ -3,8 +3,8 @@
     "platforms": {
       "android": {
         "default": {
-          "projectId": "gotoshop-572b7",
-          "appId": "1:895658199748:android:285106960feb149318d791",
+          "projectId": "go-shopping-61515",
+          "appId": "1:37061888509:android:3af7ee6e3d88bf1e36f194",
           "fileOutput": "android/app/google-services.json"
         }
       }

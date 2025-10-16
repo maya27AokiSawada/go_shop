@@ -399,11 +399,21 @@ class SelectedGroupIdNotifier extends StateNotifier<String> {
 class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
   @override
   Future<List<PurchaseGroup>> build() async {
+    print('🔄 [ALL GROUPS] AllGroupsNotifier.build() 開始');
     final repository = ref.read(purchaseGroupRepositoryProvider);
+    print('🔄 [ALL GROUPS] リポジトリ取得完了: ${repository.runtimeType}');
     
     try {
-      return await repository.getAllGroups();
-    } catch (e) {
+      print('🔄 [ALL GROUPS] getAllGroups() 呼び出し開始');
+      final groups = await repository.getAllGroups();
+      print('🔄 [ALL GROUPS] getAllGroups() 完了: ${groups.length}グループ');
+      for (final group in groups) {
+        print('🔄 [ALL GROUPS] - ${group.groupName} (${group.groupId})');
+      }
+      return groups;
+    } catch (e, stackTrace) {
+      print('❌ [ALL GROUPS] エラー発生: $e');
+      print('❌ [ALL GROUPS] スタックトレース: $stackTrace');
       throw Exception('Failed to load all groups: $e');
     }
   }

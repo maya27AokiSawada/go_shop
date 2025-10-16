@@ -274,6 +274,8 @@ class _GroupCreationWithCopyDialogState extends ConsumerState<GroupCreationWithC
         return '管理者';
       case PurchaseGroupRole.member:
         return 'メンバー';
+      case PurchaseGroupRole.friend:
+        return 'フレンド';
     }
   }
 

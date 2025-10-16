@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="net.sumomo_planning.go_shop">
+    package="com.oneness_as.goshopping">
     
     <!-- インターネット接続権限 -->
     <uses-permission android:name="android.permission.INTERNET" />

@@ -258,6 +258,8 @@ class MemberRoleManagementWidget extends ConsumerWidget {
         return Colors.orange;
       case PurchaseGroupRole.member:
         return Colors.blue;
+      case PurchaseGroupRole.friend:
+        return Colors.pink;
     }
   }
 
@@ -269,6 +271,8 @@ class MemberRoleManagementWidget extends ConsumerWidget {
         return Icons.admin_panel_settings;
       case PurchaseGroupRole.member:
         return Icons.person;
+      case PurchaseGroupRole.friend:
+        return Icons.favorite;
     }
   }
 
@@ -280,6 +284,8 @@ class MemberRoleManagementWidget extends ConsumerWidget {
         return '管理者';
       case PurchaseGroupRole.member:
         return 'メンバー';
+      case PurchaseGroupRole.friend:
+        return 'フレンド';
     }
   }
 }

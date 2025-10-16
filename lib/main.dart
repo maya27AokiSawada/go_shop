@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'screens/home_screen.dart';
 import 'pages/invitation_accept_page.dart';
+import 'pages/purchase_group_page_simple.dart';
 import 'services/user_specific_hive_service.dart';
 import 'services/deep_link_service.dart';
 import 'services/user_initialization_service.dart';
@@ -29,14 +31,21 @@ void main() async {
   
   final logger = Logger();
   
-  // フレーバーの設定
-  F.appFlavor = Flavor.dev; // Firebase統合デバッグのためDEVモード
+  // フレーバーの設定 - 本番環境（Firestore + Hive ハイブリッド）
+  F.appFlavor = Flavor.prod;
   
   // Firebase初期化（DEV/PROD両方で初期化）
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    
+    // Web環境での設定
+    if (kIsWeb) {
+      logger.i("🌐 Web環境でのFirebase Auth設定完了");
+      // reCAPTCHA設定はweb/index.htmlで設定済み
+    }
+    
     if (F.appFlavor == Flavor.prod) {
       logger.i("🔥 Starting Go Shop app in PRODUCTION mode with Firebase");
     } else {
@@ -98,6 +107,7 @@ class _MyAppState extends ConsumerState<MyApp> {
           final args = ModalRoute.of(context)!.settings.arguments as Map<String, String>;
           return InvitationAcceptPage(inviteCode: args['inviteCode']!);
         },
+        '/group_simple': (context) => const PurchaseGroupPageSimple(),
       },
       builder: (context, child) {
         // アプリ起動時にディープリンクを初期化

@@ -340,6 +340,9 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
               case PurchaseGroupRole.member:
                 roleName = 'メンバー';
                 break;
+              case PurchaseGroupRole.friend:
+                roleName = 'フレンド';
+                break;
             }
             return DropdownMenuItem(
               value: role,
@@ -459,6 +462,8 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
         return '管理者';
       case PurchaseGroupRole.member:
         return 'メンバー';
+      case PurchaseGroupRole.friend:
+        return 'フレンド';
     }
   }
 
