@@ -15,6 +15,8 @@ enum PurchaseGroupRole {
   member,
   @HiveField(2)
   manager,
+  @HiveField(3)
+  friend, // フレンド招待で追加されたメンバー
 }
 
 @HiveType(typeId: 1)

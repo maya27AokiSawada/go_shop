@@ -1,4 +1,4 @@
-package net.sumomo_planning.go_shop
+package com.oneness_as.goshopping
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -132,6 +132,8 @@ class PurchaseGroupRoleAdapter extends TypeAdapter<PurchaseGroupRole> {
         return PurchaseGroupRole.member;
       case 2:
         return PurchaseGroupRole.manager;
+      case 3:
+        return PurchaseGroupRole.friend;
       default:
         return PurchaseGroupRole.owner;
     }
@@ -148,6 +150,9 @@ class PurchaseGroupRoleAdapter extends TypeAdapter<PurchaseGroupRole> {
         break;
       case PurchaseGroupRole.manager:
         writer.writeByte(2);
+        break;
+      case PurchaseGroupRole.friend:
+        writer.writeByte(3);
         break;
     }
   }

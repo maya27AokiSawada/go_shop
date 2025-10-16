@@ -115,6 +115,12 @@ class HiveUserSettingsRepository implements UserSettingsRepository {
     final currentSettings = await getSettings();
     final currentUserId = currentSettings.userId;
     
+    // 仮設定UIDの場合は常にfalseを返す（変更として扱わない）
+    if (_isTemporaryUid(newUserId) || _isTemporaryUid(currentUserId)) {
+      logger.i('🔄 仮設定UID検出 - 変更なしとして扱います: $currentUserId → $newUserId');
+      return false;
+    }
+    
     // 初回サインイン時（前回のUIDが空）はfalseを返す
     if (currentUserId.isEmpty) {
       logger.i('🆕 初回UID設定: $newUserId');
@@ -130,6 +136,26 @@ class HiveUserSettingsRepository implements UserSettingsRepository {
     }
     
     return hasChanged;
+  }
+
+  // 仮設定UID（開発・テスト用）かどうかを判定するヘルパーメソッド
+  bool _isTemporaryUid(String uid) {
+    // MockAuthServiceが生成する仮設定UIDパターンを検出
+    if (uid.startsWith('mock_')) {
+      return true;
+    }
+    
+    // ローカルテスト用の仮設定UIDパターンを検出
+    if (uid.startsWith('local_') || uid.startsWith('temp_') || uid.startsWith('dev_')) {
+      return true;
+    }
+    
+    // 空文字列や明らかに無効なUIDも仮設定として扱う
+    if (uid.isEmpty || uid.length < 10) {
+      return true;
+    }
+    
+    return false;
   }
 }
 

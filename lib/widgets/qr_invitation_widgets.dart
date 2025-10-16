@@ -45,6 +45,7 @@ class QRInviteButton extends ConsumerWidget {
         groupName: groupName,
         groupOwnerUid: groupOwnerUid,
         customMessage: customMessage,
+        invitationType: 'individual', // デフォルトは個別招待
       );
       
       final qrData = qrService.encodeQRData(invitationData);

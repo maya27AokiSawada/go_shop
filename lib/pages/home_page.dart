@@ -9,7 +9,7 @@ import '../providers/auth_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/shopping_list_provider.dart';
 import '../providers/user_name_provider.dart';
-import '../helper/mock_auth_service.dart';
+
 import '../providers/user_settings_provider.dart';
 import '../providers/user_specific_hive_provider.dart';
 import '../providers/device_settings_provider.dart';
@@ -29,7 +29,7 @@ import '../providers/subscription_provider.dart';
 import 'hybrid_sync_test_page.dart';
 import 'help_page.dart';
 import 'premium_page.dart';
-import 'debug_email_test_page.dart';
+// import 'debug_email_test_page.dart'; // onenessブランチでは無効
 
 final logger = Logger();
 
@@ -141,16 +141,41 @@ class _HomePageState extends ConsumerState<HomePage> {
     super.dispose();
   }
 
-  // Firebase UserとMockUserの両方からemailを取得するヘルパーメソッド
-  String? _getUserEmail(dynamic user) {
+  // Firebase Userからemailを取得するヘルパーメソッド
+  String? _getUserEmail(User? user) {
     if (user == null) return null;
-    // Firebase UserまたはMockUserの場合
     return user.email;
+  }
+
+  // 仮設定UID（開発・テスト用）かどうかを判定するメソッド
+  bool _isTemporaryUid(String uid) {
+    // MockAuthServiceが生成する仮設定UIDパターンを検出
+    if (uid.startsWith('mock_')) {
+      return true;
+    }
+    
+    // ローカルテスト用の仮設定UIDパターンを検出
+    if (uid.startsWith('local_') || uid.startsWith('temp_') || uid.startsWith('dev_')) {
+      return true;
+    }
+    
+    // 空文字列や明らかに無効なUIDも仮設定として扱う
+    if (uid.isEmpty || uid.length < 10) {
+      return true;
+    }
+    
+    return false;
   }
 
   // UID変更をハンドリングするメソッド
   Future<void> _handleUserIdChange(String newUserId, String userEmail) async {
     try {
+      // 仮設定UID（MockやLocalテスト用）の場合は処理をスキップ
+      if (_isTemporaryUid(newUserId)) {
+        logger.i('🔄 仮設定UID検出 - UID変更処理をスキップ: $newUserId');
+        return;
+      }
+      
       final userSettings = ref.read(userSettingsProvider.notifier);
       final hiveService = ref.read(userSpecificHiveProvider);
       final hasChanged = await userSettings.hasUserIdChanged(newUserId);
@@ -284,9 +309,13 @@ class _HomePageState extends ConsumerState<HomePage> {
         
         logger.i('🔐 現在のユーザー: ${currentUserEmail ?? "null"}, UID: $currentUserId, ユーザー名: $currentUserName');
         
-        if (currentUserId.isNotEmpty) {
-          // サインイン済みの場合、UID変更をチェック
+        if (currentUserId.isNotEmpty && !_isTemporaryUid(currentUserId)) {
+          // 実際のFirebase UIDの場合のみUID変更をチェック
+          logger.i('✅ 有効なFirebase UID - UID変更チェックを実行');
           await _handleUserIdChange(currentUserId, currentUserEmail ?? 'メール未設定');
+        } else if (_isTemporaryUid(currentUserId)) {
+          // 仮設定UIDの場合はログ出力のみ
+          logger.i('🔄 仮設定UID検出 - UID変更チェックをスキップ: $currentUserId');
         } else {
           // サインアウト時は何もしない
           logger.i('� サインアウト状態 - 処理をスキップ');
@@ -414,8 +443,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                   await shoppingListBox.clear();
                   await userSettingsBox.clear();
                   
-                  // 認証状態をクリア
-                  ref.read(mockAuthStateProvider.notifier).state = null;
+                  // Firebase認証からサインアウト
+                  await ref.read(authProvider).signOut();
                   
                   // プロバイダーを無効化
                   ref.invalidate(purchaseGroupProvider);
@@ -456,19 +485,19 @@ class _HomePageState extends ConsumerState<HomePage> {
             },
           ),
           
-          // デバッグ用：メール送信テストボタン（開発環境のみ）
-          if (F.appFlavor == Flavor.dev)
-            IconButton(
-              icon: const Icon(Icons.email, color: Colors.blue),
-              tooltip: 'メール送信テスト（デバッグ用）',
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const DebugEmailTestPage(),
-                  ),
-                );
-              },
-            ),
+          // デバッグ用：メール送信テストボタン（onenessブランチでは無効）
+          // if (F.appFlavor == Flavor.dev)
+          //   IconButton(
+          //     icon: const Icon(Icons.email, color: Colors.blue),
+          //     tooltip: 'メール送信テスト（デバッグ用）',
+          //     onPressed: () {
+          //       Navigator.of(context).push(
+          //         MaterialPageRoute(
+          //           builder: context) => const DebugEmailTestPage(),
+          //         ),
+          //       );
+          //     },
+          //   ),
           
           // テストページボタン（ハイブリッド同期テスト用）
           if (F.appFlavor == Flavor.prod) // PRODモードでハイブリッド同期テスト可能
@@ -930,12 +959,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                           // 2. Firebase認証のサインアウト
                           await ref.read(authProvider).signOut();
                           
-                          // 3. Mock環境では状態を手動でクリア
-                          if (F.appFlavor == Flavor.dev) {
-                            ref.read(mockAuthStateProvider.notifier).state = null;
-                          }
-                          
-                          // 4. 全ての設定をクリア
+                          // 3. 全ての設定をクリア
                           await ref.read(userSettingsProvider.notifier).clearAllSettings();
                           
                           // 5. グループデータとショッピングリストも無効化
@@ -1251,15 +1275,9 @@ class _HomePageState extends ConsumerState<HomePage> {
       final user = await authService.signIn(email, password);
       logger.i('🔧 _performSignIn: signIn完了 - user: $user (type: ${user.runtimeType})');
       
-      // Mock環境では状態を手動で更新
-      if (F.appFlavor == Flavor.dev && user != null) {
-        ref.read(mockAuthStateProvider.notifier).state = user;
-        logger.i('🔧 _performSignIn: mockAuthStateProvider更新完了');
-        
-        // 更新後の状態を確認
-        final updatedMockState = ref.read(mockAuthStateProvider);
-        logger.i('🔧 _performSignIn: 更新後のmockAuthStateProvider: $updatedMockState');
-        logger.i('🔧 _performSignIn: 更新後のemail: ${updatedMockState?.email}');
+      // Firebase認証では自動的に状態が更新される
+      if (user != null) {
+        logger.i('🔧 _performSignIn: Firebase認証成功 - user: ${user.email}');
       }
       
       // メールアドレスの保存/削除を実行
@@ -1281,15 +1299,9 @@ class _HomePageState extends ConsumerState<HomePage> {
               logger.i('🔧 PostFrameCallback: user type = ${user.runtimeType}');
               logger.i('🔧 PostFrameCallback: user.email = ${user.email}');
               
-              // MockUserかFirebase Userかによって処理を分ける
-              if (user is MockUser) {
-                currentUserName = user.displayName;
-                logger.i('🔧 PostFrameCallback: MockUser displayName = "${user.displayName}"');
-              } else {
-                // Firebase User
-                currentUserName = user.displayName;
-                logger.i('🔧 PostFrameCallback: Firebase User displayName = "${user.displayName}"');
-              }
+              // Firebase User
+              currentUserName = user.displayName;
+              logger.i('🔧 PostFrameCallback: Firebase User displayName = "${user.displayName}"');
               
               logger.i('🔧 PostFrameCallback: 最終的なユーザー名 = "$currentUserName"');
             }
@@ -1484,15 +1496,9 @@ class _HomePageState extends ConsumerState<HomePage> {
       final user = await ref.read(authProvider).signUp(email, password);
       logger.i('🔧 _performSignUp: signUp完了 - user: $user (type: ${user.runtimeType})');
       
-      // Mock環境では状態を手動で更新
-      if (F.appFlavor == Flavor.dev && user != null) {
-        ref.read(mockAuthStateProvider.notifier).state = user;
-        logger.i('🔧 _performSignUp: mockAuthStateProvider更新完了');
-        
-        // 更新後の状態を確認
-        final updatedMockState = ref.read(mockAuthStateProvider);
-        logger.i('🔧 _performSignUp: 更新後のmockAuthStateProvider: $updatedMockState');
-        logger.i('🔧 _performSignUp: 更新後のemail: ${updatedMockState?.email}');
+      // Firebase認証では自動的に状態が更新される
+      if (user != null) {
+        logger.i('🔧 _performSignUp: Firebase認証成功 - user: ${user.email}');
       }
       
       if (mounted) {
@@ -1511,15 +1517,9 @@ class _HomePageState extends ConsumerState<HomePage> {
               logger.i('🔧 PostFrameCallback(SignUp): user type = ${user.runtimeType}');
               logger.i('🔧 PostFrameCallback(SignUp): user.email = ${user.email}');
               
-              // MockUserかFirebase Userかによって処理を分ける
-              if (user is MockUser) {
-                currentUserName = user.displayName;
-                logger.i('🔧 PostFrameCallback(SignUp): MockUser displayName = "${user.displayName}"');
-              } else {
-                // Firebase User
-                currentUserName = user.displayName;
-                logger.i('🔧 PostFrameCallback(SignUp): Firebase User displayName = "${user.displayName}"');
-              }
+              // Firebase User
+              currentUserName = user.displayName;
+              logger.i('🔧 PostFrameCallback(SignUp): Firebase User displayName = "${user.displayName}"');
               
               logger.i('🔧 PostFrameCallback(SignUp): 最終的なユーザー名 = "$currentUserName"');
             }
@@ -1644,9 +1644,8 @@ class _HomePageState extends ConsumerState<HomePage> {
               if (user != null) {
                 logger.i('🔍 user.email: ${user.email}');
                 logger.i('🔍 user.uid: ${user.uid}');
-                if (user is MockUser) {
-                  logger.i('🔍 MockUser.displayName: ${user.displayName}');
-                }
+                // Firebase User
+                logger.i('🔍 Firebase User.displayName: ${user.displayName}');
               }
               return user;
             },
@@ -1668,14 +1667,8 @@ class _HomePageState extends ConsumerState<HomePage> {
             logger.i('🔍 directUser.email: ${directUser.email}');
           }
           
-          // 3. mockAuthStateProviderから直接確認（DEV環境の場合）
-          if (F.appFlavor == Flavor.dev) {
-            final mockUser = ref.read(mockAuthStateProvider);
-            logger.i('🔍 mockAuthStateProvider: $mockUser');
-            if (mockUser != null) {
-              logger.i('🔍 mockUser.email: ${mockUser.email}');
-            }
-          }
+          // 3. Firebase認証状態を確認
+          logger.i('🔍 Firebase Auth User: $directUser');
           
           // 実際のメールアドレスを決定
           String? actualEmail;

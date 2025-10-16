@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../providers/page_index_provider.dart';
-import '../flavors.dart';
+
 class SignUpForm extends ConsumerStatefulWidget {
   const SignUpForm({super.key});
 
@@ -64,13 +64,10 @@ class _SignUpFormState extends ConsumerState<SignUpForm> {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
       try{
-        final user = await ref.read(authProvider).signUp(_email, _password);
+        await ref.read(authProvider).signUp(_email, _password);
         if (!mounted) return;
         
-        // Mock環境では状態を更新
-        if (F.appFlavor == Flavor.dev && user != null) {
-          ref.read(mockAuthStateProvider.notifier).state = user;
-        }
+        // Firebase認証完了 - 状態はauthStateProviderで自動更新される
         
         ref.read(pageIndexProvider.notifier).setPageIndex(0);
         Navigator.of(context).pop();
@@ -127,13 +124,10 @@ class _SignUpFormState extends ConsumerState<SignUpForm> {
 
   Future<void> _performSignUp() async {
     try {
-      final user = await ref.read(authProvider).signUp(_email, _password);
+      await ref.read(authProvider).signUp(_email, _password);
       if (!mounted) return;
       
-      // Mock環境では状態を更新
-      if (F.appFlavor == Flavor.dev && user != null) {
-        ref.read(mockAuthStateProvider.notifier).state = user;
-      }
+      // Firebase認証完了 - 状態はauthStateProviderで自動更新される
       
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('アカウントを作成しました')),

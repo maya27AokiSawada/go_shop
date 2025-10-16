@@ -216,6 +216,8 @@ class _MultiGroupInvitationDialogState extends ConsumerState<MultiGroupInvitatio
         return '管理者';
       case PurchaseGroupRole.member:
         return 'メンバー';
+      case PurchaseGroupRole.friend:
+        return 'フレンド';
     }
   }
 

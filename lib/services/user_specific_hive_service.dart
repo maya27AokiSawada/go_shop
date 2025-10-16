@@ -26,9 +26,35 @@ class UserSpecificHiveService {
   
   /// 前回使用したUIDを保存
   Future<void> saveLastUsedUid(String uid) async {
+    // 仮設定UIDは保存しない
+    if (_isTemporaryUid(uid)) {
+      logger.i('🔄 仮設定UID検出 - 保存をスキップ: $uid');
+      return;
+    }
+    
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_lastUserIdKey, uid);
     logger.i('💾 Last used UID saved: $uid');
+  }
+
+  // 仮設定UID（開発・テスト用）かどうかを判定するヘルパーメソッド
+  bool _isTemporaryUid(String uid) {
+    // MockAuthServiceが生成する仮設定UIDパターンを検出
+    if (uid.startsWith('mock_')) {
+      return true;
+    }
+    
+    // ローカルテスト用の仮設定UIDパターンを検出
+    if (uid.startsWith('local_') || uid.startsWith('temp_') || uid.startsWith('dev_')) {
+      return true;
+    }
+    
+    // 空文字列や明らかに無効なUIDも仮設定として扱う
+    if (uid.isEmpty || uid.length < 10) {
+      return true;
+    }
+    
+    return false;
   }
   
   /// 前回使用したUIDを取得
@@ -70,8 +96,9 @@ class UserSpecificHiveService {
     // UIDが指定されていない場合は前回使用UIDを取得
     final targetUserId = userId ?? await getLastUsedUid();
     
-    if (targetUserId == null) {
-      logger.i('🔄 No previous UID found, using default Hive');
+    // 仮設定UIDまたは無効UIDの場合はデフォルトHiveを使用
+    if (targetUserId == null || _isTemporaryUid(targetUserId)) {
+      logger.i('🔄 有効なUID未発見（${targetUserId ?? "null"}） - デフォルトHiveを使用');
       return initializeForDefaultUser();
     }
 
@@ -80,7 +107,7 @@ class UserSpecificHiveService {
     // 既存のinitializeForUserを利用
     await initializeForUser(targetUserId);
     
-    // 使用UIDを保存
+    // 使用UIDを保存（仮設定UIDでない場合のみ）
     await saveLastUsedUid(targetUserId);
     
     logger.i('✅ Hive initialized for Windows user: $targetUserId');
