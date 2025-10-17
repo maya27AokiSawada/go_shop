@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/purchase_group.dart';
 import '../providers/purchase_group_provider.dart';
 import '../flavors.dart';
+import 'ad_service.dart';
 
 final userInitializationServiceProvider = Provider<UserInitializationService>((ref) {
   return UserInitializationService(ref);
@@ -28,6 +29,13 @@ class UserInitializationService {
   /// ユーザーのデフォルトデータを初期化
   Future<void> _initializeUserDefaults(User user) async {
     try {
+      // 広告サービスの初期化
+      final adService = _ref.read(adServiceProvider);
+      await adService.initialize();
+      
+      // サインイン広告の表示
+      await adService.showSignInAd();
+      
       // Prod環境でのみFirebase連携の初期化を実行
       if (F.appFlavor == Flavor.prod) {
         await _createDefaultGroupIfNeeded(user);

@@ -42,6 +42,48 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
     }
   }
 
+  /// 招待状態の表示名を取得
+  String _getInvitationStatusDisplayName(InvitationStatus status) {
+    switch (status) {
+      case InvitationStatus.self:
+        return '';
+      case InvitationStatus.pending:
+        return '招待中';
+      case InvitationStatus.accepted:
+        return '承諾済';
+      case InvitationStatus.deleted:
+        return '削除済';
+    }
+  }
+
+  /// 招待状態に応じたアイコンを取得
+  IconData _getInvitationStatusIcon(InvitationStatus status) {
+    switch (status) {
+      case InvitationStatus.self:
+        return Icons.person;
+      case InvitationStatus.pending:
+        return Icons.schedule;
+      case InvitationStatus.accepted:
+        return Icons.check_circle;
+      case InvitationStatus.deleted:
+        return Icons.person_off;
+    }
+  }
+
+  /// 招待状態に応じた色を取得
+  Color _getInvitationStatusColor(InvitationStatus status) {
+    switch (status) {
+      case InvitationStatus.self:
+        return Colors.blue;
+      case InvitationStatus.pending:
+        return Colors.orange;
+      case InvitationStatus.accepted:
+        return Colors.green;
+      case InvitationStatus.deleted:
+        return Colors.grey;
+    }
+  }
+
   /// 現在のユーザーが招待権限を持っているかチェック（管理者以上）
   bool _hasInvitePermission(PurchaseGroup purchaseGroup, String currentUserUid) {
     if (currentUserUid.isEmpty || purchaseGroup.members?.isEmpty == true) {
@@ -636,7 +678,38 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                           children: [
                             Text(member.name),
                             const SizedBox(width: 8),
-                            if (member.isInvited && !member.isInvitationAccepted)
+                            // 新しい招待状態表示
+                            if (member.invitationStatus != InvitationStatus.self)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: _getInvitationStatusColor(member.invitationStatus).withValues(alpha: 0.1),
+                                  border: Border.all(color: _getInvitationStatusColor(member.invitationStatus)),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      _getInvitationStatusIcon(member.invitationStatus),
+                                      size: 12,
+                                      color: _getInvitationStatusColor(member.invitationStatus),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      _getInvitationStatusDisplayName(member.invitationStatus),
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: _getInvitationStatusColor(member.invitationStatus),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            // レガシー表示（後方互換性のため）
+                            if (member.invitationStatus == InvitationStatus.self && 
+                                member.isInvited && !member.isInvitationAccepted)
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(

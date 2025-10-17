@@ -19,6 +19,19 @@ enum PurchaseGroupRole {
   friend, // フレンド招待で追加されたメンバー
 }
 
+// 招待状態を定義するenum
+@HiveType(typeId: 5)
+enum InvitationStatus {
+  @HiveField(0)
+  self,        // 自分（招待ではない）
+  @HiveField(1)
+  pending,     // 招待中
+  @HiveField(2)
+  accepted,    // 受諾済み
+  @HiveField(3)
+  deleted,     // アカウント削除済み
+}
+
 @HiveType(typeId: 1)
 @freezed
 class PurchaseGroupMember with _$PurchaseGroupMember {
@@ -28,10 +41,14 @@ class PurchaseGroupMember with _$PurchaseGroupMember {
     @HiveField(2) required String contact, // email または phone
     @HiveField(3) required PurchaseGroupRole role,
     @HiveField(4) @Default(false) bool isSignedIn,
-    @HiveField(5) @Default(false) bool isInvited, // 招待済みかどうか
-    @HiveField(6) @Default(false) bool isInvitationAccepted, // 招待受諾済みかどうか
+    // 新しい招待管理フィールド
+    @HiveField(9) @Default(InvitationStatus.self) InvitationStatus invitationStatus,
+    @HiveField(10) String? securityKey, // 招待時のセキュリティキー
     @HiveField(7) DateTime? invitedAt, // 招待日時
     @HiveField(8) DateTime? acceptedAt, // 受諾日時
+    // 既存のフィールドは後方互換性のため残す（非推奨）
+    @HiveField(5) @Default(false) @Deprecated('Use invitationStatus instead') bool isInvited,
+    @HiveField(6) @Default(false) @Deprecated('Use invitationStatus instead') bool isInvitationAccepted,
   }) = _PurchaseGroupMember;
   
   // カスタムコンストラクタでmemberIdを自動生成
@@ -41,10 +58,13 @@ class PurchaseGroupMember with _$PurchaseGroupMember {
     required String contact,
     required PurchaseGroupRole role,
     bool isSignedIn = false,
-    bool isInvited = false,
-    bool isInvitationAccepted = false,
+    InvitationStatus invitationStatus = InvitationStatus.self,
+    String? securityKey,
     DateTime? invitedAt,
     DateTime? acceptedAt,
+    // 後方互換性のため
+    bool isInvited = false,
+    bool isInvitationAccepted = false,
   }) {
     return PurchaseGroupMember(
       memberId: memberId?.isNotEmpty == true ? memberId! : uuid.v4(),
@@ -52,10 +72,12 @@ class PurchaseGroupMember with _$PurchaseGroupMember {
       contact: contact,
       role: role,
       isSignedIn: isSignedIn,
-      isInvited: isInvited,
-      isInvitationAccepted: isInvitationAccepted,
+      invitationStatus: invitationStatus,
+      securityKey: securityKey,
       invitedAt: invitedAt,
       acceptedAt: acceptedAt,
+      isInvited: isInvited,
+      isInvitationAccepted: isInvitationAccepted,
     );
   }
 }
@@ -69,10 +91,13 @@ extension PurchaseGroupMemberExtension on PurchaseGroupMember {
     String? contact,
     PurchaseGroupRole? role,
     bool? isSignedIn,
-    bool? isInvited,
-    bool? isInvitationAccepted,
+    InvitationStatus? invitationStatus,
+    String? securityKey,
     DateTime? invitedAt,
     DateTime? acceptedAt,
+    // 後方互換性
+    bool? isInvited,
+    bool? isInvitationAccepted,
   }) {
     return PurchaseGroupMember(
       name: name ?? this.name,
@@ -80,12 +105,20 @@ extension PurchaseGroupMemberExtension on PurchaseGroupMember {
       contact: contact ?? this.contact,
       role: role ?? this.role,
       isSignedIn: isSignedIn ?? this.isSignedIn,
-      isInvited: isInvited ?? this.isInvited,
-      isInvitationAccepted: isInvitationAccepted ?? this.isInvitationAccepted,
+      invitationStatus: invitationStatus ?? this.invitationStatus,
+      securityKey: securityKey ?? this.securityKey,
       invitedAt: invitedAt ?? this.invitedAt,
       acceptedAt: acceptedAt ?? this.acceptedAt,
+      isInvited: isInvited ?? this.isInvited,
+      isInvitationAccepted: isInvitationAccepted ?? this.isInvitationAccepted,
     );
   }
+  
+  // 招待状態を判定するヘルパーメソッド
+  bool get isPending => invitationStatus == InvitationStatus.pending;
+  bool get isAccepted => invitationStatus == InvitationStatus.accepted;
+  bool get isDeleted => invitationStatus == InvitationStatus.deleted;
+  bool get isSelf => invitationStatus == InvitationStatus.self;
 }
   
 

@@ -7,24 +7,107 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:go_shop/main.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_shop/models/purchase_group.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  group('Go Shop Data Structure Tests', () {
+    test('InvitationStatus enum has correct values', () {
+      expect(InvitationStatus.values.length, 4);
+      expect(InvitationStatus.values, contains(InvitationStatus.self));
+      expect(InvitationStatus.values, contains(InvitationStatus.pending));
+      expect(InvitationStatus.values, contains(InvitationStatus.accepted));
+      expect(InvitationStatus.values, contains(InvitationStatus.deleted));
+    });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    test('PurchaseGroupMember can be created with new fields', () {
+      final member = PurchaseGroupMember(
+        memberId: 'test-id',
+        name: 'Test User',
+        contact: 'test@example.com',
+        role: PurchaseGroupRole.member,
+        invitationStatus: InvitationStatus.pending,
+        securityKey: 'test-security-key',
+        invitedAt: DateTime.now(),
+      );
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+      expect(member.memberId, 'test-id');
+      expect(member.name, 'Test User');
+      expect(member.contact, 'test@example.com');
+      expect(member.role, PurchaseGroupRole.member);
+      expect(member.invitationStatus, InvitationStatus.pending);
+      expect(member.securityKey, 'test-security-key');
+      expect(member.invitedAt, isNotNull);
+    });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    test('PurchaseGroupMember maintains backward compatibility', () {
+      final member = PurchaseGroupMember(
+        memberId: 'test-id',
+        name: 'Test User',
+        contact: 'test@example.com',
+        role: PurchaseGroupRole.member,
+        invitationStatus: InvitationStatus.accepted,
+      );
+
+      // Test the new status system
+      expect(member.invitationStatus, InvitationStatus.accepted);
+      expect(member.isAccepted, true);
+      expect(member.isPending, false);
+      expect(member.isDeleted, false);
+      expect(member.isSelf, false);
+    });
+
+    test('InvitationStatus helper methods work correctly', () {
+      final pendingMember = PurchaseGroupMember(
+        memberId: 'pending-id',
+        name: 'Pending User',
+        contact: 'pending@example.com',
+        role: PurchaseGroupRole.member,
+        invitationStatus: InvitationStatus.pending,
+      );
+
+      final selfMember = PurchaseGroupMember(
+        memberId: 'self-id',
+        name: 'Self User',
+        contact: 'self@example.com',
+        role: PurchaseGroupRole.owner,
+        invitationStatus: InvitationStatus.self,
+      );
+
+      expect(pendingMember.isPending, true);
+      expect(pendingMember.isAccepted, false);
+      expect(pendingMember.isDeleted, false);
+      expect(pendingMember.isSelf, false);
+
+      expect(selfMember.isPending, false);
+      expect(selfMember.isAccepted, false);
+      expect(selfMember.isDeleted, false);
+      expect(selfMember.isSelf, true);
+    });
+
+    test('PurchaseGroup can be created with security features', () {
+      final member = PurchaseGroupMember(
+        memberId: 'owner-id',
+        name: 'Owner',
+        contact: 'owner@example.com',
+        role: PurchaseGroupRole.owner,
+        invitationStatus: InvitationStatus.self,
+      );
+
+      final group = PurchaseGroup(
+        groupName: 'Test Group',
+        groupId: 'test-group-123',
+        ownerName: 'Owner Name',
+        ownerEmail: 'owner@example.com',
+        ownerUid: 'owner-uid',
+        members: [member],
+        shoppingListIds: [],
+      );
+
+      expect(group.groupName, 'Test Group');
+      expect(group.groupId, 'test-group-123');
+      expect(group.members!.length, 1);
+      expect(group.members!.first.invitationStatus, InvitationStatus.self);
+    });
   });
 }
