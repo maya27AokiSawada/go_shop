@@ -138,7 +138,7 @@ class EnhancedInvitationService {
       isSignedIn: false,
     );
     
-    final updatedMembers = [...(firestoreGroup.members ?? [])];
+    final updatedMembers = <PurchaseGroupMember>[...(firestoreGroup.members ?? [])];
     // Remove any existing member with same email and add new one
     updatedMembers.removeWhere((m) => m.contact.toLowerCase() == targetEmail.toLowerCase());
     updatedMembers.add(newMember);

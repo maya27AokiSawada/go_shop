@@ -65,9 +65,7 @@ class _PurchaseGroupMemberFormState extends ConsumerState<PurchaseGroupMemberFor
           RadioListTile<PurchaseGroupRole>(
             title: const Text('メンバー'),
             value: PurchaseGroupRole.member,
-            // ignore: deprecated_member_use
             groupValue: _selectedRole,
-            // ignore: deprecated_member_use
             onChanged: (PurchaseGroupRole? value) {
               setState(() {
                 _selectedRole = value ?? PurchaseGroupRole.member;

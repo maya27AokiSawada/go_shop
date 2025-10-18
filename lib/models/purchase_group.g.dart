@@ -176,7 +176,7 @@ class PurchaseGroupRoleAdapter extends TypeAdapter<PurchaseGroupRole> {
 
 class InvitationStatusAdapter extends TypeAdapter<InvitationStatus> {
   @override
-  final int typeId = 5;
+  final int typeId = 8;
 
   @override
   InvitationStatus read(BinaryReader reader) {

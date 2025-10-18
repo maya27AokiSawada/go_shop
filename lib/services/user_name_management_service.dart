@@ -1,0 +1,149 @@
+// lib/services/user_name_management_service.dart
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logger/logger.dart';
+import 'user_preferences_service.dart';
+import 'firestore_user_name_service.dart';
+import '../models/purchase_group.dart';
+import '../providers/user_name_provider.dart';
+import '../flavors.dart';
+
+/// ユーザー名の保存・復帰・更新を統合管理するサービス
+class UserNameManagementService {
+  static final Logger _logger = Logger();
+
+  /// ユーザー名を保存（SharedPreferences + Firestore）
+  static Future<bool> saveUserName(String userName, WidgetRef ref) async {
+    try {
+      _logger.i('💾 ユーザー名保存開始: $userName');
+      
+      // UserNameNotifierを使用してSharedPreferences + Firestoreに保存
+      await ref.read(userNameNotifierProvider.notifier).setUserName(userName);
+      
+      _logger.i('✅ ユーザー名保存完了');
+      return true;
+    } catch (e) {
+      _logger.e('❌ ユーザー名保存エラー: $e');
+      return false;
+    }
+  }
+
+  /// ユーザー名を復帰（SharedPreferences → Firestore → グループデータの順）
+  static Future<String?> restoreUserName({
+    required WidgetRef ref,
+    String? userId,
+    String? userEmail,
+  }) async {
+    try {
+      _logger.i('🔄 ユーザー名復帰開始: UID=$userId, Email=$userEmail');
+      
+      // 1. SharedPreferencesから復帰
+      final prefsName = await UserPreferencesService.getUserName();
+      if (prefsName != null && prefsName.isNotEmpty) {
+        _logger.i('✅ SharedPreferencesからユーザー名復帰: $prefsName');
+        return prefsName;
+      }
+      
+      // 2. Firestoreから復帰（サインイン時のみ）
+      if (userId != null && F.appFlavor == Flavor.prod) {
+        final firestoreName = await FirestoreUserNameService.getUserName();
+        if (firestoreName != null && firestoreName.isNotEmpty) {
+          // Firestoreから取得した名前をSharedPreferencesにも保存
+          await UserPreferencesService.saveUserName(firestoreName);
+          _logger.i('✅ Firestoreからユーザー名復帰: $firestoreName');
+          return firestoreName;
+        }
+      }
+      
+      _logger.i('ℹ️ 復帰可能なユーザー名が見つかりませんでした');
+      return null;
+    } catch (e) {
+      _logger.e('❌ ユーザー名復帰エラー: $e');
+      return null;
+    }
+  }
+
+  /// グループデータからユーザー名を取得
+  static String? getUserNameFromGroup({
+    required PurchaseGroup group,
+    String? userId,
+    String? userEmail,
+  }) {
+    try {
+      if (group.members == null || group.members!.isEmpty) {
+        _logger.i('⚠️ グループにメンバーがいません');
+        return null;
+      }
+
+      // ownerを優先して探す
+      var currentMember = group.members!.firstWhere(
+        (member) => member.role == PurchaseGroupRole.owner,
+        orElse: () {
+          _logger.i('⚠️ ownerが見つからないので最初のメンバーを使用');
+          return group.members!.first;
+        },
+      );
+      
+      // ログイン済みの場合、メールアドレスまたはUIDでマッチするメンバーを再検索
+      if (userId != null || userEmail != null) {
+        final matchedMember = group.members!.firstWhere(
+          (member) => 
+            (userId != null && member.memberId == userId) ||
+            (userEmail != null && member.contact == userEmail),
+          orElse: () => currentMember,
+        );
+        
+        if (matchedMember.name.isNotEmpty) {
+          currentMember = matchedMember;
+        }
+      }
+      
+      if (currentMember.name.isNotEmpty) {
+        _logger.i('✅ グループからユーザー名取得: ${currentMember.name}');
+        return currentMember.name;
+      }
+      
+      return null;
+    } catch (e) {
+      _logger.e('❌ グループからユーザー名取得エラー: $e');
+      return null;
+    }
+  }
+
+  /// 全グループで同じUID/メールアドレスのメンバー名を更新
+  static Future<void> updateUserNameInAllGroups({
+    required String newUserName,
+    required String userEmail,
+    required List<PurchaseGroup> groups,
+  }) async {
+    try {
+      _logger.i('🌍 全グループのユーザー名更新開始: 名前="$newUserName", メール="$userEmail"');
+      
+      int updatedCount = 0;
+      
+      for (final group in groups) {
+        if (group.members == null) continue;
+        
+        bool groupModified = false;
+        final updatedMembers = group.members!.map((member) {
+          if (member.contact == userEmail && member.name != newUserName) {
+            _logger.i('  📝 グループ[${group.groupName}]のメンバー[${member.name}]を[$newUserName]に更新');
+            groupModified = true;
+            return member.copyWith(name: newUserName);
+          }
+          return member;
+        }).toList();
+        
+        if (groupModified) {
+          updatedCount++;
+          _logger.i('  グループ[${group.groupName}]の更新メンバー数: ${updatedMembers.length}');
+          // TODO: グループデータをHive/Firestoreに保存
+          // await groupRepository.updateGroup(group.copyWith(members: updatedMembers));
+        }
+      }
+      
+      _logger.i('✅ 全グループ更新完了: $updatedCount件のグループを更新');
+    } catch (e) {
+      _logger.e('❌ 全グループ更新エラー: $e');
+    }
+  }
+}

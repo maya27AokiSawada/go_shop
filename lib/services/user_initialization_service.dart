@@ -1,10 +1,12 @@
 // lib/services/user_initialization_service.dart
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/purchase_group.dart';
 import '../providers/purchase_group_provider.dart';
 import '../flavors.dart';
 import 'ad_service.dart';
+import 'data_version_service.dart';
 
 final userInitializationServiceProvider = Provider<UserInitializationService>((ref) {
   return UserInitializationService(ref);
@@ -18,12 +20,96 @@ class UserInitializationService {
 
   /// Firebase Auth状態変化を監視してユーザー初期化を実行
   void startAuthStateListener() {
+    // アプリ起動時にデフォルトグループをチェック/作成
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _ensureDefaultGroupExists();
+    });
+    
     _auth.authStateChanges().listen((User? user) {
       if (user != null) {
         // ユーザーがログインした時の初期化処理
         _initializeUserDefaults(user);
       }
     });
+  }
+  
+  /// デフォルトグループの存在を確認し、なければ作成
+  /// 
+  /// データバージョン管理との連携:
+  /// - データクリア後は新規デフォルトグループを自動作成
+  /// - Playストア公開時: マイグレーション後の整合性チェック機能追加予定
+  Future<void> _ensureDefaultGroupExists() async {
+    try {
+      // データバージョンチェック（念のため再確認）
+      final dataVersionService = DataVersionService();
+      final dataCleared = await dataVersionService.checkAndMigrateData();
+      
+      final allGroupsAsync = _ref.read(allGroupsProvider);
+      
+      await allGroupsAsync.when(
+        data: (allGroups) async {
+          if (allGroups.isEmpty || dataCleared) {
+            if (dataCleared) {
+              print('🔄 データバージョン更新により新規デフォルトグループを作成します');
+              print('💡 Playストア公開時: マイグレーション後の整合性チェック機能追加予定');
+            } else {
+              print('💡 グループが存在しないため、デフォルトグループを作成します');
+            }
+            await _createGuestDefaultGroup();
+          } else {
+            print('✅ 既存のグループが見つかりました (${allGroups.length}個)');
+          }
+        },
+        loading: () async {
+          print('🔄 グループデータ読み込み中...');
+          // ローディング中は何もしない
+        },
+        error: (error, stack) async {
+          print('⚠️ グループデータ読み込みエラー: $error');
+          // エラーが発生した場合もデフォルトグループを作成
+          await _createGuestDefaultGroup();
+        },
+      );
+    } catch (e) {
+      print('⚠️ デフォルトグループチェック中にエラー: $e');
+      // エラーが発生した場合もデフォルトグループを作成
+      await _createGuestDefaultGroup();
+    }
+  }
+  
+  /// ゲスト用のデフォルトグループを作成
+  Future<void> _createGuestDefaultGroup() async {
+    try {
+      final repository = _ref.read(purchaseGroupRepositoryProvider);
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final defaultGroupId = 'default_guest_$timestamp';
+      
+      // デフォルトグループのオーナーメンバーを作成
+      final ownerMember = PurchaseGroupMember.create(
+        memberId: 'user_$timestamp',
+        name: 'あなた',
+        contact: 'guest@local.app',
+        role: PurchaseGroupRole.owner,
+        invitationStatus: InvitationStatus.self,
+      );
+
+      // デフォルトグループを作成
+      const defaultGroupName = 'あなたのグループ';
+      await repository.createGroup(
+        defaultGroupId,
+        defaultGroupName,
+        ownerMember,
+      );
+
+      print('✅ ゲスト用デフォルトグループを作成しました: $defaultGroupName (ID: $defaultGroupId)');
+      
+      // プロバイダーを更新
+      final allGroupsNotifier = _ref.read(allGroupsProvider.notifier);
+      await allGroupsNotifier.refresh();
+      
+    } catch (e) {
+      print('❌ ゲスト用デフォルトグループ作成エラー: $e');
+    }
   }
 
   /// ユーザーのデフォルトデータを初期化

@@ -1,0 +1,100 @@
+// lib/services/user_name_initialization_service.dart
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logger/logger.dart';
+import 'user_preferences_service.dart';
+import 'group_management_service.dart';
+
+final userNameInitializationServiceProvider = Provider<UserNameInitializationService>((ref) {
+  return UserNameInitializationService(ref);
+});
+
+/// ユーザー名の初期化処理を管理するサービス
+class UserNameInitializationService {
+  final Ref _ref;
+  final Logger _logger = Logger();
+
+  UserNameInitializationService(this._ref);
+
+  /// ユーザー名を初期化
+  /// 
+  /// 優先順位:
+  /// 1. SharedPreferencesから復元
+  /// 2. グループから読み込み
+  Future<String?> initializeUserName() async {
+    _logger.i('🔧 initializeUserName開始');
+    
+    // 少し待ってからプロバイダーの値を取得（Riverpodの初期化完了を待つ）
+    await Future.delayed(const Duration(milliseconds: 300));
+    
+    // 設定から現在のユーザー名を確認
+    final currentUserName = await UserPreferencesService.getUserName();
+    _logger.i('👤 現在のユーザー名（設定から）: $currentUserName');
+    
+    if (currentUserName != null && currentUserName.isNotEmpty) {
+      _logger.i('✅ ユーザー名が設定から復元されました: $currentUserName');
+      return currentUserName;
+    }
+    
+    // 設定にユーザー名がない場合、グループから読み込み
+    _logger.i('⚠️ 設定にユーザー名がないため、グループから読み込み');
+    final groupManagement = _ref.read(groupManagementServiceProvider);
+    final userNameFromGroup = await groupManagement.loadUserNameFromDefaultGroup();
+    
+    if (userNameFromGroup != null && userNameFromGroup.isNotEmpty) {
+      _logger.i('✅ ユーザー名がグループから復元されました: $userNameFromGroup');
+      return userNameFromGroup;
+    }
+    
+    _logger.i('⚠️ ユーザー名を復元できませんでした');
+    return null;
+  }
+
+  /// ユーザー名を保存
+  /// 
+  /// 保存先:
+  /// 1. SharedPreferences
+  /// 2. Firestore (UserNameNotifier経由)
+  /// 3. 全グループのメンバー情報
+  Future<void> saveUserName({
+    required String userName,
+    required String userEmail,
+  }) async {
+    if (userName.isEmpty) {
+      _logger.w('⚠️ 空のユーザー名は保存できません');
+      return;
+    }
+    
+    _logger.i('💾 ユーザー名保存開始: $userName');
+    
+    try {
+      // 1. SharedPreferences + Firestoreに保存
+      await UserPreferencesService.saveUserName(userName);
+      _logger.i('✅ SharedPreferences + Firestoreに保存完了');
+      
+      // 2. 全グループのメンバー情報を更新
+      final groupManagement = _ref.read(groupManagementServiceProvider);
+      await groupManagement.updateUserNameInAllGroups(userName, userEmail);
+      _logger.i('✅ 全グループのメンバー情報更新完了');
+      
+      _logger.i('✅ ユーザー名保存完了: $userName');
+    } catch (e) {
+      _logger.e('❌ ユーザー名保存エラー: $e');
+      rethrow;
+    }
+  }
+
+  /// ユーザー名をクリア
+  Future<void> clearUserName() async {
+    try {
+      await UserPreferencesService.saveUserName('');
+      _logger.i('🗑️ ユーザー名をクリアしました');
+    } catch (e) {
+      _logger.e('❌ ユーザー名クリアエラー: $e');
+    }
+  }
+
+  /// 現在のユーザー名を取得
+  Future<String?> getCurrentUserName() async {
+    return await UserPreferencesService.getUserName();
+  }
+}

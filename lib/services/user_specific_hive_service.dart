@@ -79,10 +79,11 @@ class UserSpecificHiveService {
       Hive.registerAdapter(PurchaseGroupAdapter());
       Hive.registerAdapter(ShoppingItemAdapter());
       Hive.registerAdapter(ShoppingListAdapter());
+      Hive.registerAdapter(InvitationStatusAdapter()); // 追加
       Hive.registerAdapter(InvitationAdapter());
       Hive.registerAdapter(AcceptedInvitationAdapter());
       Hive.registerAdapter(UserSettingsAdapter());
-      logger.i('📝 Hive adapters registered globally (including AcceptedInvitation)');
+      logger.i('📝 Hive adapters registered globally (including InvitationStatus)');
     }
   }
   

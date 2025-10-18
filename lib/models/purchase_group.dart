@@ -20,7 +20,7 @@ enum PurchaseGroupRole {
 }
 
 // 招待状態を定義するenum
-@HiveType(typeId: 5)
+@HiveType(typeId: 8)
 enum InvitationStatus {
   @HiveField(0)
   self,        // 自分（招待ではない）
