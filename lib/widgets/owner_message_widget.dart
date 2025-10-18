@@ -45,7 +45,7 @@ class _OwnerMessageWidgetState extends ConsumerState<OwnerMessageWidget> {
     });
 
     try {
-      final notifier = ref.read(purchaseGroupProvider.notifier);
+      final notifier = ref.read(selectedGroupNotifierProvider.notifier);
       await notifier.updateOwnerMessage(
         widget.purchaseGroup.groupId,
         _messageController.text.trim(),

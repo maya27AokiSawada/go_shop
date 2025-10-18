@@ -209,7 +209,8 @@ class _HomePageState extends ConsumerState<HomePage> {
             await Future.delayed(const Duration(milliseconds: 200));
             ref.invalidate(shoppingListProvider);
             await Future.delayed(const Duration(milliseconds: 200));
-            ref.invalidate(purchaseGroupProvider);
+            ref.invalidate(selectedGroupProvider);
+            ref.invalidate(allGroupsProvider);
             
           } else {
             // データを引き継ぐ場合
@@ -228,7 +229,8 @@ class _HomePageState extends ConsumerState<HomePage> {
             await Future.delayed(const Duration(milliseconds: 200));
             ref.invalidate(shoppingListProvider);
             await Future.delayed(const Duration(milliseconds: 200));
-            ref.invalidate(purchaseGroupProvider);
+            ref.invalidate(selectedGroupProvider);
+            ref.invalidate(allGroupsProvider);
           }
         }
       } else {
@@ -244,7 +246,8 @@ class _HomePageState extends ConsumerState<HomePage> {
           await Future.delayed(const Duration(milliseconds: 500));
           ref.invalidate(shoppingListProvider);
           await Future.delayed(const Duration(milliseconds: 500));
-          ref.invalidate(purchaseGroupProvider);
+          ref.invalidate(selectedGroupProvider);
+          ref.invalidate(allGroupsProvider);
         }
         // Android/iOS版: 何もしない（既存のHiveをそのまま使用）
       }
@@ -447,7 +450,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   await ref.read(authProvider).signOut();
                   
                   // プロバイダーを無効化
-                  ref.invalidate(purchaseGroupProvider);
+                  ref.invalidate(selectedGroupProvider); ref.invalidate(allGroupsProvider);
                   ref.invalidate(shoppingListProvider);
                   ref.invalidate(userSettingsProvider);
                   
@@ -963,7 +966,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                           await ref.read(userSettingsProvider.notifier).clearAllSettings();
                           
                           // 5. グループデータとショッピングリストも無効化
-                          ref.invalidate(purchaseGroupProvider);
+                          ref.invalidate(selectedGroupProvider); ref.invalidate(allGroupsProvider);
                           ref.invalidate(shoppingListProvider);
                           ref.invalidate(userSettingsProvider);
                           
@@ -1022,7 +1025,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   void _loadUserNameFromDefaultGroup() async {
     logger.i('🔍 _loadUserNameFromDefaultGroup 開始');
     try {
-      final purchaseGroupAsync = ref.read(purchaseGroupProvider);
+      final purchaseGroupAsync = ref.read(selectedGroupProvider);
       final authState = ref.read(authStateProvider);
       final currentUserName = ref.read(userNameProvider);
       
@@ -1031,66 +1034,75 @@ class _HomePageState extends ConsumerState<HomePage> {
       await Future.wait([
         purchaseGroupAsync.when(
           data: (group) async {
-            logger.i('📋 グループデータ取得成功: ${group.groupName}');
-            logger.i('👥 メンバー数: ${group.members?.length ?? 0}');
-            
-            if (group.members != null) {
-              for (var i = 0; i < group.members!.length; i++) {
-                final member = group.members![i];
-                logger.i('👤 メンバー$i: ${member.name} (${member.role}) - ${member.contact}');
+            if (group != null) {
+              logger.i('📋 グループデータ取得成功: ${group.groupName}');
+              logger.i('👥 メンバー数: ${group.members?.length ?? 0}');
+              
+              if (group.members != null) {
+                for (var i = 0; i < group.members!.length; i++) {
+                  final member = group.members![i];
+                  logger.i('👤 メンバー$i: ${member.name} (${member.role}) - ${member.contact}');
+                }
               }
+            } else {
+              logger.w('📋 グループデータがnullです');
             }
             
             await authState.when(
               data: (user) async {
-                logger.i('🔐 認証ユーザー: ${user?.email ?? "null"}');
-                
-                // 認証状態に関係なく、leaderのユーザー名を取得
-                if (group.members != null && group.members!.isNotEmpty) {
-                  // ownerを優先して探す
-                  var currentMember = group.members!.firstWhere(
-                    (member) => member.role == PurchaseGroupRole.owner,
-                    orElse: () {
-                      logger.i('⚠️ ownerが見つからないので最初のメンバーを使用');
-                      return group.members!.first;
-                    },
-                  );
+                if (group != null) {
+                  logger.i('🔐 認証ユーザー: ${user?.email ?? "null"}');
                   
-                  logger.i('🏆 選択されたメンバー: ${currentMember.name} (${currentMember.role})');
-                  
-                  // ログイン済みの場合のみメールアドレスでマッチするメンバーを再検索
-                  final userEmail = _getUserEmail(user);
-                  if (_isUserLoggedIn(user) && currentMember.contact != userEmail && userEmail != null) {
-                    logger.i('📬 メールアドレスでメンバーを再検索: $userEmail');
-                    final emailMatchMember = group.members!.firstWhere(
-                      (member) => member.contact == userEmail,
+                  // 認証状態に関係なく、leaderのユーザー名を取得
+                  if (group.members != null && group.members!.isNotEmpty) {
+                    // ownerを優先して探す
+                    var currentMember = group.members!.firstWhere(
+                      (member) => member.role == PurchaseGroupRole.owner,
                       orElse: () {
-                        logger.i('📬 メールアドレスマッチなし、leaderを使用');
-                        return currentMember;
+                        logger.i('⚠️ ownerが見つからないので最初のメンバーを使用');
+                        return group.members!.first;
                       },
                     );
-                    if (emailMatchMember.name.isNotEmpty) {
-                      logger.i('📬 メールマッチメンバーを使用: ${emailMatchMember.name}');
-                      currentMember = emailMatchMember;
+                    
+                    logger.i('🏆 選択されたメンバー: ${currentMember.name} (${currentMember.role})');
+                    
+                    // ログイン済みの場合のみメールアドレスでマッチするメンバーを再検索
+                    final userEmail = _getUserEmail(user);
+                    if (_isUserLoggedIn(user) && currentMember.contact != userEmail && userEmail != null) {
+                      logger.i('📬 メールアドレスでメンバーを再検索: $userEmail');
+                      final emailMatchMember = group.members!.firstWhere(
+                        (member) => member.contact == userEmail,
+                        orElse: () {
+                          logger.i('📬 メールアドレスマッチなし、leaderを使用');
+                          return currentMember;
+                        },
+                      );
+                        if (emailMatchMember.name.isNotEmpty) {
+                          logger.i('📬 メールマッチメンバーを使用: ${emailMatchMember.name}');
+                          currentMember = emailMatchMember;
+                        }
+                      }
                     }
-                  }
-                  
-                  if (currentMember.name.isNotEmpty) {
-                    logger.i('✅ ユーザー名をプロバイダーに設定: ${currentMember.name}');
-                    await ref.read(userNameNotifierProvider.notifier).setUserName(currentMember.name);
-                    if (mounted) {
-                      setState(() {
-                        userNameController.text = currentMember.name;
-                      });
-                      logger.i('✅ UIを更新しました');
+                    
+                    if (currentMember.name.isNotEmpty) {
+                      logger.i('✅ ユーザー名をプロバイダーに設定: ${currentMember.name}');
+                      await ref.read(userNameNotifierProvider.notifier).setUserName(currentMember.name);
+                      if (mounted) {
+                        setState(() {
+                          userNameController.text = currentMember.name;
+                        });
+                        logger.i('✅ UIを更新しました');
+                      } else {
+                        logger.i('⚠️ ウィジェットがmountedではないためUI更新をスキップ');
+                      }
                     } else {
-                      logger.i('⚠️ ウィジェットがmountedではないためUI更新をスキップ');
+                      logger.i('⚠️ メンバー名が空です');
                     }
                   } else {
-                    logger.i('⚠️ メンバー名が空です');
+                    logger.i('⚠️ メンバーがいません');
                   }
                 } else {
-                  logger.i('⚠️ メンバーがいません');
+                  logger.i('⚠️ グループがnullです');
                 }
               },
               loading: () async {
@@ -1324,7 +1336,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             await userInfoSave(); // メールアドレスを含む情報を更新
             
             // 強制的にプロバイダーを再読み込みして最新のデータを反映
-            ref.invalidate(purchaseGroupProvider);
+            ref.invalidate(selectedGroupProvider); ref.invalidate(allGroupsProvider);
             
             logger.i('🔧 サインイン後のユーザー情報更新完了');
           } else {
@@ -1560,7 +1572,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             }
             
             // 強制的にプロバイダーを再読み込みして最新のデータを反映
-            ref.invalidate(purchaseGroupProvider);
+            ref.invalidate(selectedGroupProvider); ref.invalidate(allGroupsProvider);
             
             logger.i('🔧 サインアップ後のユーザー情報更新完了');
           } else {
@@ -1704,7 +1716,8 @@ class _HomePageState extends ConsumerState<HomePage> {
         // 既存のデフォルトグループを取得
         PurchaseGroup? existingGroup;
         try {
-          existingGroup = await ref.read(purchaseGroupProvider.future);
+          final groupAsync = ref.read(selectedGroupProvider);
+          existingGroup = groupAsync.value;
         } catch (e) {
           // グループが存在しない場合はnull
           existingGroup = null;
@@ -1794,7 +1807,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         }
         
         // 購入グループを保存
-        await ref.read(purchaseGroupProvider.notifier).updateGroup(defaultGroup);
+        await ref.read(selectedGroupNotifierProvider.notifier).updateGroup(defaultGroup);
         logger.i('userInfoSave: デフォルトグループ保存完了');
         
         // 🌟 新機能: 全グループで同じUID/メールアドレスのメンバー名を更新
@@ -1806,8 +1819,9 @@ class _HomePageState extends ConsumerState<HomePage> {
         
         // 保存後の確認ログ
         try {
-          final savedGroup = await ref.read(purchaseGroupProvider.future);
-          final ownerMember = savedGroup.members?.firstWhere((m) => m.role == PurchaseGroupRole.owner);
+          final savedGroupAsync = ref.read(selectedGroupProvider);
+          final savedGroup = savedGroupAsync.value;
+          final ownerMember = savedGroup?.members?.firstWhere((m) => m.role == PurchaseGroupRole.owner);
           logger.i('userInfoSave確認: 保存後のownerメンバー - 名前: ${ownerMember?.name}, メール: ${ownerMember?.contact}');
         } catch (e) {
           logger.w('userInfoSave確認: 保存確認でエラー: $e');

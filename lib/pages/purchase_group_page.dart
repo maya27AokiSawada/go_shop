@@ -145,7 +145,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
         ownerUid: userUid,
       );
       
-      await ref.read(purchaseGroupProvider.notifier).updateGroup(updatedGroup);
+      await ref.read(selectedGroupNotifierProvider.notifier).updateGroup(updatedGroup);
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -169,12 +169,12 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
     
     if (result != null) {
       try {
-        final currentGroup = ref.read(purchaseGroupProvider).value;
+        final currentGroup = ref.read(selectedGroupNotifierProvider).value;
         if (currentGroup != null) {
           final updatedMembers = List<PurchaseGroupMember>.from(currentGroup.members ?? []);
           updatedMembers[index] = result;
           final updatedGroup = currentGroup.copyWith(members: updatedMembers);
-          await ref.read(purchaseGroupProvider.notifier).updateGroup(updatedGroup);
+          await ref.read(selectedGroupNotifierProvider.notifier).updateGroup(updatedGroup);
         }
       } catch (e) {
         if (mounted) {
@@ -208,12 +208,10 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
     
     if (confirmed == true) {
       try {
-        final currentGroup = ref.read(purchaseGroupProvider).value;
+        final currentGroup = ref.read(selectedGroupNotifierProvider).value;
         if (currentGroup != null) {
-          final updatedMembers = List<PurchaseGroupMember>.from(currentGroup.members ?? []);
-          updatedMembers.removeAt(index);
-          final updatedGroup = currentGroup.copyWith(members: updatedMembers);
-          await ref.read(purchaseGroupProvider.notifier).updateGroup(updatedGroup);
+          final member = (currentGroup.members ?? [])[index];
+          await ref.read(selectedGroupNotifierProvider.notifier).deleteMember(member.memberId);
           
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -266,14 +264,14 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
       );
     }
     
-    final purchaseGroupAsync = ref.watch(purchaseGroupProvider);
     final allGroupsAsync = ref.watch(allGroupsProvider);
     final selectedGroupId = ref.watch(selectedGroupIdProvider);
+    final selectedGroupAsync = ref.watch(selectedGroupProvider);
     final currentUserName = ref.watch(userNameProvider);
 
     print('🏷️ [PAGE BUILD] selectedGroupId: $selectedGroupId');
     print('🏷️ [PAGE BUILD] allGroupsAsync状態: ${allGroupsAsync.runtimeType}');
-    print('🏷️ [PAGE BUILD] purchaseGroupAsync状態: ${purchaseGroupAsync.runtimeType}');
+    print('🏷️ [PAGE BUILD] selectedGroupAsync状態: ${selectedGroupAsync.runtimeType}');
 
     return Scaffold(
       appBar: AppBar(
@@ -321,8 +319,23 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
               const SizedBox(height: 16),
               // グループ内容表示 - 簡素化版
               Expanded(
-                child: purchaseGroupAsync.when(
+                child: selectedGroupAsync.when(
                   data: (purchaseGroup) {
+                    if (purchaseGroup == null) {
+                      return const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.group_off, size: 64, color: Colors.grey),
+                            SizedBox(height: 16),
+                            Text(
+                              '選択されたグループが見つかりません',
+                              style: TextStyle(fontSize: 16, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
                     return SingleChildScrollView(
                       child: Container(
                         constraints: BoxConstraints(
@@ -365,7 +378,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                             ),
                             const SizedBox(height: 16),
                             ElevatedButton(
-                              onPressed: () => ref.invalidate(purchaseGroupProvider),
+                              onPressed: () => ref.invalidate(allGroupsProvider),
                               child: const Text('再試行'),
                             ),
                           ],
@@ -678,7 +691,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                           children: [
                             Text(member.name),
                             const SizedBox(width: 8),
-                            // 新しい招待状態表示
+                            // 招待状態表示（最新版のinvitationStatusのみ使用）
                             if (member.invitationStatus != InvitationStatus.self)
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -705,47 +718,6 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                                       ),
                                     ),
                                   ],
-                                ),
-                              ),
-                            // レガシー表示（後方互換性のため）
-                            if (member.invitationStatus == InvitationStatus.self && 
-                                member.isInvited && !member.isInvitationAccepted)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.orange[100],
-                                  border: Border.all(color: Colors.orange),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Text(
-                                  '招待中',
-                                  style: TextStyle(fontSize: 10, color: Colors.orange),
-                                ),
-                              ),
-                            if (member.isInvited && member.isInvitationAccepted)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.green[100],
-                                  border: Border.all(color: Colors.green),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Text(
-                                  '参加済み',
-                                  style: TextStyle(fontSize: 10, color: Colors.green),
-                                ),
-                              ),
-                            if (!member.isInvited)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[100],
-                                  border: Border.all(color: Colors.grey),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Text(
-                                  '未招待',
-                                  style: TextStyle(fontSize: 10, color: Colors.grey),
                                 ),
                               ),
                           ],
@@ -838,7 +810,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                     }
                     
                     // グループ作成実行
-                    await ref.read(purchaseGroupProvider.notifier).createNewGroup(groupName);
+                    await ref.read(allGroupsProvider.notifier).createNewGroup(groupName);
                     
                     _groupNameController.clear();
                     if (mounted) {
@@ -889,7 +861,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                 final messenger = ScaffoldMessenger.of(context);
                 
                 try {
-                  await ref.read(purchaseGroupProvider.notifier).deleteGroup(groupId);
+                  await ref.read(selectedGroupNotifierProvider.notifier).deleteCurrentGroup();
                   if (mounted) {
                     navigator.pop();
                     messenger.showSnackBar(
@@ -983,17 +955,23 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
   }
 
   // グループにメンバーを追加
-  void _addMemberToGroup(PurchaseGroupMember member) {
-    final purchaseGroupNotifier = ref.read(purchaseGroupProvider.notifier);
+  void _addMemberToGroup(PurchaseGroupMember member) async {
+    final selectedGroupNotifier = ref.read(selectedGroupNotifierProvider.notifier);
 
-    final currentGroup = ref.read(purchaseGroupProvider).value;
-    if (currentGroup != null) {
-      final updatedGroup = currentGroup.addMember(member);
-      purchaseGroupNotifier.updateGroup(updatedGroup);
+    try {
+      await selectedGroupNotifier.addMember(member);
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${member.name}さんをメンバーに追加しました')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${member.name}さんをメンバーに追加しました')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('メンバーの追加に失敗しました: $e')),
+        );
+      }
     }
   }
 }

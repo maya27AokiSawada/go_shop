@@ -307,12 +307,11 @@ class _GroupCreationWithCopyDialogState extends ConsumerState<GroupCreationWithC
       final groupName = _groupNameController.text.trim();
       
       // Create new group
-      final purchaseGroupNotifier = ref.read(purchaseGroupProvider.notifier);
-      await purchaseGroupNotifier.createNewGroup(groupName);
+      await ref.read(allGroupsProvider.notifier).createNewGroup(groupName);
       
       // If members were selected, add them to the new group
       if (_selectedMembers.values.any((selected) => selected)) {
-        final currentGroup = ref.read(purchaseGroupProvider).value;
+        final currentGroup = ref.read(selectedGroupNotifierProvider).value;
         if (currentGroup != null) {
           await _addSelectedMembers(currentGroup);
         }
@@ -351,7 +350,7 @@ class _GroupCreationWithCopyDialogState extends ConsumerState<GroupCreationWithC
   Future<void> _addSelectedMembers(PurchaseGroup newGroup) async {
     if (_selectedSourceGroup?.members == null) return;
 
-    final purchaseGroupNotifier = ref.read(purchaseGroupProvider.notifier);
+    final selectedGroupNotifier = ref.read(selectedGroupNotifierProvider.notifier);
 
     for (final member in _selectedSourceGroup!.members!) {
       final memberId = member.memberId;
@@ -372,7 +371,7 @@ class _GroupCreationWithCopyDialogState extends ConsumerState<GroupCreationWithC
         );
         
         try {
-          await purchaseGroupNotifier.addMember(newMember);
+          await selectedGroupNotifier.addMember(newMember);
           developer.log('✅ メンバー追加成功: ${member.name} (役割: ${_getRoleDisplayName(newRole)})');
         } catch (e) {
           developer.log('❌ メンバー追加エラー: ${member.name} - $e');

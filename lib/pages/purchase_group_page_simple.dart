@@ -106,10 +106,21 @@ class PurchaseGroupPageSimple extends ConsumerWidget {
       );
     }
 
-    final purchaseGroupAsync = ref.watch(purchaseGroupProvider);
+    final purchaseGroupAsync = ref.watch(selectedGroupProvider);
     
     return purchaseGroupAsync.when(
       data: (group) {
+        if (group == null) {
+          print('📋 [SIMPLE CONTENT] グループデータがnullです');
+          return const Card(
+            elevation: 2,
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text('グループデータがありません'),
+            ),
+          );
+        }
+        
         print('📋 [SIMPLE CONTENT] グループデータ: ${group.groupName}');
         return Card(
           elevation: 2,

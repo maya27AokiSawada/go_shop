@@ -42,10 +42,23 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
   @override
   Future<ShoppingList> build() async {
     final repository = ref.read(shoppingListRepositoryProvider);
-    final purchaseGroupAsync = ref.watch(purchaseGroupProvider);
+    final purchaseGroupAsync = ref.watch(selectedGroupProvider);
     
     return await purchaseGroupAsync.when(
       data: (purchaseGroup) async {
+        // purchaseGroup が null の場合はデフォルトリストを返す
+        if (purchaseGroup == null) {
+          final defaultList = ShoppingList.create(
+            ownerUid: '',
+            groupId: 'default',
+            groupName: 'デフォルトグループ',
+            listName: 'デフォルトリスト',
+            description: '',
+            items: [],
+          );
+          return defaultList;
+        }
+
         final savedList = await repository.getShoppingList(_key);
         if (savedList != null) {
           logger.i('🛒 ShoppingListNotifier: Hiveから既存リストを読み込み (${savedList.items.length}アイテム)');

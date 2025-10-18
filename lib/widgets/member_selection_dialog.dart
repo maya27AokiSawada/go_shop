@@ -45,16 +45,17 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
     });
     
     try {
-      final repository = ref.read(purchaseGroupRepositoryProvider);
-      await repository.syncMemberPool(); // プールを最新に同期
-      final members = await repository.searchMembersInPool('');
+      // メンバープールプロバイダーを使用
+      final memberPoolNotifier = ref.read(memberPoolProvider.notifier);
+      await memberPoolNotifier.syncPool(); // プールを最新に同期
+      final members = await memberPoolNotifier.searchMembers('');
       setState(() {
         poolMembers = members;
         isLoadingPool = false;
         
         // 選択されているメンバーがすでにグループメンバーなら選択解除
         if (selectedPoolMember != null) {
-          final currentGroup = ref.read(purchaseGroupProvider).value;
+          final currentGroup = ref.read(selectedGroupNotifierProvider).value;
           final isAlreadyMember = currentGroup?.members?.any(
             (groupMember) => groupMember.memberId == selectedPoolMember!.memberId || 
                            groupMember.contact == selectedPoolMember!.contact
@@ -106,9 +107,9 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
   void _validateMemberInputs() {
     if (selectedType != MemberSelectionType.newMember) return;
     
-    final currentGroupAsync = ref.read(purchaseGroupProvider);
+    final currentGroupAsync = ref.read(selectedGroupNotifierProvider);
     currentGroupAsync.whenData((currentGroup) {
-      final existingMembers = currentGroup.members ?? [];
+      final existingMembers = currentGroup?.members ?? [];
       
       // 名前のバリデーション
       final nameValidation = ValidationService.validateMemberName(
@@ -240,7 +241,7 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
           final isSelected = selectedPoolMember == member;
           
           // 現在のグループのメンバーかチェック
-          final currentGroup = ref.watch(purchaseGroupProvider).value;
+          final currentGroup = ref.watch(selectedGroupNotifierProvider).value;
           final isAlreadyMember = currentGroup?.members?.any(
             (groupMember) => groupMember.memberId == member.memberId || 
                            groupMember.contact == member.contact
@@ -416,7 +417,7 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
       if (selectedPoolMember == null) return false;
       
       // 現在のグループのメンバーかチェック
-      final currentGroup = ref.read(purchaseGroupProvider).value;
+      final currentGroup = ref.read(selectedGroupNotifierProvider).value;
       final isAlreadyMember = currentGroup?.members?.any(
         (groupMember) => groupMember.memberId == selectedPoolMember!.memberId || 
                        groupMember.contact == selectedPoolMember!.contact
