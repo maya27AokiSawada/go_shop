@@ -243,7 +243,7 @@ class MemberRoleManagementWidget extends ConsumerWidget {
       await repository.updateGroup(purchaseGroup.groupId, updatedGroup);
       
       // プロバイダーを更新
-      ref.invalidate(purchaseGroupProvider);
+      ref.invalidate(selectedGroupNotifierProvider);
       
     } catch (e) {
       print('❌ メンバーロール更新エラー: $e');

@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/shopping_list_provider.dart';
+import '../datastore/purchase_group_repository.dart';
 import '../widgets/sync_status_widget.dart';
 import '../models/purchase_group.dart';
 import '../models/shopping_list.dart';
@@ -338,7 +339,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
     }
 
     try {
-      final notifier = ref.read(purchaseGroupProvider.notifier);
+      final notifier = ref.read(allGroupsProvider.notifier);
       await notifier.createNewGroup('テスト$name');
       
       _testGroupNameController.clear();
@@ -620,7 +621,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
     );
 
     try {
-      final notifier = ref.read(purchaseGroupProvider.notifier);
+      final notifier = ref.read(selectedGroupNotifierProvider.notifier);
       await notifier.addMember(testMember);
       
       if (mounted) {
@@ -659,8 +660,10 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
 
     if (confirmed == true) {
       try {
-        final notifier = ref.read(purchaseGroupProvider.notifier);
-        await notifier.deleteGroup(group.groupId);
+        final notifier = ref.read(allGroupsProvider.notifier);
+        final repository = ref.read(purchaseGroupRepositoryProvider);
+        await repository.deleteGroup(group.groupId);
+        await notifier.refresh(); // リストを更新
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

@@ -108,7 +108,7 @@ class _InvitationDialogState extends ConsumerState<InvitationDialog> {
       await repo.updateGroup(group.groupId, updatedGroup);
       
       // Providerを無効化して再読み込みを促す
-      ref.invalidate(purchaseGroupProvider);
+      ref.invalidate(selectedGroupNotifierProvider);
     } catch (e) {
       print('⚠️ グループメンバー更新エラー: $e');
       // エラーが発生してもメール送信は成功しているので、続行

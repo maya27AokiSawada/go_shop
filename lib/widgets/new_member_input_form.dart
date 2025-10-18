@@ -33,7 +33,7 @@ class _PurchaseGroupMemberFormState extends ConsumerState<PurchaseGroupMemberFor
 
   @override
   Widget build(BuildContext context) {
-    ref.watch(purchaseGroupProvider);
+    ref.watch(selectedGroupNotifierProvider);
 
     return Form(
       key: formKey,
@@ -85,7 +85,7 @@ class _PurchaseGroupMemberFormState extends ConsumerState<PurchaseGroupMemberFor
                   contact: contact,
                   role: _selectedRole,
                 );
-                ref.read(purchaseGroupProvider.notifier).addMember(newMember);
+                ref.read(selectedGroupNotifierProvider.notifier).addMember(newMember);
                 Navigator.pop(context, newMember);
               }
             },

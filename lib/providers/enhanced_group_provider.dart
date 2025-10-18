@@ -11,7 +11,7 @@ class EnhancedGroupNotifier extends AsyncNotifier<EnhancedGroupState> {
   @override
   Future<EnhancedGroupState> build() async {
     final allGroups = await ref.watch(allGroupsProvider.future);
-    final currentGroup = ref.watch(purchaseGroupProvider).value;
+    final currentGroup = ref.watch(selectedGroupNotifierProvider).value;
     
     return EnhancedGroupState(
       allGroups: allGroups,
@@ -110,7 +110,7 @@ class EnhancedGroupNotifier extends AsyncNotifier<EnhancedGroupState> {
       
       // Refresh groups after acceptance
       ref.invalidate(allGroupsProvider);
-      ref.invalidate(purchaseGroupProvider);
+      ref.invalidate(selectedGroupNotifierProvider);
     } catch (e) {
       developer.log('❌ Invitation acceptance error: $e');
       rethrow;
@@ -128,8 +128,7 @@ class EnhancedGroupNotifier extends AsyncNotifier<EnhancedGroupState> {
       state = state.whenData((data) => data.copyWith(isLoading: true));
       
       // Create basic group first
-      final purchaseGroupNotifier = ref.read(purchaseGroupProvider.notifier);
-      await purchaseGroupNotifier.createNewGroup(groupName);
+      await ref.read(allGroupsProvider.notifier).createNewGroup(groupName);
       
       // Add copied members if specified
       if (sourceGroup?.members != null && 
@@ -160,7 +159,7 @@ class EnhancedGroupNotifier extends AsyncNotifier<EnhancedGroupState> {
     required List<String> selectedMemberIds,
     required Map<String, PurchaseGroupRole> memberRoles,
   }) async {
-    final purchaseGroupNotifier = ref.read(purchaseGroupProvider.notifier);
+    final selectedGroupNotifier = ref.read(selectedGroupNotifierProvider.notifier);
     
     for (final member in sourceGroup.members ?? <PurchaseGroupMember>[]) {
       if (selectedMemberIds.contains(member.memberId) && 
@@ -179,7 +178,7 @@ class EnhancedGroupNotifier extends AsyncNotifier<EnhancedGroupState> {
           acceptedAt: member.acceptedAt,
         );
         
-        await purchaseGroupNotifier.addMember(newMember);
+        await selectedGroupNotifier.addMember(newMember);
       }
     }
   }

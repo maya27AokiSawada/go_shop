@@ -20,84 +20,37 @@ final purchaseGroupRepositoryProvider = Provider<PurchaseGroupRepository>((ref) 
   }
 });
 
-// PurchaseGroup state notifier - selected group に基づいて動作
-class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
+// Selected Group Management - 選択されたグループの詳細操作用
+class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
   @override
-  Future<PurchaseGroup> build() async {
-    print('🔄 [PROVIDER BUILD] PurchaseGroupNotifier.build() 開始');
-    final repository = ref.read(purchaseGroupRepositoryProvider);
+  Future<PurchaseGroup?> build() async {
     final selectedGroupId = ref.watch(selectedGroupIdProvider);
-    print('🔄 [PROVIDER BUILD] selectedGroupId: $selectedGroupId');
+    if (selectedGroupId.isEmpty) return null;
+    
+    final repository = ref.read(purchaseGroupRepositoryProvider);
     
     try {
-      // 指定されたグループIDのグループを取得
-      print('🔄 [PROVIDER BUILD] getAllGroups() 呼び出し開始');
-      final groups = await repository.getAllGroups();
-      print('🔄 [PROVIDER BUILD] getAllGroups() 完了: ${groups.length}件');
-      PurchaseGroup? targetGroup;
-      
-      if (groups.isNotEmpty) {
-        // 選択されたグループIDのグループを探す
-        targetGroup = groups.where((group) => group.groupId == selectedGroupId).firstOrNull;
-        print('🔄 [PROVIDER BUILD] targetGroup found: ${targetGroup?.groupName}');
-        
-        // 見つからない場合はデフォルトグループまたは最初のグループを使用
-        targetGroup ??= groups.first;
-        print('🔄 [PROVIDER BUILD] 最終 targetGroup: ${targetGroup.groupName}');
-        
-        print('🔄 [PROVIDER BUILD] _fixLegacyMemberRoles() 呼び出し開始');
-        final result = await _fixLegacyMemberRoles(targetGroup);
-        print('🔄 [PROVIDER BUILD] _fixLegacyMemberRoles() 完了');
-        return result;
-      } else {
-        print('🔄 [PROVIDER BUILD] グループが存在しないため、デフォルトグループを作成');
-        // グループが存在しない場合はデフォルトグループを作成
-        // userSettingsProviderから直接データを取得（Asyncの場合は待機）
-        final userSettingsAsync = await ref.read(userSettingsProvider.future);
-        print('🔄 [PROVIDER BUILD] userSettings: $userSettingsAsync');
-        final userName = userSettingsAsync.userName;
-        final userEmail = userSettingsAsync.userEmail;
-        print('🔄 [PROVIDER BUILD] userName: $userName, userEmail: $userEmail');
-        
-        // 現在のユーザーIDを取得
-        final authService = ref.read(authProvider);
-        final currentUser = authService.currentUser;
-        final currentUserId = currentUser?.uid ?? '';
-        print('🔄 [PROVIDER BUILD] currentUserId: $currentUserId');
-        
-        final ownerMember = PurchaseGroupMember.create(
-          memberId: currentUserId,  // 現在のユーザーIDを明示的に設定
-          name: userName,
-          contact: userEmail,
-          role: PurchaseGroupRole.owner,
-          isSignedIn: true,
-        );
-        print('🔄 [PROVIDER BUILD] createGroup() 呼び出し開始');
-        final defaultGroup = await repository.createGroup('defaultGroup', 'デフォルトグループ', ownerMember);
-        print('🔄 [PROVIDER BUILD] createGroup() 完了');
-        return defaultGroup;
-      }
+      print('🔄 [SELECTED GROUP] SelectedGroupNotifier.build() 開始: $selectedGroupId');
+      final group = await repository.getGroupById(selectedGroupId);
+      final fixedGroup = await _fixLegacyMemberRoles(group);
+      print('🔄 [SELECTED GROUP] グループロード完了: ${fixedGroup.groupName}');
+      return fixedGroup;
     } catch (e, stackTrace) {
-      print('❌ [PROVIDER BUILD] エラー発生: $e');
-      print('❌ [PROVIDER BUILD] スタックトレース: $stackTrace');
-      throw Exception('Failed to load purchase groups: $e');
+      print('❌ [SELECTED GROUP] ビルドエラー: $e');
+      print('❌ [SELECTED GROUP] スタックトレース: $stackTrace');
+      return null;
     }
   }
 
+  /// Fix legacy member roles and ensure proper group structure
   Future<PurchaseGroup> _fixLegacyMemberRoles(PurchaseGroup group) async {
     final repository = ref.read(purchaseGroupRepositoryProvider);
-    
-    if (group.members == null || group.members!.isEmpty) {
-      return group;
-    }
-    
-    // 現在のFirebaseユーザーIDを取得
-    final authService = ref.read(authProvider);
-    final currentUser = authService.currentUser;
-    final currentUserId = currentUser?.uid ?? '';
-    
+    final originalMembers = group.members ?? [];
     bool needsUpdate = false;
-    final originalMembers = group.members!;
+    
+    // Get current Firebase user ID for owner validation
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final currentUserId = currentUser?.uid ?? '';
     
     // 現在のユーザーが既存のメンバーに含まれているかチェック
     final hasCurrentUser = originalMembers.any((member) => member.memberId == currentUserId);
@@ -208,6 +161,7 @@ class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
       state = AsyncError(e, StackTrace.current);
     }
   }
+  
   Future<void> updateGroup(PurchaseGroup group) async {
     await saveGroup(group);
   }
@@ -239,6 +193,12 @@ class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
       final updatedGroup = await repository.getGroupById(currentGroup.groupId);
       state = AsyncData(updatedGroup);
       print('👥 [ADD MEMBER] 最終更新完了');
+      
+      // allGroupsProviderも更新
+      ref.invalidate(allGroupsProvider);
+      
+      // メンバープールも更新
+      ref.read(memberPoolProvider.notifier).syncPool();
     } catch (e, stackTrace) {
       print('❌ [ADD MEMBER] エラー発生: $e');
       print('❌ [ADD MEMBER] スタックトレース: $stackTrace');
@@ -247,110 +207,82 @@ class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
     }
   }
 
-  /// Create a new group
-  Future<void> createNewGroup(String groupName) async {
+  /// Delete a member from the current group
+  Future<void> deleteMember(String memberId) async {
+    print('👥 [DELETE MEMBER] メンバー削除開始: $memberId');
+    final currentGroup = state.value;
+    if (currentGroup == null) {
+      print('❌ [DELETE MEMBER] currentGroupがnullです');
+      return;
+    }
+
+    // 削除するメンバーを見つける
+    final memberToDelete = currentGroup.members?.where((m) => m.memberId == memberId).firstOrNull;
+    if (memberToDelete == null) {
+      print('❌ [DELETE MEMBER] 指定されたmemberIdのメンバーが見つかりません: $memberId');
+      return;
+    }
+
     final repository = ref.read(purchaseGroupRepositoryProvider);
     
     try {
-      print('🆕 グループ作成開始: $groupName');
+      print('👥 [DELETE MEMBER] 現在のメンバー数: ${currentGroup.members?.length ?? 0}');
       
-      // 作成前の全グループ数を確認
-      final beforeGroups = await repository.getAllGroups();
-      print('📊 作成前のグループ数: ${beforeGroups.length}');
-      for (var g in beforeGroups) {
-        print('  - ${g.groupName} (${g.groupId})');
-      }
+      // 楽観的更新: 先にUIを更新
+      final optimisticGroup = currentGroup.removeMember(memberToDelete);
+      state = AsyncData(optimisticGroup);
+      print('👥 [DELETE MEMBER] 楽観的更新完了。新メンバー数: ${optimisticGroup.members?.length ?? 0}');
       
-      // UserSettingsから現在のユーザー情報を取得
-      final userSettings = await ref.read(userSettingsProvider.future);
+      // バックグラウンドでデータベースから削除
+      await repository.removeMember(currentGroup.groupId, memberToDelete);
+      print('👥 [DELETE MEMBER] データベース削除完了');
       
-      // ユーザー情報が存在する場合はそれを使用、そうでなければデフォルト
-      final userName = (userSettings.userName.isNotEmpty) ? userSettings.userName : 'デフォルトユーザー';
-      final userEmail = (userSettings.userEmail.isNotEmpty) ? userSettings.userEmail : 'default@example.com';
+      // 念のため最新データを取得（同期エラー防止）
+      final updatedGroup = await repository.getGroupById(currentGroup.groupId);
+      state = AsyncData(updatedGroup);
+      print('👥 [DELETE MEMBER] 最終更新完了');
       
-      final ownerMember = PurchaseGroupMember.create(
-        name: userName,
-        contact: userEmail,
-        role: PurchaseGroupRole.owner,
-        isSignedIn: true,
-      );
-      
-      final newGroup = await repository.createGroup(
-        'group_${DateTime.now().millisecondsSinceEpoch}',
-        groupName,
-        ownerMember,
-      );
-      
-      print('✅ グループ作成完了: ${newGroup.groupName} (${newGroup.groupId})');
-      
-      // 作成後の全グループ数を確認
-      final afterGroups = await repository.getAllGroups();
-      print('📊 作成後のグループ数: ${afterGroups.length}');
-      for (var g in afterGroups) {
-        print('  - ${g.groupName} (${g.groupId})');
-      }
-      
-      // 新しいグループを選択状態に設定
-      ref.read(selectedGroupIdProvider.notifier).selectGroup(newGroup.groupId);
-      print('🎯 選択グループIDを設定: ${newGroup.groupId}');
-      
-      state = AsyncData(newGroup);
-      
-      // Refresh the all groups list so dropdown updates
-      print('🔄 allGroupsProviderを更新開始');
+      // allGroupsProviderも更新
       ref.invalidate(allGroupsProvider);
-      await ref.read(allGroupsProvider.future);
-      print('🔄 allGroupsProviderの更新完了');
       
-      // 確認のため最新の状態を取得
-      final updatedAllGroups = ref.read(allGroupsProvider);
-      updatedAllGroups.when(
-        data: (groups) {
-          print('📋 更新後のallGroupsProvider: ${groups.length}グループ');
-          for (var g in groups) {
-            print('  - ${g.groupName} (${g.groupId})');
-          }
-        },
-        loading: () => print('⏳ allGroupsProviderロード中'),
-        error: (e, _) => print('❌ allGroupsProviderエラー: $e'),
-      );
-      
-    } catch (e) {
-      print('❌ グループ作成エラー: $e');
-      state = AsyncError(e, StackTrace.current);
+      // メンバープールも更新
+      ref.read(memberPoolProvider.notifier).syncPool();
+    } catch (e, stackTrace) {
+      print('❌ [DELETE MEMBER] エラー発生: $e');
+      print('❌ [DELETE MEMBER] スタックトレース: $stackTrace');
+      state = AsyncError(e, stackTrace);
+      rethrow;
     }
   }
 
-  /// Delete a group
-  Future<void> deleteGroup(String groupId) async {
+  /// Delete the current group
+  Future<void> deleteCurrentGroup() async {
+    final currentGroup = state.value;
+    if (currentGroup == null) {
+      print('❌ [DELETE GROUP] currentGroupがnullです');
+      return;
+    }
+    
     final repository = ref.read(purchaseGroupRepositoryProvider);
     
     try {
-      await repository.deleteGroup(groupId);
-      // After deletion, try to load another group or create default
+      await repository.deleteGroup(currentGroup.groupId);
+      
+      // グループ削除後は全グループリストを更新
+      await ref.read(allGroupsProvider.notifier).refresh();
+      
+      // 他のグループがあれば最初のグループを選択、なければデフォルト作成
       final groups = await repository.getAllGroups();
       if (groups.isNotEmpty) {
-        state = AsyncData(groups.first);
+        ref.read(selectedGroupIdProvider.notifier).selectGroup(groups.first.groupId);
       } else {
-        // Create default group if no groups exist
-        final userSettings = await ref.read(userSettingsProvider.future);
-        final userName = (userSettings.userName.isNotEmpty) ? userSettings.userName : 'デフォルトユーザー';
-        final userEmail = (userSettings.userEmail.isNotEmpty) ? userSettings.userEmail : 'default@example.com';
-        
-        final ownerMember = PurchaseGroupMember.create(
-          name: userName,
-          contact: userEmail,
-          role: PurchaseGroupRole.owner,
-          isSignedIn: true,
-        );
-        final defaultGroup = await repository.createGroup('defaultGroup', 'デフォルトグループ', ownerMember);
-        state = AsyncData(defaultGroup);
+        // デフォルトグループを作成
+        await ref.read(allGroupsProvider.notifier).createNewGroup('デフォルトグループ');
       }
       
-      // Refresh the all groups list so dropdown updates
-      ref.read(allGroupsProvider.notifier).refresh();
     } catch (e) {
       state = AsyncError(e, StackTrace.current);
+      rethrow;
     }
   }
 
@@ -378,6 +310,9 @@ class PurchaseGroupNotifier extends AsyncNotifier<PurchaseGroup> {
       
       // バックグラウンドで保存
       await repository.updateGroup(groupId, updatedGroup);
+      
+      // allGroupsProviderも更新
+      ref.invalidate(allGroupsProvider);
     } catch (e) {
       // エラーが発生したら元の状態に戻す
       state = AsyncError(e, StackTrace.current);
@@ -422,36 +357,159 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() => build());
   }
+
+  /// 新しいグループを作成
+  Future<void> createNewGroup(String groupName) async {
+    print('🆕 [CREATE GROUP] createNewGroup: $groupName');
+    final repository = ref.read(purchaseGroupRepositoryProvider);
+    
+    try {
+      // 現在のユーザー情報を取得
+      final userSettingsAsync = await ref.read(userSettingsProvider.future);
+      final userName = userSettingsAsync.userName;
+      final userEmail = userSettingsAsync.userEmail;
+      
+      final authService = ref.read(authProvider);
+      final currentUser = authService.currentUser;
+      final currentUserId = currentUser?.uid ?? '';
+      
+      // オーナーメンバーを作成
+      final ownerMember = PurchaseGroupMember.create(
+        memberId: currentUserId,
+        name: userName,
+        contact: userEmail,
+        role: PurchaseGroupRole.owner,
+        isSignedIn: true,
+      );
+      
+      // グループを作成
+      final newGroup = await repository.createGroup(
+        DateTime.now().millisecondsSinceEpoch.toString(),  // 一意のグループID
+        groupName,
+        ownerMember,
+      );
+      
+      // 作成したグループを選択状態にする
+      ref.read(selectedGroupIdProvider.notifier).selectGroup(newGroup.groupId);
+      
+      // グループ一覧を更新
+      await refresh();
+      
+      // メンバープールも更新（新しいオーナーが追加されるため）
+      ref.read(memberPoolProvider.notifier).syncPool();
+      
+      print('✅ [CREATE GROUP] グループ作成完了: ${newGroup.groupName}');
+    } catch (e, stackTrace) {
+      print('❌ [CREATE GROUP] エラー発生: $e');
+      print('❌ [CREATE GROUP] スタックトレース: $stackTrace');
+      throw Exception('Failed to create group: $e');
+    }
+  }
 }
 
-// Providers
-final purchaseGroupProvider = AsyncNotifierProvider<PurchaseGroupNotifier, PurchaseGroup>(
-  () => PurchaseGroupNotifier(),
+// Selected Group Provider - 選択されたグループの詳細操作用
+final selectedGroupNotifierProvider = AsyncNotifierProvider<SelectedGroupNotifier, PurchaseGroup?>(
+  () => SelectedGroupNotifier(),
 );
 
 final selectedGroupIdProvider = StateNotifierProvider<SelectedGroupIdNotifier, String>(
   (ref) => SelectedGroupIdNotifier(),
 );
 
+// Member Pool Management - メンバープール管理用
+class MemberPoolNotifier extends AsyncNotifier<PurchaseGroup> {
+  @override
+  Future<PurchaseGroup> build() async {
+    final repository = ref.read(purchaseGroupRepositoryProvider);
+    
+    try {
+      print('🔄 [MEMBER POOL] MemberPoolNotifier.build() 開始');
+      final memberPool = await repository.getOrCreateMemberPool();
+      print('🔄 [MEMBER POOL] メンバープール取得完了: ${memberPool.members?.length ?? 0}メンバー');
+      return memberPool;
+    } catch (e, stackTrace) {
+      print('❌ [MEMBER POOL] ビルドエラー: $e');
+      print('❌ [MEMBER POOL] スタックトレース: $stackTrace');
+      throw Exception('Failed to load member pool: $e');
+    }
+  }
+
+  /// メンバープールを最新の状態に同期
+  Future<void> syncPool() async {
+    print('🔄 [MEMBER POOL] syncPool() 開始');
+    final repository = ref.read(purchaseGroupRepositoryProvider);
+    
+    try {
+      // プールを同期
+      await repository.syncMemberPool();
+      
+      // 最新のプール状態を取得
+      final updatedPool = await repository.getOrCreateMemberPool();
+      state = AsyncData(updatedPool);
+      
+      print('✅ [MEMBER POOL] プール同期完了: ${updatedPool.members?.length ?? 0}メンバー');
+    } catch (e, stackTrace) {
+      print('❌ [MEMBER POOL] 同期エラー: $e');
+      state = AsyncError(e, stackTrace);
+      rethrow;
+    }
+  }
+
+  /// メンバープール内でメンバーを検索
+  Future<List<PurchaseGroupMember>> searchMembers(String query) async {
+    print('🔍 [MEMBER POOL] searchMembers() 開始: "$query"');
+    final repository = ref.read(purchaseGroupRepositoryProvider);
+    
+    try {
+      final members = await repository.searchMembersInPool(query);
+      print('🔍 [MEMBER POOL] 検索完了: ${members.length}件');
+      return members;
+    } catch (e) {
+      print('❌ [MEMBER POOL] 検索エラー: $e');
+      rethrow;
+    }
+  }
+
+  /// メールアドレスでメンバーを検索
+  Future<PurchaseGroupMember?> findMemberByEmail(String email) async {
+    print('📧 [MEMBER POOL] findMemberByEmail() 開始: $email');
+    final repository = ref.read(purchaseGroupRepositoryProvider);
+    
+    try {
+      final member = await repository.findMemberByEmail(email);
+      print('📧 [MEMBER POOL] メール検索完了: ${member != null ? 'found' : 'not found'}');
+      return member;
+    } catch (e) {
+      print('❌ [MEMBER POOL] メール検索エラー: $e');
+      rethrow;
+    }
+  }
+
+  /// プールを手動で更新（グループメンバー変更後など）
+  Future<void> refreshPool() async {
+    print('🔄 [MEMBER POOL] refreshPool() 開始');
+    
+    try {
+      await syncPool();
+      print('✅ [MEMBER POOL] プール更新完了');
+    } catch (e) {
+      print('❌ [MEMBER POOL] プール更新エラー: $e');
+      rethrow;
+    }
+  }
+}
+
+final memberPoolProvider = AsyncNotifierProvider<MemberPoolNotifier, PurchaseGroup>(
+  () => MemberPoolNotifier(),
+);
+
 final allGroupsProvider = AsyncNotifierProvider<AllGroupsNotifier, List<PurchaseGroup>>(
   () => AllGroupsNotifier(),
 );
 
-// 選択されたグループIDに基づいて特定のグループを取得するプロバイダー
+// 選択されたグループを取得するプロバイダー（後方互換性のために Provider として提供）
 final selectedGroupProvider = Provider<AsyncValue<PurchaseGroup?>>((ref) {
-  final selectedGroupId = ref.watch(selectedGroupIdProvider);
-  final allGroupsAsync = ref.watch(allGroupsProvider);
-  
-  return allGroupsAsync.when(
-    data: (groups) {
-      // 隠しグループ（メンバープール）を除外
-      final visibleGroups = groups.where((group) => group.groupId != '__member_pool__').toList();
-      final selectedGroup = visibleGroups.where((group) => group.groupId == selectedGroupId).firstOrNull;
-      return AsyncValue.data(selectedGroup);
-    },
-    loading: () => const AsyncValue.loading(),
-    error: (error, stack) => AsyncValue.error(error, stack),
-  );
+  return ref.watch(selectedGroupNotifierProvider);
 });
 
 // =================================================================

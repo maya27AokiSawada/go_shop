@@ -219,7 +219,7 @@ class AutoInviteButton extends ConsumerWidget {
       final updatedGroup = group.copyWith(members: updatedMembers);
       final repo = ref.read(purchaseGroupRepositoryProvider);
       await repo.updateGroup(group.groupId, updatedGroup);
-      ref.invalidate(purchaseGroupProvider);
+      ref.invalidate(selectedGroupNotifierProvider);
     } catch (e) {
       print('⚠️ メンバー招待状態更新エラー: $e');
     }
