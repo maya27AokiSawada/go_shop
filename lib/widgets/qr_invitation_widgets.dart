@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/qr_invitation_service.dart';
+import '../services/pending_invitation_service.dart';
+import '../helpers/ui_helper.dart';
 
 /// QRコード招待ボタンウィジェット
 class QRInviteButton extends ConsumerWidget {
@@ -418,13 +420,30 @@ class QRInvitationAcceptDialog extends ConsumerWidget {
 
   Future<void> _acceptInvitation(BuildContext context, WidgetRef ref) async {
     try {
-      final qrService = ref.read(qrInvitationServiceProvider);
       final currentUser = ref.read(firebaseAuthProvider).currentUser;
       
+      // 未サインイン時の処理
       if (currentUser == null) {
-        throw Exception('ユーザーが認証されていません');
+        // 招待情報を一時保存
+        final saved = await PendingInvitationService.savePendingInvitation(invitationData);
+        
+        if (context.mounted) {
+          if (saved) {
+            // 保存成功 → サインイン画面へ誘導
+            await _showSignInPromptDialog(context);
+            Navigator.of(context).pop(true); // ダイアログを閉じる
+          } else {
+            UiHelper.showErrorMessage(
+              context, 
+              '招待情報の保存に失敗しました。再度お試しください。',
+            );
+          }
+        }
+        return;
       }
 
+      // サインイン済みの場合の処理
+      final qrService = ref.read(qrInvitationServiceProvider);
       final success = await qrService.acceptQRInvitation(
         invitationData: invitationData,
         acceptorUid: currentUser.uid,
@@ -433,12 +452,7 @@ class QRInvitationAcceptDialog extends ConsumerWidget {
 
       if (context.mounted) {
         if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('招待を受諾しました！'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          UiHelper.showSuccessMessage(context, '招待を受諾しました！');
           Navigator.of(context).pop(true);
         } else {
           throw Exception('招待の受諾に失敗しました');
@@ -446,14 +460,60 @@ class QRInvitationAcceptDialog extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('エラー: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        UiHelper.showErrorMessage(context, 'エラー: $e');
       }
     }
+  }
+
+  /// サインイン促進ダイアログを表示
+  Future<void> _showSignInPromptDialog(BuildContext context) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false, // 背景タップで閉じない
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.login, color: Colors.blue),
+            SizedBox(width: 8),
+            Text('サインインが必要です'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('グループ招待を受諾するにはサインインが必要です。'),
+            const SizedBox(height: 8),
+            const Text('招待情報を保存しました。\nサインイン後に自動的に処理されます。'),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info, color: Colors.blue),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'ホーム画面でサインインしてください',
+                      style: TextStyle(color: Colors.blue),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 }
 

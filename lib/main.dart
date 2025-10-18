@@ -7,24 +7,12 @@ import 'firebase_options.dart';
 import 'screens/home_screen.dart';
 import 'pages/invitation_accept_page.dart';
 import 'pages/purchase_group_page_simple.dart';
-import 'services/user_specific_hive_service.dart';
 import 'services/deep_link_service.dart';
 import 'services/user_initialization_service.dart';
+import 'services/hive_initialization_service.dart';
 import 'flavors.dart';
 
 final logger = Logger();
-
-// /// 【デバッグ用】Hiveデータをクリアする関数 - 使用済み
-// /// memberID問題解決のため、既存の問題があるデータを削除
-// Future<void> _clearHiveDataForDebugging() async {
-//   try {
-//     logger.w("🗑️ デバッグ用: Hiveデータをクリア中...");
-//     await Hive.deleteFromDisk();
-//     logger.i("✅ Hiveデータのクリアが完了");
-//   } catch (e) {
-//     logger.e("❌ Hiveデータクリア中にエラー: $e");
-//   }
-// }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -57,14 +45,8 @@ void main() async {
     // Firebase初期化に失敗してもアプリは続行（Hiveで動作）
   }
   
-  // 【デバッグ用】既存のHiveデータをクリア（memberID問題のため）
-  // TODO: この部分は問題解決後に削除する
-  // await _clearHiveDataForDebugging(); // 既にクリア済み
-  
-  // グローバルHive初期化（アダプター登録のみ）
-  // Windows版: UserSpecificHiveServiceでUID固有フォルダ管理
-  // Android/iOS版: 従来通りの動作（アプリ再開時も同じHiveデータを使用）
-  await UserSpecificHiveService.initializeAdapters();
+  // Hive初期化（アダプター登録、Box開封、データバージョンチェック）
+  await HiveInitializationService.initialize();
   
   runApp(
     const ProviderScope(

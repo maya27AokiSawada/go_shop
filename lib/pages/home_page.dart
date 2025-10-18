@@ -1,35 +1,53 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
 import 'dart:io' show Platform;
 import 'dart:developer' as developer;
+
+// Providers
 import '../providers/auth_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/shopping_list_provider.dart';
 import '../providers/user_name_provider.dart';
-
 import '../providers/user_settings_provider.dart';
 import '../providers/user_specific_hive_provider.dart';
 import '../providers/device_settings_provider.dart';
 import '../providers/hive_provider.dart' as hive_provider;
-import '../datastore/user_settings_repository.dart';
-import '../models/purchase_group.dart';
-import '../models/shopping_list.dart';
+import '../providers/subscription_provider.dart';
+
+// Services
+import '../services/user_preferences_service.dart';
+import '../services/authentication_service.dart';
+import '../services/email_management_service.dart';
+import '../services/firebase_diagnostics_service.dart';
+import '../services/group_management_service.dart';
+import '../services/password_reset_service.dart';
+
+import '../services/user_name_initialization_service.dart';
+import '../services/user_info_service.dart';
+
+// Helpers
+import '../helpers/auth_state_helper.dart';
+import '../helpers/dev_utils_helper.dart';
+import '../helpers/user_id_change_helper.dart';
+import '../helpers/qr_code_helper.dart';
+import '../helpers/ui_helper.dart';
+
+// Utilities
 import '../flavors.dart';
-import '../helper/firebase_diagnostics.dart';
+
+// Widgets
 import '../widgets/user_data_migration_dialog.dart';
 import '../widgets/ad_banner_widget.dart';
 import '../widgets/news_widget.dart';
 import '../widgets/payment_reminder_widget.dart';
-// import '../widgets/email_test_button.dart'; // QRコード招待に変更
 import '../widgets/qr_invitation_widgets.dart';
-import '../providers/subscription_provider.dart';
+
+// Pages
 import 'hybrid_sync_test_page.dart';
 import 'help_page.dart';
 import 'premium_page.dart';
-// import 'debug_email_test_page.dart'; // onenessブランチでは無効
 
 final logger = Logger();
 
@@ -62,74 +80,54 @@ class _HomePageState extends ConsumerState<HomePage> {
   void initState() {
     super.initState();
     logger.i('🏠 HomePage: initState開始');
-    // デフォルトグループからユーザー名を読み込み
+    
+    // 初期化処理を非同期で実行
     WidgetsBinding.instance.addPostFrameCallback((_) {
       logger.i('🏠 HomePage: PostFrameCallback実行');
-      _initializeUserName();
-      _loadSavedEmail(); // 保存されたメールアドレスを読み込み
+      _initializePage();
     });
   }
 
-  // 保存されたメールアドレスを読み込む
+  /// ページ初期化処理
+  Future<void> _initializePage() async {
+    // ユーザー名初期化
+    await _initializeUserName();
+    
+    // 保存されたメールアドレスを読み込み
+    await _loadSavedEmail();
+  }
+
+  /// 保存されたメールアドレスを読み込む
   Future<void> _loadSavedEmail() async {
-    try {
-      final deviceSettings = ref.read(deviceSettingsServiceProvider);
-      final savedEmail = await deviceSettings.getSavedEmail();
-      if (savedEmail != null && savedEmail.isNotEmpty) {
-        setState(() {
-          emailController.text = savedEmail;
-          _rememberEmail = true;
-        });
-        logger.i('📧 保存されたメールアドレスを復元: $savedEmail');
-      }
-    } catch (e) {
-      logger.e('❌ メールアドレス読み込みエラー: $e');
+    final emailService = ref.read(emailManagementServiceProvider);
+    final result = await emailService.loadSavedEmail();
+    
+    if (result.email != null && mounted) {
+      setState(() {
+        emailController.text = result.email!;
+        _rememberEmail = result.shouldRemember;
+      });
     }
   }
 
-  // メールアドレスを保存または削除
+  /// メールアドレスを保存または削除
   Future<void> _saveOrClearEmail() async {
-    try {
-      final deviceSettings = ref.read(deviceSettingsServiceProvider);
-      if (_rememberEmail && emailController.text.isNotEmpty) {
-        await deviceSettings.saveEmail(emailController.text);
-        logger.i('💾 メールアドレスを保存: ${emailController.text}');
-      } else {
-        await deviceSettings.clearSavedEmail();
-        logger.i('🗑️ 保存されたメールアドレスを削除');
-      }
-    } catch (e) {
-      logger.e('❌ メールアドレス保存エラー: $e');
-    }
+    final emailService = ref.read(emailManagementServiceProvider);
+    await emailService.saveOrClearEmail(
+      email: emailController.text,
+      shouldRemember: _rememberEmail,
+    );
   }
 
-  // ユーザー名の初期化処理
-  void _initializeUserName() async {
-    logger.i('🔧 _initializeUserName開始');
+  /// ユーザー名の初期化処理
+  Future<void> _initializeUserName() async {
+    final userNameService = ref.read(userNameInitializationServiceProvider);
+    final userName = await userNameService.initializeUserName();
     
-    // 少し待ってからプロバイダーの値を取得（Riverpodの初期化完了を待つ）
-    await Future.delayed(const Duration(milliseconds: 300));
-    
-    // 設定から現在のユーザー名を確認
-    final currentUserName = ref.read(userNameProvider);
-    logger.i('👤 現在のユーザー名（設定から）: $currentUserName');
-    
-    if (currentUserName != null && currentUserName.isNotEmpty) {
-      if (mounted) {
-        userNameController.text = currentUserName;
-        logger.i('✅ ユーザー名が設定から復元されました: $currentUserName');
-      }
-    } else {
-      logger.i('⚠️ 設定にユーザー名がないため、グループから読み込み');
-      _loadUserNameFromDefaultGroup();
-      
-      // グループからロード後、少し待ってから再度チェック
-      await Future.delayed(const Duration(milliseconds: 200));
-      final updatedUserName = ref.read(userNameProvider);
-      if (updatedUserName != null && updatedUserName.isNotEmpty && mounted) {
-        userNameController.text = updatedUserName;
-        logger.i('✅ ユーザー名がグループから復元されました: $updatedUserName');
-      }
+    if (userName != null && userName.isNotEmpty && mounted) {
+      setState(() {
+        userNameController.text = userName;
+      });
     }
   }
 
@@ -167,103 +165,24 @@ class _HomePageState extends ConsumerState<HomePage> {
     return false;
   }
 
-  // UID変更をハンドリングするメソッド
+  // UID変更をハンドリングするメソッド（簡素化版）
   Future<void> _handleUserIdChange(String newUserId, String userEmail) async {
-    try {
-      // 仮設定UID（MockやLocalテスト用）の場合は処理をスキップ
-      if (_isTemporaryUid(newUserId)) {
-        logger.i('🔄 仮設定UID検出 - UID変更処理をスキップ: $newUserId');
-        return;
-      }
-      
-      final userSettings = ref.read(userSettingsProvider.notifier);
-      final hiveService = ref.read(userSpecificHiveProvider);
-      final hasChanged = await userSettings.hasUserIdChanged(newUserId);
-      final isWindows = Platform.isWindows;
-      
-      if (hasChanged) {
-        // UIDが変更された場合、ユーザーに選択を求める
-        if (mounted) {
-          final shouldKeepData = await UserDataMigrationDialog.show(
-            context,
-            previousUser: '前回のユーザー',
-            newUser: userEmail,
-          );
-          
-          if (shouldKeepData == false) {
-            // データを消去する場合
-            logger.i('🗑️ ユーザーがデータ消去を選択');
-            
-            if (isWindows) {
-              // Windows版: ユーザー固有のHiveデータベースに切り替え
-              await hiveService.initializeForUser(newUserId);
-              // TODO: clearCurrentUserData メソッドを実装
-            } else {
-              // Android/iOS版: 現在のHiveデータをクリア（フォルダは変更しない）
-              // TODO: clearCurrentUserData メソッドを実装
-            }
-            
-            // 安全にプロバイダーを無効化（遅延実行で順次）
-            await Future.delayed(const Duration(milliseconds: 200));
-            ref.invalidate(userSettingsProvider);
-            await Future.delayed(const Duration(milliseconds: 200));
-            ref.invalidate(shoppingListProvider);
-            await Future.delayed(const Duration(milliseconds: 200));
-            ref.invalidate(selectedGroupProvider);
-            ref.invalidate(allGroupsProvider);
-            
-          } else {
-            // データを引き継ぐ場合
-            logger.i('🔄 ユーザーがデータ引き継ぎを選択');
-            
-            if (isWindows) {
-              // Windows版: ユーザー固有フォルダに切り替え
-              await hiveService.initializeForUser(newUserId);
-              // TODO: migrateDataFromDefault メソッドを実装
-            }
-            // Android/iOS版: 何もしない（既存データをそのまま使用）
-            
-            // 安全にプロバイダーを無効化（遅延実行で順次）
-            await Future.delayed(const Duration(milliseconds: 200));
-            ref.invalidate(userSettingsProvider);
-            await Future.delayed(const Duration(milliseconds: 200));
-            ref.invalidate(shoppingListProvider);
-            await Future.delayed(const Duration(milliseconds: 200));
-            ref.invalidate(selectedGroupProvider);
-            ref.invalidate(allGroupsProvider);
-          }
-        }
-      } else {
-        // UIDが変更されていない場合
-        if (isWindows && hiveService.currentUserId != newUserId) {
-          // Windows版のみ: 適切なユーザーデータベースに切り替え
-          logger.i('🔄 [Windows] Switching to user-specific Hive database: $newUserId');
-          await hiveService.initializeForUser(newUserId);
-          
-          // プロバイダーの無効化を大幅に遅延させて競合を回避
-          await Future.delayed(const Duration(milliseconds: 500));
-          ref.invalidate(userSettingsProvider);
-          await Future.delayed(const Duration(milliseconds: 500));
-          ref.invalidate(shoppingListProvider);
-          await Future.delayed(const Duration(milliseconds: 500));
-          ref.invalidate(selectedGroupProvider);
-          ref.invalidate(allGroupsProvider);
-        }
-        // Android/iOS版: 何もしない（既存のHiveをそのまま使用）
-      }
-      
-      // 新しいUIDを保存（Hive初期化完了後に実行）
-      await Future.delayed(const Duration(milliseconds: 500));
-      await userSettings.updateUserId(newUserId);
-      
-    } catch (e) {
-      logger.i('❌ UID変更処理エラー: $e');
-    }
-  }
+    await UserIdChangeHelper.handleUserIdChange(
+      ref: ref,
+      context: context,
+      newUserId: newUserId,
+      userEmail: userEmail,
+      mounted: mounted,
+    );
 
   // ユーザーがログインしているかどうかをチェックするヘルパーメソッド
   bool _isUserLoggedIn(dynamic user) {
     return user != null;
+  }
+
+  // SharedPreferencesからユーザー名を同期的に取得するヘルパーメソッド
+  Future<String?> _getCurrentUserName() async {
+    return await UserPreferencesService.getUserName();
   }
 
   // @override
@@ -280,7 +199,6 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
-    final currentUserName = ref.watch(userNameProvider);
     final hiveInitialized = ref.watch(hiveInitializationStatusProvider);
     
     // Hive初期化を監視（バックグラウンドで自動実行）
@@ -309,8 +227,9 @@ class _HomePageState extends ConsumerState<HomePage> {
       next.whenData((user) async {
         final currentUserEmail = _getUserEmail(user);
         final currentUserId = user?.uid ?? '';
+        final currentUserName = await _getCurrentUserName();
         
-        logger.i('🔐 現在のユーザー: ${currentUserEmail ?? "null"}, UID: $currentUserId, ユーザー名: $currentUserName');
+        logger.i('🔐 現在のユーザー: ${currentUserEmail ?? "null"}, UID: $currentUserId, ユーザー名: ${currentUserName ?? "null"}');
         
         if (currentUserId.isNotEmpty && !_isTemporaryUid(currentUserId)) {
           // 実際のFirebase UIDの場合のみUID変更をチェック
@@ -324,13 +243,11 @@ class _HomePageState extends ConsumerState<HomePage> {
           logger.i('� サインアウト状態 - 処理をスキップ');
         }
         
-        // 初回サインイン時またはユーザー名がない場合のみグループから読み込み
-        if ((currentUserName == null || currentUserName.isEmpty) && currentUserId.isNotEmpty) {
-          logger.i('🔄 ユーザー名がないのでグループから読み込みを実行');
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _loadUserNameFromDefaultGroup();
-          });
-        }
+        // ユーザー名の復帰処理
+        // TODO: メソッドが後で定義されるため一時的にコメントアウト
+        // WidgetsBinding.instance.addPostFrameCallback((_) async {
+        //   await _restoreUserName(currentUserId, currentUserEmail);
+        // });
       });
     });
     
@@ -342,9 +259,11 @@ class _HomePageState extends ConsumerState<HomePage> {
         IconButton(
           icon: const Icon(Icons.qr_code_scanner),
           tooltip: 'QRコードで招待を受け取る',
-          onPressed: () {
-            _showQrCodeScanDialog(context, ref);
-          },
+          onPressed: () => QrCodeHelper.handleQrCodeScan(context, ref, () {
+            setState(() {
+              showSignInForm = true;
+            });
+          }),
         ),
         // シークレットモード設定ボタン
         Consumer(
@@ -409,84 +328,18 @@ class _HomePageState extends ConsumerState<HomePage> {
           },
         ),
         // デバッグ用：Hiveデータクリアボタン（開発環境のみ）
-        if (F.appFlavor == Flavor.dev)
-          IconButton(
-            icon: const Icon(Icons.delete_forever, color: Colors.red),
-            tooltip: 'Hiveデータクリア（デバッグ用）',
-            onPressed: () async {
-              final shouldClear = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Hiveデータクリア'),
-                  content: const Text('全てのローカルデータが削除されます。続行しますか？'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('キャンセル'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text('削除', style: TextStyle(color: Colors.red)),
-                    ),
-                  ],
-                ),
-              );
-              
-              if (shouldClear == true) {
-                try {
-                  // 全ての設定をクリア
-                  await ref.read(userSettingsProvider.notifier).clearAllSettings();
-                  
-                  // Hiveボックスをクリア
-                  final purchaseGroupBox = ref.read(hive_provider.purchaseGroupBoxProvider);
-                  final shoppingListBox = ref.read(hive_provider.shoppingListBoxProvider);
-                  final userSettingsBox = ref.read(hive_provider.userSettingsBoxProvider);
-                  
-                  await purchaseGroupBox.clear();
-                  await shoppingListBox.clear();
-                  await userSettingsBox.clear();
-                  
-                  // Firebase認証からサインアウト
-                  await ref.read(authProvider).signOut();
-                  
-                  // プロバイダーを無効化
-                  ref.invalidate(selectedGroupProvider); ref.invalidate(allGroupsProvider);
-                  ref.invalidate(shoppingListProvider);
-                  ref.invalidate(userSettingsProvider);
-                  
-                  logger.i('🗑️ 全てのHiveデータをクリアしました');
-                  
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Hiveデータをクリアしました'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  }
-                  
-                  // ページをリフレッシュ
-                  setState(() {
-                    userNameController.clear();
-                    emailController.clear();
-                    passwordController.clear();
-                    showSignInForm = false;
-                  });
-                  
-                } catch (e) {
-                  logger.e('🗑️ Hiveデータクリアエラー: $e');
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('データクリアに失敗しました: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              }
-            },
-          ),
+        DevUtilsHelper.buildHiveDataClearButton(
+          context: context,
+          ref: ref,
+          onComplete: () {
+            setState(() {
+              userNameController.clear();
+              emailController.clear();
+              passwordController.clear();
+              showSignInForm = false;
+            });
+          },
+        ),
           
           // デバッグ用：メール送信テストボタン（onenessブランチでは無効）
           // if (F.appFlavor == Flavor.dev)
@@ -536,7 +389,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                   );
                   break;
                 case 'about':
-                  _showAboutDialog(context);
+                  // TODO: メソッド定義順の問題で一時コメントアウト
+                  // _showAboutDialog(context);
                   break;
               }
             },
@@ -592,35 +446,18 @@ class _HomePageState extends ConsumerState<HomePage> {
                         // � 未ログイン時もニュース表示
                         const NewsWidget(),
                         // 未ログイン状態では常にユーザー名入力欄を表示
-                        Consumer(
-                          builder: (context, ref, child) {
-                            final currentUserName = ref.watch(userNameProvider);
-                            
-                            // ユーザー名プロバイダーの値が変更された時にテキストフィールドを更新
-                            if (currentUserName != null && 
-                                currentUserName.isNotEmpty && 
-                                userNameController.text != currentUserName) {
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                if (mounted) {
-                                  userNameController.text = currentUserName;
-                                }
-                              });
+                        TextFormField(
+                          controller: userNameController,
+                          decoration: const InputDecoration(
+                            labelText: 'User Name',
+                            border: OutlineInputBorder(),
+                            hintText: 'ユーザー名を入力してください',
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'ユーザー名を入力してください';
                             }
-                            
-                            return TextFormField(
-                              controller: userNameController,
-                              decoration: const InputDecoration(
-                                labelText: 'User Name',
-                                border: OutlineInputBorder(),
-                                hintText: 'ユーザー名を入力してください',
-                              ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'ユーザー名を入力してください';
-                                }
-                                return null;
-                              },
-                            );
+                            return null;
                           },
                         ),
                         const SizedBox(height: 16),
@@ -755,30 +592,33 @@ class _HomePageState extends ConsumerState<HomePage> {
                             child: const Text('ユーザー名のみ保存')
                           ),
                           
-                          // 🔥 Firebase接続診断ボタン（本番環境でも表示）
-                          const SizedBox(height: 16),
-                          const Divider(),
-                          const Text('🔧 Firebase診断', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                          const SizedBox(height: 8),
-                          ElevatedButton.icon(
-                            onPressed: () async => await _runFirebaseDiagnostics(),
-                            icon: const Icon(Icons.medical_services),
-                            label: const Text('Firebase完全診断'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange,
-                              foregroundColor: Colors.white,
+                          // 🔥 Firebase接続診断ボタン（DEV環境でのみ表示）
+                          if (F.appFlavor == Flavor.dev) ...[
+                            const SizedBox(height: 16),
+                            const Divider(),
+                            const Text('🔧 Firebase診断', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            const SizedBox(height: 8),
+                            ElevatedButton.icon(
+                              // TODO: 一時無効化
+                              onPressed: null, // () async => await _runFirebaseDiagnostics(),
+                              icon: const Icon(Icons.medical_services),
+                              label: const Text('Firebase完全診断'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.orange,
+                                foregroundColor: Colors.white,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          ElevatedButton.icon(
-                            onPressed: () async => await _firebaseConnectionTest(),
-                            icon: const Icon(Icons.wifi_tethering),
-                            label: const Text('Firebase接続テスト'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
-                              foregroundColor: Colors.white,
+                            const SizedBox(height: 8),
+                            ElevatedButton.icon(
+                              onPressed: () async => await _firebaseConnectionTest(),
+                              icon: const Icon(Icons.wifi_tethering),
+                              label: const Text('Firebase接続テスト'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue,
+                                foregroundColor: Colors.white,
+                              ),
                             ),
-                          ),
+                          ],
                         ],
                       ],
                     ),
@@ -786,14 +626,17 @@ class _HomePageState extends ConsumerState<HomePage> {
                 );
               } else {
                 // ログイン済みUI
-                final savedUserName = ref.watch(userNameProvider);
-                return SingleChildScrollView(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'ようこそ、${savedUserName ?? _getUserEmail(user) ?? "ユーザー"}さん',
+                return FutureBuilder<String?>(
+                  future: _getCurrentUserName(),
+                  builder: (context, snapshot) {
+                    final savedUserName = snapshot.data;
+                    return SingleChildScrollView(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'ようこそ、${savedUserName ?? _getUserEmail(user) ?? "ユーザー"}さん',
                         style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 20),
@@ -822,34 +665,18 @@ class _HomePageState extends ConsumerState<HomePage> {
                                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(height: 12),
-                                Consumer(
-                                  builder: (context, ref, child) {
-                                    // ユーザー名プロバイダーを監視してテキストフィールドを更新
-                                    final currentUserName = ref.watch(userNameProvider);
-                                    
-                                    // テキストフィールドが空または異なる値の場合のみ更新
-                                    if (currentUserName != null && 
-                                        currentUserName.isNotEmpty && 
-                                        userNameController.text != currentUserName) {
-                                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                                        userNameController.text = currentUserName;
-                                      });
+                                TextFormField(
+                                  controller: userNameController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'ユーザー名',
+                                    border: OutlineInputBorder(),
+                                    hintText: '表示名を入力してください',
+                                  ),
+                                  validator: (value) {
+                                    if (value == null || value.trim().isEmpty) {
+                                      return 'ユーザー名を入力してください';
                                     }
-                                    
-                                    return TextFormField(
-                                      controller: userNameController,
-                                      decoration: const InputDecoration(
-                                        labelText: 'ユーザー名',
-                                        border: OutlineInputBorder(),
-                                        hintText: '表示名を入力してください',
-                                      ),
-                                      validator: (value) {
-                                        if (value == null || value.trim().isEmpty) {
-                                          return 'ユーザー名を入力してください';
-                                        }
-                                        return null;
-                                      },
-                                    );
+                                    return null;
                                   },
                                 ),
                                 const SizedBox(height: 12),
@@ -869,9 +696,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                                 ElevatedButton(
                                   onPressed: () async {
                                     logger.i('🔍 デバッグ: 現在の状態確認');
-                                    final currentUserName = ref.read(userNameProvider);
+                                    final currentUserName = await _getCurrentUserName();
                                     final userSettings = await ref.read(userSettingsProvider.future);
-                                    logger.i('🔍 userNameProvider: $currentUserName');
+                                    logger.i('🔍 SharedPreferences userName: $currentUserName');
                                     logger.i('🔍 userSettings.userName: ${userSettings.userName}');
                                     logger.i('🔍 userNameController.text: ${userNameController.text}');
                                     
@@ -978,38 +805,42 @@ class _HomePageState extends ConsumerState<HomePage> {
                       child: const Text('ログアウト'),
                     ),
                     
-                    // 🔥 ログイン後でもFirebase診断ボタンを表示
-                    const SizedBox(height: 30),
-                    const Divider(),
-                    const Text('🔧 Firebase診断', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                    const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed: () async => await _runFirebaseDiagnostics(),
-                      icon: const Icon(Icons.medical_services),
-                      label: const Text('Firebase完全診断'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange,
-                        foregroundColor: Colors.white,
+                    // 🔥 ログイン後でもFirebase診断ボタンを表示（DEV環境でのみ）
+                    if (F.appFlavor == Flavor.dev) ...[
+                      const SizedBox(height: 30),
+                      const Divider(),
+                      const Text('🔧 Firebase診断', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        onPressed: () async => await _runFirebaseDiagnostics(),
+                        icon: const Icon(Icons.medical_services),
+                        label: const Text('Firebase完全診断'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange,
+                          foregroundColor: Colors.white,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    ElevatedButton.icon(
-                      onPressed: () async => await _firebaseConnectionTest(),
-                      icon: const Icon(Icons.wifi_tethering),
-                      label: const Text('Firebase接続テスト'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
+                      const SizedBox(height: 8),
+                      ElevatedButton.icon(
+                        onPressed: () async => await _firebaseConnectionTest(),
+                        icon: const Icon(Icons.wifi_tethering),
+                        label: const Text('Firebase接続テスト'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
+                      const SizedBox(height: 16),
+                    ],
                     Text(
                       'ログイン状態: ${_getUserEmail(user) ?? "不明"}',
                       style: const TextStyle(fontSize: 12, color: Colors.green),
                     ),
-                  ],
-                ),
-              );
+                        ],
+                      ),
+                    );
+                  },
+                );
               }
             },
             loading: () => const CircularProgressIndicator(),
@@ -1022,327 +853,153 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   // デフォルトグループからユーザー名を読み込む
-  void _loadUserNameFromDefaultGroup() async {
-    logger.i('🔍 _loadUserNameFromDefaultGroup 開始');
-    try {
-      final purchaseGroupAsync = ref.read(selectedGroupProvider);
-      final authState = ref.read(authStateProvider);
-      final currentUserName = ref.read(userNameProvider);
-      
-      logger.i('📊 現在のuserNameProviderの値: $currentUserName');
-      
-      await Future.wait([
-        purchaseGroupAsync.when(
-          data: (group) async {
-            if (group != null) {
-              logger.i('📋 グループデータ取得成功: ${group.groupName}');
-              logger.i('👥 メンバー数: ${group.members?.length ?? 0}');
-              
-              if (group.members != null) {
-                for (var i = 0; i < group.members!.length; i++) {
-                  final member = group.members![i];
-                  logger.i('👤 メンバー$i: ${member.name} (${member.role}) - ${member.contact}');
-                }
-              }
-            } else {
-              logger.w('📋 グループデータがnullです');
-            }
-            
-            await authState.when(
-              data: (user) async {
-                if (group != null) {
-                  logger.i('🔐 認証ユーザー: ${user?.email ?? "null"}');
-                  
-                  // 認証状態に関係なく、leaderのユーザー名を取得
-                  if (group.members != null && group.members!.isNotEmpty) {
-                    // ownerを優先して探す
-                    var currentMember = group.members!.firstWhere(
-                      (member) => member.role == PurchaseGroupRole.owner,
-                      orElse: () {
-                        logger.i('⚠️ ownerが見つからないので最初のメンバーを使用');
-                        return group.members!.first;
-                      },
-                    );
-                    
-                    logger.i('🏆 選択されたメンバー: ${currentMember.name} (${currentMember.role})');
-                    
-                    // ログイン済みの場合のみメールアドレスでマッチするメンバーを再検索
-                    final userEmail = _getUserEmail(user);
-                    if (_isUserLoggedIn(user) && currentMember.contact != userEmail && userEmail != null) {
-                      logger.i('📬 メールアドレスでメンバーを再検索: $userEmail');
-                      final emailMatchMember = group.members!.firstWhere(
-                        (member) => member.contact == userEmail,
-                        orElse: () {
-                          logger.i('📬 メールアドレスマッチなし、leaderを使用');
-                          return currentMember;
-                        },
-                      );
-                        if (emailMatchMember.name.isNotEmpty) {
-                          logger.i('📬 メールマッチメンバーを使用: ${emailMatchMember.name}');
-                          currentMember = emailMatchMember;
-                        }
-                      }
-                    }
-                    
-                    if (currentMember.name.isNotEmpty) {
-                      logger.i('✅ ユーザー名をプロバイダーに設定: ${currentMember.name}');
-                      await ref.read(userNameNotifierProvider.notifier).setUserName(currentMember.name);
-                      if (mounted) {
-                        setState(() {
-                          userNameController.text = currentMember.name;
-                        });
-                        logger.i('✅ UIを更新しました');
-                      } else {
-                        logger.i('⚠️ ウィジェットがmountedではないためUI更新をスキップ');
-                      }
-                    } else {
-                      logger.i('⚠️ メンバー名が空です');
-                    }
-                  } else {
-                    logger.i('⚠️ メンバーがいません');
-                  }
-                } else {
-                  logger.i('⚠️ グループがnullです');
-                }
-              },
-              loading: () async {
-                logger.i('🔄 認証状態ロード中...');
-              },
-              error: (err, stack) async {
-                logger.i('❌ 認証エラー: $err');
-              },
-            );
-          },
-          loading: () async {
-            logger.i('🔄 グループデータロード中...');
-          },
-          error: (err, stack) async {
-            logger.i('❌ グループエラー: $err');
-          },
-        ),
-      ]);
-    } catch (e) {
-      logger.i('❌ ユーザー名の読み込みに失敗: $e');
+  /// デフォルトグループからユーザー名を読み込む
+  Future<void> _loadUserNameFromDefaultGroup() async {
+    final groupService = ref.read(groupManagementServiceProvider);
+    final userName = await groupService.loadUserNameFromDefaultGroup();
+    
+    if (userName != null && userName.isNotEmpty && mounted) {
+      setState(() {
+        userNameController.text = userName;
+      });
     }
-    logger.i('🏁 _loadUserNameFromDefaultGroup 終了');
+  }
+
+  // ユーザー名復帰処理（SharedPreferences → Firestore → グループから復帰）
+  Future<void> _restoreUserName(String userId, String? userEmail) async {
+    logger.i('🔄 _restoreUserName開始: UID=$userId, Email=$userEmail');
+    
+    try {
+      // まずSharedPreferencesから復帰を試行
+      final prefsName = await ref.read(userNameNotifierProvider.notifier).restoreUserNameFromPreferences();
+      logger.i('📊 SharedPreferencesからのユーザー名: $prefsName');
+      
+      if (prefsName != null && prefsName.isNotEmpty) {
+        // SharedPreferencesにユーザー名がある場合、UIに反映
+        logger.i('✅ SharedPreferencesからユーザー名復帰: $prefsName');
+        if (mounted) {
+          setState(() {
+            userNameController.text = prefsName;
+          });
+        }
+        return;
+      }
+      
+      // SharedPreferencesにない場合、Firestoreから復帰を試行（サインイン時のみ）
+      final user = ref.read(authStateProvider).value;
+      if (user != null) {
+        logger.i('🔍 SharedPreferencesにない - Firestoreから復帰を試行');
+        final firestoreName = await ref.read(userNameNotifierProvider.notifier).restoreUserNameFromFirestore();
+        if (firestoreName != null && firestoreName.isNotEmpty) {
+          logger.i('✅ Firestoreからユーザー名復帰: $firestoreName');
+          if (mounted) {
+            setState(() {
+              userNameController.text = firestoreName;
+            });
+          }
+          return;
+        }
+      }
+      
+      // 両方にもない場合、グループから復帰
+      logger.i('🔍 どちらにもない - グループから復帰を試行');
+      _loadUserNameFromDefaultGroup(); // void戻り値なのでawaitなし
+      
+    } catch (e) {
+      logger.e('❌ ユーザー名復帰エラー: $e');
+      // エラー時は空のユーザー名でUI更新
+      if (mounted) {
+        setState(() {
+          userNameController.text = '';
+        });
+      }
+    }
+    
+    logger.i('🏁 _restoreUserName終了');
   }
 
   // 全グループで同じUID/メールアドレスのメンバー名を更新するメソッド
-  Future<void> _updateUserNameInAllGroups(String newUserName, String userEmail) async {
-    try {
-      logger.i('🌍 _updateUserNameInAllGroups開始: 名前="$newUserName", メール="$userEmail"');
-      
-      // 現在のログインユーザーのUIDを取得
-      final authState = ref.read(authStateProvider);
-      final currentUserId = authState.when(
-        data: (user) => user?.uid ?? '',
-        loading: () => '',
-        error: (_, __) => '',
-      );
-      logger.i('🔐 現在のユーザーID: $currentUserId');
-      
-      // 全グループを取得
-      final repository = ref.read(purchaseGroupRepositoryProvider);
-      final allGroups = await repository.getAllGroups();
-      logger.i('🌍 全グループ取得完了: ${allGroups.length}個のグループ');
-      
-      for (final group in allGroups) {
-        logger.i('🔍 グループ "${group.groupName}" (ID: ${group.groupId}) をチェック中...');
-        
-        bool groupUpdated = false;
-        final updatedMembers = <PurchaseGroupMember>[];
-        
-        // 各メンバーをチェック
-        for (final member in group.members ?? []) {
-          bool shouldUpdate = false;
-          
-          // 1. メールアドレスが一致する場合
-          if (member.contact == userEmail && userEmail.isNotEmpty) {
-            shouldUpdate = true;
-            logger.i('📧 メールアドレス一致: ${member.name} → $newUserName (メール: ${member.contact})');
-          }
-          
-          // 2. デフォルトユーザーの場合（UID: defaultUser）
-          if (member.memberId == 'defaultUser') {
-            shouldUpdate = true;
-            logger.i('🆔 デフォルトユーザー: ${member.name} → $newUserName (ID: ${member.memberId})');
-          }
-          
-          // 3. 現在のログインユーザーのUIDと一致する場合
-          if (currentUserId.isNotEmpty && member.memberId == currentUserId) {
-            shouldUpdate = true;
-            logger.i('🔐 UID一致: ${member.name} → $newUserName (UID: ${member.memberId})');
-          }
-          
-          if (shouldUpdate && member.name != newUserName) {
-            // メンバー名を更新
-            final updatedMember = member.copyWith(name: newUserName);
-            updatedMembers.add(updatedMember);
-            groupUpdated = true;
-            logger.i('✅ メンバー更新: ${member.name} → $newUserName (グループ: ${group.groupName})');
-          } else {
-            // 更新不要、そのまま追加
-            updatedMembers.add(member);
-          }
-        }
-        
-        // グループが更新された場合のみ保存
-        if (groupUpdated) {
-          final updatedGroup = group.copyWith(
-            members: updatedMembers,
-            // オーナー情報も更新（オーナーが変更対象の場合）
-            ownerName: group.ownerEmail == userEmail || group.ownerUid == 'defaultUser' || group.ownerUid == currentUserId 
-                ? newUserName 
-                : group.ownerName,
-          );
-          
-          await repository.updateGroup(group.groupId, updatedGroup);
-          logger.i('💾 グループ "${group.groupName}" を更新しました');
-        } else {
-          logger.i('⏭️ グループ "${group.groupName}" は更新不要');
-        }
-      }
-      
-      logger.i('✅ _updateUserNameInAllGroups完了');
-    } catch (e) {
-      logger.e('❌ _updateUserNameInAllGroups エラー: $e');
+  /// 全グループのユーザー名を更新
+  /// ユーザー名を保存
+  Future<void> _saveUserName() async {
+    if (!(_userNameFormKey.currentState?.validate() ?? false)) {
+      UiHelper.showWarningMessage(context, 'ユーザー名を正しく入力してください');
+      return;
     }
-  }
 
-  // ユーザー名を保存するメソッド
-  void _saveUserName() async {
-    if (_userNameFormKey.currentState?.validate() ?? false) {
-      try {
-        final newUserName = userNameController.text.trim();
-        
-        if (newUserName.isNotEmpty) {
-          logger.i('💾 ユーザー名保存開始: $newUserName');
-          
-          // 1. UserSettingsにユーザー名を保存
-          await ref.read(userSettingsProvider.notifier).updateUserName(newUserName);
-          logger.i('✅ UserSettingsに保存完了');
-          
-          // 2. プロバイダーを無効化して最新データを反映
-          ref.invalidate(userNameProvider);
-          
-          // 3. 少し待ってから確認
-          await Future.delayed(const Duration(milliseconds: 100));
-          final savedUserName = ref.read(userNameProvider);
-          logger.i('🔍 保存後のユーザー名確認: $savedUserName');
-          
-          // 4. デフォルトグループの情報も更新
-          await userInfoSave();
-          logger.i('✅ デフォルトグループ更新完了');
-          
-          logger.i('✅ ユーザー名を保存しました: $newUserName');
-          
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('ユーザー名「$newUserName」を保存しました'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
-        }
-      } catch (e) {
-        logger.e('❌ ユーザー名保存エラー: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('ユーザー名の保存に失敗しました: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    } else {
-      // バリデーションエラーがある場合
-      logger.w('⚠️ ユーザー名のバリデーションエラー');
+    try {
+      final newUserName = userNameController.text.trim();
+      
+      if (newUserName.isEmpty) return;
+      
+      logger.i('💾 ユーザー名保存開始: $newUserName');
+      
+      // 1. UserNameNotifierを使用してSharedPreferences + Firestoreに保存
+      await ref.read(userNameNotifierProvider.notifier).setUserName(newUserName);
+      logger.i('✅ SharedPreferences + Firestoreに保存完了');
+      
+      // 2. デフォルトグループの情報も更新
+      await userInfoSave();
+      logger.i('✅ デフォルトグループ更新完了');
+      
+      logger.i('✅ ユーザー名を保存しました: $newUserName');
+      
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('ユーザー名を正しく入力してください'),
-            backgroundColor: Colors.orange,
-          ),
-        );
+        UiHelper.showSuccessMessage(context, 'ユーザー名「$newUserName」を保存しました');
+      }
+    } catch (e) {
+      logger.e('❌ ユーザー名保存エラー: $e');
+      if (mounted) {
+        UiHelper.showErrorMessage(context, 'ユーザー名の保存に失敗しました: $e');
       }
     }
   }
 
   // デフォルトグループにユーザー名を保存
   // サインイン処理を実行するメソッド
+  /// サインイン処理
   Future<void> _performSignIn() async {
-    final email = emailController.text;
+    if (!mounted) return;
+    
+    final email = emailController.text.trim();
     final password = passwordController.text;
     
+    if (email.isEmpty || password.isEmpty) {
+      UiHelper.showWarningMessage(context, 'メールアドレスとパスワードを入力してください');
+      return;
+    }
+
     try {
-      logger.i('🔧 _performSignIn: サインイン開始');
-      logger.i('🔧 _performSignIn: フレーバー = ${F.appFlavor}');
-      logger.i('🔧 _performSignIn: email = $email');
+      logger.i('🔧 サインイン開始: $email');
       
-      final authService = ref.read(authProvider);
-      logger.i('🔧 _performSignIn: authService = ${authService.runtimeType}');
+      final userCredential = await AuthenticationService.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
       
-      final user = await authService.signIn(email, password);
-      logger.i('🔧 _performSignIn: signIn完了 - user: $user (type: ${user.runtimeType})');
-      
-      // Firebase認証では自動的に状態が更新される
-      if (user != null) {
-        logger.i('🔧 _performSignIn: Firebase認証成功 - user: ${user.email}');
+      if (userCredential == null) {
+        if (mounted) {
+          UiHelper.showErrorMessage(context, 'ログインに失敗しました');
+        }
+        return;
       }
       
       // メールアドレスの保存/削除を実行
       await _saveOrClearEmail();
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('ログインしました')),
-        );
+        UiHelper.showSuccessMessage(context, 'ログインしました');
         
-        // サインイン成功後、メールアドレスを含むユーザー情報を更新
+        // サインイン成功後の処理
         WidgetsBinding.instance.addPostFrameCallback((_) async {
-          // 認証状態から現在のユーザー名を取得してメールアドレスを更新
-          final authState = ref.read(authStateProvider);
-          String? currentUserName;
-          
-          authState.whenData((user) {
-            if (user != null) {
-              logger.i('🔧 PostFrameCallback: user type = ${user.runtimeType}');
-              logger.i('🔧 PostFrameCallback: user.email = ${user.email}');
-              
-              // Firebase User
-              currentUserName = user.displayName;
-              logger.i('🔧 PostFrameCallback: Firebase User displayName = "${user.displayName}"');
-              
-              logger.i('🔧 PostFrameCallback: 最終的なユーザー名 = "$currentUserName"');
-            }
+          await userInfoSave();
+          ref.invalidate(selectedGroupProvider);
+          ref.invalidate(allGroupsProvider);
+          await _loadUserNameFromDefaultGroup();
+          // 保存された招待情報があれば自動処理
+          await QrCodeHelper.processPendingInvitation(context, ref, () async {
+            await _loadUserNameFromDefaultGroup();
           });
-          
-          // ユーザー名が取得できない場合は、入力フォームまたは設定から取得
-          if (currentUserName == null || currentUserName!.isEmpty) {
-            currentUserName = userNameController.text;
-            if (currentUserName == null || currentUserName!.isEmpty) {
-              final settingsUserName = ref.read(userNameProvider);
-              if (settingsUserName != null && settingsUserName.isNotEmpty) {
-                currentUserName = settingsUserName;
-                logger.i('🔧 PostFrameCallback: 設定からユーザー名取得 = "$currentUserName"');
-              }
-            }
-          }
-          
-          if (currentUserName != null && currentUserName!.isNotEmpty) {
-            logger.i('🔧 サインイン後のuserInfoSave()を実行します...');
-            await userInfoSave(); // メールアドレスを含む情報を更新
-            
-            // 強制的にプロバイダーを再読み込みして最新のデータを反映
-            ref.invalidate(selectedGroupProvider); ref.invalidate(allGroupsProvider);
-            
-            logger.i('🔧 サインイン後のユーザー情報更新完了');
-          } else {
-            logger.w('🔧 認証済みユーザー名が取得できないため、userInfoSave()をスキップします');
-          }
-          _loadUserNameFromDefaultGroup();
         });
         
         // フォームをリセット
@@ -1351,234 +1008,153 @@ class _HomePageState extends ConsumerState<HomePage> {
         });
         emailController.clear();
         passwordController.clear();
+      }
+    } on FirebaseAuthException catch (e) {
+      logger.e('🚨 Firebase認証エラー: ${e.code} - ${e.message}');
+      if (mounted) {
+        _handleFirebaseAuthError(e, email, password);
       }
     } catch (e, stackTrace) {
-      logger.e('🚨 ログイン失敗: $e');
-      logger.e('🚨 エラーの詳細: ${e.runtimeType}');
-      logger.e('🚨 エラーのtoString(): ${e.toString()}');
-      logger.e('🚨 スタックトレース: $stackTrace');
-      
-      if (e.toString().contains('FirebaseAuthException')) {
-        logger.e('🚨 Firebase Auth エラーコード: ${e.toString()}');
-      }
-      
+      logger.e('🚨 ログイン失敗: $e\n$stackTrace');
       if (mounted) {
-        String errorMessage = 'ログインに失敗しました';
-        bool offerSignUp = false;
-        
-        // Firebaseエラーの詳細を判定
-        if (e.toString().contains('user-not-found')) {
-          errorMessage = 'このメールアドレスは登録されていません';
-          offerSignUp = true;
-        } else if (e.toString().contains('invalid-credential')) {
-          errorMessage = 'ログイン情報が正しくありません。アカウントが存在しない可能性があります';
-          offerSignUp = true;  // invalid-credentialの場合もサインアップを提案
-        } else if (e.toString().contains('wrong-password')) {
-          errorMessage = 'パスワードが間違っています';
-        } else if (e.toString().contains('invalid-email')) {
-          errorMessage = 'メールアドレスの形式が正しくありません';
-        } else if (e.toString().contains('too-many-requests')) {
-          errorMessage = 'ログイン試行回数が多すぎます。しばらく待ってから再試行してください';
-        } else if (e.toString().contains('unknown-error')) {
-          errorMessage = 'ログインに失敗しました。アカウントが存在しない可能性があります';
-          offerSignUp = true;  // unknown-errorの場合もサインアップを提案
-        }
-        
-        if (offerSignUp) {
-          // ユーザー名が保存されているかをチェック
-          final currentUserName = ref.read(userNameProvider);
-          final inputUserName = userNameController.text.trim();
-          
-          if ((currentUserName == null || currentUserName.isEmpty) && 
-              (inputUserName.isEmpty)) {
-            // ユーザー名が設定されていない場合、ユーザー名の設定を促す
-            showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (BuildContext context) {
-                return AlertDialog(
-                  title: const Text('ユーザー名が必要です'),
-                  content: const Text('サインアップするには、まずユーザー名を設定してください。\n\n画面上部のユーザー名入力欄にお名前を入力してから再度お試しください。'),
-                  actions: [
-                    ElevatedButton(
-                      onPressed: () async {
-                        Navigator.of(context).pop();
-                        // サインインフォームを閉じて、ユーザー名入力にフォーカスを促す
-                        setState(() {
-                          showSignInForm = false;
-                        });
-                        
-                        // もしユーザー名が入力されていたら、それを保存
-                        final inputUserName = userNameController.text.trim();
-                        if (inputUserName.isNotEmpty) {
-                          try {
-                            logger.i('💾 ダイアログからユーザー名保存開始: $inputUserName');
-                            
-                            // UserSettingsとデフォルトグループ両方に保存
-                            await ref.read(userSettingsProvider.notifier).updateUserName(inputUserName);
-                            await userInfoSave(); // デフォルトグループも更新
-                            
-                            logger.i('✅ ダイアログからユーザー名保存完了: $inputUserName');
-                            
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('ユーザー名「$inputUserName」を保存しました'),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            logger.e('❌ ダイアログからユーザー名保存エラー: $e');
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('ユーザー名の保存に失敗しました: $e'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          }
-                        }
-                        
-                        // ユーザー名入力欄にフォーカスを当てる（オプション）
-                        FocusScope.of(context).requestFocus(FocusNode());
-                      },
-                      child: const Text('了解'),
-                    ),
-                  ],
-                );
-              },
-            );
-          } else {
-            // ユーザー名が設定されている場合、従来通りサインアップを提案
-            final bool? shouldSignUp = await showDialog<bool>(
-              context: context,
-              barrierDismissible: false,
-              builder: (BuildContext context) {
-                String dialogTitle = 'アカウントが見つかりません';
-                String dialogContent = 'メールアドレス "$email" は登録されていません。\n新しいアカウントを作成しますか？';
-                
-                if (e.toString().contains('unknown-error')) {
-                  dialogTitle = 'ログインエラー';
-                  dialogContent = 'メールアドレス "$email" でのログインに失敗しました。\n新しいアカウントを作成しますか？';
-                }
-                
-                return AlertDialog(
-                  title: Text(dialogTitle),
-                  content: Text(dialogContent),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('キャンセル'),
-                    ),
-                    ElevatedButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      child: const Text('アカウント作成'),
-                    ),
-                  ],
-                );
-              },
-            );
-
-            if (shouldSignUp == true && mounted) {
-              await _performSignUp();
-            }
-          }
-        } else {
-          // パスワード間違いやその他のエラーの場合は単純にエラーメッセージを表示
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(errorMessage),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 4),
-            ),
-          );
-        }
+        UiHelper.showErrorMessage(context, 'ログインに失敗しました: $e');
       }
     }
   }
 
-  // サインアップ処理を実行するメソッド
-  Future<void> _performSignUp() async {
-    final email = emailController.text;
-    final password = passwordController.text;
+  /// Firebase認証エラーのハンドリング
+  Future<void> _handleFirebaseAuthError(FirebaseAuthException e, String email, String password) async {
+    String errorMessage;
+    bool offerSignUp = false;
     
+    switch (e.code) {
+      case 'user-not-found':
+        errorMessage = 'このメールアドレスは登録されていません';
+        offerSignUp = true;
+        break;
+      case 'invalid-credential':
+        errorMessage = 'ログイン情報が正しくありません。アカウントが存在しない可能性があります';
+        offerSignUp = true;
+        break;
+      case 'wrong-password':
+        errorMessage = 'パスワードが間違っています';
+        break;
+      case 'invalid-email':
+        errorMessage = 'メールアドレスの形式が正しくありません';
+        break;
+      case 'too-many-requests':
+        errorMessage = 'ログイン試行回数が多すぎます。しばらく待ってから再試行してください';
+        break;
+      default:
+        errorMessage = 'ログインに失敗しました';
+        offerSignUp = true;
+    }
+    
+    if (offerSignUp) {
+      await _offerSignUp(email);
+    } else {
+      UiHelper.showErrorMessage(context, errorMessage, duration: const Duration(seconds: 4));
+    }
+  }
+
+  /// サインアップを提案
+  Future<void> _offerSignUp(String email) async {
+    // ユーザー名チェック
+    final currentUserName = await _getCurrentUserName();
+    final inputUserName = userNameController.text.trim();
+    
+    if ((currentUserName == null || currentUserName.isEmpty) && inputUserName.isEmpty) {
+      // ユーザー名が未設定の場合
+      if (mounted) {
+        UiHelper.showInfoDialog(
+          context,
+          title: 'ユーザー名が必要です',
+          message: 'サインアップするには、まずユーザー名を設定してください。\n\n画面上部のユーザー名入力欄にお名前を入力してから再度お試しください。',
+        );
+        setState(() {
+          showSignInForm = false;
+        });
+      }
+      return;
+    }
+    
+    // ユーザー名が設定されている場合、サインアップを提案
+    final shouldSignUp = await UiHelper.showConfirmDialog(
+      context,
+      title: 'アカウントが見つかりません',
+      message: 'メールアドレス "$email" は登録されていません。\n新しいアカウントを作成しますか？',
+      confirmText: 'アカウント作成',
+    );
+
+    if (shouldSignUp && mounted) {
+      await _performSignUp();
+    }
+  }
+
+  /// サインアップ処理
+  Future<void> _performSignUp() async {
+    if (!mounted) return;
+    
+    final email = emailController.text.trim();
+    final password = passwordController.text;
+    final userName = userNameController.text.trim();
+    
+    if (email.isEmpty || password.isEmpty) {
+      UiHelper.showWarningMessage(context, 'メールアドレスとパスワードを入力してください');
+      return;
+    }
+    
+    if (userName.isEmpty) {
+      UiHelper.showWarningMessage(context, 'ユーザー名を入力してください');
+      return;
+    }
+
     try {
-      final user = await ref.read(authProvider).signUp(email, password);
-      logger.i('🔧 _performSignUp: signUp完了 - user: $user (type: ${user.runtimeType})');
+      logger.i('🔧 サインアップ開始: $email');
       
-      // Firebase認証では自動的に状態が更新される
-      if (user != null) {
-        logger.i('🔧 _performSignUp: Firebase認証成功 - user: ${user.email}');
+      final userCredential = await AuthenticationService.signUpWithEmailAndPassword(
+        email: email,
+        password: password,
+        userName: userName,
+      );
+      
+      if (userCredential == null) {
+        if (mounted) {
+          UiHelper.showErrorMessage(context, 'アカウント作成に失敗しました');
+        }
+        return;
       }
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('アカウントを作成してログインしました')),
-        );
+        UiHelper.showSuccessMessage(context, 'アカウントを作成してログインしました');
         
-        // サインアップ成功後、ユーザー情報を更新（サインイン処理と同様）
+        // サインアップ成功後の処理
         WidgetsBinding.instance.addPostFrameCallback((_) async {
-          // 認証状態から現在のユーザー名を取得してメールアドレスを更新
-          final authState = ref.read(authStateProvider);
-          String? currentUserName;
+          await userInfoSave();
           
-          authState.whenData((user) {
-            if (user != null) {
-              logger.i('🔧 PostFrameCallback(SignUp): user type = ${user.runtimeType}');
-              logger.i('🔧 PostFrameCallback(SignUp): user.email = ${user.email}');
-              
-              // Firebase User
-              currentUserName = user.displayName;
-              logger.i('🔧 PostFrameCallback(SignUp): Firebase User displayName = "${user.displayName}"');
-              
-              logger.i('🔧 PostFrameCallback(SignUp): 最終的なユーザー名 = "$currentUserName"');
+          // 🎉 サインアップ時に1か月間の無料期間を開始
+          try {
+            await ref.read(subscriptionProvider.notifier).startSignupFreePeriod();
+            logger.i('🎉 サインアップ特典: 1か月間の無料期間を開始しました');
+            
+            if (mounted) {
+              UiHelper.showSuccessMessage(
+                context,
+                '🎉 サインアップありがとうございます！1か月間広告なしでご利用いただけます',
+                duration: const Duration(seconds: 4),
+              );
             }
+          } catch (e) {
+            logger.e('❌ 無料期間開始エラー: $e');
+          }
+          
+          ref.invalidate(selectedGroupProvider);
+          ref.invalidate(allGroupsProvider);
+          await _loadUserNameFromDefaultGroup();
+          // 保存された招待情報があれば自動処理
+          await QrCodeHelper.processPendingInvitation(context, ref, () async {
+            await _loadUserNameFromDefaultGroup();
           });
-          
-          // ユーザー名が取得できない場合は、入力フォームまたは設定から取得
-          if (currentUserName == null || currentUserName!.isEmpty) {
-            currentUserName = userNameController.text;
-            if (currentUserName == null || currentUserName!.isEmpty) {
-              final settingsUserName = ref.read(userNameProvider);
-              if (settingsUserName != null && settingsUserName.isNotEmpty) {
-                currentUserName = settingsUserName;
-                logger.i('🔧 PostFrameCallback(SignUp): 設定からユーザー名取得 = "$currentUserName"');
-              }
-            }
-          }
-          
-          if (currentUserName != null && currentUserName!.isNotEmpty) {
-            logger.i('🔧 サインアップ後のuserInfoSave()を実行します...');
-            await userInfoSave(); // メールアドレスを含む情報を更新
-            
-            // 🎉 サインアップ時に1か月間の無料期間を開始
-            try {
-              await ref.read(subscriptionProvider.notifier).startSignupFreePeriod();
-              logger.i('🎉 サインアップ特典: 1か月間の無料期間を開始しました');
-              
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('🎉 サインアップありがとうございます！1か月間広告なしでご利用いただけます'),
-                    backgroundColor: Colors.green,
-                    duration: Duration(seconds: 4),
-                  ),
-                );
-              }
-            } catch (e) {
-              logger.e('❌ 無料期間開始エラー: $e');
-            }
-            
-            // 強制的にプロバイダーを再読み込みして最新のデータを反映
-            ref.invalidate(selectedGroupProvider); ref.invalidate(allGroupsProvider);
-            
-            logger.i('🔧 サインアップ後のユーザー情報更新完了');
-          } else {
-            logger.w('🔧 認証済みユーザー名が取得できないため、userInfoSave()をスキップします');
-          }
-          _loadUserNameFromDefaultGroup();
         });
         
         // フォームをリセット
@@ -1588,356 +1164,75 @@ class _HomePageState extends ConsumerState<HomePage> {
         emailController.clear();
         passwordController.clear();
       }
-    } catch (e) {
+    } on FirebaseAuthException catch (e) {
+      logger.e('🚨 Firebase認証エラー: ${e.code} - ${e.message}');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('アカウント作成に失敗しました: $e')),
-        );
+        String errorMessage;
+        switch (e.code) {
+          case 'email-already-in-use':
+            errorMessage = 'このメールアドレスは既に使用されています';
+            break;
+          case 'invalid-email':
+            errorMessage = 'メールアドレスの形式が正しくありません';
+            break;
+          case 'weak-password':
+            errorMessage = 'パスワードが弱すぎます。より強力なパスワードを入力してください';
+            break;
+          default:
+            errorMessage = 'アカウント作成に失敗しました: ${e.message}';
+        }
+        UiHelper.showErrorMessage(context, errorMessage, duration: const Duration(seconds: 4));
+      }
+    } catch (e, stackTrace) {
+      logger.e('🚨 サインアップ失敗: $e\n$stackTrace');
+      if (mounted) {
+        UiHelper.showErrorMessage(context, 'アカウント作成に失敗しました: $e');
       }
     }
   }
 
+  /// ユーザー情報を保存(デフォルトグループ、ShoppingList、UserSettings)
   Future<void> userInfoSave() async {
-    logger.i('🚀 userInfoSave() 開始');
+    final userInfoService = ref.read(userInfoServiceProvider);
+    final result = await userInfoService.saveUserInfo(
+      userNameFromForm: userNameController.text,
+      emailFromForm: emailController.text,
+    );
     
-    // ユーザー名を複数の方法で取得（優先順位付き）
-    String userName = '';
-    
-    // 1. まずフォームから取得
-    if (userNameController.text.trim().isNotEmpty) {
-      userName = userNameController.text.trim();
-      logger.i('🚀 userInfoSave: フォームからユーザー名取得 = "$userName"');
-    }
-    
-    // 2. フォームが空の場合、設定から取得
-    if (userName.isEmpty) {
-      final settingsUserName = ref.read(userNameProvider);
-      if (settingsUserName != null && settingsUserName.isNotEmpty) {
-        userName = settingsUserName;
-        logger.i('🚀 userInfoSave: 設定からユーザー名取得 = "$userName"');
-      }
-    }
-    
-    // 3. それでも空の場合、認証状態から取得
-    if (userName.isEmpty) {
-      final authState = ref.read(authStateProvider);
-      await authState.when(
-        data: (user) async {
-          if (user != null && user.displayName != null && user.displayName!.isNotEmpty) {
-            userName = user.displayName!;
-            logger.i('🚀 userInfoSave: 認証状態からユーザー名取得 = "$userName"');
-          }
-        },
-        loading: () async {},
-        error: (error, stack) async {},
-      );
-    }
-    
-    logger.i('🚀 userInfoSave() - 使用するユーザー名: "$userName"');
-    
-    if (userName.isNotEmpty) {
-      try {
-        const groupId = 'defaultGroup';
-        
-        // 現在の認証状態から実際のメールアドレスを取得（非同期対応）
-        String userEmail = 'default@example.com'; // デフォルト値
-        
-        try {
-          // デバッグ: 複数の認証状態をチェック
-          logger.i('🔍 userInfoSave: 認証状態をデバッグ開始');
-          
-          // 1. authStateProviderから確認
-          final authState = ref.read(authStateProvider);
-          logger.i('🔍 authStateProvider状態: $authState');
-          
-          final currentUser = await authState.when(
-            data: (user) async {
-              logger.i('🔍 authStateProvider.data: $user (type: ${user.runtimeType})');
-              if (user != null) {
-                logger.i('🔍 user.email: ${user.email}');
-                logger.i('🔍 user.uid: ${user.uid}');
-                // Firebase User
-                logger.i('🔍 Firebase User.displayName: ${user.displayName}');
-              }
-              return user;
-            },
-            loading: () async {
-              logger.i('🔍 authStateProvider.loading');
-              return null;
-            },
-            error: (err, stack) async {
-              logger.i('🔍 authStateProvider.error: $err');
-              return null;
-            },
-          );
-          
-          // 2. 直接authProviderから確認
-          final authService = ref.read(authProvider);
-          final directUser = authService.currentUser;
-          logger.i('🔍 authProvider.currentUser: $directUser (type: ${directUser.runtimeType})');
-          if (directUser != null) {
-            logger.i('🔍 directUser.email: ${directUser.email}');
-          }
-          
-          // 3. Firebase認証状態を確認
-          logger.i('🔍 Firebase Auth User: $directUser');
-          
-          // 実際のメールアドレスを決定
-          String? actualEmail;
-          
-          if (currentUser != null) {
-            actualEmail = _getUserEmail(currentUser);
-            logger.i('🔍 _getUserEmail(currentUser): $actualEmail');
-          }
-          
-          // もし空の場合、直接認証サービスから取得
-          if ((actualEmail == null || actualEmail.isEmpty) && directUser != null) {
-            actualEmail = _getUserEmail(directUser);
-            logger.i('🔍 _getUserEmail(directUser): $actualEmail');
-          }
-          
-          // メールアドレスの設定
-          if (actualEmail != null && actualEmail.isNotEmpty) {
-            userEmail = actualEmail;
-            logger.i('userInfoSave: 認証済みユーザーのメールアドレス: $userEmail');
-          } else {
-            // DEV環境では入力されたメールアドレスを使用
-            if (emailController.text.isNotEmpty) {
-              userEmail = emailController.text;
-              logger.i('userInfoSave: フォーム入力のメールアドレスを使用: $userEmail');
-            } else {
-              logger.i('userInfoSave: メールアドレスが取得できないため、デフォルトを使用: $userEmail');
-            }
-          }
-        } catch (e) {
-          logger.w('userInfoSave: 認証状態取得エラー、デフォルトメールアドレスを使用: $e');
-        }
-        
-        // 既存のデフォルトグループを取得
-        PurchaseGroup? existingGroup;
-        try {
-          final groupAsync = ref.read(selectedGroupProvider);
-          existingGroup = groupAsync.value;
-        } catch (e) {
-          // グループが存在しない場合はnull
-          existingGroup = null;
-        }
-        
-        PurchaseGroup defaultGroup;
-        if (existingGroup != null) {
-          logger.i('userInfoSave: 既存グループを更新 - ユーザー名: $userName');
-          
-          // 新しいサインインユーザーを必ずオーナーにする
-          final updatedMembers = <PurchaseGroupMember>[];
-          
-          // 既存のメンバーから非オーナーのみを保持
-          for (var member in (existingGroup.members ?? [])) {
-            if (member.role != PurchaseGroupRole.owner) {
-              updatedMembers.add(member);
-              logger.i('userInfoSave: 非オーナーメンバーを保持: ${member.name} (${member.role})');
-            } else {
-              logger.i('userInfoSave: 既存オーナーを削除: ${member.name}');
-            }
-          }
-          
-          // 新しいオーナーを追加
-          updatedMembers.add(PurchaseGroupMember(
-            memberId: 'defaultUser',
-            name: userName,
-            contact: userEmail,
-            role: PurchaseGroupRole.owner,
-            isSignedIn: true,
-          ));
-          logger.i('userInfoSave: 新しいオーナーを追加: $userName ($userEmail)');
-          
-          logger.i('userInfoSave: 更新後のメンバー数: ${updatedMembers.length}');
-          for (var member in updatedMembers) {
-            logger.i('  - ${member.name} (${member.role}) - ${member.contact}');
-          }
-          
-          defaultGroup = existingGroup.copyWith(
-            members: updatedMembers,
-            ownerName: userName,
-            ownerEmail: userEmail,
-            ownerUid: 'defaultUser',
-          );
-        } else {
-          // 新しいデフォルトグループを作成
-          defaultGroup = PurchaseGroup(
-            groupId: groupId,
-            groupName: 'あなたのグループ',
-            members: [
-              PurchaseGroupMember(
-                memberId: 'defaultUser',
-                name: userName,
-                contact: userEmail, // 動的に取得したメールアドレスを使用
-                role: PurchaseGroupRole.owner,
-                isSignedIn: true,
-              )
-            ],
-          );
-        }
-        
-        // デフォルトShoppingListを作成（既存の場合は更新しない）
-        try {
-          final existingShoppingList = await ref.read(shoppingListProvider.future);
-          logger.i('userInfoSave: 既存のShoppingListを発見: ${existingShoppingList.items.length}個のアイテム');
-          for (var item in existingShoppingList.items) {
-            logger.i('  - ${item.name} (数量: ${item.quantity}, 購入済み: ${item.isPurchased})');
-          }
-          // 既に存在する場合は何もしない
-        } catch (e) {
-          logger.i('userInfoSave: ShoppingListが存在しないため新規作成します');
-          // 存在しない場合のみ作成
-          final defaultShoppingList = ShoppingList.create(
-            ownerUid: 'defaultUser',
-            groupId: groupId,
-            groupName: 'あなたのグループ',
-            listName: 'メインリスト',
-            items: [
-              ShoppingItem.createNow(
-                memberId: 'defaultUser',
-                name: 'サンプル商品',
-                quantity: 1,
-              ),
-            ],
-          );
-          await ref.read(shoppingListProvider.notifier).updateShoppingList(defaultShoppingList);
-          logger.i('userInfoSave: デフォルトShoppingListを作成しました（サンプル商品含む）');
-        }
-        
-        // 購入グループを保存
-        await ref.read(selectedGroupNotifierProvider.notifier).updateGroup(defaultGroup);
-        logger.i('userInfoSave: デフォルトグループ保存完了');
-        
-        // 🌟 新機能: 全グループで同じUID/メールアドレスのメンバー名を更新
-        await _updateUserNameInAllGroups(userName, userEmail);
-        
-        // ユーザー名プロバイダーにも保存（重要！）
-        await ref.read(userNameNotifierProvider.notifier).setUserName(userName);
-        logger.i('userInfoSave: ユーザー名プロバイダー保存完了');
-        
-        // 保存後の確認ログ
-        try {
-          final savedGroupAsync = ref.read(selectedGroupProvider);
-          final savedGroup = savedGroupAsync.value;
-          final ownerMember = savedGroup?.members?.firstWhere((m) => m.role == PurchaseGroupRole.owner);
-          logger.i('userInfoSave確認: 保存後のownerメンバー - 名前: ${ownerMember?.name}, メール: ${ownerMember?.contact}');
-        } catch (e) {
-          logger.w('userInfoSave確認: 保存確認でエラー: $e');
-        }
-        
-        // デバッグ用ログ
-        logger.i('userInfoSave: ユーザー名 "$userName" で デフォルトグループを更新しました');
-        logger.i('userInfoSave: プロバイダーにもユーザー名 "$userName" を保存しました');
-        logger.i('userInfoSave: 使用したメールアドレス: $userEmail');
-        
-        // UserSettingsにもユーザー情報を保存
-        logger.i('userInfoSave: UserSettingsにユーザー情報を保存開始');
-        try {
-          final userSettingsRepository = ref.read(userSettingsRepositoryProvider);
-          await userSettingsRepository.updateUserName(userName);
-          await userSettingsRepository.updateUserEmail(userEmail);
-          logger.i('userInfoSave: UserSettings保存完了 - 名前: $userName, メール: $userEmail');
-        } catch (e) {
-          logger.w('userInfoSave: UserSettings保存エラー: $e');
-        }
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('ユーザー情報を保存しました')),
-          );
-        }
-      } catch (e) {
-        // エラーメッセージ
-        logger.i('userInfoSave エラー: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('保存に失敗しました: $e')),
-          );
-        }
-      }
-    } else {
-      // 入力不足のメッセージ
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('ユーザー名を入力してください')),
-        );
+    if (mounted) {
+      if (result.success) {
+        UiHelper.showSuccessMessage(context, result.message);
+      } else {
+        UiHelper.showWarningMessage(context, result.message);
       }
     }
   }
 
   /// パスワードリセットメール送信
+  /// パスワードリセットメールを送信
   Future<void> _sendPasswordResetEmail() async {
     final email = emailController.text.trim();
     
-    if (email.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('パスワードリセットにはメールアドレスが必要です'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
-      return;
-    }
-
-    if (!email.contains('@')) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('有効なメールアドレスを入力してください'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-      return;
-    }
-
     setState(() {
       _isPasswordResetLoading = true;
     });
 
     try {
-      // Firebase Auth パスワードリセット
-      if (F.appFlavor == Flavor.prod) {
-        await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-      } else {
-        // Dev環境では模擬処理
-        await Future.delayed(const Duration(seconds: 1));
-        logger.i('🔄 Dev環境: パスワードリセットメール送信模擬完了');
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('パスワードリセットメールを $email に送信しました'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
-    } catch (e) {
-      logger.e('❌ パスワードリセット送信エラー: $e');
+      final passwordResetService = PasswordResetService();
+      final result = await passwordResetService.sendPasswordResetEmail(email);
       
-      String errorMessage = 'パスワードリセットに失敗しました';
-      if (e.toString().contains('user-not-found')) {
-        errorMessage = 'このメールアドレスは登録されていません';
-      } else if (e.toString().contains('invalid-email')) {
-        errorMessage = 'メールアドレスの形式が正しくありません';
-      } else if (e.toString().contains('too-many-requests')) {
-        errorMessage = 'リクエストが多すぎます。しばらく待ってから再試行してください';
-      }
-
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
-          ),
-        );
+        switch (result.severity) {
+          case MessageSeverity.success:
+            UiHelper.showSuccessMessage(context, result.message, duration: const Duration(seconds: 4));
+            break;
+          case MessageSeverity.warning:
+            UiHelper.showWarningMessage(context, result.message);
+            break;
+          case MessageSeverity.error:
+            UiHelper.showErrorMessage(context, result.message, duration: const Duration(seconds: 4));
+            break;
+        }
       }
     } finally {
       if (mounted) {
@@ -1949,123 +1244,42 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   /// 🔥 Firebase包括診断
+  /// Firebase完全診断を実行
   Future<void> _runFirebaseDiagnostics() async {
-    try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('🩺 Firebase完全診断開始...'),
-          backgroundColor: Colors.orange,
-        ),
+    UiHelper.showInfoSnackBar(
+      context,
+      DiagnosticsResult.startMessage,
+      backgroundColor: Colors.orange,
+    );
+    
+    final result = await FirebaseDiagnosticsService.runFullDiagnostics();
+    
+    if (mounted) {
+      UiHelper.showInfoSnackBar(
+        context,
+        result.userMessage,
+        backgroundColor: result.isHealthy ? Colors.green : Colors.orange,
+        duration: const Duration(seconds: 4),
       );
-
-      logger.i('🩺 === Firebase完全診断開始 ===');
-      
-      // Firebase診断実行
-      final diagnostics = await FirebaseDiagnostics.runDiagnostics();
-      final solutions = FirebaseDiagnostics.getSolutions(diagnostics);
-      
-      // 結果をログ出力
-      logger.i('📊 診断結果:');
-      diagnostics.forEach((key, value) {
-        logger.i('  $key: $value');
-      });
-      
-      logger.i('💡 推奨解決策:');
-      for (final solution in solutions) {
-        logger.i('  $solution');
-      }
-      
-      // UI表示
-      if (mounted) {
-        final isHealthy = diagnostics['firestore_connection'] == true && 
-                         diagnostics['firestore_write'] == true;
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              isHealthy 
-                ? '✅ Firebase診断完了: 全て正常'
-                : '⚠️ Firebase診断完了: 問題を検出 (コンソール確認)'
-            ),
-            backgroundColor: isHealthy ? Colors.green : Colors.orange,
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
-      
-    } catch (e) {
-      logger.i('⛔ Firebase診断エラー: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Firebase診断失敗: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
     }
   }
 
-  /// 🔥 Firebase接続テスト
+  /// Firebase接続テストを実行
   Future<void> _firebaseConnectionTest() async {
-    try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('🔍 Firebase接続テスト開始...'),
-          backgroundColor: Colors.blue,
-        ),
+    UiHelper.showInfoSnackBar(
+      context,
+      ConnectionTestResult.startMessage,
+      backgroundColor: Colors.blue,
+    );
+    
+    final result = await FirebaseDiagnosticsService.runConnectionTest();
+    
+    if (mounted) {
+      UiHelper.showInfoSnackBar(
+        context,
+        result.detailMessage,
+        backgroundColor: result.success ? Colors.green : Colors.red,
       );
-
-      // Firestoreインスタンスを取得
-      final firestore = FirebaseFirestore.instance;
-      
-      // テスト用ドキュメントを作成
-      final testDocRef = firestore
-          .collection('connection_test')
-          .doc('test_${DateTime.now().millisecondsSinceEpoch}');
-      
-      logger.i('🔥 Firebase接続テスト: Firestoreへの書き込みを試行中...');
-      
-      // Firestoreに書き込み
-      await testDocRef.set({
-        'timestamp': FieldValue.serverTimestamp(),
-        'test_data': 'Firebase connection test from Go Shop app',
-        'user_agent': 'Flutter Web',
-      });
-      
-      logger.i('✅ Firebase接続テスト: 書き込み成功');
-      
-      // 書き込み直後に読み込みテスト
-      final doc = await testDocRef.get();
-      if (doc.exists) {
-        logger.i('✅ Firebase接続テスト: 読み込み成功');
-        logger.i('📄 Document data: ${doc.data()}');
-        
-        // テスト用ドキュメントを削除
-        await testDocRef.delete();
-        logger.i('🗑️ Firebase接続テスト: クリーンアップ完了');
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✅ Firebase接続テスト成功！読み書き共に正常'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } else {
-        throw Exception('Document was not created');
-      }
-    } catch (e) {
-      logger.i('⛔ Firebase接続テストエラー: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Firebase接続テスト失敗: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
     }
   }
 
@@ -2103,76 +1317,5 @@ class _HomePageState extends ConsumerState<HomePage> {
         const Text('© 2024 Go Shop. All rights reserved.'),
       ],
     );
-  }
-
-  /// QRコード読み取りダイアログを表示（招待受け取り用）
-  void _showQrCodeScanDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('QRコード招待'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.qr_code_scanner,
-              size: 64,
-              color: Colors.blue,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'グループ招待QRコードをスキャンして\nグループに参加できます',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _scanQrCode(context, ref);
-              },
-              child: const Text('QRコードをスキャン'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('キャンセル'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// QRコードスキャン処理
-  Future<void> _scanQrCode(BuildContext context, WidgetRef ref) async {
-    try {
-      // TODO: 実際のQRコードスキャン実装
-      // 現在はデモ用のダイアログを表示
-      if (context.mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('開発中'),
-            content: const Text('QRコードスキャン機能は開発中です。\n手動で招待コードを入力する機能を実装予定です。'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('QRコードスキャンエラー: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
   }
 }

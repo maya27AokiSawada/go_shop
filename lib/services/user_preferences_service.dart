@@ -1,0 +1,156 @@
+// lib/services/user_preferences_service.dart
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// ユーザーの基本情報をSharedPreferencesで管理するサービス
+class UserPreferencesService {
+  static const String _keyUserName = 'user_name';
+  static const String _keyUserEmail = 'user_email';
+  static const String _keyDataVersion = 'data_version';
+  static const String _keyUserId = 'user_id';
+
+  /// ユーザー名を取得
+  static Future<String?> getUserName() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userName = prefs.getString(_keyUserName);
+      print('📱 SharedPreferences getUserName: $userName');
+      return userName;
+    } catch (e) {
+      print('❌ SharedPreferences getUserName エラー: $e');
+      return null;
+    }
+  }
+
+  /// ユーザー名を保存
+  static Future<bool> saveUserName(String userName) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final success = await prefs.setString(_keyUserName, userName);
+      print('💾 SharedPreferences saveUserName: $userName - 成功: $success');
+      return success;
+    } catch (e) {
+      print('❌ SharedPreferences saveUserName エラー: $e');
+      return false;
+    }
+  }
+
+  /// メールアドレスを取得
+  static Future<String?> getUserEmail() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userEmail = prefs.getString(_keyUserEmail);
+      print('📱 SharedPreferences getUserEmail: $userEmail');
+      return userEmail;
+    } catch (e) {
+      print('❌ SharedPreferences getUserEmail エラー: $e');
+      return null;
+    }
+  }
+
+  /// メールアドレスを保存
+  static Future<bool> saveUserEmail(String userEmail) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final success = await prefs.setString(_keyUserEmail, userEmail);
+      print('💾 SharedPreferences saveUserEmail: $userEmail - 成功: $success');
+      return success;
+    } catch (e) {
+      print('❌ SharedPreferences saveUserEmail エラー: $e');
+      return false;
+    }
+  }
+
+  /// ユーザーIDを取得
+  static Future<String?> getUserId() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString(_keyUserId);
+      print('📱 SharedPreferences getUserId: $userId');
+      return userId;
+    } catch (e) {
+      print('❌ SharedPreferences getUserId エラー: $e');
+      return null;
+    }
+  }
+
+  /// ユーザーIDを保存
+  static Future<bool> saveUserId(String userId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final success = await prefs.setString(_keyUserId, userId);
+      print('💾 SharedPreferences saveUserId: $userId - 成功: $success');
+      return success;
+    } catch (e) {
+      print('❌ SharedPreferences saveUserId エラー: $e');
+      return false;
+    }
+  }
+
+  /// データバージョンを取得
+  static Future<int> getDataVersion() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final version = prefs.getInt(_keyDataVersion) ?? 1; // デフォルト値 1
+      print('📱 SharedPreferences getDataVersion: $version');
+      return version;
+    } catch (e) {
+      print('❌ SharedPreferences getDataVersion エラー: $e');
+      return 1; // エラー時はバージョン1を返す
+    }
+  }
+
+  /// データバージョンを保存
+  static Future<bool> saveDataVersion(int version) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final success = await prefs.setInt(_keyDataVersion, version);
+      print('💾 SharedPreferences saveDataVersion: $version - 成功: $success');
+      return success;
+    } catch (e) {
+      print('❌ SharedPreferences saveDataVersion エラー: $e');
+      return false;
+    }
+  }
+
+  /// ユーザー情報をすべて取得
+  static Future<Map<String, dynamic>> getAllUserInfo() async {
+    return {
+      'userName': await getUserName(),
+      'userEmail': await getUserEmail(),
+      'userId': await getUserId(),
+      'dataVersion': await getDataVersion(),
+    };
+  }
+
+  /// ユーザー情報をすべてクリア
+  static Future<bool> clearAllUserInfo() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_keyUserName);
+      await prefs.remove(_keyUserEmail);
+      await prefs.remove(_keyUserId);
+      // データバージョンは削除しない（次回起動時の判定に必要）
+      print('🗑️ SharedPreferences 全ユーザー情報をクリア完了');
+      return true;
+    } catch (e) {
+      print('❌ SharedPreferences clearAllUserInfo エラー: $e');
+      return false;
+    }
+  }
+
+  /// 完全リセット（データバージョンも含めてすべて削除）
+  static Future<bool> completeReset() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_keyUserName);
+      await prefs.remove(_keyUserEmail);
+      await prefs.remove(_keyUserId);
+      await prefs.remove(_keyDataVersion);
+      print('🔥 SharedPreferences 完全リセット完了');
+      return true;
+    } catch (e) {
+      print('❌ SharedPreferences completeReset エラー: $e');
+      return false;
+    }
+  }
+}
