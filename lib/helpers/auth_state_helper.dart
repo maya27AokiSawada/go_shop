@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:logger/logger.dart';
 
 class AuthStateHelper {
-  static final Logger logger = Logger();
+  
 
   /// 認証状態に基づいてUI機能を制限する
   static bool canUseAdvancedFeatures(User? user) {

@@ -1,6 +1,7 @@
 // lib/services/password_reset_service.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
+import '../utils/app_logger.dart';
 import '../flavors.dart';
 
 /// パスワードリセット処理を管理するサービス
@@ -35,7 +36,7 @@ class PasswordResetService {
       } else {
         // Dev環境では模擬処理
         await Future.delayed(const Duration(seconds: 1));
-        _logger.i('🔄 Dev環境: パスワードリセットメール送信模擬完了');
+        Log.info('🔄 Dev環境: パスワードリセットメール送信模擬完了');
       }
 
       return PasswordResetResult(
@@ -45,7 +46,7 @@ class PasswordResetService {
       );
       
     } catch (e) {
-      _logger.e('❌ パスワードリセット送信エラー: $e');
+      Log.error('❌ パスワードリセット送信エラー: $e');
       
       String errorMessage = 'パスワードリセットに失敗しました';
       if (e.toString().contains('user-not-found')) {

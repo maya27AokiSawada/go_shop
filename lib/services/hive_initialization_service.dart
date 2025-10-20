@@ -4,6 +4,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:logger/logger.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
+import '../utils/app_logger.dart';
 import '../models/purchase_group.dart';
 import '../models/shopping_list.dart';
 import '../models/user_settings.dart';
@@ -14,16 +15,16 @@ import 'user_specific_hive_service.dart';
 
 /// Hive初期化を統合管理するサービス
 class HiveInitializationService {
-  static final Logger _logger = Logger();
+  
 
   /// Hiveを初期化（アダプター登録、Box開封、データバージョンチェック）
   static Future<void> initialize() async {
     try {
-      _logger.i('🔧 Hive初期化開始');
+      Log.info('🔧 Hive初期化開始');
       
       // 1. Hiveの基本初期化
       await Hive.initFlutter();
-      _logger.i('✅ Hive基本初期化完了');
+      Log.info('✅ Hive基本初期化完了');
       
       // 2. アダプター登録
       await _registerAdapters();
@@ -33,16 +34,16 @@ class HiveInitializationService {
       final wasCleared = await dataVersionService.checkAndMigrateData();
       
       if (wasCleared) {
-        _logger.i('🔄 データがクリアされたため、デフォルトBoxを開きます');
+        Log.info('🔄 データがクリアされたため、デフォルトBoxを開きます');
       }
       
       // 4. デフォルトBoxを開く
       await _openDefaultBoxes();
       
-      _logger.i('✅ Hive初期化完了');
+      Log.info('✅ Hive初期化完了');
     } catch (e, stackTrace) {
-      _logger.e('❌ Hive初期化エラー: $e');
-      _logger.e('スタックトレース: $stackTrace');
+      Log.error('❌ Hive初期化エラー: $e');
+      Log.error('スタックトレース: $stackTrace');
       rethrow;
     }
   }
@@ -53,12 +54,12 @@ class HiveInitializationService {
     required WidgetRef ref,
   }) async {
     try {
-      _logger.i('👤 ユーザー固有Hive初期化開始: UID=$userId');
+      Log.info('👤 ユーザー固有Hive初期化開始: UID=$userId');
       
       // Windows版のみユーザー固有のHiveサブディレクトリを使用
       if (Platform.isWindows) {
         await UserSpecificHiveService.instance.initializeForUser(userId);
-        _logger.i('✅ Windows版: ユーザー固有Hiveに切り替え完了');
+        Log.info('✅ Windows版: ユーザー固有Hiveに切り替え完了');
         
         // プロバイダーの無効化を遅延させて競合を回避
         await Future.delayed(const Duration(milliseconds: 500));
@@ -68,21 +69,21 @@ class HiveInitializationService {
         await Future.delayed(const Duration(milliseconds: 500));
         ref.invalidate(hive_provider.userSettingsBoxProvider);
         
-        _logger.i('✅ プロバイダー無効化完了');
+        Log.info('✅ プロバイダー無効化完了');
       } else {
-        _logger.i('ℹ️ Android/iOS版: 既存のHiveをそのまま使用');
+        Log.info('ℹ️ Android/iOS版: 既存のHiveをそのまま使用');
       }
       
     } catch (e, stackTrace) {
-      _logger.e('❌ ユーザー固有Hive初期化エラー: $e');
-      _logger.e('スタックトレース: $stackTrace');
+      Log.error('❌ ユーザー固有Hive初期化エラー: $e');
+      Log.error('スタックトレース: $stackTrace');
     }
   }
 
   /// 全Hiveデータをクリア（デバッグ用）
   static Future<void> clearAllData() async {
     try {
-      _logger.i('🗑️ 全Hiveデータクリア開始');
+      Log.info('🗑️ 全Hiveデータクリア開始');
       
       // 開いている全てのBoxを閉じる
       await Hive.close();
@@ -93,19 +94,19 @@ class HiveInitializationService {
         final hiveDir = Directory('${appDocDir.path}/hive');
         if (await hiveDir.exists()) {
           await hiveDir.delete(recursive: true);
-          _logger.i('✅ Hiveディレクトリ削除完了');
+          Log.info('✅ Hiveディレクトリ削除完了');
         }
       } catch (e) {
-        _logger.w('⚠️ Hiveディレクトリ削除中にエラー: $e');
+        Log.warning('⚠️ Hiveディレクトリ削除中にエラー: $e');
       }
       
       // 再初期化
       await initialize();
       
-      _logger.i('✅ 全Hiveデータクリア完了');
+      Log.info('✅ 全Hiveデータクリア完了');
     } catch (e, stackTrace) {
-      _logger.e('❌ Hiveデータクリアエラー: $e');
-      _logger.e('スタックトレース: $stackTrace');
+      Log.error('❌ Hiveデータクリアエラー: $e');
+      Log.error('スタックトレース: $stackTrace');
       rethrow;
     }
   }
@@ -113,50 +114,50 @@ class HiveInitializationService {
   /// Hiveアダプターを登録
   static Future<void> _registerAdapters() async {
     try {
-      _logger.i('📦 Hiveアダプター登録開始');
+      Log.info('📦 Hiveアダプター登録開始');
       
       // PurchaseGroup関連
       if (!Hive.isAdapterRegistered(0)) {
         Hive.registerAdapter(PurchaseGroupRoleAdapter());
-        _logger.i('  ✅ PurchaseGroupRoleAdapter (typeId: 0) 登録');
+        Log.info('  ✅ PurchaseGroupRoleAdapter (typeId: 0) 登録');
       }
       
       if (!Hive.isAdapterRegistered(1)) {
         Hive.registerAdapter(PurchaseGroupMemberAdapter());
-        _logger.i('  ✅ PurchaseGroupMemberAdapter (typeId: 1) 登録');
+        Log.info('  ✅ PurchaseGroupMemberAdapter (typeId: 1) 登録');
       }
       
       if (!Hive.isAdapterRegistered(2)) {
         Hive.registerAdapter(PurchaseGroupAdapter());
-        _logger.i('  ✅ PurchaseGroupAdapter (typeId: 2) 登録');
+        Log.info('  ✅ PurchaseGroupAdapter (typeId: 2) 登録');
       }
       
       // ShoppingList関連
       if (!Hive.isAdapterRegistered(3)) {
         Hive.registerAdapter(ShoppingItemAdapter());
-        _logger.i('  ✅ ShoppingItemAdapter (typeId: 3) 登録');
+        Log.info('  ✅ ShoppingItemAdapter (typeId: 3) 登録');
       }
       
       if (!Hive.isAdapterRegistered(4)) {
         Hive.registerAdapter(ShoppingListAdapter());
-        _logger.i('  ✅ ShoppingListAdapter (typeId: 4) 登録');
+        Log.info('  ✅ ShoppingListAdapter (typeId: 4) 登録');
       }
       
       // UserSettings
       if (!Hive.isAdapterRegistered(5)) {
         Hive.registerAdapter(UserSettingsAdapter());
-        _logger.i('  ✅ UserSettingsAdapter (typeId: 5) 登録');
+        Log.info('  ✅ UserSettingsAdapter (typeId: 5) 登録');
       }
       
       // InvitationStatus（新規追加）
       if (!Hive.isAdapterRegistered(8)) {
         Hive.registerAdapter(InvitationStatusAdapter());
-        _logger.i('  ✅ InvitationStatusAdapter (typeId: 8) 登録');
+        Log.info('  ✅ InvitationStatusAdapter (typeId: 8) 登録');
       }
       
-      _logger.i('✅ Hiveアダプター登録完了');
+      Log.info('✅ Hiveアダプター登録完了');
     } catch (e) {
-      _logger.e('❌ Hiveアダプター登録エラー: $e');
+      Log.error('❌ Hiveアダプター登録エラー: $e');
       rethrow;
     }
   }
@@ -164,29 +165,29 @@ class HiveInitializationService {
   /// デフォルトBoxを開く
   static Future<void> _openDefaultBoxes() async {
     try {
-      _logger.i('📂 デフォルトBox開封開始');
+      Log.info('📂 デフォルトBox開封開始');
       
       // PurchaseGroupBox
       if (!Hive.isBoxOpen('purchaseGroupBox')) {
         await Hive.openBox<PurchaseGroup>('purchaseGroupBox');
-        _logger.i('  ✅ purchaseGroupBox 開封完了');
+        Log.info('  ✅ purchaseGroupBox 開封完了');
       }
       
       // ShoppingListBox
       if (!Hive.isBoxOpen('shoppingListBox')) {
         await Hive.openBox<ShoppingList>('shoppingListBox');
-        _logger.i('  ✅ shoppingListBox 開封完了');
+        Log.info('  ✅ shoppingListBox 開封完了');
       }
       
       // UserSettingsBox
       if (!Hive.isBoxOpen('userSettingsBox')) {
         await Hive.openBox<UserSettings>('userSettingsBox');
-        _logger.i('  ✅ userSettingsBox 開封完了');
+        Log.info('  ✅ userSettingsBox 開封完了');
       }
       
-      _logger.i('✅ デフォルトBox開封完了');
+      Log.info('✅ デフォルトBox開封完了');
     } catch (e) {
-      _logger.e('❌ デフォルトBox開封エラー: $e');
+      Log.error('❌ デフォルトBox開封エラー: $e');
       rethrow;
     }
   }
@@ -201,21 +202,21 @@ class HiveInitializationService {
     try {
       if (Hive.isBoxOpen(boxName)) {
         await Hive.box(boxName).close();
-        _logger.i('📦 Box[$boxName]を閉じました');
+        Log.info('📦 Box[$boxName]を閉じました');
       }
     } catch (e) {
-      _logger.e('❌ Box[$boxName]のクローズエラー: $e');
+      Log.error('❌ Box[$boxName]のクローズエラー: $e');
     }
   }
 
   /// 全てのBoxを閉じる
   static Future<void> closeAllBoxes() async {
     try {
-      _logger.i('🔒 全Boxクローズ開始');
+      Log.info('🔒 全Boxクローズ開始');
       await Hive.close();
-      _logger.i('✅ 全Boxクローズ完了');
+      Log.info('✅ 全Boxクローズ完了');
     } catch (e) {
-      _logger.e('❌ 全Boxクローズエラー: $e');
+      Log.error('❌ 全Boxクローズエラー: $e');
     }
   }
 }

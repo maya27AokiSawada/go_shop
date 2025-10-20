@@ -1,6 +1,7 @@
 import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import '../utils/app_logger.dart';
 import 'user_preferences_service.dart';
 
 /// データバージョン管理サービス
@@ -22,15 +23,24 @@ class DataVersionService {
   /// 現在のデータバージョンを取得
   static int get currentDataVersion => _currentDataVersion;
   
+  /// バージョン番号を文字列として取得
+  static String get currentVersionString => _currentDataVersion.toString();
+  
+  /// 保存されているバージョンを文字列として取得
+  Future<String> getSavedVersionString() async {
+    final version = await getSavedDataVersion();
+    return version.toString();
+  }
+  
   /// 保存されているデータバージョンを取得
   Future<int> getSavedDataVersion() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final version = prefs.getInt(_dataVersionKey) ?? 1; // デフォルトは1
-      _logger.i('📊 保存されているデータバージョン: $version');
+      Log.info('📊 保存されているデータバージョン: $version');
       return version;
     } catch (e) {
-      _logger.e('❌ データバージョン取得エラー: $e');
+      Log.error('❌ データバージョン取得エラー: $e');
       return 1; // エラー時はバージョン1とみなす
     }
   }
@@ -40,9 +50,9 @@ class DataVersionService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(_dataVersionKey, version);
-      _logger.i('✅ データバージョン保存完了: $version');
+      Log.info('✅ データバージョン保存完了: $version');
     } catch (e) {
-      _logger.e('❌ データバージョン保存エラー: $e');
+      Log.error('❌ データバージョン保存エラー: $e');
     }
   }
   
@@ -53,31 +63,31 @@ class DataVersionService {
       final savedVersion = await UserPreferencesService.getDataVersion();
       final currentVersion = currentDataVersion;
       
-      _logger.i('🔍 データバージョンチェック: 保存済み=$savedVersion, 現在=$currentVersion');
+      Log.info('🔍 データバージョンチェック: 保存済み=$savedVersion, 現在=$currentVersion');
       
       if (savedVersion < currentVersion) {
-        _logger.w('⚠️ データバージョンが古いため、データを削除して新規作成します');
-        _logger.i('🔮 TODO: Playストア公開時にマイグレーション機能を実装予定');
-        _logger.i('   - v1→v2: InvitationStatus.pendingをデフォルト値として設定');
-        _logger.i('   - 既存メンバーのroleベースでinvitationStatus適切設定');
-        _logger.i('   - データ構造の段階的変換とロールバック機能');
+        Log.warning('⚠️ データバージョンが古いため、データを削除して新規作成します');
+        Log.info('🔮 TODO: Playストア公開時にマイグレーション機能を実装予定');
+        Log.info('   - v1→v2: InvitationStatus.pendingをデフォルト値として設定');
+        Log.info('   - 既存メンバーのroleベースでinvitationStatus適切設定');
+        Log.info('   - データ構造の段階的変換とロールバック機能');
         
         await _clearAllHiveData();
         await UserPreferencesService.clearAllUserInfo(); // ユーザー名とメールもクリア
         await UserPreferencesService.saveDataVersion(currentVersion);
         return true; // データ削除が実行された
       } else if (savedVersion > currentVersion) {
-        _logger.w('⚠️ 保存されているデータバージョンが新しすぎます。現在バージョンに合わせます');
+        Log.warning('⚠️ 保存されているデータバージョンが新しすぎます。現在バージョンに合わせます');
         await _clearAllHiveData();
         await UserPreferencesService.clearAllUserInfo(); // ユーザー名とメールもクリア
         await UserPreferencesService.saveDataVersion(currentVersion);
         return true; // データ削除が実行された
       } else {
-        _logger.i('✅ データバージョンは最新です');
+        Log.info('✅ データバージョンは最新です');
         return false; // データ削除は不要
       }
     } catch (e) {
-      _logger.e('❌ データバージョンチェックエラー: $e');
+      Log.error('❌ データバージョンチェックエラー: $e');
       return false;
     }
   }
@@ -91,7 +101,7 @@ class DataVersionService {
   /// - _rollbackOnFailure(): マイグレーション失敗時のロールバック
   Future<void> _clearAllHiveData() async {
     try {
-      _logger.i('🗑️ 古いHiveデータを削除中...');
+      Log.info('🗑️ 古いHiveデータを削除中...');
       
       // 各Boxを削除
       final boxNames = [
@@ -106,16 +116,16 @@ class DataVersionService {
           if (Hive.isBoxOpen(boxName)) {
             final box = Hive.box(boxName);
             await box.clear();
-            _logger.i('✅ $boxName を削除しました');
+            Log.info('✅ $boxName を削除しました');
           }
         } catch (e) {
-          _logger.w('⚠️ $boxName の削除でエラー: $e');
+          Log.warning('⚠️ $boxName の削除でエラー: $e');
         }
       }
       
-      _logger.i('✅ 全てのHiveデータ削除完了');
+      Log.info('✅ 全てのHiveデータ削除完了');
     } catch (e) {
-      _logger.e('❌ Hiveデータ削除エラー: $e');
+      Log.error('❌ Hiveデータ削除エラー: $e');
     }
   }
   
@@ -124,9 +134,9 @@ class DataVersionService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_dataVersionKey);
-      _logger.i('🔄 データバージョンをリセットしました');
+      Log.info('🔄 データバージョンをリセットしました');
     } catch (e) {
-      _logger.e('❌ データバージョンリセットエラー: $e');
+      Log.error('❌ データバージョンリセットエラー: $e');
     }
   }
 
@@ -142,7 +152,7 @@ class DataVersionService {
   /*
   Future<bool> _executeDataMigration(int fromVersion, int toVersion) async {
     try {
-      _logger.i('🔄 データマイグレーション開始: v$fromVersion → v$toVersion');
+      Log.info('🔄 データマイグレーション開始: v$fromVersion → v$toVersion');
       
       // 1. バックアップ作成
       await _backupDataBeforeMigration();
@@ -160,11 +170,11 @@ class DataVersionService {
       }
       
       await saveDataVersion(toVersion);
-      _logger.i('✅ データマイグレーション完了');
+      Log.info('✅ データマイグレーション完了');
       return true;
       
     } catch (e) {
-      _logger.e('❌ データマイグレーションエラー: $e');
+      Log.error('❌ データマイグレーションエラー: $e');
       await _rollbackOnFailure();
       return false;
     }

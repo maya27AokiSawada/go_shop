@@ -1,4 +1,8 @@
 import 'dart:io';
+
+// Logger instance
+final _logger = Logger();
+import 'package:logger/logger.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_shop/firebase_options.dart';
@@ -11,7 +15,7 @@ import 'package:go_shop/firebase_options.dart';
 /// このスクリプトは現在ログイン中のユーザーアカウントを削除します
 
 Future<void> main() async {
-  print('🧹 Firebase Authentication ユーザー削除開始...');
+  _logger.i('🧹 Firebase Authentication ユーザー削除開始...');
   
   try {
     // Firebase初期化
@@ -23,34 +27,34 @@ Future<void> main() async {
     final currentUser = auth.currentUser;
     
     if (currentUser == null) {
-      print('📭 ログイン中のユーザーがいません');
+      _logger.i('📭 ログイン中のユーザーがいません');
       return;
     }
     
     // 現在のユーザー情報表示
-    print('👤 現在のユーザー:');
-    print('   UID: ${currentUser.uid}');
-    print('   Email: ${currentUser.email}');
-    print('   DisplayName: ${currentUser.displayName}');
+    _logger.i('👤 現在のユーザー:');
+    _logger.i('   UID: ${currentUser.uid}');
+    _logger.i('   Email: ${currentUser.email}');
+    _logger.i('   DisplayName: ${currentUser.displayName}');
     
     // 確認メッセージ
-    print('\n⚠️  上記のユーザーアカウントを完全に削除します');
-    print('この操作は取り消せません。続行しますか？ (y/N): ');
+    _logger.w('\n⚠️  上記のユーザーアカウントを完全に削除します');
+    _logger.i('この操作は取り消せません。続行しますか？ (y/N): ');
     
     final input = stdin.readLineSync();
     if (input?.toLowerCase() != 'y') {
-      print('❌ 操作がキャンセルされました');
+      _logger.e('❌ 操作がキャンセルされました');
       return;
     }
     
     // ユーザー削除実行
     await currentUser.delete();
     
-    print('✅ ユーザーアカウントが削除されました');
-    print('💡 アプリを再起動して新規ユーザー登録から開始してください');
+    _logger.i('✅ ユーザーアカウントが削除されました');
+    _logger.i('💡 アプリを再起動して新規ユーザー登録から開始してください');
     
   } catch (e) {
-    print('❌ エラーが発生しました: $e');
-    print('💡 Firebase Consoleから手動で削除してください');
+    _logger.e('❌ エラーが発生しました: $e');
+    _logger.i('💡 Firebase Consoleから手動で削除してください');
   }
 }

@@ -1,5 +1,6 @@
 // lib/providers/enhanced_group_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../utils/app_logger.dart';
 import '../models/purchase_group.dart';
 import '../services/enhanced_invitation_service.dart';
 

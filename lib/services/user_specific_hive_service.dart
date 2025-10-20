@@ -2,6 +2,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/app_logger.dart';
 import 'dart:io';
 import '../models/purchase_group.dart';
 import '../models/shopping_list.dart';
@@ -9,7 +10,7 @@ import '../models/user_settings.dart';
 import '../models/invitation.dart';
 import '../models/accepted_invitation.dart';
 
-final logger = Logger();
+
 
 /// UID別のHiveデータベース管理サービス（改良版）
 class UserSpecificHiveService {
@@ -28,13 +29,13 @@ class UserSpecificHiveService {
   Future<void> saveLastUsedUid(String uid) async {
     // 仮設定UIDは保存しない
     if (_isTemporaryUid(uid)) {
-      logger.i('🔄 仮設定UID検出 - 保存をスキップ: $uid');
+      Log.info('🔄 仮設定UID検出 - 保存をスキップ: $uid');
       return;
     }
     
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_lastUserIdKey, uid);
-    logger.i('💾 Last used UID saved: $uid');
+    Log.info('💾 Last used UID saved: $uid');
   }
 
   // 仮設定UID（開発・テスト用）かどうかを判定するヘルパーメソッド
@@ -61,7 +62,7 @@ class UserSpecificHiveService {
   Future<String?> getLastUsedUid() async {
     final prefs = await SharedPreferences.getInstance();
     final uid = prefs.getString(_lastUserIdKey);
-    logger.i('📂 Last used UID retrieved: $uid');
+    Log.info('📂 Last used UID retrieved: $uid');
     return uid;
   }
   
@@ -83,14 +84,14 @@ class UserSpecificHiveService {
       Hive.registerAdapter(InvitationAdapter());
       Hive.registerAdapter(AcceptedInvitationAdapter());
       Hive.registerAdapter(UserSettingsAdapter());
-      logger.i('📝 Hive adapters registered globally (including InvitationStatus)');
+      Log.info('📝 Hive adapters registered globally (including InvitationStatus)');
     }
   }
   
   /// Windows用: 前回使用UIDまたは指定UIDでHiveを初期化
   Future<void> initializeForWindowsUser([String? userId]) async {
     if (!Platform.isWindows) {
-      logger.w('⚠️ User-specific folders are only supported on Windows');
+      Log.warning('⚠️ User-specific folders are only supported on Windows');
       return initializeForDefaultUser();
     }
 
@@ -99,11 +100,11 @@ class UserSpecificHiveService {
     
     // 仮設定UIDまたは無効UIDの場合はデフォルトHiveを使用
     if (targetUserId == null || _isTemporaryUid(targetUserId)) {
-      logger.i('🔄 有効なUID未発見（${targetUserId ?? "null"}） - デフォルトHiveを使用');
+      Log.info('🔄 有効なUID未発見（${targetUserId ?? "null"}） - デフォルトHiveを使用');
       return initializeForDefaultUser();
     }
 
-    logger.i('🗂️ Initializing Hive for user: $targetUserId');
+    Log.info('🗂️ Initializing Hive for user: $targetUserId');
     
     // 既存のinitializeForUserを利用
     await initializeForUser(targetUserId);
@@ -111,13 +112,13 @@ class UserSpecificHiveService {
     // 使用UIDを保存（仮設定UIDでない場合のみ）
     await saveLastUsedUid(targetUserId);
     
-    logger.i('✅ Hive initialized for Windows user: $targetUserId');
+    Log.info('✅ Hive initialized for Windows user: $targetUserId');
   }
   
   /// ユーザー固有のHiveデータベースを初期化
   Future<void> initializeForUser(String userId) async {
     if (_currentUserId == userId && _isInitialized) {
-      logger.i('✅ Already initialized for user: $userId');
+      Log.info('✅ Already initialized for user: $userId');
       return;
     }
     
@@ -130,7 +131,7 @@ class UserSpecificHiveService {
       
       // ユーザー固有のディレクトリパスを作成
       final userDataPath = await _getUserDataPath(userId);
-      logger.i('📁 User data path: $userDataPath');
+      Log.info('📁 User data path: $userDataPath');
       
       // Hiveをユーザー固有のパスで初期化
       Hive.init(userDataPath);
@@ -141,10 +142,10 @@ class UserSpecificHiveService {
       _currentUserId = userId;
       _isInitialized = true;
       
-      logger.i('✅ Hive initialized successfully for user: $userId');
+      Log.info('✅ Hive initialized successfully for user: $userId');
       
     } catch (e) {
-      logger.e('❌ Failed to initialize Hive for user $userId: $e');
+      Log.error('❌ Failed to initialize Hive for user $userId: $e');
       rethrow;
     }
   }
@@ -152,7 +153,7 @@ class UserSpecificHiveService {
   /// デフォルトユーザー（UID未設定）用のHive初期化
   Future<void> initializeForDefaultUser() async {
     if (_currentUserId == 'default' && _isInitialized) {
-      logger.i('✅ Already initialized for default user');
+      Log.info('✅ Already initialized for default user');
       return;
     }
     
@@ -167,13 +168,13 @@ class UserSpecificHiveService {
       final directory = await getApplicationDocumentsDirectory();
       final defaultPath = '${directory.path}/hive_db';
       
-      logger.i('📁 Default Hive path: $defaultPath');
+      Log.info('📁 Default Hive path: $defaultPath');
       
       // ディレクトリが存在しない場合は作成
       final hiveDir = Directory(defaultPath);
       if (!await hiveDir.exists()) {
         await hiveDir.create(recursive: true);
-        logger.i('📁 Created Hive directory: $defaultPath');
+        Log.info('📁 Created Hive directory: $defaultPath');
       }
       
       // Hiveをデフォルトパスで初期化
@@ -185,10 +186,10 @@ class UserSpecificHiveService {
       _currentUserId = 'default';
       _isInitialized = true;
       
-      logger.i('✅ Hive initialized successfully for default user');
+      Log.info('✅ Hive initialized successfully for default user');
       
     } catch (e) {
-      logger.e('❌ Failed to initialize Hive for default user: $e');
+      Log.error('❌ Failed to initialize Hive for default user: $e');
       rethrow;
     }
   }
@@ -196,7 +197,7 @@ class UserSpecificHiveService {
   /// すべてのBoxを安全に閉じる（競合回避改良版）
   Future<void> _closeAllBoxesSafely() async {
     try {
-      logger.i('📦 Attempting to close all Hive boxes safely...');
+      Log.info('📦 Attempting to close all Hive boxes safely...');
       
       // 個別のBoxを順次閉じる（Hive.close()は使わない）
       final boxesToClose = ['purchaseGroups', 'shoppingLists', 'userSettings', 'subscriptions'];
@@ -206,18 +207,18 @@ class UserSpecificHiveService {
           if (Hive.isBoxOpen(boxName)) {
             final box = Hive.box(boxName);
             await box.close();
-            logger.i('🔒 Successfully closed box: $boxName');
+            Log.info('🔒 Successfully closed box: $boxName');
           }
         } catch (e) {
-          logger.w('⚠️ Warning closing box $boxName (continuing): $e');
+          Log.warning('⚠️ Warning closing box $boxName (continuing): $e');
         }
         // Box閉じる間に少し待つ
         await Future.delayed(const Duration(milliseconds: 50));
       }
       
-      logger.i('🔄 All Hive boxes closed successfully');
+      Log.info('🔄 All Hive boxes closed successfully');
     } catch (e) {
-      logger.w('⚠️ Warning during box closing (will continue): $e');
+      Log.warning('⚠️ Warning during box closing (will continue): $e');
     }
   }
   
@@ -230,21 +231,21 @@ class UserSpecificHiveService {
   /// 必要なBoxをすべて開く（順番に開いて競合を回避）
   Future<void> _openUserBoxes() async {
     try {
-      logger.i('📦 Opening PurchaseGroup box...');
+      Log.info('📦 Opening PurchaseGroup box...');
       await Hive.openBox<PurchaseGroup>('purchaseGroups');
       
-      logger.i('📦 Opening ShoppingList box...');
+      Log.info('📦 Opening ShoppingList box...');
       await Hive.openBox<ShoppingList>('shoppingLists');
       
-      logger.i('📦 Opening UserSettings box...');
+      Log.info('📦 Opening UserSettings box...');
       await Hive.openBox<UserSettings>('userSettings');
       
-      logger.i('📦 Opening Subscriptions box...');
+      Log.info('📦 Opening Subscriptions box...');
       await Hive.openBox<Map>('subscriptions');
       
-      logger.i('📦 All user-specific boxes opened successfully');
+      Log.info('📦 All user-specific boxes opened successfully');
     } catch (e) {
-      logger.e('❌ Failed to open user boxes: $e');
+      Log.error('❌ Failed to open user boxes: $e');
       rethrow;
     }
   }

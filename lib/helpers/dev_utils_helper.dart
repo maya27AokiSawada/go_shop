@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:logger/logger.dart';
+import '../utils/app_logger.dart';
 import '../flavors.dart';
 import '../providers/auth_provider.dart';
 import '../providers/enhanced_group_provider.dart';
@@ -9,7 +9,7 @@ import '../providers/shopping_list_provider.dart';
 import '../providers/user_settings_provider.dart';
 
 class DevUtilsHelper {
-  static final Logger logger = Logger();
+  
 
   /// Hiveデータクリア機能（開発環境のみ）
   static Widget buildHiveDataClearButton({
@@ -47,7 +47,7 @@ class DevUtilsHelper {
         await _showSuccessMessage(context);
         onComplete();
       } catch (e) {
-        logger.e('🗑️ Hiveデータクリアエラー: $e');
+        Log.error('🗑️ Hiveデータクリアエラー: $e');
         await _showErrorMessage(context, e);
       }
     }
@@ -96,7 +96,7 @@ class DevUtilsHelper {
     ref.invalidate(shoppingListProvider);
     ref.invalidate(userSettingsProvider);
     
-    logger.i('🗑️ 全てのHiveデータをクリアしました');
+    Log.info('🗑️ 全てのHiveデータをクリアしました');
   }
 
   /// 成功メッセージを表示

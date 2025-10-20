@@ -1,9 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:logger/logger.dart';
+import '../utils/app_logger.dart';
 
 import '../helper/firebase_diagnostics.dart';
 
-final logger = Logger();
+
 
 /// Firebase診断サービス
 /// Firebase接続テストと完全診断を提供
@@ -15,21 +16,21 @@ class FirebaseDiagnosticsService {
   /// Returns: DiagnosticsResult (診断結果とソリューション)
   static Future<DiagnosticsResult> runFullDiagnostics() async {
     try {
-      logger.i('🩺 === Firebase完全診断開始 ===');
+      Log.info('🩺 === Firebase完全診断開始 ===');
       
       // Firebase診断実行
       final diagnostics = await FirebaseDiagnostics.runDiagnostics();
       final solutions = FirebaseDiagnostics.getSolutions(diagnostics);
       
       // 結果をログ出力
-      logger.i('📊 診断結果:');
+      Log.info('📊 診断結果:');
       diagnostics.forEach((key, value) {
-        logger.i('  $key: $value');
+        Log.info('  $key: $value');
       });
       
-      logger.i('💡 推奨解決策:');
+      Log.info('💡 推奨解決策:');
       for (final solution in solutions) {
-        logger.i('  $solution');
+        Log.info('  $solution');
       }
       
       // 診断結果を判定
@@ -42,7 +43,7 @@ class FirebaseDiagnosticsService {
         solutions: solutions,
       );
     } catch (e) {
-      logger.e('⛔ Firebase診断エラー: $e');
+      Log.error('⛔ Firebase診断エラー: $e');
       return DiagnosticsResult(
         isHealthy: false,
         diagnostics: {},
@@ -66,7 +67,7 @@ class FirebaseDiagnosticsService {
           .collection('connection_test')
           .doc('test_${DateTime.now().millisecondsSinceEpoch}');
       
-      logger.i('🔥 Firebase接続テスト: Firestoreへの書き込みを試行中...');
+      Log.info('🔥 Firebase接続テスト: Firestoreへの書き込みを試行中...');
       
       // Firestoreに書き込み
       await testDocRef.set({
@@ -75,17 +76,17 @@ class FirebaseDiagnosticsService {
         'user_agent': 'Flutter App',
       });
       
-      logger.i('✅ Firebase接続テスト: 書き込み成功');
+      Log.info('✅ Firebase接続テスト: 書き込み成功');
       
       // 書き込み直後に読み込みテスト
       final doc = await testDocRef.get();
       if (doc.exists) {
-        logger.i('✅ Firebase接続テスト: 読み込み成功');
-        logger.i('📄 Document data: ${doc.data()}');
+        Log.info('✅ Firebase接続テスト: 読み込み成功');
+        Log.info('📄 Document data: ${doc.data()}');
         
         // テスト用ドキュメントを削除
         await testDocRef.delete();
-        logger.i('🗑️ Firebase接続テスト: クリーンアップ完了');
+        Log.info('🗑️ Firebase接続テスト: クリーンアップ完了');
         
         return ConnectionTestResult(
           success: true,
@@ -96,7 +97,7 @@ class FirebaseDiagnosticsService {
         throw Exception('Document was not created');
       }
     } catch (e) {
-      logger.e('⛔ Firebase接続テストエラー: $e');
+      Log.error('⛔ Firebase接続テストエラー: $e');
       return ConnectionTestResult(
         success: false,
         message: '❌ Firebase接続テスト失敗',

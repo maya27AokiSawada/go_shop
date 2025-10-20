@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
-import '../main.dart';
+import '../utils/app_logger.dart';
 import 'invitation_service.dart';
 
 class DeepLinkService {
@@ -27,12 +27,12 @@ class DeepLinkService {
       _channel.setMethodCallHandler((MethodCall call) async {
         if (call.method == 'handleDeepLink') {
           final String link = call.arguments;
-          _logger.i('📨 Received deep link: $link');
+          Log.info('📨 Received deep link: $link');
           _linkStreamController?.add(link);
         }
       });
     } catch (e) {
-      _logger.e('❌ Failed to set up deep link handler: $e');
+      Log.error('❌ Failed to set up deep link handler: $e');
     }
   }
 
@@ -54,7 +54,7 @@ class DeepLinkService {
         await _handleIncomingLink(context, initialLink);
       }
     } catch (e) {
-      logger.e('Deep link initialization error: $e');
+      Log.error('Deep link initialization error: $e');
     }
   }
 
@@ -100,26 +100,26 @@ class DeepLinkService {
     InvitationService invitationService,
   ) async {
     try {
-      _logger.i('🔗 Processing invitation link: $link');
+      Log.info('🔗 Processing invitation link: $link');
       
       final uri = Uri.parse(link);
       if (uri.scheme != 'go-shop' || uri.host != 'invite') {
-        _logger.w('⚠️ Invalid invitation link format');
+        Log.warning('⚠️ Invalid invitation link format');
         return null;
       }
 
       final inviteCode = uri.queryParameters['code'];
       if (inviteCode == null) {
-        _logger.w('⚠️ No invite code found in link');
+        Log.warning('⚠️ No invite code found in link');
         return null;
       }
 
-      _logger.i('🎫 Processing invite code: $inviteCode');
+      Log.info('🎫 Processing invite code: $inviteCode');
       
       // 招待情報を確認
       final invitationInfo = await invitationService.getInvitationByCode(inviteCode);
       if (invitationInfo == null) {
-        _logger.w('⚠️ Invalid or expired invitation code');
+        Log.warning('⚠️ Invalid or expired invitation code');
         return null;
       }
 
@@ -127,15 +127,15 @@ class DeepLinkService {
       final success = await invitationService.acceptInvitation(inviteCode);
       
       if (success) {
-        _logger.i('✅ Invitation accepted successfully');
+        Log.info('✅ Invitation accepted successfully');
         return invitationInfo;
       } else {
-        _logger.w('⚠️ Failed to accept invitation');
+        Log.warning('⚠️ Failed to accept invitation');
         return null;
       }
       
     } catch (e) {
-      _logger.e('❌ Failed to handle invitation link: $e');
+      Log.error('❌ Failed to handle invitation link: $e');
       return null;
     }
   }

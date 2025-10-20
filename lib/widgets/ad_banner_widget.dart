@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../utils/app_logger.dart';
 import '../providers/subscription_provider.dart';
 
 /// シンプルな広告バナーウィジェット（実際のAdMob等に置き換え可能）

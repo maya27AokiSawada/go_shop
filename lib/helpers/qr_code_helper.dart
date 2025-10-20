@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:logger/logger.dart';
+import '../utils/app_logger.dart';
 
 import '../helpers/auth_state_helper.dart';
 import '../helpers/ui_helper.dart';
 import '../providers/auth_provider.dart';
 
-final logger = Logger();
+
 
 /// QRコード関連の処理を集約するヘルパークラス（簡素化版）
 /// 
@@ -25,7 +25,7 @@ class QrCodeHelper {
     }
     
     // 認証済みユーザーのみQRスキャンを実行
-    logger.i('🔍 QRコードスキャン開始 (認証済み)');
+    Log.info('🔍 QRコードスキャン開始 (認証済み)');
     UiHelper.showInfoMessage(context, 'QRコード機能は開発中です', duration: const Duration(seconds: 2));
   }
 
@@ -38,12 +38,12 @@ class QrCodeHelper {
     
     // サインアップ前は処理不要（Firebase UIDが必要）
     if (!AuthStateHelper.canUseQrCodeFeatures(user)) {
-      logger.i('⏸️ 未認証のため招待処理をスキップ');
+      Log.info('⏸️ 未認証のため招待処理をスキップ');
       return;
     }
     
     // 認証済みユーザーのみ処理を実行
-    logger.i('🔄 保留中の招待処理を確認中...');
+    Log.info('🔄 保留中の招待処理を確認中...');
     // TODO: 実際の招待処理実装（Firebase UIDベースの招待のみ）
     onSuccess();
   }

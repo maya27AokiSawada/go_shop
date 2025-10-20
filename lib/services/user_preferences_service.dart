@@ -1,5 +1,7 @@
 // lib/services/user_preferences_service.dart
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/app_logger.dart';
+
 
 /// ユーザーの基本情報をSharedPreferencesで管理するサービス
 class UserPreferencesService {
@@ -13,10 +15,10 @@ class UserPreferencesService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final userName = prefs.getString(_keyUserName);
-      print('📱 SharedPreferences getUserName: $userName');
+      Log.info('📱 SharedPreferences getUserName: $userName');
       return userName;
     } catch (e) {
-      print('❌ SharedPreferences getUserName エラー: $e');
+      Log.error('❌ SharedPreferences getUserName エラー: $e');
       return null;
     }
   }
@@ -26,10 +28,10 @@ class UserPreferencesService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final success = await prefs.setString(_keyUserName, userName);
-      print('💾 SharedPreferences saveUserName: $userName - 成功: $success');
+      Log.info('💾 SharedPreferences saveUserName: $userName - 成功: $success');
       return success;
     } catch (e) {
-      print('❌ SharedPreferences saveUserName エラー: $e');
+      Log.error('❌ SharedPreferences saveUserName エラー: $e');
       return false;
     }
   }
@@ -39,10 +41,10 @@ class UserPreferencesService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final userEmail = prefs.getString(_keyUserEmail);
-      print('📱 SharedPreferences getUserEmail: $userEmail');
+      Log.info('📱 SharedPreferences getUserEmail: $userEmail');
       return userEmail;
     } catch (e) {
-      print('❌ SharedPreferences getUserEmail エラー: $e');
+      Log.error('❌ SharedPreferences getUserEmail エラー: $e');
       return null;
     }
   }
@@ -52,10 +54,10 @@ class UserPreferencesService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final success = await prefs.setString(_keyUserEmail, userEmail);
-      print('💾 SharedPreferences saveUserEmail: $userEmail - 成功: $success');
+      Log.info('💾 SharedPreferences saveUserEmail: $userEmail - 成功: $success');
       return success;
     } catch (e) {
-      print('❌ SharedPreferences saveUserEmail エラー: $e');
+      Log.error('❌ SharedPreferences saveUserEmail エラー: $e');
       return false;
     }
   }
@@ -65,10 +67,10 @@ class UserPreferencesService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString(_keyUserId);
-      print('📱 SharedPreferences getUserId: $userId');
+      Log.info('📱 SharedPreferences getUserId: $userId');
       return userId;
     } catch (e) {
-      print('❌ SharedPreferences getUserId エラー: $e');
+      Log.error('❌ SharedPreferences getUserId エラー: $e');
       return null;
     }
   }
@@ -78,10 +80,10 @@ class UserPreferencesService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final success = await prefs.setString(_keyUserId, userId);
-      print('💾 SharedPreferences saveUserId: $userId - 成功: $success');
+      Log.info('💾 SharedPreferences saveUserId: $userId - 成功: $success');
       return success;
     } catch (e) {
-      print('❌ SharedPreferences saveUserId エラー: $e');
+      Log.error('❌ SharedPreferences saveUserId エラー: $e');
       return false;
     }
   }
@@ -91,10 +93,10 @@ class UserPreferencesService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final version = prefs.getInt(_keyDataVersion) ?? 1; // デフォルト値 1
-      print('📱 SharedPreferences getDataVersion: $version');
+      Log.info('📱 SharedPreferences getDataVersion: $version');
       return version;
     } catch (e) {
-      print('❌ SharedPreferences getDataVersion エラー: $e');
+      Log.error('❌ SharedPreferences getDataVersion エラー: $e');
       return 1; // エラー時はバージョン1を返す
     }
   }
@@ -104,10 +106,10 @@ class UserPreferencesService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final success = await prefs.setInt(_keyDataVersion, version);
-      print('💾 SharedPreferences saveDataVersion: $version - 成功: $success');
+      Log.info('💾 SharedPreferences saveDataVersion: $version - 成功: $success');
       return success;
     } catch (e) {
-      print('❌ SharedPreferences saveDataVersion エラー: $e');
+      Log.error('❌ SharedPreferences saveDataVersion エラー: $e');
       return false;
     }
   }
@@ -130,10 +132,10 @@ class UserPreferencesService {
       await prefs.remove(_keyUserEmail);
       await prefs.remove(_keyUserId);
       // データバージョンは削除しない（次回起動時の判定に必要）
-      print('🗑️ SharedPreferences 全ユーザー情報をクリア完了');
+      Log.info('🗑️ SharedPreferences 全ユーザー情報をクリア完了');
       return true;
     } catch (e) {
-      print('❌ SharedPreferences clearAllUserInfo エラー: $e');
+      Log.error('❌ SharedPreferences clearAllUserInfo エラー: $e');
       return false;
     }
   }
@@ -146,10 +148,10 @@ class UserPreferencesService {
       await prefs.remove(_keyUserEmail);
       await prefs.remove(_keyUserId);
       await prefs.remove(_keyDataVersion);
-      print('🔥 SharedPreferences 完全リセット完了');
+      Log.info('🔥 SharedPreferences 完全リセット完了');
       return true;
     } catch (e) {
-      print('❌ SharedPreferences completeReset エラー: $e');
+      Log.error('❌ SharedPreferences completeReset エラー: $e');
       return false;
     }
   }

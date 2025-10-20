@@ -1,8 +1,11 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:logger/logger.dart';
+import '../utils/app_logger.dart';
 
-final _logger = Logger();
+
+// Logger instance
+
 
 /// 未サインイン時の招待情報を一時保存するサービス
 /// 
@@ -25,13 +28,13 @@ class PendingInvitationService {
       final success = await prefs.setString(_pendingInvitationKey, jsonString);
       
       if (success) {
-        _logger.i('📥 招待情報を一時保存しました: ${invitationData['groupName']}');
-        _logger.i('   招待者: ${invitationData['inviterEmail']}');
+        Log.info('📥 招待情報を一時保存しました: ${invitationData['groupName']}');
+        Log.info('   招待者: ${invitationData['inviterEmail']}');
       }
       
       return success;
     } catch (e) {
-      _logger.e('❌ 招待情報の保存に失敗: $e');
+      Log.error('❌ 招待情報の保存に失敗: $e');
       return false;
     }
   }
@@ -49,11 +52,11 @@ class PendingInvitationService {
       }
       
       final invitationData = jsonDecode(jsonString) as Map<String, dynamic>;
-      _logger.i('📤 保存された招待情報を取得: ${invitationData['groupName']}');
+      Log.info('📤 保存された招待情報を取得: ${invitationData['groupName']}');
       
       return invitationData;
     } catch (e) {
-      _logger.e('❌ 招待情報の取得に失敗: $e');
+      Log.error('❌ 招待情報の取得に失敗: $e');
       return null;
     }
   }
@@ -66,7 +69,7 @@ class PendingInvitationService {
       final prefs = await SharedPreferences.getInstance();
       return prefs.containsKey(_pendingInvitationKey);
     } catch (e) {
-      _logger.e('❌ 招待情報のチェックに失敗: $e');
+      Log.error('❌ 招待情報のチェックに失敗: $e');
       return false;
     }
   }
@@ -81,12 +84,12 @@ class PendingInvitationService {
       final success = await prefs.remove(_pendingInvitationKey);
       
       if (success) {
-        _logger.i('🗑️ 招待情報を削除しました');
+        Log.info('🗑️ 招待情報を削除しました');
       }
       
       return success;
     } catch (e) {
-      _logger.e('❌ 招待情報の削除に失敗: $e');
+      Log.error('❌ 招待情報の削除に失敗: $e');
       return false;
     }
   }

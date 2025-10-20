@@ -1,47 +1,30 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:logger/logger.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
 import 'screens/home_screen.dart';
 import 'pages/invitation_accept_page.dart';
 import 'pages/purchase_group_page_simple.dart';
-import 'services/deep_link_service.dart';
-import 'services/user_initialization_service.dart';
 import 'services/hive_initialization_service.dart';
+import 'widgets/app_initialize_widget.dart';
 import 'flavors.dart';
-
-final logger = Logger();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  final logger = Logger();
   
   // フレーバーの設定 - 本番環境（Firestore + Hive ハイブリッド）
   F.appFlavor = Flavor.prod;
   
   // Firebase初期化（DEV/PROD両方で初期化）
   try {
+    // Firebase初期化を一時的に無効化（マイグレーション機能テスト用）
+    /*
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    */
     
-    // Web環境での設定
-    if (kIsWeb) {
-      logger.i("🌐 Web環境でのFirebase Auth設定完了");
-      // reCAPTCHA設定はweb/index.htmlで設定済み
-    }
+    // Web環境での設定（現在は初期化をスキップ）
     
-    if (F.appFlavor == Flavor.prod) {
-      logger.i("🔥 Starting Go Shop app in PRODUCTION mode with Firebase");
-    } else {
-      logger.i("🔥 Starting Go Shop app in DEV mode with Firebase");
-    }
-    logger.i("✅ Firebase initialized successfully");
   } catch (e) {
-    logger.e("❌ Firebase initialization failed: $e");
     // Firebase初期化に失敗してもアプリは続行（Hiveで動作）
   }
   
@@ -55,27 +38,11 @@ void main() async {
   );
 }
 
-class MyApp extends ConsumerStatefulWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  ConsumerState<MyApp> createState() => _MyAppState();
-}
-
-class _MyAppState extends ConsumerState<MyApp> {
-  @override
-  void initState() {
-    super.initState();
-    
-    // ユーザー初期化サービスを開始
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final userInitService = ref.read(userInitializationServiceProvider);
-      userInitService.startAuthStateListener();
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp(
       title: F.title,
       theme: ThemeData(
@@ -83,7 +50,9 @@ class _MyAppState extends ConsumerState<MyApp> {
         useMaterial3: true,
       ),
       debugShowCheckedModeBanner: F.appFlavor != Flavor.prod,
-      home: const HomeScreen(),
+      home: const AppInitializeWidget(
+        child: HomeScreen(),
+      ),
       routes: {
         '/invitation_accept': (context) {
           final args = ModalRoute.of(context)!.settings.arguments as Map<String, String>;
@@ -91,11 +60,8 @@ class _MyAppState extends ConsumerState<MyApp> {
         },
         '/group_simple': (context) => const PurchaseGroupPageSimple(),
       },
-      builder: (context, child) {
-        // アプリ起動時にディープリンクを初期化
-        DeepLinkService.initializeDeepLinks(context);
-        return child!;
-      },
     );
   }
 }
+
+

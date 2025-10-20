@@ -1,6 +1,8 @@
 // lib/widgets/invitation_dialog.dart
 import 'package:flutter/material.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../utils/app_logger.dart';
 import '../services/invitation_service.dart';
 import '../models/purchase_group.dart';
 import '../providers/purchase_group_provider.dart';
@@ -54,7 +56,7 @@ class _InvitationDialogState extends ConsumerState<InvitationDialog> {
           }
           
           // 🔧 デバッグ: メンバー情報をログ出力
-          print('📋 メンバー: ${m.name}, memberId: ${m.memberId}, isInvited: ${m.isInvited}, isInvitationAccepted: ${m.isInvitationAccepted}');
+          Log.info('📋 メンバー: ${m.name}, memberId: ${m.memberId}, isInvited: ${m.isInvited}, isInvitationAccepted: ${m.isInvitationAccepted}');
           
           // Firebase UIDを持つユーザー（既にサインイン済み）は除外
           // ただし、実際のサインイン状態（isSignedIn）もチェック
@@ -110,7 +112,7 @@ class _InvitationDialogState extends ConsumerState<InvitationDialog> {
       // Providerを無効化して再読み込みを促す
       ref.invalidate(selectedGroupNotifierProvider);
     } catch (e) {
-      print('⚠️ グループメンバー更新エラー: $e');
+      Log.warning('⚠️ グループメンバー更新エラー: $e');
       // エラーが発生してもメール送信は成功しているので、続行
     }
   }

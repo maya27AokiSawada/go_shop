@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../utils/app_logger.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/user_name_provider.dart';
 import '../providers/security_provider.dart';
@@ -269,9 +270,9 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
     final selectedGroupAsync = ref.watch(selectedGroupProvider);
     final currentUserName = ref.watch(userNameProvider);
 
-    print('🏷️ [PAGE BUILD] selectedGroupId: $selectedGroupId');
-    print('🏷️ [PAGE BUILD] allGroupsAsync状態: ${allGroupsAsync.runtimeType}');
-    print('🏷️ [PAGE BUILD] selectedGroupAsync状態: ${selectedGroupAsync.runtimeType}');
+    Log.info('🏷️ [PAGE BUILD] selectedGroupId: $selectedGroupId');
+    Log.info('🏷️ [PAGE BUILD] allGroupsAsync状態: ${allGroupsAsync.runtimeType}');
+    Log.info('🏷️ [PAGE BUILD] selectedGroupAsync状態: ${selectedGroupAsync.runtimeType}');
 
     return Scaffold(
       appBar: AppBar(
@@ -356,7 +357,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                     ),
                   ),
                   error: (error, stack) {
-                    print('❌ [GROUP PAGE] エラー発生: $error');
+                    Log.error('❌ [GROUP PAGE] エラー発生: $error');
                     return Center(
                       child: Container(
                         padding: const EdgeInsets.all(16),
@@ -397,17 +398,17 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
   }
 
   Widget _buildGroupDropdown(AsyncValue<List<PurchaseGroup>> allGroupsAsync, String? selectedGroupId) {
-    print('📋 [DROPDOWN] 呼び出し開始 - 状態: ${allGroupsAsync.runtimeType}');
+    Log.info('📋 [DROPDOWN] 呼び出し開始 - 状態: ${allGroupsAsync.runtimeType}');
     
     return allGroupsAsync.when(
       data: (groups) {
-        print('📋 [DROPDOWN] データ取得成功 - グループ数: ${groups.length}');
+        Log.info('📋 [DROPDOWN] データ取得成功 - グループ数: ${groups.length}');
         for (var g in groups) {
-          print('📋 [DROPDOWN] - ${g.groupName} (${g.groupId}) メンバー数: ${g.members?.length ?? 0}');
+          Log.info('📋 [DROPDOWN] - ${g.groupName} (${g.groupId}) メンバー数: ${g.members?.length ?? 0}');
         }
         
         if (groups.isEmpty) {
-          print('⚠️ [DROPDOWN] グループが空です - デフォルトグループ作成を試行');
+          Log.warning('⚠️ [DROPDOWN] グループが空です - デフォルトグループ作成を試行');
           
           // デフォルトグループが存在しない場合は作成ボタンを表示
           return Container(
@@ -426,14 +427,14 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                 const SizedBox(height: 8),
                 ElevatedButton(
                   onPressed: () async {
-                    print('🔄 [DROPDOWN] デフォルトグループ作成開始');
+                    Log.info('🔄 [DROPDOWN] デフォルトグループ作成開始');
                     try {
                       final repository = ref.read(purchaseGroupRepositoryProvider);
                       await repository.getGroupById('defaultGroup'); // これで自動作成される
                       ref.invalidate(allGroupsProvider);
-                      print('✅ [DROPDOWN] デフォルトグループ作成完了');
+                      Log.info('✅ [DROPDOWN] デフォルトグループ作成完了');
                     } catch (e) {
-                      print('❌ [DROPDOWN] デフォルトグループ作成失敗: $e');
+                      Log.error('❌ [DROPDOWN] デフォルトグループ作成失敗: $e');
                     }
                   },
                   child: const Text('デフォルトグループを作成'),
@@ -447,7 +448,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
         final groupExists = groups.any((group) => group.groupId == selectedGroupId);
         final validSelectedGroupId = groupExists ? selectedGroupId : groups.first.groupId;
         
-        print('📋 [DROPDOWN] selectedGroupId: $selectedGroupId, validSelectedGroupId: $validSelectedGroupId');
+        Log.info('📋 [DROPDOWN] selectedGroupId: $selectedGroupId, validSelectedGroupId: $validSelectedGroupId');
         
         return Card(
           child: Padding(
@@ -467,7 +468,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
               }).toList(),
               onChanged: (newGroupId) {
                 if (newGroupId != null) {
-                  print('📋 [DROPDOWN] グループ選択: $newGroupId');
+                  Log.info('📋 [DROPDOWN] グループ選択: $newGroupId');
                   ref.read(selectedGroupIdProvider.notifier).selectGroup(newGroupId);
                 }
               },
@@ -476,7 +477,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
         );
       },
       loading: () {
-        print('⏳ [DROPDOWN] ロード中...');
+        Log.info('⏳ [DROPDOWN] ロード中...');
         return Container(
           padding: const EdgeInsets.all(16),
           child: const Row(
@@ -489,8 +490,8 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
         );
       },
       error: (error, stack) {
-        print('❌ [DROPDOWN] エラー: $error');
-        print('❌ [DROPDOWN] スタック: $stack');
+        Log.error('❌ [DROPDOWN] エラー: $error');
+        Log.error('❌ [DROPDOWN] スタック: $stack');
         return Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(

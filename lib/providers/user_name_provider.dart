@@ -1,9 +1,14 @@
 // lib/providers/user_name_provider.dart
 import "package:flutter_riverpod/flutter_riverpod.dart";
+import "package:logger/logger.dart";
+import '../utils/app_logger.dart';
 import "../services/user_preferences_service.dart";
 import "../services/firestore_user_name_service.dart";
 import "../providers/auth_provider.dart";
 import "../flavors.dart";
+
+// Logger instance
+
 
 // ユーザー名を設定するためのNotifier
 class UserNameNotifier extends AsyncNotifier<void> {
@@ -21,7 +26,7 @@ class UserNameNotifier extends AsyncNotifier<void> {
     if (F.appFlavor == Flavor.prod) {
       final success = await FirestoreUserNameService.saveUserName(userName);
       if (!success) {
-        print('⚠️ Firestoreへのユーザー名保存に失敗（ローカル保存は成功）');
+        Log.warning('⚠️ Firestoreへのユーザー名保存に失敗（ローカル保存は成功）');
       }
     }
   }
@@ -50,3 +55,8 @@ class UserNameNotifier extends AsyncNotifier<void> {
 final userNameNotifierProvider = AsyncNotifierProvider<UserNameNotifier, void>(
   () => UserNameNotifier(),
 );
+
+// ユーザー名を取得するためのProvider
+final userNameProvider = FutureProvider<String?>((ref) async {
+  return await UserPreferencesService.getUserName();
+});

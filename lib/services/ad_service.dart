@@ -1,9 +1,15 @@
 import 'dart:async';
+import 'package:logger/logger.dart';
+
+
+// Logger instance
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/app_logger.dart';
 import '../flavors.dart';
 
 // プロバイダー
@@ -56,7 +62,7 @@ class AdService {
           _interstitialAd!.setImmersiveMode(true);
         },
         onAdFailedToLoad: (LoadAdError error) {
-          print('InterstitialAd failed to load: $error');
+          Log.info('InterstitialAd failed to load: $error');
           _interstitialAd = null;
           _isAdLoaded = false;
         },
@@ -136,11 +142,11 @@ class AdService {
       request: const AdRequest(),
       listener: BannerAdListener(
         onAdLoaded: (Ad ad) {
-          print('バナー広告が読み込まれました');
+          Log.info('バナー広告が読み込まれました');
           onAdLoaded?.call();
         },
         onAdFailedToLoad: (Ad ad, LoadAdError error) {
-          print('バナー広告の読み込みに失敗: $error');
+          Log.info('バナー広告の読み込みに失敗: $error');
           onAdFailedToLoad?.call();
         },
       ),
@@ -168,7 +174,7 @@ class AdService {
         desiredAccuracy: LocationAccuracy.low, // 粗い精度で十分
       );
     } catch (e) {
-      print('位置情報取得エラー: $e');
+      Log.error('位置情報取得エラー: $e');
       return null;
     }
   }

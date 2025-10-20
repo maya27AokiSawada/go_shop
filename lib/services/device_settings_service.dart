@@ -1,7 +1,8 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:logger/logger.dart';
+import '../utils/app_logger.dart';
 
-final logger = Logger();
+
 
 /// 端末固有の設定管理サービス
 class DeviceSettingsService {
@@ -20,11 +21,11 @@ class DeviceSettingsService {
       final prefs = await SharedPreferences.getInstance();
       final email = prefs.getString(_savedEmailKey);
       if (email != null) {
-        logger.i('📧 Saved email loaded: $email');
+        Log.info('📧 Saved email loaded: $email');
       }
       return email;
     } catch (e) {
-      logger.e('❌ Error getting saved email: $e');
+      Log.error('❌ Error getting saved email: $e');
       return null;
     }
   }
@@ -34,9 +35,9 @@ class DeviceSettingsService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_savedEmailKey, email);
-      logger.i('💾 Email saved: $email');
+      Log.info('💾 Email saved: $email');
     } catch (e) {
-      logger.e('❌ Error saving email: $e');
+      Log.error('❌ Error saving email: $e');
       rethrow;
     }
   }
@@ -46,9 +47,9 @@ class DeviceSettingsService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_savedEmailKey);
-      logger.i('🗑️ Saved email cleared');
+      Log.info('🗑️ Saved email cleared');
     } catch (e) {
-      logger.e('❌ Error clearing saved email: $e');
+      Log.error('❌ Error clearing saved email: $e');
       rethrow;
     }
   }
@@ -58,10 +59,10 @@ class DeviceSettingsService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final isEnabled = prefs.getBool(_secretModeKey) ?? false;
-      logger.i('🔐 Secret mode status: $isEnabled');
+      Log.info('🔐 Secret mode status: $isEnabled');
       return isEnabled;
     } catch (e) {
-      logger.e('❌ Error getting secret mode: $e');
+      Log.error('❌ Error getting secret mode: $e');
       return false;
     }
   }
@@ -71,9 +72,9 @@ class DeviceSettingsService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_secretModeKey, enabled);
-      logger.i('💾 Secret mode set to: $enabled');
+      Log.info('💾 Secret mode set to: $enabled');
     } catch (e) {
-      logger.e('❌ Error setting secret mode: $e');
+      Log.error('❌ Error setting secret mode: $e');
       rethrow;
     }
   }
@@ -84,9 +85,9 @@ class DeviceSettingsService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_secretModeKey);
       await prefs.remove(_savedEmailKey);
-      logger.i('🗑️ All device settings cleared');
+      Log.info('🗑️ All device settings cleared');
     } catch (e) {
-      logger.e('❌ Error clearing settings: $e');
+      Log.error('❌ Error clearing settings: $e');
       rethrow;
     }
   }

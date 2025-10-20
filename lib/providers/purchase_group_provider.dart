@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logger/logger.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../utils/app_logger.dart';
 import '../models/purchase_group.dart';
 import '../datastore/purchase_group_repository.dart';
 import '../datastore/hive_purchase_group_repository.dart';
@@ -8,6 +10,10 @@ import '../flavors.dart';
 import '../helper/security_validator.dart';
 import 'user_settings_provider.dart';
 import 'auth_provider.dart';
+
+
+// Logger instance
+
 
 // Repository provider - ハイブリッドリポジトリを使用
 final purchaseGroupRepositoryProvider = Provider<PurchaseGroupRepository>((ref) {
@@ -30,14 +36,14 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
     final repository = ref.read(purchaseGroupRepositoryProvider);
     
     try {
-      print('🔄 [SELECTED GROUP] SelectedGroupNotifier.build() 開始: $selectedGroupId');
+      Log.info('🔄 [SELECTED GROUP] SelectedGroupNotifier.build() 開始: $selectedGroupId');
       final group = await repository.getGroupById(selectedGroupId);
       final fixedGroup = await _fixLegacyMemberRoles(group);
-      print('🔄 [SELECTED GROUP] グループロード完了: ${fixedGroup.groupName}');
+      Log.info('🔄 [SELECTED GROUP] グループロード完了: ${fixedGroup.groupName}');
       return fixedGroup;
     } catch (e, stackTrace) {
-      print('❌ [SELECTED GROUP] ビルドエラー: $e');
-      print('❌ [SELECTED GROUP] スタックトレース: $stackTrace');
+      Log.error('❌ [SELECTED GROUP] ビルドエラー: $e');
+      Log.error('❌ [SELECTED GROUP] スタックトレース: $stackTrace');
       return null;
     }
   }
@@ -55,8 +61,8 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
     // 現在のユーザーが既存のメンバーに含まれているかチェック
     final hasCurrentUser = originalMembers.any((member) => member.memberId == currentUserId);
     
-    print('🔧 [LEGACY FIX] currentUserId: $currentUserId');
-    print('🔧 [LEGACY FIX] hasCurrentUser in group: $hasCurrentUser');
+    Log.info('🔧 [LEGACY FIX] currentUserId: $currentUserId');
+    Log.info('🔧 [LEGACY FIX] hasCurrentUser in group: $hasCurrentUser');
     
     // 現在のユーザーがメンバーリストにいない場合は、オーナーのmemberIdを更新
     if (!hasCurrentUser && currentUserId.isNotEmpty) {
@@ -71,7 +77,7 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
           updatedMembers.add(updatedOwner);
           ownerUpdated = true;
           needsUpdate = true;
-          print('🔧 [LEGACY FIX] Updated owner memberId from ${member.memberId} to $currentUserId');
+          Log.info('🔧 [LEGACY FIX] Updated owner memberId from ${member.memberId} to $currentUserId');
         } else {
           updatedMembers.add(member);
         }
@@ -80,7 +86,7 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
       if (needsUpdate) {
         final updatedGroup = group.copyWith(members: updatedMembers);
         await repository.updateGroup(updatedGroup.groupId, updatedGroup);
-        print('🔧 [LEGACY FIX] Group updated with corrected member IDs');
+        Log.info('🔧 [LEGACY FIX] Group updated with corrected member IDs');
         return updatedGroup;
       }
     }
@@ -128,19 +134,19 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
   }
 
   Future<void> saveGroup(PurchaseGroup group) async {
-    print('💾 [SAVE GROUP] グループ保存開始: ${group.groupName}');
+    Log.info('💾 [SAVE GROUP] グループ保存開始: ${group.groupName}');
     final repository = ref.read(purchaseGroupRepositoryProvider);
     
     try {
       // 楽観的更新: 先にUIを更新
       state = AsyncData(group);
-      print('💾 [SAVE GROUP] 楽観的更新完了');
+      Log.info('💾 [SAVE GROUP] 楽観的更新完了');
       
       // バックグラウンドでデータベースに保存
       await repository.updateGroup(group.groupId, group);
-      print('💾 [SAVE GROUP] データベース保存完了');
+      Log.info('💾 [SAVE GROUP] データベース保存完了');
     } catch (e, stackTrace) {
-      print('❌ [SAVE GROUP] エラー発生: $e');
+      Log.error('❌ [SAVE GROUP] エラー発生: $e');
       state = AsyncError(e, stackTrace);
       rethrow;
     }
@@ -168,31 +174,31 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
 
   /// Add a new member to the current group
   Future<void> addMember(PurchaseGroupMember newMember) async {
-    print('👥 [ADD MEMBER] メンバー追加開始: ${newMember.name}');
+    Log.info('👥 [ADD MEMBER] メンバー追加開始: ${newMember.name}');
     final currentGroup = state.value;
     if (currentGroup == null) {
-      print('❌ [ADD MEMBER] currentGroupがnullです');
+      Log.error('❌ [ADD MEMBER] currentGroupがnullです');
       return;
     }
 
     final repository = ref.read(purchaseGroupRepositoryProvider);
     
     try {
-      print('👥 [ADD MEMBER] 現在のメンバー数: ${currentGroup.members?.length ?? 0}');
+      Log.info('👥 [ADD MEMBER] 現在のメンバー数: ${currentGroup.members?.length ?? 0}');
       
       // 楽観的更新: 先にUIを更新
       final optimisticGroup = currentGroup.addMember(newMember);
       state = AsyncData(optimisticGroup);
-      print('👥 [ADD MEMBER] 楽観的更新完了。新メンバー数: ${optimisticGroup.members?.length ?? 0}');
+      Log.info('👥 [ADD MEMBER] 楽観的更新完了。新メンバー数: ${optimisticGroup.members?.length ?? 0}');
       
       // バックグラウンドでデータベースに保存
       await repository.addMember(currentGroup.groupId, newMember);
-      print('👥 [ADD MEMBER] データベース保存完了');
+      Log.info('👥 [ADD MEMBER] データベース保存完了');
       
       // 念のため最新データを取得（同期エラー防止）
       final updatedGroup = await repository.getGroupById(currentGroup.groupId);
       state = AsyncData(updatedGroup);
-      print('👥 [ADD MEMBER] 最終更新完了');
+      Log.info('👥 [ADD MEMBER] 最終更新完了');
       
       // allGroupsProviderも更新
       ref.invalidate(allGroupsProvider);
@@ -200,8 +206,8 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
       // メンバープールも更新
       ref.read(memberPoolProvider.notifier).syncPool();
     } catch (e, stackTrace) {
-      print('❌ [ADD MEMBER] エラー発生: $e');
-      print('❌ [ADD MEMBER] スタックトレース: $stackTrace');
+      Log.error('❌ [ADD MEMBER] エラー発生: $e');
+      Log.error('❌ [ADD MEMBER] スタックトレース: $stackTrace');
       state = AsyncError(e, stackTrace);
       rethrow;
     }
@@ -209,38 +215,38 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
 
   /// Delete a member from the current group
   Future<void> deleteMember(String memberId) async {
-    print('👥 [DELETE MEMBER] メンバー削除開始: $memberId');
+    Log.info('👥 [DELETE MEMBER] メンバー削除開始: $memberId');
     final currentGroup = state.value;
     if (currentGroup == null) {
-      print('❌ [DELETE MEMBER] currentGroupがnullです');
+      Log.error('❌ [DELETE MEMBER] currentGroupがnullです');
       return;
     }
 
     // 削除するメンバーを見つける
     final memberToDelete = currentGroup.members?.where((m) => m.memberId == memberId).firstOrNull;
     if (memberToDelete == null) {
-      print('❌ [DELETE MEMBER] 指定されたmemberIdのメンバーが見つかりません: $memberId');
+      Log.error('❌ [DELETE MEMBER] 指定されたmemberIdのメンバーが見つかりません: $memberId');
       return;
     }
 
     final repository = ref.read(purchaseGroupRepositoryProvider);
     
     try {
-      print('👥 [DELETE MEMBER] 現在のメンバー数: ${currentGroup.members?.length ?? 0}');
+      Log.info('👥 [DELETE MEMBER] 現在のメンバー数: ${currentGroup.members?.length ?? 0}');
       
       // 楽観的更新: 先にUIを更新
       final optimisticGroup = currentGroup.removeMember(memberToDelete);
       state = AsyncData(optimisticGroup);
-      print('👥 [DELETE MEMBER] 楽観的更新完了。新メンバー数: ${optimisticGroup.members?.length ?? 0}');
+      Log.info('👥 [DELETE MEMBER] 楽観的更新完了。新メンバー数: ${optimisticGroup.members?.length ?? 0}');
       
       // バックグラウンドでデータベースから削除
       await repository.removeMember(currentGroup.groupId, memberToDelete);
-      print('👥 [DELETE MEMBER] データベース削除完了');
+      Log.info('👥 [DELETE MEMBER] データベース削除完了');
       
       // 念のため最新データを取得（同期エラー防止）
       final updatedGroup = await repository.getGroupById(currentGroup.groupId);
       state = AsyncData(updatedGroup);
-      print('👥 [DELETE MEMBER] 最終更新完了');
+      Log.info('👥 [DELETE MEMBER] 最終更新完了');
       
       // allGroupsProviderも更新
       ref.invalidate(allGroupsProvider);
@@ -248,8 +254,8 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
       // メンバープールも更新
       ref.read(memberPoolProvider.notifier).syncPool();
     } catch (e, stackTrace) {
-      print('❌ [DELETE MEMBER] エラー発生: $e');
-      print('❌ [DELETE MEMBER] スタックトレース: $stackTrace');
+      Log.error('❌ [DELETE MEMBER] エラー発生: $e');
+      Log.error('❌ [DELETE MEMBER] スタックトレース: $stackTrace');
       state = AsyncError(e, stackTrace);
       rethrow;
     }
@@ -259,7 +265,7 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
   Future<void> deleteCurrentGroup() async {
     final currentGroup = state.value;
     if (currentGroup == null) {
-      print('❌ [DELETE GROUP] currentGroupがnullです');
+      Log.error('❌ [DELETE GROUP] currentGroupがnullです');
       return;
     }
     
@@ -334,21 +340,21 @@ class SelectedGroupIdNotifier extends StateNotifier<String> {
 class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
   @override
   Future<List<PurchaseGroup>> build() async {
-    print('🔄 [ALL GROUPS] AllGroupsNotifier.build() 開始');
+    Log.info('🔄 [ALL GROUPS] AllGroupsNotifier.build() 開始');
     final repository = ref.read(purchaseGroupRepositoryProvider);
-    print('🔄 [ALL GROUPS] リポジトリ取得完了: ${repository.runtimeType}');
+    Log.info('🔄 [ALL GROUPS] リポジトリ取得完了: ${repository.runtimeType}');
     
     try {
-      print('🔄 [ALL GROUPS] getAllGroups() 呼び出し開始');
+      Log.info('🔄 [ALL GROUPS] getAllGroups() 呼び出し開始');
       final groups = await repository.getAllGroups();
-      print('🔄 [ALL GROUPS] getAllGroups() 完了: ${groups.length}グループ');
+      Log.info('🔄 [ALL GROUPS] getAllGroups() 完了: ${groups.length}グループ');
       for (final group in groups) {
-        print('🔄 [ALL GROUPS] - ${group.groupName} (${group.groupId})');
+        Log.info('🔄 [ALL GROUPS] - ${group.groupName} (${group.groupId})');
       }
       return groups;
     } catch (e, stackTrace) {
-      print('❌ [ALL GROUPS] エラー発生: $e');
-      print('❌ [ALL GROUPS] スタックトレース: $stackTrace');
+      Log.error('❌ [ALL GROUPS] エラー発生: $e');
+      Log.error('❌ [ALL GROUPS] スタックトレース: $stackTrace');
       throw Exception('Failed to load all groups: $e');
     }
   }
@@ -360,7 +366,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
 
   /// 新しいグループを作成
   Future<void> createNewGroup(String groupName) async {
-    print('🆕 [CREATE GROUP] createNewGroup: $groupName');
+    Log.info('🆕 [CREATE GROUP] createNewGroup: $groupName');
     final repository = ref.read(purchaseGroupRepositoryProvider);
     
     try {
@@ -398,10 +404,10 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
       // メンバープールも更新（新しいオーナーが追加されるため）
       ref.read(memberPoolProvider.notifier).syncPool();
       
-      print('✅ [CREATE GROUP] グループ作成完了: ${newGroup.groupName}');
+      Log.info('✅ [CREATE GROUP] グループ作成完了: ${newGroup.groupName}');
     } catch (e, stackTrace) {
-      print('❌ [CREATE GROUP] エラー発生: $e');
-      print('❌ [CREATE GROUP] スタックトレース: $stackTrace');
+      Log.error('❌ [CREATE GROUP] エラー発生: $e');
+      Log.error('❌ [CREATE GROUP] スタックトレース: $stackTrace');
       throw Exception('Failed to create group: $e');
     }
   }
@@ -423,20 +429,20 @@ class MemberPoolNotifier extends AsyncNotifier<PurchaseGroup> {
     final repository = ref.read(purchaseGroupRepositoryProvider);
     
     try {
-      print('🔄 [MEMBER POOL] MemberPoolNotifier.build() 開始');
+      Log.info('🔄 [MEMBER POOL] MemberPoolNotifier.build() 開始');
       final memberPool = await repository.getOrCreateMemberPool();
-      print('🔄 [MEMBER POOL] メンバープール取得完了: ${memberPool.members?.length ?? 0}メンバー');
+      Log.info('🔄 [MEMBER POOL] メンバープール取得完了: ${memberPool.members?.length ?? 0}メンバー');
       return memberPool;
     } catch (e, stackTrace) {
-      print('❌ [MEMBER POOL] ビルドエラー: $e');
-      print('❌ [MEMBER POOL] スタックトレース: $stackTrace');
+      Log.error('❌ [MEMBER POOL] ビルドエラー: $e');
+      Log.error('❌ [MEMBER POOL] スタックトレース: $stackTrace');
       throw Exception('Failed to load member pool: $e');
     }
   }
 
   /// メンバープールを最新の状態に同期
   Future<void> syncPool() async {
-    print('🔄 [MEMBER POOL] syncPool() 開始');
+    Log.info('🔄 [MEMBER POOL] syncPool() 開始');
     final repository = ref.read(purchaseGroupRepositoryProvider);
     
     try {
@@ -447,9 +453,9 @@ class MemberPoolNotifier extends AsyncNotifier<PurchaseGroup> {
       final updatedPool = await repository.getOrCreateMemberPool();
       state = AsyncData(updatedPool);
       
-      print('✅ [MEMBER POOL] プール同期完了: ${updatedPool.members?.length ?? 0}メンバー');
+      Log.info('✅ [MEMBER POOL] プール同期完了: ${updatedPool.members?.length ?? 0}メンバー');
     } catch (e, stackTrace) {
-      print('❌ [MEMBER POOL] 同期エラー: $e');
+      Log.error('❌ [MEMBER POOL] 同期エラー: $e');
       state = AsyncError(e, stackTrace);
       rethrow;
     }
@@ -457,43 +463,43 @@ class MemberPoolNotifier extends AsyncNotifier<PurchaseGroup> {
 
   /// メンバープール内でメンバーを検索
   Future<List<PurchaseGroupMember>> searchMembers(String query) async {
-    print('🔍 [MEMBER POOL] searchMembers() 開始: "$query"');
+    Log.info('🔍 [MEMBER POOL] searchMembers() 開始: "$query"');
     final repository = ref.read(purchaseGroupRepositoryProvider);
     
     try {
       final members = await repository.searchMembersInPool(query);
-      print('🔍 [MEMBER POOL] 検索完了: ${members.length}件');
+      Log.info('🔍 [MEMBER POOL] 検索完了: ${members.length}件');
       return members;
     } catch (e) {
-      print('❌ [MEMBER POOL] 検索エラー: $e');
+      Log.error('❌ [MEMBER POOL] 検索エラー: $e');
       rethrow;
     }
   }
 
   /// メールアドレスでメンバーを検索
   Future<PurchaseGroupMember?> findMemberByEmail(String email) async {
-    print('📧 [MEMBER POOL] findMemberByEmail() 開始: $email');
+    Log.info('📧 [MEMBER POOL] findMemberByEmail() 開始: $email');
     final repository = ref.read(purchaseGroupRepositoryProvider);
     
     try {
       final member = await repository.findMemberByEmail(email);
-      print('📧 [MEMBER POOL] メール検索完了: ${member != null ? 'found' : 'not found'}');
+      Log.info('📧 [MEMBER POOL] メール検索完了: ${member != null ? 'found' : 'not found'}');
       return member;
     } catch (e) {
-      print('❌ [MEMBER POOL] メール検索エラー: $e');
+      Log.error('❌ [MEMBER POOL] メール検索エラー: $e');
       rethrow;
     }
   }
 
   /// プールを手動で更新（グループメンバー変更後など）
   Future<void> refreshPool() async {
-    print('🔄 [MEMBER POOL] refreshPool() 開始');
+    Log.info('🔄 [MEMBER POOL] refreshPool() 開始');
     
     try {
       await syncPool();
-      print('✅ [MEMBER POOL] プール更新完了');
+      Log.info('✅ [MEMBER POOL] プール更新完了');
     } catch (e) {
-      print('❌ [MEMBER POOL] プール更新エラー: $e');
+      Log.error('❌ [MEMBER POOL] プール更新エラー: $e');
       rethrow;
     }
   }

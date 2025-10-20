@@ -1,0 +1,273 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/auth_provider.dart';
+import '../utils/app_logger.dart';
+
+/// サインイン・サインアップのパネルウィジェット
+class AuthPanelWidget extends ConsumerStatefulWidget {
+  /// 認証成功時のコールバック
+  final VoidCallback? onAuthSuccess;
+
+  const AuthPanelWidget({
+    super.key,
+    this.onAuthSuccess,
+  });
+
+  @override
+  ConsumerState<AuthPanelWidget> createState() => _AuthPanelWidgetState();
+}
+
+class _AuthPanelWidgetState extends ConsumerState<AuthPanelWidget> {
+  final userNameController = TextEditingController();
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  
+  bool showSignInForm = false;
+  bool _isPasswordVisible = false;
+  bool _isPasswordResetLoading = false;
+  bool _rememberEmail = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedEmail();
+  }
+
+  @override
+  void dispose() {
+    userNameController.dispose();
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
+
+  /// 保存されたメールアドレスを読み込む
+  Future<void> _loadSavedEmail() async {
+    try {
+      // TODO: AuthProviderに統合されたsaveOrClearEmailメソッドを使用予定
+      // 現在は基本的な実装のみ
+      AppLogger.info('📧 保存されたメールアドレスの読み込み開始');
+    } catch (e) {
+      AppLogger.error('❌ メールアドレス読み込みエラー: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.login, color: Colors.blue),
+                  SizedBox(width: 8),
+                  Text(
+                    'ログイン・新規登録',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'メールアドレスとパスワードでアカウント作成・ログイン',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const SizedBox(height: 16),
+
+              // サインインフォーム表示切り替えボタン
+              if (!showSignInForm) ...[
+                ElevatedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      showSignInForm = true;
+                    });
+                  },
+                  icon: const Icon(Icons.login),
+                  label: const Text('ログイン・新規登録'),
+                ),
+              ],
+
+              // メール/パスワード入力フォーム
+              if (showSignInForm) ...[
+                TextFormField(
+                  controller: emailController,
+                  decoration: const InputDecoration(
+                    labelText: 'メールアドレス',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.email),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'メールアドレスを入力してください';
+                    }
+                    if (!value.contains('@')) {
+                      return '有効なメールアドレスを入力してください';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                TextFormField(
+                  controller: passwordController,
+                  decoration: InputDecoration(
+                    labelText: 'パスワード',
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.lock),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _isPasswordVisible = !_isPasswordVisible;
+                        });
+                      },
+                      tooltip: _isPasswordVisible ? 'パスワードを隠す' : 'パスワードを表示',
+                    ),
+                  ),
+                  obscureText: !_isPasswordVisible,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'パスワードを入力してください';
+                    }
+                    if (value.length < 6) {
+                      return 'パスワードは6文字以上で入力してください';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 8),
+
+                // メールアドレス保存チェックボックス
+                CheckboxListTile(
+                  value: _rememberEmail,
+                  onChanged: (value) {
+                    setState(() {
+                      _rememberEmail = value ?? false;
+                    });
+                  },
+                  title: const Text('メールアドレスを保存する'),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                ),
+                const SizedBox(height: 16),
+
+                // サインイン・サインアップボタン
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          if (_formKey.currentState!.validate()) {
+                            await ref.read(authProvider).performSignIn(
+                              context: context,
+                              ref: ref,
+                              email: emailController.text.trim(),
+                              password: passwordController.text,
+                              emailController: emailController,
+                              passwordController: passwordController,
+                              userNameController: userNameController,
+                              rememberEmail: _rememberEmail,
+                              onSuccess: () {
+                                setState(() {
+                                  showSignInForm = false;
+                                });
+                                widget.onAuthSuccess?.call();
+                              },
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.login),
+                        label: const Text('ログイン'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          if (_formKey.currentState!.validate()) {
+                            await ref.read(authProvider).performSignUp(
+                              context: context,
+                              ref: ref,
+                              email: emailController.text.trim(),
+                              password: passwordController.text,
+                              userName: userNameController.text.trim(),
+                              emailController: emailController,
+                              passwordController: passwordController,
+                              userNameController: userNameController,
+                              rememberEmail: _rememberEmail,
+                              onSuccess: () {
+                                setState(() {
+                                  showSignInForm = false;
+                                });
+                                widget.onAuthSuccess?.call();
+                              },
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.person_add),
+                        label: const Text('新規登録'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue.shade100,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+
+                // パスワードリセットボタン
+                TextButton.icon(
+                  onPressed: _isPasswordResetLoading ? null : () async {
+                    setState(() {
+                      _isPasswordResetLoading = true;
+                    });
+
+                    await ref.read(authProvider).performPasswordReset(
+                      context: context,
+                      email: emailController.text.trim(),
+                    );
+
+                    if (mounted) {
+                      setState(() {
+                        _isPasswordResetLoading = false;
+                      });
+                    }
+                  },
+                  icon: _isPasswordResetLoading 
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.email_outlined),
+                  label: Text(_isPasswordResetLoading ? '送信中...' : 'パスワードを忘れた場合'),
+                ),
+
+                // キャンセルボタン
+                TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      showSignInForm = false;
+                    });
+                  },
+                  icon: const Icon(Icons.cancel),
+                  label: const Text('キャンセル'),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

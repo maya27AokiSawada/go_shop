@@ -1,6 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:logger/logger.dart';
 import 'package:firebase_core/firebase_core.dart';
-import '../lib/firebase_options.dart';
+import 'package:go_shop/firebase_options.dart';
+
+// Logger instance
+final _logger = Logger();
 
 /// Trigger Email のテスト送信スクリプト
 /// 
@@ -8,14 +12,14 @@ import '../lib/firebase_options.dart';
 /// dart run scripts/test_email.dart
 
 Future<void> main() async {
-  print('📧 テストメール送信開始...');
+  _logger.i('📧 テストメール送信開始...');
   
   try {
     // Firebase初期化
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    print('✅ Firebase初期化完了');
+    _logger.i('✅ Firebase初期化完了');
     
     final firestore = FirebaseFirestore.instance;
     
@@ -75,25 +79,25 @@ Go Shop チーム
       },
     };
     
-    print('📤 メール送信リクエストをFirestoreに追加中...');
+    _logger.i('📤 メール送信リクエストをFirestoreに追加中...');
     final docRef = await firestore.collection('mail').add(emailData);
-    print('✅ ドキュメントID: ${docRef.id}');
-    print('');
-    print('📋 送信内容:');
-    print('   宛先: fatima.sumomo@gmail.com');
-    print('   件名: Go Shop テストメール');
-    print('');
-    print('⏳ メール送信処理が開始されました...');
-    print('');
-    print('💡 送信ステータスを確認するには:');
-    print('   Firebase Console → Firestore → mail コレクション → ${docRef.id}');
-    print('   delivery フィールドを確認してください');
-    print('');
-    print('📧 数秒～数分以内にメールが届くはずです！');
+    _logger.i('✅ ドキュメントID: ${docRef.id}');
+    _logger.i('');
+    _logger.i('📋 送信内容:');
+    _logger.i('   宛先: fatima.sumomo@gmail.com');
+    _logger.i('   件名: Go Shop テストメール');
+    _logger.i('');
+    _logger.i('⏳ メール送信処理が開始されました...');
+    _logger.i('');
+    _logger.i('💡 送信ステータスを確認するには:');
+    _logger.i('   Firebase Console → Firestore → mail コレクション → ${docRef.id}');
+    _logger.i('   delivery フィールドを確認してください');
+    _logger.i('');
+    _logger.i('📧 数秒～数分以内にメールが届くはずです！');
     
   } catch (e, stackTrace) {
-    print('❌ エラーが発生しました: $e');
-    print('スタックトレース: $stackTrace');
+    _logger.e('❌ エラーが発生しました: $e');
+    _logger.i('スタックトレース: $stackTrace');
     rethrow;
   }
 }

@@ -1,8 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:logger/logger.dart';
-import '../providers/enhanced_group_provider.dart';
+import '../utils/app_logger.dart';
+
 import '../providers/user_settings_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/shopping_list_provider.dart';
@@ -10,7 +10,7 @@ import '../providers/user_specific_hive_provider.dart';
 import '../widgets/user_data_migration_dialog.dart';
 
 class UserIdChangeHelper {
-  static final Logger logger = Logger();
+  
 
   static Future<void> handleUserIdChange({
     required WidgetRef ref,
@@ -22,7 +22,7 @@ class UserIdChangeHelper {
     try {
       // 仮設定UID（MockやLocalテスト用）の場合は処理をスキップ
       if (_isTemporaryUid(newUserId)) {
-        logger.i('🔄 仮設定UID検出 - UID変更処理をスキップ: $newUserId');
+        Log.info('🔄 仮設定UID検出 - UID変更処理をスキップ: $newUserId');
         return;
       }
       
@@ -42,7 +42,7 @@ class UserIdChangeHelper {
           
           if (shouldKeepData == false) {
             // データを消去する場合
-            logger.i('🗑️ ユーザーがデータ消去を選択');
+            Log.info('🗑️ ユーザーがデータ消去を選択');
             
             if (isWindows) {
               // Windows版: ユーザー固有のHiveデータベースに切り替え
@@ -58,7 +58,7 @@ class UserIdChangeHelper {
             
           } else {
             // データを引き継ぐ場合
-            logger.i('🔄 ユーザーがデータ引き継ぎを選択');
+            Log.info('🔄 ユーザーがデータ引き継ぎを選択');
             
             if (isWindows) {
               // Windows版: ユーザー固有フォルダに切り替え
@@ -75,7 +75,7 @@ class UserIdChangeHelper {
         // UIDが変更されていない場合
         if (isWindows && hiveService.currentUserId != newUserId) {
           // Windows版のみ: 適切なユーザーデータベースに切り替え
-          logger.i('🔄 [Windows] Switching to user-specific Hive database: $newUserId');
+          Log.info('🔄 [Windows] Switching to user-specific Hive database: $newUserId');
           await hiveService.initializeForUser(newUserId);
           
           // プロバイダーの無効化を大幅に遅延させて競合を回避
@@ -89,7 +89,7 @@ class UserIdChangeHelper {
       await userSettings.updateUserId(newUserId);
       
     } catch (e) {
-      logger.i('❌ UID変更処理エラー: $e');
+      Log.info('❌ UID変更処理エラー: $e');
     }
   }
 

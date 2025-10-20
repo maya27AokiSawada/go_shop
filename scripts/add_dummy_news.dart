@@ -16,26 +16,28 @@
 ///    - priority (number): 1
 /// 8. 「保存」をクリック
 
+import '../lib/utils/app_logger.dart';
+
 void main() {
-  print('📰 ダミーニュース追加手順');
-  print('');
-  print('Firebase Console を使用して手動で追加してください:');
-  print('');
-  print('1. https://console.firebase.google.com/ を開く');
-  print('2. プロジェクト「gotoshop-572b7」を選択');
-  print('3. 左メニューから「Firestore Database」を選択');
-  print('4. 「コレクションを開始」をクリック');
-  print('');
-  print('コレクションID: furestorenews');
-  print('ドキュメントID: current_news');
-  print('');
-  print('フィールド:');
-  print('  - title (string): "Go Shopへようこそ！"');
-  print('  - content (string): "Go Shopをご利用いただき、ありがとうございます。"');
-  print('  - timestamp (timestamp): 現在の日時');
-  print('  - isActive (boolean): true');
-  print('  - priority (number): 1');
-  print('');
-  print('💡 Firestoreのルールで読み取りを許可してください:');
-  print('   allow read: if true;');
+  AppLogger.info('📰 ダミーニュース追加手順');
+  AppLogger.info('');
+  AppLogger.info('Firebase Console を使用して手動で追加してください:');
+  AppLogger.info('');
+  AppLogger.info('1. https://console.firebase.google.com/ を開く');
+  AppLogger.info('2. プロジェクト「gotoshop-572b7」を選択');
+  AppLogger.info('3. 左メニューから「Firestore Database」を選択');
+  AppLogger.info('4. 「コレクションを開始」をクリック');
+  AppLogger.info('');
+  AppLogger.info('コレクションID: furestorenews');
+  AppLogger.info('ドキュメントID: current_news');
+  AppLogger.info('');
+  AppLogger.info('フィールド:');
+  AppLogger.info('  - title (string): "Go Shopへようこそ！"');
+  AppLogger.info('  - content (string): "Go Shopをご利用いただき、ありがとうございます。"');
+  AppLogger.info('  - timestamp (timestamp): 現在の日時');
+  AppLogger.info('  - isActive (boolean): true');
+  AppLogger.info('  - priority (number): 1');
+  AppLogger.info('');
+  AppLogger.info('💡 Firestoreのルールで読み取りを許可してください:');
+  AppLogger.info('   allow read: if true;');
 }

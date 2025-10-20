@@ -1,6 +1,8 @@
 // lib/widgets/member_role_management_widget.dart
 import 'package:flutter/material.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../utils/app_logger.dart';
 import '../models/purchase_group.dart';
 import '../providers/purchase_group_provider.dart';
 
@@ -246,7 +248,7 @@ class MemberRoleManagementWidget extends ConsumerWidget {
       ref.invalidate(selectedGroupNotifierProvider);
       
     } catch (e) {
-      print('❌ メンバーロール更新エラー: $e');
+      Log.error('❌ メンバーロール更新エラー: $e');
     }
   }
 

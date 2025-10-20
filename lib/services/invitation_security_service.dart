@@ -1,8 +1,15 @@
 import 'dart:convert';
 import 'dart:math';
+import 'package:logger/logger.dart';
+
+
+// Logger instance
+
 import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../utils/app_logger.dart';
 import '../models/purchase_group.dart';
+
 
 // プロバイダー
 final invitationSecurityServiceProvider = Provider<InvitationSecurityService>(
@@ -77,7 +84,7 @@ class InvitationSecurityService {
         timestamp: payload['timestamp'] as int,
       );
     } catch (e) {
-      print('招待トークン解析エラー: $e');
+      Log.error('招待トークン解析エラー: $e');
       return null;
     }
   }
