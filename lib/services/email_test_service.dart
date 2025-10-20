@@ -1,7 +1,9 @@
 // lib/services/email_test_service.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../utils/app_logger.dart';
 
 final emailTestServiceProvider = Provider<EmailTestService>((ref) {
   return EmailTestService();
@@ -33,9 +35,9 @@ Go Shop開発チーム
     
     try {
 
-      print('📧 テストメール送信開始');
-      print('   宛先: $testEmail');
-      print('   件名: $subject');
+      Log.info('📧 テストメール送信開始');
+      Log.info('   宛先: $testEmail');
+      Log.info('   件名: $subject');
 
       // Firebase Extensions Trigger Emailを使用してメール送信
       await _sendEmailViaFirebaseExtensions(
@@ -44,32 +46,32 @@ Go Shop開発チーム
         body: body,
       );
 
-      print('✅ Firebase Extensions経由でテストメール送信成功');
+      Log.info('✅ Firebase Extensions経由でテストメール送信成功');
       return true;
 
     } catch (emailError) {
-      print('⚠️ Firebase Extensions テストメール送信エラー: $emailError');
+      Log.warning('⚠️ Firebase Extensions テストメール送信エラー: $emailError');
       
       // エラータイプに応じた詳細ログ
       if (emailError.toString().contains('missing credentials') || 
           emailError.toString().contains('UNAUTHENTICATED')) {
-        print('🔑 Firebase Extensions認証エラー: SMTP設定を確認してください');
-        print('📋 対処方法:');
-        print('   1. Firebaseコンソール → Extensions → Trigger Email');
-        print('   2. SMTP_CONNECTION_URI の設定確認');
-        print('   3. DEFAULT_FROM の設定確認');
+        Log.error('🔑 Firebase Extensions認証エラー: SMTP設定を確認してください');
+        Log.info('📋 対処方法:');
+        Log.info('   1. Firebaseコンソール → Extensions → Trigger Email');
+        Log.info('   2. SMTP_CONNECTION_URI の設定確認');
+        Log.info('   3. DEFAULT_FROM の設定確認');
       } else if (emailError.toString().contains('permission')) {
-        print('🚫 権限エラー: Firestore権限を確認してください');
+        Log.error('🚫 権限エラー: Firestore権限を確認してください');
       }
       
-      print('📱 フォールバック: システムメールクライアントを起動します');
+      Log.info('📱 フォールバック: システムメールクライアントを起動します');
       
       // フォールバック：システムメールクライアント起動
       try {
         await _openSystemEmailClient(testEmail, subject, body);
         return true;
       } catch (e) {
-        print('❌ システムメールクライアント起動も失敗: $e');
+        Log.error('❌ システムメールクライアント起動も失敗: $e');
         return false;
       }
     }
@@ -112,9 +114,9 @@ Go Shop開発チーム
 
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
-      print('✅ システムメールクライアント起動成功');
+      Log.info('✅ システムメールクライアント起動成功');
     } else {
-      print('❌ メールクライアントを起動できませんでした');
+      Log.error('❌ メールクライアントを起動できませんでした');
       throw Exception('メールクライアントを起動できませんでした');
     }
   }
@@ -125,7 +127,7 @@ Go Shop開発チーム
     
     for (int i = 0; i < emails.length; i++) {
       try {
-        print('📧 ${i + 1}/${emails.length}: ${emails[i]} にテストメール送信中...');
+        Log.info('📧 ${i + 1}/${emails.length}: ${emails[i]} にテストメール送信中...');
         
         final result = await sendTestEmail(
           testEmail: emails[i],
@@ -151,7 +153,7 @@ Go Shop開発チーム
         }
         
       } catch (e) {
-        print('❌ ${emails[i]} への送信に失敗: $e');
+        Log.error('❌ ${emails[i]} への送信に失敗: $e');
         results.add(false);
       }
     }

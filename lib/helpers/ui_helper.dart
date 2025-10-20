@@ -1,10 +1,10 @@
 // lib/helpers/ui_helper.dart
 import 'package:flutter/material.dart';
-import 'package:logger/logger.dart';
+import '../utils/app_logger.dart';
 
 /// UI関連のヘルパー関数を集約
 class UiHelper {
-  static final Logger _logger = Logger();
+  
 
   /// 成功メッセージを表示
   static void showSuccessMessage(
@@ -284,7 +284,7 @@ class UiHelper {
     bool alsoLogToConsole = true,
   }) {
     if (alsoLogToConsole) {
-      _logger.d(log);
+      Log.debug(log);
     }
     
     showInfoMessage(context, log);

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../utils/app_logger.dart';
 
 class TestGroupPage extends ConsumerWidget {
   const TestGroupPage({super.key});
@@ -43,7 +44,7 @@ class TestGroupPage extends ConsumerWidget {
                         );
                       }).toList(),
                       onChanged: (String? newValue) {
-                        print('📋 [TEST] 選択されました: $newValue');
+                        Log.info('📋 [TEST] 選択されました: $newValue');
                         if (newValue != null) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text('$newValue を選択しました')),
@@ -72,7 +73,7 @@ class TestGroupPage extends ConsumerWidget {
                       children: [
                         ElevatedButton(
                           onPressed: () {
-                            print('📋 [TEST] ボタン1がタップされました');
+                            Log.info('📋 [TEST] ボタン1がタップされました');
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('ボタン1がタップされました')),
                             );
@@ -82,7 +83,7 @@ class TestGroupPage extends ConsumerWidget {
                         const SizedBox(width: 10),
                         ElevatedButton(
                           onPressed: () {
-                            print('📋 [TEST] ボタン2がタップされました');
+                            Log.info('📋 [TEST] ボタン2がタップされました');
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('ボタン2がタップされました')),
                             );
@@ -100,7 +101,7 @@ class TestGroupPage extends ConsumerWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          print('📋 [TEST] フローティングボタンがタップされました');
+          Log.info('📋 [TEST] フローティングボタンがタップされました');
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('フローティングボタンがタップされました')),
           );

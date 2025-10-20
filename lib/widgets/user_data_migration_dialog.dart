@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/app_logger.dart';
 
 /// ユーザー切り替え時のデータ引き継ぎ選択ダイアログ
 class UserDataMigrationDialog extends StatelessWidget {

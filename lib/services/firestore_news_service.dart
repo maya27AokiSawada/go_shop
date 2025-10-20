@@ -1,9 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:logger/logger.dart';
+import '../utils/app_logger.dart';
 import '../models/app_news.dart';
 import '../flavors.dart';
 
-final logger = Logger();
+
 
 /// Firestoreからアプリニュースを取得するサービス
 class FirestoreNewsService {
@@ -15,7 +16,7 @@ class FirestoreNewsService {
     try {
       // DEV環境ではダミーデータを返す
       if (F.appFlavor == Flavor.dev) {
-        logger.i('📰 DEV環境: ダミーニュースを返します');
+        Log.info('📰 DEV環境: ダミーニュースを返します');
         return AppNews(
           title: '🎉 Go Shop v2.0 リリース！',
           content: 'Go Shopが大幅にアップデートされました！新機能として招待システム、プレミアムプラン、ハイブリッド同期機能が追加されました。ぜひお試しください！',
@@ -26,7 +27,7 @@ class FirestoreNewsService {
       }
 
       // PROD環境ではFirestoreから取得
-      logger.i('📰 Firestoreからニュースを取得中...');
+      Log.info('📰 Firestoreからニュースを取得中...');
       final doc = await FirebaseFirestore.instance
           .collection(_collectionName)
           .doc(_documentName)
@@ -34,14 +35,14 @@ class FirestoreNewsService {
 
       if (doc.exists && doc.data() != null) {
         final data = doc.data()!;
-        logger.i('📰 ニュース取得成功: ${data['title']}');
+        Log.info('📰 ニュース取得成功: ${data['title']}');
         return AppNews.fromMap(data);
       } else {
-        logger.w('📰 ニュースドキュメントが存在しません');
+        Log.warning('📰 ニュースドキュメントが存在しません');
         return _getDefaultNews();
       }
     } catch (e) {
-      logger.e('📰 ニュース取得エラー: $e');
+      Log.error('📰 ニュース取得エラー: $e');
       return _getDefaultNews();
     }
   }
@@ -70,11 +71,11 @@ class FirestoreNewsService {
           return _getDefaultNews();
         }
       }).handleError((error) {
-        logger.e('📰 ニュースストリームエラー: $error');
+        Log.error('📰 ニュースストリームエラー: $error');
         return _getDefaultNews();
       });
     } catch (e) {
-      logger.e('📰 ニュースストリーム開始エラー: $e');
+      Log.error('📰 ニュースストリーム開始エラー: $e');
       return Stream.value(_getDefaultNews());
     }
   }
@@ -101,7 +102,7 @@ class FirestoreNewsService {
   }) async {
     try {
       if (F.appFlavor == Flavor.dev) {
-        logger.i('📰 DEV環境: ニュース更新はスキップされます');
+        Log.info('📰 DEV環境: ニュース更新はスキップされます');
         return;
       }
 
@@ -121,9 +122,9 @@ class FirestoreNewsService {
           .doc(_documentName)
           .set(newsData.toMap());
 
-      logger.i('📰 ニュース更新完了: $title');
+      Log.info('📰 ニュース更新完了: $title');
     } catch (e) {
-      logger.e('📰 ニュース更新エラー: $e');
+      Log.error('📰 ニュース更新エラー: $e');
       rethrow;
     }
   }

@@ -1,5 +1,6 @@
 // lib/services/enhanced_invitation_service.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../utils/app_logger.dart';
 import '../models/purchase_group.dart';
 import '../datastore/firestore_architecture.dart';
 import '../providers/auth_provider.dart';

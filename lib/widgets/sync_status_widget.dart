@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../utils/app_logger.dart';
 import '../providers/purchase_group_provider.dart';
 
 /// 同期状態を表示するウィジェット

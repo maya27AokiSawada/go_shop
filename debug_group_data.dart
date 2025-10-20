@@ -6,9 +6,10 @@ import 'lib/models/shopping_list.dart';
 import 'lib/models/user_settings.dart';
 import 'lib/models/invitation.dart';
 import 'lib/models/accepted_invitation.dart';
+import 'lib/utils/app_logger.dart';
 
 void main() async {
-  print('🔍 グループデータ診断開始...');
+  Log.info('🔍 グループデータ診断開始...');
   
   try {
     // Hive初期化
@@ -28,44 +29,45 @@ void main() async {
     
     // PurchaseGroup Boxを開く
     final box = await Hive.openBox<PurchaseGroup>('purchaseGroups');
-    
-    print('📦 Box状態: ${box.isOpen ? "開いている" : "閉じている"}');
-    print('📊 保存されているキー数: ${box.keys.length}');
-    print('📋 キー一覧: ${box.keys.toList()}');
-    
+
+    Log.info('📦 Box状態: ${box.isOpen ? "開いている" : "閉じている"}');
+    Log.info('📊 保存されているキー数: ${box.keys.length}');
+    Log.info('📋 キー一覧: ${box.keys.toList()}');
+
     // 各グループの詳細を表示
     for (final key in box.keys) {
       final group = box.get(key);
       if (group != null) {
-        print('');
-        print('🏷️  グループID: ${group.groupId}');
-        print('📝 グループ名: ${group.groupName}');
-        print('👥 メンバー数: ${group.members?.length ?? 0}');
+        Log.info('');
+        Log.info('🏷️  グループID: ${group.groupId}');
+        Log.info('📝 グループ名: ${group.groupName}');
+        Log.info('👥 メンバー数: ${group.members?.length ?? 0}');
         if (group.members?.isNotEmpty == true) {
           for (final member in group.members!) {
-            print('   - ${member.name} (${member.role.name}, ID: ${member.memberId})');
+            Log.info('   - ${member.name} (${member.role.name}, ID: ${member.memberId})');
           }
         }
-        print('📅 作成日: ${group.createdAt}');
+        // 作成日はPurchaseGroupモデルに存在しない場合があります
+        // Log.info('📅 作成日: ${group.createdAt}');
       }
     }
     
     // defaultGroupが存在するかチェック
     final defaultGroup = box.get('defaultGroup');
     if (defaultGroup != null) {
-      print('');
-      print('✅ defaultGroupが見つかりました');
+      Log.info('');
+      Log.info('✅ defaultGroupが見つかりました');
     } else {
-      print('');
-      print('❌ defaultGroupが見つかりません - 作成が必要です');
+      Log.info('');
+      Log.error('❌ defaultGroupが見つかりません - 作成が必要です');
     }
     
     await box.close();
     
   } catch (e, stackTrace) {
-    print('❌ エラー発生: $e');
-    print('📍 スタック: $stackTrace');
+    Log.error('❌ エラー発生: $e');
+    Log.info('📍 スタック: $stackTrace');
   }
   
-  print('🔍 診断完了');
+  Log.info('🔍 診断完了');
 }

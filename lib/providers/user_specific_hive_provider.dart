@@ -1,10 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
+import '../utils/app_logger.dart';
 import 'dart:io' show Platform;
 import '../services/user_specific_hive_service.dart';
 import 'auth_provider.dart';
 
-final logger = Logger();
+
 
 /// ユーザー固有のHiveサービス管理プロバイダー
 final userSpecificHiveProvider = Provider<UserSpecificHiveService>((ref) {
@@ -20,11 +21,11 @@ final hiveUserInitializationProvider = FutureProvider<void>((ref) async {
   
   if (isWindows) {
     // Windows版: 前回使用UIDフォルダを自動継続（認証状態に関係なく）
-    logger.i('🔄 [Windows] Initializing Hive with last used UID folder');
+    Log.info('🔄 [Windows] Initializing Hive with last used UID folder');
     await hiveService.initializeForWindowsUser();
   } else {
     // Android/iOS版: 従来通りのデフォルトフォルダ
-    logger.i('🔄 [${Platform.operatingSystem}] Using default Hive folder');
+    Log.info('🔄 [${Platform.operatingSystem}] Using default Hive folder');
     await hiveService.initializeForDefaultUser();
   }
 });

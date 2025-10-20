@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../utils/app_logger.dart';
 import '../providers/user_specific_hive_provider.dart';
 
 /// Hiveの初期化を待つラッパーウィジェット

@@ -1,0 +1,180 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/auth_provider.dart';
+import '../utils/app_logger.dart';
+
+/// ユーザー名管理パネルウィジェット
+class UserNamePanelWidget extends ConsumerStatefulWidget {
+  /// ユーザー名コントローラー（親から渡される）
+  final TextEditingController userNameController;
+  
+  /// 保存成功時のコールバック
+  final VoidCallback? onSaveSuccess;
+
+  const UserNamePanelWidget({
+    super.key,
+    required this.userNameController,
+    this.onSaveSuccess,
+  });
+
+  @override
+  ConsumerState<UserNamePanelWidget> createState() => _UserNamePanelWidgetState();
+}
+
+class _UserNamePanelWidgetState extends ConsumerState<UserNamePanelWidget> {
+  final _formKey = GlobalKey<FormState>();
+  bool _isLoading = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.person, color: Colors.blue),
+                  SizedBox(width: 8),
+                  Text(
+                    'ユーザー名設定',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'アプリ内で表示されるユーザー名を設定してください',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const SizedBox(height: 16),
+              
+              TextFormField(
+                controller: widget.userNameController,
+                decoration: const InputDecoration(
+                  labelText: 'ユーザー名',
+                  border: OutlineInputBorder(),
+                  hintText: '表示名を入力してください',
+                  prefixIcon: Icon(Icons.account_circle),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'ユーザー名を入力してください';
+                  }
+                  if (value.trim().length < 2) {
+                    return 'ユーザー名は2文字以上で入力してください';
+                  }
+                  if (value.trim().length > 20) {
+                    return 'ユーザー名は20文字以内で入力してください';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _isLoading ? null : _saveUserName,
+                  icon: _isLoading 
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.save),
+                  label: Text(_isLoading ? '保存中...' : 'ユーザー名を保存'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green.shade100,
+                    foregroundColor: Colors.green.shade800,
+                  ),
+                ),
+              ),
+              
+              const SizedBox(height: 8),
+              
+              // 現在の状態表示（デバッグ用）
+              if (widget.userNameController.text.isNotEmpty) ...[
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline, size: 16, color: Colors.grey),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '現在: ${widget.userNameController.text}',
+                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// ユーザー名保存処理
+  Future<void> _saveUserName() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      AppLogger.info('👤 ユーザー名保存開始: ${widget.userNameController.text.trim()}');
+      
+      await ref.read(authProvider).saveUserName(
+        context: context,
+        ref: ref,
+        userName: widget.userNameController.text.trim(),
+      );
+
+      AppLogger.success('✅ ユーザー名保存完了');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('ユーザー名を保存しました'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        
+        widget.onSaveSuccess?.call();
+      }
+    } catch (e) {
+      AppLogger.error('❌ ユーザー名保存エラー: $e');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('保存に失敗しました: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+}

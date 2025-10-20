@@ -1,6 +1,8 @@
 // lib/services/firestore_group_sync_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
+import '../utils/app_logger.dart';
 import '../models/purchase_group.dart';
 import '../flavors.dart';
 import 'user_preferences_service.dart';
@@ -13,17 +15,17 @@ class FirestoreGroupSyncService {
   /// サインイン時にFirestoreからグループデータを読み込み、ローカルに同期
   static Future<List<PurchaseGroup>> syncGroupsOnSignIn() async {
     try {
-      print('🔄 サインイン時グループ同期開始');
+      Log.info('🔄 サインイン時グループ同期開始');
       
       // 本番環境でない場合は空のリストを返す
       if (F.appFlavor != Flavor.prod) {
-        print('⚠️ 開発環境のためFirestore同期をスキップ');
+        Log.warning('⚠️ 開発環境のためFirestore同期をスキップ');
         return [];
       }
 
       final user = _auth.currentUser;
       if (user == null) {
-        print('⚠️ 未認証のためグループ同期をスキップ');
+        Log.warning('⚠️ 未認証のためグループ同期をスキップ');
         return [];
       }
 
@@ -37,12 +39,12 @@ class FirestoreGroupSyncService {
 
       // Firestoreからユーザーが参加しているグループを取得
       final groups = await _fetchUserGroups(user.uid);
-      print('✅ Firestoreから${groups.length}件のグループを取得');
+      Log.info('✅ Firestoreから${groups.length}件のグループを取得');
 
       return groups;
     } catch (e, stackTrace) {
-      print('❌ サインイン時グループ同期エラー: $e');
-      print('スタックトレース: $stackTrace');
+      Log.error('❌ サインイン時グループ同期エラー: $e');
+      Log.info('スタックトレース: $stackTrace');
       return [];
     }
   }
@@ -50,16 +52,16 @@ class FirestoreGroupSyncService {
   /// 特定のグループをFirestoreから取得してHiveに同期
   static Future<PurchaseGroup?> syncSpecificGroup(String groupId) async {
     try {
-      print('🔄 グループ[$groupId]の個別同期開始');
+      Log.info('🔄 グループ[$groupId]の個別同期開始');
       
       if (F.appFlavor != Flavor.prod) {
-        print('⚠️ 開発環境のためFirestore同期をスキップ');
+        Log.warning('⚠️ 開発環境のためFirestore同期をスキップ');
         return null;
       }
 
       final user = _auth.currentUser;
       if (user == null) {
-        print('⚠️ 未認証のためグループ同期をスキップ');
+        Log.warning('⚠️ 未認証のためグループ同期をスキップ');
         return null;
       }
 
@@ -70,7 +72,7 @@ class FirestoreGroupSyncService {
           .get();
 
       if (!groupDoc.exists) {
-        print('⚠️ グループ[$groupId]がFirestoreに存在しません');
+        Log.warning('⚠️ グループ[$groupId]がFirestoreに存在しません');
         return null;
       }
 
@@ -100,15 +102,15 @@ class FirestoreGroupSyncService {
           member.memberId == user.uid || member.contact == user.email) ?? false;
 
       if (!isMember) {
-        print('⚠️ ユーザーはグループ[$groupId]のメンバーではありません');
+        Log.warning('⚠️ ユーザーはグループ[$groupId]のメンバーではありません');
         return null;
       }
 
-      print('✅ グループ[$groupId]の同期完了');
+      Log.info('✅ グループ[$groupId]の同期完了');
       return group;
     } catch (e, stackTrace) {
-      print('❌ グループ[$groupId]の同期エラー: $e');
-      print('スタックトレース: $stackTrace');
+      Log.error('❌ グループ[$groupId]の同期エラー: $e');
+      Log.info('スタックトレース: $stackTrace');
       return null;
     }
   }
@@ -116,16 +118,16 @@ class FirestoreGroupSyncService {
   /// グループデータをFirestoreに保存
   static Future<bool> saveGroupToFirestore(PurchaseGroup group) async {
     try {
-      print('💾 グループ[${group.groupName}]をFirestoreに保存開始');
+      Log.info('💾 グループ[${group.groupName}]をFirestoreに保存開始');
       
       if (F.appFlavor != Flavor.prod) {
-        print('⚠️ 開発環境のためFirestore保存をスキップ');
+        Log.warning('⚠️ 開発環境のためFirestore保存をスキップ');
         return false;
       }
 
       final user = _auth.currentUser;
       if (user == null) {
-        print('⚠️ 未認証のためFirestore保存をスキップ');
+        Log.warning('⚠️ 未認証のためFirestore保存をスキップ');
         return false;
       }
 
@@ -151,11 +153,11 @@ class FirestoreGroupSyncService {
           .doc(group.groupId)
           .set(groupData);
 
-      print('✅ グループ[${group.groupName}]のFirestore保存完了');
+      Log.info('✅ グループ[${group.groupName}]のFirestore保存完了');
       return true;
     } catch (e, stackTrace) {
-      print('❌ グループ[${group.groupName}]のFirestore保存エラー: $e');
-      print('スタックトレース: $stackTrace');
+      Log.error('❌ グループ[${group.groupName}]のFirestore保存エラー: $e');
+      Log.info('スタックトレース: $stackTrace');
       return false;
     }
   }
@@ -229,7 +231,7 @@ class FirestoreGroupSyncService {
         }
       }
     } catch (e) {
-      print('❌ ユーザーグループ取得エラー: $e');
+      Log.error('❌ ユーザーグループ取得エラー: $e');
     }
 
     return groups;
@@ -278,14 +280,14 @@ class FirestoreGroupSyncService {
   /// サインアウト時の清理処理
   static Future<void> clearSyncDataOnSignOut() async {
     try {
-      print('🧹 サインアウト時の同期データクリア開始');
+      Log.info('🧹 サインアウト時の同期データクリア開始');
       
       // SharedPreferencesからユーザー情報をクリア（データバージョンは保持）
       await UserPreferencesService.clearAllUserInfo();
       
-      print('✅ サインアウト時クリア完了');
+      Log.info('✅ サインアウト時クリア完了');
     } catch (e) {
-      print('❌ サインアウト時クリアエラー: $e');
+      Log.error('❌ サインアウト時クリアエラー: $e');
     }
   }
 }

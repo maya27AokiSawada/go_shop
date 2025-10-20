@@ -1,6 +1,7 @@
 // lib/pages/invitation_accept_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../services/invitation_service.dart';
 import '../providers/purchase_group_provider.dart';
 

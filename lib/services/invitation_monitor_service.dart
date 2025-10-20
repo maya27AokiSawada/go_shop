@@ -1,8 +1,10 @@
 // lib/services/invitation_monitor_service.dart
 import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../utils/app_logger.dart';
 import '../models/accepted_invitation.dart';
 import '../services/accepted_invitation_service.dart';
 
@@ -30,34 +32,34 @@ class InvitationMonitorService {
         .watchUnprocessedInvitations()
         .listen(_processNewInvitations);
         
-    print('👁️ 招待受諾監視を開始しました');
+    Log.info('👁️ 招待受諾監視を開始しました');
   }
 
   /// 監視を停止
   void stopMonitoring() {
     _subscription?.cancel();
     _subscription = null;
-    print('🛑 招待受諾監視を停止しました');
+    Log.info('🛑 招待受諾監視を停止しました');
   }
 
   /// 新しい受諾を処理
   Future<void> _processNewInvitations(List<FirestoreAcceptedInvitation> invitations) async {
     if (invitations.isEmpty) return;
 
-    print('📥 新しい招待受諾: ${invitations.length}件');
+    Log.info('📥 新しい招待受諾: ${invitations.length}件');
 
     for (final invitation in invitations) {
       try {
         await _processAcceptedInvitation(invitation);
       } catch (e) {
-        print('❌ 招待処理エラー (${invitation.acceptorUid}): $e');
+        Log.error('❌ 招待処理エラー (${invitation.acceptorUid}): $e');
       }
     }
   }
 
   /// 個別の受諾招待を処理
   Future<void> _processAcceptedInvitation(FirestoreAcceptedInvitation invitation) async {
-    print('🔄 招待処理中: ${invitation.acceptorName} (${invitation.acceptorUid})');
+    Log.info('🔄 招待処理中: ${invitation.acceptorName} (${invitation.acceptorUid})');
 
     try {
       // 1. PurchaseGroupのallowedUidsに追加
@@ -79,10 +81,10 @@ class InvitationMonitorService {
         notes: 'allowedUidsに追加完了',
       );
 
-      print('✅ 招待処理完了: ${invitation.acceptorName}');
+      Log.info('✅ 招待処理完了: ${invitation.acceptorName}');
 
     } catch (e) {
-      print('❌ 招待処理失敗: ${invitation.acceptorName} - $e');
+      Log.error('❌ 招待処理失敗: ${invitation.acceptorName} - $e');
       rethrow;
     }
   }
@@ -99,9 +101,9 @@ class InvitationMonitorService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      print('✅ PurchaseGroup allowedUids更新: $groupId + $newUid');
+      Log.info('✅ PurchaseGroup allowedUids更新: $groupId + $newUid');
     } catch (e) {
-      print('❌ PurchaseGroup更新エラー: $e');
+      Log.error('❌ PurchaseGroup更新エラー: $e');
       rethrow;
     }
   }
@@ -118,9 +120,9 @@ class InvitationMonitorService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      print('✅ ShoppingList allowedUids更新: $listId + $newUid');
+      Log.info('✅ ShoppingList allowedUids更新: $listId + $newUid');
     } catch (e) {
-      print('❌ ShoppingList更新エラー: $e');
+      Log.error('❌ ShoppingList更新エラー: $e');
       rethrow;
     }
   }
@@ -133,20 +135,20 @@ class InvitationMonitorService {
       final pendingInvitations = await acceptedInvitationService.getUnprocessedInvitations();
       
       if (pendingInvitations.isEmpty) {
-        print('📋 未処理の招待はありません');
+        Log.info('📋 未処理の招待はありません');
         return;
       }
 
-      print('🔄 未処理招待を手動処理: ${pendingInvitations.length}件');
+      Log.info('🔄 未処理招待を手動処理: ${pendingInvitations.length}件');
       
       for (final invitation in pendingInvitations) {
         await _processAcceptedInvitation(invitation);
       }
       
-      print('✅ 全未処理招待の処理完了');
+      Log.info('✅ 全未処理招待の処理完了');
       
     } catch (e) {
-      print('❌ 手動処理エラー: $e');
+      Log.error('❌ 手動処理エラー: $e');
       rethrow;
     }
   }
@@ -170,9 +172,9 @@ class InvitationMonitorService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      print('✅ ユーザー権限削除完了: $revokeUid');
+      Log.info('✅ ユーザー権限削除完了: $revokeUid');
     } catch (e) {
-      print('❌ 権限削除エラー: $e');
+      Log.error('❌ 権限削除エラー: $e');
       rethrow;
     }
   }
@@ -200,7 +202,7 @@ class InvitationMonitorService {
         'pending': pending,
       };
     } catch (e) {
-      print('❌ 統計取得エラー: $e');
+      Log.error('❌ 統計取得エラー: $e');
       return {};
     }
   }

@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/email_test_service.dart';
+import '../utils/app_logger.dart';
 
 class EmailTestButton extends ConsumerStatefulWidget {
   const EmailTestButton({super.key});
@@ -70,8 +71,8 @@ class _EmailTestButtonState extends ConsumerState<EmailTestButton> {
       // テスト用のメールアドレス
       const testEmail = 'fatima.sumomo@gmail.com';
       
-      print('🧪 メール送信テスト開始');
-      print('   対象: $testEmail');
+      Log.info('🧪 メール送信テスト開始');
+      Log.info('   対象: $testEmail');
 
       final success = await emailTestService.sendTestEmail(
         testEmail: testEmail,
@@ -83,7 +84,7 @@ Go Shop メール送信機能のテストです。
 送信先: $testEmail
 送信方式: Firebase Extensions Trigger Email
 
-このメールが届いていれば、メール送信機能は正常に動作しています。
+  このメールが届いていれば、メール送信機能は正常に動作しています。
 
 【システム情報】
 - アプリ: Go Shop
@@ -112,7 +113,7 @@ Go Shop 開発チーム
       }
 
     } catch (e) {
-      print('❌ テストメール送信エラー: $e');
+      Log.error('❌ テストメール送信エラー: $e', e);
       
       if (mounted) {
         setState(() {
@@ -235,7 +236,7 @@ class _EmailDiagnosticsWidgetState extends ConsumerState<EmailDiagnosticsWidget>
         });
       }
     } catch (e) {
-      print('❌ 診断実行エラー: $e');
+      Log.error('❌ 診断実行エラー: $e', e);
       
       if (mounted) {
         setState(() {

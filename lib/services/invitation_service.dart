@@ -1,7 +1,14 @@
 import 'dart:math';
+import 'package:logger/logger.dart';
+
+
+// Logger instance
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../utils/app_logger.dart';
+
 
 final invitationServiceProvider = Provider<InvitationService>((ref) {
   return InvitationService();
@@ -62,7 +69,7 @@ class InvitationService {
           await Future.delayed(const Duration(milliseconds: 500));
         }
       } catch (e) {
-        print(' への招待に失敗: ');
+        Log.info(' への招待に失敗: ');
         onProgress?.call(i + 1);
       }
     }
@@ -95,7 +102,7 @@ class InvitationService {
       }
       return null;
     } catch (e) {
-      print('招待情報取得エラー: ');
+      Log.error('招待情報取得エラー: ');
       return null;
     }
   }
@@ -114,7 +121,7 @@ class InvitationService {
 
       return true;
     } catch (e) {
-      print('招待承諾エラー: ');
+      Log.error('招待承諾エラー: ');
       return false;
     }
   }

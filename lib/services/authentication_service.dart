@@ -1,6 +1,7 @@
 // lib/services/authentication_service.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
+import '../utils/app_logger.dart';
 import 'user_preferences_service.dart';
 import 'firestore_group_sync_service.dart';
 import 'firestore_user_name_service.dart';
@@ -9,7 +10,7 @@ import '../flavors.dart';
 /// 認証関連の処理を統合管理するサービス
 class AuthenticationService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
-  static final Logger _logger = Logger();
+  
 
   /// メールアドレスとパスワードでサインイン
   static Future<UserCredential?> signInWithEmailAndPassword({
@@ -17,24 +18,24 @@ class AuthenticationService {
     required String password,
   }) async {
     try {
-      _logger.i('🔐 サインイン開始: $email');
+      Log.info('🔐 サインイン開始: $email');
       
       final userCredential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
       
-      _logger.i('✅ サインイン成功: ${userCredential.user?.uid}');
+      Log.info('✅ サインイン成功: ${userCredential.user?.uid}');
       
       // サインイン後の処理
       await _postSignInProcessing(userCredential.user);
       
       return userCredential;
     } on FirebaseAuthException catch (e) {
-      _logger.e('❌ サインインエラー: ${e.code} - ${e.message}');
+      Log.error('❌ サインインエラー: ${e.code} - ${e.message}');
       rethrow;
     } catch (e) {
-      _logger.e('❌ サインイン予期しないエラー: $e');
+      Log.error('❌ サインイン予期しないエラー: $e');
       rethrow;
     }
   }
@@ -46,14 +47,14 @@ class AuthenticationService {
     required String userName,
   }) async {
     try {
-      _logger.i('📝 サインアップ開始: $email');
+      Log.info('📝 サインアップ開始: $email');
       
       final userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
       
-      _logger.i('✅ サインアップ成功: ${userCredential.user?.uid}');
+      Log.info('✅ サインアップ成功: ${userCredential.user?.uid}');
       
       // ユーザー名をSharedPreferencesに保存
       await UserPreferencesService.saveUserName(userName);
@@ -68,10 +69,10 @@ class AuthenticationService {
       
       return userCredential;
     } on FirebaseAuthException catch (e) {
-      _logger.e('❌ サインアップエラー: ${e.code} - ${e.message}');
+      Log.error('❌ サインアップエラー: ${e.code} - ${e.message}');
       rethrow;
     } catch (e) {
-      _logger.e('❌ サインアップ予期しないエラー: $e');
+      Log.error('❌ サインアップ予期しないエラー: $e');
       rethrow;
     }
   }
@@ -79,7 +80,7 @@ class AuthenticationService {
   /// サインアウト
   static Future<void> signOut() async {
     try {
-      _logger.i('🚪 サインアウト開始');
+      Log.info('🚪 サインアウト開始');
       
       // Firestoreの同期データをクリア
       await FirestoreGroupSyncService.clearSyncDataOnSignOut();
@@ -87,9 +88,9 @@ class AuthenticationService {
       // Firebaseからサインアウト
       await _auth.signOut();
       
-      _logger.i('✅ サインアウト完了');
+      Log.info('✅ サインアウト完了');
     } catch (e) {
-      _logger.e('❌ サインアウトエラー: $e');
+      Log.error('❌ サインアウトエラー: $e');
       rethrow;
     }
   }
@@ -99,7 +100,7 @@ class AuthenticationService {
     if (user == null) return;
     
     try {
-      _logger.i('🔄 サインイン後処理開始: UID=${user.uid}');
+      Log.info('🔄 サインイン後処理開始: UID=${user.uid}');
       
       // 1. UIDをSharedPreferencesに保存
       await UserPreferencesService.saveUserId(user.uid);
@@ -112,7 +113,7 @@ class AuthenticationService {
       // 3. Firestoreからグループデータを同期（本番環境のみ）
       if (F.appFlavor == Flavor.prod) {
         final groups = await FirestoreGroupSyncService.syncGroupsOnSignIn();
-        _logger.i('📦 Firestoreから${groups.length}件のグループを同期');
+        Log.info('📦 Firestoreから${groups.length}件のグループを同期');
       }
       
       // 4. Firestoreからユーザー名を復帰（本番環境のみ）
@@ -120,13 +121,13 @@ class AuthenticationService {
         final firestoreName = await FirestoreUserNameService.getUserName();
         if (firestoreName != null && firestoreName.isNotEmpty) {
           await UserPreferencesService.saveUserName(firestoreName);
-          _logger.i('👤 Firestoreからユーザー名を復帰: $firestoreName');
+          Log.info('👤 Firestoreからユーザー名を復帰: $firestoreName');
         }
       }
       
-      _logger.i('✅ サインイン後処理完了');
+      Log.info('✅ サインイン後処理完了');
     } catch (e) {
-      _logger.e('❌ サインイン後処理エラー: $e');
+      Log.error('❌ サインイン後処理エラー: $e');
       // エラーが発生しても認証自体は成功しているので、例外を再スローしない
     }
   }

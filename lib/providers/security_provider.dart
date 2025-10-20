@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../utils/app_logger.dart';
 import 'device_settings_provider.dart';
 import 'auth_provider.dart';
 

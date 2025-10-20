@@ -1,8 +1,10 @@
 // test/email_test_debug.dart
 import 'package:flutter/material.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_shop/services/email_test_service.dart';
 import 'package:go_shop/widgets/email_test_button.dart';
+import 'package:go_shop/utils/app_logger.dart';
 
 void main() {
   runApp(const ProviderScope(child: EmailTestDebugApp()));
@@ -141,20 +143,20 @@ class _ManualEmailTestWidgetState extends ConsumerState<ManualEmailTestWidget> {
     });
 
     try {
-      print('🧪 手動デバッグテスト開始');
+      AppLogger.info('🧪 手動デバッグテスト開始');
       
       final emailTestService = ref.read(emailTestServiceProvider);
       
       // 1. サービス初期化確認
-      print('✅ EmailTestService 初期化成功');
+      AppLogger.success('✅ EmailTestService 初期化成功');
       
       // 2. 診断実行
-      print('🔍 メール設定診断開始...');
+      AppLogger.info('🔍 メール設定診断開始...');
       final diagnostics = await emailTestService.diagnoseEmailSettings();
-      print('📊 診断結果: $diagnostics');
+      AppLogger.info('📊 診断結果: $diagnostics');
       
       // 3. テストメール送信
-      print('📧 テストメール送信開始...');
+      AppLogger.info('📧 テストメール送信開始...');
       final success = await emailTestService.sendTestEmail(
         testEmail: 'fatima.sumomo@gmail.com',
         customSubject: 'Go Shop デバッグテスト - ${DateTime.now().toString().substring(0, 19)}',
@@ -187,10 +189,10 @@ ${diagnostics.entries.map((e) => '  ${e.key}: ${e.value}').join('\n')}
         _result = resultText;
       });
       
-      print('🎊 手動デバッグテスト完了');
+      AppLogger.success('🎊 手動デバッグテスト完了');
       
     } catch (e) {
-      print('❌ 手動デバッグテストエラー: $e');
+      AppLogger.error('❌ 手動デバッグテストエラー: $e');
       setState(() {
         _result = '❌ エラー発生: $e';
       });

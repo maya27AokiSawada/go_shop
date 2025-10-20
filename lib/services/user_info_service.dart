@@ -1,6 +1,7 @@
 // lib/services/user_info_service.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
+import '../utils/app_logger.dart';
 import '../models/purchase_group.dart';
 import '../models/shopping_list.dart';
 import '../providers/auth_provider.dart';
@@ -33,7 +34,7 @@ class UserInfoService {
     String? userNameFromForm,
     String? emailFromForm,
   }) async {
-    _logger.i('🚀 saveUserInfo() 開始');
+    Log.info('🚀 saveUserInfo() 開始');
     
     // ユーザー名を複数の方法で取得（優先順位付き）
     String userName = '';
@@ -41,7 +42,7 @@ class UserInfoService {
     // 1. まずフォームから取得
     if (userNameFromForm != null && userNameFromForm.trim().isNotEmpty) {
       userName = userNameFromForm.trim();
-      _logger.i('🚀 フォームからユーザー名取得: "$userName"');
+      Log.info('🚀 フォームからユーザー名取得: "$userName"');
     }
     
     // 2. フォームが空の場合、SharedPreferencesから取得
@@ -49,7 +50,7 @@ class UserInfoService {
       final settingsUserName = await UserPreferencesService.getUserName();
       if (settingsUserName != null && settingsUserName.isNotEmpty) {
         userName = settingsUserName;
-        _logger.i('🚀 SharedPreferencesからユーザー名取得: "$userName"');
+        Log.info('🚀 SharedPreferencesからユーザー名取得: "$userName"');
       }
     }
     
@@ -60,7 +61,7 @@ class UserInfoService {
         data: (user) async {
           if (user != null && user.displayName != null && user.displayName!.isNotEmpty) {
             userName = user.displayName!;
-            _logger.i('🚀 認証状態からユーザー名取得: "$userName"');
+            Log.info('🚀 認証状態からユーザー名取得: "$userName"');
           }
         },
         loading: () async {},
@@ -69,19 +70,19 @@ class UserInfoService {
     }
     
     if (userName.isEmpty) {
-      _logger.w('⚠️ ユーザー名が取得できませんでした');
+      Log.warning('⚠️ ユーザー名が取得できませんでした');
       return UserInfoSaveResult(
         success: false,
         message: 'ユーザー名を入力してください',
       );
     }
     
-    _logger.i('🚀 使用するユーザー名: "$userName"');
+    Log.info('🚀 使用するユーザー名: "$userName"');
     
     try {
       // メールアドレスを取得
       final userEmail = await _getUserEmail(emailFromForm);
-      _logger.i('🚀 使用するメールアドレス: $userEmail');
+      Log.info('🚀 使用するメールアドレス: $userEmail');
       
       // デフォルトグループを更新
       await _updateDefaultGroup(userName, userEmail);
@@ -95,12 +96,12 @@ class UserInfoService {
       
       // ユーザー名プロバイダーにも保存
       await _ref.read(userNameNotifierProvider.notifier).setUserName(userName);
-      _logger.i('✅ ユーザー名プロバイダー保存完了');
+      Log.info('✅ ユーザー名プロバイダー保存完了');
       
       // UserSettingsにもユーザー情報を保存
       await _updateUserSettings(userName, userEmail);
       
-      _logger.i('✅ ユーザー情報保存完了: $userName ($userEmail)');
+      Log.info('✅ ユーザー情報保存完了: $userName ($userEmail)');
       
       return UserInfoSaveResult(
         success: true,
@@ -110,7 +111,7 @@ class UserInfoService {
       );
       
     } catch (e, stackTrace) {
-      _logger.e('❌ ユーザー情報保存エラー: $e\n$stackTrace');
+      Log.error('❌ ユーザー情報保存エラー: $e\n$stackTrace');
       return UserInfoSaveResult(
         success: false,
         message: '保存に失敗しました: $e',
@@ -140,10 +141,10 @@ class UserInfoService {
       
       if (currentUser != null && currentUser.email != null) {
         actualEmail = currentUser.email;
-        _logger.i('🔍 認証ユーザーのメールアドレス: $actualEmail');
+        Log.info('🔍 認証ユーザーのメールアドレス: $actualEmail');
       } else if (directUser != null && directUser.email != null) {
         actualEmail = directUser.email;
-        _logger.i('🔍 直接認証サービスのメールアドレス: $actualEmail');
+        Log.info('🔍 直接認証サービスのメールアドレス: $actualEmail');
       }
       
       // メールアドレスの設定
@@ -151,12 +152,12 @@ class UserInfoService {
         userEmail = actualEmail;
       } else if (emailFromForm != null && emailFromForm.isNotEmpty) {
         userEmail = emailFromForm;
-        _logger.i('🔍 フォーム入力のメールアドレスを使用: $userEmail');
+        Log.info('🔍 フォーム入力のメールアドレスを使用: $userEmail');
       } else {
-        _logger.i('🔍 メールアドレスが取得できないため、デフォルトを使用: $userEmail');
+        Log.info('🔍 メールアドレスが取得できないため、デフォルトを使用: $userEmail');
       }
     } catch (e) {
-      _logger.w('⚠️ 認証状態取得エラー、デフォルトメールアドレスを使用: $e');
+      Log.warning('⚠️ 認証状態取得エラー、デフォルトメールアドレスを使用: $e');
     }
     
     return userEmail;
@@ -177,7 +178,7 @@ class UserInfoService {
     PurchaseGroup defaultGroup;
     
     if (existingGroup != null) {
-      _logger.i('📋 既存グループを更新: $userName');
+      Log.info('📋 既存グループを更新: $userName');
       
       // 新しいサインインユーザーを必ずオーナーにする
       final updatedMembers = <PurchaseGroupMember>[];
@@ -186,7 +187,7 @@ class UserInfoService {
       for (var member in (existingGroup.members ?? [])) {
         if (member.role != PurchaseGroupRole.owner) {
           updatedMembers.add(member);
-          _logger.i('  - 非オーナーメンバーを保持: ${member.name} (${member.role})');
+          Log.info('  - 非オーナーメンバーを保持: ${member.name} (${member.role})');
         }
       }
       
@@ -199,7 +200,7 @@ class UserInfoService {
         invitationStatus: InvitationStatus.self,
         isSignedIn: true,
       ));
-      _logger.i('  - 新しいオーナーを追加: $userName ($userEmail)');
+      Log.info('  - 新しいオーナーを追加: $userName ($userEmail)');
       
       defaultGroup = existingGroup.copyWith(
         members: updatedMembers,
@@ -208,7 +209,7 @@ class UserInfoService {
         ownerUid: 'defaultUser',
       );
     } else {
-      _logger.i('📋 新しいデフォルトグループを作成');
+      Log.info('📋 新しいデフォルトグループを作成');
       
       // 新しいデフォルトグループを作成
       defaultGroup = PurchaseGroup(
@@ -229,7 +230,7 @@ class UserInfoService {
     
     // 購入グループを保存
     await _ref.read(selectedGroupNotifierProvider.notifier).updateGroup(defaultGroup);
-    _logger.i('✅ デフォルトグループ保存完了');
+    Log.info('✅ デフォルトグループ保存完了');
   }
 
   /// デフォルトShoppingListを確保（存在しない場合のみ作成）
@@ -238,10 +239,10 @@ class UserInfoService {
     
     try {
       final existingShoppingList = await _ref.read(shoppingListProvider.future);
-      _logger.i('📝 既存のShoppingListを発見: ${existingShoppingList.items.length}個のアイテム');
+      Log.info('📝 既存のShoppingListを発見: ${existingShoppingList.items.length}個のアイテム');
       // 既に存在する場合は何もしない
     } catch (e) {
-      _logger.i('📝 ShoppingListが存在しないため新規作成');
+      Log.info('📝 ShoppingListが存在しないため新規作成');
       
       // 存在しない場合のみ作成
       final defaultShoppingList = ShoppingList.create(
@@ -259,21 +260,21 @@ class UserInfoService {
       );
       
       await _ref.read(shoppingListProvider.notifier).updateShoppingList(defaultShoppingList);
-      _logger.i('✅ デフォルトShoppingListを作成しました（サンプル商品含む）');
+      Log.info('✅ デフォルトShoppingListを作成しました（サンプル商品含む）');
     }
   }
 
   /// UserSettingsにユーザー情報を保存
   Future<void> _updateUserSettings(String userName, String userEmail) async {
-    _logger.i('💾 UserSettingsにユーザー情報を保存開始');
+    Log.info('💾 UserSettingsにユーザー情報を保存開始');
     
     try {
       final userSettingsRepository = _ref.read(userSettingsRepositoryProvider);
       await userSettingsRepository.updateUserName(userName);
       await userSettingsRepository.updateUserEmail(userEmail);
-      _logger.i('✅ UserSettings保存完了: $userName, $userEmail');
+      Log.info('✅ UserSettings保存完了: $userName, $userEmail');
     } catch (e) {
-      _logger.w('⚠️ UserSettings保存エラー: $e');
+      Log.warning('⚠️ UserSettings保存エラー: $e');
     }
   }
 }

@@ -3,10 +3,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:logger/logger.dart';
+import '../utils/app_logger.dart';
 import '../firebase_options.dart';
 import '../helper/firebase_diagnostics.dart';
 
-final logger = Logger();
+
 
 class DebugEmailTestPage extends StatefulWidget {
   const DebugEmailTestPage({super.key});
@@ -233,10 +234,10 @@ class _DebugEmailTestPageState extends State<DebugEmailTestPage> {
     });
 
     try {
-      logger.d('📧 メール送信開始: ${_toController.text.trim()}');
+      Log.debug('📧 メール送信開始: ${_toController.text.trim()}');
       
       // mailコレクションにドキュメントを追加
-      logger.d('📝 Firestoreドキュメント作成中...');
+      Log.debug('📝 Firestoreドキュメント作成中...');
       final docRef = await FirebaseFirestore.instance.collection('mail').add({
         'to': _toController.text.trim(),
         'message': {
@@ -272,8 +273,8 @@ class _DebugEmailTestPageState extends State<DebugEmailTestPage> {
         },
       });
 
-      logger.d('✅ Firestoreドキュメント作成完了: ${docRef.id}');
-      logger.d('📮 Extension処理待ち... (数秒かかる場合があります)');
+      Log.debug('✅ Firestoreドキュメント作成完了: ${docRef.id}');
+      Log.debug('📮 Extension処理待ち... (数秒かかる場合があります)');
 
       setState(() {
         _lastDocId = docRef.id;
@@ -292,12 +293,12 @@ class _DebugEmailTestPageState extends State<DebugEmailTestPage> {
       // 5秒後に自動でステータスチェック
       await Future.delayed(const Duration(seconds: 5));
       if (mounted) {
-        logger.d('🔍 自動ステータスチェック開始');
+        Log.debug('🔍 自動ステータスチェック開始');
         await _checkDeliveryStatus();
       }
     } catch (e, stackTrace) {
-      logger.e('❌ メール送信エラー: $e');
-      logger.e('スタックトレース: $stackTrace');
+      Log.error('❌ メール送信エラー: $e');
+      Log.error('スタックトレース: $stackTrace');
       
       setState(() {
         _errorMessage = e.toString();
@@ -321,12 +322,12 @@ class _DebugEmailTestPageState extends State<DebugEmailTestPage> {
 
   Future<void> _checkDeliveryStatus() async {
     if (_lastDocId == null) {
-      logger.w('⚠️ チェック対象のドキュメントIDがありません');
+      Log.warning('⚠️ チェック対象のドキュメントIDがありません');
       return;
     }
 
     try {
-      logger.d('🔍 配送ステータス確認開始: $_lastDocId');
+      Log.debug('🔍 配送ステータス確認開始: $_lastDocId');
       
       final doc = await FirebaseFirestore.instance
           .collection('mail')
@@ -336,8 +337,8 @@ class _DebugEmailTestPageState extends State<DebugEmailTestPage> {
       if (!mounted) return;
 
       if (!doc.exists) {
-        logger.w('⚠️ ドキュメントが存在しません: $_lastDocId');
-        logger.w('   Extensionによって既に削除された可能性があります');
+        Log.warning('⚠️ ドキュメントが存在しません: $_lastDocId');
+        Log.warning('   Extensionによって既に削除された可能性があります');
         
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -350,7 +351,7 @@ class _DebugEmailTestPageState extends State<DebugEmailTestPage> {
       }
 
       final data = doc.data()!;
-      logger.d('📄 ドキュメントデータ: ${data.keys.toList()}');
+      Log.debug('📄 ドキュメントデータ: ${data.keys.toList()}');
       
       final delivery = data['delivery'] as Map<String, dynamic>?;
 
@@ -358,7 +359,7 @@ class _DebugEmailTestPageState extends State<DebugEmailTestPage> {
       Color statusColor;
 
       if (delivery == null) {
-        logger.d('⏳ 配送情報なし - Extension処理待ち');
+        Log.debug('⏳ 配送情報なし - Extension処理待ち');
         statusMessage = '⏳ 配送ステータス: 処理待ち\n\nExtensionがまだドキュメントを処理していません。\n数秒待ってから再確認してください。';
         statusColor = Colors.orange;
       } else {
@@ -369,10 +370,10 @@ class _DebugEmailTestPageState extends State<DebugEmailTestPage> {
         final error = delivery['error'];
         final info = delivery['info'] as Map<String, dynamic>?;
 
-        logger.d('📊 配送状態: $state');
-        logger.d('📊 試行回数: $attempts');
+        Log.debug('📊 配送状態: $state');
+        Log.debug('📊 試行回数: $attempts');
         if (error != null) {
-          logger.e('❌ エラー: $error');
+          Log.error('❌ エラー: $error');
         }
 
         statusMessage = '📮 配送ステータス: ${state ?? "不明"}\n\n';
@@ -444,8 +445,8 @@ class _DebugEmailTestPageState extends State<DebugEmailTestPage> {
         ),
       );
     } catch (e, stackTrace) {
-      logger.e('❌ ステータス確認エラー: $e');
-      logger.e('スタックトレース: $stackTrace');
+      Log.error('❌ ステータス確認エラー: $e');
+      Log.error('スタックトレース: $stackTrace');
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

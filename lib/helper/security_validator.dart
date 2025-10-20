@@ -1,7 +1,9 @@
 // lib/helper/security_validator.dart
 import 'package:firebase_auth/firebase_auth.dart';
+
 import '../models/purchase_group.dart';
 import '../flavors.dart';
+import '../utils/app_logger.dart';
 
 /// 本番環境セキュリティ検証ヘルパー
 class SecurityValidator {
@@ -102,7 +104,7 @@ class SecurityValidator {
       // emailが一致するメンバーのmemberIdをFirebase UIDに修正
       if (member.contact == currentUser.email && 
           member.memberId != currentUser.uid) {
-        print('🔧 Member ID repair: ${member.memberId} -> ${currentUser.uid}');
+        Log.info('🔧 Member ID repair: ${member.memberId} -> ${currentUser.uid}');
         return member.copyWithExtra(memberId: currentUser.uid);
       }
       return member;

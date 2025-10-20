@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
+import '../utils/app_logger.dart';
 
 /// ユーザー名をFirestoreで管理するサービス
 /// 
@@ -9,18 +10,18 @@ import 'package:logger/logger.dart';
 class FirestoreUserNameService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final FirebaseAuth _auth = FirebaseAuth.instance;
-  static final Logger _logger = Logger();
+  
 
   /// 現在のユーザーのユーザー名を取得
   static Future<String?> getUserName() async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        _logger.w('❌ 認証されていないユーザー - ユーザー名取得不可');
+        Log.warning('❌ 認証されていないユーザー - ユーザー名取得不可');
         return null;
       }
 
-      _logger.i('🔍 Firestoreからユーザー名取得開始: UID=${user.uid}');
+      Log.info('🔍 Firestoreからユーザー名取得開始: UID=${user.uid}');
       
       final docRef = _firestore.collection('users').doc(user.uid).collection('profile').doc('userName');
       final docSnapshot = await docRef.get();
@@ -29,14 +30,14 @@ class FirestoreUserNameService {
         final data = docSnapshot.data() as Map<String, dynamic>;
         final userName = data['userName'] as String?;
         
-        _logger.i('✅ Firestoreからユーザー名取得成功: $userName');
+        Log.info('✅ Firestoreからユーザー名取得成功: $userName');
         return userName;
       } else {
-        _logger.i('📭 Firestoreにユーザー名データなし');
+        Log.info('📭 Firestoreにユーザー名データなし');
         return null;
       }
     } catch (e) {
-      _logger.e('❌ Firestoreユーザー名取得エラー: $e');
+      Log.error('❌ Firestoreユーザー名取得エラー: $e');
       return null;
     }
   }
@@ -46,11 +47,11 @@ class FirestoreUserNameService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        _logger.w('❌ 認証されていないユーザー - ユーザー名保存不可');
+        Log.warning('❌ 認証されていないユーザー - ユーザー名保存不可');
         return false;
       }
 
-      _logger.i('💾 Firestoreにユーザー名保存開始: UID=${user.uid}, 名前=$userName');
+      Log.info('💾 Firestoreにユーザー名保存開始: UID=${user.uid}, 名前=$userName');
       
       final docRef = _firestore.collection('users').doc(user.uid).collection('profile').doc('userName');
       
@@ -60,10 +61,10 @@ class FirestoreUserNameService {
         'userEmail': user.email ?? '',
       }, SetOptions(merge: true));
       
-      _logger.i('✅ Firestoreにユーザー名保存完了: $userName');
+      Log.info('✅ Firestoreにユーザー名保存完了: $userName');
       return true;
     } catch (e) {
-      _logger.e('❌ Firestoreユーザー名保存エラー: $e');
+      Log.error('❌ Firestoreユーザー名保存エラー: $e');
       return false;
     }
   }
@@ -73,19 +74,19 @@ class FirestoreUserNameService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        _logger.w('❌ 認証されていないユーザー - ユーザー名削除不可');
+        Log.warning('❌ 認証されていないユーザー - ユーザー名削除不可');
         return false;
       }
 
-      _logger.i('🗑️ Firestoreからユーザー名削除開始: UID=${user.uid}');
+      Log.info('🗑️ Firestoreからユーザー名削除開始: UID=${user.uid}');
       
       final docRef = _firestore.collection('users').doc(user.uid).collection('profile').doc('userName');
       await docRef.delete();
       
-      _logger.i('✅ Firestoreからユーザー名削除完了');
+      Log.info('✅ Firestoreからユーザー名削除完了');
       return true;
     } catch (e) {
-      _logger.e('❌ Firestoreユーザー名削除エラー: $e');
+      Log.error('❌ Firestoreユーザー名削除エラー: $e');
       return false;
     }
   }
@@ -107,7 +108,7 @@ class FirestoreUserNameService {
       if (snapshot.exists) {
         final data = snapshot.data() as Map<String, dynamic>;
         final userName = data['userName'] as String?;
-        _logger.i('🔄 Firestoreユーザー名リアルタイム更新: $userName');
+        Log.info('🔄 Firestoreユーザー名リアルタイム更新: $userName');
         return userName;
       } else {
         return null;

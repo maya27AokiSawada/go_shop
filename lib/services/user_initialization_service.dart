@@ -1,7 +1,9 @@
 // lib/services/user_initialization_service.dart
 import 'package:flutter/widgets.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../utils/app_logger.dart';
 import '../models/purchase_group.dart';
 import '../providers/purchase_group_provider.dart';
 import '../flavors.dart';
@@ -50,28 +52,28 @@ class UserInitializationService {
         data: (allGroups) async {
           if (allGroups.isEmpty || dataCleared) {
             if (dataCleared) {
-              print('🔄 データバージョン更新により新規デフォルトグループを作成します');
-              print('💡 Playストア公開時: マイグレーション後の整合性チェック機能追加予定');
+              Log.info('🔄 データバージョン更新により新規デフォルトグループを作成します');
+              Log.info('💡 Playストア公開時: マイグレーション後の整合性チェック機能追加予定');
             } else {
-              print('💡 グループが存在しないため、デフォルトグループを作成します');
+              Log.info('💡 グループが存在しないため、デフォルトグループを作成します');
             }
             await _createGuestDefaultGroup();
           } else {
-            print('✅ 既存のグループが見つかりました (${allGroups.length}個)');
+            Log.info('✅ 既存のグループが見つかりました (${allGroups.length}個)');
           }
         },
         loading: () async {
-          print('🔄 グループデータ読み込み中...');
+          Log.info('🔄 グループデータ読み込み中...');
           // ローディング中は何もしない
         },
         error: (error, stack) async {
-          print('⚠️ グループデータ読み込みエラー: $error');
+          Log.warning('⚠️ グループデータ読み込みエラー: $error');
           // エラーが発生した場合もデフォルトグループを作成
           await _createGuestDefaultGroup();
         },
       );
     } catch (e) {
-      print('⚠️ デフォルトグループチェック中にエラー: $e');
+      Log.warning('⚠️ デフォルトグループチェック中にエラー: $e');
       // エラーが発生した場合もデフォルトグループを作成
       await _createGuestDefaultGroup();
     }
@@ -101,14 +103,14 @@ class UserInitializationService {
         ownerMember,
       );
 
-      print('✅ ゲスト用デフォルトグループを作成しました: $defaultGroupName (ID: $defaultGroupId)');
+      Log.info('✅ ゲスト用デフォルトグループを作成しました: $defaultGroupName (ID: $defaultGroupId)');
       
       // プロバイダーを更新
       final allGroupsNotifier = _ref.read(allGroupsProvider.notifier);
       await allGroupsNotifier.refresh();
       
     } catch (e) {
-      print('❌ ゲスト用デフォルトグループ作成エラー: $e');
+      Log.error('❌ ゲスト用デフォルトグループ作成エラー: $e');
     }
   }
 
@@ -127,7 +129,7 @@ class UserInitializationService {
         await _createDefaultGroupIfNeeded(user);
       }
     } catch (e) {
-      print('⚠️ ユーザー初期化エラー: $e');
+      Log.warning('⚠️ ユーザー初期化エラー: $e');
     }
   }
 
@@ -140,11 +142,11 @@ class UserInitializationService {
       // 既存のデフォルトグループをチェック
       try {
         final existingGroup = await repository.getGroupById(defaultGroupId);
-        print('✅ デフォルトグループは既に存在します: ${existingGroup.groupName}');
+        Log.info('✅ デフォルトグループは既に存在します: ${existingGroup.groupName}');
         return;
       } catch (e) {
         // グループが存在しない場合は作成を続行
-        print('💡 デフォルトグループが存在しないため、新規作成します');
+        Log.info('💡 デフォルトグループが存在しないため、新規作成します');
       }
 
       // デフォルトグループのオーナーメンバーを作成
@@ -165,10 +167,10 @@ class UserInitializationService {
         ownerMember,
       );
 
-      print('✅ デフォルトグループを作成しました: $defaultGroupName (ID: $defaultGroupId)');
+      Log.info('✅ デフォルトグループを作成しました: $defaultGroupName (ID: $defaultGroupId)');
       
     } catch (e) {
-      print('❌ デフォルトグループ作成エラー: $e');
+      Log.error('❌ デフォルトグループ作成エラー: $e');
     }
   }
 
@@ -178,7 +180,7 @@ class UserInitializationService {
     if (user != null) {
       await _createDefaultGroupIfNeeded(user);
     } else {
-      print('⚠️ ユーザーがログインしていません');
+      Log.warning('⚠️ ユーザーがログインしていません');
     }
   }
 }

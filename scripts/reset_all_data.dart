@@ -1,5 +1,9 @@
 import 'dart:io';
 
+// Logger instance
+final _logger = Logger();
+import 'package:logger/logger.dart';
+
 /// 全データをクリアする統合スクリプト
 /// 
 /// 使用方法:
@@ -11,27 +15,27 @@ import 'dart:io';
 /// 3. Hive データ削除
 
 Future<void> main() async {
-  print('🔄 Go Shop アプリ 完全リセット開始');
-  print('=====================================');
+  _logger.i('🔄 Go Shop アプリ 完全リセット開始');
+  _logger.i('=====================================');
   
   // 最終確認
-  print('⚠️  以下の全データが削除されます:');
-  print('   - Firebase Authentication ユーザー');
-  print('   - Firestore 全コレクション');
-  print('   - Hive ローカルデータベース');
-  print('\n本当に続行しますか？ (y/N): ');
+  _logger.w('⚠️  以下の全データが削除されます:');
+  _logger.i('   - Firebase Authentication ユーザー');
+  _logger.i('   - Firestore 全コレクション');
+  _logger.i('   - Hive ローカルデータベース');
+  _logger.i('\n本当に続行しますか？ (y/N): ');
   
   final input = stdin.readLineSync();
   if (input?.toLowerCase() != 'y') {
-    print('❌ 操作がキャンセルされました');
+    _logger.e('❌ 操作がキャンセルされました');
     return;
   }
   
-  print('\n🚀 リセット開始...\n');
+  _logger.i('\n🚀 リセット開始...\n');
   
   try {
     // 1. Firebase Authentication ユーザー削除
-    print('1️⃣ Firebase Authentication ユーザー削除中...');
+    _logger.i('1️⃣ Firebase Authentication ユーザー削除中...');
     final authResult = await Process.run(
       'dart', 
       ['run', 'scripts/clear_auth_user.dart'],
@@ -39,15 +43,15 @@ Future<void> main() async {
     );
     
     if (authResult.exitCode == 0) {
-      print('✅ Authentication ユーザー削除完了');
+      _logger.i('✅ Authentication ユーザー削除完了');
     } else {
-      print('⚠️ Authentication ユーザー削除でエラー: ${authResult.stderr}');
+      _logger.w('⚠️ Authentication ユーザー削除でエラー: ${authResult.stderr}');
     }
     
-    print('');
+    _logger.i('');
     
     // 2. Firestore データ削除
-    print('2️⃣ Firestore データ削除中...');
+    _logger.i('2️⃣ Firestore データ削除中...');
     final firestoreResult = await Process.run(
       'dart',
       ['run', 'scripts/clear_firestore_data.dart'],
@@ -55,15 +59,15 @@ Future<void> main() async {
     );
     
     if (firestoreResult.exitCode == 0) {
-      print('✅ Firestore データ削除完了');
+      _logger.i('✅ Firestore データ削除完了');
     } else {
-      print('⚠️ Firestore データ削除でエラー: ${firestoreResult.stderr}');
+      _logger.w('⚠️ Firestore データ削除でエラー: ${firestoreResult.stderr}');
     }
     
-    print('');
+    _logger.i('');
     
     // 3. Hive データ削除
-    print('3️⃣ Hive データ削除中...');
+    _logger.i('3️⃣ Hive データ削除中...');
     final hiveResult = await Process.run(
       'dart',
       ['run', 'scripts/clear_hive_data.dart'],
@@ -71,20 +75,20 @@ Future<void> main() async {
     );
     
     if (hiveResult.exitCode == 0) {
-      print('✅ Hive データ削除完了');
+      _logger.i('✅ Hive データ削除完了');
     } else {
-      print('⚠️ Hive データ削除でエラー: ${hiveResult.stderr}');
+      _logger.w('⚠️ Hive データ削除でエラー: ${hiveResult.stderr}');
     }
     
-    print('\n🎉 完全リセット完了！');
-    print('=====================================');
-    print('💡 次の手順:');
-    print('   1. Android端末のアプリをアンインストール');
-    print('   2. flutter clean && flutter pub get');
-    print('   3. flutter run でアプリを再インストール');
-    print('   4. 新規ユーザー登録から開始');
+    _logger.i('\n🎉 完全リセット完了！');
+    _logger.i('=====================================');
+    _logger.i('💡 次の手順:');
+    _logger.i('   1. Android端末のアプリをアンインストール');
+    _logger.i('   2. flutter clean && flutter pub get');
+    _logger.i('   3. flutter run でアプリを再インストール');
+    _logger.i('   4. 新規ユーザー登録から開始');
     
   } catch (e) {
-    print('❌ リセット中にエラーが発生しました: $e');
+    _logger.e('❌ リセット中にエラーが発生しました: $e');
   }
 }

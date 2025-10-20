@@ -1,6 +1,8 @@
 // lib/widgets/auto_invite_button.dart
 import 'package:flutter/material.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../utils/app_logger.dart';
 import '../models/purchase_group.dart';
 import '../providers/purchase_group_provider.dart';
 import '../services/invitation_service.dart';
@@ -221,7 +223,7 @@ class AutoInviteButton extends ConsumerWidget {
       await repo.updateGroup(group.groupId, updatedGroup);
       ref.invalidate(selectedGroupNotifierProvider);
     } catch (e) {
-      print('⚠️ メンバー招待状態更新エラー: $e');
+      Log.warning('⚠️ メンバー招待状態更新エラー: $e');
     }
   }
 

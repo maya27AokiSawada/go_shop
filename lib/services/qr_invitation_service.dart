@@ -1,11 +1,18 @@
 import 'dart:convert';
+import 'package:logger/logger.dart';
+
+
+// Logger instance
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import '../utils/app_logger.dart';
 import 'invitation_security_service.dart';
 import '../models/purchase_group.dart';
+
 
 // QRコード招待サービスプロバイダー
 final qrInvitationServiceProvider = Provider<QRInvitationService>((ref) {
@@ -90,7 +97,7 @@ class QRInvitationService {
         return _validateLegacyInvitation(decoded);
       }
     } catch (e) {
-      print('QRコードデコードエラー: $e');
+      Log.error('QRコードデコードエラー: $e');
       return null;
     }
   }
@@ -105,14 +112,14 @@ class QRInvitationService {
         decoded['securityKey'] == null ||
         decoded['invitationToken'] == null ||
         decoded['expiresAt'] == null) {
-      print('セキュア招待データの必須フィールドが不足');
+      Log.info('セキュア招待データの必須フィールドが不足');
       return null;
     }
 
     // 有効期限チェック
     final expiresAt = DateTime.parse(decoded['expiresAt']);
     if (DateTime.now().isAfter(expiresAt)) {
-      print('招待コードが期限切れです');
+      Log.info('招待コードが期限切れです');
       return null;
     }
 
@@ -120,7 +127,7 @@ class QRInvitationService {
     final token = decoded['invitationToken'] as String;
     final tokenData = _securityService.parseInvitationToken(token);
     if (tokenData == null) {
-      print('無効な招待トークン');
+      Log.info('無効な招待トークン');
       return null;
     }
 
@@ -128,7 +135,7 @@ class QRInvitationService {
     if (tokenData.groupId != decoded['purchaseGroupId'] ||
         tokenData.securityKey != decoded['securityKey'] ||
         _securityService.isTokenExpired(tokenData.timestamp)) {
-      print('招待トークンの整合性チェック失敗');
+      Log.info('招待トークンの整合性チェック失敗');
       return null;
     }
 
@@ -148,7 +155,7 @@ class QRInvitationService {
       
       final role = decoded['inviteRole'] as String;
       if (role != 'member' && role != 'manager') {
-        print('警告: 予期しない招待ロール: $role, memberとして扱います');
+        Log.warning('警告: 予期しない招待ロール: $role, memberとして扱います');
         decoded['inviteRole'] = 'member';
       }
       return decoded;
@@ -225,7 +232,7 @@ class QRInvitationService {
       // 招待タイプを取得
       final invitationType = invitationData['invitationType'] as String? ?? 'individual';
       
-      print('💡 セキュア招待受諾: タイプ=$invitationType');
+      Log.info('💡 セキュア招待受諾: タイプ=$invitationType');
 
       // 招待タイプによって処理を分岐
       if (invitationType == 'friend') {
@@ -239,7 +246,7 @@ class QRInvitationService {
 
       return true;
     } catch (e) {
-      print('QR招待受諾エラー: $e');
+      Log.error('QR招待受諾エラー: $e');
       return false;
     }
   }
@@ -252,12 +259,12 @@ class QRInvitationService {
     if (version == '3.0') {
       final expectedKey = invitationData['securityKey'] as String?;
       if (expectedKey == null || providedKey == null) {
-        print('セキュリティキーが不足');
+        Log.info('セキュリティキーが不足');
         return false;
       }
       
       if (!_securityService.validateSecurityKey(providedKey, expectedKey)) {
-        print('セキュリティキーが無効');
+        Log.info('セキュリティキーが無効');
         return false;
       }
     }
@@ -282,7 +289,7 @@ class QRInvitationService {
   /// フレンド招待を処理 - 招待者の全グループへのアクセスを許可
   Future<void> _processFriendInvitation(String inviterUid, String acceptorUid) async {
     try {
-      print('🤝 フレンド招待を処理中...');
+      Log.info('🤝 フレンド招待を処理中...');
       
       // フレンドリストに追加
       await _firestore.collection('users').doc(inviterUid).collection('friends').doc(acceptorUid).set({
@@ -316,13 +323,13 @@ class QRInvitationService {
             'lastUpdated': FieldValue.serverTimestamp(),
           });
           
-          print('✅ フレンドとして ${doc.id} グループに追加: $acceptorUid');
+          Log.info('✅ フレンドとして ${doc.id} グループに追加: $acceptorUid');
         }
       }
 
-      print('✅ フレンド招待処理完了');
+      Log.info('✅ フレンド招待処理完了');
     } catch (e) {
-      print('❌ フレンド招待処理エラー: $e');
+      Log.error('❌ フレンド招待処理エラー: $e');
       rethrow;
     }
   }
@@ -330,7 +337,7 @@ class QRInvitationService {
   /// 個別招待を処理 - 特定のグループのみ
   Future<void> _processIndividualInvitation(Map<String, dynamic> invitationData, String acceptorUid) async {
     try {
-      print('👤 個別招待を処理中...');
+      Log.info('👤 個別招待を処理中...');
       
       final groupId = invitationData['purchaseGroupId'] as String;
       
@@ -353,12 +360,12 @@ class QRInvitationService {
           'lastUpdated': FieldValue.serverTimestamp(),
         });
         
-        print('✅ 個別招待でグループに追加: $acceptorUid → $groupId');
+        Log.info('✅ 個別招待でグループに追加: $acceptorUid → $groupId');
       }
       
-      print('✅ 個別招待処理完了');
+      Log.info('✅ 個別招待処理完了');
     } catch (e) {
-      print('❌ 個別招待処理エラー: $e');
+      Log.error('❌ 個別招待処理エラー: $e');
       rethrow;
     }
   }

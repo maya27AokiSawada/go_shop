@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../utils/app_logger.dart';
 import '../services/qr_invitation_service.dart';
 import '../services/pending_invitation_service.dart';
 import '../helpers/ui_helper.dart';

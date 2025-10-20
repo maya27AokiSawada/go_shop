@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/app_logger.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/shopping_list_provider.dart';
 import '../datastore/purchase_group_repository.dart';
@@ -507,7 +508,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
         // 詳細ログ出力
         for (final doc in groupsSnapshot.docs) {
           final data = doc.data();
-          print('🔥 Firestore Group: ${doc.id} - ${data['groupName']} (${data['members']?.length ?? 0} members)');
+          Log.info('🔥 Firestore Group: ${doc.id} - ${data['groupName']} (${data['members']?.length ?? 0} members)');
         }
       }
 
@@ -550,17 +551,17 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
       }
       
       // 各グループの詳細確認
-      print('🔍 === 詳細データ比較 ===');
-      print('📱 Hive Groups:');
+      Log.info('🔍 === 詳細データ比較 ===');
+      Log.info('📱 Hive Groups:');
       for (final group in localGroups) {
-        print('  - ${group.groupName} (${group.members?.length ?? 0} members) [${group.groupId}]');
+        Log.info('  - ${group.groupName} (${group.members?.length ?? 0} members) [${group.groupId}]');
       }
       
-      print('🔥 Firestore Groups:');
+      Log.info('🔥 Firestore Groups:');
       for (final doc in groupsSnapshot.docs) {
         final data = doc.data();
         final memberCount = (data['members'] as List?)?.length ?? 0;
-        print('  - ${data['groupName']} ($memberCount members) [${doc.id}]');
+        Log.info('  - ${data['groupName']} ($memberCount members) [${doc.id}]');
       }
       
       // 最新データの詳細表示
@@ -788,7 +789,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
         ),
       );
 
-      print('🛒 ShoppingList sync test completed for group: ${testGroup.groupName}');
+      Log.info('🛒 ShoppingList sync test completed for group: ${testGroup.groupName}');
 
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -797,7 +798,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
           backgroundColor: Colors.red,
         ),
       );
-      print('❌ ShoppingList sync test error: $e');
+      Log.error('❌ ShoppingList sync test error: $e');
     }
   }
 }

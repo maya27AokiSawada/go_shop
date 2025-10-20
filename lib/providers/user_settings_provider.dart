@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../utils/app_logger.dart';
 import '../models/user_settings.dart';
 import '../datastore/user_settings_repository.dart';
 

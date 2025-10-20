@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../utils/app_logger.dart';
 import '../models/app_news.dart';
 import '../providers/news_provider.dart';
 

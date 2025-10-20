@@ -1,4 +1,8 @@
 import 'dart:io';
+
+// Logger instance
+final _logger = Logger();
+import 'package:logger/logger.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_shop/firebase_options.dart';
@@ -16,7 +20,7 @@ import 'package:go_shop/firebase_options.dart';
 /// - その他全てのコレクション
 
 Future<void> main() async {
-  print('🧹 Firestore データクリア開始...');
+  _logger.i('🧹 Firestore データクリア開始...');
   
   try {
     // Firebase初期化
@@ -38,15 +42,15 @@ Future<void> main() async {
     ];
     
     // 確認メッセージ
-    print('⚠️  以下のFirestoreコレクションを削除します:');
+    _logger.w('⚠️  以下のFirestoreコレクションを削除します:');
     for (final collection in collections) {
-      print('   - $collection');
+      _logger.i('   - $collection');
     }
-    print('\n続行しますか？ (y/N): ');
+    _logger.i('\n続行しますか？ (y/N): ');
     
     final input = stdin.readLineSync();
     if (input?.toLowerCase() != 'y') {
-      print('❌ 操作がキャンセルされました');
+      _logger.e('❌ 操作がキャンセルされました');
       return;
     }
     
@@ -55,24 +59,24 @@ Future<void> main() async {
       await clearCollection(firestore, collectionName);
     }
     
-    print('\n✅ 全てのFirestoreデータがクリアされました');
-    print('💡 アプリを再起動して初期状態から開始してください');
+    _logger.i('\n✅ 全てのFirestoreデータがクリアされました');
+    _logger.i('💡 アプリを再起動して初期状態から開始してください');
     
   } catch (e) {
-    print('❌ エラーが発生しました: $e');
+    _logger.e('❌ エラーが発生しました: $e');
   }
 }
 
 /// 指定されたコレクションの全ドキュメントを削除
 Future<void> clearCollection(FirebaseFirestore firestore, String collectionName) async {
-  print('🗑️  $collectionName コレクションをクリア中...');
+  _logger.i('🗑️  $collectionName コレクションをクリア中...');
   
   try {
     final collection = firestore.collection(collectionName);
     final snapshot = await collection.get();
     
     if (snapshot.docs.isEmpty) {
-      print('   📭 $collectionName は既に空です');
+      _logger.i('   📭 $collectionName は既に空です');
       return;
     }
     
@@ -87,7 +91,7 @@ Future<void> clearCollection(FirebaseFirestore firestore, String collectionName)
       // バッチサイズ上限に達したら実行
       if (count >= 500) {
         await batch.commit();
-        print('   🗑️  $count件削除完了');
+        _logger.i('   🗑️  $count件削除完了');
         count = 0;
       }
     }
@@ -97,9 +101,9 @@ Future<void> clearCollection(FirebaseFirestore firestore, String collectionName)
       await batch.commit();
     }
     
-    print('   ✅ $collectionName コレクション完全削除 (${snapshot.docs.length}件)');
+    _logger.i('   ✅ $collectionName コレクション完全削除 (${snapshot.docs.length}件)');
     
   } catch (e) {
-    print('   ❌ $collectionName の削除に失敗: $e');
+    _logger.e('   ❌ $collectionName の削除に失敗: $e');
   }
 }

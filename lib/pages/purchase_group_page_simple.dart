@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../utils/app_logger.dart';
 import '../models/purchase_group.dart';
 import '../providers/purchase_group_provider.dart';
-import '../providers/user_name_provider.dart';
+
 
 class PurchaseGroupPageSimple extends ConsumerWidget {
   const PurchaseGroupPageSimple({super.key});
@@ -12,8 +13,8 @@ class PurchaseGroupPageSimple extends ConsumerWidget {
     final selectedGroupId = ref.watch(selectedGroupIdProvider);
     final allGroupsAsync = ref.watch(allGroupsProvider);
 
-    print('🏷️ [SIMPLE PAGE] selectedGroupId: $selectedGroupId');
-    print('🏷️ [SIMPLE PAGE] allGroupsAsync: $allGroupsAsync');
+    Log.info('🏷️ [SIMPLE PAGE] selectedGroupId: $selectedGroupId');
+    Log.info('🏷️ [SIMPLE PAGE] allGroupsAsync: $allGroupsAsync');
 
     return Scaffold(
       appBar: AppBar(
@@ -37,7 +38,7 @@ class PurchaseGroupPageSimple extends ConsumerWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          print('🔄 [SIMPLE FAB] 追加ボタンをタップしました');
+          Log.info('🔄 [SIMPLE FAB] 追加ボタンをタップしました');
           _showAddGroupDialog(context, ref);
         },
         backgroundColor: const Color(0xFF2E8B57),
@@ -61,7 +62,7 @@ class PurchaseGroupPageSimple extends ConsumerWidget {
             const SizedBox(height: 10),
             allGroupsAsync.when(
               data: (groups) {
-                print('📋 [SIMPLE SELECTOR] グループ数: ${groups.length}');
+                Log.info('📋 [SIMPLE SELECTOR] グループ数: ${groups.length}');
                 
                 if (groups.isEmpty) {
                   return const Text('グループがありません');
@@ -81,7 +82,7 @@ class PurchaseGroupPageSimple extends ConsumerWidget {
                     );
                   }).toList(),
                   onChanged: (newGroupId) {
-                    print('📋 [SIMPLE SELECTOR] 選択: $newGroupId');
+                    Log.info('📋 [SIMPLE SELECTOR] 選択: $newGroupId');
                     if (newGroupId != null) {
                       ref.read(selectedGroupIdProvider.notifier).selectGroup(newGroupId);
                     }
@@ -111,7 +112,7 @@ class PurchaseGroupPageSimple extends ConsumerWidget {
     return purchaseGroupAsync.when(
       data: (group) {
         if (group == null) {
-          print('📋 [SIMPLE CONTENT] グループデータがnullです');
+          Log.info('📋 [SIMPLE CONTENT] グループデータがnullです');
           return const Card(
             elevation: 2,
             child: Padding(
@@ -121,7 +122,7 @@ class PurchaseGroupPageSimple extends ConsumerWidget {
           );
         }
         
-        print('📋 [SIMPLE CONTENT] グループデータ: ${group.groupName}');
+        Log.info('📋 [SIMPLE CONTENT] グループデータ: ${group.groupName}');
         return Card(
           elevation: 2,
           child: Padding(
