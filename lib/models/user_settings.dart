@@ -9,7 +9,7 @@ part 'user_settings.g.dart';
 class UserSettings with _$UserSettings {
   const factory UserSettings({
     @HiveField(0) @Default('') String userName,
-    @HiveField(1) @Default('defaultGroup') String lastUsedGroupId,
+    @HiveField(1) @Default('default_group') String lastUsedGroupId,
     @HiveField(2) @Default('') String lastUsedShoppingListId,
     @HiveField(3) @Default('') String userId,
     @HiveField(4) @Default('') String userEmail,  // メールアドレスフィールドを追加

@@ -241,7 +241,7 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
   // ヘルパーメソッド
   Future<PurchaseGroup> _createDefaultGroup() async {
     final currentUser = _auth.currentUser;
-    const groupId = 'defaultGroup';
+    const groupId = 'default_group';
     
     final defaultMember = PurchaseGroupMember(
       memberId: currentUser?.uid ?? 'defaultUser',

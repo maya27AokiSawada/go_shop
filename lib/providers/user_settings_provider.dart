@@ -70,8 +70,8 @@ final lastUsedGroupIdProvider = Provider<String>((ref) {
   final settings = ref.watch(userSettingsProvider);
   return settings.when(
     data: (settings) => settings.lastUsedGroupId,
-    loading: () => 'defaultGroup',
-    error: (_, __) => 'defaultGroup',
+    loading: () => 'default_group',
+    error: (_, __) => 'default_group',
   );
 });
 

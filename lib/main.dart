@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'screens/home_screen.dart';
 import 'pages/invitation_accept_page.dart';
 import 'pages/purchase_group_page_simple.dart';
@@ -15,17 +17,15 @@ void main() async {
   
   // Firebase初期化（DEV/PROD両方で初期化）
   try {
-    // Firebase初期化を一時的に無効化（マイグレーション機能テスト用）
-    /*
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    */
     
-    // Web環境での設定（現在は初期化をスキップ）
+    // Web環境での設定
     
   } catch (e) {
     // Firebase初期化に失敗してもアプリは続行（Hiveで動作）
+    print('Firebase初期化エラー: $e');
   }
   
   // Hive初期化（アダプター登録、Box開封、データバージョンチェック）

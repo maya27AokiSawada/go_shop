@@ -7,6 +7,7 @@ import '../providers/user_name_provider.dart';
 import '../providers/security_provider.dart';
 import '../models/purchase_group.dart';
 import '../widgets/member_selection_dialog.dart';
+import '../widgets/group_selector_widget.dart';
 import '../pages/group_invitation_page.dart';
 // import '../widgets/auto_invite_button.dart'; // QRコード招待に変更
 // import '../widgets/qr_invitation_widgets.dart'; // 一時的にコメントアウト
@@ -235,6 +236,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
     // Firebase認証情報を一度だけ取得
     final currentUser = FirebaseAuth.instance.currentUser;
     final currentUserUid = currentUser?.uid ?? '';
+    final selectedGroupId = ref.watch(selectedGroupIdProvider);
     
     // セキュリティチェック
     final canViewData = ref.watch(dataVisibilityProvider);
@@ -265,13 +267,10 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
       );
     }
     
-    final allGroupsAsync = ref.watch(allGroupsProvider);
-    final selectedGroupId = ref.watch(selectedGroupIdProvider);
     final selectedGroupAsync = ref.watch(selectedGroupProvider);
     final currentUserName = ref.watch(userNameProvider);
 
-    Log.info('🏷️ [PAGE BUILD] selectedGroupId: $selectedGroupId');
-    Log.info('🏷️ [PAGE BUILD] allGroupsAsync状態: ${allGroupsAsync.runtimeType}');
+    Log.info('🏷️ [PAGE BUILD] selectedGroupAsync状態: ${selectedGroupAsync.runtimeType}');
     Log.info('🏷️ [PAGE BUILD] selectedGroupAsync状態: ${selectedGroupAsync.runtimeType}');
 
     return Scaffold(
@@ -284,14 +283,14 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
             onSelected: (value) {
               switch (value) {
                 case 'delete_group':
-                  if (selectedGroupId != 'defaultGroup') {
+                  if (selectedGroupId != 'default_group') {
                     _showDeleteGroupDialog(context, selectedGroupId);
                   }
                   break;
               }
             },
             itemBuilder: (context) => [
-              if (selectedGroupId != 'defaultGroup')
+              if (selectedGroupId != 'default_group')
                 const PopupMenuItem(
                   value: 'delete_group',
                   child: Row(
@@ -312,11 +311,8 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // グループ選択ドロップダウン - 最小限のレイアウト
-              Container(
-                constraints: const BoxConstraints(minHeight: 60),
-                child: _buildGroupDropdown(allGroupsAsync, selectedGroupId),
-              ),
+              // グループ選択ウィジェット
+              const GroupSelectorWidget(),
               const SizedBox(height: 16),
               // グループ内容表示 - 簡素化版
               Expanded(
@@ -342,7 +338,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                         constraints: BoxConstraints(
                           minHeight: MediaQuery.of(context).size.height * 0.6,
                         ),
-                        child: _buildGroupContent(purchaseGroup, currentUserName, currentUserUid, ref),
+                        child: _buildGroupContent(purchaseGroup, currentUserName.value, currentUserUid, ref),
                       ),
                     );
                   },
@@ -394,125 +390,6 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
         ),
       ),
       floatingActionButton: _buildFloatingActionButton(context, selectedGroupId),
-    );
-  }
-
-  Widget _buildGroupDropdown(AsyncValue<List<PurchaseGroup>> allGroupsAsync, String? selectedGroupId) {
-    Log.info('📋 [DROPDOWN] 呼び出し開始 - 状態: ${allGroupsAsync.runtimeType}');
-    
-    return allGroupsAsync.when(
-      data: (groups) {
-        Log.info('📋 [DROPDOWN] データ取得成功 - グループ数: ${groups.length}');
-        for (var g in groups) {
-          Log.info('📋 [DROPDOWN] - ${g.groupName} (${g.groupId}) メンバー数: ${g.members?.length ?? 0}');
-        }
-        
-        if (groups.isEmpty) {
-          Log.warning('⚠️ [DROPDOWN] グループが空です - デフォルトグループ作成を試行');
-          
-          // デフォルトグループが存在しない場合は作成ボタンを表示
-          return Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'グループが見つかりません',
-                  style: TextStyle(color: Colors.grey),
-                ),
-                const SizedBox(height: 8),
-                ElevatedButton(
-                  onPressed: () async {
-                    Log.info('🔄 [DROPDOWN] デフォルトグループ作成開始');
-                    try {
-                      final repository = ref.read(purchaseGroupRepositoryProvider);
-                      await repository.getGroupById('defaultGroup'); // これで自動作成される
-                      ref.invalidate(allGroupsProvider);
-                      Log.info('✅ [DROPDOWN] デフォルトグループ作成完了');
-                    } catch (e) {
-                      Log.error('❌ [DROPDOWN] デフォルトグループ作成失敗: $e');
-                    }
-                  },
-                  child: const Text('デフォルトグループを作成'),
-                ),
-              ],
-            ),
-          );
-        }
-        
-        // 選択されたグループが存在するかチェック
-        final groupExists = groups.any((group) => group.groupId == selectedGroupId);
-        final validSelectedGroupId = groupExists ? selectedGroupId : groups.first.groupId;
-        
-        Log.info('📋 [DROPDOWN] selectedGroupId: $selectedGroupId, validSelectedGroupId: $validSelectedGroupId');
-        
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: DropdownButtonFormField<String>(
-              decoration: const InputDecoration(
-                labelText: 'グループを選択',
-                border: OutlineInputBorder(),
-              ),
-              value: validSelectedGroupId,
-              items: groups.map((group) {
-                final displayName = group.groupId == 'defaultGroup' ? 'マイグループ' : group.groupName;
-                return DropdownMenuItem<String>(
-                  value: group.groupId,
-                  child: Text(displayName),
-                );
-              }).toList(),
-              onChanged: (newGroupId) {
-                if (newGroupId != null) {
-                  Log.info('📋 [DROPDOWN] グループ選択: $newGroupId');
-                  ref.read(selectedGroupIdProvider.notifier).selectGroup(newGroupId);
-                }
-              },
-            ),
-          ),
-        );
-      },
-      loading: () {
-        Log.info('⏳ [DROPDOWN] ロード中...');
-        return Container(
-          padding: const EdgeInsets.all(16),
-          child: const Row(
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(width: 16),
-              Text('グループを読み込み中...'),
-            ],
-          ),
-        );
-      },
-      error: (error, stack) {
-        Log.error('❌ [DROPDOWN] エラー: $error');
-        Log.error('❌ [DROPDOWN] スタック: $stack');
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.red.shade50,
-            border: Border.all(color: Colors.red),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('エラー: $error', style: const TextStyle(color: Colors.red)),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: () => ref.invalidate(allGroupsProvider),
-                child: const Text('再試行'),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 
@@ -589,18 +466,19 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                 
                 const SizedBox(height: 8),
                 
-                // 招待ボタン（一時的にシンプルなボタンに変更）
-                Column(
-                  children: [
-                    // 招待ボタン（管理者以上のみ表示）
-                    if (_hasInvitePermission(purchaseGroup, currentUserUid))
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () => _navigateToInvitationPage(purchaseGroup),
-                          icon: const Icon(Icons.qr_code),
-                          label: const Text('招待ページを開く'),
-                        ),
+                // 招待ボタン（デフォルトグループ以外でのみ表示）
+                if (purchaseGroup.groupId != 'default_group')
+                  Column(
+                    children: [
+                      // 招待ボタン（管理者以上のみ表示）
+                      if (_hasInvitePermission(purchaseGroup, currentUserUid))
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () => _navigateToInvitationPage(purchaseGroup),
+                            icon: const Icon(Icons.qr_code),
+                            label: const Text('招待ページを開く'),
+                          ),
                       )
                     else
                       Container(
@@ -906,6 +784,8 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
 
   // アクションメニューを表示（グループ追加・メンバー追加）
   void _showActionMenu(BuildContext context) {
+    final selectedGroupId = ref.read(selectedGroupIdProvider);
+    
     showModalBottomSheet(
       context: context,
       builder: (context) => SafeArea(
@@ -927,15 +807,17 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                 _showAddGroupDialog(context);
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.person_add),
-              title: const Text('プールメンバーを追加'),
-              subtitle: const Text('メンバープールから選択'),
-              onTap: () {
-                Navigator.of(context).pop();
-                _showAddMemberDialog(context);
-              },
-            ),
+            // デフォルトグループ以外でのみメンバー追加を表示
+            if (selectedGroupId != 'default_group')
+              ListTile(
+                leading: const Icon(Icons.person_add),
+                title: const Text('プールメンバーを追加'),
+                subtitle: const Text('メンバープールから選択'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _showAddMemberDialog(context);
+                },
+              ),
             const SizedBox(height: 16),
           ],
         ),

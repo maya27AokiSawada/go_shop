@@ -84,7 +84,7 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
         }
         
         // デフォルトグループは常に表示（後方互換性のため）
-        if (group.groupId == 'defaultGroup') {
+        if (group.groupId == 'default_group') {
           developer.log('✅ [FILTER] デフォルトグループとして含める: ${group.groupName}');
           return true;
         }
@@ -126,7 +126,7 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
     }
     
     // デフォルトグループが存在しない場合は作成
-    if (groupId == 'defaultGroup') {
+    if (groupId == 'default_group') {
       return await _createDefaultGroup();
     }
     
@@ -143,7 +143,7 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
     final userEmail = (userSettings?.userEmail.isNotEmpty == true) ? userSettings!.userEmail : 'default@example.com';
     
     final defaultGroup = PurchaseGroup(
-      groupId: 'defaultGroup',
+      groupId: 'default_group',
       groupName: 'デフォルトグループ',
       ownerName: userName,
       ownerEmail: userEmail,
@@ -159,7 +159,7 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
       ],
     );
     
-    await _box.put('defaultGroup', defaultGroup);
+    await _box.put('default_group', defaultGroup);
     return defaultGroup;
   }
 
@@ -262,7 +262,7 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
   Future<PurchaseGroup> deleteGroup(String groupId) async {
     try {
       // デフォルトグループは削除不可
-      if (groupId == 'defaultGroup') {
+      if (groupId == 'default_group') {
         throw Exception('Cannot delete default group');
       }
       
@@ -283,7 +283,7 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
   @override
   Future<PurchaseGroup> setMemberId(String oldId, String newId, String? contact) async {
     try {
-      const groupId = 'defaultGroup';
+      const groupId = 'default_group';
       final group = _box.get(groupId);
       if (group == null) {
         throw Exception('Default group not found');
@@ -542,7 +542,7 @@ final purchaseGroupRepositoryProvider = Provider<PurchaseGroupRepository>((ref) 
 });
 
 // 現在のグループIDプロバイダー（デフォルトグループ用）
-final currentGroupIdProvider = Provider<String>((ref) => 'defaultGroup');
+final currentGroupIdProvider = Provider<String>((ref) => 'default_group');
 
 // デフォルトグループ保存用のプロバイダー
 final saveDefaultGroupProvider = FutureProvider.family<void, PurchaseGroup>((ref, group) async {
