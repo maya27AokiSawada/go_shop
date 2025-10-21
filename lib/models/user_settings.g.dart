@@ -59,7 +59,7 @@ class UserSettingsAdapter extends TypeAdapter<UserSettings> {
 _$UserSettingsImpl _$$UserSettingsImplFromJson(Map<String, dynamic> json) =>
     _$UserSettingsImpl(
       userName: json['userName'] as String? ?? '',
-      lastUsedGroupId: json['lastUsedGroupId'] as String? ?? 'defaultGroup',
+      lastUsedGroupId: json['lastUsedGroupId'] as String? ?? 'default_group',
       lastUsedShoppingListId: json['lastUsedShoppingListId'] as String? ?? '',
       userId: json['userId'] as String? ?? '',
       userEmail: json['userEmail'] as String? ?? '',

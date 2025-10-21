@@ -158,7 +158,7 @@ class __$$UserSettingsImplCopyWithImpl<$Res>
 class _$UserSettingsImpl implements _UserSettings {
   const _$UserSettingsImpl(
       {@HiveField(0) this.userName = '',
-      @HiveField(1) this.lastUsedGroupId = 'defaultGroup',
+      @HiveField(1) this.lastUsedGroupId = 'default_group',
       @HiveField(2) this.lastUsedShoppingListId = '',
       @HiveField(3) this.userId = '',
       @HiveField(4) this.userEmail = ''});

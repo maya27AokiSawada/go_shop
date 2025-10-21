@@ -329,7 +329,7 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
 
 // Group selection management
 class SelectedGroupIdNotifier extends StateNotifier<String> {
-  SelectedGroupIdNotifier() : super('defaultGroup');
+  SelectedGroupIdNotifier() : super('default_group');
 
   void selectGroup(String groupId) {
     state = groupId;

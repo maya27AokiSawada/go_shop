@@ -1,11 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:logger/logger.dart';
 
+import '../firebase_options.dart';
 
 // Logger instance
 final _logger = Logger();
-import 'package:firebase_core/firebase_core.dart';
-import '../firebase_options.dart';
 
 /// メール送信ステータスを確認するスクリプト
 void main() async {

@@ -165,7 +165,7 @@ class UserInfoService {
 
   /// デフォルトグループを更新
   Future<void> _updateDefaultGroup(String userName, String userEmail) async {
-    const groupId = 'defaultGroup';
+    const groupId = 'default_group';
     
     // 既存のデフォルトグループを取得
     PurchaseGroup? existingGroup;
@@ -235,7 +235,7 @@ class UserInfoService {
 
   /// デフォルトShoppingListを確保（存在しない場合のみ作成）
   Future<void> _ensureDefaultShoppingList() async {
-    const groupId = 'defaultGroup';
+    const groupId = 'default_group';
     
     try {
       final existingShoppingList = await _ref.read(shoppingListProvider.future);

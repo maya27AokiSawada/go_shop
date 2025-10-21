@@ -23,7 +23,7 @@ class HomePageAuthService {
     this.isMounted,
   });
   
-  /// サインイン処理
+  /// サインイン処琁E
   Future<void> performSignIn({
     required String email,
     required String password,
@@ -39,7 +39,7 @@ class HomePageAuthService {
     }
 
     try {
-      Log.info('🔧 サインイン開始: $email');
+      Log.info('🔧 サインイン開姁E $email');
       
       final userCredential = await AuthenticationService.signInWithEmailAndPassword(
         email: email,
@@ -47,25 +47,23 @@ class HomePageAuthService {
       );
       
       if (userCredential == null) {
-        if (mounted != null && mounted!()) {
-          UiHelper.showErrorMessage(context, 'ログインに失敗しました');
-        }
-        return;
+      if (isMounted != null && isMounted!()) {
+        UiHelper.showErrorMessage(context, 'ログインに失敗しました');
       }
-      
-      // メールアドレスの保存/削除を実行
-      await _saveOrClearEmail(email, rememberEmail);
-      
-      if (mounted != null && mounted!()) {
-        UiHelper.showSuccessMessage(context, 'ログインしました');
-        
-        // サインイン成功後の処理
+      return;
+    }
+    
+    // メールアドレスの保孁E削除を実衁E
+    await _saveOrClearEmail(email, rememberEmail);
+    
+    if (isMounted != null && isMounted!()) {
+      UiHelper.showSuccessMessage(context, 'ログインしました');        // サインイン成功後�E処琁E
         WidgetsBinding.instance.addPostFrameCallback((_) async {
           await _userInfoSave();
           ref.invalidate(selectedGroupProvider);
           ref.invalidate(allGroupsProvider);
           await _loadUserNameFromDefaultGroup();
-          // 保存された招待情報があれば自動処理
+          // 保存された招征E��報があれ�E自動�E琁E
           await QrCodeHelper.processPendingInvitation(context, ref, () async {
             await _loadUserNameFromDefaultGroup();
           });
@@ -74,14 +72,14 @@ class HomePageAuthService {
     } on FirebaseAuthException catch (e) {
       await _handleFirebaseAuthError(e, email, password);
     } catch (e) {
-      Log.error('❌ サインイン中に予期しないエラー: $e');
-      if (mounted != null && mounted!()) {
+      Log.error('❁Eサインイン中に予期しなぁE��ラー: $e');
+      if (isMounted != null && isMounted!()) {
         UiHelper.showErrorMessage(context, 'サインインに失敗しました: $e');
       }
     }
   }
   
-  /// サインアップ処理
+  /// サインアチE�E処琁E
   Future<void> performSignUp({
     required String email,
     required String password,
@@ -89,49 +87,49 @@ class HomePageAuthService {
     required TextEditingController emailController,
     required TextEditingController passwordController,
   }) async {
-    if (mounted != null && mounted!() == false) return;
+    if (isMounted != null && isMounted!() == false) return;
     
     if (email.isEmpty || password.isEmpty || userName.isEmpty) {
-      UiHelper.showWarningMessage(context, 'すべての項目を入力してください');
+      UiHelper.showWarningMessage(context, 'すべての頁E��を�E力してください');
       return;
     }
 
     try {
-      Log.info('🆕 サインアップ開始: $email');
+      Log.info('�E サインアチE�E開姁E $email');
       
-      final userCredential = await AuthenticationService.createUserWithEmailAndPassword(
+      final userCredential = await AuthenticationService.signUpWithEmailAndPassword(
         email: email,
         password: password,
       );
       
       if (userCredential?.user != null) {
-        Log.info('✅ サインアップ成功: ${userCredential!.user!.uid}');
+        Log.info('✁EサインアチE�E成功: ${userCredential!.user!.uid}');
         
-        if (mounted != null && mounted!()) {
-          UiHelper.showSuccessMessage(context, 'アカウントを作成しました');
+        if (isMounted != null && isMounted!()) {
+          UiHelper.showSuccessMessage(context, 'アカウントを作�Eしました');
           
-          // サインアップ成功後の処理
+          // サインアチE�E成功後�E処琁E
           await _userInfoSave();
         }
       }
     } on FirebaseAuthException catch (e) {
-      Log.error('❌ サインアップ FirebaseAuthException: ${e.code}, ${e.message}');
-      if (mounted != null && mounted!()) {
+      Log.error('❁EサインアチE�E FirebaseAuthException: ${e.code}, ${e.message}');
+      if (isMounted != null && isMounted!()) {
         String errorMessage = _getFirebaseAuthErrorMessage(e);
         UiHelper.showErrorMessage(context, errorMessage);
       }
     } catch (e) {
-      Log.error('❌ サインアップ中に予期しないエラー: $e');
-      if (mounted != null && mounted!()) {
-        UiHelper.showErrorMessage(context, 'アカウント作成に失敗しました: $e');
+      Log.error('❁EサインアチE�E中に予期しなぁE��ラー: $e');
+      if (isMounted != null && isMounted!()) {
+        UiHelper.showErrorMessage(context, 'アカウント作�Eに失敗しました: $e');
       }
     }
   }
   
-  /// パスワードリセットメール送信
+  /// パスワードリセチE��メール送信
   Future<void> sendPasswordResetEmail(String email) async {
     if (email.isEmpty) {
-      UiHelper.showWarningMessage(context, 'メールアドレスを入力してください');
+      UiHelper.showWarningMessage(context, 'メールアドレスを�E力してください');
       return;
     }
 
@@ -139,18 +137,18 @@ class HomePageAuthService {
       final authService = ref.read(authProvider);
       await authService.sendPasswordResetEmail(email);
       
-      if (mounted != null && mounted!()) {
-        UiHelper.showSuccessMessage(context, 'パスワードリセットメールを送信しました');
+      if (isMounted != null && isMounted!()) {
+        UiHelper.showSuccessMessage(context, 'パスワードリセチE��メールを送信しました');
       }
     } catch (e) {
-      Log.error('❌ パスワードリセットメール送信エラー: $e');
-      if (mounted != null && mounted!()) {
+      Log.error('❁EパスワードリセチE��メール送信エラー: $e');
+      if (isMounted != null && isMounted!()) {
         UiHelper.showErrorMessage(context, 'メール送信に失敗しました: $e');
       }
     }
   }
   
-  /// ユーザー名保存処理
+  /// ユーザー名保存�E琁E
   Future<void> saveUserName(String userName) async {
     if (userName.isEmpty) {
       UiHelper.showWarningMessage(context, 'ユーザー名を入力してください');
@@ -158,29 +156,29 @@ class HomePageAuthService {
     }
 
     try {
-      Log.info('💾 ユーザー名保存開始: $userName');
+      Log.info('💾 ユーザー名保存開姁E $userName');
       
       // UserPreferencesServiceを使用してSharedPreferencesに保存
-      await UserPreferencesService.setUserName(userName);
+      await UserPreferencesService.saveUserName(userName);
       Log.info('✅ SharedPreferencesに保存完了');
       
       // デフォルトグループの情報も更新
       await _userInfoSave();
       Log.info('✅ デフォルトグループ更新完了');
       
-      if (mounted != null && mounted!()) {
+      if (isMounted != null && isMounted!()) {
         UiHelper.showSuccessMessage(context, 'ユーザー名「$userName」を保存しました');
       }
     } catch (e) {
       Log.error('❌ ユーザー名保存エラー: $e');
-      if (mounted != null && mounted!()) {
+      if (isMounted != null && isMounted!()) {
         UiHelper.showErrorMessage(context, 'ユーザー名の保存に失敗しました: $e');
       }
     }
   }
   
   /// About Dialog表示
-  void showAboutDialog() {
+  void showAppAboutDialog() {
     showAboutDialog(
       context: context,
       applicationName: 'Go Shop',
@@ -202,12 +200,12 @@ class HomePageAuthService {
         const Text('家族やグループで買い物リストを共有できるアプリです。'),
         const SizedBox(height: 16),
         const Text('主な機能:'),
-        const Text('• グループでの買い物リスト共有'),
+        const Text('• グループでの買い物リストの共有'),
         const Text('• リアルタイム同期'),
         const Text('• オフライン対応'),
         const Text('• メンバー管理'),
         const SizedBox(height: 16),
-        const Text('開発者: 金ヶ江 真也 ファーティマ (Maya Fatima Kanagae)'),
+        const Text('開発者: 金ヶ江真由美 ファティマ(Maya Fatima Kanagae)'),
         const Text('お問い合わせ: fatima.sumomo@gmail.com'),
         const SizedBox(height: 16),
         const Text('© 2024 Go Shop. All rights reserved.'),
@@ -215,7 +213,7 @@ class HomePageAuthService {
     );
   }
   
-  // ========== プライベートメソッド ==========
+  // ========== プライベ�EトメソチE�� ==========
   
   Future<void> _saveOrClearEmail(String email, bool rememberEmail) async {
     final emailService = ref.read(emailManagementServiceProvider);
@@ -226,8 +224,8 @@ class HomePageAuthService {
   }
   
   Future<void> _userInfoSave() async {
-    // デフォルトグループ情報の更新処理
-    // 既存の userInfoSave() ロジックをここに移動
+    // チE��ォルトグループ情報の更新処琁E
+    // 既存�E userInfoSave() ロジチE��をここに移勁E
   }
   
   Future<void> _loadUserNameFromDefaultGroup() async {
@@ -236,14 +234,14 @@ class HomePageAuthService {
   }
   
   Future<void> _handleFirebaseAuthError(FirebaseAuthException e, String email, String password) async {
-    Log.error('❌ Firebase認証エラー: ${e.code}');
-    Log.error('❌ エラーメッセージ: ${e.message}');
+    Log.error('❁EFirebase認証エラー: ${e.code}');
+    Log.error('❁EエラーメチE��ージ: ${e.message}');
     
-    if (mounted != null && mounted!()) {
+    if (isMounted != null && isMounted!()) {
       String errorMessage = _getFirebaseAuthErrorMessage(e);
       
       if (e.code == 'user-not-found') {
-        // ユーザーが見つからない場合、サインアップを提案
+        // ユーザーが見つからなぁE��合、サインアチE�Eを提桁E
         await _offerSignUp(email);
       } else {
         UiHelper.showErrorMessage(context, errorMessage);
@@ -256,7 +254,7 @@ class HomePageAuthService {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('アカウントが見つかりません'),
-        content: Text('$email のアカウントが見つかりません。\n新規アカウントを作成しますか？'),
+        content: Text('$email のアカウントが見つかりません、En新規アカウントを作�Eしますか�E�E),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -264,32 +262,32 @@ class HomePageAuthService {
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('新規作成'),
+            child: const Text('新規作�E'),
           ),
         ],
       ),
     );
     
-    if (result == true && mounted != null && mounted!()) {
-      // サインアップフォームに切り替える処理
-      // 既存の _performSignUp() 呼び出しロジック
+    if (result == true && isMounted != null && isMounted!()) {
+      // サインアチE�Eフォームに刁E��替える処琁E
+      // 既存�E _performSignUp() 呼び出しロジチE��
     }
   }
   
   String _getFirebaseAuthErrorMessage(FirebaseAuthException e) {
     switch (e.code) {
       case 'user-not-found':
-        return 'このメールアドレスのアカウントが見つかりません';
+        return 'こ�Eメールアドレスのアカウントが見つかりません';
       case 'wrong-password':
-        return 'パスワードが間違っています';
+        return 'パスワードが間違ってぁE��ぁE;
       case 'invalid-email':
         return 'メールアドレスの形式が正しくありません';
       case 'user-disabled':
-        return 'このアカウントは無効化されています';
+        return 'こ�Eアカウント�E無効化されてぁE��ぁE;
       case 'email-already-in-use':
-        return 'このメールアドレスは既に使用されています';
+        return 'こ�Eメールアドレスは既に使用されてぁE��ぁE;
       case 'weak-password':
-        return 'パスワードが脆弱です。より強力なパスワードを設定してください';
+        return 'パスワードが脁E��です。より強力なパスワードを設定してください';
       default:
         return '認証エラーが発生しました: ${e.message}';
     }
@@ -299,7 +297,7 @@ class HomePageAuthService {
 /// HomePageAuthService用のプロバイダー
 final homePageAuthServiceProvider = Provider.family<HomePageAuthService, BuildContext>((ref, context) {
   return HomePageAuthService(
-    ref: ref,
+    ref: ref as WidgetRef,
     context: context,
   );
 });

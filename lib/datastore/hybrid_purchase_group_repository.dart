@@ -417,4 +417,44 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
     _isOnline = online;
     developer.log('🌐 Online status set to: $online');
   }
+  
+  /// Firestoreから強制的に同期してHiveを更新
+  /// Firebase認証済みユーザーのデータ復旧時に使用
+  Future<void> syncFromFirestore() async {
+    if (!_isOnline || F.appFlavor == Flavor.dev || _firestoreRepo == null) {
+      developer.log('💡 Firestore同期スキップ (オフラインまたはDEV環境)');
+      return;
+    }
+    
+    if (_isSyncing) {
+      developer.log('⏳ 既に同期処理中...');
+      return;
+    }
+    
+    _isSyncing = true;
+    
+    try {
+      developer.log('🔄 Firestoreからの強制同期開始...');
+      
+      // Firestoreからすべてのグループを取得
+      final firestoreGroups = await _firestoreRepo!.getAllGroups();
+      developer.log('📥 Firestoreから${firestoreGroups.length}グループを取得');
+      
+      // Hiveを完全にクリア
+      await clearCache();
+      
+      // FirestoreデータをすべてHiveに保存
+      for (final group in firestoreGroups) {
+        await _hiveRepo.saveGroup(group);
+      }
+      
+      developer.log('✅ Firestore→Hive同期完了 (${firestoreGroups.length}グループ)');
+      
+    } catch (e) {
+      developer.log('❌ Firestore同期エラー: $e');
+      rethrow;
+    } finally {
+      _isSyncing = false;
+    }
+  }
 }

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/page_index_provider.dart';
 import '../pages/home_page.dart';
-import '../pages/purchase_group_page_simple.dart';
+import '../pages/purchase_group_page.dart';
 import '../pages/shopping_list_page.dart';
 import '../widgets/hive_initialization_wrapper.dart';
 
@@ -14,7 +14,7 @@ class HomeScreen extends ConsumerWidget {
     
     final List<Widget> pages = [
     const HomePage(),
-    const PurchaseGroupPageSimple(),
+    const PurchaseGroupPage(),
     const ShoppingListPage(),
   ];
 

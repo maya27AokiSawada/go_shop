@@ -6,9 +6,9 @@ import '../providers/auth_provider.dart';
 import '../helper/mock_auth_service.dart';
 import 'shopping_list_repository.dart';
 import 'hive_shopping_list_repository.dart';
-import '../main.dart'; // For logger access
+import '../utils/app_logger.dart';
 
-/// Firebase同期機能付きShoppingListRepository
+/// Firebase同期機�E付きShoppingListRepository
 /// ログイン状態ではFirestoreと同期し、オフラインではHiveを使用
 class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
   final Ref ref;
@@ -17,16 +17,16 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
   FirebaseSyncShoppingListRepository(this.ref) 
     : _hiveRepo = HiveShoppingListRepository(ref);
   
-  /// 現在のユーザーを取得
+  /// 現在のユーザーを取征E
   User? get _currentUser {
-    // 開発フレーバーではMockAuthServiceを優先
+    // 開発フレーバ�EではMockAuthServiceを優允E
     final authService = ref.read(authProvider);
-    logger.i('FirebaseRepo: AuthService type: ${authService.runtimeType}');
+    AppLogger.info('FirebaseRepo: AuthService type: ${authService.runtimeType}');
     
     if (authService is MockAuthService) {
       final mockUser = authService.currentUser;
-      logger.i('FirebaseRepo: MockAuthService user: ${mockUser?.email} (uid: ${mockUser?.uid})');
-      // devフレーバーでFirebase repositoryの使用は禁止
+      AppLogger.info('FirebaseRepo: MockAuthService user: ${mockUser?.email} (uid: ${mockUser?.uid})');
+      // devフレーバ�EでFirebase repositoryの使用は禁止
       throw UnimplementedError('Firebase repository should not be used in dev mode. Use Hive repository instead.');
     }
     
@@ -34,21 +34,21 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
     final authState = ref.read(authStateProvider);
     return authState.when(
       data: (user) {
-        logger.i('FirebaseRepo: Using FirebaseAuth user: ${user?.email}');
+        AppLogger.info('FirebaseRepo: Using FirebaseAuth user: ${user?.email}');
         return user;
       },
       loading: () {
-        logger.i('FirebaseRepo: Auth loading...');
+        AppLogger.info('FirebaseRepo: Auth loading...');
         return null;
       },
       error: (_, __) {
-        logger.w('FirebaseRepo: Auth error');
+        AppLogger.warning('FirebaseRepo: Auth error');
         return null;
       },
     );
   }
   
-  /// Firestoreコレクション参照を取得
+  /// Firestoreコレクション参�Eを取征E
   CollectionReference? _getUserShoppingListsCollection() {
     final user = _currentUser;
     if (user == null) return null;
@@ -61,46 +61,46 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
 
   @override
   Future<ShoppingList?> getShoppingList(String groupId) async {
-    logger.i('FirebaseSyncRepo: Reading ShoppingList for group: $groupId');
+    AppLogger.info('FirebaseSyncRepo: Reading ShoppingList for group: $groupId');
     
-    // ログイン状態ならFirebaseから同期を試行
+    // ログイン状態ならFirebaseから同期を試衁E
     final user = _currentUser;
     if (user != null) {
       try {
         await _syncFromFirebase(groupId);
-        logger.i('Firebase sync completed - Returning from Hive');
+        AppLogger.info('Firebase sync completed - Returning from Hive');
         return await _hiveRepo.getShoppingList(groupId);
       } catch (e) {
-        logger.e('Firebase sync error: $e - Returning from Hive');
+        AppLogger.error('Firebase sync error: $e - Returning from Hive');
         return await _hiveRepo.getShoppingList(groupId);
       }
     }
     
-    // ログインしていない場合はHiveから直接読み込み
-    logger.i('Not logged in - Reading from Hive only');
+    // ログインしてぁE��ぁE��合�EHiveから直接読み込み
+    AppLogger.info('Not logged in - Reading from Hive only');
     return await _hiveRepo.getShoppingList(groupId);
   }
 
   @override
   Future<void> addItem(ShoppingList list) async {
-    logger.i('FirebaseSyncRepo: Starting ShoppingList save');
+    AppLogger.info('FirebaseSyncRepo: Starting ShoppingList save');
     
     // Save to Hive first
     await _hiveRepo.addItem(list);
-    logger.i('Hive save completed');
+    AppLogger.info('Hive save completed');
     
     // Sync to Firebase if logged in
     final user = _currentUser;
     if (user != null) {
       try {
         await _syncToFirebase(list);
-        logger.i('Firebase sync completed');
+        AppLogger.info('Firebase sync completed');
       } catch (e) {
-        logger.e('Firebase sync error: $e');
+        AppLogger.error('Firebase sync error: $e');
         // Local save succeeded, don't throw error for Firebase issues
       }
     } else {
-      logger.i('Not logged in - Skipping Firebase sync');
+      AppLogger.info('Not logged in - Skipping Firebase sync');
     }
   }
 
@@ -116,7 +116,7 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
           await _syncToFirebase(list);
         }
       } catch (e) {
-        logger.e('Firebase sync error during clear: $e');
+        AppLogger.error('Firebase sync error during clear: $e');
       }
     }
   }
@@ -133,7 +133,7 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
           await _syncToFirebase(list);
         }
       } catch (e) {
-        logger.e('Firebase sync error during add item: $e');
+        AppLogger.error('Firebase sync error during add item: $e');
       }
     }
   }
@@ -150,7 +150,7 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
           await _syncToFirebase(list);
         }
       } catch (e) {
-        logger.e('Firebase sync error during remove item: $e');
+        AppLogger.error('Firebase sync error during remove item: $e');
       }
     }
   }
@@ -167,7 +167,7 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
           await _syncToFirebase(list);
         }
       } catch (e) {
-        logger.e('Firebase sync error during item status update: $e');
+        AppLogger.error('Firebase sync error during item status update: $e');
       }
     }
   }
@@ -178,13 +178,13 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
     if (collection == null) return;
     
     try {
-      logger.i('🔥 Firebase -> Hive sync started');
+      AppLogger.info('🔥 Firebase -> Hive sync started');
       
-      // 10秒のタイムアウトを設定
+      // 10秒�Eタイムアウトを設宁E
       final doc = await collection.doc(groupId).get().timeout(
         const Duration(seconds: 10),
         onTimeout: () {
-          logger.w('⏰ Firebase read timeout - continuing with Hive data');
+          AppLogger.warning('⏰ Firebase read timeout - continuing with Hive data');
           throw Exception('Firebase read timeout');
         },
       );
@@ -197,19 +197,19 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
         final hiveList = await _hiveRepo.getShoppingList(groupId);
         
         if (hiveList == null || _shouldUpdateFromFirebase(hiveList, firebaseList)) {
-          // 繰り返し購入アイテムの処理を追加
+          // 繰り返し購入アイチE��の処琁E��追加
           final processedList = _processRepeatPurchases(firebaseList);
           await _hiveRepo.addItem(processedList);
-          logger.i('🔥 Firebase -> Hive sync completed');
+          AppLogger.info('🔥 Firebase -> Hive sync completed');
         } else {
-          logger.i('Hive data is current - Skipping sync');
+          AppLogger.info('Hive data is current - Skipping sync');
         }
       } else {
-        logger.i('No data on Firebase side');
+        AppLogger.info('No data on Firebase side');
       }
     } catch (e) {
-      logger.e('⛔ Firebase read error: $e');
-      // エラー時はHiveから読み込み継続（rethrowしない）
+      AppLogger.error('⛁EFirebase read error: $e');
+      // エラー時�EHiveから読み込み継続！EethrowしなぁE��E
     }
   }
 
@@ -219,22 +219,22 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
     if (collection == null) return;
     
     try {
-      logger.i('🔥 Hive -> Firebase sync started');
+      AppLogger.info('🔥 Hive -> Firebase sync started');
       final data = _shoppingListToMap(list);
       
-      // 10秒のタイムアウトを設定
+      // 10秒�Eタイムアウトを設宁E
       await collection.doc(list.groupId).set(data, SetOptions(merge: true)).timeout(
         const Duration(seconds: 10),
         onTimeout: () {
-          logger.w('⏰ Firebase write timeout - data saved to Hive only');
+          AppLogger.warning('⏰ Firebase write timeout - data saved to Hive only');
           throw Exception('Firebase write timeout');
         },
       );
       
-      logger.i('🔥 Hive -> Firebase sync completed');
+      AppLogger.info('🔥 Hive -> Firebase sync completed');
     } catch (e) {
-      logger.e('⛔ Firebase write error: $e');
-      // エラー時はHive保存は完了しているので続行（rethrowしない）
+      AppLogger.error('⛁EFirebase write error: $e');
+      // エラー時�EHive保存�E完亁E��てぁE��ので続行！EethrowしなぁE��E
     }
   }
 
@@ -289,7 +289,7 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
     );
   }
 
-  /// 繰り返し購入アイテムの処理
+  /// 繰り返し購入アイチE��の処琁E
   ShoppingList _processRepeatPurchases(ShoppingList list) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -298,7 +298,7 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
     for (final item in list.items) {
       processedItems.add(item);
       
-      // 繰り返し購入の条件をチェック
+      // 繰り返し購入の条件をチェチE��
       if (item.shoppingInterval > 0 && 
           item.isPurchased && 
           item.purchaseDate != null) {
@@ -311,11 +311,11 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
         
         final nextPurchaseDate = purchaseDate.add(Duration(days: item.shoppingInterval));
         
-        // 次回購入予定日が今日以降で、同じ名前の未購入アイテムが存在しない場合
+        // 次回購入予定日が今日以降で、同じ名前�E未購入アイチE��が存在しなぁE��吁E
         if ((nextPurchaseDate.isBefore(today) || nextPurchaseDate.isAtSameMomentAs(today)) &&
             !_hasUnpurchasedItemWithSameName(processedItems, item.name)) {
           
-          // 1週間以内の間隔の場合は期限を1日後に、それ以外は間隔分延長
+          // 1週間以冁E�E間隔の場合�E期限めE日後に、それ以外�E間隔刁E��長
           DateTime? newDeadline;
           if (item.shoppingInterval <= 7) {
             newDeadline = DateTime.now().add(const Duration(days: 1));
@@ -333,7 +333,7 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
           );
           
           processedItems.add(newItem);
-          logger.i('🔄 Created repeat purchase item: ${item.name} (${item.shoppingInterval} days interval)');
+          AppLogger.info('🔄 Created repeat purchase item: ${item.name} (${item.shoppingInterval} days interval)');
         }
       }
     }
@@ -341,33 +341,33 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
     return list.copyWith(items: processedItems);
   }
 
-  /// 同じ名前の未購入アイテムが存在するかチェック
+  /// 同じ名前の未購入アイチE��が存在するかチェチE��
   bool _hasUnpurchasedItemWithSameName(List<ShoppingItem> items, String name) {
     return items.any((item) => item.name == name && !item.isPurchased);
   }
 
-  /// Firebaseからの更新が必要かどうかを判断
+  /// Firebaseからの更新が忁E��かどぁE��を判断
   bool _shouldUpdateFromFirebase(ShoppingList hiveList, ShoppingList firebaseList) {
-    // アイテム数が異なる場合は更新
+    // アイチE��数が異なる場合�E更新
     if (hiveList.items.length != firebaseList.items.length) {
-      logger.i('📊 Item count differs: Hive=${hiveList.items.length}, Firebase=${firebaseList.items.length}');
+      AppLogger.info('📊 Item count differs: Hive=${hiveList.items.length}, Firebase=${firebaseList.items.length}');
       return true;
     }
     
-    // 各アイテムの内容を比較
+    // 吁E��イチE��の冁E��を比輁E
     final hiveItemsSet = hiveList.items.map((item) => '${item.name}_${item.memberId}_${item.isPurchased}').toSet();
     final firebaseItemsSet = firebaseList.items.map((item) => '${item.name}_${item.memberId}_${item.isPurchased}').toSet();
     
     if (!hiveItemsSet.containsAll(firebaseItemsSet) || !firebaseItemsSet.containsAll(hiveItemsSet)) {
-      logger.i('🔄 Item content differs - updating from Firebase');
+      AppLogger.info('🔄 Item content differs - updating from Firebase');
       return true;
     }
     
-    logger.i('✅ Hive and Firebase data are identical');
+    AppLogger.info('✁EHive and Firebase data are identical');
     return false;
   }
 
-  // HiveShoppingListRepositoryの追加メソッドを委譲
+  // HiveShoppingListRepositoryの追加メソチE��を委譲
   Future<void> deleteList(String groupId) async {
     await _hiveRepo.deleteList(groupId);
     
@@ -377,7 +377,7 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
         final collection = _getUserShoppingListsCollection();
         await collection?.doc(groupId).delete();
       } catch (e) {
-        logger.e('Firebase delete error: $e');
+        AppLogger.error('Firebase delete error: $e');
       }
     }
   }
@@ -388,13 +388,13 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
 
   @override
   Future<ShoppingList> getOrCreateList(String groupId, String groupName) async {
-    // ログイン状態なら先にFirebaseから同期を試行
+    // ログイン状態なら�EにFirebaseから同期を試衁E
     final user = _currentUser;
     if (user != null) {
       try {
         await _syncFromFirebase(groupId);
       } catch (e) {
-        logger.e('Firebase sync error during get or create: $e');
+        AppLogger.error('Firebase sync error during get or create: $e');
       }
     }
     

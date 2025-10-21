@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../utils/app_logger.dart';
 import '../models/purchase_group.dart';
 import '../providers/purchase_group_provider.dart';
+import '../widgets/group_selector_widget.dart';
 
 
 class PurchaseGroupPageSimple extends ConsumerWidget {
@@ -11,10 +12,8 @@ class PurchaseGroupPageSimple extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedGroupId = ref.watch(selectedGroupIdProvider);
-    final allGroupsAsync = ref.watch(allGroupsProvider);
 
     Log.info('🏷️ [SIMPLE PAGE] selectedGroupId: $selectedGroupId');
-    Log.info('🏷️ [SIMPLE PAGE] allGroupsAsync: $allGroupsAsync');
 
     return Scaffold(
       appBar: AppBar(
@@ -27,7 +26,7 @@ class PurchaseGroupPageSimple extends ConsumerWidget {
         child: Column(
           children: [
             // グループ選択
-            _buildGroupSelector(ref, allGroupsAsync, selectedGroupId),
+            const GroupSelectorWidget(),
             const SizedBox(height: 20),
             // グループ詳細
             Expanded(
@@ -47,56 +46,7 @@ class PurchaseGroupPageSimple extends ConsumerWidget {
     );
   }
 
-  Widget _buildGroupSelector(WidgetRef ref, AsyncValue<List<PurchaseGroup>> allGroupsAsync, String? selectedGroupId) {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'グループ選択',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            allGroupsAsync.when(
-              data: (groups) {
-                Log.info('📋 [SIMPLE SELECTOR] グループ数: ${groups.length}');
-                
-                if (groups.isEmpty) {
-                  return const Text('グループがありません');
-                }
 
-                return DropdownButton<String>(
-                  isExpanded: true,
-                  value: selectedGroupId,
-                  hint: const Text('グループを選択してください'),
-                  items: groups.map((group) {
-                    final displayName = group.groupId == 'defaultGroup' 
-                        ? 'マイグループ' 
-                        : group.groupName;
-                    return DropdownMenuItem<String>(
-                      value: group.groupId,
-                      child: Text(displayName),
-                    );
-                  }).toList(),
-                  onChanged: (newGroupId) {
-                    Log.info('📋 [SIMPLE SELECTOR] 選択: $newGroupId');
-                    if (newGroupId != null) {
-                      ref.read(selectedGroupIdProvider.notifier).selectGroup(newGroupId);
-                    }
-                  },
-                );
-              },
-              loading: () => const CircularProgressIndicator(),
-              error: (error, stack) => Text('エラー: $error'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildGroupContent(WidgetRef ref, String? selectedGroupId) {
     if (selectedGroupId == null) {
