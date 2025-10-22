@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
+import '../providers/user_name_provider.dart';
 import '../widgets/auth_panel_widget.dart';
 import '../widgets/user_name_panel_widget.dart';
 import '../widgets/qr_code_panel_widget.dart';
@@ -17,14 +18,47 @@ class _HomePageState extends ConsumerState<HomePage> {
   final userNameController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    // ユーザー名プロバイダーから値を読み込んでTextEditingControllerに反映
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadUserNameToController();
+    });
+  }
+
+  @override
   void dispose() {
     userNameController.dispose();
     super.dispose();
   }
+
+  /// ユーザー名プロバイダーからTextEditingControllerに値をロード（初回のみ）
+  Future<void> _loadUserNameToController() async {
+    // 初回読み込みのみ
+    final currentAsync = ref.read(userNameProvider);
+    currentAsync.whenData((userName) {
+      if (userName != null && userName.isNotEmpty && mounted) {
+        userNameController.text = userName;
+        print('� HomePage: 初期ユーザー名をコントローラーに設定: $userName');
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
 
+    // ユーザー名プロバイダーの変化を監視してTextEditingControllerに反映
+    ref.listen(userNameProvider, (previous, next) {
+      next.whenData((userName) {
+        if (userName != null && userName.isNotEmpty && mounted) {
+          if (userNameController.text != userName) {
+            userNameController.text = userName;
+            print('� HomePage: ユーザー名をコントローラーに設定: $userName');
+          }
+        }
+      });
+    });
     return Scaffold(
       appBar: AppBar(
         title: const Text('Go Shop'),
@@ -32,7 +66,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       body: authState.when(
         data: (user) {
           final isAuthenticated = user != null;
-          
+
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -42,53 +76,61 @@ class _HomePageState extends ConsumerState<HomePage> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: isAuthenticated ? Colors.green.shade50 : Colors.blue.shade50,
+                    color: isAuthenticated
+                        ? Colors.green.shade50
+                        : Colors.blue.shade50,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: isAuthenticated ? Colors.green.shade200 : Colors.blue.shade200,
+                      color: isAuthenticated
+                          ? Colors.green.shade200
+                          : Colors.blue.shade200,
                     ),
                   ),
                   child: Row(
                     children: [
                       Icon(
-                        isAuthenticated ? Icons.check_circle : Icons.account_circle,
+                        isAuthenticated
+                            ? Icons.check_circle
+                            : Icons.account_circle,
                         color: isAuthenticated ? Colors.green : Colors.blue,
                         size: 20,
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          isAuthenticated 
-                            ? 'ログイン済み: ${user.email}'
-                            : '未ログイン状態',
+                          isAuthenticated ? 'ログイン済み: ${user.email}' : '未ログイン状態',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
-                            color: isAuthenticated ? Colors.green.shade800 : Colors.blue.shade800,
+                            color: isAuthenticated
+                                ? Colors.green.shade800
+                                : Colors.blue.shade800,
                           ),
                         ),
                       ),
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // 1. ニュース＆広告パネル（常に表示、認証状態で内容変更）
                 const NewsAndAdsPanelWidget(),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // 2. ユーザー名パネル（常に表示）
                 UserNamePanelWidget(
                   userNameController: userNameController,
                   onSaveSuccess: () {
-                    // ユーザー名保存成功時の処理
+                    // ユーザー名保存成功時：プロバイダーから最新値を読み込み
+                    _loadUserNameToController();
+                    print('🔄 HomePage: ユーザー名保存成功時にコントローラーを更新');
                   },
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // 3. サインインパネル（未認証時のみ表示）
                 if (!isAuthenticated) ...[
                   AuthPanelWidget(
@@ -98,7 +140,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   ),
                   const SizedBox(height: 20),
                 ],
-                
+
                 // 4. QRコード招待パネル（ログイン済み時のみ表示）
                 if (isAuthenticated) ...[
                   QRCodePanelWidget(
@@ -111,9 +153,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                   ),
                   const SizedBox(height: 20),
                 ],
-                
+
                 const SizedBox(height: 20),
-                
+
                 // 5. サインアウトボタン（認証済み時のみ表示）
                 if (isAuthenticated) ...[
                   SizedBox(
@@ -128,17 +170,19 @@ class _HomePageState extends ConsumerState<HomePage> {
                             content: const Text('ログアウトしますか？'),
                             actions: [
                               TextButton(
-                                onPressed: () => Navigator.of(context).pop(false),
+                                onPressed: () =>
+                                    Navigator.of(context).pop(false),
                                 child: const Text('キャンセル'),
                               ),
                               ElevatedButton(
-                                onPressed: () => Navigator.of(context).pop(true),
+                                onPressed: () =>
+                                    Navigator.of(context).pop(true),
                                 child: const Text('ログアウト'),
                               ),
                             ],
                           ),
                         );
-                        
+
                         if (shouldSignOut == true) {
                           await ref.read(authProvider).signOut();
                         }
@@ -154,7 +198,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   ),
                   const SizedBox(height: 20),
                 ],
-                
+
                 // フッター情報
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -197,9 +241,9 @@ class _HomePageState extends ConsumerState<HomePage> {
               children: [
                 const Icon(Icons.error_outline, size: 48, color: Colors.red),
                 const SizedBox(height: 16),
-                Text(
+                const Text(
                   'エラーが発生しました',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 Text(

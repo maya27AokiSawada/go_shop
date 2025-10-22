@@ -16,13 +16,13 @@ class HomePageAuthService {
   final WidgetRef ref;
   final BuildContext context;
   final bool Function()? isMounted;
-  
+
   HomePageAuthService({
     required this.ref,
     required this.context,
     this.isMounted,
   });
-  
+
   /// サインイン処琁E
   Future<void> performSignIn({
     required String email,
@@ -32,7 +32,7 @@ class HomePageAuthService {
     required bool rememberEmail,
   }) async {
     if (isMounted != null && !isMounted!()) return;
-    
+
     if (email.isEmpty || password.isEmpty) {
       UiHelper.showWarningMessage(context, 'メールアドレスとパスワードを入力してください');
       return;
@@ -40,24 +40,25 @@ class HomePageAuthService {
 
     try {
       Log.info('🔧 サインイン開姁E $email');
-      
-      final userCredential = await AuthenticationService.signInWithEmailAndPassword(
+
+      final userCredential =
+          await AuthenticationService.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-      
+
       if (userCredential == null) {
-      if (isMounted != null && isMounted!()) {
-        UiHelper.showErrorMessage(context, 'ログインに失敗しました');
+        if (isMounted != null && isMounted!()) {
+          UiHelper.showErrorMessage(context, 'ログインに失敗しました');
+        }
+        return;
       }
-      return;
-    }
-    
-    // メールアドレスの保孁E削除を実衁E
-    await _saveOrClearEmail(email, rememberEmail);
-    
-    if (isMounted != null && isMounted!()) {
-      UiHelper.showSuccessMessage(context, 'ログインしました');        // サインイン成功後�E処琁E
+
+      // メールアドレスの保孁E削除を実衁E
+      await _saveOrClearEmail(email, rememberEmail);
+
+      if (isMounted != null && isMounted!()) {
+        UiHelper.showSuccessMessage(context, 'ログインしました'); // サインイン成功後�E処琁E
         WidgetsBinding.instance.addPostFrameCallback((_) async {
           await _userInfoSave();
           ref.invalidate(selectedGroupProvider);
@@ -78,7 +79,7 @@ class HomePageAuthService {
       }
     }
   }
-  
+
   /// サインアチE�E処琁E
   Future<void> performSignUp({
     required String email,
@@ -88,26 +89,28 @@ class HomePageAuthService {
     required TextEditingController passwordController,
   }) async {
     if (isMounted != null && isMounted!() == false) return;
-    
+
     if (email.isEmpty || password.isEmpty || userName.isEmpty) {
       UiHelper.showWarningMessage(context, 'すべての頁E��を�E力してください');
       return;
     }
 
     try {
-      Log.info('�E サインアチE�E開姁E $email');
-      
-      final userCredential = await AuthenticationService.signUpWithEmailAndPassword(
+      Log.info('🔐 サインアップを開始: $email');
+
+      final userCredential =
+          await AuthenticationService.signUpWithEmailAndPassword(
         email: email,
         password: password,
+        userName: userName, // 必須パラメータを追加
       );
-      
+
       if (userCredential?.user != null) {
-        Log.info('✁EサインアチE�E成功: ${userCredential!.user!.uid}');
-        
+        Log.info('✅ サインアップ成功: ${userCredential!.user!.uid}');
+
         if (isMounted != null && isMounted!()) {
-          UiHelper.showSuccessMessage(context, 'アカウントを作�Eしました');
-          
+          UiHelper.showSuccessMessage(context, 'アカウントを作成しました');
+
           // サインアチE�E成功後�E処琁E
           await _userInfoSave();
         }
@@ -125,7 +128,7 @@ class HomePageAuthService {
       }
     }
   }
-  
+
   /// パスワードリセチE��メール送信
   Future<void> sendPasswordResetEmail(String email) async {
     if (email.isEmpty) {
@@ -136,7 +139,7 @@ class HomePageAuthService {
     try {
       final authService = ref.read(authProvider);
       await authService.sendPasswordResetEmail(email);
-      
+
       if (isMounted != null && isMounted!()) {
         UiHelper.showSuccessMessage(context, 'パスワードリセチE��メールを送信しました');
       }
@@ -147,7 +150,7 @@ class HomePageAuthService {
       }
     }
   }
-  
+
   /// ユーザー名保存�E琁E
   Future<void> saveUserName(String userName) async {
     if (userName.isEmpty) {
@@ -157,15 +160,15 @@ class HomePageAuthService {
 
     try {
       Log.info('💾 ユーザー名保存開姁E $userName');
-      
+
       // UserPreferencesServiceを使用してSharedPreferencesに保存
       await UserPreferencesService.saveUserName(userName);
       Log.info('✅ SharedPreferencesに保存完了');
-      
+
       // デフォルトグループの情報も更新
       await _userInfoSave();
       Log.info('✅ デフォルトグループ更新完了');
-      
+
       if (isMounted != null && isMounted!()) {
         UiHelper.showSuccessMessage(context, 'ユーザー名「$userName」を保存しました');
       }
@@ -176,7 +179,7 @@ class HomePageAuthService {
       }
     }
   }
-  
+
   /// About Dialog表示
   void showAppAboutDialog() {
     showAboutDialog(
@@ -212,9 +215,9 @@ class HomePageAuthService {
       ],
     );
   }
-  
+
   // ========== プライベ�EトメソチE�� ==========
-  
+
   Future<void> _saveOrClearEmail(String email, bool rememberEmail) async {
     final emailService = ref.read(emailManagementServiceProvider);
     await emailService.saveOrClearEmail(
@@ -222,24 +225,25 @@ class HomePageAuthService {
       shouldRemember: rememberEmail,
     );
   }
-  
+
   Future<void> _userInfoSave() async {
     // チE��ォルトグループ情報の更新処琁E
     // 既存�E userInfoSave() ロジチE��をここに移勁E
   }
-  
+
   Future<void> _loadUserNameFromDefaultGroup() async {
     final groupService = ref.read(groupManagementServiceProvider);
     await groupService.loadUserNameFromDefaultGroup();
   }
-  
-  Future<void> _handleFirebaseAuthError(FirebaseAuthException e, String email, String password) async {
+
+  Future<void> _handleFirebaseAuthError(
+      FirebaseAuthException e, String email, String password) async {
     Log.error('❁EFirebase認証エラー: ${e.code}');
     Log.error('❁EエラーメチE��ージ: ${e.message}');
-    
+
     if (isMounted != null && isMounted!()) {
       String errorMessage = _getFirebaseAuthErrorMessage(e);
-      
+
       if (e.code == 'user-not-found') {
         // ユーザーが見つからなぁE��合、サインアチE�Eを提桁E
         await _offerSignUp(email);
@@ -248,13 +252,13 @@ class HomePageAuthService {
       }
     }
   }
-  
+
   Future<void> _offerSignUp(String email) async {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('アカウントが見つかりません'),
-        content: Text('$email のアカウントが見つかりません、En新規アカウントを作�Eしますか�E�E),
+        content: Text('$email のアカウントが見つかりません。\n新規アカウントを作成しますか？'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -262,32 +266,32 @@ class HomePageAuthService {
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('新規作�E'),
+            child: const Text('新規作成'),
           ),
         ],
       ),
     );
-    
+
     if (result == true && isMounted != null && isMounted!()) {
       // サインアチE�Eフォームに刁E��替える処琁E
       // 既存�E _performSignUp() 呼び出しロジチE��
     }
   }
-  
+
   String _getFirebaseAuthErrorMessage(FirebaseAuthException e) {
     switch (e.code) {
       case 'user-not-found':
-        return 'こ�Eメールアドレスのアカウントが見つかりません';
+        return 'このメールアドレスのアカウントが見つかりません';
       case 'wrong-password':
-        return 'パスワードが間違ってぁE��ぁE;
+        return 'パスワードが間違っています';
       case 'invalid-email':
         return 'メールアドレスの形式が正しくありません';
       case 'user-disabled':
-        return 'こ�Eアカウント�E無効化されてぁE��ぁE;
+        return 'このアカウントは無効化されています';
       case 'email-already-in-use':
-        return 'こ�Eメールアドレスは既に使用されてぁE��ぁE;
+        return 'このメールアドレスは既に使用されています';
       case 'weak-password':
-        return 'パスワードが脁E��です。より強力なパスワードを設定してください';
+        return 'パスワードが弱すぎです。より強力なパスワードを設定してください';
       default:
         return '認証エラーが発生しました: ${e.message}';
     }
@@ -295,7 +299,8 @@ class HomePageAuthService {
 }
 
 /// HomePageAuthService用のプロバイダー
-final homePageAuthServiceProvider = Provider.family<HomePageAuthService, BuildContext>((ref, context) {
+final homePageAuthServiceProvider =
+    Provider.family<HomePageAuthService, BuildContext>((ref, context) {
   return HomePageAuthService(
     ref: ref as WidgetRef,
     context: context,

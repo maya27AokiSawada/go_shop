@@ -16,7 +16,7 @@ class FirestoreGroupSyncService {
   static Future<List<PurchaseGroup>> syncGroupsOnSignIn() async {
     try {
       Log.info('🔄 サインイン時グループ同期開始');
-      
+
       // 本番環境でない場合は空のリストを返す
       if (F.appFlavor != Flavor.prod) {
         Log.warning('⚠️ 開発環境のためFirestore同期をスキップ');
@@ -31,7 +31,7 @@ class FirestoreGroupSyncService {
 
       // UIDをSharedPreferencesに保存
       await UserPreferencesService.saveUserId(user.uid);
-      
+
       // メールアドレスをSharedPreferencesに保存
       if (user.email != null) {
         await UserPreferencesService.saveUserEmail(user.email!);
@@ -53,7 +53,7 @@ class FirestoreGroupSyncService {
   static Future<PurchaseGroup?> syncSpecificGroup(String groupId) async {
     try {
       Log.info('🔄 グループ[$groupId]の個別同期開始');
-      
+
       if (F.appFlavor != Flavor.prod) {
         Log.warning('⚠️ 開発環境のためFirestore同期をスキップ');
         return null;
@@ -66,10 +66,7 @@ class FirestoreGroupSyncService {
       }
 
       // Firestoreから特定のグループを取得
-      final groupDoc = await _firestore
-          .collection('groups')
-          .doc(groupId)
-          .get();
+      final groupDoc = await _firestore.collection('groups').doc(groupId).get();
 
       if (!groupDoc.exists) {
         Log.warning('⚠️ グループ[$groupId]がFirestoreに存在しません');
@@ -82,24 +79,26 @@ class FirestoreGroupSyncService {
         groupId: groupDoc.id,
         groupName: groupData['groupName'] ?? '',
         ownerName: groupData['ownerName'],
-        ownerEmail: groupData['ownerEmail'],  
+        ownerEmail: groupData['ownerEmail'],
         ownerUid: groupData['ownerUid'],
-        members: (groupData['members'] as List<dynamic>?)?.map((memberData) =>
-          PurchaseGroupMember(
-            memberId: memberData['memberId'] ?? '',
-            name: memberData['name'] ?? '',
-            contact: memberData['contact'] ?? '',
-            role: PurchaseGroupRole.values[memberData['role'] ?? 0],
-            isSignedIn: memberData['isSignedIn'] ?? false,
-          )
-        ).toList(),
+        members: (groupData['members'] as List<dynamic>?)
+            ?.map((memberData) => PurchaseGroupMember(
+                  memberId: memberData['memberId'] ?? '',
+                  name: memberData['name'] ?? '',
+                  contact: memberData['contact'] ?? '',
+                  role: PurchaseGroupRole.values[memberData['role'] ?? 0],
+                  isSignedIn: memberData['isSignedIn'] ?? false,
+                ))
+            .toList(),
         ownerMessage: groupData['ownerMessage'],
-        shoppingListIds: (groupData['shoppingListIds'] as List<dynamic>?)?.cast<String>(),
+        shoppingListIds:
+            (groupData['shoppingListIds'] as List<dynamic>?)?.cast<String>(),
       );
 
       // ユーザーがそのグループのメンバーかチェック
-      final isMember = group.members?.any((member) => 
-          member.memberId == user.uid || member.contact == user.email) ?? false;
+      final isMember = group.members?.any((member) =>
+              member.memberId == user.uid || member.contact == user.email) ??
+          false;
 
       if (!isMember) {
         Log.warning('⚠️ ユーザーはグループ[$groupId]のメンバーではありません');
@@ -119,7 +118,7 @@ class FirestoreGroupSyncService {
   static Future<bool> saveGroupToFirestore(PurchaseGroup group) async {
     try {
       Log.info('💾 グループ[${group.groupName}]をFirestoreに保存開始');
-      
+
       if (F.appFlavor != Flavor.prod) {
         Log.warning('⚠️ 開発環境のためFirestore保存をスキップ');
         return false;
@@ -139,19 +138,18 @@ class FirestoreGroupSyncService {
         'ownerUid': group.ownerUid,
         'ownerMessage': group.ownerMessage,
         'shoppingListIds': group.shoppingListIds,
-        'members': group.members?.map((member) => {
-          'memberId': member.memberId,
-          'name': member.name,
-          'contact': member.contact,
-          'role': member.role.index,
-          'isSignedIn': member.isSignedIn,
-        }).toList(),
+        'members': group.members
+            ?.map((member) => {
+                  'memberId': member.memberId,
+                  'name': member.name,
+                  'contact': member.contact,
+                  'role': member.role.index,
+                  'isSignedIn': member.isSignedIn,
+                })
+            .toList(),
       };
 
-      await _firestore
-          .collection('groups')
-          .doc(group.groupId)
-          .set(groupData);
+      await _firestore.collection('groups').doc(group.groupId).set(groupData);
 
       Log.info('✅ グループ[${group.groupName}]のFirestore保存完了');
       return true;
@@ -181,17 +179,18 @@ class FirestoreGroupSyncService {
           ownerName: groupData['ownerName'],
           ownerEmail: groupData['ownerEmail'],
           ownerUid: groupData['ownerUid'],
-          members: (groupData['members'] as List<dynamic>?)?.map((memberData) =>
-            PurchaseGroupMember(
-              memberId: memberData['memberId'] ?? '',
-              name: memberData['name'] ?? '',
-              contact: memberData['contact'] ?? '',
-              role: PurchaseGroupRole.values[memberData['role'] ?? 0],
-              isSignedIn: memberData['isSignedIn'] ?? false,
-            )
-          ).toList(),
+          members: (groupData['members'] as List<dynamic>?)
+              ?.map((memberData) => PurchaseGroupMember(
+                    memberId: memberData['memberId'] ?? '',
+                    name: memberData['name'] ?? '',
+                    contact: memberData['contact'] ?? '',
+                    role: PurchaseGroupRole.values[memberData['role'] ?? 0],
+                    isSignedIn: memberData['isSignedIn'] ?? false,
+                  ))
+              .toList(),
           ownerMessage: groupData['ownerMessage'],
-          shoppingListIds: (groupData['shoppingListIds'] as List<dynamic>?)?.cast<String>(),
+          shoppingListIds:
+              (groupData['shoppingListIds'] as List<dynamic>?)?.cast<String>(),
         );
         groups.add(group);
       }
@@ -214,17 +213,18 @@ class FirestoreGroupSyncService {
               ownerName: groupData['ownerName'],
               ownerEmail: groupData['ownerEmail'],
               ownerUid: groupData['ownerUid'],
-              members: (groupData['members'] as List<dynamic>?)?.map((memberData) =>
-                PurchaseGroupMember(
-                  memberId: memberData['memberId'] ?? '',
-                  name: memberData['name'] ?? '',
-                  contact: memberData['contact'] ?? '',
-                  role: PurchaseGroupRole.values[memberData['role'] ?? 0],
-                  isSignedIn: memberData['isSignedIn'] ?? false,
-                )
-              ).toList(),
+              members: (groupData['members'] as List<dynamic>?)
+                  ?.map((memberData) => PurchaseGroupMember(
+                        memberId: memberData['memberId'] ?? '',
+                        name: memberData['name'] ?? '',
+                        contact: memberData['contact'] ?? '',
+                        role: PurchaseGroupRole.values[memberData['role'] ?? 0],
+                        isSignedIn: memberData['isSignedIn'] ?? false,
+                      ))
+                  .toList(),
               ownerMessage: groupData['ownerMessage'],
-              shoppingListIds: (groupData['shoppingListIds'] as List<dynamic>?)?.cast<String>(),
+              shoppingListIds: (groupData['shoppingListIds'] as List<dynamic>?)
+                  ?.cast<String>(),
             );
             groups.add(group);
           }
@@ -261,17 +261,18 @@ class FirestoreGroupSyncService {
           ownerName: groupData['ownerName'],
           ownerEmail: groupData['ownerEmail'],
           ownerUid: groupData['ownerUid'],
-          members: (groupData['members'] as List<dynamic>?)?.map((memberData) =>
-            PurchaseGroupMember(
-              memberId: memberData['memberId'] ?? '',
-              name: memberData['name'] ?? '',
-              contact: memberData['contact'] ?? '',
-              role: PurchaseGroupRole.values[memberData['role'] ?? 0],
-              isSignedIn: memberData['isSignedIn'] ?? false,
-            )
-          ).toList(),
+          members: (groupData['members'] as List<dynamic>?)
+              ?.map((memberData) => PurchaseGroupMember(
+                    memberId: memberData['memberId'] ?? '',
+                    name: memberData['name'] ?? '',
+                    contact: memberData['contact'] ?? '',
+                    role: PurchaseGroupRole.values[memberData['role'] ?? 0],
+                    isSignedIn: memberData['isSignedIn'] ?? false,
+                  ))
+              .toList(),
           ownerMessage: groupData['ownerMessage'],
-          shoppingListIds: (groupData['shoppingListIds'] as List<dynamic>?)?.cast<String>(),
+          shoppingListIds:
+              (groupData['shoppingListIds'] as List<dynamic>?)?.cast<String>(),
         );
       }).toList();
     });
@@ -281,10 +282,10 @@ class FirestoreGroupSyncService {
   static Future<void> clearSyncDataOnSignOut() async {
     try {
       Log.info('🧹 サインアウト時の同期データクリア開始');
-      
-      // SharedPreferencesからユーザー情報をクリア（データバージョンは保持）
-      await UserPreferencesService.clearAllUserInfo();
-      
+
+      // SharedPreferencesから認証情報のみクリア（ユーザー名・データバージョンは保持）
+      await UserPreferencesService.clearAuthInfo();
+
       Log.info('✅ サインアウト時クリア完了');
     } catch (e) {
       Log.error('❌ サインアウト時クリアエラー: $e');

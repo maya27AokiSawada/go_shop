@@ -3,14 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:logger/logger.dart';
 import '../utils/app_logger.dart';
-import 'invitation_service.dart';
+// import 'invitation_service.dart';  // 削除済み - QRコードシステムに移行
 
 class DeepLinkService {
   static const MethodChannel _channel = MethodChannel('deep_link');
-  final Logger _logger = Logger();
-  
+
   StreamController<String>? _linkStreamController;
   Stream<String>? _linkStream;
 
@@ -58,13 +56,14 @@ class DeepLinkService {
     }
   }
 
-  static Future<void> _handleIncomingLink(BuildContext context, String link) async {
+  static Future<void> _handleIncomingLink(
+      BuildContext context, String link) async {
     final uri = Uri.parse(link);
-    
+
     // 招待リンクの処理（新形式: go-shop://invite?code=ABC123）
     if (uri.scheme == 'go-shop' && uri.host == 'invite') {
       final inviteCode = uri.queryParameters['code'];
-      
+
       if (inviteCode != null) {
         // 招待受諾画面に遷移
         Navigator.pushNamed(
@@ -80,7 +79,7 @@ class DeepLinkService {
     else if (uri.path == '/invite') {
       final invitationId = uri.queryParameters['id'];
       final groupId = uri.queryParameters['group'];
-      
+
       if (invitationId != null && groupId != null) {
         Navigator.pushNamed(
           context,
@@ -94,14 +93,14 @@ class DeepLinkService {
     }
   }
 
-  /// 招待リンクを処理
+  /// 招待リンクを処理 (QRコードシステムに移行済み)
   Future<Map<String, dynamic>?> handleInvitationLink(
     String link,
-    InvitationService invitationService,
+    // InvitationService invitationService,  // 削除済み - QRコードシステムに移行
   ) async {
     try {
       Log.info('🔗 Processing invitation link: $link');
-      
+
       final uri = Uri.parse(link);
       if (uri.scheme != 'go-shop' || uri.host != 'invite') {
         Log.warning('⚠️ Invalid invitation link format');
@@ -115,25 +114,25 @@ class DeepLinkService {
       }
 
       Log.info('🎫 Processing invite code: $inviteCode');
-      
-      // 招待情報を確認
-      final invitationInfo = await invitationService.getInvitationByCode(inviteCode);
-      if (invitationInfo == null) {
-        Log.warning('⚠️ Invalid or expired invitation code');
-        return null;
-      }
 
-      // 招待を受諾
-      final success = await invitationService.acceptInvitation(inviteCode);
-      
-      if (success) {
-        Log.info('✅ Invitation accepted successfully');
-        return invitationInfo;
-      } else {
-        Log.warning('⚠️ Failed to accept invitation');
-        return null;
-      }
-      
+      // TODO: QRコードシステムに移行 - 新しい招待処理を実装
+      Log.warning('⚠️ Deep link invitation system migrated to QR code system');
+      return null;
+
+      // 旧システム（コメントアウト）
+      // final invitationInfo = await invitationService.getInvitationByCode(inviteCode);
+      // if (invitationInfo == null) {
+      //   Log.warning('⚠️ Invalid or expired invitation code');
+      //   return null;
+      // }
+      // final success = await invitationService.acceptInvitation(inviteCode);
+      // if (success) {
+      //   Log.info('✅ Invitation accepted successfully');
+      //   return invitationInfo;
+      // } else {
+      //   Log.warning('⚠️ Failed to accept invitation');
+      //   return null;
+      // }
     } catch (e) {
       Log.error('❌ Failed to handle invitation link: $e');
       return null;

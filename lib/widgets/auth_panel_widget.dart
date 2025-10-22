@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
+import '../services/email_management_service.dart';
 import '../utils/app_logger.dart';
+
+// 保存されたメールアドレスを取得するプロバイダ
+final savedEmailProvider = FutureProvider<String?>((ref) async {
+  final emailService = ref.read(emailManagementServiceProvider);
+  final result = await emailService.loadSavedEmail();
+  return result.email;
+});
 
 /// サインイン・サインアップのパネルウィジェット
 class AuthPanelWidget extends ConsumerStatefulWidget {
@@ -22,7 +30,7 @@ class _AuthPanelWidgetState extends ConsumerState<AuthPanelWidget> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  
+
   bool showSignInForm = false;
   bool _isPasswordVisible = false;
   bool _isPasswordResetLoading = false;
@@ -42,19 +50,35 @@ class _AuthPanelWidgetState extends ConsumerState<AuthPanelWidget> {
     super.dispose();
   }
 
-  /// 保存されたメールアドレスを読み込む
+  /// 保存されたメールアドレスを読み込む（初期化用）
   Future<void> _loadSavedEmail() async {
-    try {
-      // TODO: AuthProviderに統合されたsaveOrClearEmailメソッドを使用予定
-      // 現在は基本的な実装のみ
-      AppLogger.info('📧 保存されたメールアドレスの読み込み開始');
-    } catch (e) {
-      AppLogger.error('❌ メールアドレス読み込みエラー: $e');
-    }
+    AppLogger.info('📧 保存されたメールアドレスの読み込み開始（buildで自動処理されます）');
   }
 
   @override
   Widget build(BuildContext context) {
+    // 保存されたメールアドレスの監視と自動設定
+    final savedEmailAsync = ref.watch(savedEmailProvider);
+
+    // メールアドレスが利用可能になったらTextEditingControllerとチェックボックスに設定
+    savedEmailAsync.whenData((email) {
+      if (email != null && email.isNotEmpty && mounted) {
+        // 無限ループを避けるため、値が異なる場合のみ更新
+        if (emailController.text != email) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              emailController.text = email;
+              // 保存されたメールアドレスがある場合は「保存する」チェックボックスもONにする
+              setState(() {
+                _rememberEmail = true;
+              });
+              AppLogger.info('📧 AuthPanel: 保存されたメールアドレスを設定: $email');
+            }
+          });
+        }
+      }
+    });
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -123,7 +147,9 @@ class _AuthPanelWidgetState extends ConsumerState<AuthPanelWidget> {
                     prefixIcon: const Icon(Icons.lock),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                        _isPasswordVisible
+                            ? Icons.visibility
+                            : Icons.visibility_off,
                       ),
                       onPressed: () {
                         setState(() {
@@ -169,21 +195,21 @@ class _AuthPanelWidgetState extends ConsumerState<AuthPanelWidget> {
                         onPressed: () async {
                           if (_formKey.currentState!.validate()) {
                             await ref.read(authProvider).performSignIn(
-                              context: context,
-                              ref: ref,
-                              email: emailController.text.trim(),
-                              password: passwordController.text,
-                              emailController: emailController,
-                              passwordController: passwordController,
-                              userNameController: userNameController,
-                              rememberEmail: _rememberEmail,
-                              onSuccess: () {
-                                setState(() {
-                                  showSignInForm = false;
-                                });
-                                widget.onAuthSuccess?.call();
-                              },
-                            );
+                                  context: context,
+                                  ref: ref,
+                                  email: emailController.text.trim(),
+                                  password: passwordController.text,
+                                  emailController: emailController,
+                                  passwordController: passwordController,
+                                  userNameController: userNameController,
+                                  rememberEmail: _rememberEmail,
+                                  onSuccess: () {
+                                    setState(() {
+                                      showSignInForm = false;
+                                    });
+                                    widget.onAuthSuccess?.call();
+                                  },
+                                );
                           }
                         },
                         icon: const Icon(Icons.login),
@@ -196,22 +222,22 @@ class _AuthPanelWidgetState extends ConsumerState<AuthPanelWidget> {
                         onPressed: () async {
                           if (_formKey.currentState!.validate()) {
                             await ref.read(authProvider).performSignUp(
-                              context: context,
-                              ref: ref,
-                              email: emailController.text.trim(),
-                              password: passwordController.text,
-                              userName: userNameController.text.trim(),
-                              emailController: emailController,
-                              passwordController: passwordController,
-                              userNameController: userNameController,
-                              rememberEmail: _rememberEmail,
-                              onSuccess: () {
-                                setState(() {
-                                  showSignInForm = false;
-                                });
-                                widget.onAuthSuccess?.call();
-                              },
-                            );
+                                  context: context,
+                                  ref: ref,
+                                  email: emailController.text.trim(),
+                                  password: passwordController.text,
+                                  userName: userNameController.text.trim(),
+                                  emailController: emailController,
+                                  passwordController: passwordController,
+                                  userNameController: userNameController,
+                                  rememberEmail: _rememberEmail,
+                                  onSuccess: () {
+                                    setState(() {
+                                      showSignInForm = false;
+                                    });
+                                    widget.onAuthSuccess?.call();
+                                  },
+                                );
                           }
                         },
                         icon: const Icon(Icons.person_add),
@@ -227,30 +253,33 @@ class _AuthPanelWidgetState extends ConsumerState<AuthPanelWidget> {
 
                 // パスワードリセットボタン
                 TextButton.icon(
-                  onPressed: _isPasswordResetLoading ? null : () async {
-                    setState(() {
-                      _isPasswordResetLoading = true;
-                    });
+                  onPressed: _isPasswordResetLoading
+                      ? null
+                      : () async {
+                          setState(() {
+                            _isPasswordResetLoading = true;
+                          });
 
-                    await ref.read(authProvider).performPasswordReset(
-                      context: context,
-                      email: emailController.text.trim(),
-                    );
+                          await ref.read(authProvider).performPasswordReset(
+                                context: context,
+                                email: emailController.text.trim(),
+                              );
 
-                    if (mounted) {
-                      setState(() {
-                        _isPasswordResetLoading = false;
-                      });
-                    }
-                  },
-                  icon: _isPasswordResetLoading 
+                          if (mounted) {
+                            setState(() {
+                              _isPasswordResetLoading = false;
+                            });
+                          }
+                        },
+                  icon: _isPasswordResetLoading
                       ? const SizedBox(
                           width: 16,
                           height: 16,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.email_outlined),
-                  label: Text(_isPasswordResetLoading ? '送信中...' : 'パスワードを忘れた場合'),
+                  label:
+                      Text(_isPasswordResetLoading ? '送信中...' : 'パスワードを忘れた場合'),
                 ),
 
                 // キャンセルボタン

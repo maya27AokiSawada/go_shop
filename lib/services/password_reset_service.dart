@@ -1,15 +1,12 @@
 // lib/services/password_reset_service.dart
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:logger/logger.dart';
 import '../utils/app_logger.dart';
 import '../flavors.dart';
 
 /// パスワードリセット処理を管理するサービス
 class PasswordResetService {
-  final Logger _logger = Logger();
-
   /// パスワードリセットメールを送信
-  /// 
+  ///
   /// Returns: (success, errorMessage)
   Future<PasswordResetResult> sendPasswordResetEmail(String email) async {
     // バリデーション
@@ -44,10 +41,9 @@ class PasswordResetService {
         message: 'パスワードリセットメールを $email に送信しました',
         severity: MessageSeverity.success,
       );
-      
     } catch (e) {
       Log.error('❌ パスワードリセット送信エラー: $e');
-      
+
       String errorMessage = 'パスワードリセットに失敗しました';
       if (e.toString().contains('user-not-found')) {
         errorMessage = 'このメールアドレスは登録されていません';

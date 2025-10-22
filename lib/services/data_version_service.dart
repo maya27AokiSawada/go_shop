@@ -1,37 +1,34 @@
-import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../utils/app_logger.dart';
 import 'user_preferences_service.dart';
 
 /// データバージョン管理サービス
-/// 
+///
 /// 【開発段階】: バージョン不一致時は削除&新規作成
 /// 【Playストア公開時】: データマイグレーション機能を追加予定
-/// 
+///
 /// 予定機能:
 /// - InvitationStatus.pending をデフォルト値として既存データに設定
-/// - 既存メンバーのroleに基づいてinvitationStatusを適切に設定  
+/// - 既存メンバーのroleに基づいてinvitationStatusを適切に設定
 /// - データ構造の段階的変換機能
 /// - 失敗時のロールバック機能
 class DataVersionService {
   static const String _dataVersionKey = 'data_version';
   static const int _currentDataVersion = 2; // invitationStatus追加により2に変更
-  
-  final Logger _logger = Logger();
-  
+
   /// 現在のデータバージョンを取得
   static int get currentDataVersion => _currentDataVersion;
-  
+
   /// バージョン番号を文字列として取得
   static String get currentVersionString => _currentDataVersion.toString();
-  
+
   /// 保存されているバージョンを文字列として取得
   Future<String> getSavedVersionString() async {
     final version = await getSavedDataVersion();
     return version.toString();
   }
-  
+
   /// 保存されているデータバージョンを取得
   Future<int> getSavedDataVersion() async {
     try {
@@ -44,7 +41,7 @@ class DataVersionService {
       return 1; // エラー時はバージョン1とみなす
     }
   }
-  
+
   /// データバージョンを保存
   Future<void> saveDataVersion(int version) async {
     try {
@@ -55,23 +52,23 @@ class DataVersionService {
       Log.error('❌ データバージョン保存エラー: $e');
     }
   }
-  
+
   /// データバージョンをチェックし、必要に応じて古いデータを削除
   Future<bool> checkAndMigrateData() async {
     try {
       // SharedPreferences経由でデータバージョンを管理
       final savedVersion = await UserPreferencesService.getDataVersion();
       final currentVersion = currentDataVersion;
-      
+
       Log.info('🔍 データバージョンチェック: 保存済み=$savedVersion, 現在=$currentVersion');
-      
+
       if (savedVersion < currentVersion) {
         Log.warning('⚠️ データバージョンが古いため、データを削除して新規作成します');
         Log.info('🔮 TODO: Playストア公開時にマイグレーション機能を実装予定');
         Log.info('   - v1→v2: InvitationStatus.pendingをデフォルト値として設定');
         Log.info('   - 既存メンバーのroleベースでinvitationStatus適切設定');
         Log.info('   - データ構造の段階的変換とロールバック機能');
-        
+
         await _clearAllHiveData();
         await UserPreferencesService.clearAllUserInfo(); // ユーザー名とメールもクリア
         await UserPreferencesService.saveDataVersion(currentVersion);
@@ -91,9 +88,9 @@ class DataVersionService {
       return false;
     }
   }
-  
+
   /// 全てのHiveデータを削除 (開発段階用)
-  /// 
+  ///
   /// 【Playストア公開時】に以下のマイグレーション機能を追加:
   /// - _migrateFromV1ToV2(): InvitationStatus追加マイグレーション
   /// - _migrateFromV2ToV3(): 将来の機能追加時のマイグレーション
@@ -102,7 +99,7 @@ class DataVersionService {
   Future<void> _clearAllHiveData() async {
     try {
       Log.info('🗑️ 古いHiveデータを削除中...');
-      
+
       // 各Boxを削除
       final boxNames = [
         'purchaseGroupBox',
@@ -110,7 +107,7 @@ class DataVersionService {
         'shoppingItemBox',
         'memberPoolBox',
       ];
-      
+
       for (final boxName in boxNames) {
         try {
           if (Hive.isBoxOpen(boxName)) {
@@ -122,13 +119,13 @@ class DataVersionService {
           Log.warning('⚠️ $boxName の削除でエラー: $e');
         }
       }
-      
+
       Log.info('✅ 全てのHiveデータ削除完了');
     } catch (e) {
       Log.error('❌ Hiveデータ削除エラー: $e');
     }
   }
-  
+
   /// 開発用：データバージョンをリセット
   Future<void> resetDataVersion() async {
     try {
@@ -141,9 +138,9 @@ class DataVersionService {
   }
 
   // ===== Playストア公開時に実装予定の機能 =====
-  
+
   /// データマイグレーション機能 (Playストア公開時実装予定)
-  /// 
+  ///
   /// 段階的なマイグレーション戦略:
   /// 1. データバックアップ作成
   /// 2. バージョン別マイグレーション実行
