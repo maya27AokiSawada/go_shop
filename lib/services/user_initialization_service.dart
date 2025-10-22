@@ -7,12 +7,15 @@ import '../utils/app_logger.dart';
 import '../models/purchase_group.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/user_specific_hive_provider.dart';
+import '../providers/user_name_provider.dart';
 import '../datastore/hybrid_purchase_group_repository.dart';
 import '../flavors.dart';
 import 'ad_service.dart';
 import 'data_version_service.dart';
+import 'user_preferences_service.dart';
 
-final userInitializationServiceProvider = Provider<UserInitializationService>((ref) {
+final userInitializationServiceProvider =
+    Provider<UserInitializationService>((ref) {
   return UserInitializationService(ref);
 });
 
@@ -28,7 +31,7 @@ class UserInitializationService {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeBasedOnUserState();
     });
-    
+
     _auth.authStateChanges().listen((User? user) {
       if (user != null) {
         // ユーザーがログインした時の初期化処理
@@ -36,21 +39,28 @@ class UserInitializationService {
       }
     });
   }
-  
+
   /// ユーザー状態に応じた初期化処理
   /// Firebase認証状態とmemberIDの形式に基づいて適切なデータソースを選択
   Future<void> _initializeBasedOnUserState() async {
     try {
       final currentUser = _auth.currentUser;
-      final currentUserId = _ref.read(currentUserIdProvider);
-      
+
       // Firebase認証済みかつFirebase形式のmemberIDの場合
       if (currentUser != null && _isFirebaseUserId(currentUser.uid)) {
         Log.info('🔄 [INIT] Firebase認証済みユーザー検出 - Firestoreとの同期を開始');
         await _syncWithFirestore(currentUser);
+
+        // ユーザー名プロバイダーを更新
+        _ref.invalidate(userNameProvider);
+        Log.info('🔄 [INIT] ユーザー名プロバイダーを更新しました');
       } else {
         Log.info('🔄 [INIT] ローカルユーザー検出 - ローカルデータで初期化');
         await _ensureDefaultGroupExists();
+
+        // ローカルユーザーの場合もユーザー名プロバイダーを更新
+        _ref.invalidate(userNameProvider);
+        Log.info('🔄 [INIT] ローカルユーザー名プロバイダーを更新しました');
       }
     } catch (e) {
       Log.error('❌ [INIT] ユーザー状態初期化エラー: $e');
@@ -58,20 +68,21 @@ class UserInitializationService {
       await _ensureDefaultGroupExists();
     }
   }
-  
+
   /// Firebase形式のユーザーIDかどうかを判定
   bool _isFirebaseUserId(String userId) {
     // Firebase UIDの特徴: 28文字の英数字
-    return RegExp(r'^[a-zA-Z0-9]{20,}$').hasMatch(userId) && userId.length >= 20;
+    return RegExp(r'^[a-zA-Z0-9]{20,}$').hasMatch(userId) &&
+        userId.length >= 20;
   }
-  
+
   /// Firestoreとの同期処理
   Future<void> _syncWithFirestore(User user) async {
     try {
       Log.info('🔄 [FIRESTORE_SYNC] Firestoreからデータを取得中...');
-      
+
       final repository = _ref.read(purchaseGroupRepositoryProvider);
-      
+
       // HybridRepositoryの場合、Firestoreを優先した同期を実行
       if (repository is HybridPurchaseGroupRepository) {
         // Firestoreからすべてのグループを取得してHiveに同期
@@ -82,19 +93,18 @@ class UserInitializationService {
         Log.info('💡 [FIRESTORE_SYNC] Non-Hybridリポジトリ - 通常初期化');
         await _ensureDefaultGroupExists();
       }
-      
+
       // プロバイダーを更新して画面に反映
       _ref.invalidate(allGroupsProvider);
-      
     } catch (e) {
       Log.error('❌ [FIRESTORE_SYNC] Firestore同期エラー: $e');
       // Firestore同期に失敗した場合はローカル初期化
       await _ensureDefaultGroupExists();
     }
   }
-  
+
   /// デフォルトグループの存在を確認し、なければ作成
-  /// 
+  ///
   /// データバージョン管理との連携:
   /// - データクリア後は新規デフォルトグループを自動作成
   /// - Playストア公開時: マイグレーション後の整合性チェック機能追加予定
@@ -103,9 +113,9 @@ class UserInitializationService {
       // データバージョンチェック（念のため再確認）
       final dataVersionService = DataVersionService();
       final dataCleared = await dataVersionService.checkAndMigrateData();
-      
+
       final allGroupsAsync = _ref.read(allGroupsProvider);
-      
+
       await allGroupsAsync.when(
         data: (allGroups) async {
           if (allGroups.isEmpty || dataCleared) {
@@ -136,14 +146,14 @@ class UserInitializationService {
       await _createGuestDefaultGroup();
     }
   }
-  
+
   /// ゲスト用のデフォルトグループを作成
   Future<void> _createGuestDefaultGroup() async {
     try {
       final repository = _ref.read(purchaseGroupRepositoryProvider);
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      const defaultGroupId = 'default_group';  // ユーザー配下の固定ID
-      
+      const defaultGroupId = 'default_group'; // ユーザー配下の固定ID
+
       // 既存のデフォルトグループがあれば削除（データ不整合対応）
       try {
         await repository.deleteGroup(defaultGroupId);
@@ -151,15 +161,66 @@ class UserInitializationService {
       } catch (e) {
         Log.info('💡 [DEFAULT GROUP] 既存のデフォルトグループなし（新規作成）');
       }
-      
+
       // Firebase認証済みユーザーの情報を取得
       final currentUser = FirebaseAuth.instance.currentUser;
-      final currentUserId = currentUser?.uid ?? _ref.read(currentUserIdProvider) ?? 'user_$timestamp';
+      final currentUserId = currentUser?.uid ??
+          _ref.read(currentUserIdProvider) ??
+          'user_$timestamp';
       final userEmail = currentUser?.email ?? 'guest@local.app';
-      final displayName = currentUser?.displayName ?? 'あなた';
-      
-      Log.info('🔄 [DEFAULT GROUP] Firebase User: uid=$currentUserId, email=$userEmail, name=$displayName');
-      
+
+      // ユーザー名の優先順位に従って決定
+      String displayName = 'あなた';
+      if (currentUser != null) {
+        try {
+          // プリファレンスからユーザー名を取得
+          final prefsName = await _ref
+              .read(userNameNotifierProvider.notifier)
+              .restoreUserNameFromPreferences();
+          Log.info(
+              '📝 [DEFAULT GROUP] プリファレンス名: $prefsName, Firebase名: ${currentUser.displayName}');
+
+          // プリファレンスが「あなた」または空の場合はFirebase優先
+          if (prefsName == null || prefsName.isEmpty || prefsName == 'あなた') {
+            if (currentUser.displayName != null &&
+                currentUser.displayName!.isNotEmpty) {
+              displayName = currentUser.displayName!;
+              // プリファレンスにも保存
+              await _ref
+                  .read(userNameNotifierProvider.notifier)
+                  .setUserName(displayName);
+              Log.info('📝 [DEFAULT GROUP] Firebase優先で設定: $displayName');
+            }
+          } else {
+            // プリファレンス優先、Firebaseに反映
+            displayName = prefsName;
+            await currentUser.updateDisplayName(displayName);
+            await currentUser.reload();
+            Log.info('📝 [DEFAULT GROUP] プリファレンス優先で設定: $displayName');
+          }
+
+          // UIの更新のためプロバイダーを無効化
+          _ref.invalidate(userNameProvider);
+        } catch (e) {
+          Log.warning('⚠️ [DEFAULT GROUP] ユーザー名決定エラー、フォールバック: ${e.toString()}');
+          displayName = currentUser.displayName ?? 'あなた';
+        }
+      }
+
+      Log.info(
+          '🔄 [DEFAULT GROUP] Firebase User: uid=$currentUserId, email=$userEmail, name=$displayName');
+
+      // メールアドレスをSharedPreferencesに保存
+      if (userEmail != 'guest@local.app' && userEmail.isNotEmpty) {
+        try {
+          await UserPreferencesService.saveUserEmail(userEmail);
+          Log.info(
+              '📧 [DEFAULT GROUP] メールアドレスをSharedPreferencesに保存: $userEmail');
+        } catch (e) {
+          Log.warning('⚠️ [DEFAULT GROUP] メールアドレス保存エラー: $e');
+        }
+      }
+
       // デフォルトグループのオーナーメンバーを作成
       final ownerMember = PurchaseGroupMember.create(
         memberId: currentUserId,
@@ -177,8 +238,9 @@ class UserInitializationService {
         ownerMember,
       );
 
-      Log.info('✅ プライベート専用デフォルトグループを作成しました: $defaultGroupName (ID: $defaultGroupId)');
-      
+      Log.info(
+          '✅ プライベート専用デフォルトグループを作成しました: $defaultGroupName (ID: $defaultGroupId)');
+
       // メンバープールも初期化
       try {
         await repository.getOrCreateMemberPool();
@@ -186,11 +248,10 @@ class UserInitializationService {
       } catch (e) {
         Log.warning('⚠️ メンバープール初期化エラー: $e');
       }
-      
+
       // プロバイダーを更新
       final allGroupsNotifier = _ref.read(allGroupsProvider.notifier);
       await allGroupsNotifier.refresh();
-      
     } catch (e) {
       Log.error('❌ ゲスト用デフォルトグループ作成エラー: $e');
     }
@@ -202,10 +263,10 @@ class UserInitializationService {
       // 広告サービスの初期化
       final adService = _ref.read(adServiceProvider);
       await adService.initialize();
-      
+
       // サインイン広告の表示
       await adService.showSignInAd();
-      
+
       // Prod環境でのみFirebase連携の初期化を実行
       if (F.appFlavor == Flavor.prod) {
         await _createDefaultGroupIfNeeded(user);
@@ -220,7 +281,7 @@ class UserInitializationService {
     try {
       final repository = _ref.read(purchaseGroupRepositoryProvider);
       final defaultGroupId = 'default_${user.uid}';
-      
+
       // 既存のデフォルトグループをチェック
       try {
         final existingGroup = await repository.getGroupById(defaultGroupId);
@@ -231,9 +292,52 @@ class UserInitializationService {
         Log.info('💡 デフォルトグループが存在しないため、新規作成します');
       }
 
+      // ユーザー名の優先順位に従って決定（Firebase形式のデフォルトグループ用）
+      String displayName = user.displayName ?? 'ユーザー';
+      try {
+        final prefsName = await _ref
+            .read(userNameNotifierProvider.notifier)
+            .restoreUserNameFromPreferences();
+        Log.info(
+            '📝 [DEFAULT GROUP] Firebase形式 - プリファレンス名: $prefsName, Firebase名: ${user.displayName}');
+
+        if (prefsName == null || prefsName.isEmpty || prefsName == 'あなた') {
+          // Firebase優先
+          if (user.displayName != null && user.displayName!.isNotEmpty) {
+            displayName = user.displayName!;
+            await _ref
+                .read(userNameNotifierProvider.notifier)
+                .setUserName(displayName);
+            Log.info('📝 [DEFAULT GROUP] Firebase優先: $displayName');
+          }
+        } else {
+          // プリファレンス優先
+          displayName = prefsName;
+          await user.updateDisplayName(displayName);
+          await user.reload();
+          Log.info('📝 [DEFAULT GROUP] プリファレンス優先: $displayName');
+        }
+
+        // UIの更新のためプロバイダーを無効化
+        _ref.invalidate(userNameProvider);
+      } catch (e) {
+        Log.warning('⚠️ [DEFAULT GROUP] Firebase形式ユーザー名決定エラー: ${e.toString()}');
+      }
+
+      // メールアドレスをSharedPreferencesに保存
+      if (user.email != null && user.email!.isNotEmpty) {
+        try {
+          await UserPreferencesService.saveUserEmail(user.email!);
+          Log.info(
+              '📧 [DEFAULT GROUP] Firebase形式 - メールアドレスをSharedPreferencesに保存: ${user.email}');
+        } catch (e) {
+          Log.warning('⚠️ [DEFAULT GROUP] Firebase形式 - メールアドレス保存エラー: $e');
+        }
+      }
+
       // デフォルトグループのオーナーメンバーを作成
       final ownerMember = PurchaseGroupMember.create(
-        name: user.displayName ?? user.email ?? 'ユーザー',
+        name: displayName,
         contact: user.email ?? '',
         role: PurchaseGroupRole.owner,
         isSignedIn: true,
@@ -250,7 +354,6 @@ class UserInitializationService {
       );
 
       Log.info('✅ デフォルトグループを作成しました: $defaultGroupName (ID: $defaultGroupId)');
-      
     } catch (e) {
       Log.error('❌ デフォルトグループ作成エラー: $e');
     }

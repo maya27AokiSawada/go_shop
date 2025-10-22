@@ -3,12 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/data_version_service.dart';
 import '../services/user_initialization_service.dart';
-import '../services/deep_link_service.dart';
 import '../widgets/data_migration_widget.dart';
 import '../utils/app_logger.dart';
+import '../providers/user_name_provider.dart';
 
 /// アプリ初期化を管理するウィジェット
-/// 
+///
 /// 以下の処理を統合管理:
 /// - データマイグレーションチェック
 /// - ユーザー初期化サービス開始
@@ -16,21 +16,22 @@ import '../utils/app_logger.dart';
 /// - 初期化完了までのローディング表示
 class AppInitializeWidget extends ConsumerStatefulWidget {
   final Widget child;
-  
+
   const AppInitializeWidget({
     super.key,
     required this.child,
   });
 
   @override
-  ConsumerState<AppInitializeWidget> createState() => _AppInitializeWidgetState();
+  ConsumerState<AppInitializeWidget> createState() =>
+      _AppInitializeWidgetState();
 }
 
 class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
   bool _isInitialized = false;
   bool _isInitializing = false;
   String _initializationStatus = 'アプリを準備中...';
-  
+
   @override
   void initState() {
     super.initState();
@@ -42,7 +43,7 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
   /// アプリ全体の初期化処理を実行
   Future<void> _performAppInitialization() async {
     if (_isInitializing) return;
-    
+
     setState(() {
       _isInitializing = true;
       _initializationStatus = 'データをチェック中...';
@@ -50,30 +51,23 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
 
     try {
       Log.info('🚀 AppInitializeWidget: 初期化開始');
-      
+
       // ステップ1: マイグレーションチェック
       await _checkAndHandleMigration();
-      
+
       // ステップ2: ユーザー初期化サービス開始
       setState(() {
         _initializationStatus = 'ユーザー情報を準備中...';
       });
       await _initializeUserServices();
-      
-      // ステップ3: ディープリンク初期化
-      setState(() {
-        _initializationStatus = 'リンク機能を準備中...';
-      });
-      _initializeDeepLinks();
-      
+
       // 初期化完了
       setState(() {
         _isInitialized = true;
         _initializationStatus = '準備完了';
       });
-      
+
       Log.info('✅ AppInitializeWidget: 初期化完了');
-      
     } catch (e) {
       Log.error('❌ AppInitializeWidget: 初期化エラー: $e');
       setState(() {
@@ -88,19 +82,20 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
     try {
       final migrationNotifier = ref.read(dataMigrationProvider.notifier);
       final needsMigration = await migrationNotifier.checkMigrationNeeded();
-      
+
       if (needsMigration && mounted) {
         Log.info('🔄 マイグレーションが必要です');
-        
+
         // バージョン情報を取得
         final dataVersionService = DataVersionService();
         final oldVersion = await dataVersionService.getSavedVersionString();
         final newVersion = DataVersionService.currentVersionString;
-        
+
         // マイグレーション画面をフルスクリーン表示
         await Navigator.of(context).push(
           PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => DataMigrationWidget(
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                DataMigrationWidget(
               oldVersion: oldVersion,
               newVersion: newVersion,
               onMigrationComplete: () {
@@ -111,7 +106,7 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
             reverseTransitionDuration: Duration.zero,
           ),
         );
-        
+
         Log.info('✅ マイグレーション完了');
       } else {
         Log.info('ℹ️ マイグレーション不要');
@@ -128,18 +123,12 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
       final userInitService = ref.read(userInitializationServiceProvider);
       userInitService.startAuthStateListener();
       Log.info('✅ ユーザー初期化サービス開始');
+
+      // ユーザー名プロバイダーの初期化を明示的に実行
+      ref.invalidate(userNameProvider);
+      Log.info('🔄 ユーザー名プロバイダーを初期化');
     } catch (e) {
       Log.error('❌ ユーザー初期化サービスエラー: $e');
-    }
-  }
-
-  /// ディープリンクの初期化
-  void _initializeDeepLinks() {
-    try {
-      DeepLinkService.initializeDeepLinks(context);
-      Log.info('✅ ディープリンク初期化完了');
-    } catch (e) {
-      Log.error('❌ ディープリンク初期化エラー: $e');
     }
   }
 
@@ -148,7 +137,7 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
     if (!_isInitialized) {
       return _buildLoadingScreen();
     }
-    
+
     return widget.child;
   }
 
@@ -174,16 +163,16 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
                 color: Colors.blue[700],
               ),
             ),
-            
+
             const SizedBox(height: 32),
-            
+
             // プログレスインジケーター
             const CircularProgressIndicator(
               strokeWidth: 3,
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             // ステータステキスト
             Text(
               _initializationStatus,
@@ -192,9 +181,9 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
                 color: Colors.grey,
               ),
             ),
-            
+
             const SizedBox(height: 8),
-            
+
             // アプリ名
             const Text(
               'Go Shop',

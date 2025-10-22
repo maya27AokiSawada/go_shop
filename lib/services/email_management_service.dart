@@ -1,6 +1,5 @@
 // lib/services/email_management_service.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:logger/logger.dart';
 import '../utils/app_logger.dart';
 import '../providers/device_settings_provider.dart';
 
@@ -11,7 +10,6 @@ final emailManagementServiceProvider = Provider<EmailManagementService>((ref) {
 /// メールアドレスの保存・読み込みを管理するサービス
 class EmailManagementService {
   final Ref _ref;
-  final Logger _logger = Logger();
 
   EmailManagementService(this._ref);
 
@@ -20,21 +18,21 @@ class EmailManagementService {
     try {
       final deviceSettings = _ref.read(deviceSettingsServiceProvider);
       final savedEmail = await deviceSettings.getSavedEmail();
-      
+
       if (savedEmail != null && savedEmail.isNotEmpty) {
-        Log.info('📧 保存されたメールアドレスを復元: $savedEmail');
+        AppLogger.info('📧 保存されたメールアドレスを復元: $savedEmail');
         return SavedEmailResult(
           email: savedEmail,
           shouldRemember: true,
         );
       }
-      
+
       return SavedEmailResult(
         email: null,
         shouldRemember: false,
       );
     } catch (e) {
-      Log.error('❌ メールアドレス読み込みエラー: $e');
+      AppLogger.error('❌ メールアドレス読み込みエラー: $e');
       return SavedEmailResult(
         email: null,
         shouldRemember: false,
@@ -49,16 +47,16 @@ class EmailManagementService {
   }) async {
     try {
       final deviceSettings = _ref.read(deviceSettingsServiceProvider);
-      
+
       if (shouldRemember && email.isNotEmpty) {
         await deviceSettings.saveEmail(email);
-        Log.info('💾 メールアドレスを保存: $email');
+        AppLogger.info('💾 メールアドレスを保存: $email');
       } else {
         await deviceSettings.clearSavedEmail();
-        Log.info('🗑️ 保存されたメールアドレスを削除');
+        AppLogger.info('🗑️ 保存されたメールアドレスを削除');
       }
     } catch (e) {
-      Log.error('❌ メールアドレス保存エラー: $e');
+      AppLogger.error('❌ メールアドレス保存エラー: $e');
       rethrow;
     }
   }

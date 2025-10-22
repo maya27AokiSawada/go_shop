@@ -2,11 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../models/purchase_group.dart';
 import '../services/qr_invitation_service.dart';
-
 
 class GroupInvitationPage extends ConsumerStatefulWidget {
   final PurchaseGroup group;
@@ -17,12 +15,12 @@ class GroupInvitationPage extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<GroupInvitationPage> createState() => _GroupInvitationPageState();
+  ConsumerState<GroupInvitationPage> createState() =>
+      _GroupInvitationPageState();
 }
 
 class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
   String? _qrData;
-  String? _inviteLink;
   bool _isLoading = true;
   String? _errorMessage;
   String _invitationType = 'individual'; // 'individual' または 'friend'
@@ -41,7 +39,7 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
       });
 
       final qrService = ref.read(qrInvitationServiceProvider);
-      
+
       // QRコードデータを生成
       final invitationData = await qrService.createQRInvitationData(
         shoppingListId: widget.group.shoppingListIds?.first ?? '',
@@ -53,12 +51,8 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
 
       final qrData = jsonEncode(invitationData);
 
-      // ディープリンクを生成
-      final inviteLink = 'https://goshop.app/invite?data=${Uri.encodeComponent(qrData)}';
-
       setState(() {
         _qrData = qrData;
-        _inviteLink = inviteLink;
         _isLoading = false;
       });
     } catch (e) {
@@ -66,18 +60,6 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
         _errorMessage = '招待の生成に失敗しました: $e';
         _isLoading = false;
       });
-    }
-  }
-
-  void _shareInviteLink() {
-    if (_inviteLink != null) {
-      Share.share(
-        '「${widget.group.groupName}」グループへの招待\n\n'
-        'こちらのリンクからグループに参加できます：\n'
-        '$_inviteLink\n\n'
-        'Go Shop - 家族・グループ向け買い物リスト共有アプリ',
-        subject: '「${widget.group.groupName}」グループへの招待',
-      );
     }
   }
 
@@ -156,9 +138,12 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
                       Expanded(
                         child: Text(
                           widget.group.groupName,
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineSmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
                         ),
                       ),
                     ],
@@ -167,16 +152,16 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
                   Text(
                     'メンバー数: ${widget.group.members?.length ?? 0}人',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey[600],
-                    ),
+                          color: Colors.grey[600],
+                        ),
                   ),
                 ],
               ),
             ),
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // 招待タイプ選択セクション
           Card(
             elevation: 4,
@@ -188,8 +173,8 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
                   Text(
                     '招待タイプ',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
                   const SizedBox(height: 16),
                   RadioListTile<String>(
@@ -220,9 +205,9 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // QRコードセクション
           Card(
             elevation: 4,
@@ -233,8 +218,8 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
                   Text(
                     'QRコードで招待',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
                   const SizedBox(height: 16),
                   Container(
@@ -263,65 +248,17 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
                   Text(
                     'このQRコードをスキャンしてグループに参加',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey[600],
-                    ),
+                          color: Colors.grey[600],
+                        ),
                     textAlign: TextAlign.center,
                   ),
                 ],
               ),
             ),
           ),
-          
-          const SizedBox(height: 16),
-          
-          // リンク共有セクション
-          Card(
-            elevation: 4,
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  Text(
-                    'リンクで招待',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey[300]!),
-                    ),
-                    child: Text(
-                      _inviteLink ?? '生成中...',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontFamily: 'monospace',
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _inviteLink != null ? _shareInviteLink : null,
-                      icon: const Icon(Icons.share),
-                      label: const Text('リンクを共有'),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          
+
           const SizedBox(height: 24),
-          
+
           // 使い方説明
           Card(
             elevation: 2,
@@ -340,17 +277,17 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
                       const SizedBox(width: 8),
                       Text(
                         '招待の仕方',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
                   const Text(
                     '1. QRコードを相手にスキャンしてもらう\n'
-                    '2. または「リンクを共有」ボタンでリンクを送信\n'
-                    '3. 相手がアプリで承諾すると自動的にメンバーに追加されます\n'
+                    '2. 相手がアプリで承諾すると自動的にメンバーに追加されます\n'
                     '4. 承諾通知を受け取ったらグループを確認してください',
                     style: TextStyle(height: 1.5),
                   ),

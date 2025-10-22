@@ -1,25 +1,22 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:logger/logger.dart';
 
 import '../firebase_options.dart';
+import '../utils/appLog.dart';
 
-// Logger instance
-final _logger = Logger();
-
-/// メール送信ステータスを確認するスクリプト
+/// メール送信スチE�Eタスを確認するスクリプト
 void main() async {
-  _logger.i('🔍 メール送信ステータスチェック開始...\n');
+  Log.info('🔍 メール送信スチE�EタスチェチE��開姁E..\n');
 
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    _logger.i('✅ Firebase初期化完了\n');
+    Log.info('✁EFirebase初期化完亁En');
 
     final firestore = FirebaseFirestore.instance;
-    
-    // mailコレクションの全ドキュメントを取得
+
+    // mailコレクションの全ドキュメントを取征E
     final mailSnapshot = await firestore
         .collection('mail')
         .orderBy('delivery.startTime', descending: true)
@@ -27,68 +24,67 @@ void main() async {
         .get();
 
     if (mailSnapshot.docs.isEmpty) {
-      _logger.e('❌ mailコレクションにドキュメントがありません');
+      Log.e('❁Emailコレクションにドキュメントがありません');
       return;
     }
 
-    _logger.i('📧 最近のメール送信ステータス (最新10件):\n');
-    _logger.i('=' * 80);
+    Log.i('📧 最近�Eメール送信スチE�Eタス (最新10件):\n');
+    Log.i('=' * 80);
 
     for (var doc in mailSnapshot.docs) {
       final data = doc.data();
-      _logger.i('\n📨 ドキュメントID: ${doc.id}');
-      _logger.i('   宛先: ${data['to']}');
-      _logger.i('   件名: ${data['message']?['subject'] ?? 'N/A'}');
-      
+      Log.i('\n📨 ドキュメンチED: ${doc.id}');
+      Log.i('   宛�E: ${data['to']}');
+      Log.i('   件吁E ${data['message']?['subject'] ?? 'N/A'}');
+
       if (data['delivery'] != null) {
         final delivery = data['delivery'] as Map<String, dynamic>;
-        _logger.i('   配送状態: ${delivery['state'] ?? 'PENDING'}');
-        _logger.i('   開始時刻: ${delivery['startTime']?.toDate() ?? 'N/A'}');
-        _logger.i('   終了時刻: ${delivery['endTime']?.toDate() ?? 'N/A'}');
-        _logger.i('   試行回数: ${delivery['attempts'] ?? 0}');
-        
+        Log.i('   配送状慁E ${delivery['state'] ?? 'PENDING'}');
+        Log.i('   開始時刻: ${delivery['startTime']?.toDate() ?? 'N/A'}');
+        Log.i('   終亁E��刻: ${delivery['endTime']?.toDate() ?? 'N/A'}');
+        Log.i('   試行回数: ${delivery['attempts'] ?? 0}');
+
         if (delivery['error'] != null) {
-          _logger.e('   ❌ エラー情報:');
+          Log.e('   ❁Eエラー惁E��:');
           final error = delivery['error'];
           if (error is String) {
-            _logger.i('      $error');
+            Log.i('      $error');
           } else if (error is Map) {
             error.forEach((key, value) {
-              _logger.i('      $key: $value');
+              Log.i('      $key: $value');
             });
           }
         }
-        
+
         if (delivery['info'] != null) {
           final info = delivery['info'];
           if (info is Map) {
-            _logger.i('   ℹ️  追加情報:');
+            Log.i('   ℹ�E�E 追加惁E��:');
             info.forEach((key, value) {
-              _logger.i('      $key: $value');
+              Log.i('      $key: $value');
             });
           }
         }
       } else {
-        _logger.i('   配送状態: ⏳ PENDING (処理待ち)');
+        Log.i('   配送状慁E ⏳ PENDING (処琁E��E��)');
       }
-      
-      _logger.i('   ${'-' * 76}');
+
+      Log.i('   ${'-' * 76}');
     }
 
-    _logger.i('\n${'=' * 80}');
-    _logger.i('\n💡 トラブルシューティング:');
-    _logger.i('1. 配送状態がREJECTEDの場合:');
-    _logger.i('   - SMTPサーバー認証情報を確認');
-    _logger.i('   - Gmailアプリパスワードが正しいか確認');
-    _logger.i('   - 送信元メールアドレスが正しいか確認');
-    _logger.i('\n2. 配送状態がPENDINGのまま変わらない場合:');
-    _logger.i('   - Firebase Console → Functions でログを確認');
-    _logger.i('   - Extension設定を確認 (リージョン、コレクション名など)');
-    _logger.e('\n3. エラー情報がある場合:');
-    _logger.e('   - エラーメッセージを詳しく読んで対応');
-    
+    Log.i('\n${'=' * 80}');
+    Log.i('\n💡 トラブルシューチE��ング:');
+    Log.i('1. 配送状態がREJECTEDの場吁E');
+    Log.i('   - SMTPサーバ�E認証惁E��を確誁E);
+    Log.i('   - Gmailアプリパスワードが正しいか確誁E);
+    Log.i('   - 送信允E��ールアドレスが正しいか確誁E);
+    Log.i('\n2. 配送状態がPENDINGのまま変わらなぁE��吁E');
+    Log.i('   - Firebase Console ↁEFunctions でログを確誁E);
+    Log.i('   - Extension設定を確誁E(リージョン、コレクション名など)');
+    Log.e('\n3. エラー惁E��がある場吁E');
+    Log.e('   - エラーメチE��ージを詳しく読んで対忁E);
   } catch (e, stackTrace) {
-    _logger.e('❌ エラー: $e');
-    _logger.i('スタックトレース: $stackTrace');
+    Log.e('❁Eエラー: $e');
+    Log.i('スタチE��トレース: $stackTrace');
   }
 }

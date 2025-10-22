@@ -1,5 +1,4 @@
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/app_logger.dart';
@@ -7,8 +6,8 @@ import 'dart:io';
 import '../models/purchase_group.dart';
 import '../models/shopping_list.dart';
 import '../models/user_settings.dart';
-import '../models/invitation.dart';
-import '../models/accepted_invitation.dart';
+// import '../models/invitation.dart';  // 削除済み - QRコードシステムに移行
+// import '../models/accepted_invitation.dart';  // 削除済み - QRコードシステムに移行
 
 
 
@@ -80,11 +79,11 @@ class UserSpecificHiveService {
       Hive.registerAdapter(PurchaseGroupAdapter());
       Hive.registerAdapter(ShoppingItemAdapter());
       Hive.registerAdapter(ShoppingListAdapter());
-      Hive.registerAdapter(InvitationStatusAdapter()); // 追加
-      Hive.registerAdapter(InvitationAdapter());
-      Hive.registerAdapter(AcceptedInvitationAdapter());
+      Hive.registerAdapter(InvitationStatusAdapter()); // 継続使用
+      // Hive.registerAdapter(InvitationAdapter());  // 削除済み - QRコードシステムに移行
+      // Hive.registerAdapter(AcceptedInvitationAdapter());  // 削除済み - QRコードシステムに移行
       Hive.registerAdapter(UserSettingsAdapter());
-      Log.info('📝 Hive adapters registered globally (including InvitationStatus)');
+      Log.info('📝 Hive adapters registered globally (InvitationStatus継続、招待アダプターは削除)');
     }
   }
   

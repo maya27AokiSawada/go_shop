@@ -2,7 +2,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/app_logger.dart';
 
-
 /// ユーザーの基本情報をSharedPreferencesで管理するサービス
 class UserPreferencesService {
   static const String _keyUserName = 'user_name';
@@ -124,15 +123,31 @@ class UserPreferencesService {
     };
   }
 
-  /// ユーザー情報をすべてクリア
+  /// ユーザー認証情報のみクリア（ユーザー名は保持）
+  static Future<bool> clearAuthInfo() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_keyUserEmail);
+      await prefs.remove(_keyUserId);
+      // ユーザー名とデータバージョンは保持
+      Log.info('🗑️ SharedPreferences 認証情報をクリア完了（ユーザー名・データバージョン保持）');
+      return true;
+    } catch (e) {
+      Log.error('❌ SharedPreferences clearAuthInfo エラー: $e');
+      return false;
+    }
+  }
+
+  /// ユーザー情報をすべてクリア（ユーザー名は保持）
+  /// @deprecated clearAuthInfo()を使用してください
   static Future<bool> clearAllUserInfo() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_keyUserName);
+      // await prefs.remove(_keyUserName); // ユーザー名はログアウト後も保持
       await prefs.remove(_keyUserEmail);
       await prefs.remove(_keyUserId);
       // データバージョンは削除しない（次回起動時の判定に必要）
-      Log.info('🗑️ SharedPreferences 全ユーザー情報をクリア完了');
+      Log.info('🗑️ SharedPreferences ユーザー情報をクリア完了（ユーザー名は保持）');
       return true;
     } catch (e) {
       Log.error('❌ SharedPreferences clearAllUserInfo エラー: $e');
@@ -140,7 +155,8 @@ class UserPreferencesService {
     }
   }
 
-  /// 完全リセット（データバージョンも含めてすべて削除）
+  /// 完全リセット（ユーザー名・データバージョンも含めてすべて削除）
+  /// ⚠️ 注意: 開発・デバッグ用途のみ使用。ユーザー名も削除される
   static Future<bool> completeReset() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -148,7 +164,7 @@ class UserPreferencesService {
       await prefs.remove(_keyUserEmail);
       await prefs.remove(_keyUserId);
       await prefs.remove(_keyDataVersion);
-      Log.info('🔥 SharedPreferences 完全リセット完了');
+      Log.info('🔥 SharedPreferences 完全リセット完了（ユーザー名も削除）');
       return true;
     } catch (e) {
       Log.error('❌ SharedPreferences completeReset エラー: $e');

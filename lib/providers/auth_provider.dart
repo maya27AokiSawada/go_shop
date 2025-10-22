@@ -11,25 +11,23 @@ import '../providers/subscription_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../services/group_management_service.dart';
 
-
 // Logger instance
-
 
 // Firebase Auth Service
 class FirebaseAuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  
+
   Future<User?> signIn(String email, String password) async {
     try {
       Log.debug('🔥 FirebaseAuthService: signIn開始 - email: $email');
       Log.debug('🔥 FirebaseAuth instance: ${_auth.toString()}');
       Log.debug('🔥 FirebaseAuth currentUser: ${_auth.currentUser}');
-      
+
       final credential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-      
+
       Log.debug('🔥 FirebaseAuthService: signIn成功 - user: ${credential.user}');
       return credential.user;
     } catch (e) {
@@ -42,16 +40,16 @@ class FirebaseAuthService {
       rethrow; // エラーを再スローして上位でキャッチ
     }
   }
-  
+
   Future<User?> signUp(String email, String password) async {
     try {
       Log.debug('🔥 FirebaseAuthService: signUp開始 - email: $email');
-      
+
       final credential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-      
+
       Log.debug('🔥 FirebaseAuthService: signUp成功 - user: ${credential.user}');
       return credential.user;
     } catch (e) {
@@ -61,17 +59,18 @@ class FirebaseAuthService {
       rethrow; // エラーを再スローして上位でキャッチ
     }
   }
-  
+
   Future<void> signOut() async {
     await _auth.signOut();
   }
-  
+
   Future<void> sendPasswordResetEmail(String email) async {
     try {
-      Log.debug('🔥 FirebaseAuthService: sendPasswordResetEmail開始 - email: $email');
-      
+      Log.debug(
+          '🔥 FirebaseAuthService: sendPasswordResetEmail開始 - email: $email');
+
       await _auth.sendPasswordResetEmail(email: email);
-      
+
       Log.debug('🔥 FirebaseAuthService: sendPasswordResetEmail成功');
     } catch (e) {
       Log.error('🔥 FirebaseAuthService: sendPasswordResetEmailでエラー発生');
@@ -80,9 +79,9 @@ class FirebaseAuthService {
       rethrow;
     }
   }
-  
+
   User? get currentUser => _auth.currentUser;
-  
+
   /// Home Page用の統合認証操作
   /// サインイン処理
   Future<void> performSignIn({
@@ -103,45 +102,48 @@ class FirebaseAuthService {
 
     try {
       Log.info('🔧 サインイン開始: $email');
-      
-      final userCredential = await AuthenticationService.signInWithEmailAndPassword(
+
+      final userCredential =
+          await AuthenticationService.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-      
+
       if (userCredential == null) {
         UiHelper.showErrorMessage(context, 'ログインに失敗しました');
         return;
       }
-      
+
       // メールアドレスの保存処理
       await saveOrClearEmail(
         ref: ref,
         email: email,
         shouldRemember: rememberEmail,
       );
-      
+
       UiHelper.showSuccessMessage(context, 'ログインしました');
-      
+
       // サインイン成功後の処理
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         await _performPostSignInActions(ref, userNameController);
         onSuccess();
       });
-      
-      // フォームリセット
-      emailController.clear();
+
+      // フォームリセット（メールアドレス保存時は email はクリアしない）
+      if (!rememberEmail) {
+        emailController.clear();
+      }
       passwordController.clear();
-      
     } on FirebaseAuthException catch (e) {
       Log.error('🚨 Firebase認証エラー: ${e.code} - ${e.message}');
-      await _handleFirebaseAuthError(e, email, password, context, ref, emailController, userNameController);
+      await _handleFirebaseAuthError(e, email, password, context, ref,
+          emailController, userNameController);
     } catch (e) {
       Log.error('🚨 ログイン失敗: $e');
       UiHelper.showErrorMessage(context, 'ログインに失敗しました: $e');
     }
   }
-  
+
   /// サインアップ処理
   Future<void> performSignUp({
     required BuildContext context,
@@ -159,7 +161,7 @@ class FirebaseAuthService {
       UiHelper.showWarningMessage(context, 'メールアドレスとパスワードを入力してください');
       return;
     }
-    
+
     if (userName.isEmpty) {
       UiHelper.showWarningMessage(context, 'ユーザー名を入力してください');
       return;
@@ -167,47 +169,50 @@ class FirebaseAuthService {
 
     try {
       Log.info('🔧 サインアップ開始: $email');
-      
-      final userCredential = await AuthenticationService.signUpWithEmailAndPassword(
+
+      final userCredential =
+          await AuthenticationService.signUpWithEmailAndPassword(
         email: email,
         password: password,
         userName: userName,
       );
-      
+
       if (userCredential == null) {
         UiHelper.showErrorMessage(context, 'アカウント作成に失敗しました');
         return;
       }
-      
+
       // メールアドレスの保存処理
       await saveOrClearEmail(
         ref: ref,
         email: email,
         shouldRemember: rememberEmail,
       );
-      
+
       UiHelper.showSuccessMessage(context, 'アカウントを作成してログインしました');
-      
+
       // サインアップ成功後の処理
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         await _performPostSignUpActions(ref, userNameController);
         onSuccess();
       });
-      
-      // フォームリセット
-      emailController.clear();
+
+      // フォームリセット（メールアドレス保存時は email はクリアしない）
+      if (!rememberEmail) {
+        emailController.clear();
+      }
       passwordController.clear();
-      
     } on FirebaseAuthException catch (e) {
       Log.error('🚨 Firebase認証エラー: ${e.code} - ${e.message}');
       String errorMessage = _getFirebaseAuthErrorMessage(e);
-      UiHelper.showErrorMessage(context, errorMessage, duration: const Duration(seconds: 4));
+      UiHelper.showErrorMessage(context, errorMessage,
+          duration: const Duration(seconds: 4));
     } catch (e) {
       Log.error('🚨 サインアップ失敗: $e');
       UiHelper.showErrorMessage(context, 'アカウント作成に失敗しました: $e');
     }
   }
-  
+
   /// ユーザー名保存処理
   Future<void> saveUserName({
     required BuildContext context,
@@ -221,22 +226,26 @@ class FirebaseAuthService {
 
     try {
       Log.info('💾 ユーザー名保存開始: $userName');
-      
+
       // UserNameNotifierを使用してSharedPreferences + Firestoreに保存
       await ref.read(userNameNotifierProvider.notifier).setUserName(userName);
       Log.info('✅ SharedPreferences + Firestoreに保存完了');
-      
+
       // デフォルトグループの情報も更新
       await _saveUserInfo(ref, userName, '');
       Log.info('✅ デフォルトグループ更新完了');
-      
+
+      // ユーザー名表示プロバイダーを明示的に更新
+      ref.invalidate(userNameProvider);
+      Log.info('🔄 ユーザー名プロバイダーを更新しました');
+
       UiHelper.showSuccessMessage(context, 'ユーザー名「$userName」を保存しました');
     } catch (e) {
       Log.error('❌ ユーザー名保存エラー: $e');
       UiHelper.showErrorMessage(context, 'ユーザー名の保存に失敗しました: $e');
     }
   }
-  
+
   /// パスワードリセットメール送信処理
   Future<void> performPasswordReset({
     required BuildContext context,
@@ -249,24 +258,24 @@ class FirebaseAuthService {
 
     try {
       Log.info('📧 パスワードリセットメール送信開始: $email');
-      
+
       await sendPasswordResetEmail(email);
-      
+
       UiHelper.showSuccessMessage(
-        context, 
-        'パスワードリセットメールを送信しました', 
+        context,
+        'パスワードリセットメールを送信しました',
         duration: const Duration(seconds: 4),
       );
     } catch (e) {
       Log.error('❌ パスワードリセットメール送信エラー: $e');
       UiHelper.showErrorMessage(
-        context, 
+        context,
         'メール送信に失敗しました: $e',
         duration: const Duration(seconds: 4),
       );
     }
   }
-  
+
   /// About Dialog表示
   static void showAppAboutDialog(BuildContext context) {
     showAboutDialog(
@@ -302,19 +311,21 @@ class FirebaseAuthService {
       ],
     );
   }
-  
+
   // プライベートヘルパーメソッド
-  Future<void> _performPostSignInActions(WidgetRef ref, TextEditingController userNameController) async {
+  Future<void> _performPostSignInActions(
+      WidgetRef ref, TextEditingController userNameController) async {
     await _saveUserInfo(ref, userNameController.text, '');
     ref.invalidate(selectedGroupProvider);
     ref.invalidate(allGroupsProvider);
     await _loadUserNameFromDefaultGroup(ref, userNameController);
     // TODO: QrCodeHelper.processPendingInvitation処理
   }
-  
-  Future<void> _performPostSignUpActions(WidgetRef ref, TextEditingController userNameController) async {
+
+  Future<void> _performPostSignUpActions(
+      WidgetRef ref, TextEditingController userNameController) async {
     await _saveUserInfo(ref, userNameController.text, '');
-    
+
     // 🎉 サインアップ時に1か月間の無料期間を開始
     try {
       await ref.read(subscriptionProvider.notifier).startSignupFreePeriod();
@@ -322,32 +333,34 @@ class FirebaseAuthService {
     } catch (e) {
       Log.error('❌ 無料期間開始エラー: $e');
     }
-    
+
     ref.invalidate(selectedGroupProvider);
     ref.invalidate(allGroupsProvider);
     await _loadUserNameFromDefaultGroup(ref, userNameController);
   }
-  
-  Future<void> _saveUserInfo(WidgetRef ref, String userName, String email) async {
+
+  Future<void> _saveUserInfo(
+      WidgetRef ref, String userName, String email) async {
     final userInfoService = ref.read(userInfoServiceProvider);
     await userInfoService.saveUserInfo(
       userNameFromForm: userName,
       emailFromForm: email,
     );
   }
-  
-  Future<void> _loadUserNameFromDefaultGroup(WidgetRef ref, TextEditingController userNameController) async {
+
+  Future<void> _loadUserNameFromDefaultGroup(
+      WidgetRef ref, TextEditingController userNameController) async {
     final groupService = ref.read(groupManagementServiceProvider);
     final userName = await groupService.loadUserNameFromDefaultGroup();
-    
+
     if (userName != null && userName.isNotEmpty) {
       userNameController.text = userName;
     }
   }
-  
+
   Future<void> _handleFirebaseAuthError(
-    FirebaseAuthException e, 
-    String email, 
+    FirebaseAuthException e,
+    String email,
     String password,
     BuildContext context,
     WidgetRef ref,
@@ -356,7 +369,7 @@ class FirebaseAuthService {
   ) async {
     String errorMessage;
     bool offerSignUp = false;
-    
+
     switch (e.code) {
       case 'user-not-found':
         errorMessage = 'このメールアドレスは登録されていません';
@@ -379,14 +392,16 @@ class FirebaseAuthService {
         errorMessage = 'ログインに失敗しました';
         offerSignUp = true;
     }
-    
+
     if (offerSignUp) {
-      await _offerSignUp(email, password, context, ref, emailController, userNameController);
+      await _offerSignUp(
+          email, password, context, ref, emailController, userNameController);
     } else {
-      UiHelper.showErrorMessage(context, errorMessage, duration: const Duration(seconds: 4));
+      UiHelper.showErrorMessage(context, errorMessage,
+          duration: const Duration(seconds: 4));
     }
   }
-  
+
   Future<void> _offerSignUp(
     String email,
     String password,
@@ -396,16 +411,17 @@ class FirebaseAuthService {
     TextEditingController userNameController,
   ) async {
     final userName = userNameController.text.trim();
-    
+
     if (userName.isEmpty) {
       UiHelper.showInfoDialog(
         context,
         title: 'ユーザー名が必要です',
-        message: 'サインアップするには、まずユーザー名を設定してください。\n\n画面上部のユーザー名入力欄にお名前を入力してから再度お試しください。',
+        message:
+            'サインアップするには、まずユーザー名を設定してください。\n\n画面上部のユーザー名入力欄にお名前を入力してから再度お試しください。',
       );
       return;
     }
-    
+
     final shouldSignUp = await UiHelper.showConfirmDialog(
       context,
       title: 'アカウントが見つかりません',
@@ -427,7 +443,7 @@ class FirebaseAuthService {
       );
     }
   }
-  
+
   String _getFirebaseAuthErrorMessage(FirebaseAuthException e) {
     switch (e.code) {
       case 'email-already-in-use':
@@ -460,8 +476,6 @@ class FirebaseAuthService {
     }
   }
 }
-
-
 
 // Firebase Auth プロバイダー
 final authProvider = Provider<FirebaseAuthService>((ref) {

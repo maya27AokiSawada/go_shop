@@ -4,13 +4,13 @@ import '../models/purchase_group.dart';
 import '../providers/purchase_group_provider.dart';
 import '../utils/app_logger.dart';
 
-/// グループ選択専用ウィジェチE��
-/// 
-/// 機�E:
-/// - ドロチE�Eダウンリストによるグループ選抁E
+/// グループ選択専用ウィジェット
+///
+/// 機能:
+/// - ドロップダウンリストによるグループ選択
 /// - 選択結果のプロバイダーへの反映
-/// - グループが存在しなぁE��合�E作�E機�E
-/// - ローチE��ング状態とエラー状態�E表示
+/// - グループが存在しない場合の作成機能
+/// - ローディング状態とエラー状態の表示
 class GroupSelectorWidget extends ConsumerWidget {
   const GroupSelectorWidget({super.key});
 
@@ -18,42 +18,50 @@ class GroupSelectorWidget extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final allGroupsAsync = ref.watch(allGroupsProvider);
     final selectedGroupId = ref.watch(selectedGroupIdProvider);
-    
-    AppLogger.info('📋 [GROUP_SELECTOR] 呼び出し開姁E- 状慁E ${allGroupsAsync.runtimeType}');
-    
+
+    Log.info('📋 [GROUP_SELECTOR] 呼び出し開始 - 状態: ${allGroupsAsync.runtimeType}');
+
     return allGroupsAsync.when(
-      data: (groups) => _buildGroupDropdown(context, ref, groups, selectedGroupId),
+      data: (groups) =>
+          _buildGroupDropdown(context, ref, groups, selectedGroupId),
       loading: () => _buildLoadingWidget(),
       error: (error, stack) => _buildErrorWidget(context, ref, error),
     );
   }
 
   /// グループ選択ドロチE�Eダウンを構篁E
-  Widget _buildGroupDropdown(BuildContext context, WidgetRef ref, List<PurchaseGroup> groups, String? selectedGroupId) {
+  Widget _buildGroupDropdown(BuildContext context, WidgetRef ref,
+      List<PurchaseGroup> groups, String? selectedGroupId) {
     AppLogger.info('📋 [GROUP_SELECTOR] チE�Eタ取得�E劁E- グループ数: ${groups.length}');
-    
+
     for (var g in groups) {
-      AppLogger.info('📋 [GROUP_SELECTOR] - ${g.groupName} (${g.groupId}) メンバ�E数: ${g.members?.length ?? 0}');
+      AppLogger.info(
+          '📋 [GROUP_SELECTOR] - ${g.groupName} (${g.groupId}) メンバ�E数: ${g.members?.length ?? 0}');
     }
-    
+
     // グループが空の場合�E作�Eボタンを表示
     if (groups.isEmpty) {
       return _buildCreateGroupWidget(ref);
     }
-    
+
     // 選択されたグループが存在するかチェチE��
-    final groupExists = selectedGroupId != null && groups.any((group) => group.groupId == selectedGroupId);
-    final validSelectedGroupId = groupExists ? selectedGroupId! : groups.first.groupId;
-    
-    AppLogger.info('📋 [GROUP_SELECTOR] selectedGroupId: $selectedGroupId, validSelectedGroupId: $validSelectedGroupId');
-    
+    final groupExists = selectedGroupId != null &&
+        groups.any((group) => group.groupId == selectedGroupId);
+    final validSelectedGroupId =
+        groupExists ? selectedGroupId : groups.first.groupId;
+
+    AppLogger.info(
+        '📋 [GROUP_SELECTOR] selectedGroupId: $selectedGroupId, validSelectedGroupId: $validSelectedGroupId');
+
     // 選択されたグループIDが変更された場合、�Eロバイダーを更新
     if (validSelectedGroupId != selectedGroupId) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref.read(selectedGroupIdProvider.notifier).selectGroup(validSelectedGroupId);
+        ref
+            .read(selectedGroupIdProvider.notifier)
+            .selectGroup(validSelectedGroupId);
       });
     }
-    
+
     return Card(
       elevation: 2,
       child: Padding(
@@ -73,11 +81,14 @@ class GroupSelectorWidget extends ConsumerWidget {
               decoration: const InputDecoration(
                 labelText: 'アクティブなグループ',
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
-              value: validSelectedGroupId,
+              initialValue: validSelectedGroupId,
               items: groups.map((group) {
-                final displayName = group.groupId == 'default_group' ? 'マイリスト（プライベート）' : group.groupName;
+                final displayName = group.groupId == 'default_group'
+                    ? 'マイリスト（プライベート）'
+                    : group.groupName;
                 final memberCount = group.members?.length ?? 0;
                 return DropdownMenuItem<String>(
                   value: group.groupId,
@@ -87,7 +98,8 @@ class GroupSelectorWidget extends ConsumerWidget {
                       if (memberCount > 1) ...[
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: Colors.blue.shade100,
                             borderRadius: BorderRadius.circular(10),
@@ -108,7 +120,9 @@ class GroupSelectorWidget extends ConsumerWidget {
               onChanged: (newGroupId) {
                 if (newGroupId != null) {
                   AppLogger.info('📋 [GROUP_SELECTOR] グループ選択: $newGroupId');
-                  ref.read(selectedGroupIdProvider.notifier).selectGroup(newGroupId);
+                  ref
+                      .read(selectedGroupIdProvider.notifier)
+                      .selectGroup(newGroupId);
                 }
               },
             ),
@@ -142,7 +156,7 @@ class GroupSelectorWidget extends ConsumerWidget {
   /// グループ作成ウィジェット
   Widget _buildCreateGroupWidget(WidgetRef ref) {
     AppLogger.warning('⚠️ [GROUP_SELECTOR] グループが空です - デフォルトグループ作成を提供');
-    
+
     return Card(
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -187,7 +201,7 @@ class GroupSelectorWidget extends ConsumerWidget {
   /// エラー表示ウィジェチE��
   Widget _buildErrorWidget(BuildContext context, WidgetRef ref, Object error) {
     AppLogger.error('❁E[GROUP_SELECTOR] エラー: $error');
-    
+
     return Card(
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -244,7 +258,7 @@ class GroupSelectorWidget extends ConsumerWidget {
   /// デフォルトグループ作成処理
   Future<void> _createDefaultGroup(WidgetRef ref) async {
     AppLogger.info('🔄 [GROUP_SELECTOR] デフォルトグループ作成開始');
-    
+
     try {
       final repository = ref.read(purchaseGroupRepositoryProvider);
       await repository.getGroupById('default_group'); // これで自動作成される

@@ -7,6 +7,7 @@ import 'screens/home_screen.dart';
 import 'screens/qr_scan_screen.dart';
 import 'pages/purchase_group_page_simple.dart';
 import 'services/hive_initialization_service.dart';
+import 'services/hive_lock_cleaner.dart';
 import 'widgets/app_initialize_widget.dart';
 import 'flavors.dart';
 
@@ -27,6 +28,9 @@ void main() async {
     // Firebase初期化に失敗してもアプリは続行（Hiveで動作）
     print('Firebase初期化エラー: $e');
   }
+
+  // ホットリスタート対応：既存のHiveロックファイルをクリア
+  await HiveLockCleaner.clearOneDriveLocks();
 
   // Hive初期化（アダプター登録、Box開封、データバージョンチェック）
   await HiveInitializationService.initialize();
