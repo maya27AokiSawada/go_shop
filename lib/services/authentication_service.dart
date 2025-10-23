@@ -1,16 +1,16 @@
 // lib/services/authentication_service.dart
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:logger/logger.dart';
 import '../utils/app_logger.dart';
 import 'user_preferences_service.dart';
 import 'firestore_group_sync_service.dart';
 import 'firestore_user_name_service.dart';
+import 'firestore_migration_service.dart';
+import 'data_version_service.dart';
 import '../flavors.dart';
 
 /// 認証関連の処理を統合管理するサービス
 class AuthenticationService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
-  
 
   /// メールアドレスとパスワードでサインイン
   static Future<UserCredential?> signInWithEmailAndPassword({
@@ -19,17 +19,17 @@ class AuthenticationService {
   }) async {
     try {
       Log.info('🔐 サインイン開始: $email');
-      
+
       final userCredential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-      
+
       Log.info('✅ サインイン成功: ${userCredential.user?.uid}');
-      
+
       // サインイン後の処理
       await _postSignInProcessing(userCredential.user);
-      
+
       return userCredential;
     } on FirebaseAuthException catch (e) {
       Log.error('❌ サインインエラー: ${e.code} - ${e.message}');
@@ -48,25 +48,25 @@ class AuthenticationService {
   }) async {
     try {
       Log.info('📝 サインアップ開始: $email');
-      
+
       final userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-      
+
       Log.info('✅ サインアップ成功: ${userCredential.user?.uid}');
-      
+
       // ユーザー名をSharedPreferencesに保存
       await UserPreferencesService.saveUserName(userName);
-      
+
       // Firestoreにユーザー名を保存（本番環境のみ）
       if (F.appFlavor == Flavor.prod && userCredential.user != null) {
         await FirestoreUserNameService.saveUserName(userName);
       }
-      
+
       // サインアップ後の処理
       await _postSignInProcessing(userCredential.user);
-      
+
       return userCredential;
     } on FirebaseAuthException catch (e) {
       Log.error('❌ サインアップエラー: ${e.code} - ${e.message}');
@@ -81,13 +81,13 @@ class AuthenticationService {
   static Future<void> signOut() async {
     try {
       Log.info('🚪 サインアウト開始');
-      
+
       // Firestoreの同期データをクリア
       await FirestoreGroupSyncService.clearSyncDataOnSignOut();
-      
+
       // Firebaseからサインアウト
       await _auth.signOut();
-      
+
       Log.info('✅ サインアウト完了');
     } catch (e) {
       Log.error('❌ サインアウトエラー: $e');
@@ -98,25 +98,49 @@ class AuthenticationService {
   /// サインイン・サインアップ後の共通処理
   static Future<void> _postSignInProcessing(User? user) async {
     if (user == null) return;
-    
+
     try {
       Log.info('🔄 サインイン後処理開始: UID=${user.uid}');
-      
+
       // 1. UIDをSharedPreferencesに保存
       await UserPreferencesService.saveUserId(user.uid);
-      
+
       // 2. メールアドレスをSharedPreferencesに保存
       if (user.email != null) {
         await UserPreferencesService.saveUserEmail(user.email!);
       }
-      
-      // 3. Firestoreからグループデータを同期（本番環境のみ）
+
+      // 3. Firestoreデータマイグレーション実行（本番環境のみ）
+      if (F.appFlavor == Flavor.prod) {
+        // データバージョンをチェックしてマイグレーションが必要か確認
+        final dataVersionService = DataVersionService();
+        final savedVersion = await dataVersionService.getSavedDataVersion();
+        final currentVersion = DataVersionService.currentDataVersion;
+
+        if (savedVersion < currentVersion) {
+          Log.info(
+              '🔄 [サインイン時] Firestoreマイグレーション実行: v$savedVersion → v$currentVersion');
+          try {
+            final migrationService = FirestoreDataMigrationService();
+            await migrationService.migrateToVersion3();
+
+            // マイグレーション成功後にバージョンを更新
+            await dataVersionService.saveDataVersion(currentVersion);
+            Log.info('✅ [サインイン時] Firestoreマイグレーション完了');
+          } catch (e) {
+            Log.error('❌ [サインイン時] Firestoreマイグレーションエラー: $e');
+            // マイグレーションエラーでもサインインは継続
+          }
+        }
+      }
+
+      // 4. Firestoreからグループデータを同期（本番環境のみ）
       if (F.appFlavor == Flavor.prod) {
         final groups = await FirestoreGroupSyncService.syncGroupsOnSignIn();
         Log.info('📦 Firestoreから${groups.length}件のグループを同期');
       }
-      
-      // 4. Firestoreからユーザー名を復帰（本番環境のみ）
+
+      // 5. Firestoreからユーザー名を復帰（本番環境のみ）
       if (F.appFlavor == Flavor.prod) {
         final firestoreName = await FirestoreUserNameService.getUserName();
         if (firestoreName != null && firestoreName.isNotEmpty) {
@@ -124,7 +148,7 @@ class AuthenticationService {
           Log.info('👤 Firestoreからユーザー名を復帰: $firestoreName');
         }
       }
-      
+
       Log.info('✅ サインイン後処理完了');
     } catch (e) {
       Log.error('❌ サインイン後処理エラー: $e');

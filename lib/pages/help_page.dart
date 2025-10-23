@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-
 /// ヘルプページ - ユーザーガイドと検索機能
 class HelpPage extends ConsumerStatefulWidget {
   const HelpPage({super.key});
@@ -16,7 +15,7 @@ class _HelpPageState extends ConsumerState<HelpPage> {
   String _searchQuery = '';
   bool _showBuiltInHelp = true; // 内蔵ヘルプ表示フラグ
   String _markdownContent = ''; // 外部マークダウンコンテンツ
-  
+
   // ヘルプセクション
   final List<HelpSection> _helpSections = [
     const HelpSection(
@@ -35,9 +34,81 @@ Go Shop は家族やグループで買い物リストを共有できるアプリ
 ''',
       keywords: ['はじめに', '概要', '機能', 'Go Shop'],
     ),
-    
     const HelpSection(
-      title: '👥 グループ管理',
+      title: '� UI操作ガイド',
+      content: '''
+# UI操作ガイド
+
+アプリの基本的な画面操作とアクションの説明です。
+
+## 🏠 ホーム画面
+**画面下部のナビゲーション**
+- 📱 **タップ**: ホーム → ホーム画面表示
+- 📱 **タップ**: グループ → グループ管理画面
+- 📱 **タップ**: 買い物リスト → ショッピングリスト画面
+
+## 👥 グループ管理画面
+
+### ヘッダー部分
+- 📱 **同期ボタン（🔄）タップ**: Firestore手動同期実行
+- 📱 **カレント情報**: 現在選択中のグループ表示
+
+### グループリスト
+- 📱 **グループタップ**: カレントグループに設定
+  - 青いハイライト表示に変更
+  - 「カレント」バッジ表示
+  - 成功メッセージ表示
+- 📱 **設定ボタン（⚙️）タップ**: メンバー管理画面に遷移
+- 📱 **グループ長押し**: 削除オプション表示（オーナーのみ）
+- 📱 **右下+ボタンタップ**: 新規グループ作成
+
+### 視覚的表示
+- 🎨 **青いハイライト**: カレントグループ
+- 🎨 **チェックアイコン**: 選択中マーク
+- 🎨 **「カレント」バッジ**: 現在のアクティブグループ
+- 🎨 **メンバー数バッジ**: 緑色の数字表示
+
+## 🛒 ショッピングリスト画面
+
+### グループ選択
+- 📱 **ドロップダウンタップ**: グループ切り替え
+- 📱 **リスト選択**: そのグループのショッピングリスト表示
+
+### アイテム操作  
+- 📱 **アイテムタップ**: 購入状態切り替え
+- 📱 **アイテム長押し**: 編集・削除メニュー
+- 📱 **右上+ボタンタップ**: 新規アイテム追加
+
+## 👤 メンバー管理画面
+
+### メンバーリスト
+- 📱 **メンバータップ**: 詳細表示・編集
+- 📱 **削除ボタンタップ**: メンバー削除（確認あり）
+- 📱 **役割変更**: オーナー・管理者・メンバー切り替え
+
+### 招待機能
+- 📱 **「メンバー招待」ボタンタップ**: 招待方法選択
+- 📱 **QRコード招待**: QRコード生成・表示
+- 📱 **メール招待**: メール送信画面起動
+- 📱 **手動追加**: 名前・連絡先直接入力
+
+## 🎯 操作のコツ
+
+### 効率的な使い方
+1. **カレントグループ設定**: よく使うグループをタップで固定
+2. **ショッピングリスト**: カレントグループが自動選択される
+3. **メンバー管理**: 設定ボタンで素早くアクセス
+4. **削除操作**: 長押しで安全に削除（確認ダイアログあり）
+
+### 権限による機能制限
+- **オーナーのみ**: グループ削除、全メンバー管理
+- **管理者**: メンバー招待・編集可能
+- **メンバー**: 閲覧・アイテム追加のみ
+''',
+      keywords: ['UI', '操作', 'タップ', '長押し', 'ナビゲーション', 'ボタン', 'アクション'],
+    ),
+    const HelpSection(
+      title: '�👥 グループ管理',
       content: '''
 # グループ管理
 
@@ -49,12 +120,17 @@ Go Shop は家族やグループで買い物リストを共有できるアプリ
 
 作成者は自動的に「オーナー」として設定されます。
 
-## メンバーを追加する
-1. グループを選択
-2. 「メンバー追加」をタップ
-3. 名前と連絡先を入力
-4. 役割を選択（メンバー・管理者）
-5. 「追加」をタップ
+## カレントグループを選択する
+1. 「グループ」タブでグループ一覧を表示
+2. 使用したいグループを **タップ**
+3. 青いハイライトと「カレント」バッジで確認
+4. ショッピングリストでそのグループが使用される
+
+## メンバーを管理する
+1. グループの **設定ボタン（⚙️）をタップ**
+2. メンバー管理画面に遷移
+3. 「メンバー招待」で新規追加
+4. 既存メンバーは **タップで編集**
 
 ## 役割について
 - **オーナー**: グループの作成者、全権限あり
@@ -67,52 +143,205 @@ Go Shop は家族やグループで買い物リストを共有できるアプリ
   - 招待権限なし（QRコードスキャンでの参加のみ可能）
 
 ## グループを削除する
-1. グループを長押し
+1. グループを **長押し**
 2. 「削除」を選択
 3. 確認ダイアログで「削除」をタップ
 
 ⚠️ オーナーのみがグループを削除できます。
 ''',
-      keywords: ['グループ', 'メンバー', '追加', '削除', '役割', 'オーナー', '管理者'],
+      keywords: ['グループ', 'メンバー', '追加', '削除', '役割', 'オーナー', '管理者', 'カレント'],
     ),
-    
     const HelpSection(
       title: '🛒 買い物リスト',
       content: '''
 # 買い物リスト
 
-## 買い物アイテムを追加する
-1. 「買い物リスト」タブをタップ
-2. 右下の「+」ボタンをタップ
-3. 商品名を入力
-4. 数量を設定
-5. 「追加」をタップ
+## 画面構成と基本操作
 
-## アイテムを購入済みにする
-- アイテムをタップすると購入状態が切り替わります
-- 購入済みアイテムは色が変わり、チェックマークが表示されます
+### 上部エリア
+- 📱 **グループドロップダウンタップ**: グループ切り替え
+  - カレントグループが自動選択される
+  - 他のグループへも切り替え可能
+- 📱 **右上リスト追加ボタン（📝）タップ**: 新しいショッピングリスト作成
+- 📱 **右上メニューボタン（⋮）タップ**: オプションメニュー
+  - 「購入済みアイテムを削除」選択可能
 
-## アイテムを削除する
-1. 削除したいアイテムを長押し
-2. 「削除」を選択
-3. 確認ダイアログで「削除」をタップ
+### アイテムリスト操作
+- 📱 **アイテムタップ**: 購入状態の切り替え
+  - 未購入 ↔ 購入済み
+  - 購入済みアイテムは色が薄くなりチェックマーク表示
+- 📱 **アイテム長押し**: 編集・削除メニュー表示
+  - 編集、削除、詳細表示など
+- 📱 **右下+ボタンタップ**: 新規アイテム追加ダイアログ
+
+## アイテム追加の詳細手順
+1. **買い物リスト**タブをタップ
+2. **右下の+ボタン**をタップ
+3. **商品名**を入力
+4. **数量**を設定（デフォルト1）
+5. **期限**を設定（オプション）
+6. **定期購入**設定（オプション）
+7. **「追加」ボタン**をタップ
+
+## アイテム編集・削除
+1. **アイテムを長押し**
+2. メニューから選択：
+   - **「編集」**: 商品名、数量、期限を変更
+   - **「削除」**: 確認後にアイテム削除
+   - **「詳細」**: アイテム詳細情報表示
+
+## 購入状態管理
+- 📱 **アイテム1回タップ**: 購入状態切り替え
+  - 🔲 未購入 → ✅ 購入済み
+  - ✅購入済み → 🔲 未購入
+- 🎨 **視覚的フィードバック**: 
+  - 購入済み: 薄いグレー表示＋チェックマーク
+  - 未購入: 通常の濃い色表示
 
 ## 定期購入アイテム
-頻繁に購入するアイテムは「定期購入」として設定できます：
-1. アイテム編集画面で「定期購入」をON
-2. 購入間隔（日数）を設定
-3. 自動的に期限が設定されます
+**設定方法**:
+1. アイテム編集で「定期購入」を**ON**
+2. **購入間隔**（日数）を設定
+3. **自動的に次回期限**が計算される
 
-## リストをクリアする
-1. メニューボタン（⋮）をタップ
-2. 「リストをクリア」を選択
-3. 確認ダイアログで「クリア」をタップ
+**表示**: 🔄マークで定期購入アイテムを識別
 
-すべての購入済みアイテムが削除されます。
+## リスト整理機能
+- 📱 **メニュー** → **「購入済みアイテムを削除」**: 一括クリア
+- **自動並び替え**: 
+  - 未購入アイテムが上部
+  - 期限の近いものが優先表示
+  - 購入済みアイテムが下部
+
+## グループ間の切り替え
+- 📱 **ドロップダウンタップ**: 他のグループのリストに切り替え
+- 📱 **グループタブでカレント変更**: メインで使うグループを設定
+- 🔄 **リアルタイム同期**: グループメンバー間で即座に共有
 ''',
-      keywords: ['買い物', 'リスト', 'アイテム', '追加', '削除', '購入', '定期購入', 'クリア'],
+      keywords: [
+        '買い物',
+        'リスト',
+        'アイテム',
+        '追加',
+        '削除',
+        '購入',
+        '定期購入',
+        'クリア',
+        'タップ',
+        '長押し'
+      ],
     ),
-    
+    const HelpSection(
+      title: '📲 招待・参加機能',
+      content: '''
+# 招待・参加機能
+
+## メンバー招待の手順
+
+### 1. 招待画面へのアクセス
+1. **「グループ」タブ**をタップ
+2. グループの**設定ボタン（⚙️）**をタップ
+3. **「メンバー招待」ボタン**をタップ
+4. 招待方法を選択
+
+### 2. QRコード招待
+**📱 QRコード生成**:
+1. **「QRコード招待」**を選択
+2. QRコードが自動生成される
+3. **「共有」ボタン**タップで共有方法選択
+   - スクリーンショット保存
+   - SNS・メール送信
+   - 画面表示して直接読み取り
+
+**📱 QRコード参加**:
+1. **「QR読み取り」**を選択（または右上QRアイコン）
+2. **カメラでQRコード**を読み取り
+3. グループ情報確認
+4. **「参加」ボタン**をタップ
+
+### 3. メール招待
+1. **「メール招待」**を選択
+2. **宛先メールアドレス**を入力
+3. **「送信」ボタン**をタップ
+4. 相手がメールのリンクから参加
+
+### 4. 手動追加
+**オーナー・管理者のみ**:
+1. **「手動追加」**を選択
+2. **名前**を入力
+3. **連絡先**（メールまたは電話）を入力
+4. **役割**を選択（メンバー・管理者）
+5. **「追加」ボタン**をタップ
+
+## メンバー管理画面の操作
+
+### メンバーリスト表示
+- 📱 **メンバーカード**: 名前、役割、連絡先表示
+- 📱 **役割バッジ**: オーナー（王冠）・管理者（盾）・メンバー（人）
+- 📱 **オンライン状態**: 最終ログイン時刻表示
+
+### メンバー編集・削除
+**📱 メンバーカードタップ**:
+- 詳細情報表示
+- 役割変更（権限があれば）
+- 連絡先編集
+
+**📱 削除ボタンタップ**:
+- 確認ダイアログ表示
+- オーナー・管理者のみ実行可能
+- 自分自身は削除不可
+
+### 権限による操作制限
+**🏆 オーナー**:
+- 全メンバーの招待・編集・削除
+- 役割変更（管理者任命など）
+- QRコード招待作成
+
+**🛡️ 管理者**:
+- メンバー招待・編集・削除
+- QRコード招待作成
+- 他の管理者・オーナーは編集不可
+
+**👤 メンバー**:
+- 閲覧のみ
+- QRコードスキャンでの参加のみ可能
+
+## 招待リンクとQRコード
+
+### QRコードの特徴
+- **24時間有効**: セキュリティのため期限付き
+- **1回使用**: 使用後は自動的に無効化
+- **グループ情報含有**: グループ名、招待者情報を表示
+
+### 招待を受ける側の操作
+1. **QRコード読み取り**または**招待リンクタップ**
+2. **グループ情報確認画面**表示
+   - グループ名
+   - 招待者名
+   - メンバー数
+3. **「参加する」ボタン**をタップ
+4. **ユーザー情報入力**（初回のみ）
+5. **参加完了**→ グループリストに追加
+
+## トラブルシューティング
+
+**QRコードが読み取れない**:
+- 📱 カメラの焦点を合わせ直す
+- 📱 明るい場所で再試行
+- 📱 QRコードの期限切れを確認
+
+**招待リンクが開けない**:
+- 📱 アプリがインストールされているか確認
+- 📱 リンクの期限切れを確認
+- 📱 手動でアプリを開いてQRスキャン
+
+**メンバー追加ができない**:
+- 📱 招待権限があるか確認（オーナー・管理者のみ）
+- 📱 ネット接続状況を確認
+- 📱 相手が既に他のグループにいる可能性
+''',
+      keywords: ['招待', 'QRコード', '参加', 'メンバー', '追加', 'メール', '手動', '権限', 'リンク'],
+    ),
     const HelpSection(
       title: '⚙️ 設定とカスタマイズ',
       content: '''
@@ -139,7 +368,6 @@ Go Shop は家族やグループで買い物リストを共有できるアプリ
 ''',
       keywords: ['設定', 'ユーザー名', '変更', '通知', 'バックアップ', '同期', 'バージョン'],
     ),
-    
     const HelpSection(
       title: '🔧 トラブルシューティング',
       content: '''
@@ -184,7 +412,6 @@ A: はい。すべてのデータは暗号化されてクラウドに保存さ�
 ''',
       keywords: ['トラブル', 'エラー', '起動しない', '同期されない', 'よくある質問', 'FAQ', '問題', '解決'],
     ),
-    
     const HelpSection(
       title: '📱 便利な使い方',
       content: '''
@@ -218,19 +445,20 @@ A: はい。すべてのデータは暗号化されてクラウドに保存さ�
       keywords: ['便利', '使い方', 'コツ', 'ショートカット', '効率', '家族', '活用'],
     ),
   ];
-  
+
   List<HelpSection> get _filteredSections {
     if (_searchQuery.isEmpty) {
       return _helpSections;
     }
-    
+
     return _helpSections.where((section) {
-      final titleMatch = section.title.toLowerCase().contains(_searchQuery.toLowerCase());
-      final contentMatch = section.content.toLowerCase().contains(_searchQuery.toLowerCase());
-      final keywordMatch = section.keywords.any(
-        (keyword) => keyword.toLowerCase().contains(_searchQuery.toLowerCase())
-      );
-      
+      final titleMatch =
+          section.title.toLowerCase().contains(_searchQuery.toLowerCase());
+      final contentMatch =
+          section.content.toLowerCase().contains(_searchQuery.toLowerCase());
+      final keywordMatch = section.keywords.any((keyword) =>
+          keyword.toLowerCase().contains(_searchQuery.toLowerCase()));
+
       return titleMatch || contentMatch || keywordMatch;
     }).toList();
   }
@@ -340,7 +568,7 @@ A: はい。すべてのデータは暗号化されてクラウドに保存さ�
   // 内蔵ヘルプコンテンツを構築
   Widget _buildBuiltInHelpContent() {
     final filteredSections = _filteredSections;
-    
+
     if (filteredSections.isEmpty && _searchQuery.isNotEmpty) {
       return Center(
         child: Column(
@@ -371,7 +599,7 @@ A: はい。すべてのデータは暗号化されてクラウドに保存さ�
         ),
       );
     }
-    
+
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: filteredSections.length,
@@ -385,14 +613,15 @@ A: はい。すべてのデータは暗号化されてクラウドに保存さ�
   // ユーザーガイドコンテンツを構築
   Widget _buildUserGuideContent() {
     String displayContent = _markdownContent;
-    
+
     // 検索フィルタリング
     if (_searchQuery.isNotEmpty) {
       final lines = _markdownContent.split('\n');
-      final filteredLines = lines.where((line) => 
-        line.toLowerCase().contains(_searchQuery.toLowerCase())
-      ).toList();
-      
+      final filteredLines = lines
+          .where(
+              (line) => line.toLowerCase().contains(_searchQuery.toLowerCase()))
+          .toList();
+
       if (filteredLines.isEmpty) {
         return Center(
           child: Column(
@@ -423,10 +652,10 @@ A: はい。すべてのデータは暗号化されてクラウドに保存さ�
           ),
         );
       }
-      
+
       displayContent = filteredLines.join('\n');
     }
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Card(
@@ -483,7 +712,7 @@ A: はい。すべてのデータは暗号化されてクラウドに保存さ�
   Widget _buildMarkdownContent(String content) {
     final lines = content.split('\n');
     final widgets = <Widget>[];
-    
+
     for (final line in lines) {
       if (line.startsWith('# ')) {
         widgets.add(Padding(
@@ -539,12 +768,16 @@ A: はい。すべてのデータは暗号化されてクラウドに保存さ�
             ],
           ),
         ));
-      } else if (line.trim().startsWith('⚠️') || line.trim().startsWith('**Q:') || line.trim().startsWith('**A:')) {
+      } else if (line.trim().startsWith('⚠️') ||
+          line.trim().startsWith('**Q:') ||
+          line.trim().startsWith('**A:')) {
         widgets.add(Container(
           margin: const EdgeInsets.symmetric(vertical: 4),
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: line.trim().startsWith('⚠️') ? Colors.orange[50] : Colors.blue[50],
+            color: line.trim().startsWith('⚠️')
+                ? Colors.orange[50]
+                : Colors.blue[50],
             borderRadius: BorderRadius.circular(4),
             border: Border.all(
               color: line.trim().startsWith('⚠️') ? Colors.orange : Colors.blue,
@@ -554,7 +787,9 @@ A: はい。すべてのデータは暗号化されてクラウドに保存さ�
           child: Text(
             line.trim(),
             style: TextStyle(
-              fontWeight: line.trim().startsWith('**') ? FontWeight.bold : FontWeight.normal,
+              fontWeight: line.trim().startsWith('**')
+                  ? FontWeight.bold
+                  : FontWeight.normal,
             ),
           ),
         ));
@@ -567,7 +802,7 @@ A: はい。すべてのデータは暗号化されてクラウドに保存さ�
         widgets.add(const SizedBox(height: 8));
       }
     }
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: widgets,
