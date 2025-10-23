@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../utils/app_logger.dart';
 import '../providers/user_specific_hive_provider.dart';
 
 /// Hiveの初期化を待つラッパーウィジェット
@@ -15,14 +14,16 @@ class HiveInitializationWrapper extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<HiveInitializationWrapper> createState() => _HiveInitializationWrapperState();
+  ConsumerState<HiveInitializationWrapper> createState() =>
+      _HiveInitializationWrapperState();
 }
 
-class _HiveInitializationWrapperState extends ConsumerState<HiveInitializationWrapper>
+class _HiveInitializationWrapperState
+    extends ConsumerState<HiveInitializationWrapper>
     with TickerProviderStateMixin {
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
-  
+
   @override
   void initState() {
     super.initState();
@@ -39,7 +40,7 @@ class _HiveInitializationWrapperState extends ConsumerState<HiveInitializationWr
     ));
     _pulseController.repeat(reverse: true);
   }
-  
+
   @override
   void dispose() {
     _pulseController.dispose();
@@ -94,7 +95,7 @@ class _HiveInitializationWrapperState extends ConsumerState<HiveInitializationWr
               },
             ),
             const SizedBox(height: 32),
-            
+
             // アプリ名
             Text(
               'Go Shop',
@@ -106,7 +107,7 @@ class _HiveInitializationWrapperState extends ConsumerState<HiveInitializationWr
               ),
             ),
             const SizedBox(height: 8),
-            
+
             // サブタイトル
             Text(
               '家族の買い物リスト',
@@ -117,7 +118,7 @@ class _HiveInitializationWrapperState extends ConsumerState<HiveInitializationWr
               ),
             ),
             const SizedBox(height: 48),
-            
+
             // ローディングインジケーター
             SizedBox(
               width: 60,
@@ -128,7 +129,7 @@ class _HiveInitializationWrapperState extends ConsumerState<HiveInitializationWr
               ),
             ),
             const SizedBox(height: 24),
-            
+
             // ローディングテキスト
             Text(
               'アプリを起動中...',
@@ -167,7 +168,6 @@ class _HiveInitializationWrapperState extends ConsumerState<HiveInitializationWr
                 ),
               ),
               const SizedBox(height: 24),
-              
               Text(
                 'エラーが発生しました',
                 style: TextStyle(
@@ -177,7 +177,6 @@ class _HiveInitializationWrapperState extends ConsumerState<HiveInitializationWr
                 ),
               ),
               const SizedBox(height: 16),
-              
               Text(
                 'アプリの初期化中にエラーが発生しました。\n再試行してください。',
                 textAlign: TextAlign.center,
@@ -187,7 +186,6 @@ class _HiveInitializationWrapperState extends ConsumerState<HiveInitializationWr
                 ),
               ),
               const SizedBox(height: 32),
-              
               ElevatedButton.icon(
                 onPressed: () => ref.invalidate(hiveUserInitializationProvider),
                 icon: const Icon(Icons.refresh),
@@ -195,7 +193,8 @@ class _HiveInitializationWrapperState extends ConsumerState<HiveInitializationWr
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red.shade600,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),

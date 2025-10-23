@@ -5,6 +5,7 @@ import '../models/purchase_group.dart';
 import '../providers/purchase_group_provider.dart';
 import '../utils/app_logger.dart';
 import '../pages/group_member_management_page.dart';
+import '../flavors.dart';
 
 /// グループをリスト表示するウィジェット
 /// タップでメンバー管理画面に遷移
@@ -391,19 +392,28 @@ class GroupListWidget extends ConsumerWidget {
     );
   }
 
-  void _showGroupOptions(
+  static Future<void> _showGroupOptions(
       BuildContext context, WidgetRef ref, PurchaseGroup group) async {
-    // 現在のユーザー情報を取得
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) {
+    // 現在のユーザー情報を安全に取得
+    User? currentUser;
+    try {
+      if (F.appFlavor != Flavor.dev) {
+        currentUser = FirebaseAuth.instance.currentUser;
+      }
+    } catch (e) {
+      AppLogger.info('🔄 [GROUP_OPTIONS] Firebase利用不可（開発環境）: $e');
+      currentUser = null;
+    }
+    if (currentUser == null && F.appFlavor != Flavor.dev) {
       AppLogger.warning('⚠️  [GROUP_OPTIONS] ユーザーが認証されていません');
       return;
     }
 
     // グループのオーナーかどうかを確認
     final members = group.members ?? [];
+    final currentUserId = currentUser?.uid ?? '';
     final currentMember = members.firstWhere(
-      (member) => member.memberId == currentUser.uid,
+      (member) => member.memberId == currentUserId,
       orElse: () => const PurchaseGroupMember(
         memberId: '',
         name: '',
@@ -415,7 +425,7 @@ class GroupListWidget extends ConsumerWidget {
     final isOwner = currentMember.role == PurchaseGroupRole.owner;
 
     if (!isOwner) {
-      AppLogger.info('📋 [GROUP_OPTIONS] オーナーではないため削除権限なし: ${currentUser.uid}');
+      AppLogger.info('📋 [GROUP_OPTIONS] オーナーではないため削除権限なし: $currentUserId');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('グループを削除できるのはオーナーのみです'),
@@ -429,7 +439,7 @@ class GroupListWidget extends ConsumerWidget {
     _showDeleteConfirmationDialog(context, ref, group);
   }
 
-  void _showDeleteConfirmationDialog(
+  static void _showDeleteConfirmationDialog(
       BuildContext context, WidgetRef ref, PurchaseGroup group) {
     showDialog(
       context: context,
@@ -470,7 +480,7 @@ class GroupListWidget extends ConsumerWidget {
     );
   }
 
-  void _deleteGroup(
+  static void _deleteGroup(
       BuildContext context, WidgetRef ref, PurchaseGroup group) async {
     AppLogger.info('🗑️ [GROUP_DELETE] グループ削除開始: ${group.groupId}');
 

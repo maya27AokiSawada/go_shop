@@ -41,7 +41,7 @@ void main() {
     });
 
     test('PurchaseGroupMember maintains backward compatibility', () {
-      final member = PurchaseGroupMember(
+      const member = PurchaseGroupMember(
         memberId: 'test-id',
         name: 'Test User',
         contact: 'test@example.com',
@@ -58,7 +58,7 @@ void main() {
     });
 
     test('InvitationStatus helper methods work correctly', () {
-      final pendingMember = PurchaseGroupMember(
+      const pendingMember = PurchaseGroupMember(
         memberId: 'pending-id',
         name: 'Pending User',
         contact: 'pending@example.com',
@@ -66,7 +66,7 @@ void main() {
         invitationStatus: InvitationStatus.pending,
       );
 
-      final selfMember = PurchaseGroupMember(
+      const selfMember = PurchaseGroupMember(
         memberId: 'self-id',
         name: 'Self User',
         contact: 'self@example.com',
@@ -86,7 +86,7 @@ void main() {
     });
 
     test('PurchaseGroup can be created with security features', () {
-      final member = PurchaseGroupMember(
+      const member = PurchaseGroupMember(
         memberId: 'owner-id',
         name: 'Owner',
         contact: 'owner@example.com',

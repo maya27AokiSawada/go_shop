@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../utils/app_logger.dart';
 import '../models/app_news.dart';
 import '../providers/news_provider.dart';
 
@@ -59,9 +58,11 @@ class NewsWidget extends ConsumerWidget {
                     ),
                   ),
                   const Spacer(),
-                  if (news.createdAt.isAfter(DateTime.now().subtract(const Duration(days: 7))))
+                  if (news.createdAt.isAfter(
+                      DateTime.now().subtract(const Duration(days: 7))))
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: Colors.red[500],
                         borderRadius: BorderRadius.circular(12),
@@ -78,7 +79,7 @@ class NewsWidget extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 12),
-              
+
               // ニュースタイトル
               Text(
                 news.title,
@@ -89,7 +90,7 @@ class NewsWidget extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              
+
               // ニュース内容
               Text(
                 news.content,
@@ -99,7 +100,7 @@ class NewsWidget extends ConsumerWidget {
                   height: 1.4,
                 ),
               ),
-              
+
               // 画像表示（もしある場合）
               if (news.imageUrl != null && news.imageUrl!.isNotEmpty) ...[
                 const SizedBox(height: 12),
@@ -125,7 +126,7 @@ class NewsWidget extends ConsumerWidget {
                   ),
                 ),
               ],
-              
+
               // アクションボタン
               if (news.actionText != null && news.actionText!.isNotEmpty) ...[
                 const SizedBox(height: 12),
@@ -144,7 +145,8 @@ class NewsWidget extends ConsumerWidget {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue[600],
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
                       ),
                       child: Text(
                         news.actionText!,

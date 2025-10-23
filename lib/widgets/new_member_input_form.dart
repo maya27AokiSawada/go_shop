@@ -4,7 +4,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
-import '../utils/app_logger.dart';
 import '../models/purchase_group.dart';
 import '../providers/purchase_group_provider.dart';
 
@@ -12,10 +11,12 @@ class PurchaseGroupMemberForm extends ConsumerStatefulWidget {
   const PurchaseGroupMemberForm({super.key});
 
   @override
-  ConsumerState<PurchaseGroupMemberForm> createState() => _PurchaseGroupMemberFormState();
+  ConsumerState<PurchaseGroupMemberForm> createState() =>
+      _PurchaseGroupMemberFormState();
 }
 
-class _PurchaseGroupMemberFormState extends ConsumerState<PurchaseGroupMemberForm> {
+class _PurchaseGroupMemberFormState
+    extends ConsumerState<PurchaseGroupMemberForm> {
   final formKey = GlobalKey<FormState>();
   String name = '';
   PurchaseGroupRole _selectedRole = PurchaseGroupRole.member;
@@ -25,7 +26,8 @@ class _PurchaseGroupMemberFormState extends ConsumerState<PurchaseGroupMemberFor
     if (value == null || value.isEmpty) {
       return 'メールアドレスを入力してください';
     }
-    final emailRegex = RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+");
+    final emailRegex = RegExp(
+        r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+");
     if (!emailRegex.hasMatch(value)) {
       return '無効なメールアドレスです';
     }
@@ -84,7 +86,9 @@ class _PurchaseGroupMemberFormState extends ConsumerState<PurchaseGroupMemberFor
                   contact: contact,
                   role: _selectedRole,
                 );
-                ref.read(selectedGroupNotifierProvider.notifier).addMember(newMember);
+                ref
+                    .read(selectedGroupNotifierProvider.notifier)
+                    .addMember(newMember);
                 Navigator.pop(context, newMember);
               }
             },

@@ -1,26 +1,25 @@
 // 🚨 未使用ウィジェット - PurchaseGroupPageでの実装時に使用予定
 // TODO: PurchaseGroupPageでメンバーリスト表示時に import して使用
 import 'package:flutter/material.dart';
-import '../utils/app_logger.dart';
 import '../models/purchase_group.dart'; // Memberクラスをインポート
-
 
 class MemberListTile extends StatelessWidget {
   final PurchaseGroupMember member;
   final VoidCallback? onTap;
 
-  String makeTitle( PurchaseGroupRole role) {
-   switch (role) {
-     case PurchaseGroupRole.owner:
-       return 'オーナー: ${member.name}';
-     case PurchaseGroupRole.manager:
-       return '管理者: ${member.name}';
-     case PurchaseGroupRole.member:
-       return 'メンバー: ${member.name}';
-     case PurchaseGroupRole.friend:
-       return 'フレンド: ${member.name}';
-   }
- }
+  String makeTitle(PurchaseGroupRole role) {
+    switch (role) {
+      case PurchaseGroupRole.owner:
+        return 'オーナー: ${member.name}';
+      case PurchaseGroupRole.manager:
+        return '管理者: ${member.name}';
+      case PurchaseGroupRole.member:
+        return 'メンバー: ${member.name}';
+      case PurchaseGroupRole.friend:
+        return 'フレンド: ${member.name}';
+    }
+  }
+
   const MemberListTile({
     super.key,
     required this.member,

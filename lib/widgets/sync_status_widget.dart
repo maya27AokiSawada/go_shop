@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../utils/app_logger.dart';
 import '../providers/purchase_group_provider.dart';
 
 /// 同期状態を表示するウィジェット
 /// AppBarやDrawerで使用して、ユーザーに現在の同期状態を伝える
 class SyncStatusWidget extends ConsumerWidget {
   final bool showLabel;
-  
+
   const SyncStatusWidget({
     super.key,
     this.showLabel = true,
@@ -16,7 +15,7 @@ class SyncStatusWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final syncStatus = ref.watch(syncStatusProvider);
-    
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -26,8 +25,8 @@ class SyncStatusWidget extends ConsumerWidget {
           Text(
             _getStatusText(syncStatus),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: _getStatusColor(syncStatus),
-            ),
+                  color: _getStatusColor(syncStatus),
+                ),
           ),
         ],
       ],
@@ -108,9 +107,9 @@ class SyncManagementWidget extends ConsumerWidget {
       return const Card(
         child: Padding(
           padding: EdgeInsets.all(16),
-          child:                 Text(
-                  'ローカルモード（同期機能なし）',
-                ),
+          child: Text(
+            'ローカルモード（同期機能なし）',
+          ),
         ),
       );
     }
@@ -137,29 +136,31 @@ class SyncManagementWidget extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 16),
-            
+
             // 同期ボタン
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: forceSyncAsync.isLoading ? null : () {
-                  ref.invalidate(forceSyncProvider);
-                },
-                icon: forceSyncAsync.isLoading 
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.sync),
+                onPressed: forceSyncAsync.isLoading
+                    ? null
+                    : () {
+                        ref.invalidate(forceSyncProvider);
+                      },
+                icon: forceSyncAsync.isLoading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.sync),
                 label: Text(
                   forceSyncAsync.isLoading ? '同期中...' : 'Firestoreから同期',
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 8),
-            
+
             // キャッシュクリアボタン
             SizedBox(
               width: double.infinity,
@@ -169,7 +170,8 @@ class SyncManagementWidget extends ConsumerWidget {
                     context: context,
                     builder: (context) => AlertDialog(
                       title: const Text('キャッシュクリア'),
-                      content: const Text('ローカルキャッシュをクリアしますか？\n次回起動時にFirestoreから再取得されます。'),
+                      content: const Text(
+                          'ローカルキャッシュをクリアしますか？\n次回起動時にFirestoreから再取得されます。'),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.of(context).pop(false),
@@ -182,7 +184,7 @@ class SyncManagementWidget extends ConsumerWidget {
                       ],
                     ),
                   );
-                  
+
                   if (confirmed == true) {
                     await hybridRepo.clearCache();
                     ref.invalidate(allGroupsProvider);
@@ -197,9 +199,9 @@ class SyncManagementWidget extends ConsumerWidget {
                 label: const Text('キャッシュクリア'),
               ),
             ),
-            
+
             const SizedBox(height: 8),
-            
+
             // オンライン状態切り替え（デバッグ用）
             if (syncStatus != SyncStatus.localOnly) ...[
               const Divider(),

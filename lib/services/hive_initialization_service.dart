@@ -20,13 +20,13 @@ class HiveInitializationService {
 
       // 1. Hiveの基本初期化（アプリ専用ディレクトリを使用）
       final appDocDir = await getApplicationDocumentsDirectory();
-      final hiveDir = Directory('-Force{appDocDir.path}/hive_db');
+      final hiveDir = Directory('${appDocDir.path}/hive_db');
       if (!await hiveDir.exists()) {
         await hiveDir.create(recursive: true);
       }
 
       await Hive.initFlutter(hiveDir.path);
-      AppLogger.info('Hive基本初期化完了 (保存先: -Force{hiveDir.path})');
+      AppLogger.info('Hive基本初期化完了 (保存先: ${hiveDir.path})');
 
       // 2. アダプター登録
       await _registerAdapters();
@@ -44,8 +44,8 @@ class HiveInitializationService {
 
       AppLogger.info('Hive初期化完了');
     } catch (e, stackTrace) {
-      AppLogger.error('Hive初期化エラー: -Forcee');
-      AppLogger.error('スタックトレース: -ForcestackTrace');
+      AppLogger.error('Hive初期化エラー: $e');
+      AppLogger.error('スタックトレース: $stackTrace');
       rethrow;
     }
   }
@@ -122,7 +122,7 @@ class HiveInitializationService {
 
       AppLogger.info('デフォルトBox開封完了');
     } catch (e) {
-      AppLogger.error('デフォルトBox開封エラー: -Forcee');
+      AppLogger.error('デフォルトBox開封エラー: $e');
       rethrow;
     }
   }

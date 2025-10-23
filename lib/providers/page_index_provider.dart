@@ -1,6 +1,5 @@
 // lib/providers/page_index_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../utils/app_logger.dart';
 
 class PageIndexNotifier extends StateNotifier<int> {
   // 初期値を設定します (例: 0)。
@@ -12,9 +11,11 @@ class PageIndexNotifier extends StateNotifier<int> {
     state = newIndex;
   }
 }
+
 // StateNotifierProvider.autoDispose を使用して、
 // リソースが不要になったら自動的に破棄されるようにします。
-final pageIndexProvider = StateNotifierProvider.autoDispose<PageIndexNotifier, int>(
+final pageIndexProvider =
+    StateNotifierProvider.autoDispose<PageIndexNotifier, int>(
   (ref) {
     // StateNotifier のインスタンスを返します。
     return PageIndexNotifier();

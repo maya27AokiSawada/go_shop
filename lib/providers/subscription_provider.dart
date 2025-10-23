@@ -1,13 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
-import '../utils/app_logger.dart';
 import '../providers/auth_provider.dart';
 
 /// 課金プランの種類
 enum SubscriptionPlan {
-  free,        // 無料プラン（広告あり）
-  yearly,      // 年間プラン（500円）
-  threeYear,   // 3年プラン（800円）
+  free, // 無料プラン（広告あり）
+  yearly, // 年間プラン（500円）
+  threeYear, // 3年プラン（800円）
 }
 
 /// 課金状態
@@ -31,7 +30,7 @@ class SubscriptionState {
   /// プレミアム機能が利用可能かどうか
   bool get isPremiumActive {
     final now = DateTime.now();
-    
+
     // 無料体験期間中
     if (isTrialActive && trialStartDate != null) {
       final trialEnd = trialStartDate!.add(Duration(days: trialDays));
@@ -39,27 +38,27 @@ class SubscriptionState {
         return true;
       }
     }
-    
+
     // 有料プラン契約中
     if (plan != SubscriptionPlan.free && expiryDate != null) {
       return now.isBefore(expiryDate!);
     }
-    
+
     return false;
   }
-  
+
   /// 無料体験期間の残り日数
   int get remainingTrialDays {
     if (!isTrialActive || trialStartDate == null) return 0;
-    
+
     final now = DateTime.now();
     final trialEnd = trialStartDate!.add(Duration(days: trialDays));
-    
+
     if (now.isAfter(trialEnd)) return 0;
-    
+
     return trialEnd.difference(now).inDays + 1; // 当日も含める
   }
-  
+
   /// プランの表示名
   String get planDisplayName {
     switch (plan) {
@@ -71,7 +70,7 @@ class SubscriptionState {
         return '3年プラン（¥800）';
     }
   }
-  
+
   /// プランの価格
   int get planPrice {
     switch (plan) {
@@ -116,14 +115,14 @@ class SubscriptionState {
   factory SubscriptionState.fromMap(Map<String, dynamic> map) {
     return SubscriptionState(
       plan: SubscriptionPlan.values[map['plan'] ?? 0],
-      purchaseDate: map['purchaseDate'] != null 
+      purchaseDate: map['purchaseDate'] != null
           ? DateTime.fromMillisecondsSinceEpoch(map['purchaseDate'])
           : null,
-      expiryDate: map['expiryDate'] != null 
+      expiryDate: map['expiryDate'] != null
           ? DateTime.fromMillisecondsSinceEpoch(map['expiryDate'])
           : null,
       isTrialActive: map['isTrialActive'] ?? false,
-      trialStartDate: map['trialStartDate'] != null 
+      trialStartDate: map['trialStartDate'] != null
           ? DateTime.fromMillisecondsSinceEpoch(map['trialStartDate'])
           : null,
       trialDays: map['trialDays'] ?? 7,
@@ -235,10 +234,11 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
   /// 課金催促メッセージを表示すべきかどうか（3週間後）
   bool get shouldShowPaymentReminder {
     if (!state.isTrialActive || state.trialStartDate == null) return false;
-    
+
     final now = DateTime.now();
-    final reminderDate = state.trialStartDate!.add(const Duration(days: 21)); // 3週間後
-    
+    final reminderDate =
+        state.trialStartDate!.add(const Duration(days: 21)); // 3週間後
+
     return now.isAfter(reminderDate) && !isPremiumActive;
   }
 
@@ -254,7 +254,8 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
 }
 
 /// 課金状態プロバイダー
-final subscriptionProvider = StateNotifierProvider<SubscriptionNotifier, SubscriptionState>(
+final subscriptionProvider =
+    StateNotifierProvider<SubscriptionNotifier, SubscriptionState>(
   (ref) => SubscriptionNotifier(),
 );
 
@@ -268,7 +269,7 @@ final isPremiumActiveProvider = Provider<bool>((ref) {
 final shouldShowAdsProvider = Provider<bool>((ref) {
   // 認証状態を確認
   final authState = ref.watch(authStateProvider);
-  
+
   return authState.when(
     data: (user) {
       if (user == null) {
@@ -288,11 +289,11 @@ final shouldShowAdsProvider = Provider<bool>((ref) {
 /// 課金催促メッセージを表示すべきかどうかのプロバイダー
 final shouldShowPaymentReminderProvider = Provider<bool>((ref) {
   final authState = ref.watch(authStateProvider);
-  
+
   return authState.when(
     data: (user) {
       if (user == null) return false; // 未ログインでは表示しない
-      
+
       final notifier = ref.read(subscriptionProvider.notifier);
       return notifier.shouldShowPaymentReminder;
     },

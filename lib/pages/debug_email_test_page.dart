@@ -2,12 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:logger/logger.dart';
 import '../utils/app_logger.dart';
 import '../firebase_options.dart';
 import '../helper/firebase_diagnostics.dart';
-
-
 
 class DebugEmailTestPage extends StatefulWidget {
   const DebugEmailTestPage({super.key});
@@ -37,7 +34,7 @@ class _DebugEmailTestPageState extends State<DebugEmailTestPage> {
 
   Future<void> _initializeFirebase() async {
     if (_isFirebaseInitialized || _isInitializing) return;
-    
+
     setState(() {
       _isInitializing = true;
     });
@@ -47,11 +44,11 @@ class _DebugEmailTestPageState extends State<DebugEmailTestPage> {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
-      
+
       setState(() {
         _isFirebaseInitialized = true;
       });
-      
+
       // デフォルトで現在のユーザーのメールアドレスを設定
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser?.email != null) {
@@ -63,7 +60,7 @@ class _DebugEmailTestPageState extends State<DebugEmailTestPage> {
         setState(() {
           _isFirebaseInitialized = true;
         });
-        
+
         // デフォルトで現在のユーザーのメールアドレスを設定
         final currentUser = FirebaseAuth.instance.currentUser;
         if (currentUser?.email != null) {
@@ -84,7 +81,7 @@ class _DebugEmailTestPageState extends State<DebugEmailTestPage> {
   Future<void> _runFirebaseDiagnostics() async {
     try {
       final results = await FirebaseDiagnostics.runDiagnostics();
-      
+
       if (!mounted) return;
 
       // 結果をダイアログで表示
@@ -101,7 +98,8 @@ class _DebugEmailTestPageState extends State<DebugEmailTestPage> {
                   'Auth接続',
                   results['auth_status'] == true,
                 ),
-                if (results['user_email'] != null && results['user_email'] != 'No user')
+                if (results['user_email'] != null &&
+                    results['user_email'] != 'No user')
                   Padding(
                     padding: const EdgeInsets.only(left: 16.0, top: 4.0),
                     child: Text(
@@ -109,7 +107,8 @@ class _DebugEmailTestPageState extends State<DebugEmailTestPage> {
                       style: const TextStyle(fontSize: 12),
                     ),
                   ),
-                if (results['user_uid'] != null && results['user_uid'] != 'No UID')
+                if (results['user_uid'] != null &&
+                    results['user_uid'] != 'No UID')
                   Padding(
                     padding: const EdgeInsets.only(left: 16.0, top: 4.0),
                     child: Text(
@@ -235,7 +234,7 @@ class _DebugEmailTestPageState extends State<DebugEmailTestPage> {
 
     try {
       Log.debug('📧 メール送信開始: ${_toController.text.trim()}');
-      
+
       // mailコレクションにドキュメントを追加
       Log.debug('📝 Firestoreドキュメント作成中...');
       final docRef = await FirebaseFirestore.instance.collection('mail').add({
@@ -283,13 +282,14 @@ class _DebugEmailTestPageState extends State<DebugEmailTestPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ メール送信リクエストを作成しました\nDocument ID: ${docRef.id}\n\n配送ステータスボタンで確認できます'),
+            content: Text(
+                '✅ メール送信リクエストを作成しました\nDocument ID: ${docRef.id}\n\n配送ステータスボタンで確認できます'),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 8),
           ),
         );
       }
-      
+
       // 5秒後に自動でステータスチェック
       await Future.delayed(const Duration(seconds: 5));
       if (mounted) {
@@ -299,7 +299,7 @@ class _DebugEmailTestPageState extends State<DebugEmailTestPage> {
     } catch (e, stackTrace) {
       Log.error('❌ メール送信エラー: $e');
       Log.error('スタックトレース: $stackTrace');
-      
+
       setState(() {
         _errorMessage = e.toString();
       });
@@ -328,7 +328,7 @@ class _DebugEmailTestPageState extends State<DebugEmailTestPage> {
 
     try {
       Log.debug('🔍 配送ステータス確認開始: $_lastDocId');
-      
+
       final doc = await FirebaseFirestore.instance
           .collection('mail')
           .doc(_lastDocId)
@@ -339,10 +339,11 @@ class _DebugEmailTestPageState extends State<DebugEmailTestPage> {
       if (!doc.exists) {
         Log.warning('⚠️ ドキュメントが存在しません: $_lastDocId');
         Log.warning('   Extensionによって既に削除された可能性があります');
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('⚠️ ドキュメントが見つかりません\n\nExtensionによって処理され削除された可能性があります\n（成功した場合、TTL設定により削除されます）'),
+            content: Text(
+                '⚠️ ドキュメントが見つかりません\n\nExtensionによって処理され削除された可能性があります\n（成功した場合、TTL設定により削除されます）'),
             backgroundColor: Colors.orange,
             duration: Duration(seconds: 8),
           ),
@@ -352,7 +353,7 @@ class _DebugEmailTestPageState extends State<DebugEmailTestPage> {
 
       final data = doc.data()!;
       Log.debug('📄 ドキュメントデータ: ${data.keys.toList()}');
-      
+
       final delivery = data['delivery'] as Map<String, dynamic>?;
 
       String statusMessage;
@@ -360,7 +361,8 @@ class _DebugEmailTestPageState extends State<DebugEmailTestPage> {
 
       if (delivery == null) {
         Log.debug('⏳ 配送情報なし - Extension処理待ち');
-        statusMessage = '⏳ 配送ステータス: 処理待ち\n\nExtensionがまだドキュメントを処理していません。\n数秒待ってから再確認してください。';
+        statusMessage =
+            '⏳ 配送ステータス: 処理待ち\n\nExtensionがまだドキュメントを処理していません。\n数秒待ってから再確認してください。';
         statusColor = Colors.orange;
       } else {
         final state = delivery['state'] as String?;
@@ -416,9 +418,14 @@ class _DebugEmailTestPageState extends State<DebugEmailTestPage> {
           title: Row(
             children: [
               Icon(
-                delivery == null ? Icons.hourglass_empty : 
-                (delivery['state'] == 'SUCCESS' ? Icons.check_circle : 
-                (delivery['state'] == 'ERROR' || delivery['state'] == 'REJECTED' ? Icons.error : Icons.info)),
+                delivery == null
+                    ? Icons.hourglass_empty
+                    : (delivery['state'] == 'SUCCESS'
+                        ? Icons.check_circle
+                        : (delivery['state'] == 'ERROR' ||
+                                delivery['state'] == 'REJECTED'
+                            ? Icons.error
+                            : Icons.info)),
                 color: statusColor,
               ),
               const SizedBox(width: 8),
@@ -447,7 +454,7 @@ class _DebugEmailTestPageState extends State<DebugEmailTestPage> {
     } catch (e, stackTrace) {
       Log.error('❌ ステータス確認エラー: $e');
       Log.error('スタックトレース: $stackTrace');
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -552,7 +559,7 @@ class _DebugEmailTestPageState extends State<DebugEmailTestPage> {
                           ),
                         ),
                         const SizedBox(height: 20),
-                        
+
                         // メール送信セクション
                         Card(
                           child: Padding(
@@ -579,142 +586,142 @@ class _DebugEmailTestPageState extends State<DebugEmailTestPage> {
                             ),
                           ),
                         ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: _toController,
-                decoration: const InputDecoration(
-                  labelText: '送信先メールアドレス',
-                  hintText: 'example@example.com',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.email),
-                ),
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'メールアドレスを入力してください';
-                  }
-                  if (!value.contains('@')) {
-                    return '有効なメールアドレスを入力してください';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _subjectController,
-                decoration: const InputDecoration(
-                  labelText: '件名',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.subject),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return '件名を入力してください';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _messageController,
-                decoration: const InputDecoration(
-                  labelText: 'メッセージ',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.message),
-                ),
-                maxLines: 5,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'メッセージを入力してください';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: _isSending ? null : _sendTestEmail,
-                icon: _isSending
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
+                        const SizedBox(height: 20),
+                        TextFormField(
+                          controller: _toController,
+                          decoration: const InputDecoration(
+                            labelText: '送信先メールアドレス',
+                            hintText: 'example@example.com',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.email),
+                          ),
+                          keyboardType: TextInputType.emailAddress,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'メールアドレスを入力してください';
+                            }
+                            if (!value.contains('@')) {
+                              return '有効なメールアドレスを入力してください';
+                            }
+                            return null;
+                          },
                         ),
-                      )
-                    : const Icon(Icons.send),
-                label: Text(_isSending ? '送信中...' : 'テストメールを送信'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  textStyle: const TextStyle(fontSize: 16),
-                ),
-              ),
-              if (_lastDocId != null) ...[
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: _checkDeliveryStatus,
-                  icon: const Icon(Icons.info),
-                  label: const Text('配送ステータスを確認'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                ),
-              ],
-              if (_lastDocId != null) ...[
-                const SizedBox(height: 16),
-                Card(
-                  color: Colors.green[50],
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          '✅ 送信リクエスト作成済み',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _subjectController,
+                          decoration: const InputDecoration(
+                            labelText: '件名',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.subject),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return '件名を入力してください';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _messageController,
+                          decoration: const InputDecoration(
+                            labelText: 'メッセージ',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.message),
+                          ),
+                          maxLines: 5,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'メッセージを入力してください';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton.icon(
+                          onPressed: _isSending ? null : _sendTestEmail,
+                          icon: _isSending
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.send),
+                          label: Text(_isSending ? '送信中...' : 'テストメールを送信'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            textStyle: const TextStyle(fontSize: 16),
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Text('Document ID: $_lastDocId'),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Firebase Console → Firestore → mail コレクションで配送状態を確認できます。',
-                          style: TextStyle(fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-              if (_errorMessage != null) ...[
-                const SizedBox(height: 16),
-                Card(
-                  color: Colors.red[50],
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          '❌ エラーが発生しました',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.red,
+                        if (_lastDocId != null) ...[
+                          const SizedBox(height: 16),
+                          ElevatedButton.icon(
+                            onPressed: _checkDeliveryStatus,
+                            icon: const Icon(Icons.info),
+                            label: const Text('配送ステータスを確認'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(_errorMessage!),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+                        ],
+                        if (_lastDocId != null) ...[
+                          const SizedBox(height: 16),
+                          Card(
+                            color: Colors.green[50],
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    '✅ 送信リクエスト作成済み',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text('Document ID: $_lastDocId'),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    'Firebase Console → Firestore → mail コレクションで配送状態を確認できます。',
+                                    style: TextStyle(fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                        if (_errorMessage != null) ...[
+                          const SizedBox(height: 16),
+                          Card(
+                            color: Colors.red[50],
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    '❌ エラーが発生しました',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.red,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(_errorMessage!),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),

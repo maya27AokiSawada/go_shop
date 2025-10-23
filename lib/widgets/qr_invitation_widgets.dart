@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../utils/app_logger.dart';
 import '../services/qr_invitation_service.dart';
 import '../services/pending_invitation_service.dart';
 import '../helpers/ui_helper.dart';
@@ -40,7 +39,7 @@ class QRInviteButton extends ConsumerWidget {
 
   Future<void> _showQRInviteDialog(BuildContext context, WidgetRef ref) async {
     final qrService = ref.read(qrInvitationServiceProvider);
-    
+
     try {
       final invitationData = await qrService.createQRInvitationData(
         shoppingListId: shoppingListId,
@@ -50,9 +49,9 @@ class QRInviteButton extends ConsumerWidget {
         customMessage: customMessage,
         invitationType: 'individual', // デフォルトは個別招待
       );
-      
+
       final qrData = qrService.encodeQRData(invitationData);
-      
+
       if (context.mounted) {
         showDialog(
           context: context,
@@ -89,7 +88,7 @@ class QRInviteDialog extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final qrService = ref.read(qrInvitationServiceProvider);
-    
+
     return Dialog(
       child: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -116,7 +115,7 @@ class QRInviteDialog extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 16),
-            
+
             // 説明
             const Text(
               '相手にこのQRコードを読み取ってもらい、\nグループに参加してもらいましょう',
@@ -124,11 +123,11 @@ class QRInviteDialog extends ConsumerWidget {
               style: TextStyle(fontSize: 14, color: Colors.grey),
             ),
             const SizedBox(height: 20),
-            
+
             // QRコード
             qrService.generateQRWidget(qrData, size: 200.0),
             const SizedBox(height: 20),
-            
+
             // 招待情報
             Container(
               padding: const EdgeInsets.all(12),
@@ -152,7 +151,7 @@ class QRInviteDialog extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 20),
-            
+
             // アクションボタン
             Row(
               children: [
@@ -283,7 +282,7 @@ class _QRScannerPageState extends ConsumerState<QRScannerPage> {
               ],
             ),
           ),
-          
+
           // QRスキャナー
           Expanded(
             child: MobileScanner(
@@ -291,7 +290,7 @@ class _QRScannerPageState extends ConsumerState<QRScannerPage> {
               onDetect: _onQRDetected,
             ),
           ),
-          
+
           // 処理状況表示
           if (isProcessing)
             Container(
@@ -321,7 +320,7 @@ class _QRScannerPageState extends ConsumerState<QRScannerPage> {
 
   Future<void> _handleQRScan(String qrData) async {
     if (isProcessing) return;
-    
+
     setState(() {
       isProcessing = true;
     });
@@ -329,7 +328,7 @@ class _QRScannerPageState extends ConsumerState<QRScannerPage> {
     try {
       final qrService = ref.read(qrInvitationServiceProvider);
       final invitationData = qrService.decodeQRData(qrData);
-      
+
       if (invitationData == null) {
         throw Exception('無効なQRコードです');
       }
@@ -422,12 +421,13 @@ class QRInvitationAcceptDialog extends ConsumerWidget {
   Future<void> _acceptInvitation(BuildContext context, WidgetRef ref) async {
     try {
       final currentUser = ref.read(firebaseAuthProvider).currentUser;
-      
+
       // 未サインイン時の処理
       if (currentUser == null) {
         // 招待情報を一時保存
-        final saved = await PendingInvitationService.savePendingInvitation(invitationData);
-        
+        final saved = await PendingInvitationService.savePendingInvitation(
+            invitationData);
+
         if (context.mounted) {
           if (saved) {
             // 保存成功 → サインイン画面へ誘導
@@ -435,7 +435,7 @@ class QRInvitationAcceptDialog extends ConsumerWidget {
             Navigator.of(context).pop(true); // ダイアログを閉じる
           } else {
             UiHelper.showErrorMessage(
-              context, 
+              context,
               '招待情報の保存に失敗しました。再度お試しください。',
             );
           }

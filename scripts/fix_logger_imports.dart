@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:path/path.dart' as path;
-import '../lib/utils/app_logger.dart';
+import 'package:go_shop/utils/app_logger.dart';
 
 void main() {
   // 修正対象のファイルパターン
@@ -34,25 +34,25 @@ void main() {
 bool _matchesPattern(String filePath, String pattern) {
   filePath = filePath.replaceAll(r'\', '/');
   pattern = pattern.replaceAll(r'\', '/');
-  
+
   if (pattern.endsWith('**/*.dart')) {
     final prefix = pattern.substring(0, pattern.length - '**/*.dart'.length);
     return filePath.startsWith(prefix) && filePath.endsWith('.dart');
   }
-  
+
   return false;
 }
 
 class FixResult {
   final String content;
   final bool changed;
-  
+
   FixResult(this.content, this.changed);
 }
 
 FixResult fixLoggerImport(String content, String filePath) {
   // Logger関連の問題を探す
-  if (!content.contains('final _logger = Logger();') || 
+  if (!content.contains('final _logger = Logger();') ||
       !content.contains("import 'package:logger/logger.dart';")) {
     return FixResult(content, false);
   }
@@ -63,15 +63,15 @@ FixResult fixLoggerImport(String content, String filePath) {
   bool hasLoggerInstance = false;
   int firstImportIndex = -1;
   int lastImportIndex = -1;
-  
+
   // 既存のimportとlogger宣言を除去し、正しい位置を特定
   for (int i = 0; i < lines.length; i++) {
     final line = lines[i].trim();
-    
+
     if (line.startsWith("import '") || line.startsWith('import "')) {
       if (firstImportIndex == -1) firstImportIndex = i;
       lastImportIndex = i;
-      
+
       if (line == "import 'package:logger/logger.dart';") {
         hasLoggerImport = true;
         continue; // この行は除去
@@ -82,7 +82,7 @@ FixResult fixLoggerImport(String content, String filePath) {
     } else if (line.startsWith('// Logger instance')) {
       continue; // この行も除去
     }
-    
+
     newLines.add(lines[i]);
   }
 
@@ -92,20 +92,21 @@ FixResult fixLoggerImport(String content, String filePath) {
     List<String> importSection = [];
     List<String> otherLines = [];
     bool inImportSection = true;
-    
+
     for (int i = 0; i < newLines.length; i++) {
       final line = newLines[i].trim();
-      
-      if (inImportSection && (line.startsWith("import '") || line.startsWith('import "'))) {
+
+      if (inImportSection &&
+          (line.startsWith("import '") || line.startsWith('import "'))) {
         importSection.add(newLines[i]);
       } else if (inImportSection && line.isEmpty && importSection.isNotEmpty) {
         // importセクションの終わり
         inImportSection = false;
-        
+
         // logger importを適切な位置に挿入
         bool loggerInserted = false;
         List<String> sortedImports = [];
-        
+
         for (final importLine in importSection) {
           sortedImports.add(importLine);
           if (!loggerInserted && shouldInsertLoggerAfter(importLine)) {
@@ -113,14 +114,14 @@ FixResult fixLoggerImport(String content, String filePath) {
             loggerInserted = true;
           }
         }
-        
+
         if (!loggerInserted) {
           sortedImports.add("import 'package:logger/logger.dart';");
         }
-        
+
         otherLines.addAll(sortedImports);
         otherLines.add(newLines[i]); // 空行
-        
+
         // logger instance を import の後に追加
         otherLines.add('');
         otherLines.add('// Logger instance');
@@ -135,14 +136,14 @@ FixResult fixLoggerImport(String content, String filePath) {
         }
       }
     }
-    
+
     return FixResult(otherLines.join('\n'), true);
   }
-  
+
   return FixResult(content, false);
 }
 
 bool shouldInsertLoggerAfter(String importLine) {
-  return importLine.contains('package:') && 
-         importLine.compareTo("import 'package:logger/logger.dart';") < 0;
+  return importLine.contains('package:') &&
+      importLine.compareTo("import 'package:logger/logger.dart';") < 0;
 }

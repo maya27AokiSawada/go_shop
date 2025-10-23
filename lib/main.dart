@@ -17,16 +17,24 @@ void main() async {
   // フレーバーの設定 - 本番環境（Firestore + Hive ハイブリッド）
   F.appFlavor = Flavor.prod;
 
-  // Firebase初期化（DEV/PROD両方で初期化）
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
+  // Firebase初期化（詳細なエラー情報を表示）
+  if (F.appFlavor == Flavor.prod) {
+    try {
+      print('🔄 Firebase初期化開始...');
+      print('📋 プロジェクトID: ${DefaultFirebaseOptions.currentPlatform.projectId}');
+      print('📋 アプリID: ${DefaultFirebaseOptions.currentPlatform.appId}');
 
-    // Web環境での設定
-  } catch (e) {
-    // Firebase初期化に失敗してもアプリは続行（Hiveで動作）
-    print('Firebase初期化エラー: $e');
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      print('✅ Firebase初期化成功');
+    } catch (e, stackTrace) {
+      print('❌ Firebase初期化エラー詳細: $e');
+      print('📚 スタックトレース: $stackTrace');
+      // Firebase初期化に失敗してもアプリは続行（Hiveで動作）
+    }
+  } else {
+    print('💡 開発環境：Firebaseをスキップ（Hiveのみ使用）');
   }
 
   // ホットリスタート対応：既存のHiveロックファイルをクリア
@@ -35,11 +43,7 @@ void main() async {
   // Hive初期化（アダプター登録、Box開封、データバージョンチェック）
   await HiveInitializationService.initialize();
 
-  runApp(
-    const ProviderScope(
-      child: MyApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends ConsumerWidget {
@@ -54,9 +58,7 @@ class MyApp extends ConsumerWidget {
         useMaterial3: true,
       ),
       debugShowCheckedModeBanner: F.appFlavor != Flavor.prod,
-      home: const AppInitializeWidget(
-        child: HomeScreen(),
-      ),
+      home: const AppInitializeWidget(child: HomeScreen()),
       routes: {
         '/qr_scan': (context) => const QrScanScreen(),
         '/group_simple': (context) => const PurchaseGroupPageSimple(),

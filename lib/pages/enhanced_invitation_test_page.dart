@@ -1,25 +1,25 @@
 // lib/pages/enhanced_invitation_test_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../utils/app_logger.dart';
 import '../providers/enhanced_group_provider.dart';
 import '../widgets/multi_group_invitation_dialog.dart';
 import '../widgets/group_creation_with_copy_dialog.dart';
 import '../services/enhanced_invitation_service.dart';
 import '../providers/purchase_group_provider.dart';
 
-
 /// Test page for enhanced invitation system
 class EnhancedInvitationTestPage extends ConsumerStatefulWidget {
   const EnhancedInvitationTestPage({super.key});
 
   @override
-  ConsumerState<EnhancedInvitationTestPage> createState() => _EnhancedInvitationTestPageState();
+  ConsumerState<EnhancedInvitationTestPage> createState() =>
+      _EnhancedInvitationTestPageState();
 }
 
-class _EnhancedInvitationTestPageState extends ConsumerState<EnhancedInvitationTestPage> {
+class _EnhancedInvitationTestPageState
+    extends ConsumerState<EnhancedInvitationTestPage> {
   final _emailController = TextEditingController();
-  
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -50,7 +50,8 @@ class _EnhancedInvitationTestPageState extends ConsumerState<EnhancedInvitationT
                   children: [
                     Text(
                       '🚀 Enhanced Invitation System',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                     SizedBox(height: 8),
                     Text('• オーナーUID名コレクション構造'),
@@ -62,9 +63,9 @@ class _EnhancedInvitationTestPageState extends ConsumerState<EnhancedInvitationT
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Invitation test section
             Card(
               child: Padding(
@@ -74,10 +75,10 @@ class _EnhancedInvitationTestPageState extends ConsumerState<EnhancedInvitationT
                   children: [
                     const Text(
                       '📧 招待テスト',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 12),
-                    
                     TextField(
                       controller: _emailController,
                       decoration: const InputDecoration(
@@ -86,14 +87,14 @@ class _EnhancedInvitationTestPageState extends ConsumerState<EnhancedInvitationT
                         border: OutlineInputBorder(),
                       ),
                     ),
-                    
                     const SizedBox(height: 12),
-                    
                     Row(
                       children: [
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: enhancedGroupState.isLoading ? null : _testInvitation,
+                            onPressed: enhancedGroupState.isLoading
+                                ? null
+                                : _testInvitation,
                             icon: const Icon(Icons.send),
                             label: const Text('招待送信テスト'),
                           ),
@@ -112,9 +113,9 @@ class _EnhancedInvitationTestPageState extends ConsumerState<EnhancedInvitationT
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Group management section
             Card(
               child: Padding(
@@ -124,10 +125,10 @@ class _EnhancedInvitationTestPageState extends ConsumerState<EnhancedInvitationT
                   children: [
                     const Text(
                       '👥 グループ管理',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 12),
-                    
                     Row(
                       children: [
                         Expanded(
@@ -140,7 +141,8 @@ class _EnhancedInvitationTestPageState extends ConsumerState<EnhancedInvitationT
                         const SizedBox(width: 8),
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: () => ref.read(allGroupsProvider.notifier).refresh(),
+                            onPressed: () =>
+                                ref.read(allGroupsProvider.notifier).refresh(),
                             icon: const Icon(Icons.refresh),
                             label: const Text('グループ一覧更新'),
                           ),
@@ -151,9 +153,9 @@ class _EnhancedInvitationTestPageState extends ConsumerState<EnhancedInvitationT
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Group list
             Expanded(
               child: allGroupsAsync.when(
@@ -207,7 +209,6 @@ class _EnhancedInvitationTestPageState extends ConsumerState<EnhancedInvitationT
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
-        
         Expanded(
           child: ListView.builder(
             itemCount: groups.length,
@@ -223,7 +224,8 @@ class _EnhancedInvitationTestPageState extends ConsumerState<EnhancedInvitationT
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('ID: ${group.groupId}'),
-                      Text('オーナー: ${group.ownerName ?? group.ownerEmail ?? 'Unknown'}'),
+                      Text(
+                          'オーナー: ${group.ownerName ?? group.ownerEmail ?? 'Unknown'}'),
                       Text('メンバー数: ${group.members?.length ?? 0}人'),
                       if (group.shoppingListIds.isNotEmpty)
                         Text('リスト数: ${group.shoppingListIds.length}個'),
@@ -274,7 +276,7 @@ class _EnhancedInvitationTestPageState extends ConsumerState<EnhancedInvitationT
     try {
       final enhancedGroupNotifier = ref.read(enhancedGroupProvider.notifier);
       final result = await enhancedGroupNotifier.sendEnhancedInvitation(email);
-      
+
       if (result != null) {
         // Direct invitation completed
         _showInvitationResult(result);
@@ -300,7 +302,7 @@ class _EnhancedInvitationTestPageState extends ConsumerState<EnhancedInvitationT
         userUid: 'test-user-uid',
         userName: 'テストユーザー',
       );
-      
+
       _showSnackBar('招待受諾テスト完了', Colors.green);
     } catch (e) {
       _showSnackBar('招待受諾エラー: $e', Colors.red);
@@ -309,13 +311,13 @@ class _EnhancedInvitationTestPageState extends ConsumerState<EnhancedInvitationT
 
   Future<void> _showGroupCreationDialog() async {
     final allGroups = await ref.read(allGroupsProvider.future);
-    
+
     if (mounted) {
       final result = await showGroupCreationWithCopyDialog(
         context: context,
         existingGroups: allGroups,
       );
-      
+
       if (result == true) {
         // Group created successfully, refresh list
         ref.invalidate(allGroupsProvider);
@@ -323,26 +325,27 @@ class _EnhancedInvitationTestPageState extends ConsumerState<EnhancedInvitationT
     }
   }
 
-  Future<void> _showMultiGroupDialog(String email, List<GroupInvitationOption> options) async {
+  Future<void> _showMultiGroupDialog(
+      String email, List<GroupInvitationOption> options) async {
     final result = await showMultiGroupInvitationDialog(
       context: context,
       targetEmail: email,
       availableGroups: options,
     );
-    
+
     if (result != null) {
       _showInvitationResult(result);
     }
-    
+
     // Clear pending invitation state
     ref.read(enhancedGroupProvider.notifier).clearPendingInvitation();
   }
 
   void _showInvitationResult(InvitationResult result) {
-    final message = result.success 
+    final message = result.success
         ? '招待送信完了: 成功 ${result.totalSent}件'
         : '招待送信: 成功 ${result.totalSent}件, 失敗 ${result.totalFailed}件';
-    
+
     _showSnackBar(message, result.success ? Colors.green : Colors.orange);
   }
 

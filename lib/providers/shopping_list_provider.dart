@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:logger/logger.dart';
 import '../utils/app_logger.dart';
 import '../models/shopping_list.dart';
 import '../providers/purchase_group_provider.dart';
@@ -8,8 +7,6 @@ import '../datastore/shopping_list_repository.dart';
 import '../datastore/hive_shopping_list_repository.dart';
 import '../datastore/hybrid_shopping_list_repository.dart';
 import '../flavors.dart';
-
-
 
 // ShoppingListのBox管理
 final shoppingListBoxProvider = Provider<Box<ShoppingList>>((ref) {
@@ -28,12 +25,14 @@ final shoppingListRepositoryProvider = Provider<ShoppingListRepository>((ref) {
 });
 
 // ShoppingListの状態管理
-final shoppingListProvider = AsyncNotifierProvider<ShoppingListNotifier, ShoppingList>(
+final shoppingListProvider =
+    AsyncNotifierProvider<ShoppingListNotifier, ShoppingList>(
   () => ShoppingListNotifier(),
 );
 
 // グループ別のShoppingListプロバイダー
-final shoppingListForGroupProvider = AsyncNotifierProvider.family<ShoppingListForGroupNotifier, ShoppingList, String>(
+final shoppingListForGroupProvider = AsyncNotifierProvider.family<
+    ShoppingListForGroupNotifier, ShoppingList, String>(
   () => ShoppingListForGroupNotifier(),
 );
 
@@ -44,7 +43,7 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
   Future<ShoppingList> build() async {
     final repository = ref.read(shoppingListRepositoryProvider);
     final purchaseGroupAsync = ref.watch(selectedGroupProvider);
-    
+
     return await purchaseGroupAsync.when(
       data: (purchaseGroup) async {
         // purchaseGroup が null の場合はデフォルトリストを返す
@@ -62,7 +61,8 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
 
         final savedList = await repository.getShoppingList(_key);
         if (savedList != null) {
-          Log.info('🛒 ShoppingListNotifier: Hiveから既存リストを読み込み (${savedList.items.length}アイテム)');
+          Log.info(
+              '🛒 ShoppingListNotifier: Hiveから既存リストを読み込み (${savedList.items.length}アイテム)');
           // 既存リストのグループ情報を更新
           final updatedList = savedList.copyWith(
             ownerUid: purchaseGroup.ownerUid ?? savedList.ownerUid,
@@ -113,11 +113,11 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
       final currentList = await future;
       final updatedItems = [...currentList.items, item];
       final updatedList = currentList.copyWith(items: updatedItems);
-      
+
       // Hiveに保存
       await repository.addItem(updatedList.copyWith(groupId: _key));
       Log.info('🛒 ShoppingListNotifier: アイテム「${item.name}」を追加してHiveに保存');
-      
+
       // 状態を更新
       state = AsyncValue.data(updatedList);
     } catch (e) {
@@ -130,16 +130,16 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
     try {
       final repository = ref.read(shoppingListRepositoryProvider);
       final currentList = await future;
-      final updatedItems = currentList.items.where((i) =>
-        i.memberId != item.memberId || i.name != item.name
-      ).toList();
-      
+      final updatedItems = currentList.items
+          .where((i) => i.memberId != item.memberId || i.name != item.name)
+          .toList();
+
       final updatedList = currentList.copyWith(items: updatedItems);
-      
+
       // Hiveに保存
       await repository.addItem(updatedList.copyWith(groupId: _key));
       Log.info('🛒 ShoppingListNotifier: アイテム「${item.name}」を削除してHiveに保存');
-      
+
       // 状態を更新
       state = AsyncValue.data(updatedList);
     } catch (e) {
@@ -158,13 +158,13 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
         }
         return item;
       }).toList();
-      
+
       final updatedList = currentList.copyWith(items: updatedItems);
-      
+
       // Hiveに保存
       await repository.addItem(updatedList.copyWith(groupId: _key));
       Log.info('🛒 ShoppingListNotifier: アイテム「${newItem.name}」を更新してHiveに保存');
-      
+
       // 状態を更新
       state = AsyncValue.data(updatedList);
     } catch (e) {
@@ -194,7 +194,7 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
             // 未購入 → 購入済みの場合、元のdeadlineを保持
             newDeadline = i.deadline;
           }
-          
+
           return ShoppingItem(
             memberId: i.memberId,
             name: i.name,
@@ -208,13 +208,13 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
         }
         return i;
       }).toList();
-      
+
       final updatedList = currentList.copyWith(items: updatedItems);
-      
+
       // Hiveに保存
       await repository.addItem(updatedList.copyWith(groupId: _key));
       Log.info('🛒 ShoppingListNotifier: アイテム「${item.name}」の購入状態を変更してHiveに保存');
-      
+
       // 状態を更新
       state = AsyncValue.data(updatedList);
     } catch (e) {
@@ -227,14 +227,15 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
     try {
       final repository = ref.read(shoppingListRepositoryProvider);
       final currentList = await future;
-      final unpurchasedItems = currentList.items.where((item) => !item.isPurchased).toList();
-      
+      final unpurchasedItems =
+          currentList.items.where((item) => !item.isPurchased).toList();
+
       final updatedList = currentList.copyWith(items: unpurchasedItems);
-      
+
       // Hiveに保存
       await repository.addItem(updatedList.copyWith(groupId: _key));
       Log.info('🛒 ShoppingListNotifier: 購入済みアイテムを削除してHiveに保存');
-      
+
       // 状態を更新
       state = AsyncValue.data(updatedList);
     } catch (e) {
@@ -250,7 +251,7 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
       // Hiveに保存
       await repository.addItem(newShoppingList.copyWith(groupId: _key));
       Log.info('🛒 ShoppingListNotifier: ShoppingList全体を更新してHiveに保存');
-      
+
       // 状態を更新
       state = AsyncValue.data(newShoppingList);
     } catch (e) {
@@ -283,25 +284,30 @@ final unpurchasedItemsProvider = Provider<List<ShoppingItem>>((ref) {
 });
 
 // メンバー別アイテムのフィルタープロバイダー
-final itemsByMemberProvider = Provider.family<List<ShoppingItem>, String>((ref, memberId) {
+final itemsByMemberProvider =
+    Provider.family<List<ShoppingItem>, String>((ref, memberId) {
   final shoppingListAsync = ref.watch(shoppingListProvider);
   return shoppingListAsync.when(
-    data: (list) => list.items.where((item) => item.memberId == memberId).toList(),
+    data: (list) =>
+        list.items.where((item) => item.memberId == memberId).toList(),
     loading: () => [],
     error: (error, stack) => [],
   );
 });
 
 // グループ別のShoppingListNotifier
-class ShoppingListForGroupNotifier extends FamilyAsyncNotifier<ShoppingList, String> {
+class ShoppingListForGroupNotifier
+    extends FamilyAsyncNotifier<ShoppingList, String> {
   @override
   Future<ShoppingList> build(String groupId) async {
     final repository = ref.read(shoppingListRepositoryProvider);
-    
+
     try {
       // 指定されたグループIDのリストを取得または作成
-      final existingList = await repository.getOrCreateList(groupId, '$groupIdのリスト');
-      Log.info('🛒 ShoppingListForGroupNotifier: グループ$groupId のリストを読み込み (${existingList.items.length}アイテム)');
+      final existingList =
+          await repository.getOrCreateList(groupId, '$groupIdのリスト');
+      Log.info(
+          '🛒 ShoppingListForGroupNotifier: グループ$groupId のリストを読み込み (${existingList.items.length}アイテム)');
       return existingList;
     } catch (e) {
       Log.error('❌ ShoppingListForGroupNotifier: グループ$groupId のリスト読み込みエラー: $e');
@@ -323,11 +329,11 @@ class ShoppingListForGroupNotifier extends FamilyAsyncNotifier<ShoppingList, Str
       final currentList = await future;
       final updatedItems = [...currentList.items, item];
       final updatedList = currentList.copyWith(items: updatedItems);
-      
+
       // リポジトリに保存
       await repository.addItem(updatedList);
       Log.info('🛒 ShoppingListForGroupNotifier: アイテム「${item.name}」を追加');
-      
+
       // 状態を更新
       state = AsyncValue.data(updatedList);
     } catch (e) {
@@ -340,15 +346,15 @@ class ShoppingListForGroupNotifier extends FamilyAsyncNotifier<ShoppingList, Str
     try {
       final repository = ref.read(shoppingListRepositoryProvider);
       final currentList = await future;
-      final updatedItems = currentList.items.where((i) =>
-        i.memberId != item.memberId || i.name != item.name
-      ).toList();
+      final updatedItems = currentList.items
+          .where((i) => i.memberId != item.memberId || i.name != item.name)
+          .toList();
       final updatedList = currentList.copyWith(items: updatedItems);
-      
+
       // リポジトリに保存
       await repository.addItem(updatedList);
       Log.info('🛒 ShoppingListForGroupNotifier: アイテム「${item.name}」を削除');
-      
+
       // 状態を更新
       state = AsyncValue.data(updatedList);
     } catch (e) {
@@ -368,11 +374,11 @@ class ShoppingListForGroupNotifier extends FamilyAsyncNotifier<ShoppingList, Str
         return i;
       }).toList();
       final updatedList = currentList.copyWith(items: updatedItems);
-      
+
       // リポジトリに保存
       await repository.addItem(updatedList);
       Log.info('🛒 ShoppingListForGroupNotifier: アイテム「${item.name}」の購入状態を切り替え');
-      
+
       // 状態を更新
       state = AsyncValue.data(updatedList);
     } catch (e) {
@@ -392,11 +398,12 @@ class ShoppingListForGroupNotifier extends FamilyAsyncNotifier<ShoppingList, Str
         return i;
       }).toList();
       final updatedList = currentList.copyWith(items: updatedItems);
-      
+
       // リポジトリに保存
       await repository.addItem(updatedList);
-      Log.info('🛒 ShoppingListForGroupNotifier: アイテム「${oldItem.name}」を「${newItem.name}」に更新');
-      
+      Log.info(
+          '🛒 ShoppingListForGroupNotifier: アイテム「${oldItem.name}」を「${newItem.name}」に更新');
+
       // 状態を更新
       state = AsyncValue.data(updatedList);
     } catch (e) {
@@ -409,13 +416,14 @@ class ShoppingListForGroupNotifier extends FamilyAsyncNotifier<ShoppingList, Str
     try {
       final repository = ref.read(shoppingListRepositoryProvider);
       final currentList = await future;
-      final updatedItems = currentList.items.where((item) => !item.isPurchased).toList();
+      final updatedItems =
+          currentList.items.where((item) => !item.isPurchased).toList();
       final updatedList = currentList.copyWith(items: updatedItems);
-      
+
       // リポジトリに保存
       await repository.addItem(updatedList);
       Log.info('🛒 ShoppingListForGroupNotifier: 購入済みアイテムをクリア');
-      
+
       // 状態を更新
       state = AsyncValue.data(updatedList);
     } catch (e) {

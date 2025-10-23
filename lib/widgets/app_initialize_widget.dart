@@ -7,6 +7,7 @@ import '../widgets/data_migration_widget.dart';
 import '../utils/app_logger.dart';
 import '../providers/user_name_provider.dart';
 import '../providers/purchase_group_provider.dart';
+import '../providers/auth_provider.dart';
 
 /// アプリ初期化を管理するウィジェット
 ///
@@ -121,23 +122,36 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
   /// ユーザー初期化サービスの開始
   Future<void> _initializeUserServices() async {
     try {
+      // STEP1: Firebase Auth状態の初期化完了を待つ
+      setState(() {
+        _initializationStatus = 'サインイン状態を確認中...';
+      });
+
+      try {
+        // Firebase Auth状態の最初のイベントを待つ（タイムアウト付き）
+        final authState = await ref
+            .read(authStateProvider.future)
+            .timeout(const Duration(seconds: 2));
+        Log.info('🔄 Firebase Auth状態確認完了: ${authState?.email ?? "未サインイン"}');
+      } catch (e) {
+        Log.warning('⚠️ Auth状態確認タイムアウト、継続します: $e');
+        // タイムアウトでも処理を続行
+      }
+
+      // STEP2: ユーザー初期化サービス開始
       final userInitService = ref.read(userInitializationServiceProvider);
       userInitService.startAuthStateListener();
       Log.info('✅ ユーザー初期化サービス開始');
 
-      // ユーザー名プロバイダーの初期化を明示的に実行
+      // STEP3: ユーザー名プロバイダーの初期化
       ref.invalidate(userNameProvider);
       Log.info('🔄 ユーザー名プロバイダーを初期化');
 
-      // デフォルトグループの確認を確実に実行
+      // STEP4: グループ情報の初期化（Auth状態確認後）
       setState(() {
         _initializationStatus = 'グループ情報を準備中...';
       });
 
-      // 少し待ってからデフォルトグループ確認
-      await Future.delayed(const Duration(milliseconds: 300));
-
-      // AllGroupsProviderを明示的に初期化してデフォルトグループを確認
       try {
         await ref.read(allGroupsProvider.future);
         Log.info('✅ グループ情報の初期化完了');

@@ -5,7 +5,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/app_logger.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/shopping_list_provider.dart';
-import '../datastore/purchase_group_repository.dart';
 import '../widgets/sync_status_widget.dart';
 import '../models/purchase_group.dart';
 import '../models/shopping_list.dart';
@@ -21,7 +20,7 @@ class HybridSyncTestPage extends ConsumerStatefulWidget {
 
 class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
   final _testGroupNameController = TextEditingController();
-  
+
   @override
   void dispose() {
     _testGroupNameController.dispose();
@@ -52,15 +51,15 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
             // 環境情報
             _buildEnvironmentInfo(),
             const SizedBox(height: 16),
-            
+
             // 同期管理
             const SyncManagementWidget(),
             const SizedBox(height: 16),
-            
+
             // テスト機能
             _buildTestFeatures(),
             const SizedBox(height: 16),
-            
+
             // グループ一覧
             _buildGroupsList(allGroupsAsync),
           ],
@@ -71,7 +70,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
 
   Widget _buildEnvironmentInfo() {
     final hybridRepo = ref.read(hybridRepositoryProvider);
-    
+
     return Card(
       color: Colors.blue[50],
       child: Padding(
@@ -94,10 +93,12 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
               ],
             ),
             const SizedBox(height: 12),
-            _buildInfoRow('フレーバー', F.appFlavor?.name.toUpperCase() ?? 'UNKNOWN'),
+            _buildInfoRow(
+                'フレーバー', F.appFlavor?.name.toUpperCase() ?? 'UNKNOWN'),
             _buildInfoRow('リポジトリ', hybridRepo != null ? 'ハイブリッド' : 'Hiveのみ'),
             if (hybridRepo != null) ...[
-              _buildInfoRow('オンライン状態', hybridRepo.isOnline ? '🟢 接続中' : '🔴 オフライン'),
+              _buildInfoRow(
+                  'オンライン状態', hybridRepo.isOnline ? '🟢 接続中' : '🔴 オフライン'),
               _buildInfoRow('同期状態', hybridRepo.isSyncing ? '🔄 同期中' : '✅ 待機中'),
             ],
           ],
@@ -145,7 +146,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
               ],
             ),
             const SizedBox(height: 16),
-            
+
             // テストグループ作成
             Row(
               children: [
@@ -167,9 +168,9 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // テストボタン群
             Wrap(
               spacing: 8,
@@ -252,7 +253,6 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
               ],
             ),
             const SizedBox(height: 12),
-            
             allGroupsAsync.when(
               data: (groups) {
                 if (groups.isEmpty) {
@@ -263,37 +263,40 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
                     ),
                   );
                 }
-                
+
                 return Column(
-                  children: groups.map((group) => Card(
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: Colors.blue[100],
-                        child: Text(
-                          group.groupName.substring(0, 1).toUpperCase(),
-                          style: TextStyle(color: Colors.blue[700]),
-                        ),
-                      ),
-                      title: Text(group.groupName),
-                      subtitle: Text(
-                        '${group.members?.length ?? 0}メンバー • ${group.groupId}',
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (group.groupName.startsWith('テスト'))
-                            IconButton(
-                              onPressed: () => _deleteTestGroup(group),
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              tooltip: '削除',
+                  children: groups
+                      .map((group) => Card(
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: Colors.blue[100],
+                                child: Text(
+                                  group.groupName.substring(0, 1).toUpperCase(),
+                                  style: TextStyle(color: Colors.blue[700]),
+                                ),
+                              ),
+                              title: Text(group.groupName),
+                              subtitle: Text(
+                                '${group.members?.length ?? 0}メンバー • ${group.groupId}',
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (group.groupName.startsWith('テスト'))
+                                    IconButton(
+                                      onPressed: () => _deleteTestGroup(group),
+                                      icon: const Icon(Icons.delete,
+                                          color: Colors.red),
+                                      tooltip: '削除',
+                                    ),
+                                  const Icon(Icons.chevron_right),
+                                ],
+                              ),
+                              onTap: () => _showGroupDetails(group),
                             ),
-                          const Icon(Icons.chevron_right),
-                        ],
-                      ),
-                      onTap: () => _showGroupDetails(group),
-                    ),
-                  )).toList(),
+                          ))
+                      .toList(),
                 );
               },
               loading: () => const Center(
@@ -342,9 +345,9 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
     try {
       final notifier = ref.read(allGroupsProvider.notifier);
       await notifier.createNewGroup('テスト$name');
-      
+
       _testGroupNameController.clear();
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('テストグループ「$name」を作成しました')),
@@ -361,11 +364,11 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
 
   void _testCacheSpeed() async {
     final stopwatch = Stopwatch()..start();
-    
+
     try {
       await ref.read(allGroupsProvider.future);
       stopwatch.stop();
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -394,7 +397,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
 
     hybridRepo.setOnlineStatus(!hybridRepo.isOnline);
     ref.invalidate(syncStatusProvider);
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -430,10 +433,10 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
 
       // Firestore接続テスト
       final firestore = FirebaseFirestore.instance;
-      
+
       // テスト用ドキュメントの読み書き
       final testDoc = firestore.collection('connection_test').doc('test');
-      
+
       await testDoc.set({
         'timestamp': FieldValue.serverTimestamp(),
         'test': true,
@@ -442,11 +445,11 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
       });
 
       final doc = await testDoc.get();
-      
+
       if (doc.exists) {
         // テストドキュメントを削除
         await testDoc.delete();
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('✅ Firestore接続成功！'),
@@ -461,7 +464,6 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
           ),
         );
       }
-
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -479,10 +481,10 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
 
     try {
       final firestore = FirebaseFirestore.instance;
-      
+
       // PurchaseGroupsコレクションの確認
       final groupsSnapshot = await firestore.collection('purchaseGroups').get();
-      
+
       if (groupsSnapshot.docs.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -496,7 +498,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
             .map((doc) => doc.data()['groupName'] ?? 'Unknown')
             .take(3)
             .join(', ');
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('📊 Firestore: $groupCountグループ (例: $groupNames)'),
@@ -504,14 +506,14 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
             duration: const Duration(seconds: 4),
           ),
         );
-        
+
         // 詳細ログ出力
         for (final doc in groupsSnapshot.docs) {
           final data = doc.data();
-          Log.info('🔥 Firestore Group: ${doc.id} - ${data['groupName']} (${data['members']?.length ?? 0} members)');
+          Log.info(
+              '🔥 Firestore Group: ${doc.id} - ${data['groupName']} (${data['members']?.length ?? 0} members)');
         }
       }
-
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -529,41 +531,42 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
 
     try {
       final firestore = FirebaseFirestore.instance;
-      
+
       // Hiveデータの確認
       final localGroups = await ref.read(allGroupsProvider.future);
-      
+
       // Firestoreデータの確認
       final groupsSnapshot = await firestore.collection('purchaseGroups').get();
-      
+
       // 比較結果
       final localCount = localGroups.length;
       final firestoreCount = groupsSnapshot.docs.length;
-      
+
       String resultMessage = '📋 データ比較結果:\n';
       resultMessage += '• Hive (ローカル): $localCountグループ\n';
       resultMessage += '• Firestore (クラウド): $firestoreCountグループ\n';
-      
+
       if (localCount == firestoreCount) {
         resultMessage += '✅ データ数は一致しています';
       } else {
         resultMessage += '⚠️ データ数が不一致です';
       }
-      
+
       // 各グループの詳細確認
       Log.info('🔍 === 詳細データ比較 ===');
       Log.info('📱 Hive Groups:');
       for (final group in localGroups) {
-        Log.info('  - ${group.groupName} (${group.members?.length ?? 0} members) [${group.groupId}]');
+        Log.info(
+            '  - ${group.groupName} (${group.members?.length ?? 0} members) [${group.groupId}]');
       }
-      
+
       Log.info('🔥 Firestore Groups:');
       for (final doc in groupsSnapshot.docs) {
         final data = doc.data();
         final memberCount = (data['members'] as List?)?.length ?? 0;
         Log.info('  - ${data['groupName']} ($memberCount members) [${doc.id}]');
       }
-      
+
       // 最新データの詳細表示
       if (groupsSnapshot.docs.isNotEmpty) {
         final latestDoc = groupsSnapshot.docs.first;
@@ -572,10 +575,11 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
         resultMessage += '• ID: ${latestDoc.id}\n';
         resultMessage += '• 名前: ${latestData['groupName']}\n';
         resultMessage += '• 作成者: ${latestData['createdBy']}\n';
-        resultMessage += '• メンバー数: ${(latestData['members'] as List?)?.length ?? 0}\n';
+        resultMessage +=
+            '• メンバー数: ${(latestData['members'] as List?)?.length ?? 0}\n';
         resultMessage += '• 更新日時: ${latestData['updatedAt']?.toDate()}\n';
       }
-      
+
       // 結果をダイアログで表示
       showDialog(
         context: context,
@@ -592,7 +596,6 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
           ],
         ),
       );
-
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -605,8 +608,9 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
 
   void _addTestMembers() async {
     final groups = await ref.read(allGroupsProvider.future);
-    final testGroups = groups.where((g) => g.groupName.startsWith('テスト')).toList();
-    
+    final testGroups =
+        groups.where((g) => g.groupName.startsWith('テスト')).toList();
+
     if (testGroups.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('テストグループがありません')),
@@ -617,14 +621,15 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
     final group = testGroups.first;
     final testMember = PurchaseGroupMember.create(
       name: 'テストメンバー${DateTime.now().millisecondsSinceEpoch % 1000}',
-      contact: 'test${DateTime.now().millisecondsSinceEpoch % 1000}@example.com',
+      contact:
+          'test${DateTime.now().millisecondsSinceEpoch % 1000}@example.com',
       role: PurchaseGroupRole.member,
     );
 
     try {
       final notifier = ref.read(selectedGroupNotifierProvider.notifier);
       await notifier.addMember(testMember);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('${group.groupName}にメンバーを追加しました')),
@@ -665,7 +670,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
         final repository = ref.read(purchaseGroupRepositoryProvider);
         await repository.deleteGroup(group.groupId);
         await notifier.refresh(); // リストを更新
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('${group.groupName}を削除しました')),
@@ -695,11 +700,12 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
             Text('メンバー数: ${group.members?.length ?? 0}'),
             if (group.members?.isNotEmpty == true) ...[
               const SizedBox(height: 8),
-              const Text('メンバー:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('メンバー:',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
               ...group.members!.map((member) => Padding(
-                padding: const EdgeInsets.only(left: 16, top: 4),
-                child: Text('• ${member.name} (${member.role.name})'),
-              )),
+                    padding: const EdgeInsets.only(left: 16, top: 4),
+                    child: Text('• ${member.name} (${member.role.name})'),
+                  )),
             ],
           ],
         ),
@@ -722,7 +728,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
       // 現在のグループを取得
       final allGroupsAsync = ref.read(allGroupsProvider.future);
       final groups = await allGroupsAsync;
-      
+
       if (groups.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -735,10 +741,10 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
 
       final testGroup = groups.first;
       final groupId = testGroup.groupId;
-      
+
       // ShoppingListRepository取得
       final repository = ref.read(shoppingListRepositoryProvider);
-      
+
       // テスト用買い物リストを作成
       final testList = ShoppingList.create(
         ownerUid: testGroup.ownerUid ?? 'test',
@@ -759,15 +765,15 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
 
       // Hive + Firestore ハイブリッド保存
       await repository.addItem(testList);
-      
+
       // 保存後の確認
       final savedList = await repository.getShoppingList(groupId);
-      
+
       String resultMessage = '✅ 買い物リスト同期テスト完了\n';
       resultMessage += '• グループ: ${testGroup.groupName}\n';
       resultMessage += '• アイテム数: ${savedList?.items.length ?? 0}\n';
       resultMessage += '• Hive: ローカル保存完了\n';
-      
+
       if (F.appFlavor == Flavor.prod) {
         resultMessage += '• Firestore: バックグラウンド同期実行中\n';
         resultMessage += '• 同期方式: ハイブリッド（キャッシュファースト）';
@@ -789,8 +795,8 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
         ),
       );
 
-      Log.info('🛒 ShoppingList sync test completed for group: ${testGroup.groupName}');
-
+      Log.info(
+          '🛒 ShoppingList sync test completed for group: ${testGroup.groupName}');
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

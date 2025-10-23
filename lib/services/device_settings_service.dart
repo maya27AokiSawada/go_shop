@@ -1,20 +1,18 @@
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:logger/logger.dart';
 import '../utils/app_logger.dart';
-
-
 
 /// 端末固有の設定管理サービス
 class DeviceSettingsService {
   static DeviceSettingsService? _instance;
-  static DeviceSettingsService get instance => _instance ??= DeviceSettingsService._();
-  
+  static DeviceSettingsService get instance =>
+      _instance ??= DeviceSettingsService._();
+
   DeviceSettingsService._();
-  
+
   // 設定キー
   static const String _secretModeKey = 'device_secret_mode';
   static const String _savedEmailKey = 'saved_email_address';
-  
+
   /// 保存されたメールアドレスを取得
   Future<String?> getSavedEmail() async {
     try {
@@ -29,7 +27,7 @@ class DeviceSettingsService {
       return null;
     }
   }
-  
+
   /// メールアドレスを保存
   Future<void> saveEmail(String email) async {
     try {
@@ -41,7 +39,7 @@ class DeviceSettingsService {
       rethrow;
     }
   }
-  
+
   /// 保存されたメールアドレスをクリア
   Future<void> clearSavedEmail() async {
     try {
@@ -53,7 +51,7 @@ class DeviceSettingsService {
       rethrow;
     }
   }
-  
+
   /// シークレットモードが有効かどうかを取得
   Future<bool> isSecretModeEnabled() async {
     try {
@@ -66,7 +64,7 @@ class DeviceSettingsService {
       return false;
     }
   }
-  
+
   /// シークレットモードのON/OFFを設定
   Future<void> setSecretMode(bool enabled) async {
     try {
@@ -78,7 +76,7 @@ class DeviceSettingsService {
       rethrow;
     }
   }
-  
+
   /// すべての端末設定をクリア
   Future<void> clearAllSettings() async {
     try {

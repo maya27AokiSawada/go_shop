@@ -1,7 +1,6 @@
 // lib/widgets/group_creation_with_copy_dialog.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../utils/app_logger.dart';
 import '../models/purchase_group.dart';
 import '../providers/purchase_group_provider.dart';
 import 'dart:developer' as developer;
@@ -9,20 +8,22 @@ import 'dart:developer' as developer;
 /// Dialog for creating new group with option to copy members from existing group
 class GroupCreationWithCopyDialog extends ConsumerStatefulWidget {
   final List<PurchaseGroup> existingGroups;
-  
+
   const GroupCreationWithCopyDialog({
     super.key,
     required this.existingGroups,
   });
 
   @override
-  ConsumerState<GroupCreationWithCopyDialog> createState() => _GroupCreationWithCopyDialogState();
+  ConsumerState<GroupCreationWithCopyDialog> createState() =>
+      _GroupCreationWithCopyDialogState();
 }
 
-class _GroupCreationWithCopyDialogState extends ConsumerState<GroupCreationWithCopyDialog> {
+class _GroupCreationWithCopyDialogState
+    extends ConsumerState<GroupCreationWithCopyDialog> {
   final _formKey = GlobalKey<FormState>();
   final _groupNameController = TextEditingController();
-  
+
   PurchaseGroup? _selectedSourceGroup;
   final Map<String, bool> _selectedMembers = {};
   final Map<String, PurchaseGroupRole> _memberRoles = {};
@@ -54,7 +55,8 @@ class _GroupCreationWithCopyDialogState extends ConsumerState<GroupCreationWithC
                   const Expanded(
                     child: Text(
                       '新しいグループを作成',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                   ),
                   IconButton(
@@ -64,7 +66,7 @@ class _GroupCreationWithCopyDialogState extends ConsumerState<GroupCreationWithC
                 ],
               ),
               const SizedBox(height: 16),
-              
+
               // Group name input
               TextFormField(
                 controller: _groupNameController,
@@ -77,22 +79,23 @@ class _GroupCreationWithCopyDialogState extends ConsumerState<GroupCreationWithC
                   if (value == null || value.trim().isEmpty) {
                     return 'グループ名を入力してください';
                   }
-                  
+
                   // Check for duplicate group names
                   final trimmedName = value.trim();
-                  final isDuplicate = widget.existingGroups.any((group) => 
-                    group.groupName.toLowerCase() == trimmedName.toLowerCase());
-                  
+                  final isDuplicate = widget.existingGroups.any((group) =>
+                      group.groupName.toLowerCase() ==
+                      trimmedName.toLowerCase());
+
                   if (isDuplicate) {
                     return 'このグループ名は既に使用されています';
                   }
-                  
+
                   return null;
                 },
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // Source group selection
               if (widget.existingGroups.isNotEmpty) ...[
                 const Text(
@@ -100,7 +103,6 @@ class _GroupCreationWithCopyDialogState extends ConsumerState<GroupCreationWithC
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(height: 8),
-                
                 DropdownButtonFormField<PurchaseGroup>(
                   initialValue: _selectedSourceGroup,
                   decoration: const InputDecoration(
@@ -112,8 +114,8 @@ class _GroupCreationWithCopyDialogState extends ConsumerState<GroupCreationWithC
                       value: null,
                       child: Text('新しいグループ (メンバーなし)'),
                     ),
-                    ...widget.existingGroups.map((group) => 
-                      DropdownMenuItem<PurchaseGroup>(
+                    ...widget.existingGroups.map(
+                      (group) => DropdownMenuItem<PurchaseGroup>(
                         value: group,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,7 +123,8 @@ class _GroupCreationWithCopyDialogState extends ConsumerState<GroupCreationWithC
                             Text(group.groupName),
                             Text(
                               'メンバー数: ${group.members?.length ?? 0}人',
-                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              style: const TextStyle(
+                                  fontSize: 12, color: Colors.grey),
                             ),
                           ],
                         ),
@@ -135,10 +138,9 @@ class _GroupCreationWithCopyDialogState extends ConsumerState<GroupCreationWithC
                     });
                   },
                 ),
-                
                 const SizedBox(height: 16),
               ],
-              
+
               // Member selection list
               if (_selectedSourceGroup?.members?.isNotEmpty == true) ...[
                 const Text(
@@ -146,7 +148,6 @@ class _GroupCreationWithCopyDialogState extends ConsumerState<GroupCreationWithC
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(height: 8),
-                
                 Expanded(
                   child: ListView.builder(
                     itemCount: _selectedSourceGroup!.members!.length,
@@ -175,15 +176,16 @@ class _GroupCreationWithCopyDialogState extends ConsumerState<GroupCreationWithC
                   ),
                 ),
               ],
-              
+
               const SizedBox(height: 16),
-              
+
               // Action buttons
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton(
-                    onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+                    onPressed:
+                        _isLoading ? null : () => Navigator.of(context).pop(),
                     child: const Text('キャンセル'),
                   ),
                   const SizedBox(width: 8),
@@ -209,7 +211,7 @@ class _GroupCreationWithCopyDialogState extends ConsumerState<GroupCreationWithC
   Widget _buildMemberSelectionTile(PurchaseGroupMember member) {
     final memberId = member.memberId;
     final isSelected = _selectedMembers[memberId] ?? false;
-    
+
     // Don't show owner in the copy list (they can't be copied with owner role)
     if (member.role == PurchaseGroupRole.owner) {
       return const SizedBox.shrink();
@@ -255,11 +257,13 @@ class _GroupCreationWithCopyDialogState extends ConsumerState<GroupCreationWithC
                   }
                 },
                 items: PurchaseGroupRole.values
-                    .where((role) => role != PurchaseGroupRole.owner) // Don't allow owner role
+                    .where((role) =>
+                        role !=
+                        PurchaseGroupRole.owner) // Don't allow owner role
                     .map((role) => DropdownMenuItem(
-                      value: role,
-                      child: Text(_getRoleDisplayName(role)),
-                    ))
+                          value: role,
+                          child: Text(_getRoleDisplayName(role)),
+                        ))
                     .toList(),
               )
             : null,
@@ -283,7 +287,7 @@ class _GroupCreationWithCopyDialogState extends ConsumerState<GroupCreationWithC
   void _updateMemberSelection() {
     _selectedMembers.clear();
     _memberRoles.clear();
-    
+
     if (_selectedSourceGroup?.members != null) {
       for (final member in _selectedSourceGroup!.members!) {
         if (member.role != PurchaseGroupRole.owner) {
@@ -306,10 +310,10 @@ class _GroupCreationWithCopyDialogState extends ConsumerState<GroupCreationWithC
 
     try {
       final groupName = _groupNameController.text.trim();
-      
+
       // Create new group
       await ref.read(allGroupsProvider.notifier).createNewGroup(groupName);
-      
+
       // If members were selected, add them to the new group
       if (_selectedMembers.values.any((selected) => selected)) {
         final currentGroup = ref.read(selectedGroupNotifierProvider).value;
@@ -320,7 +324,7 @@ class _GroupCreationWithCopyDialogState extends ConsumerState<GroupCreationWithC
 
       if (mounted) {
         Navigator.of(context).pop(true); // Return success
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('グループ「$groupName」を作成しました'),
@@ -330,7 +334,7 @@ class _GroupCreationWithCopyDialogState extends ConsumerState<GroupCreationWithC
       }
     } catch (e) {
       developer.log('❌ グループ作成エラー: $e');
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -351,15 +355,16 @@ class _GroupCreationWithCopyDialogState extends ConsumerState<GroupCreationWithC
   Future<void> _addSelectedMembers(PurchaseGroup newGroup) async {
     if (_selectedSourceGroup?.members == null) return;
 
-    final selectedGroupNotifier = ref.read(selectedGroupNotifierProvider.notifier);
+    final selectedGroupNotifier =
+        ref.read(selectedGroupNotifierProvider.notifier);
 
     for (final member in _selectedSourceGroup!.members!) {
       final memberId = member.memberId;
       final isSelected = _selectedMembers[memberId] ?? false;
-      
+
       if (isSelected && member.role != PurchaseGroupRole.owner) {
         final newRole = _memberRoles[memberId] ?? member.role;
-        
+
         final newMember = PurchaseGroupMember.create(
           name: member.name,
           contact: member.contact,
@@ -370,10 +375,11 @@ class _GroupCreationWithCopyDialogState extends ConsumerState<GroupCreationWithC
           invitedAt: member.invitedAt,
           acceptedAt: member.acceptedAt,
         );
-        
+
         try {
           await selectedGroupNotifier.addMember(newMember);
-          developer.log('✅ メンバー追加成功: ${member.name} (役割: ${_getRoleDisplayName(newRole)})');
+          developer.log(
+              '✅ メンバー追加成功: ${member.name} (役割: ${_getRoleDisplayName(newRole)})');
         } catch (e) {
           developer.log('❌ メンバー追加エラー: ${member.name} - $e');
         }
