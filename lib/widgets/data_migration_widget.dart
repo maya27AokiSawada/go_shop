@@ -3,20 +3,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../utils/app_logger.dart';
 import '../services/data_version_service.dart';
 import '../services/user_preferences_service.dart';
+import '../services/firestore_migration_service.dart';
 import '../helpers/ui_helper.dart';
 
 /// データマイグレーションウィジェット
-/// 
+///
 /// プリファレンスに保存されているデータバージョンと
 /// 起動したアプリのデータバージョンが異なる場合に表示される
-/// 
+///
 /// 【現在の機能】：Hive + Firestore削除 + 新規作成のみ
 /// 【将来予定】：段階的データマイグレーション機能
 class DataMigrationWidget extends ConsumerStatefulWidget {
   final VoidCallback onMigrationComplete;
   final String? oldVersion;
   final String? newVersion;
-  
+
   const DataMigrationWidget({
     Key? key,
     required this.onMigrationComplete,
@@ -25,17 +26,17 @@ class DataMigrationWidget extends ConsumerStatefulWidget {
   }) : super(key: key);
 
   @override
-  ConsumerState<DataMigrationWidget> createState() => _DataMigrationWidgetState();
+  ConsumerState<DataMigrationWidget> createState() =>
+      _DataMigrationWidgetState();
 }
 
 class _DataMigrationWidgetState extends ConsumerState<DataMigrationWidget>
     with TickerProviderStateMixin {
-  
   bool _isMigrating = false;
   bool _migrationComplete = false;
   String _currentStep = '';
   double _progress = 0.0;
-  
+
   late AnimationController _animationController;
   late Animation<double> _progressAnimation;
 
@@ -64,7 +65,7 @@ class _DataMigrationWidgetState extends ConsumerState<DataMigrationWidget>
   /// データマイグレーション実行
   Future<void> _performMigration() async {
     if (_isMigrating) return;
-    
+
     setState(() {
       _isMigrating = true;
       _progress = 0.0;
@@ -73,51 +74,62 @@ class _DataMigrationWidgetState extends ConsumerState<DataMigrationWidget>
 
     try {
       Log.info('🔄 データマイグレーション開始');
-      
+
       // ステップ1: バックアップ（将来用）
       await _updateProgress(0.1, 'データのバックアップ準備中...');
       await Future.delayed(const Duration(milliseconds: 500));
-      
-      // ステップ2: Hiveデータ削除
-      await _updateProgress(0.3, 'ローカルデータベースを削除中...');
+
+      // ステップ2: Firestoreデータマイグレーション（v2 → v3）
+      await _updateProgress(0.2, 'Firestoreデータ構造をアップグレード中...');
+      final firestoreMigration = FirestoreDataMigrationService();
+      try {
+        await firestoreMigration.migrateToVersion3();
+        Log.info('✅ Firestoreマイグレーション完了');
+      } catch (e) {
+        Log.error('⚠️ Firestoreマイグレーション警告: $e (続行します)');
+        // Firestoreマイグレーションエラーは続行可能
+      }
+
+      // ステップ3: Hiveデータ削除
+      await _updateProgress(0.5, 'ローカルデータベースを削除中...');
       final dataVersionService = DataVersionService();
       await dataVersionService.checkAndMigrateData();
-      
-      // ステップ3: Firestoreデータ削除準備（将来用）
-      await _updateProgress(0.6, 'クラウドデータの整理中...');
+
+      // ステップ4: クラウドデータ整理完了
+      await _updateProgress(0.7, 'クラウドデータの整理完了...');
       await Future.delayed(const Duration(milliseconds: 500));
-      
-      // ステップ4: ユーザー設定クリア
+
+      // ステップ5: ユーザー設定クリア
       await _updateProgress(0.8, 'ユーザー設定を初期化中...');
       await UserPreferencesService.clearAllUserInfo();
-      
-      // ステップ5: 新バージョン設定
+
+      // ステップ6: 新バージョン設定
       await _updateProgress(0.9, '新しいデータ形式で初期化中...');
-      await UserPreferencesService.saveDataVersion(DataVersionService.currentDataVersion);
-      
+      await UserPreferencesService.saveDataVersion(
+          DataVersionService.currentDataVersion);
+
       // 完了
       await _updateProgress(1.0, 'マイグレーション完了！');
-      
+
       setState(() {
         _migrationComplete = true;
       });
-      
+
       Log.info('✅ データマイグレーション完了');
-      
+
       // 少し待ってから完了コールバック
       await Future.delayed(const Duration(milliseconds: 1000));
       widget.onMigrationComplete();
-      
     } catch (e) {
       Log.error('❌ データマイグレーションエラー: $e');
       setState(() {
         _isMigrating = false;
         _currentStep = 'エラーが発生しました';
       });
-      
+
       if (mounted) {
         UiHelper.showErrorMessage(
-          context, 
+          context,
           'データマイグレーションに失敗しました: $e',
           duration: const Duration(seconds: 5),
         );
@@ -128,14 +140,14 @@ class _DataMigrationWidgetState extends ConsumerState<DataMigrationWidget>
   /// 進捗更新
   Future<void> _updateProgress(double progress, String step) async {
     if (!mounted) return;
-    
+
     setState(() {
       _progress = progress;
       _currentStep = step;
     });
-    
+
     _animationController.animateTo(progress);
-    
+
     // UIの更新を待つ
     await Future.delayed(const Duration(milliseconds: 300));
   }
@@ -169,18 +181,22 @@ class _DataMigrationWidgetState extends ConsumerState<DataMigrationWidget>
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: _migrationComplete ? Colors.green[100] : Colors.blue[100],
+                    color: _migrationComplete
+                        ? Colors.green[100]
+                        : Colors.blue[100],
                     borderRadius: BorderRadius.circular(40),
                   ),
                   child: Icon(
                     _migrationComplete ? Icons.check_circle : Icons.upgrade,
                     size: 48,
-                    color: _migrationComplete ? Colors.green[700] : Colors.blue[700],
+                    color: _migrationComplete
+                        ? Colors.green[700]
+                        : Colors.blue[700],
                   ),
                 ),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // タイトル
                 Text(
                   _migrationComplete ? 'アップデート完了' : 'データアップデート',
@@ -190,13 +206,14 @@ class _DataMigrationWidgetState extends ConsumerState<DataMigrationWidget>
                     color: Colors.black87,
                   ),
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // バージョン情報
                 if (widget.oldVersion != null && widget.newVersion != null) ...[
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       color: Colors.grey[100],
                       borderRadius: BorderRadius.circular(8),
@@ -212,12 +229,12 @@ class _DataMigrationWidgetState extends ConsumerState<DataMigrationWidget>
                   ),
                   const SizedBox(height: 16),
                 ],
-                
+
                 // 説明文
                 Text(
-                  _migrationComplete 
-                    ? 'データのアップデートが完了しました。\nアプリをより快適にご利用いただけます。'
-                    : 'アプリのデータ形式が更新されました。\n最新機能をご利用いただくため、\nデータの更新が必要です。',
+                  _migrationComplete
+                      ? 'Firestoreデータ構造のアップデートが完了しました。\n新しい効率的なデータ構造により、\nより高速にグループデータを取得できます。'
+                      : 'Firestoreデータ構造が改善されました。\n\n【改善内容】\n• より効率的なグループデータ取得\n• メンバーシップ管理の最適化\n• データ整合性の向上\n\nアップデートを開始してください。',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 16,
@@ -225,9 +242,9 @@ class _DataMigrationWidgetState extends ConsumerState<DataMigrationWidget>
                     height: 1.4,
                   ),
                 ),
-                
+
                 const SizedBox(height: 32),
-                
+
                 // 進捗表示
                 if (_isMigrating) ...[
                   AnimatedBuilder(
@@ -281,9 +298,9 @@ class _DataMigrationWidgetState extends ConsumerState<DataMigrationWidget>
                       ),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   // 注意書き
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -344,31 +361,32 @@ class _DataMigrationWidgetState extends ConsumerState<DataMigrationWidget>
 /// データマイグレーション状態プロバイダー
 class DataMigrationNotifier extends StateNotifier<bool> {
   DataMigrationNotifier() : super(false);
-  
+
   /// マイグレーションが必要かチェック
   Future<bool> checkMigrationNeeded() async {
     try {
       final savedVersion = await UserPreferencesService.getDataVersion();
       final currentVersion = DataVersionService.currentDataVersion;
-      
+
       Log.info('🔍 マイグレーションチェック: 保存済み=$savedVersion, 現在=$currentVersion');
-      
+
       final needsMigration = savedVersion != currentVersion;
       state = needsMigration;
-      
+
       return needsMigration;
     } catch (e) {
       Log.error('❌ マイグレーションチェックエラー: $e');
       return false;
     }
   }
-  
+
   /// マイグレーション完了
   void completeMigration() {
     state = false;
   }
 }
 
-final dataMigrationProvider = StateNotifierProvider<DataMigrationNotifier, bool>((ref) {
+final dataMigrationProvider =
+    StateNotifierProvider<DataMigrationNotifier, bool>((ref) {
   return DataMigrationNotifier();
 });

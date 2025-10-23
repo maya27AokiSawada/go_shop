@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../utils/app_logger.dart';
-import '../models/purchase_group.dart';
 import '../providers/purchase_group_provider.dart';
 import '../widgets/group_selector_widget.dart';
-
 
 class PurchaseGroupPageSimple extends ConsumerWidget {
   const PurchaseGroupPageSimple({super.key});
@@ -25,8 +23,10 @@ class PurchaseGroupPageSimple extends ConsumerWidget {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // グループ選択
-            const GroupSelectorWidget(),
+            // グループ選択 - 動的サイズ
+            IntrinsicHeight(
+              child: const GroupSelectorWidget(),
+            ),
             const SizedBox(height: 20),
             // グループ詳細
             Expanded(
@@ -46,8 +46,6 @@ class PurchaseGroupPageSimple extends ConsumerWidget {
     );
   }
 
-
-
   Widget _buildGroupContent(WidgetRef ref, String? selectedGroupId) {
     if (selectedGroupId == null) {
       return const Card(
@@ -58,7 +56,7 @@ class PurchaseGroupPageSimple extends ConsumerWidget {
     }
 
     final purchaseGroupAsync = ref.watch(selectedGroupProvider);
-    
+
     return purchaseGroupAsync.when(
       data: (group) {
         if (group == null) {
@@ -71,7 +69,7 @@ class PurchaseGroupPageSimple extends ConsumerWidget {
             ),
           );
         }
-        
+
         Log.info('📋 [SIMPLE CONTENT] グループデータ: ${group.groupName}');
         return Card(
           elevation: 2,
@@ -82,7 +80,8 @@ class PurchaseGroupPageSimple extends ConsumerWidget {
               children: [
                 Text(
                   group.groupName,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 10),
                 Text('メンバー数: ${group.members?.length ?? 0}'),
@@ -93,8 +92,8 @@ class PurchaseGroupPageSimple extends ConsumerWidget {
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 5),
-                  ...group.members!.map((member) => 
-                    Padding(
+                  ...group.members!.map(
+                    (member) => Padding(
                       padding: const EdgeInsets.symmetric(vertical: 2.0),
                       child: Text('• ${member.name}'),
                     ),

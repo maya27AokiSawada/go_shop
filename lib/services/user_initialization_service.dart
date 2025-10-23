@@ -41,31 +41,35 @@ class UserInitializationService {
   }
 
   /// ユーザー状態に応じた初期化処理
-  /// Firebase認証状態とmemberIDの形式に基づいて適切なデータソースを選択
+  /// 1. 常にローカルデフォルトグループを確保
+  /// 2. Firebase認証済みの場合はFirestoreと同期
   Future<void> _initializeBasedOnUserState() async {
     try {
-      final currentUser = _auth.currentUser;
+      // STEP1: まずローカルデフォルトグループを確保（未サインインでも必要）
+      Log.info('🔄 [INIT] ローカルデフォルトグループを確保中...');
+      await _ensureLocalDefaultGroupExists();
 
-      // Firebase認証済みかつFirebase形式のmemberIDの場合
+      // STEP2: Firebase認証済みの場合はFirestoreと同期
+      final currentUser = _auth.currentUser;
       if (currentUser != null && _isFirebaseUserId(currentUser.uid)) {
         Log.info('🔄 [INIT] Firebase認証済みユーザー検出 - Firestoreとの同期を開始');
         await _syncWithFirestore(currentUser);
-
-        // ユーザー名プロバイダーを更新
-        _ref.invalidate(userNameProvider);
-        Log.info('🔄 [INIT] ユーザー名プロバイダーを更新しました');
       } else {
-        Log.info('🔄 [INIT] ローカルユーザー検出 - ローカルデータで初期化');
-        await _ensureDefaultGroupExists();
-
-        // ローカルユーザーの場合もユーザー名プロバイダーを更新
-        _ref.invalidate(userNameProvider);
-        Log.info('🔄 [INIT] ローカルユーザー名プロバイダーを更新しました');
+        Log.info('� [INIT] 未サインインまたはローカルユーザー - ローカルデータで動作');
       }
+
+      // STEP3: プロバイダーを更新
+      _ref.invalidate(userNameProvider);
+      _ref.invalidate(allGroupsProvider);
+      Log.info('✅ [INIT] ユーザー状態初期化完了');
     } catch (e) {
       Log.error('❌ [INIT] ユーザー状態初期化エラー: $e');
-      // エラーが発生した場合はフォールバック
-      await _ensureDefaultGroupExists();
+      // エラーが発生した場合も最低限のデフォルトグループは確保
+      try {
+        await _ensureLocalDefaultGroupExists();
+      } catch (fallbackError) {
+        Log.error('❌ [INIT] フォールバック処理もエラー: $fallbackError');
+      }
     }
   }
 
@@ -77,34 +81,117 @@ class UserInitializationService {
   }
 
   /// Firestoreとの同期処理
+  /// ローカルデフォルトグループとFirestoreデータをマージ
   Future<void> _syncWithFirestore(User user) async {
     try {
       Log.info('🔄 [FIRESTORE_SYNC] Firestoreからデータを取得中...');
 
       final repository = _ref.read(purchaseGroupRepositoryProvider);
 
-      // HybridRepositoryの場合、Firestoreを優先した同期を実行
+      // HybridRepositoryの場合、Firestoreとローカルデータをマージ
       if (repository is HybridPurchaseGroupRepository) {
-        // Firestoreからすべてのグループを取得してHiveに同期
+        // STEP1: Firestoreからデータを取得
         await repository.syncFromFirestore();
-        Log.info('✅ [FIRESTORE_SYNC] Firestoreとの同期完了');
+        Log.info('✅ [FIRESTORE_SYNC] Firestoreデータ取得完了');
+
+        // STEP2: ローカルのデフォルトグループとマージが必要かチェック
+        await _mergeLocalDefaultWithFirestore(user, repository);
       } else {
         // Hybrid以外の場合は通常の初期化
-        Log.info('💡 [FIRESTORE_SYNC] Non-Hybridリポジトリ - 通常初期化');
+        Log.info('💡 [FIRESTORE_SYNC] Non-Hybridリポジトリ - デフォルトグループのみ確保');
         await _ensureDefaultGroupExists();
       }
 
       // プロバイダーを更新して画面に反映
       _ref.invalidate(allGroupsProvider);
+      Log.info('✅ [FIRESTORE_SYNC] 同期とマージ完了');
     } catch (e) {
       Log.error('❌ [FIRESTORE_SYNC] Firestore同期エラー: $e');
-      // Firestore同期に失敗した場合はローカル初期化
-      await _ensureDefaultGroupExists();
+      // Firestore同期に失敗してもローカルデータは保持
+      Log.info('💡 [FIRESTORE_SYNC] Firestore同期失敗 - ローカルデータで継続');
     }
   }
 
-  /// デフォルトグループの存在を確認し、なければ作成
-  ///
+  /// ローカルデフォルトグループとFirestoreデータをマージ
+  Future<void> _mergeLocalDefaultWithFirestore(
+      User user, HybridPurchaseGroupRepository repository) async {
+    try {
+      Log.info('🔄 [MERGE] ローカルとFirestoreデータのマージ開始');
+
+      // 現在の全グループを取得
+      final allGroups = await repository.getAllGroups();
+      final localDefaultGroup =
+          allGroups.where((g) => g.groupId == 'default_group').firstOrNull;
+
+      if (localDefaultGroup == null) {
+        Log.info('💡 [MERGE] ローカルデフォルトグループなし - Firestoreデータのみ使用');
+        return;
+      }
+
+      // Firestoreにユーザーのグループがない場合、ローカルデフォルトをアップロード
+      final firestoreGroups =
+          allGroups.where((g) => g.groupId != 'default_group').toList();
+
+      if (firestoreGroups.isEmpty) {
+        Log.info('🔄 [MERGE] Firestoreにデータなし - ローカルデフォルトをアップロード');
+        // TODO: 必要に応じてローカルデフォルトをFirestoreにアップロード
+        // 現在はローカルデータをそのまま保持
+      } else {
+        Log.info(
+            '💡 [MERGE] Firestoreにデータあり(${firestoreGroups.length}グループ) - 両方を保持');
+        // Firestoreデータとローカルデフォルトグループを共存
+        // 特に処理は不要（HybridRepositoryが管理）
+      }
+    } catch (e) {
+      Log.warning('⚠️ [MERGE] マージ処理エラー: $e');
+    }
+  }
+
+  /// ローカルデフォルトグループの存在を確保（常時実行）
+  /// 未サインインでも、初回起動でも必ず仮のデフォルトグループを作成
+  Future<void> _ensureLocalDefaultGroupExists() async {
+    try {
+      Log.info('🔄 [LOCAL_DEFAULT] ローカルデフォルトグループ確認開始');
+      final repository = _ref.read(purchaseGroupRepositoryProvider);
+
+      // Hiveから直接グループを取得（Firestoreは見ない）
+      List<PurchaseGroup> localGroups = [];
+      try {
+        if (repository is HybridPurchaseGroupRepository) {
+          // Hiveのみからグループを取得
+          localGroups = await repository.getLocalGroups();
+        } else {
+          localGroups = await repository.getAllGroups();
+        }
+      } catch (e) {
+        Log.warning('⚠️ [LOCAL_DEFAULT] ローカルグループ取得エラー: $e');
+        localGroups = []; // 空リストで続行
+      }
+
+      Log.info('💡 [LOCAL_DEFAULT] 現在のローカルグループ数: ${localGroups.length}');
+
+      // ローカルにデフォルトグループがない場合は作成
+      final hasDefaultGroup =
+          localGroups.any((g) => g.groupId == 'default_group');
+
+      if (!hasDefaultGroup) {
+        Log.info('🔄 [LOCAL_DEFAULT] デフォルトグループが存在しないため作成します');
+        await _createLocalDefaultGroup();
+      } else {
+        Log.info('✅ [LOCAL_DEFAULT] デフォルトグループは既に存在します');
+      }
+    } catch (e) {
+      Log.error('❌ [LOCAL_DEFAULT] ローカルデフォルトグループ確認エラー: $e');
+      // エラーでも作成を試行
+      try {
+        await _createLocalDefaultGroup();
+      } catch (createError) {
+        Log.error('❌ [LOCAL_DEFAULT] デフォルトグループ作成もエラー: $createError');
+      }
+    }
+  }
+
+  /// 従来のデフォルトグループ確認メソッド（既存コード互換用）
   /// データバージョン管理との連携:
   /// - データクリア後は新規デフォルトグループを自動作成
   /// - Playストア公開時: マイグレーション後の整合性チェック機能追加予定
@@ -147,7 +234,72 @@ class UserInitializationService {
     }
   }
 
-  /// ゲスト用のデフォルトグループを作成
+  /// ローカル専用のデフォルトグループを作成（未サインイン対応）
+  Future<void> _createLocalDefaultGroup() async {
+    try {
+      final repository = _ref.read(purchaseGroupRepositoryProvider);
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      const defaultGroupId = 'default_group';
+
+      Log.info('🔄 [LOCAL_DEFAULT] ローカルデフォルトグループを作成開始');
+
+      // 現在のユーザー情報を取得（サインイン済みでも未サインインでも対応）
+      final currentUser = FirebaseAuth.instance.currentUser;
+      final currentUserId = currentUser?.uid ?? 'local_user_$timestamp';
+      final userEmail = currentUser?.email ?? 'guest@local.app';
+
+      // ユーザー名の決定
+      String displayName = 'あなた';
+      if (currentUser != null) {
+        // サインイン済みの場合はFirebase情報を優先
+        displayName = currentUser.displayName ??
+            currentUser.email?.split('@')[0] ??
+            'あなた';
+      } else {
+        // 未サインインの場合はプリファレンスから取得を試行
+        try {
+          final prefsName = await UserPreferencesService.getUserName();
+          if (prefsName != null && prefsName.isNotEmpty && prefsName != 'あなた') {
+            displayName = prefsName;
+          }
+        } catch (e) {
+          Log.info('💡 [LOCAL_DEFAULT] プリファレンス名取得失敗、デフォルト名使用');
+        }
+      }
+
+      Log.info(
+          '🔄 [LOCAL_DEFAULT] ユーザー情報: uid=$currentUserId, name=$displayName');
+
+      // デフォルトグループのオーナーメンバーを作成
+      final ownerMember = PurchaseGroupMember.create(
+        memberId: currentUserId,
+        name: displayName,
+        contact: userEmail,
+        role: PurchaseGroupRole.owner,
+        invitationStatus: InvitationStatus.self,
+      );
+
+      // プライベート専用のデフォルトグループを作成
+      // 自分のみがメンバーの個人用リスト集
+      const defaultGroupName = 'My Lists';
+      await repository.createGroup(
+        defaultGroupId,
+        defaultGroupName,
+        ownerMember,
+      );
+
+      Log.info(
+          '✅ [LOCAL_DEFAULT] プライベート専用デフォルトグループ作成完了: $defaultGroupName (メンバー: ${ownerMember.name}のみ)');
+
+      // プロバイダーを確実に更新
+      _ref.invalidate(allGroupsProvider);
+    } catch (e) {
+      Log.error('❌ [LOCAL_DEFAULT] ローカルデフォルトグループ作成エラー: $e');
+      rethrow;
+    }
+  }
+
+  /// ゲスト用のデフォルトグループを作成（従来メソッド）
   Future<void> _createGuestDefaultGroup() async {
     try {
       final repository = _ref.read(purchaseGroupRepositoryProvider);
@@ -230,8 +382,8 @@ class UserInitializationService {
         invitationStatus: InvitationStatus.self,
       );
 
-      // プライベート専用のデフォルトグループを作成
-      const defaultGroupName = 'マイリスト';
+      // プライベート専用のデフォルトグループを作成（自分のみがメンバー）
+      const defaultGroupName = 'My Lists';
       await repository.createGroup(
         defaultGroupId,
         defaultGroupName,
@@ -239,7 +391,7 @@ class UserInitializationService {
       );
 
       Log.info(
-          '✅ プライベート専用デフォルトグループを作成しました: $defaultGroupName (ID: $defaultGroupId)');
+          '✅ プライベート専用デフォルトグループを作成しました: $defaultGroupName (ID: $defaultGroupId, メンバー: ${ownerMember.name}のみ)');
 
       // メンバープールも初期化
       try {
@@ -249,9 +401,15 @@ class UserInitializationService {
         Log.warning('⚠️ メンバープール初期化エラー: $e');
       }
 
-      // プロバイダーを更新
+      // プロバイダーを確実に更新
+      _ref.invalidate(allGroupsProvider);
       final allGroupsNotifier = _ref.read(allGroupsProvider.notifier);
       await allGroupsNotifier.refresh();
+
+      // 少し待ってから再度確認（UI更新のため）
+      await Future.delayed(const Duration(milliseconds: 200));
+      final updatedGroups = await _ref.read(allGroupsProvider.future);
+      Log.info('✅ [DEFAULT GROUP] プロバイダー更新完了: ${updatedGroups.length}グループ');
     } catch (e) {
       Log.error('❌ ゲスト用デフォルトグループ作成エラー: $e');
     }

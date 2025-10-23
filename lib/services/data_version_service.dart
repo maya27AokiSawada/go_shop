@@ -15,7 +15,7 @@ import 'user_preferences_service.dart';
 /// - 失敗時のロールバック機能
 class DataVersionService {
   static const String _dataVersionKey = 'data_version';
-  static const int _currentDataVersion = 2; // invitationStatus追加により2に変更
+  static const int _currentDataVersion = 3; // Firestore構造変更により3に変更
 
   /// 現在のデータバージョンを取得
   static int get currentDataVersion => _currentDataVersion;

@@ -1,0 +1,529 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../models/purchase_group.dart';
+import '../providers/purchase_group_provider.dart';
+import '../utils/app_logger.dart';
+import '../pages/group_member_management_page.dart';
+
+/// グループをリスト表示するウィジェット
+/// タップでメンバー管理画面に遷移
+class GroupListWidget extends ConsumerWidget {
+  const GroupListWidget({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final allGroupsAsync = ref.watch(allGroupsProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // ヘッダー部分
+        Container(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.groups, color: Colors.blue),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'グループ一覧',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const Spacer(),
+                  // デバッグボタン
+                  IconButton(
+                    onPressed: () async {
+                      AppLogger.info('🔄 [DEBUG] グループ同期開始');
+                      try {
+                        await ref.read(forceSyncProvider.future);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('同期完了')),
+                        );
+                      } catch (e) {
+                        AppLogger.error('❌ [DEBUG] 同期エラー: $e');
+                      }
+                    },
+                    icon: const Icon(Icons.sync, size: 20),
+                    tooltip: 'Firestore同期',
+                  ),
+                ],
+              ),
+              // カレントグループ情報
+              _buildCurrentGroupInfo(ref),
+            ],
+          ),
+        ),
+
+        // グループリスト
+        allGroupsAsync.when(
+          data: (groups) => _buildGroupList(context, ref, groups),
+          loading: () => _buildLoadingWidget(),
+          error: (error, stack) => _buildErrorWidget(context, ref, error),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGroupList(
+      BuildContext context, WidgetRef ref, List<PurchaseGroup> groups) {
+    AppLogger.info('📋 [GROUP_LIST] グループ数: ${groups.length}');
+
+    if (groups.isEmpty) {
+      return _buildEmptyState(context);
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children:
+          groups.map((group) => _buildGroupTile(context, ref, group)).toList(),
+    );
+  }
+
+  Widget _buildGroupTile(
+      BuildContext context, WidgetRef ref, PurchaseGroup group) {
+    final isDefaultGroup = group.groupId == 'default_group';
+    final memberCount = group.members?.length ?? 0;
+    final selectedGroupId = ref.watch(selectedGroupIdProvider);
+    final isCurrentGroup = selectedGroupId == group.groupId;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      elevation: isCurrentGroup ? 4 : 1,
+      color: isCurrentGroup ? Colors.blue.shade50 : null,
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: isCurrentGroup
+              ? Colors.blue.shade200
+              : (isDefaultGroup ? Colors.green.shade100 : Colors.blue.shade100),
+          child: isCurrentGroup
+              ? const Icon(Icons.check_circle, color: Colors.white, size: 20)
+              : Icon(
+                  isDefaultGroup ? Icons.person : Icons.group,
+                  color: isDefaultGroup ? Colors.green.shade700 : Colors.blue,
+                ),
+        ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                group.groupName,
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  color: isCurrentGroup ? Colors.blue.shade800 : null,
+                ),
+              ),
+            ),
+            if (isCurrentGroup)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade300),
+                ),
+                child: Text(
+                  'カレント',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue.shade700,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (isDefaultGroup)
+              Text(
+                'プライベート専用（あなたのみ）',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.green.shade700,
+                  fontWeight: FontWeight.w500,
+                ),
+              )
+            else
+              Text('メンバー: ${memberCount}人'),
+            if (!isDefaultGroup && group.ownerUid?.isNotEmpty == true)
+              Text(
+                'オーナー: ${group.ownerName ?? group.ownerEmail ?? group.ownerUid}',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+          ],
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (memberCount > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '$memberCount',
+                  style: TextStyle(
+                    color: Colors.green.shade700,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            const SizedBox(width: 8),
+            // メンバー管理ボタン
+            IconButton(
+              icon: const Icon(Icons.settings, size: 18, color: Colors.grey),
+              onPressed: () {
+                AppLogger.info('📋 [GROUP_LIST] メンバー管理ボタン: ${group.groupId}');
+                _navigateToMemberManagement(context, ref, group);
+              },
+              tooltip: 'メンバー管理',
+            ),
+          ],
+        ),
+        onTap: () {
+          AppLogger.info('📋 [GROUP_LIST] グループ選択: ${group.groupId}');
+          _selectCurrentGroup(context, ref, group);
+        },
+        onLongPress: () {
+          _showGroupOptions(context, ref, group);
+        },
+      ),
+    );
+  }
+
+  void _selectCurrentGroup(
+      BuildContext context, WidgetRef ref, PurchaseGroup group) {
+    final currentSelectedId = ref.read(selectedGroupIdProvider);
+
+    if (currentSelectedId == group.groupId) {
+      AppLogger.info('📋 [GROUP_SELECT] 既に選択済み: ${group.groupId}');
+      return;
+    }
+
+    // グループを選択してカレントグループに設定
+    ref.read(selectedGroupIdProvider.notifier).selectGroup(group.groupId);
+    AppLogger.info(
+        '📋 [GROUP_SELECT] カレントグループを変更: ${group.groupName} (${group.groupId})');
+
+    // 成功メッセージを表示
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text('「${group.groupName}」をカレントグループに設定しました'),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _navigateToMemberManagement(
+      BuildContext context, WidgetRef ref, PurchaseGroup group) {
+    // メンバー管理画面に遷移（カレントグループ設定は行わない）
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => GroupMemberManagementPage(group: group),
+      ),
+    );
+  }
+
+  Widget _buildCurrentGroupInfo(WidgetRef ref) {
+    final selectedGroupId = ref.watch(selectedGroupIdProvider);
+    final allGroupsAsync = ref.watch(allGroupsProvider);
+
+    return allGroupsAsync.when(
+      data: (groups) {
+        final currentGroup =
+            groups.where((g) => g.groupId == selectedGroupId).firstOrNull;
+
+        if (currentGroup == null) {
+          return Container(
+            margin: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.info_outline, size: 16, color: Colors.grey),
+                SizedBox(width: 8),
+                Text(
+                  'カレントグループが選択されていません',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return Container(
+          margin: const EdgeInsets.only(top: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.blue.shade200),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.my_location, size: 16, color: Colors.blue.shade700),
+              const SizedBox(width: 8),
+              Text(
+                'カレント: ',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.blue.shade700,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  currentGroup.groupName,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.blue.shade800,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Text(
+                '${currentGroup.members?.length ?? 0}人',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.blue.shade600,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      child: const Column(
+        children: [
+          Icon(Icons.group_off, size: 64, color: Colors.grey),
+          SizedBox(height: 16),
+          Text(
+            'グループがありません',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+          ),
+          SizedBox(height: 8),
+          Text(
+            '右下の + ボタンから\n新しいグループを作成してください',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingWidget() {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      child: const Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          SizedBox(width: 12),
+          Text('グループを読み込み中...'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorWidget(BuildContext context, WidgetRef ref, Object error) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          const Icon(Icons.error_outline, color: Colors.red, size: 48),
+          const SizedBox(height: 16),
+          const Text(
+            'グループの読み込みに失敗しました',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            error.toString().length > 100
+                ? '${error.toString().substring(0, 100)}...'
+                : error.toString(),
+            style: const TextStyle(color: Colors.grey),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: () {
+              AppLogger.info('📋 [GROUP_LIST] 再試行ボタン押下');
+              ref.invalidate(allGroupsProvider);
+            },
+            icon: const Icon(Icons.refresh),
+            label: const Text('再試行'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showGroupOptions(
+      BuildContext context, WidgetRef ref, PurchaseGroup group) async {
+    // 現在のユーザー情報を取得
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      AppLogger.warning('⚠️  [GROUP_OPTIONS] ユーザーが認証されていません');
+      return;
+    }
+
+    // グループのオーナーかどうかを確認
+    final members = group.members ?? [];
+    final currentMember = members.firstWhere(
+      (member) => member.memberId == currentUser.uid,
+      orElse: () => const PurchaseGroupMember(
+        memberId: '',
+        name: '',
+        contact: '',
+        role: PurchaseGroupRole.member,
+      ),
+    );
+
+    final isOwner = currentMember.role == PurchaseGroupRole.owner;
+
+    if (!isOwner) {
+      AppLogger.info('📋 [GROUP_OPTIONS] オーナーではないため削除権限なし: ${currentUser.uid}');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('グループを削除できるのはオーナーのみです'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // 削除確認ダイアログを表示
+    _showDeleteConfirmationDialog(context, ref, group);
+  }
+
+  void _showDeleteConfirmationDialog(
+      BuildContext context, WidgetRef ref, PurchaseGroup group) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('グループを削除'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('「${group.groupName}」を削除しますか？'),
+              const SizedBox(height: 8),
+              const Text(
+                'この操作は取り消せません。\nグループ内のすべてのデータが削除されます。',
+                style: TextStyle(color: Colors.red, fontSize: 12),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('キャンセル'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _deleteGroup(context, ref, group);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('削除'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _deleteGroup(
+      BuildContext context, WidgetRef ref, PurchaseGroup group) async {
+    AppLogger.info('🗑️ [GROUP_DELETE] グループ削除開始: ${group.groupId}');
+
+    try {
+      // ローディング表示
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 16),
+              Text('グループを削除中...'),
+            ],
+          ),
+          duration: Duration(seconds: 30),
+        ),
+      );
+
+      // リポジトリから削除実行
+      final repository = ref.read(purchaseGroupRepositoryProvider);
+      await repository.deleteGroup(group.groupId);
+
+      // プロバイダーを更新
+      ref.invalidate(allGroupsProvider);
+
+      AppLogger.info('✅ [GROUP_DELETE] グループ削除完了: ${group.groupId}');
+
+      // 成功メッセージ
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('「${group.groupName}」を削除しました'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (error, stackTrace) {
+      AppLogger.error('❌ [GROUP_DELETE] グループ削除エラー', error, stackTrace);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('グループの削除に失敗しました: $error'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+}
