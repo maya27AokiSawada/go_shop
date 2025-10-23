@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../utils/app_logger.dart';
 import '../models/app_news.dart';
 import '../services/firestore_news_service.dart';
 

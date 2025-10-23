@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../utils/app_logger.dart';
 import '../models/purchase_group.dart';
 import '../providers/purchase_group_provider.dart';
 import '../helpers/validation_service.dart';
 
 enum MemberSelectionType {
-  fromPool,    // プールから選択
-  newMember,   // 新規メンバー
+  fromPool, // プールから選択
+  newMember, // 新規メンバー
 }
 
 class MemberSelectionDialog extends ConsumerStatefulWidget {
   const MemberSelectionDialog({super.key});
 
   @override
-  ConsumerState<MemberSelectionDialog> createState() => _MemberSelectionDialogState();
+  ConsumerState<MemberSelectionDialog> createState() =>
+      _MemberSelectionDialogState();
 }
 
 class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
@@ -22,12 +22,12 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
   PurchaseGroupMember? selectedPoolMember;
   List<PurchaseGroupMember> poolMembers = [];
   bool isLoadingPool = false;
-  
+
   // 新規メンバー用
   final nameController = TextEditingController();
   final contactController = TextEditingController();
   PurchaseGroupRole selectedRole = PurchaseGroupRole.member; // オーナー以外を初期値に設定
-  
+
   // 重複確認用
   PurchaseGroupMember? duplicateMember;
   bool showDuplicateConfirmation = false;
@@ -44,7 +44,7 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
     setState(() {
       isLoadingPool = true;
     });
-    
+
     try {
       // メンバープールプロバイダーを使用
       final memberPoolNotifier = ref.read(memberPoolProvider.notifier);
@@ -53,15 +53,16 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
       setState(() {
         poolMembers = members;
         isLoadingPool = false;
-        
+
         // 選択されているメンバーがすでにグループメンバーなら選択解除
         if (selectedPoolMember != null) {
-          final currentGroup = ref.read(selectedGroupNotifierProvider).value;
-          final isAlreadyMember = currentGroup?.members?.any(
-            (groupMember) => groupMember.memberId == selectedPoolMember!.memberId || 
-                           groupMember.contact == selectedPoolMember!.contact
-          ) ?? false;
-          
+          final currentGroupAsync = ref.read(selectedGroupNotifierProvider);
+          final currentGroup = currentGroupAsync.valueOrNull;
+          final isAlreadyMember = currentGroup?.members?.any((groupMember) =>
+                  groupMember.memberId == selectedPoolMember!.memberId ||
+                  groupMember.contact == selectedPoolMember!.contact) ??
+              false;
+
           if (isAlreadyMember) {
             selectedPoolMember = null;
           }
@@ -82,11 +83,11 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
   Future<void> _checkForDuplicate() async {
     final email = contactController.text.trim();
     if (email.isEmpty) return;
-    
+
     try {
       final repository = ref.read(purchaseGroupRepositoryProvider);
       final existing = await repository.findMemberByEmail(email);
-      
+
       if (existing != null) {
         setState(() {
           duplicateMember = existing;
@@ -103,31 +104,29 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
       // エラーは無視して続行
     }
   }
-  
+
   // メンバー名とメールアドレスのバリデーション
   void _validateMemberInputs() {
     if (selectedType != MemberSelectionType.newMember) return;
-    
+
     final currentGroupAsync = ref.read(selectedGroupNotifierProvider);
     currentGroupAsync.whenData((currentGroup) {
       final existingMembers = currentGroup?.members ?? [];
-      
+
       // 名前のバリデーション
       final nameValidation = ValidationService.validateMemberName(
-        nameController.text, 
-        existingMembers
-      );
-      
+          nameController.text, existingMembers);
+
       // メールアドレスのバリデーション
       final emailValidation = ValidationService.validateMemberEmail(
-        contactController.text, 
-        existingMembers
-      );
-      
+          contactController.text, existingMembers);
+
       setState(() {
-        nameValidationError = nameValidation.hasError ? nameValidation.errorMessage : null;
-        emailValidationError = emailValidation.hasError ? emailValidation.errorMessage : null;
-        
+        nameValidationError =
+            nameValidation.hasError ? nameValidation.errorMessage : null;
+        emailValidationError =
+            emailValidation.hasError ? emailValidation.errorMessage : null;
+
         // 重複の場合は別途処理
         if (emailValidation.hasDuplicate) {
           duplicateMember = emailValidation.duplicateMember;
@@ -151,11 +150,17 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
             Column(
               children: [
                 Card(
-                  color: selectedType == MemberSelectionType.fromPool ? Colors.blue.shade50 : null,
+                  color: selectedType == MemberSelectionType.fromPool
+                      ? Colors.blue.shade50
+                      : null,
                   child: ListTile(
                     leading: Icon(
-                      selectedType == MemberSelectionType.fromPool ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                      color: selectedType == MemberSelectionType.fromPool ? Colors.blue : Colors.grey,
+                      selectedType == MemberSelectionType.fromPool
+                          ? Icons.radio_button_checked
+                          : Icons.radio_button_unchecked,
+                      color: selectedType == MemberSelectionType.fromPool
+                          ? Colors.blue
+                          : Colors.grey,
                     ),
                     title: const Text('プールから選択'),
                     onTap: () {
@@ -167,11 +172,17 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
                   ),
                 ),
                 Card(
-                  color: selectedType == MemberSelectionType.newMember ? Colors.blue.shade50 : null,
+                  color: selectedType == MemberSelectionType.newMember
+                      ? Colors.blue.shade50
+                      : null,
                   child: ListTile(
                     leading: Icon(
-                      selectedType == MemberSelectionType.newMember ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                      color: selectedType == MemberSelectionType.newMember ? Colors.blue : Colors.grey,
+                      selectedType == MemberSelectionType.newMember
+                          ? Icons.radio_button_checked
+                          : Icons.radio_button_unchecked,
+                      color: selectedType == MemberSelectionType.newMember
+                          ? Colors.blue
+                          : Colors.grey,
                     ),
                     title: const Text('新規メンバー'),
                     onTap: () {
@@ -185,17 +196,17 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
               ],
             ),
             const SizedBox(height: 16),
-            
+
             // プール選択画面
             if (selectedType == MemberSelectionType.fromPool) ...[
               _buildPoolSelection(),
             ],
-            
+
             // 新規メンバー画面
             if (selectedType == MemberSelectionType.newMember) ...[
               _buildNewMemberForm(),
             ],
-            
+
             // 重複確認ダイアログ
             if (showDuplicateConfirmation) ...[
               _buildDuplicateConfirmation(),
@@ -225,14 +236,14 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
         ),
       );
     }
-    
+
     if (poolMembers.isEmpty) {
       return const Padding(
         padding: EdgeInsets.all(16.0),
         child: Text('プールにメンバーがいません'),
       );
     }
-    
+
     return SizedBox(
       height: 200,
       child: ListView.builder(
@@ -240,26 +251,34 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
         itemBuilder: (context, index) {
           final member = poolMembers[index];
           final isSelected = selectedPoolMember == member;
-          
+
           // 現在のグループのメンバーかチェック
-          final currentGroup = ref.watch(selectedGroupNotifierProvider).value;
-          final isAlreadyMember = currentGroup?.members?.any(
-            (groupMember) => groupMember.memberId == member.memberId || 
-                           groupMember.contact == member.contact
-          ) ?? false;
-          
+          final currentGroupAsync = ref.watch(selectedGroupNotifierProvider);
+          final currentGroup = currentGroupAsync.valueOrNull;
+          final isAlreadyMember = currentGroup?.members?.any((groupMember) =>
+                  groupMember.memberId == member.memberId ||
+                  groupMember.contact == member.contact) ??
+              false;
+
           return Card(
-            color: isSelected ? Colors.blue.shade50 : 
-                   isAlreadyMember ? Colors.grey.shade100 : null,
+            color: isSelected
+                ? Colors.blue.shade50
+                : isAlreadyMember
+                    ? Colors.grey.shade100
+                    : null,
             child: ListTile(
               enabled: !isAlreadyMember,
               leading: Icon(
-                isSelected ? Icons.radio_button_checked : 
-                isAlreadyMember ? Icons.block : 
-                Icons.radio_button_unchecked,
-                color: isSelected ? Colors.blue : 
-                       isAlreadyMember ? Colors.grey : 
-                       Colors.grey,
+                isSelected
+                    ? Icons.radio_button_checked
+                    : isAlreadyMember
+                        ? Icons.block
+                        : Icons.radio_button_unchecked,
+                color: isSelected
+                    ? Colors.blue
+                    : isAlreadyMember
+                        ? Colors.grey
+                        : Colors.grey,
               ),
               title: Text(
                 member.name,
@@ -268,18 +287,20 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
                 ),
               ),
               subtitle: Text(
-                isAlreadyMember 
-                  ? '${member.contact} (${_getRoleDisplayName(member.role)}) - すでにメンバーです'
-                  : '${member.contact} (${_getRoleDisplayName(member.role)})',
+                isAlreadyMember
+                    ? '${member.contact} (${_getRoleDisplayName(member.role)}) - すでにメンバーです'
+                    : '${member.contact} (${_getRoleDisplayName(member.role)})',
                 style: TextStyle(
                   color: isAlreadyMember ? Colors.grey : null,
                 ),
               ),
-              onTap: isAlreadyMember ? null : () {
-                setState(() {
-                  selectedPoolMember = member;
-                });
-              },
+              onTap: isAlreadyMember
+                  ? null
+                  : () {
+                      setState(() {
+                        selectedPoolMember = member;
+                      });
+                    },
             ),
           );
         },
@@ -329,8 +350,8 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
             helperText: 'オーナーは作成者が自動的に設定されます',
           ),
           items: PurchaseGroupRole.values
-            .where((role) => role != PurchaseGroupRole.owner) // オーナーロールを除外
-            .map((role) {
+              .where((role) => role != PurchaseGroupRole.owner) // オーナーロールを除外
+              .map((role) {
             String roleName;
             switch (role) {
               case PurchaseGroupRole.owner:
@@ -416,27 +437,28 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
   bool _canConfirm() {
     if (selectedType == MemberSelectionType.fromPool) {
       if (selectedPoolMember == null) return false;
-      
+
       // 現在のグループのメンバーかチェック
-      final currentGroup = ref.read(selectedGroupNotifierProvider).value;
-      final isAlreadyMember = currentGroup?.members?.any(
-        (groupMember) => groupMember.memberId == selectedPoolMember!.memberId || 
-                       groupMember.contact == selectedPoolMember!.contact
-      ) ?? false;
-      
+      final currentGroupAsync = ref.read(selectedGroupNotifierProvider);
+      final currentGroup = currentGroupAsync.valueOrNull;
+      final isAlreadyMember = currentGroup?.members?.any((groupMember) =>
+              groupMember.memberId == selectedPoolMember!.memberId ||
+              groupMember.contact == selectedPoolMember!.contact) ??
+          false;
+
       return !isAlreadyMember;
     } else {
       // 新規メンバーの場合：必要な情報が入力され、かつバリデーションエラーがない
-      return nameController.text.isNotEmpty && 
-             contactController.text.isNotEmpty &&
-             nameValidationError == null &&
-             emailValidationError == null;
+      return nameController.text.isNotEmpty &&
+          contactController.text.isNotEmpty &&
+          nameValidationError == null &&
+          emailValidationError == null;
     }
   }
 
   void _confirmSelection() {
     PurchaseGroupMember memberToAdd;
-    
+
     if (selectedType == MemberSelectionType.fromPool) {
       // プールからの選択：新しいIDで追加
       memberToAdd = selectedPoolMember!.copyWith(
@@ -451,7 +473,7 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
         isSignedIn: false,
       );
     }
-    
+
     Navigator.of(context).pop(memberToAdd);
   }
 

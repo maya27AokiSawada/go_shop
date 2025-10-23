@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../utils/app_logger.dart';
 
 /// ユーザー切り替え時のデータ引き継ぎ選択ダイアログ
 class UserDataMigrationDialog extends StatelessWidget {
@@ -24,7 +23,8 @@ class UserDataMigrationDialog extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('異なるユーザーでログインしました。', style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text('異なるユーザーでログインしました。',
+              style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           Text('前回: $previousUser'),
           Text('今回: $newUser'),

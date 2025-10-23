@@ -1,10 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:logger/logger.dart';
 import '../utils/app_logger.dart';
 import '../models/app_news.dart';
 import '../flavors.dart';
-
-
 
 /// Firestoreからアプリニュースを取得するサービス
 class FirestoreNewsService {
@@ -19,7 +16,8 @@ class FirestoreNewsService {
         Log.info('📰 DEV環境: ダミーニュースを返します');
         return AppNews(
           title: '🎉 Go Shop v2.0 リリース！',
-          content: 'Go Shopが大幅にアップデートされました！新機能として招待システム、プレミアムプラン、ハイブリッド同期機能が追加されました。ぜひお試しください！',
+          content:
+              'Go Shopが大幅にアップデートされました！新機能として招待システム、プレミアムプラン、ハイブリッド同期機能が追加されました。ぜひお試しください！',
           createdAt: DateTime.now().subtract(const Duration(days: 1)),
           actionText: '詳細を見る',
           actionUrl: 'https://example.com/news',

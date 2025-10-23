@@ -1,7 +1,6 @@
 // lib/widgets/multi_group_invitation_dialog.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../utils/app_logger.dart';
 import '../models/purchase_group.dart';
 import '../services/enhanced_invitation_service.dart';
 
@@ -9,7 +8,7 @@ import '../services/enhanced_invitation_service.dart';
 class MultiGroupInvitationDialog extends ConsumerStatefulWidget {
   final String targetEmail;
   final List<GroupInvitationOption> availableGroups;
-  
+
   const MultiGroupInvitationDialog({
     super.key,
     required this.targetEmail,
@@ -17,10 +16,12 @@ class MultiGroupInvitationDialog extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<MultiGroupInvitationDialog> createState() => _MultiGroupInvitationDialogState();
+  ConsumerState<MultiGroupInvitationDialog> createState() =>
+      _MultiGroupInvitationDialogState();
 }
 
-class _MultiGroupInvitationDialogState extends ConsumerState<MultiGroupInvitationDialog> {
+class _MultiGroupInvitationDialogState
+    extends ConsumerState<MultiGroupInvitationDialog> {
   final Map<String, bool> _selectedGroups = {};
   final Map<String, PurchaseGroupRole> _selectedRoles = {};
   final TextEditingController _messageController = TextEditingController();
@@ -29,12 +30,13 @@ class _MultiGroupInvitationDialogState extends ConsumerState<MultiGroupInvitatio
   @override
   void initState() {
     super.initState();
-    
+
     // Initialize selection state
     for (final option in widget.availableGroups) {
       if (option.canInvite) {
         _selectedGroups[option.group.groupId] = false;
-        _selectedRoles[option.group.groupId] = PurchaseGroupRole.member; // Default role
+        _selectedRoles[option.group.groupId] =
+            PurchaseGroupRole.member; // Default role
       }
     }
   }
@@ -66,11 +68,13 @@ class _MultiGroupInvitationDialogState extends ConsumerState<MultiGroupInvitatio
                     children: [
                       const Text(
                         'グループ招待',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.bold),
                       ),
                       Text(
                         '招待先: ${widget.targetEmail}',
-                        style: const TextStyle(fontSize: 14, color: Colors.grey),
+                        style:
+                            const TextStyle(fontSize: 14, color: Colors.grey),
                       ),
                     ],
                   ),
@@ -82,7 +86,7 @@ class _MultiGroupInvitationDialogState extends ConsumerState<MultiGroupInvitatio
               ],
             ),
             const SizedBox(height: 16),
-            
+
             // Group selection list
             Expanded(
               child: Column(
@@ -93,7 +97,6 @@ class _MultiGroupInvitationDialogState extends ConsumerState<MultiGroupInvitatio
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                   ),
                   const SizedBox(height: 8),
-                  
                   Expanded(
                     child: ListView.builder(
                       itemCount: widget.availableGroups.length,
@@ -106,9 +109,9 @@ class _MultiGroupInvitationDialogState extends ConsumerState<MultiGroupInvitatio
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Custom message
             TextField(
               controller: _messageController,
@@ -119,20 +122,23 @@ class _MultiGroupInvitationDialogState extends ConsumerState<MultiGroupInvitatio
                 border: OutlineInputBorder(),
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Action buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton(
-                  onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+                  onPressed:
+                      _isLoading ? null : () => Navigator.of(context).pop(),
                   child: const Text('キャンセル'),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
-                  onPressed: _canSendInvitation() && !_isLoading ? _sendInvitations : null,
+                  onPressed: _canSendInvitation() && !_isLoading
+                      ? _sendInvitations
+                      : null,
                   child: _isLoading
                       ? const SizedBox(
                           width: 20,
@@ -161,11 +167,13 @@ class _MultiGroupInvitationDialogState extends ConsumerState<MultiGroupInvitatio
         enabled: isSelectable,
         leading: Checkbox(
           value: isSelected,
-          onChanged: isSelectable ? (value) {
-            setState(() {
-              _selectedGroups[groupId] = value ?? false;
-            });
-          } : null,
+          onChanged: isSelectable
+              ? (value) {
+                  setState(() {
+                    _selectedGroups[groupId] = value ?? false;
+                  });
+                }
+              : null,
         ),
         title: Text(
           group.groupName,
@@ -197,11 +205,14 @@ class _MultiGroupInvitationDialogState extends ConsumerState<MultiGroupInvitatio
                   }
                 },
                 items: PurchaseGroupRole.values
-                    .where((role) => role != PurchaseGroupRole.owner) // Don't allow owner role in invitations
+                    .where((role) =>
+                        role !=
+                        PurchaseGroupRole
+                            .owner) // Don't allow owner role in invitations
                     .map((role) => DropdownMenuItem(
-                      value: role,
-                      child: Text(_getRoleDisplayName(role)),
-                    ))
+                          value: role,
+                          child: Text(_getRoleDisplayName(role)),
+                        ))
                     .toList(),
               )
             : null,
@@ -237,14 +248,15 @@ class _MultiGroupInvitationDialogState extends ConsumerState<MultiGroupInvitatio
 
     try {
       final selectedGroups = <GroupInvitationData>[];
-      
+
       for (final entry in _selectedGroups.entries) {
-        if (entry.value) { // If selected
+        if (entry.value) {
+          // If selected
           final groupId = entry.key;
           final group = widget.availableGroups
               .firstWhere((option) => option.group.groupId == groupId)
               .group;
-          
+
           selectedGroups.add(GroupInvitationData(
             groupId: groupId,
             groupName: group.groupName,
@@ -257,14 +269,14 @@ class _MultiGroupInvitationDialogState extends ConsumerState<MultiGroupInvitatio
       final result = await invitationService.sendInvitations(
         targetEmail: widget.targetEmail,
         selectedGroups: selectedGroups,
-        customMessage: _messageController.text.trim().isEmpty 
-            ? null 
+        customMessage: _messageController.text.trim().isEmpty
+            ? null
             : _messageController.text.trim(),
       );
 
       if (mounted) {
         Navigator.of(context).pop(result);
-        
+
         // Show result dialog
         _showResultDialog(result);
       }
@@ -308,11 +320,13 @@ class _MultiGroupInvitationDialogState extends ConsumerState<MultiGroupInvitatio
             Text('送信失敗: ${result.totalFailed}件'),
             if (result.errors.isNotEmpty) ...[
               const SizedBox(height: 8),
-              const Text('エラー詳細:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('エラー詳細:',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
               ...result.errors.map((error) => Padding(
-                padding: const EdgeInsets.only(left: 8.0),
-                child: Text('• $error', style: const TextStyle(fontSize: 12)),
-              )),
+                    padding: const EdgeInsets.only(left: 8.0),
+                    child:
+                        Text('• $error', style: const TextStyle(fontSize: 12)),
+                  )),
             ],
           ],
         ),

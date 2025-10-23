@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'package:logger/logger.dart';
-
 
 // Logger instance
 
@@ -73,14 +71,13 @@ class AdService {
   /// サインイン時の広告表示判定
   Future<bool> shouldShowSignInAd() async {
     final prefs = await SharedPreferences.getInstance();
-    
+
     // 1. 今日の広告表示回数チェック
     final today = DateTime.now().day;
     final lastAdDay = prefs.getInt('last_ad_day') ?? 0;
-    final dailyCount = lastAdDay == today 
-        ? (prefs.getInt(_dailyAdCountKey) ?? 0) 
-        : 0;
-    
+    final dailyCount =
+        lastAdDay == today ? (prefs.getInt(_dailyAdCountKey) ?? 0) : 0;
+
     if (dailyCount >= _maxDailyAds) {
       return false;
     }
@@ -122,10 +119,10 @@ class AdService {
   Future<void> _recordAdShown() async {
     final prefs = await SharedPreferences.getInstance();
     final now = DateTime.now();
-    
+
     await prefs.setInt(_lastAdShownKey, now.millisecondsSinceEpoch);
     await prefs.setInt('last_ad_day', now.day);
-    
+
     final currentCount = prefs.getInt(_dailyAdCountKey) ?? 0;
     await prefs.setInt(_dailyAdCountKey, currentCount + 1);
   }

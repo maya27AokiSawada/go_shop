@@ -1,6 +1,4 @@
 import 'dart:convert';
-import 'package:logger/logger.dart';
-
 
 // Logger instance
 
@@ -11,8 +9,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../utils/app_logger.dart';
 import 'invitation_security_service.dart';
-import '../models/purchase_group.dart';
-
 
 // QRコード招待サービスプロバイダー
 final qrInvitationServiceProvider = Provider<QRInvitationService>((ref) {
@@ -26,7 +22,7 @@ class QRInvitationService {
 
   QRInvitationService(this._ref);
 
-  InvitationSecurityService get _securityService => 
+  InvitationSecurityService get _securityService =>
       _ref.read(invitationSecurityServiceProvider);
 
   /// セキュアなQRコード用の招待データを作成
@@ -60,7 +56,8 @@ class QRInvitationService {
       'invitationId': invitationId,
       'inviterUid': currentUser.uid,
       'inviterEmail': currentUser.email ?? '',
-      'inviterDisplayName': currentUser.displayName ?? currentUser.email ?? 'ユーザー',
+      'inviterDisplayName':
+          currentUser.displayName ?? currentUser.email ?? 'ユーザー',
       'shoppingListId': shoppingListId,
       'purchaseGroupId': purchaseGroupId,
       'groupName': groupName,
@@ -71,7 +68,8 @@ class QRInvitationService {
       'securityKey': securityKey,
       'invitationToken': invitationToken,
       'createdAt': DateTime.now().toIso8601String(),
-      'expiresAt': DateTime.now().add(const Duration(hours: 24)).toIso8601String(),
+      'expiresAt':
+          DateTime.now().add(const Duration(hours: 24)).toIso8601String(),
       'type': 'secure_qr_invitation',
       'version': '3.0', // セキュリティ強化版
     };
@@ -88,7 +86,7 @@ class QRInvitationService {
   Map<String, dynamic>? decodeQRData(String qrData) {
     try {
       final decoded = jsonDecode(qrData) as Map<String, dynamic>;
-      
+
       // バージョンチェック
       final version = decoded['version'] as String?;
       if (version == '3.0') {
@@ -103,7 +101,8 @@ class QRInvitationService {
   }
 
   /// セキュア招待（v3.0）の検証
-  Map<String, dynamic>? _validateSecureInvitation(Map<String, dynamic> decoded) {
+  Map<String, dynamic>? _validateSecureInvitation(
+      Map<String, dynamic> decoded) {
     // 必須フィールドのチェック
     if (decoded['type'] != 'secure_qr_invitation' ||
         decoded['invitationId'] == null ||
@@ -143,8 +142,9 @@ class QRInvitationService {
   }
 
   /// レガシー招待（v2.0以前）の検証
-  Map<String, dynamic>? _validateLegacyInvitation(Map<String, dynamic> decoded) {
-    if (decoded['type'] == 'qr_invitation' && 
+  Map<String, dynamic>? _validateLegacyInvitation(
+      Map<String, dynamic> decoded) {
+    if (decoded['type'] == 'qr_invitation' &&
         decoded['inviterUid'] != null &&
         decoded['inviterDisplayName'] != null &&
         decoded['shoppingListId'] != null &&
@@ -152,7 +152,6 @@ class QRInvitationService {
         decoded['groupName'] != null &&
         decoded['groupOwnerUid'] != null &&
         decoded['inviteRole'] != null) {
-      
       final role = decoded['inviteRole'] as String;
       if (role != 'member' && role != 'manager') {
         Log.warning('警告: 予期しない招待ロール: $role, memberとして扱います');
@@ -223,15 +222,16 @@ class QRInvitationService {
       }
 
       final inviterUid = invitationData['inviterUid'] as String;
-      
+
       // 自分自身への招待を防ぐ
       if (inviterUid == acceptorUid) {
         throw Exception('自分自身を招待することはできません');
       }
 
       // 招待タイプを取得
-      final invitationType = invitationData['invitationType'] as String? ?? 'individual';
-      
+      final invitationType =
+          invitationData['invitationType'] as String? ?? 'individual';
+
       Log.info('💡 セキュア招待受諾: タイプ=$invitationType');
 
       // 招待タイプによって処理を分岐
@@ -252,9 +252,10 @@ class QRInvitationService {
   }
 
   /// 招待のセキュリティを検証
-  bool _validateInvitationSecurity(Map<String, dynamic> invitationData, String? providedKey) {
+  bool _validateInvitationSecurity(
+      Map<String, dynamic> invitationData, String? providedKey) {
     final version = invitationData['version'] as String?;
-    
+
     // v3.0（セキュア版）の場合
     if (version == '3.0') {
       final expectedKey = invitationData['securityKey'] as String?;
@@ -262,18 +263,19 @@ class QRInvitationService {
         Log.info('セキュリティキーが不足');
         return false;
       }
-      
+
       if (!_securityService.validateSecurityKey(providedKey, expectedKey)) {
         Log.info('セキュリティキーが無効');
         return false;
       }
     }
-    
+
     return true;
   }
 
   /// 招待受諾を記録
-  Future<void> _recordInvitationAcceptance(Map<String, dynamic> invitationData, String acceptorUid) async {
+  Future<void> _recordInvitationAcceptance(
+      Map<String, dynamic> invitationData, String acceptorUid) async {
     final invitationId = invitationData['invitationId'] as String?;
     if (invitationId != null) {
       await _firestore.collection('invitation_logs').doc(invitationId).set({
@@ -287,18 +289,29 @@ class QRInvitationService {
   }
 
   /// フレンド招待を処理 - 招待者の全グループへのアクセスを許可
-  Future<void> _processFriendInvitation(String inviterUid, String acceptorUid) async {
+  Future<void> _processFriendInvitation(
+      String inviterUid, String acceptorUid) async {
     try {
       Log.info('🤝 フレンド招待を処理中...');
-      
+
       // フレンドリストに追加
-      await _firestore.collection('users').doc(inviterUid).collection('friends').doc(acceptorUid).set({
+      await _firestore
+          .collection('users')
+          .doc(inviterUid)
+          .collection('friends')
+          .doc(acceptorUid)
+          .set({
         'uid': acceptorUid,
         'addedAt': FieldValue.serverTimestamp(),
         'addedBy': 'invitation',
       });
-      
-      await _firestore.collection('users').doc(acceptorUid).collection('friends').doc(inviterUid).set({
+
+      await _firestore
+          .collection('users')
+          .doc(acceptorUid)
+          .collection('friends')
+          .doc(inviterUid)
+          .set({
         'uid': inviterUid,
         'addedAt': FieldValue.serverTimestamp(),
         'addedBy': 'invitation_acceptance',
@@ -314,15 +327,15 @@ class QRInvitationService {
       for (final doc in ownerGroupsQuery.docs) {
         final groupData = doc.data();
         final allowedUids = List<String>.from(groupData['allowedUids'] ?? []);
-        
+
         if (!allowedUids.contains(acceptorUid)) {
           allowedUids.add(acceptorUid);
-          
+
           await doc.reference.update({
             'allowedUids': allowedUids,
             'lastUpdated': FieldValue.serverTimestamp(),
           });
-          
+
           Log.info('✅ フレンドとして ${doc.id} グループに追加: $acceptorUid');
         }
       }
@@ -335,34 +348,35 @@ class QRInvitationService {
   }
 
   /// 個別招待を処理 - 特定のグループのみ
-  Future<void> _processIndividualInvitation(Map<String, dynamic> invitationData, String acceptorUid) async {
+  Future<void> _processIndividualInvitation(
+      Map<String, dynamic> invitationData, String acceptorUid) async {
     try {
       Log.info('👤 個別招待を処理中...');
-      
+
       final groupId = invitationData['purchaseGroupId'] as String;
-      
+
       // 特定のグループのallowedUidsに追加
       final groupRef = _firestore.collection('purchase_groups').doc(groupId);
       final groupDoc = await groupRef.get();
-      
+
       if (!groupDoc.exists) {
         throw Exception('指定されたグループが見つかりません');
       }
-      
+
       final groupData = groupDoc.data()!;
       final allowedUids = List<String>.from(groupData['allowedUids'] ?? []);
-      
+
       if (!allowedUids.contains(acceptorUid)) {
         allowedUids.add(acceptorUid);
-        
+
         await groupRef.update({
           'allowedUids': allowedUids,
           'lastUpdated': FieldValue.serverTimestamp(),
         });
-        
+
         Log.info('✅ 個別招待でグループに追加: $acceptorUid → $groupId');
       }
-      
+
       Log.info('✅ 個別招待処理完了');
     } catch (e) {
       Log.error('❌ 個別招待処理エラー: $e');

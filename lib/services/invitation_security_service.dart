@@ -1,7 +1,5 @@
 import 'dart:convert';
 import 'dart:math';
-import 'package:logger/logger.dart';
-
 
 // Logger instance
 
@@ -9,7 +7,6 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../utils/app_logger.dart';
 import '../models/purchase_group.dart';
-
 
 // プロバイダー
 final invitationSecurityServiceProvider = Provider<InvitationSecurityService>(
@@ -19,8 +16,9 @@ final invitationSecurityServiceProvider = Provider<InvitationSecurityService>(
 /// 招待のセキュリティ管理を行うサービス
 class InvitationSecurityService {
   static const int _keyLength = 32; // セキュリティキーの長さ
-  static const String _charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  
+  static const String _charset =
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+
   final Random _random = Random.secure();
 
   /// セキュリティキーを生成
@@ -53,11 +51,11 @@ class InvitationSecurityService {
       'inviter': inviterUid,
       'timestamp': DateTime.now().millisecondsSinceEpoch,
     };
-    
+
     final jsonString = jsonEncode(payload);
     final bytes = utf8.encode(jsonString);
     final base64Token = base64.encode(bytes);
-    
+
     return base64Token;
   }
 
@@ -67,15 +65,15 @@ class InvitationSecurityService {
       final bytes = base64.decode(token);
       final jsonString = utf8.decode(bytes);
       final payload = jsonDecode(jsonString) as Map<String, dynamic>;
-      
+
       // 必須フィールドのチェック
-      if (!payload.containsKey('groupId') || 
-          !payload.containsKey('type') || 
+      if (!payload.containsKey('groupId') ||
+          !payload.containsKey('type') ||
           !payload.containsKey('key') ||
           !payload.containsKey('timestamp')) {
         return null;
       }
-      
+
       return InvitationTokenData(
         groupId: payload['groupId'] as String,
         invitationType: payload['type'] as String,
@@ -94,7 +92,7 @@ class InvitationSecurityService {
     if (providedKey.isEmpty || expectedKey.isEmpty) {
       return false;
     }
-    
+
     // タイミング攻撃を防ぐための定数時間比較
     return _constantTimeEquals(providedKey, expectedKey);
   }
@@ -120,16 +118,15 @@ class InvitationSecurityService {
     DateTime? statusChangeTime,
   }) {
     final now = statusChangeTime ?? DateTime.now();
-    
+
     return member.copyWith(
       invitationStatus: newStatus,
       securityKey: securityKey ?? member.securityKey,
-      invitedAt: newStatus == InvitationStatus.pending 
-          ? (member.invitedAt ?? now) 
+      invitedAt: newStatus == InvitationStatus.pending
+          ? (member.invitedAt ?? now)
           : member.invitedAt,
-      acceptedAt: newStatus == InvitationStatus.accepted 
-          ? now 
-          : member.acceptedAt,
+      acceptedAt:
+          newStatus == InvitationStatus.accepted ? now : member.acceptedAt,
     );
   }
 
@@ -154,7 +151,7 @@ class InvitationSecurityService {
   /// 定数時間でのString比較（タイミング攻撃対策）
   bool _constantTimeEquals(String a, String b) {
     if (a.length != b.length) return false;
-    
+
     int result = 0;
     for (int i = 0; i < a.length; i++) {
       result |= a.codeUnitAt(i) ^ b.codeUnitAt(i);
@@ -194,7 +191,7 @@ class InvitationTokenData {
 
   bool get isIndividualInvitation => invitationType == 'individual';
   bool get isFriendInvitation => invitationType == 'friend';
-  
+
   DateTime get createdAt => DateTime.fromMillisecondsSinceEpoch(timestamp);
 }
 
@@ -219,13 +216,13 @@ class InvitationResponse {
   DateTime get respondedAt => DateTime.fromMillisecondsSinceEpoch(timestamp);
 
   Map<String, dynamic> toJson() => {
-    'groupId': groupId,
-    'memberId': memberId,
-    'memberName': memberName,
-    'securityKey': securityKey,
-    'accepted': accepted,
-    'timestamp': timestamp,
-  };
+        'groupId': groupId,
+        'memberId': memberId,
+        'memberName': memberName,
+        'securityKey': securityKey,
+        'accepted': accepted,
+        'timestamp': timestamp,
+      };
 
   factory InvitationResponse.fromJson(Map<String, dynamic> json) {
     return InvitationResponse(

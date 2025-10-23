@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:path/path.dart' as path;
-import '../lib/utils/app_logger.dart';
+import 'package:go_shop/utils/app_logger.dart';
 
 void main() {
   AppLogger.info('🔄 AppLoggerへの一括移行開始...');
@@ -20,9 +20,9 @@ void main() {
   for (final pattern in patterns) {
     final files = _getFilesMatchingPattern(pattern);
     totalFiles += files.length;
-    
+
     AppLogger.info('\n📁 処理中: $pattern (${files.length} files)');
-    
+
     for (final file in files) {
       if (_migrateFileToAppLogger(file)) {
         updatedFiles++;
@@ -40,10 +40,10 @@ List<File> _getFilesMatchingPattern(String pattern) {
   final directory = Directory('.');
   final prefix = pattern.split('*').first;
   final suffix = pattern.split('*').last;
-  
+
   final dir = Directory(prefix.isEmpty ? '.' : prefix);
   if (!dir.existsSync()) return [];
-  
+
   return dir
       .listSync(recursive: pattern.contains('**'))
       .whereType<File>()
@@ -63,7 +63,7 @@ bool _migrateFileToAppLogger(File file) {
       content = content.replaceAll(mainImportPattern, '');
       changed = true;
     }
-    
+
     // logger宣言を削除
     final loggerDeclarations = [
       'final logger = Logger();',
@@ -71,26 +71,26 @@ bool _migrateFileToAppLogger(File file) {
       'static final Logger _logger = Logger();',
       'static final Logger logger = Logger();',
     ];
-    
+
     for (final declaration in loggerDeclarations) {
       if (content.contains(declaration)) {
         content = content.replaceAll(declaration, '');
         changed = true;
       }
     }
-    
+
     // AppLoggerのimportを追加（まだなければ）
     if (!content.contains('app_logger.dart')) {
       // 最初のimport行を探す
       final lines = content.split('\n');
       int insertIndex = -1;
-      
+
       for (int i = 0; i < lines.length; i++) {
         if (lines[i].startsWith('import ') && lines[i].contains('package:')) {
           insertIndex = i + 1;
         }
       }
-      
+
       if (insertIndex > -1) {
         lines.insert(insertIndex, "import '../utils/app_logger.dart';");
         content = lines.join('\n');
@@ -100,7 +100,7 @@ bool _migrateFileToAppLogger(File file) {
 
     // logger呼び出しを変換
     final loggerReplacements = {
-      '_Log.': 'Log.',  // _Log を Log に修正
+      '_Log.': 'Log.', // _Log を Log に修正
       'logger.i(': 'Log.info(',
       '_logger.i(': 'Log.info(',
       'logger.w(': 'Log.warning(',

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../utils/app_logger.dart';
 import '../models/purchase_group.dart';
 import '../providers/purchase_group_provider.dart';
 
@@ -40,7 +39,7 @@ class _OwnerMessageWidgetState extends ConsumerState<OwnerMessageWidget> {
 
   Future<void> _saveMessage() async {
     if (_isSaving) return;
-    
+
     setState(() {
       _isSaving = true;
     });
@@ -51,11 +50,11 @@ class _OwnerMessageWidgetState extends ConsumerState<OwnerMessageWidget> {
         widget.purchaseGroup.groupId,
         _messageController.text.trim(),
       );
-      
+
       setState(() {
         _isEditing = false;
       });
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -90,7 +89,7 @@ class _OwnerMessageWidgetState extends ConsumerState<OwnerMessageWidget> {
   @override
   Widget build(BuildContext context) {
     final hasMessage = widget.purchaseGroup.ownerMessage?.isNotEmpty == true;
-    
+
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
       padding: const EdgeInsets.all(16),
@@ -131,7 +130,6 @@ class _OwnerMessageWidgetState extends ConsumerState<OwnerMessageWidget> {
             ],
           ),
           const SizedBox(height: 12),
-          
           if (_isEditing && widget.isOwner)
             // 編集モード
             Column(

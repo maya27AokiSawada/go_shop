@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../utils/app_logger.dart';
 import '../providers/subscription_provider.dart';
 
 /// シンプルな広告バナーウィジェット（実際のAdMob等に置き換え可能）
@@ -9,7 +8,7 @@ class AdBannerWidget extends ConsumerWidget {
   final EdgeInsets? margin;
 
   const AdBannerWidget({
-    super.key, 
+    super.key,
     this.height,
     this.margin,
   });
@@ -17,7 +16,7 @@ class AdBannerWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final shouldShowAds = ref.watch(shouldShowAdsProvider);
-    
+
     // プレミアムユーザーには広告を表示しない
     if (!shouldShowAds) {
       return const SizedBox.shrink();
@@ -71,7 +70,7 @@ class HomeAdBannerWidget extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final shouldShowAds = ref.watch(shouldShowAdsProvider);
     final subscription = ref.watch(subscriptionProvider);
-    
+
     // プレミアムユーザーには広告を表示しない
     if (!shouldShowAds) {
       return const SizedBox.shrink();
@@ -121,7 +120,7 @@ class HomeAdBannerWidget extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
           ],
-          
+
           // 模擬広告コンテンツ
           Container(
             height: 100,
@@ -158,7 +157,7 @@ class HomeAdBannerWidget extends ConsumerWidget {
               ],
             ),
           ),
-          
+
           if (isTrialActive && remainingDays > 0) ...[
             const SizedBox(height: 12),
             Row(
@@ -195,7 +194,7 @@ class _PremiumUpgradeDialog extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final subscription = ref.watch(subscriptionProvider);
-    
+
     return AlertDialog(
       title: const Row(
         children: [
@@ -214,7 +213,6 @@ class _PremiumUpgradeDialog extends ConsumerWidget {
           const Text('• プレミアムサポート'),
           const Text('• 新機能の優先アクセス'),
           const SizedBox(height: 16),
-          
           if (subscription.isTrialActive) ...[
             Container(
               padding: const EdgeInsets.all(8),
@@ -240,7 +238,6 @@ class _PremiumUpgradeDialog extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
           ],
-          
           const Text('料金プラン', style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           _PlanCard(
@@ -274,7 +271,7 @@ class _PremiumUpgradeDialog extends ConsumerWidget {
   void _purchaseYearlyPlan(BuildContext context, WidgetRef ref) {
     // 実際のアプリ内課金処理をここに実装
     ref.read(subscriptionProvider.notifier).purchaseYearlyPlan();
-    
+
     Navigator.of(context).pop();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -287,7 +284,7 @@ class _PremiumUpgradeDialog extends ConsumerWidget {
   void _purchaseThreeYearPlan(BuildContext context, WidgetRef ref) {
     // 実際のアプリ内課金処理をここに実装
     ref.read(subscriptionProvider.notifier).purchaseThreeYearPlan();
-    
+
     Navigator.of(context).pop();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -346,8 +343,7 @@ class _PlanCard extends StatelessWidget {
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2
-                          ),
+                              horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: Colors.blue[600],
                             borderRadius: BorderRadius.circular(4),

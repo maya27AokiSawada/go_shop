@@ -7,7 +7,7 @@ import '../providers/auth_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/shopping_list_provider.dart';
 import '../providers/user_name_provider.dart';
-import '../providers/user_settings_provider.dart';
+// import '../providers/user_settings_provider.dart';
 import '../datastore/user_settings_repository.dart';
 import 'user_preferences_service.dart';
 import 'group_management_service.dart';

@@ -1,7 +1,6 @@
 // lib/widgets/invitation_monitor_widget.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../utils/app_logger.dart';
 import '../models/accepted_invitation.dart';
 import '../services/accepted_invitation_service.dart';
 import '../services/invitation_monitor_service.dart';
@@ -12,10 +11,12 @@ class InvitationMonitorWidget extends ConsumerStatefulWidget {
   const InvitationMonitorWidget({super.key});
 
   @override
-  ConsumerState<InvitationMonitorWidget> createState() => _InvitationMonitorWidgetState();
+  ConsumerState<InvitationMonitorWidget> createState() =>
+      _InvitationMonitorWidgetState();
 }
 
-class _InvitationMonitorWidgetState extends ConsumerState<InvitationMonitorWidget> {
+class _InvitationMonitorWidgetState
+    extends ConsumerState<InvitationMonitorWidget> {
   bool _isExpanded = false;
 
   @override
@@ -36,7 +37,8 @@ class _InvitationMonitorWidgetState extends ConsumerState<InvitationMonitorWidge
 
   @override
   Widget build(BuildContext context) {
-    final acceptedInvitationService = ref.read(acceptedInvitationServiceProvider);
+    final acceptedInvitationService =
+        ref.read(acceptedInvitationServiceProvider);
 
     return Card(
       child: StreamBuilder<List<FirestoreAcceptedInvitation>>(
@@ -47,7 +49,10 @@ class _InvitationMonitorWidgetState extends ConsumerState<InvitationMonitorWidge
               padding: EdgeInsets.all(16.0),
               child: Row(
                 children: [
-                  SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                  SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2)),
                   SizedBox(width: 8),
                   Text('招待状況を確認中...'),
                 ],
@@ -56,25 +61,29 @@ class _InvitationMonitorWidgetState extends ConsumerState<InvitationMonitorWidge
           }
 
           final invitations = snapshot.data ?? [];
-          
+
           return ExpansionTile(
             leading: Icon(
-              invitations.isEmpty ? Icons.check_circle : Icons.notifications_active,
+              invitations.isEmpty
+                  ? Icons.check_circle
+                  : Icons.notifications_active,
               color: invitations.isEmpty ? Colors.green : Colors.orange,
             ),
             title: Text(
-              invitations.isEmpty 
-                ? '📥 招待受諾 (待機中: 0件)'
-                : '📥 招待受諾 (未処理: ${invitations.length}件)',
+              invitations.isEmpty
+                  ? '📥 招待受諾 (待機中: 0件)'
+                  : '📥 招待受諾 (未処理: ${invitations.length}件)',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: invitations.isEmpty ? Colors.green[700] : Colors.orange[700],
+                color: invitations.isEmpty
+                    ? Colors.green[700]
+                    : Colors.orange[700],
               ),
             ),
             subtitle: Text(
               invitations.isEmpty
-                ? 'すべての招待が処理済みです'
-                : '${invitations.length}件の新しい参加者が待機中',
+                  ? 'すべての招待が処理済みです'
+                  : '${invitations.length}件の新しい参加者が待機中',
             ),
             initiallyExpanded: _isExpanded,
             onExpansionChanged: (expanded) {
@@ -96,7 +105,8 @@ class _InvitationMonitorWidgetState extends ConsumerState<InvitationMonitorWidge
               else
                 Column(
                   children: [
-                    ...invitations.map((invitation) => _buildInvitationTile(invitation)),
+                    ...invitations
+                        .map((invitation) => _buildInvitationTile(invitation)),
                     const Divider(),
                     Padding(
                       padding: const EdgeInsets.all(16.0),
@@ -170,10 +180,11 @@ class _InvitationMonitorWidgetState extends ConsumerState<InvitationMonitorWidge
     );
   }
 
-  Future<void> _processInvitation(FirestoreAcceptedInvitation invitation) async {
+  Future<void> _processInvitation(
+      FirestoreAcceptedInvitation invitation) async {
     try {
       final monitorService = ref.read(invitationMonitorServiceProvider);
-      
+
       // 個別処理は processAllPendingInvitations を使って実行
       await monitorService.processAllPendingInvitations();
 
@@ -219,7 +230,8 @@ class _InvitationMonitorWidgetState extends ConsumerState<InvitationMonitorWidge
 
     if (confirmed == true) {
       try {
-        final acceptedInvitationService = ref.read(acceptedInvitationServiceProvider);
+        final acceptedInvitationService =
+            ref.read(acceptedInvitationServiceProvider);
         await acceptedInvitationService.deleteAcceptedInvitation(
           acceptorUid: invitation.acceptorUid,
         );
@@ -301,6 +313,6 @@ class _InvitationMonitorWidgetState extends ConsumerState<InvitationMonitorWidge
 
   String _formatDateTime(DateTime dateTime) {
     return '${dateTime.year}/${dateTime.month}/${dateTime.day} '
-           '${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
+        '${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 }

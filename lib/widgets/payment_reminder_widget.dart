@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../utils/app_logger.dart';
 import '../providers/subscription_provider.dart';
 import '../pages/premium_page.dart';
 
@@ -12,7 +11,7 @@ class PaymentReminderWidget extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final shouldShow = ref.watch(shouldShowPaymentReminderProvider);
     final subscription = ref.watch(subscriptionProvider);
-    
+
     if (!shouldShow) return const SizedBox.shrink();
 
     final notifier = ref.read(subscriptionProvider.notifier);
@@ -52,7 +51,6 @@ class PaymentReminderWidget extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 12),
-            
             Text(
               message,
               style: TextStyle(
@@ -61,7 +59,6 @@ class PaymentReminderWidget extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 16),
-            
             Row(
               children: [
                 Expanded(
@@ -102,11 +99,11 @@ class PaymentReminderWidget extends ConsumerWidget {
                 ),
               ],
             ),
-            
             if (subscription.remainingTrialDays > 0) ...[
               const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: Colors.red[100],
                   borderRadius: BorderRadius.circular(16),

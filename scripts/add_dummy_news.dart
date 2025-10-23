@@ -1,7 +1,7 @@
 /// Firestoreのnewsコレクションにダミーニュースを追加するための手順
-/// 
+///
 /// Firebase Console を使用して手動で追加してください:
-/// 
+///
 /// 1. https://console.firebase.google.com/ を開く
 /// 2. プロジェクト「gotoshop-572b7」を選択
 /// 3. 左メニューから「Firestore Database」を選択
@@ -16,7 +16,7 @@
 ///    - priority (number): 1
 /// 8. 「保存」をクリック
 
-import '../lib/utils/app_logger.dart';
+import 'package:go_shop/utils/app_logger.dart';
 
 void main() {
   AppLogger.info('📰 ダミーニュース追加手順');
