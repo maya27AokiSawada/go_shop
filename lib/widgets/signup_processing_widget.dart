@@ -38,7 +38,7 @@ class _SignupProcessingWidgetState extends ConsumerState<SignupProcessingWidget>
 
   bool _isProcessing = false;
   String _currentStep = 'サインアップ処理を開始しています...';
-  List<String> _completedSteps = [];
+  final List<String> _completedSteps = [];
   String? _errorMessage;
 
   @override
@@ -285,11 +285,26 @@ class _SignupProcessingWidgetState extends ConsumerState<SignupProcessingWidget>
     // ShoppingListの移行
     await _migrateShoppingLists('default_group', newGroupId);
 
-    // 古いローカルグループを削除
+    // デフォルトグループのownerメンバーIDをFirebase UIDに更新
     try {
-      await repository.deleteGroup('default_group');
+      final defaultGroup = await repository.getGroupById('default_group');
+      final updatedMembers = defaultGroup.members?.map((member) {
+            if (member.role == PurchaseGroupRole.owner) {
+              return member.copyWith(memberId: user.uid);
+            }
+            return member;
+          }).toList() ??
+          [];
+
+      final updatedDefaultGroup = defaultGroup.copyWith(
+        members: updatedMembers,
+        ownerUid: user.uid,
+      );
+
+      await repository.updateGroup('default_group', updatedDefaultGroup);
+      Log.info('✅ [SIGNUP_WIDGET] デフォルトグループのownerメンバーIDをFirebase UIDに更新完了');
     } catch (e) {
-      Log.warning('⚠️ [SIGNUP_WIDGET] 古いグループ削除エラー: $e');
+      Log.warning('⚠️ [SIGNUP_WIDGET] デフォルトグループ更新エラー: $e');
     }
 
     Log.info('✅ [SIGNUP_WIDGET] ローカルデータ移行完了');

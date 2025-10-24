@@ -7,8 +7,10 @@ import '../datastore/hive_purchase_group_repository.dart';
 import '../datastore/hybrid_purchase_group_repository.dart';
 import '../flavors.dart';
 import '../helper/security_validator.dart';
+import '../services/access_control_service.dart';
 import 'user_settings_provider.dart';
 import 'auth_provider.dart';
+import 'user_specific_hive_provider.dart';
 
 // Logger instance
 
@@ -217,10 +219,7 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
       state = AsyncData(updatedGroup);
       Log.info('👥 [ADD MEMBER] 最終更新完了');
 
-      // allGroupsProviderも更新
-      ref.invalidate(allGroupsProvider);
-
-      // メンバープールも更新
+      // メンバープールも更新（allGroupsProviderはリアクティブ更新されるため手動invalidateは不要）
       ref.read(memberPoolProvider.notifier).syncPool();
     } catch (e, stackTrace) {
       Log.error('❌ [ADD MEMBER] エラー発生: $e');
@@ -270,10 +269,7 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
       state = AsyncData(updatedGroup);
       Log.info('👥 [DELETE MEMBER] 最終更新完了');
 
-      // allGroupsProviderも更新
-      ref.invalidate(allGroupsProvider);
-
-      // メンバープールも更新
+      // メンバープールも更新（allGroupsProviderはリアクティブ更新されるため手動invalidateは不要）
       ref.read(memberPoolProvider.notifier).syncPool();
     } catch (e, stackTrace) {
       Log.error('❌ [DELETE MEMBER] エラー発生: $e');
@@ -345,11 +341,8 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
       final updatedGroup = currentGroup.copyWith(ownerMessage: message);
       state = AsyncData(updatedGroup);
 
-      // バックグラウンドで保存
+      // バックグラウンドで保存（allGroupsProviderはリアクティブ更新されるため手動invalidateは不要）
       await repository.updateGroup(groupId, updatedGroup);
-
-      // allGroupsProviderも更新
-      ref.invalidate(allGroupsProvider);
     } catch (e) {
       // エラーが発生したら元の状態に戻す
       state = AsyncError(e, StackTrace.current);
@@ -374,6 +367,15 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
     Log.info('🔄 [ALL GROUPS] AllGroupsNotifier.build() 開始');
 
     try {
+      // Hiveが初期化されるのを待つ（特にデスクトップでのユーザー固有初期化）
+      final hiveReady = ref.watch(hiveInitializationStatusProvider);
+      if (!hiveReady) {
+        Log.info('🔄 [ALL GROUPS] Hive初期化待機中...');
+        // hiveUserInitializationProvider は FutureProvider なので .future で待機
+        await ref.read(hiveUserInitializationProvider.future);
+        Log.info('🔄 [ALL GROUPS] Hive初期化完了、続行します');
+      }
+
       final repository = ref.read(purchaseGroupRepositoryProvider);
       Log.info('🔄 [ALL GROUPS] リポジトリ取得完了: ${repository.runtimeType}');
 
@@ -384,13 +386,14 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
           data: (user) {
             if (user != null) {
               Log.info('🔄 [ALL GROUPS] サインイン状態でグループ取得: ${user.email}');
-              // サインイン済みの場合はFirestore同期をバックグラウンドで実行
-              if (repository is HybridPurchaseGroupRepository) {
-                // 非同期でFirestore同期を実行（buildをブロックしない）
-                repository.syncFromFirestore().catchError((e) {
-                  Log.warning('⚠️ [ALL GROUPS] バックグラウンド同期エラー: $e');
-                });
-              }
+              // Firestore同期を一時的に無効化（デバッグ用）
+              Log.info('🔧 [ALL GROUPS] Firestore同期は一時的に無効化されています（デバッグ用）');
+              // if (repository is HybridPurchaseGroupRepository) {
+              //   // 非同期でFirestore同期を実行（buildをブロックしない）
+              //   repository.syncFromFirestore().catchError((e) {
+              //     Log.warning('⚠️ [ALL GROUPS] バックグラウンド同期エラー: $e');
+              //   });
+              // }
             } else {
               Log.info('🔄 [ALL GROUPS] 未サインイン状態でグループ取得');
             }
@@ -407,33 +410,45 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
       }
 
       Log.info('🔄 [ALL GROUPS] getAllGroups() 呼び出し開始');
-      final groups = await repository.getAllGroups();
-      Log.info('🔄 [ALL GROUPS] getAllGroups() 完了: ${groups.length}グループ');
+      final allGroups = await repository.getAllGroups();
+      Log.info('🔄 [ALL GROUPS] getAllGroups() 完了: ${allGroups.length}グループ');
 
-      if (groups.isNotEmpty) {
-        for (final group in groups) {
+      // 🔒 アクセス制御によるフィルタリング
+      final accessControl = ref.read(accessControlServiceProvider);
+      final visibilityMode = await accessControl.getGroupVisibilityMode();
+
+      List<PurchaseGroup> filteredGroups;
+      switch (visibilityMode) {
+        case GroupVisibilityMode.all:
+          filteredGroups = allGroups;
+          Log.info('🔄 [ALL GROUPS] 全グループ表示モード');
+          break;
+        case GroupVisibilityMode.defaultOnly:
+          filteredGroups =
+              allGroups.where((g) => g.groupId == 'default_group').toList();
+          Log.info('🔒 [ALL GROUPS] MyListsのみ表示モード（シークレット/未認証）');
+          break;
+        case GroupVisibilityMode.readOnly:
+          filteredGroups = allGroups;
+          Log.info('🔄 [ALL GROUPS] 読み取り専用モード');
+          break;
+      }
+
+      if (filteredGroups.isNotEmpty) {
+        for (final group in filteredGroups) {
           Log.info('🔄 [ALL GROUPS] - ${group.groupName} (${group.groupId})');
         }
       }
 
-      // デフォルトグループが存在しない場合、即座に作成（空の場合のみ）
-      if (groups.isEmpty) {
-        Log.info('🔄 [ALL GROUPS] グループが空のため、デフォルトグループを作成します');
-        try {
-          await _ensureDefaultGroupExists();
-          // 作成後に再度グループを取得
-          final updatedGroups = await repository.getAllGroups();
-          Log.info('🔄 [ALL GROUPS] デフォルトグループ作成後: ${updatedGroups.length}グループ');
-          return updatedGroups;
-        } catch (defaultGroupError) {
-          Log.error('❌ [ALL GROUPS] デフォルトグループ作成エラー: $defaultGroupError');
-          // デフォルトグループ作成に失敗した場合は空リストを返す
-          Log.warning('⚠️ [ALL GROUPS] グループが存在せず、デフォルト作成も失敗しました');
-          return [];
-        }
+      // デフォルトグループ(MyLists)の確認
+      final hasDefaultGroup =
+          allGroups.any((g) => g.groupId == 'default_group');
+      if (!hasDefaultGroup) {
+        Log.info(
+            '🔄 [ALL GROUPS] デフォルトグループ(MyLists)が見つかりません。UserInitializationServiceで作成されます');
       }
 
-      return groups;
+      return filteredGroups;
     } catch (e, stackTrace) {
       Log.error('❌ [ALL GROUPS] エラー発生: $e');
       Log.error('❌ [ALL GROUPS] スタックトレース: $stackTrace');
@@ -447,83 +462,36 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
     state = await AsyncValue.guard(() => build());
   }
 
-  /// デフォルトグループの存在を確保
-  Future<void> _ensureDefaultGroupExists() async {
-    try {
-      Log.info('🔄 [DEFAULT GROUP] デフォルトグループ作成開始');
-      final repository = ref.read(purchaseGroupRepositoryProvider);
-
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-
-      // 開発環境では常にローカルユーザーとして処理
-      User? currentUser;
-      try {
-        if (F.appFlavor != Flavor.dev) {
-          currentUser = FirebaseAuth.instance.currentUser;
-        }
-      } catch (e) {
-        Log.info('🔄 [DEFAULT GROUP] Firebase利用不可（開発環境）: $e');
-        currentUser = null;
-      }
-
-      final currentUserId = currentUser?.uid ?? 'local_user_$timestamp';
-
-      String userName = 'ゲスト';
-      String userEmail = 'guest@local.app';
-
-      if (currentUser != null) {
-        // サインイン済みユーザーの場合
-        userName = currentUser.displayName ??
-            currentUser.email?.split('@')[0] ??
-            'ユーザー';
-        userEmail = currentUser.email ?? 'unknown@local.app';
-        Log.info('🔄 [DEFAULT GROUP] サインイン済みユーザー: $userName ($userEmail)');
-      } else {
-        // 未サインインユーザーの場合（開発環境含む）
-        userName = 'ゲスト$timestamp';
-        userEmail = 'guest_${timestamp}@local.app';
-        Log.info('🔄 [DEFAULT GROUP] 未サインインユーザー: $userName ($userEmail)');
-      }
-
-      // デフォルトグループのオーナーメンバーを作成
-      final ownerMember = PurchaseGroupMember.create(
-        memberId: currentUserId,
-        name: userName,
-        contact: userEmail,
-        role: PurchaseGroupRole.owner,
-        isSignedIn: currentUser != null,
-      );
-
-      // デフォルトグループを作成
-      await repository.createGroup('default_group', 'My Lists', ownerMember);
-
-      Log.info('✅ [DEFAULT GROUP] デフォルトグループ作成完了: $userName');
-    } catch (e, stackTrace) {
-      Log.error('❌ [DEFAULT GROUP] デフォルトグループ作成エラー: $e');
-      Log.error('❌ [DEFAULT GROUP] スタックトレース: $stackTrace');
-      throw Exception('Failed to create default group: $e');
-    }
-  }
-
-  /// 新しいグループを作成
+  /// 新しいグループを作成（Firebase認証必須）
   Future<void> createNewGroup(String groupName) async {
     Log.info('🆕 [CREATE GROUP] createNewGroup: $groupName');
+
+    // 🔒 Firebase認証チェック（本番環境のみ）
+    User? currentUser;
+    try {
+      if (F.appFlavor != Flavor.dev) {
+        currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser == null) {
+          throw Exception('新しいグループを作成するにはFirebase認証が必要です。サインインしてください。');
+        }
+        Log.info('🆕 [CREATE GROUP] 認証済みユーザー: ${currentUser.email}');
+      } else {
+        Log.info('🔧 [CREATE GROUP] DEV環境 - 認証チェックをスキップ');
+      }
+    } catch (e) {
+      if (F.appFlavor != Flavor.dev) {
+        Log.error('❌ [CREATE GROUP] 認証エラー: $e');
+        rethrow;
+      }
+      Log.info('🔄 [CREATE GROUP] Firebase利用不可（開発環境）: $e');
+      currentUser = null;
+    }
+
     final repository = ref.read(purchaseGroupRepositoryProvider);
+    final currentUserId = currentUser?.uid ?? '';
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
 
     try {
-      // 現在のFirebaseユーザー情報を安全に取得
-      User? currentUser;
-      try {
-        if (F.appFlavor != Flavor.dev) {
-          currentUser = FirebaseAuth.instance.currentUser;
-        }
-      } catch (e) {
-        Log.info('🔄 [CREATE GROUP] Firebase利用不可（開発環境）: $e');
-        currentUser = null;
-      }
-      final currentUserId = currentUser?.uid ?? '';
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-
       // ユーザー情報を安全に取得
       String userName = 'ゲスト';
       String userEmail = 'guest@local.app';
@@ -547,15 +515,15 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
                 : 'ゲスト$timestamp';
             userEmail = userSettings.userEmail.isNotEmpty
                 ? userSettings.userEmail
-                : 'guest_${timestamp}@local.app';
+                : 'guest_$timestamp@local.app';
           } else {
             userName = 'ゲスト$timestamp';
-            userEmail = 'guest_${timestamp}@local.app';
+            userEmail = 'guest_$timestamp@local.app';
           }
         } catch (e) {
           Log.warning('⚠️ [CREATE GROUP] UserSettings取得エラー、デフォルト値を使用: $e');
           userName = 'ゲスト$timestamp';
-          userEmail = 'guest_${timestamp}@local.app';
+          userEmail = 'guest_$timestamp@local.app';
         }
         Log.info('🆕 [CREATE GROUP] 未サインインユーザー: $userName ($userEmail)');
       }

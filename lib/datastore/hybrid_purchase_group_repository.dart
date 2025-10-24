@@ -25,9 +25,12 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
 
   HybridPurchaseGroupRepository(this._ref) {
     _hiveRepo = HivePurchaseGroupRepository(_ref);
-    // DEVモードではFirestoreリポジトリを初期化しない
+    // � Firestore統合を有効化（マルチユーザー・マルチデバイス対応）
     if (F.appFlavor != Flavor.dev) {
       _firestoreRepo = FirestorePurchaseGroupRepository();
+      developer.log('🌐 [HYBRID_REPO] Firestore統合有効化 - クラウド同期開始');
+    } else {
+      developer.log('💡 [HYBRID_REPO] DEV環境 - Hiveのみで動作');
     }
   }
 
@@ -308,8 +311,9 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
 
   /// Firestoreから全グループを非同期で同期
   void _syncFromFirestoreInBackground() {
-    if (_isSyncing || F.appFlavor == Flavor.dev || _firestoreRepo == null)
+    if (_isSyncing || F.appFlavor == Flavor.dev || _firestoreRepo == null) {
       return;
+    }
 
     _isSyncing = true;
     _unawaited(_firestoreRepo!.getAllGroups().then((firestoreGroups) async {
@@ -341,8 +345,9 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
 
   /// 特定グループをFirestoreから同期
   void _syncGroupFromFirestoreInBackground(String groupId) {
-    if (F.appFlavor == Flavor.dev || !_isOnline || _firestoreRepo == null)
+    if (F.appFlavor == Flavor.dev || !_isOnline || _firestoreRepo == null) {
       return;
+    }
 
     _unawaited(
         _firestoreRepo!.getGroupById(groupId).then((firestoreGroup) async {

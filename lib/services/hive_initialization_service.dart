@@ -1,15 +1,13 @@
 ﻿// lib/services/hive_initialization_service.dart
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import '../utils/app_logger.dart';
 import '../models/purchase_group.dart';
 import '../models/shopping_list.dart';
 import '../models/user_settings.dart';
-import '../providers/hive_provider.dart' as hive_provider;
 import 'data_version_service.dart';
-import 'user_specific_hive_service.dart';
 
 /// Hive初期化を統合管理するサービス
 class HiveInitializationService {
@@ -18,15 +16,22 @@ class HiveInitializationService {
     try {
       AppLogger.info('Hive初期化開始');
 
-      // 1. Hiveの基本初期化（アプリ専用ディレクトリを使用）
-      final appDocDir = await getApplicationDocumentsDirectory();
-      final hiveDir = Directory('${appDocDir.path}/hive_db');
-      if (!await hiveDir.exists()) {
-        await hiveDir.create(recursive: true);
-      }
+      // 1. Hiveの基本初期化（プラットフォーム別）
+      if (kIsWeb) {
+        // Web環境：ブラウザのIndexedDBを使用
+        await Hive.initFlutter();
+        AppLogger.info('Hive基本初期化完了 (Web環境: IndexedDB)');
+      } else {
+        // モバイル・デスクトップ環境：アプリ専用ディレクトリを使用
+        final appDocDir = await getApplicationDocumentsDirectory();
+        final hiveDir = Directory('${appDocDir.path}/hive_db');
+        if (!await hiveDir.exists()) {
+          await hiveDir.create(recursive: true);
+        }
 
-      await Hive.initFlutter(hiveDir.path);
-      AppLogger.info('Hive基本初期化完了 (保存先: ${hiveDir.path})');
+        await Hive.initFlutter(hiveDir.path);
+        AppLogger.info('Hive基本初期化完了 (保存先: ${hiveDir.path})');
+      }
 
       // 2. アダプター登録
       await _registerAdapters();

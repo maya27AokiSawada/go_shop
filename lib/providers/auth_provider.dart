@@ -6,6 +6,7 @@ import '../helpers/ui_helper.dart';
 import '../services/authentication_service.dart';
 import '../services/user_info_service.dart';
 import '../services/email_management_service.dart';
+import '../services/user_preferences_service.dart';
 import '../providers/user_name_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/purchase_group_provider.dart';
@@ -319,6 +320,31 @@ class FirebaseAuthService {
     ref.invalidate(selectedGroupProvider);
     ref.invalidate(allGroupsProvider);
     await _loadUserNameFromDefaultGroup(ref, userNameController);
+    // サインイン時にFirestore上のユーザー名があればプリファレンスへ同期し、
+    // 表示用プロバイダーを更新する（Firestore同期はサインイン時のみ）
+    try {
+      final firestoreName = await ref
+          .read(userNameNotifierProvider.notifier)
+          .restoreUserNameFromFirestore();
+
+      if (firestoreName != null && firestoreName.isNotEmpty) {
+        // プリファレンスへ保存
+        await UserPreferencesService.saveUserName(firestoreName);
+        // 表示用Providerをプリファレンスから再読み込みして更新
+        await ref.read(userNameProvider.notifier).refresh();
+        Log.info('🔄 サインイン時にFirestoreのユーザー名を同期しました: $firestoreName');
+      } else {
+        // Firestoreに名前がない場合はプリファレンスを再読み込みして表示を安定化
+        await ref.read(userNameProvider.notifier).refresh();
+        Log.info('ℹ️ Firestoreにユーザー名が無かったため、プリファレンスから表示を再読み込みしました');
+      }
+    } catch (e) {
+      Log.warning('⚠️ サインイン時のユーザー名Firestore同期でエラー: $e');
+      // エラー時はプリファレンスの値を再読み込みしてUIを維持
+      try {
+        await ref.read(userNameProvider.notifier).refresh();
+      } catch (_) {}
+    }
     // TODO: QrCodeHelper.processPendingInvitation処理
   }
 
@@ -337,6 +363,26 @@ class FirebaseAuthService {
     ref.invalidate(selectedGroupProvider);
     ref.invalidate(allGroupsProvider);
     await _loadUserNameFromDefaultGroup(ref, userNameController);
+
+    // サインアップ後も同様にFirestore上のユーザー名を確認して同期（存在する場合）
+    try {
+      final firestoreName = await ref
+          .read(userNameNotifierProvider.notifier)
+          .restoreUserNameFromFirestore();
+
+      if (firestoreName != null && firestoreName.isNotEmpty) {
+        await UserPreferencesService.saveUserName(firestoreName);
+        await ref.read(userNameProvider.notifier).refresh();
+        Log.info('🔄 サインアップ後にFirestoreのユーザー名を同期しました: $firestoreName');
+      } else {
+        await ref.read(userNameProvider.notifier).refresh();
+      }
+    } catch (e) {
+      Log.warning('⚠️ サインアップ後のユーザー名Firestore同期でエラー: $e');
+      try {
+        await ref.read(userNameProvider.notifier).refresh();
+      } catch (_) {}
+    }
   }
 
   Future<void> _saveUserInfo(
