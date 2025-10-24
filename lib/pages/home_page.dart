@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
-import '../providers/user_name_provider.dart';
+import '../services/access_control_service.dart';
+import '../services/user_preferences_service.dart';
 import '../widgets/auth_panel_widget.dart';
 import '../widgets/user_name_panel_widget.dart';
 import '../widgets/qr_code_panel_widget.dart';
@@ -16,13 +17,35 @@ class HomePage extends ConsumerStatefulWidget {
 
 class _HomePageState extends ConsumerState<HomePage> {
   final userNameController = TextEditingController();
+  bool _isSecretMode = false;
 
   @override
   void initState() {
     super.initState();
-    // ユーザー名プロバイダーから値を読み込んでTextEditingControllerに反映
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadUserNameToController();
+    print('🚀 HomePage: initState実行 - 直接SharedPreferencesからユーザー名を読み込み');
+
+    // プロバイダーとは別に、直接SharedPreferencesから読み込みを実行
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (mounted) {
+        try {
+          final userName = await UserPreferencesService.getUserName();
+          if (userName != null && userName.isNotEmpty) {
+            userNameController.text = userName;
+            print('✅ HomePage: UserPreferencesServiceから直接ユーザー名取得: $userName');
+          } else {
+            print('❌ HomePage: UserPreferencesServiceにユーザー名が保存されていません');
+          }
+
+          // シークレットモード状態も読み込み
+          final accessControl = ref.read(accessControlServiceProvider);
+          final isSecretMode = await accessControl.isSecretModeEnabled();
+          setState(() {
+            _isSecretMode = isSecretMode;
+          });
+        } catch (e) {
+          print('❌ HomePage: UserPreferences読み込みエラー: $e');
+        }
+      }
     });
   }
 
@@ -32,33 +55,10 @@ class _HomePageState extends ConsumerState<HomePage> {
     super.dispose();
   }
 
-  /// ユーザー名プロバイダーからTextEditingControllerに値をロード（初回のみ）
-  Future<void> _loadUserNameToController() async {
-    // 初回読み込みのみ
-    final currentAsync = ref.read(userNameProvider);
-    currentAsync.whenData((userName) {
-      if (userName != null && userName.isNotEmpty && mounted) {
-        userNameController.text = userName;
-        print('� HomePage: 初期ユーザー名をコントローラーに設定: $userName');
-      }
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
 
-    // ユーザー名プロバイダーの変化を監視してTextEditingControllerに反映
-    ref.listen(userNameProvider, (previous, next) {
-      next.whenData((userName) {
-        if (userName != null && userName.isNotEmpty && mounted) {
-          if (userNameController.text != userName) {
-            userNameController.text = userName;
-            print('� HomePage: ユーザー名をコントローラーに設定: $userName');
-          }
-        }
-      });
-    });
     return Scaffold(
       appBar: AppBar(
         title: const Text('Go Shop'),
@@ -123,9 +123,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 UserNamePanelWidget(
                   userNameController: userNameController,
                   onSaveSuccess: () {
-                    // ユーザー名保存成功時：プロバイダーから最新値を読み込み
-                    _loadUserNameToController();
-                    print('🔄 HomePage: ユーザー名保存成功時にコントローラーを更新');
+                    print('🔄 HomePage: ユーザー名保存成功（シンプル）');
                   },
                 ),
 
@@ -156,7 +154,90 @@ class _HomePageState extends ConsumerState<HomePage> {
 
                 const SizedBox(height: 20),
 
-                // 5. サインアウトボタン（認証済み時のみ表示）
+                // 5. シークレットモード切り替えボタン（認証済み時または開発環境で表示）
+                if (isAuthenticated || true) ...[
+                  // 開発環境では常に表示
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.purple.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.purple.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.security,
+                              color: Colors.purple.shade700,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'プライバシー設定',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.purple.shade800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'シークレットモードをオンにすると、サインインが必要になります',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.purple.shade600,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () async {
+                              final accessControl =
+                                  ref.read(accessControlServiceProvider);
+                              await accessControl.toggleSecretMode();
+                              // 状態を更新（SharedPreferencesから直接読み込み）
+                              final newSecretMode =
+                                  await accessControl.isSecretModeEnabled();
+                              setState(() {
+                                _isSecretMode = newSecretMode;
+                              });
+                            },
+                            icon: Icon(
+                              _isSecretMode
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
+                            ),
+                            label: Text(
+                              _isSecretMode
+                                  ? 'シークレットモード: ON'
+                                  : 'シークレットモード: OFF',
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _isSecretMode
+                                  ? Colors.orange.shade100
+                                  : Colors.green.shade100,
+                              foregroundColor: _isSecretMode
+                                  ? Colors.orange.shade800
+                                  : Colors.green.shade800,
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+
+                // 6. サインアウトボタン（認証済み時のみ表示）
                 if (isAuthenticated) ...[
                   SizedBox(
                     width: double.infinity,

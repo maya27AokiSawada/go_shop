@@ -1,5 +1,6 @@
 // lib/services/hive_lock_cleaner.dart
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import '../utils/app_logger.dart';
 
 /// Hiveロックファイルをクリアするサービス
@@ -44,6 +45,11 @@ class HiveLockCleaner {
 
   /// OneDriveドキュメントフォルダ内のロックファイルもクリア
   static Future<void> clearOneDriveLocks() async {
+    if (kIsWeb) {
+      AppLogger.info('💻 Web環境：ロックファイルクリアをスキップ');
+      return;
+    }
+
     try {
       final documentsPath = Platform.environment['USERPROFILE'];
       if (documentsPath != null) {

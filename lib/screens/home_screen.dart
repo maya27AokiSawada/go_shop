@@ -5,7 +5,6 @@ import '../providers/auth_provider.dart';
 import '../pages/home_page.dart';
 import '../pages/purchase_group_page.dart';
 import '../pages/shopping_list_page.dart';
-import '../widgets/hive_initialization_wrapper.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -19,40 +18,38 @@ class HomeScreen extends ConsumerWidget {
       const ShoppingListPage(),
     ];
 
-    return HiveInitializationWrapper(
-      child: Scaffold(
-        body: pages[pageIndex],
-        bottomNavigationBar: BottomNavigationBar(
-          currentIndex: pageIndex,
-          onTap: (index) {
-            // グループページ (index == 1) の場合は認証チェック
-            if (index == 1) {
-              final authState = ref.read(authStateProvider);
-              final isAuthenticated = authState.maybeWhen(
-                data: (user) => user != null,
-                orElse: () => false,
+    return Scaffold(
+      body: pages[pageIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: pageIndex,
+        onTap: (index) {
+          // グループページ (index == 1) の場合は認証チェック
+          if (index == 1) {
+            final authState = ref.read(authStateProvider);
+            final isAuthenticated = authState.maybeWhen(
+              data: (user) => user != null,
+              orElse: () => false,
+            );
+
+            if (!isAuthenticated) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('グループ機能を使用するには、まずサインインしてください'),
+                  backgroundColor: Colors.orange,
+                  duration: Duration(seconds: 3),
+                ),
               );
-
-              if (!isAuthenticated) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('グループ機能を使用するには、まずサインインしてください'),
-                    backgroundColor: Colors.orange,
-                    duration: Duration(seconds: 3),
-                  ),
-                );
-                return;
-              }
+              return;
             }
+          }
 
-            ref.read(pageIndexProvider.notifier).setPageIndex(index);
-          },
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'ホーム'),
-            BottomNavigationBarItem(icon: Icon(Icons.group), label: 'グループ'),
-            BottomNavigationBarItem(icon: Icon(Icons.list), label: '買い物リスト'),
-          ],
-        ),
+          ref.read(pageIndexProvider.notifier).setPageIndex(index);
+        },
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'ホーム'),
+          BottomNavigationBarItem(icon: Icon(Icons.group), label: 'グループ'),
+          BottomNavigationBarItem(icon: Icon(Icons.list), label: '買い物リスト'),
+        ],
       ),
     );
   }

@@ -108,7 +108,7 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
   }
 
   Future<void> addItem(ShoppingItem item) async {
-    try {
+    state = await AsyncValue.guard(() async {
       final repository = ref.read(shoppingListRepositoryProvider);
       final currentList = await future;
       final updatedItems = [...currentList.items, item];
@@ -118,16 +118,12 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
       await repository.addItem(updatedList.copyWith(groupId: _key));
       Log.info('🛒 ShoppingListNotifier: アイテム「${item.name}」を追加してHiveに保存');
 
-      // 状態を更新
-      state = AsyncValue.data(updatedList);
-    } catch (e) {
-      Log.info('❌ ShoppingListNotifier: アイテム追加エラー: $e');
-      state = AsyncValue.error(e, StackTrace.current);
-    }
+      return updatedList;
+    });
   }
 
   Future<void> removeItem(ShoppingItem item) async {
-    try {
+    state = await AsyncValue.guard(() async {
       final repository = ref.read(shoppingListRepositoryProvider);
       final currentList = await future;
       final updatedItems = currentList.items
@@ -140,12 +136,8 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
       await repository.addItem(updatedList.copyWith(groupId: _key));
       Log.info('🛒 ShoppingListNotifier: アイテム「${item.name}」を削除してHiveに保存');
 
-      // 状態を更新
-      state = AsyncValue.data(updatedList);
-    } catch (e) {
-      Log.info('❌ ShoppingListNotifier: アイテム削除エラー: $e');
-      state = AsyncValue.error(e, StackTrace.current);
-    }
+      return updatedList;
+    });
   }
 
   Future<void> updateItem(ShoppingItem oldItem, ShoppingItem newItem) async {
@@ -174,7 +166,7 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
   }
 
   Future<void> togglePurchased(ShoppingItem item) async {
-    try {
+    state = await AsyncValue.guard(() async {
       final repository = ref.read(shoppingListRepositoryProvider);
       final currentList = await future;
       final updatedItems = currentList.items.map((i) {
@@ -215,12 +207,8 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
       await repository.addItem(updatedList.copyWith(groupId: _key));
       Log.info('🛒 ShoppingListNotifier: アイテム「${item.name}」の購入状態を変更してHiveに保存');
 
-      // 状態を更新
-      state = AsyncValue.data(updatedList);
-    } catch (e) {
-      Log.info('❌ ShoppingListNotifier: 購入状態変更エラー: $e');
-      state = AsyncValue.error(e, StackTrace.current);
-    }
+      return updatedList;
+    });
   }
 
   Future<void> clearPurchasedItems() async {

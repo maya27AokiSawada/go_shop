@@ -164,11 +164,26 @@ class SignupService {
 
     await repository.updateGroup(newGroupId, migratedGroup);
 
-    // 古いローカルグループを削除
+    // デフォルトグループのownerメンバーIDをFirebase UIDに更新
     try {
-      await repository.deleteGroup('default_group');
+      final defaultGroup = await repository.getGroupById('default_group');
+      final updatedMembers = defaultGroup.members?.map((member) {
+            if (member.role == PurchaseGroupRole.owner) {
+              return member.copyWith(memberId: user.uid);
+            }
+            return member;
+          }).toList() ??
+          [];
+
+      final updatedDefaultGroup = defaultGroup.copyWith(
+        members: updatedMembers,
+        ownerUid: user.uid,
+      );
+
+      await repository.updateGroup('default_group', updatedDefaultGroup);
+      Log.info('✅ [SIGNUP_SERVICE] デフォルトグループのownerメンバーIDをFirebase UIDに更新完了');
     } catch (e) {
-      Log.warning('⚠️ [SIGNUP_SERVICE] 古いグループ削除エラー: $e');
+      Log.warning('⚠️ [SIGNUP_SERVICE] デフォルトグループ更新エラー: $e');
     }
 
     Log.info('✅ [SIGNUP_SERVICE] ローカルデータ移行完了');

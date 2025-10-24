@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/auth_provider.dart';
+import '../services/user_preferences_service.dart';
 import '../utils/app_logger.dart';
 
 /// ユーザー名管理パネルウィジェット
 class UserNamePanelWidget extends ConsumerStatefulWidget {
   /// ユーザー名コントローラー（親から渡される）
   final TextEditingController userNameController;
-  
+
   /// 保存成功時のコールバック
   final VoidCallback? onSaveSuccess;
 
@@ -18,7 +18,8 @@ class UserNamePanelWidget extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<UserNamePanelWidget> createState() => _UserNamePanelWidgetState();
+  ConsumerState<UserNamePanelWidget> createState() =>
+      _UserNamePanelWidgetState();
 }
 
 class _UserNamePanelWidgetState extends ConsumerState<UserNamePanelWidget> {
@@ -51,7 +52,7 @@ class _UserNamePanelWidgetState extends ConsumerState<UserNamePanelWidget> {
                 style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
               const SizedBox(height: 16),
-              
+
               TextFormField(
                 controller: widget.userNameController,
                 decoration: const InputDecoration(
@@ -74,12 +75,12 @@ class _UserNamePanelWidgetState extends ConsumerState<UserNamePanelWidget> {
                 },
               ),
               const SizedBox(height: 16),
-              
+
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: _isLoading ? null : _saveUserName,
-                  icon: _isLoading 
+                  icon: _isLoading
                       ? const SizedBox(
                           width: 16,
                           height: 16,
@@ -93,9 +94,9 @@ class _UserNamePanelWidgetState extends ConsumerState<UserNamePanelWidget> {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 8),
-              
+
               // 現在の状態表示（デバッグ用）
               if (widget.userNameController.text.isNotEmpty) ...[
                 Container(
@@ -106,12 +107,14 @@ class _UserNamePanelWidgetState extends ConsumerState<UserNamePanelWidget> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.info_outline, size: 16, color: Colors.grey),
+                      const Icon(Icons.info_outline,
+                          size: 16, color: Colors.grey),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           '現在: ${widget.userNameController.text}',
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          style:
+                              const TextStyle(fontSize: 12, color: Colors.grey),
                         ),
                       ),
                     ],
@@ -136,16 +139,18 @@ class _UserNamePanelWidgetState extends ConsumerState<UserNamePanelWidget> {
     });
 
     try {
-      AppLogger.info('👤 ユーザー名保存開始: ${widget.userNameController.text.trim()}');
-      
-      await ref.read(authProvider).saveUserName(
-        context: context,
-        ref: ref,
-        userName: widget.userNameController.text.trim(),
-      );
+      final userName = widget.userNameController.text.trim();
+      AppLogger.info('👤 ユーザー名保存開始: $userName');
 
-      AppLogger.success('✅ ユーザー名保存完了');
-      
+      // 直接SharedPreferencesに保存（シンプル）
+      final success = await UserPreferencesService.saveUserName(userName);
+
+      if (success) {
+        AppLogger.success('✅ ユーザー名保存完了');
+      } else {
+        throw Exception('SharedPreferencesへの保存に失敗');
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -154,12 +159,12 @@ class _UserNamePanelWidgetState extends ConsumerState<UserNamePanelWidget> {
             duration: Duration(seconds: 2),
           ),
         );
-        
+
         widget.onSaveSuccess?.call();
       }
     } catch (e) {
       AppLogger.error('❌ ユーザー名保存エラー: $e');
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

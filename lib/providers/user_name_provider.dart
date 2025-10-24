@@ -4,8 +4,6 @@ import '../utils/app_logger.dart';
 import "../services/user_preferences_service.dart";
 import "../services/firestore_user_name_service.dart";
 import "../flavors.dart";
-import 'auth_provider.dart';
-import 'user_settings_provider.dart';
 
 // Logger instance
 
@@ -61,82 +59,81 @@ final userNameNotifierProvider = AsyncNotifierProvider<UserNameNotifier, void>(
   () => UserNameNotifier(),
 );
 
-// ユーザー名表示用のStateNotifier
+// シンプルなユーザー名表示用Provider（プリファレンスベース）
 class UserNameDisplayNotifier extends StateNotifier<AsyncValue<String?>> {
-  final Ref _ref;
-
-  UserNameDisplayNotifier(this._ref) : super(const AsyncValue.loading()) {
-    _initialize();
+  UserNameDisplayNotifier() : super(const AsyncValue.loading()) {
+    Log.info('🚀 UserNameDisplayNotifier: コンストラクタ実行開始');
+    // 初期読み込みを即座に実行（再起動時の問題を回避）
+    _loadInitialUserName();
+    Log.info('🚀 UserNameDisplayNotifier: コンストラクタ実行完了');
   }
 
-  Future<void> _initialize() async {
-    // 初回読み込み
-    await loadUserName();
-
-    // 認証状態の変化を監視
-    _ref.listen(authStateProvider, (previous, next) {
-      next.whenData((user) {
-        // ユーザーがサインインまたは変更された場合、ユーザー名を再読み込み
-        if (user != null) {
-          Log.info('🔄 認証状態変化を検知、ユーザー名を再読み込み');
-          loadUserName();
-        }
-      });
-    });
-  }
-
-  Future<void> loadUserName() async {
+  /// 初期ユーザー名をプリファレンスから読み込み
+  Future<void> _loadInitialUserName() async {
     try {
-      state = const AsyncValue.loading();
-      Log.info('📱 ユーザー名読み込み開始');
-
-      // 1. SharedPreferencesから取得
+      Log.info('🔄 UserNameDisplayNotifier: 初期ユーザー名読み込み開始');
       final userName = await UserPreferencesService.getUserName();
-      Log.info('📱 SharedPreferencesから取得したユーザー名: $userName');
+      Log.info('📱 プリファレンスからユーザー名読み込み: $userName');
 
-      if (userName != null && userName.isNotEmpty) {
+      if (mounted) {
         state = AsyncValue.data(userName);
-        return;
+        Log.info('✅ UserNameDisplayNotifier: 状態更新完了 - $userName');
+      } else {
+        Log.warning('⚠️ UserNameDisplayNotifier: mounted=false のため状態更新スキップ');
       }
-
-      // 2. 空の場合、UserSettingsからも試行
-      try {
-        final userSettingsAsync = _ref.read(userSettingsProvider);
-        await userSettingsAsync.when(
-          data: (userSettings) async {
-            final settingsUserName = userSettings.userName;
-            Log.info('📱 UserSettingsから取得したユーザー名: $settingsUserName');
-
-            if (settingsUserName.isNotEmpty) {
-              state = AsyncValue.data(settingsUserName);
-              // SharedPreferencesにも同期保存
-              await UserPreferencesService.saveUserName(settingsUserName);
-              return;
-            }
-          },
-          loading: () async {},
-          error: (error, stack) async {
-            Log.warning('⚠️ UserSettings読み込みエラー: $error');
-          },
-        );
-      } catch (e) {
-        Log.warning('⚠️ UserSettings読み込みエラー: $e');
-      } // 3. どちらも空の場合はnull
-      state = const AsyncValue.data(null);
-    } catch (error, stack) {
-      Log.error('❌ ユーザー名読み込みエラー: $error');
-      state = AsyncValue.error(error, stack);
+    } catch (e) {
+      Log.error('❌ ユーザー名読み込みエラー: $e');
+      if (mounted) {
+        state = const AsyncValue.data(null);
+      }
     }
   }
 
-  // ユーザー名が更新された際に呼び出すメソッド
+  /// プリファレンスから再読み込み（シンプル）
   Future<void> refresh() async {
-    await loadUserName();
+    try {
+      state = const AsyncValue.loading();
+      final userName = await UserPreferencesService.getUserName();
+      Log.info('📱 ユーザー名再読み込み: $userName');
+
+      if (mounted) {
+        state = AsyncValue.data(userName);
+      }
+    } catch (e) {
+      Log.warning('⚠️ ユーザー名再読み込みエラー: $e');
+      if (mounted) {
+        state = AsyncValue.error(e, StackTrace.current);
+      }
+    }
+  }
+
+  /// ユーザー名を更新（プリファレンス + Firestore同期）
+  Future<void> updateUserName(String newUserName) async {
+    try {
+      state = const AsyncValue.loading();
+
+      // 1. SharedPreferencesに保存
+      await UserPreferencesService.saveUserName(newUserName);
+      Log.info('📱 プリファレンスにユーザー名保存: $newUserName');
+
+      // 2. Firestore同期（一時的に無効化）
+      Log.info('🔧 Firestore同期は一時的に無効化されています（デバッグ用）');
+
+      // 3. 状態更新
+      if (mounted) {
+        state = AsyncValue.data(newUserName);
+      }
+    } catch (e) {
+      Log.error('❌ ユーザー名更新エラー: $e');
+      if (mounted) {
+        state = AsyncValue.error(e, StackTrace.current);
+      }
+    }
   }
 }
 
-// リアルタイム更新対応のユーザー名Provider
+// シンプルなユーザー名Provider（プリファレンスベース）
 final userNameProvider =
     StateNotifierProvider<UserNameDisplayNotifier, AsyncValue<String?>>((ref) {
-  return UserNameDisplayNotifier(ref);
+  return UserNameDisplayNotifier();
 });
