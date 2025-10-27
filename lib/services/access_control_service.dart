@@ -15,6 +15,8 @@ class AccessControlService {
 
   /// 現在のユーザーがグループ作成可能かチェック
   bool canCreateGroup() {
+    Log.info('🔄 [ACCESS_CONTROL_SERVICE] canCreateGroup() 開始');
+
     if (F.appFlavor == Flavor.dev) {
       return true; // 開発環境では制限なし
     }
@@ -31,6 +33,8 @@ class AccessControlService {
 
   /// 現在のユーザーがグループ編集可能かチェック
   bool canEditGroup(String groupId) {
+    Log.info('🔄 [ACCESS_CONTROL_SERVICE] canEditGroup($groupId) 開始');
+
     if (F.appFlavor == Flavor.dev) {
       return true; // 開発環境では制限なし
     }
@@ -74,6 +78,8 @@ class AccessControlService {
 
   /// グループ表示モード（シークレットモード対応）
   Future<GroupVisibilityMode> getGroupVisibilityMode() async {
+    Log.info('🔄 [ACCESS_CONTROL_SERVICE] getGroupVisibilityMode() 開始');
+
     final user = FirebaseAuth.instance.currentUser;
     final isSecretMode = await _isSecretModeEnabled();
 

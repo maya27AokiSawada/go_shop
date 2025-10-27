@@ -43,6 +43,8 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
   Future<void> _performAppInitialization() async {
     if (_isInitializing) return;
 
+    Log.info('🔄 [APP_INITIALIZE_WIDGET] _performAppInitialization() 開始');
+
     setState(() {
       _isInitializing = true;
       _initializationStatus = 'データをチェック中...';

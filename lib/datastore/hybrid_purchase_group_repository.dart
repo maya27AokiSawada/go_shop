@@ -158,11 +158,17 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
       // 1. まずHiveに保存（楽観的更新）
       final newGroup = await _hiveRepo.createGroup(groupId, groupName, member);
 
+      // メンバープール用グループはHiveのみに保存する
+      if (groupId == 'member_pool') {
+        developer.log('🔒 Member pool group saved to Hive only: $groupName');
+        return newGroup;
+      }
+
       if (F.appFlavor == Flavor.dev || !_isOnline || _firestoreRepo == null) {
         return newGroup;
       }
 
-      // 2. Firestoreに非同期保存
+      // 2. Firestoreに非同期保存（メンバープール以外のみ）
       _unawaited(
           _firestoreRepo!.createGroup(groupId, groupName, member).then((_) {
         developer.log('🔄 Created synced to Firestore: $groupName');
@@ -215,11 +221,17 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
       // 1. Hiveから削除
       final deletedGroup = await _hiveRepo.deleteGroup(groupId);
 
+      // メンバープール用グループはHiveのみで削除
+      if (groupId == 'member_pool') {
+        developer.log('🔒 Member pool group deleted from Hive only: $groupId');
+        return deletedGroup;
+      }
+
       if (F.appFlavor == Flavor.dev || !_isOnline || _firestoreRepo == null) {
         return deletedGroup;
       }
 
-      // 2. Firestoreから非同期削除
+      // 2. Firestoreから非同期削除（メンバープール以外のみ）
       _unawaited(_firestoreRepo!.deleteGroup(groupId).then((_) {
         developer.log('🔄 Delete synced to Firestore: $groupId');
       }).catchError((e) {
