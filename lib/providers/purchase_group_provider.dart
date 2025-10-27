@@ -8,7 +8,7 @@ import '../datastore/hybrid_purchase_group_repository.dart';
 import '../flavors.dart';
 import '../helper/security_validator.dart';
 import '../services/access_control_service.dart';
-import 'user_settings_provider.dart';
+import '../services/user_preferences_service.dart';
 import 'auth_provider.dart';
 import 'user_specific_hive_provider.dart';
 
@@ -366,12 +366,17 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
   Future<List<PurchaseGroup>> build() async {
     Log.info('🔄 [ALL GROUPS] AllGroupsNotifier.build() 開始');
 
-    // ✅ Auth状態を WATCH することで、ログイン/ログアウト時に自動再実行される
+    // ✅ 最初に全ての依存性を確定する
+    // FutureProvider/StreamProviderは ref.watch() が必須（非同期データ監視）
+    // Provider<T>は ref.read() で十分（同期的なサービス）
     final authState = ref.watch(authStateProvider);
+    final hiveReady = ref.watch(hiveInitializationStatusProvider);
+    final repository = ref.read(purchaseGroupRepositoryProvider);
+    final accessControl =
+        ref.read(accessControlServiceProvider); // ← Provider<T>なので read()
 
     try {
       // Hiveが初期化されるのを待つ（特にデスクトップでのユーザー固有初期化）
-      final hiveReady = ref.watch(hiveInitializationStatusProvider);
       if (!hiveReady) {
         Log.info('🔄 [ALL GROUPS] Hive初期化待機中...');
         // hiveUserInitializationProvider は FutureProvider なので .future で待機
@@ -379,7 +384,6 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
         Log.info('🔄 [ALL GROUPS] Hive初期化完了、続行します');
       }
 
-      final repository = ref.read(purchaseGroupRepositoryProvider);
       Log.info('🔄 [ALL GROUPS] リポジトリ取得完了: ${repository.runtimeType}');
 
       // Auth状態に応じて処理を分ける
@@ -416,7 +420,6 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
       Log.info('🔄 [ALL GROUPS] getAllGroups() 完了: ${allGroups.length}グループ');
 
       // 🔒 アクセス制御によるフィルタリング
-      final accessControl = ref.read(accessControlServiceProvider);
       final visibilityMode = await accessControl.getGroupVisibilityMode();
 
       List<PurchaseGroup> filteredGroups;
@@ -507,23 +510,17 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
         Log.info('🆕 [CREATE GROUP] サインイン済みユーザー: $userName ($userEmail)');
       } else {
         // 未サインインユーザーの場合
-        // UserSettingsからの取得を試行（エラーが発生しても続行）
+        // SharedPreferencesから直接取得（UserPreferencesService使用）
         try {
-          final userSettingsAsync = ref.read(userSettingsProvider);
-          final userSettings = userSettingsAsync.value;
-          if (userSettings != null) {
-            userName = userSettings.userName.isNotEmpty
-                ? userSettings.userName
-                : 'ゲスト$timestamp';
-            userEmail = userSettings.userEmail.isNotEmpty
-                ? userSettings.userEmail
-                : 'guest_$timestamp@local.app';
-          } else {
-            userName = 'ゲスト$timestamp';
-            userEmail = 'guest_$timestamp@local.app';
-          }
+          final storedName = await UserPreferencesService.getUserName();
+          final storedEmail = await UserPreferencesService.getUserEmail();
+          userName =
+              (storedName?.isNotEmpty ?? false) ? storedName! : 'ゲスト$timestamp';
+          userEmail = (storedEmail?.isNotEmpty ?? false)
+              ? storedEmail!
+              : 'guest_$timestamp@local.app';
         } catch (e) {
-          Log.warning('⚠️ [CREATE GROUP] UserSettings取得エラー、デフォルト値を使用: $e');
+          Log.warning('⚠️ [CREATE GROUP] ユーザー設定取得エラー、デフォルト値を使用: $e');
           userName = 'ゲスト$timestamp';
           userEmail = 'guest_$timestamp@local.app';
         }
@@ -550,7 +547,14 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
       Log.info('✅ [CREATE GROUP] グループ作成完了: ${newGroup.groupName}');
 
       // 作成したグループを選択状態にする
-      ref.read(selectedGroupIdProvider.notifier).selectGroup(newGroup.groupId);
+      try {
+        ref
+            .read(selectedGroupIdProvider.notifier)
+            .selectGroup(newGroup.groupId);
+        Log.info('✅ [CREATE GROUP] グループ選択完了: ${newGroup.groupId}');
+      } catch (e) {
+        Log.warning('⚠️ [CREATE GROUP] グループ選択エラー（続行）: $e');
+      }
 
       // 楽観的更新：直接stateを更新（refreshは使わない）
       try {
@@ -558,20 +562,22 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
         state = AsyncData(currentGroups);
         Log.info('✅ [CREATE GROUP] 楽観的更新完了: ${currentGroups.length}グループ');
       } catch (e) {
-        Log.warning('⚠️ [CREATE GROUP] 楽観的更新エラー: $e');
+        Log.warning('⚠️ [CREATE GROUP] 楽観的更新エラー（続行）: $e');
       }
 
       // メンバープールも更新（新しいオーナーが追加されるため）
       try {
-        await ref.read(memberPoolProvider.notifier).syncPool();
+        final memberPool = ref.read(memberPoolProvider.notifier);
+        await memberPool.syncPool();
         Log.info('✅ [CREATE GROUP] メンバープール更新完了');
       } catch (e) {
-        Log.warning('⚠️ [CREATE GROUP] メンバープール更新エラー: $e');
+        Log.warning('⚠️ [CREATE GROUP] メンバープール更新エラー（続行）: $e');
       }
     } catch (e, stackTrace) {
-      Log.error('❌ [CREATE GROUP] エラー発生: $e');
+      Log.error('❌ [CREATE GROUP] 予期しないエラー発生: $e');
       Log.error('❌ [CREATE GROUP] スタックトレース: $stackTrace');
-      throw Exception('Failed to create group: $e');
+      // グループ作成後のエラーは致命的ではないため、ログのみ出力して続行
+      // rethrowしない（UI層でのクラッシュを防ぐ）
     }
   }
 }

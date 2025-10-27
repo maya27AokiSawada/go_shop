@@ -14,6 +14,8 @@ class GroupListWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    Log.info('🔄 [GROUP_LIST_WIDGET] build() 開始');
+
     final allGroupsAsync = ref.watch(allGroupsProvider);
 
     return Column(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/user_specific_hive_provider.dart';
+import '../utils/app_logger.dart';
 
 /// Hiveの初期化を待つラッパーウィジェット
 class HiveInitializationWrapper extends ConsumerStatefulWidget {
@@ -49,6 +50,8 @@ class _HiveInitializationWrapperState
 
   @override
   Widget build(BuildContext context) {
+    Log.info('🔄 [HIVE_INITIALIZATION_WRAPPER] build() 開始');
+
     final hiveInitialization = ref.watch(hiveUserInitializationProvider);
 
     return hiveInitialization.when(

@@ -14,27 +14,6 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
   CollectionReference get _groupsCollection =>
       _firestore.collection('purchaseGroups');
 
-  /// ショッピングリストコレクション（全体で一意）
-  CollectionReference get _shoppingListsCollection =>
-      _firestore.collection('shoppingLists');
-
-  /// ユーザーメンバーシップコレクション
-  CollectionReference _getUserMembershipsCollection(String userId) {
-    return _firestore
-        .collection('userMemberships')
-        .doc(userId)
-        .collection('groups');
-  }
-
-  /// 現在のユーザーのメンバーシップコレクション
-  CollectionReference get _currentUserMemberships {
-    final currentUser = _auth.currentUser;
-    if (currentUser == null) {
-      throw Exception('User not authenticated');
-    }
-    return _getUserMembershipsCollection(currentUser.uid);
-  }
-
   /// ショッピングリストID生成（groupId + UUID）
   String generateShoppingListId(String groupId) {
     final uuid = _uuid.v4().replaceAll('-', '').substring(0, 12);
@@ -61,22 +40,12 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
 
       // Firestoreトランザクションで一括処理
       await _firestore.runTransaction((transaction) async {
-        // 1. グループデータを作成
+        // グループデータを作成（/purchaseGroups/{groupId}）
         transaction.set(
             _groupsCollection.doc(groupId), _groupToFirestore(newGroup));
-
-        // 2. オーナーのメンバーシップを作成
-        final membershipRef =
-            _getUserMembershipsCollection(member.memberId).doc(groupId);
-        transaction.set(membershipRef, {
-          'role': 'owner',
-          'joinedAt': FieldValue.serverTimestamp(),
-          'groupName': groupName, // キャッシュ用
-        });
       });
 
-      developer.log(
-          '🔥 [FIRESTORE] Created group and membership: $groupName ($groupId)');
+      developer.log('🔥 [FIRESTORE] Created group: $groupName ($groupId)');
       return newGroup;
     } catch (e) {
       developer.log('❌ Firestore createGroup error: $e');
@@ -99,142 +68,51 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
       developer.log(
           '🔥 [FIRESTORE] Fetching groups for user: $currentUserId ($currentUserEmail)');
 
-      // 1. ユーザーのメンバーシップからグループIDリストを取得
-      final membershipsSnapshot =
-          await _getUserMembershipsCollection(currentUserId).get();
-      var groupIds = membershipsSnapshot.docs.map((doc) => doc.id).toList();
+      // ✅ 仕様書に基づく構造: /purchaseGroups/{groupId}
+      // ユーザーが所有または属するグループのみをフィルタリング
+      developer.log('🔥 [FIRESTORE] パス: /purchaseGroups (ルートレベル)');
 
-      developer.log('🔥 [FIRESTORE] メンバーシップ検索開始');
-      developer.log(
-          '🔥 [FIRESTORE] コレクションパス: users/$currentUserId/memberships (userMemberships)');
-      developer.log(
-          '🔥 [FIRESTORE] Found memberships for ${groupIds.length} groups: $groupIds');
+      final allGroupsSnapshot = await _groupsCollection.get();
 
-      // 🔴 メンバーシップが0件の場合は詳細をログ
-      if (groupIds.isEmpty) {
-        developer.log('⚠️ [FIRESTORE] ユーザーのメンバーシップが見つかりません！');
-        developer.log('💡 考えられる原因:');
-        developer.log('  1. ユーザーがグループを作成していない');
-        developer.log('  2. メンバーシップ情報が保存されていない');
-        developer.log('  3. Firestore セキュリティルール制限');
-        developer.log('  4. グループ削除時にメンバーシップが削除された');
-      }
+      developer.log('🔥 [FIRESTORE] 全グループ数: ${allGroupsSnapshot.docs.length}件');
 
-      // ✅ デフォルトグループが含まれていない場合は追加
-      if (!groupIds.contains('default_group')) {
-        developer.log('🔥 [FIRESTORE] デフォルトグループが見つかりません。追加します...');
-        groupIds.add('default_group');
-      }
+      // ドキュメントから PurchaseGroup に変換し、ユーザーの権限をチェック
+      final userGroups = <PurchaseGroup>[];
 
-      if (groupIds.isEmpty) {
-        developer.log('🔥 [FIRESTORE] No group memberships found');
+      for (final doc in allGroupsSnapshot.docs) {
+        final group = _groupFromFirestore(doc);
 
-        // 🔴 フォールバック: Firestore上のすべてのグループを検索
-        // メンバーシップが削除されても、グループデータが残っている場合がある
-        developer.log('💡 [FIRESTORE] フォールバック: Firestore上のすべてのグループを検索します...');
-        try {
-          final allGroupsSnapshot = await _groupsCollection.get();
-
-          if (allGroupsSnapshot.docs.isEmpty) {
-            developer.log('⚠️ [FIRESTORE] Firestore上にグループが存在しません');
-            return [];
-          }
-
+        // オーナーの場合
+        if (group.ownerUid == currentUserId) {
           developer.log(
-              '🔥 [FIRESTORE] Firestore上に${allGroupsSnapshot.docs.length}件のグループが存在します');
+              '✅ [FIRESTORE] オーナーグループ: ${group.groupName} (${group.groupId})');
+          userGroups.add(group);
+          continue;
+        }
 
-          // ユーザーが所有または属するグループのみをフィルタリング
-          final userGroups = allGroupsSnapshot.docs
-              .map((doc) => _groupFromFirestore(doc))
-              .where((group) {
-            // オーナーの場合
-            if (group.ownerUid == currentUserId) {
-              developer.log('🔥 [FIRESTORE] オーナーグループ: ${group.groupName}');
-              return true;
-            }
+        // メンバーの場合（members 配列から確認）
+        final isMember = group.members?.any((m) {
+              final isUidMatch = m.memberId == currentUserId;
+              final isEmailMatch =
+                  m.contact.toLowerCase() == currentUserEmail.toLowerCase();
+              return isUidMatch || isEmailMatch;
+            }) ??
+            false;
 
-            // メンバーの場合
-            if (group.members?.any((m) => m.memberId == currentUserId) ??
-                false) {
-              developer.log('🔥 [FIRESTORE] メンバーグループ: ${group.groupName}');
-              return true;
-            }
-
-            return false;
-          }).toList();
-
-          developer.log('🔥 [FIRESTORE] フォールバック結果: ${userGroups.length}グループ取得');
-
-          // ✅ 復旧したグループのメンバーシップを自動的に再作成
-          if (userGroups.isNotEmpty) {
-            developer.log('💾 [FIRESTORE] 見つかったグループのメンバーシップを再作成します...');
-            try {
-              for (final group in userGroups) {
-                // 現在のユーザーが所有または属するグループのメンバーシップを再作成
-                if (group.ownerUid == currentUserId) {
-                  // オーナーとしてメンバーシップを作成
-                  final membershipRef =
-                      _getUserMembershipsCollection(currentUserId)
-                          .doc(group.groupId);
-
-                  await membershipRef.set({
-                    'role': 'owner',
-                    'joinedAt': FieldValue.serverTimestamp(),
-                    'groupName': group.groupName,
-                    'recoveredAt': FieldValue.serverTimestamp(),
-                  }, SetOptions(merge: true)); // merge=true で既存データを上書きしない
-
-                  developer
-                      .log('✅ [FIRESTORE] メンバーシップ再作成: オーナー ${group.groupName}');
-                }
-              }
-            } catch (e) {
-              developer.log('⚠️ [FIRESTORE] メンバーシップ再作成エラー: $e');
-              // エラーでも続行（グループはすでに取得できているため）
-            }
-          }
-
-          return userGroups;
-        } catch (e) {
-          developer.log('⚠️ [FIRESTORE] フォールバック検索エラー: $e');
-          return [];
+        if (isMember) {
+          developer.log(
+              '✅ [FIRESTORE] メンバーグループ: ${group.groupName} (${group.groupId})');
+          userGroups.add(group);
         }
       }
 
-      // 2. グループIDsでグループデータを一括取得
-      final List<PurchaseGroup> allGroups = [];
-
-      developer.log('🔥 [FIRESTORE] グループデータ取得開始: groupIds=$groupIds');
-
-      // Firestoreの'in'クエリは最大10件までなので、バッチ処理
-      for (int i = 0; i < groupIds.length; i += 10) {
-        final batch = groupIds.skip(i).take(10).toList();
-        developer.log('🔥 [FIRESTORE] バッチ処理 $i～${i + batch.length}: $batch');
-
-        final groupsSnapshot = await _groupsCollection
-            .where(FieldPath.documentId, whereIn: batch)
-            .get();
-
-        developer.log('🔥 [FIRESTORE] バッチから取得: ${groupsSnapshot.docs.length}件');
-
-        final batchGroups =
-            groupsSnapshot.docs.map((doc) => _groupFromFirestore(doc)).toList();
-
-        allGroups.addAll(batchGroups);
+      if (userGroups.isEmpty) {
+        developer.log('⚠️ [FIRESTORE] ユーザーが属するグループが見つかりません');
       }
 
-      // デバッグ: 各グループの詳細をログ出力
-      if (allGroups.isEmpty) {
-        developer.log('⚠️ [FIRESTORE] グループが取得できませんでした！');
-      } else {
-        for (final group in allGroups) {
-          developer.log(
-              '🔥 [FIRESTORE] - ${group.groupName} (${group.groupId}) Owner: ${group.ownerUid}');
-        }
-      }
-
-      developer.log('🔥 [FIRESTORE] Total fetched groups: ${allGroups.length}');
-      return allGroups;
+      developer
+          .log('🔥 [FIRESTORE] Total fetched groups: ${userGroups.length}');
+      return userGroups;
     } catch (e) {
       developer.log('❌ Firestore getAllGroups error: $e');
       rethrow;
@@ -282,18 +160,8 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
 
       final group = _groupFromFirestore(doc);
 
-      // Firestoreトランザクションで一括処理
-      await _firestore.runTransaction((transaction) async {
-        // 1. グループデータを削除
-        transaction.delete(_groupsCollection.doc(groupId));
-
-        // 2. 全メンバーのメンバーシップを削除
-        for (final member in group.members ?? <PurchaseGroupMember>[]) {
-          final membershipRef =
-              _getUserMembershipsCollection(member.memberId).doc(groupId);
-          transaction.delete(membershipRef);
-        }
-      });
+      // グループと関連データを削除
+      await _groupsCollection.doc(groupId).delete();
 
       developer
           .log('🔥 [FIRESTORE] Deleted group and all memberships: $groupId');
@@ -311,21 +179,10 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
       final group = await getGroupById(groupId);
       final updatedGroup = group.addMember(member);
 
-      // Firestoreトランザクションで一括処理
-      await _firestore.runTransaction((transaction) async {
-        // 1. グループデータを更新
-        transaction.update(
-            _groupsCollection.doc(groupId), _groupToFirestore(updatedGroup));
-
-        // 2. 新メンバーのメンバーシップを作成
-        final membershipRef =
-            _getUserMembershipsCollection(member.memberId).doc(groupId);
-        transaction.set(membershipRef, {
-          'role': member.role.toString().split('.').last,
-          'joinedAt': FieldValue.serverTimestamp(),
-          'groupName': group.groupName, // キャッシュ用
-        });
-      });
+      // グループデータを更新（members配列が含まれている）
+      await _groupsCollection
+          .doc(groupId)
+          .update(_groupToFirestore(updatedGroup));
 
       developer.log(
           '🔥 [FIRESTORE] Added member and created membership: ${member.name} to $groupId');
@@ -343,17 +200,10 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
       final group = await getGroupById(groupId);
       final updatedGroup = group.removeMember(member);
 
-      // Firestoreトランザクションで一括処理
-      await _firestore.runTransaction((transaction) async {
-        // 1. グループデータを更新
-        transaction.update(
-            _groupsCollection.doc(groupId), _groupToFirestore(updatedGroup));
-
-        // 2. メンバーのメンバーシップを削除
-        final membershipRef =
-            _getUserMembershipsCollection(member.memberId).doc(groupId);
-        transaction.delete(membershipRef);
-      });
+      // グループデータを更新（members配列が含まれている）
+      await _groupsCollection
+          .doc(groupId)
+          .update(_groupToFirestore(updatedGroup));
 
       developer.log(
           '🔥 [FIRESTORE] Removed member and deleted membership: ${member.name} from $groupId');

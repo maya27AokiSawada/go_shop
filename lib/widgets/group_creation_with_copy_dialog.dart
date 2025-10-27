@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/purchase_group.dart';
 import '../providers/purchase_group_provider.dart';
+import '../utils/app_logger.dart';
 import 'dart:developer' as developer;
 
 /// Dialog for creating new group with option to copy members from existing group
@@ -37,6 +38,8 @@ class _GroupCreationWithCopyDialogState
 
   @override
   Widget build(BuildContext context) {
+    Log.info('🔄 [GROUP_CREATION_WITH_COPY_DIALOG] build() 開始');
+
     return Dialog(
       child: Container(
         width: MediaQuery.of(context).size.width * 0.9,
