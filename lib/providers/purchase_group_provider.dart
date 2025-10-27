@@ -366,6 +366,9 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
   Future<List<PurchaseGroup>> build() async {
     Log.info('🔄 [ALL GROUPS] AllGroupsNotifier.build() 開始');
 
+    // ✅ Auth状態を WATCH することで、ログイン/ログアウト時に自動再実行される
+    final authState = ref.watch(authStateProvider);
+
     try {
       // Hiveが初期化されるのを待つ（特にデスクトップでのユーザー固有初期化）
       final hiveReady = ref.watch(hiveInitializationStatusProvider);
@@ -379,35 +382,34 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
       final repository = ref.read(purchaseGroupRepositoryProvider);
       Log.info('🔄 [ALL GROUPS] リポジトリ取得完了: ${repository.runtimeType}');
 
-      // Auth状態を安全に読み取り（エラーでも続行）
-      try {
-        final authStateAsync = ref.read(authStateProvider);
-        authStateAsync.whenOrNull(
-          data: (user) {
-            if (user != null) {
-              Log.info('🔄 [ALL GROUPS] サインイン状態でグループ取得: ${user.email}');
-              // Firestore同期を一時的に無効化（デバッグ用）
-              Log.info('🔧 [ALL GROUPS] Firestore同期は一時的に無効化されています（デバッグ用）');
-              // if (repository is HybridPurchaseGroupRepository) {
-              //   // 非同期でFirestore同期を実行（buildをブロックしない）
-              //   repository.syncFromFirestore().catchError((e) {
-              //     Log.warning('⚠️ [ALL GROUPS] バックグラウンド同期エラー: $e');
-              //   });
-              // }
-            } else {
-              Log.info('🔄 [ALL GROUPS] 未サインイン状態でグループ取得');
+      // Auth状態に応じて処理を分ける
+      await authState.whenOrNull(
+        data: (user) async {
+          if (user != null) {
+            Log.info('🔄 [ALL GROUPS] ✅ サインイン状態でグループ取得: ${user.email}');
+            // ✅ Firestore同期を実行（ユーザーがサインインしている場合）
+            if (repository is HybridPurchaseGroupRepository) {
+              try {
+                Log.info('🔄 [ALL GROUPS] Firestore同期開始...');
+                // バックグラウンドで非同期に同期を実行（getAllGroups()をブロックしない）
+                repository.syncFromFirestore().catchError((e) {
+                  Log.warning('⚠️ [ALL GROUPS] バックグラウンド同期エラー: $e');
+                });
+              } catch (e) {
+                Log.warning('⚠️ [ALL GROUPS] Firestore同期開始エラー: $e');
+              }
             }
-          },
-          loading: () {
-            Log.info('🔄 [ALL GROUPS] Auth状態確認中...');
-          },
-          error: (error, stack) {
-            Log.warning('⚠️ [ALL GROUPS] Auth状態エラー: $error');
-          },
-        );
-      } catch (authError) {
-        Log.warning('⚠️ [ALL GROUPS] Auth状態読み取りエラー（続行します）: $authError');
-      }
+          } else {
+            Log.info('🔄 [ALL GROUPS] 未サインイン状態でグループ取得');
+          }
+        },
+        loading: () {
+          Log.info('🔄 [ALL GROUPS] Auth状態確認中...');
+        },
+        error: (error, stack) {
+          Log.warning('⚠️ [ALL GROUPS] Auth状態エラー: $error');
+        },
+      );
 
       Log.info('🔄 [ALL GROUPS] getAllGroups() 呼び出し開始');
       final allGroups = await repository.getAllGroups();
