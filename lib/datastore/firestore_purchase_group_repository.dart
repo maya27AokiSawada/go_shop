@@ -102,25 +102,120 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
       // 1. ユーザーのメンバーシップからグループIDリストを取得
       final membershipsSnapshot =
           await _getUserMembershipsCollection(currentUserId).get();
-      final groupIds = membershipsSnapshot.docs.map((doc) => doc.id).toList();
+      var groupIds = membershipsSnapshot.docs.map((doc) => doc.id).toList();
 
+      developer.log('🔥 [FIRESTORE] メンバーシップ検索開始');
+      developer.log(
+          '🔥 [FIRESTORE] コレクションパス: users/$currentUserId/memberships (userMemberships)');
       developer.log(
           '🔥 [FIRESTORE] Found memberships for ${groupIds.length} groups: $groupIds');
 
+      // 🔴 メンバーシップが0件の場合は詳細をログ
+      if (groupIds.isEmpty) {
+        developer.log('⚠️ [FIRESTORE] ユーザーのメンバーシップが見つかりません！');
+        developer.log('💡 考えられる原因:');
+        developer.log('  1. ユーザーがグループを作成していない');
+        developer.log('  2. メンバーシップ情報が保存されていない');
+        developer.log('  3. Firestore セキュリティルール制限');
+        developer.log('  4. グループ削除時にメンバーシップが削除された');
+      }
+
+      // ✅ デフォルトグループが含まれていない場合は追加
+      if (!groupIds.contains('default_group')) {
+        developer.log('🔥 [FIRESTORE] デフォルトグループが見つかりません。追加します...');
+        groupIds.add('default_group');
+      }
+
       if (groupIds.isEmpty) {
         developer.log('🔥 [FIRESTORE] No group memberships found');
-        return [];
+
+        // 🔴 フォールバック: Firestore上のすべてのグループを検索
+        // メンバーシップが削除されても、グループデータが残っている場合がある
+        developer.log('💡 [FIRESTORE] フォールバック: Firestore上のすべてのグループを検索します...');
+        try {
+          final allGroupsSnapshot = await _groupsCollection.get();
+
+          if (allGroupsSnapshot.docs.isEmpty) {
+            developer.log('⚠️ [FIRESTORE] Firestore上にグループが存在しません');
+            return [];
+          }
+
+          developer.log(
+              '🔥 [FIRESTORE] Firestore上に${allGroupsSnapshot.docs.length}件のグループが存在します');
+
+          // ユーザーが所有または属するグループのみをフィルタリング
+          final userGroups = allGroupsSnapshot.docs
+              .map((doc) => _groupFromFirestore(doc))
+              .where((group) {
+            // オーナーの場合
+            if (group.ownerUid == currentUserId) {
+              developer.log('🔥 [FIRESTORE] オーナーグループ: ${group.groupName}');
+              return true;
+            }
+
+            // メンバーの場合
+            if (group.members?.any((m) => m.memberId == currentUserId) ??
+                false) {
+              developer.log('🔥 [FIRESTORE] メンバーグループ: ${group.groupName}');
+              return true;
+            }
+
+            return false;
+          }).toList();
+
+          developer.log('🔥 [FIRESTORE] フォールバック結果: ${userGroups.length}グループ取得');
+
+          // ✅ 復旧したグループのメンバーシップを自動的に再作成
+          if (userGroups.isNotEmpty) {
+            developer.log('💾 [FIRESTORE] 見つかったグループのメンバーシップを再作成します...');
+            try {
+              for (final group in userGroups) {
+                // 現在のユーザーが所有または属するグループのメンバーシップを再作成
+                if (group.ownerUid == currentUserId) {
+                  // オーナーとしてメンバーシップを作成
+                  final membershipRef =
+                      _getUserMembershipsCollection(currentUserId)
+                          .doc(group.groupId);
+
+                  await membershipRef.set({
+                    'role': 'owner',
+                    'joinedAt': FieldValue.serverTimestamp(),
+                    'groupName': group.groupName,
+                    'recoveredAt': FieldValue.serverTimestamp(),
+                  }, SetOptions(merge: true)); // merge=true で既存データを上書きしない
+
+                  developer
+                      .log('✅ [FIRESTORE] メンバーシップ再作成: オーナー ${group.groupName}');
+                }
+              }
+            } catch (e) {
+              developer.log('⚠️ [FIRESTORE] メンバーシップ再作成エラー: $e');
+              // エラーでも続行（グループはすでに取得できているため）
+            }
+          }
+
+          return userGroups;
+        } catch (e) {
+          developer.log('⚠️ [FIRESTORE] フォールバック検索エラー: $e');
+          return [];
+        }
       }
 
       // 2. グループIDsでグループデータを一括取得
       final List<PurchaseGroup> allGroups = [];
 
+      developer.log('🔥 [FIRESTORE] グループデータ取得開始: groupIds=$groupIds');
+
       // Firestoreの'in'クエリは最大10件までなので、バッチ処理
       for (int i = 0; i < groupIds.length; i += 10) {
         final batch = groupIds.skip(i).take(10).toList();
+        developer.log('🔥 [FIRESTORE] バッチ処理 $i～${i + batch.length}: $batch');
+
         final groupsSnapshot = await _groupsCollection
             .where(FieldPath.documentId, whereIn: batch)
             .get();
+
+        developer.log('🔥 [FIRESTORE] バッチから取得: ${groupsSnapshot.docs.length}件');
 
         final batchGroups =
             groupsSnapshot.docs.map((doc) => _groupFromFirestore(doc)).toList();
@@ -129,9 +224,13 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
       }
 
       // デバッグ: 各グループの詳細をログ出力
-      for (final group in allGroups) {
-        developer.log(
-            '🔥 [FIRESTORE] - ${group.groupName} (${group.groupId}) Owner: ${group.ownerUid}');
+      if (allGroups.isEmpty) {
+        developer.log('⚠️ [FIRESTORE] グループが取得できませんでした！');
+      } else {
+        for (final group in allGroups) {
+          developer.log(
+              '🔥 [FIRESTORE] - ${group.groupName} (${group.groupId}) Owner: ${group.ownerUid}');
+        }
       }
 
       developer.log('🔥 [FIRESTORE] Total fetched groups: ${allGroups.length}');

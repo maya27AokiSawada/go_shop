@@ -104,6 +104,29 @@ class FirebaseAuthService {
     try {
       Log.info('🔧 サインイン開始: $email');
 
+      // ユーザー名の検証: 入力があるか、または SharedPreferences から読み込めるか確認
+      String userName = userNameController.text.trim();
+
+      if (userName.isEmpty) {
+        // SharedPreferences からユーザー名を読み込んでみる
+        final savedUserName = await UserPreferencesService.getUserName();
+        if (savedUserName != null && savedUserName.isNotEmpty) {
+          userName = savedUserName;
+          userNameController.text = userName;
+          Log.info('📝 SharedPreferences からユーザー名を復元: $userName');
+        } else {
+          // ユーザー名がない場合はエラー
+          UiHelper.showWarningMessage(
+              context, 'ユーザー名を入力してください。または画面上部に名前を入力してください。');
+          Log.warning('⚠️ ユーザー名が見つかりません - 入力不可');
+          return;
+        }
+      } else {
+        // 入力されたユーザー名を SharedPreferences に保存
+        await UserPreferencesService.saveUserName(userName);
+        Log.info('💾 入力されたユーザー名を SharedPreferences に保存: $userName');
+      }
+
       final userCredential =
           await AuthenticationService.signInWithEmailAndPassword(
         email: email,
@@ -116,8 +139,7 @@ class FirebaseAuthService {
       }
 
       // メールアドレスの保存処理
-      await saveOrClearEmail(
-        ref: ref,
+      await UserPreferencesService.saveOrClearEmailForSignIn(
         email: email,
         shouldRemember: rememberEmail,
       );
@@ -169,7 +191,11 @@ class FirebaseAuthService {
     }
 
     try {
-      Log.info('🔧 サインアップ開始: $email');
+      Log.info('🔧 サインアップ開始: $email - userName: $userName');
+
+      // ユーザー名を SharedPreferences に保存（サインアップ時に同期）
+      await UserPreferencesService.saveUserName(userName);
+      Log.info('💾 ユーザー名を SharedPreferences に保存（サインアップ時）: $userName');
 
       final userCredential =
           await AuthenticationService.signUpWithEmailAndPassword(
@@ -184,8 +210,7 @@ class FirebaseAuthService {
       }
 
       // メールアドレスの保存処理
-      await saveOrClearEmail(
-        ref: ref,
+      await UserPreferencesService.saveOrClearEmailForSignIn(
         email: email,
         shouldRemember: rememberEmail,
       );
@@ -316,10 +341,18 @@ class FirebaseAuthService {
   // プライベートヘルパーメソッド
   Future<void> _performPostSignInActions(
       WidgetRef ref, TextEditingController userNameController) async {
+    // SharedPreferences からユーザー名を読み込んで表示を更新
+    final savedUserName = await UserPreferencesService.getUserName();
+    if (savedUserName != null && savedUserName.isNotEmpty) {
+      userNameController.text = savedUserName;
+      Log.info('📱 SharedPreferences からユーザー名を読み込み: $savedUserName');
+    }
+
     await _saveUserInfo(ref, userNameController.text, '');
     ref.invalidate(selectedGroupProvider);
     ref.invalidate(allGroupsProvider);
     await _loadUserNameFromDefaultGroup(ref, userNameController);
+
     // サインイン時にFirestore上のユーザー名があればプリファレンスへ同期し、
     // 表示用プロバイダーを更新する（Firestore同期はサインイン時のみ）
     try {
@@ -328,8 +361,9 @@ class FirebaseAuthService {
           .restoreUserNameFromFirestore();
 
       if (firestoreName != null && firestoreName.isNotEmpty) {
-        // プリファレンスへ保存
+        // Firestore の名前が優先。プリファレンスへ保存
         await UserPreferencesService.saveUserName(firestoreName);
+        userNameController.text = firestoreName;
         // 表示用Providerをプリファレンスから再読み込みして更新
         await ref.read(userNameProvider.notifier).refresh();
         Log.info('🔄 サインイン時にFirestoreのユーザー名を同期しました: $firestoreName');
@@ -350,6 +384,13 @@ class FirebaseAuthService {
 
   Future<void> _performPostSignUpActions(
       WidgetRef ref, TextEditingController userNameController) async {
+    // SharedPreferences からユーザー名を読み込んで表示を更新
+    final savedUserName = await UserPreferencesService.getUserName();
+    if (savedUserName != null && savedUserName.isNotEmpty) {
+      userNameController.text = savedUserName;
+      Log.info('📱 SharedPreferences からユーザー名を読み込み: $savedUserName');
+    }
+
     await _saveUserInfo(ref, userNameController.text, '');
 
     // 🎉 サインアップ時に1か月間の無料期間を開始
@@ -371,7 +412,9 @@ class FirebaseAuthService {
           .restoreUserNameFromFirestore();
 
       if (firestoreName != null && firestoreName.isNotEmpty) {
+        // Firestore の名前が優先。プリファレンスへ保存
         await UserPreferencesService.saveUserName(firestoreName);
+        userNameController.text = firestoreName;
         await ref.read(userNameProvider.notifier).refresh();
         Log.info('🔄 サインアップ後にFirestoreのユーザー名を同期しました: $firestoreName');
       } else {
@@ -456,7 +499,17 @@ class FirebaseAuthService {
     TextEditingController emailController,
     TextEditingController userNameController,
   ) async {
-    final userName = userNameController.text.trim();
+    var userName = userNameController.text.trim();
+
+    // ユーザー名が空の場合、SharedPreferences から読み込みを試みる
+    if (userName.isEmpty) {
+      final savedUserName = await UserPreferencesService.getUserName();
+      if (savedUserName != null && savedUserName.isNotEmpty) {
+        userName = savedUserName;
+        userNameController.text = userName;
+        Log.info('📱 SharedPreferences からユーザー名を復元: $userName');
+      }
+    }
 
     if (userName.isEmpty) {
       UiHelper.showInfoDialog(

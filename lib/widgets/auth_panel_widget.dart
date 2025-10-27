@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
-import '../services/email_management_service.dart';
+import '../services/user_preferences_service.dart';
 import '../utils/app_logger.dart';
 
 // 保存されたメールアドレスを取得するプロバイダ
 final savedEmailProvider = FutureProvider<String?>((ref) async {
-  final emailService = ref.read(emailManagementServiceProvider);
-  final result = await emailService.loadSavedEmail();
-  return result.email;
+  final savedEmail = await UserPreferencesService.getSavedEmailForSignIn();
+  return savedEmail;
+});
+
+// 保存されたユーザー名を取得するプロバイダ
+final savedUserNameProvider = FutureProvider<String?>((ref) async {
+  final savedUserName = await UserPreferencesService.getUserName();
+  return savedUserName;
 });
 
 /// サインイン・サインアップのパネルウィジェット
@@ -39,7 +44,7 @@ class _AuthPanelWidgetState extends ConsumerState<AuthPanelWidget> {
   @override
   void initState() {
     super.initState();
-    _loadSavedEmail();
+    _loadSavedData();
   }
 
   @override
@@ -50,35 +55,32 @@ class _AuthPanelWidgetState extends ConsumerState<AuthPanelWidget> {
     super.dispose();
   }
 
-  /// 保存されたメールアドレスを読み込む（初期化用）
-  Future<void> _loadSavedEmail() async {
-    AppLogger.info('📧 保存されたメールアドレスの読み込み開始（buildで自動処理されます）');
+  /// 保存されたメールアドレスとユーザー名を読み込む（初期化用）
+  Future<void> _loadSavedData() async {
+    try {
+      // ユーザー名を読み込む
+      final savedUserName = await UserPreferencesService.getUserName();
+      if (savedUserName != null && savedUserName.isNotEmpty && mounted) {
+        userNameController.text = savedUserName;
+        AppLogger.info('� AuthPanel: 保存されたユーザー名を設定: $savedUserName');
+      }
+
+      // メールアドレスを読み込む
+      final savedEmail = await UserPreferencesService.getSavedEmailForSignIn();
+      if (savedEmail != null && savedEmail.isNotEmpty && mounted) {
+        emailController.text = savedEmail;
+        setState(() {
+          _rememberEmail = true;
+        });
+        AppLogger.info('📧 AuthPanel: 保存されたメールアドレスを設定: $savedEmail');
+      }
+    } catch (e) {
+      AppLogger.error('❌ AuthPanel: 保存データ読み込みエラー: $e');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // 保存されたメールアドレスの監視と自動設定
-    final savedEmailAsync = ref.watch(savedEmailProvider);
-
-    // メールアドレスが利用可能になったらTextEditingControllerとチェックボックスに設定
-    savedEmailAsync.whenData((email) {
-      if (email != null && email.isNotEmpty && mounted) {
-        // 無限ループを避けるため、値が異なる場合のみ更新
-        if (emailController.text != email) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              emailController.text = email;
-              // 保存されたメールアドレスがある場合は「保存する」チェックボックスもONにする
-              setState(() {
-                _rememberEmail = true;
-              });
-              AppLogger.info('📧 AuthPanel: 保存されたメールアドレスを設定: $email');
-            }
-          });
-        }
-      }
-    });
-
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -119,6 +121,27 @@ class _AuthPanelWidgetState extends ConsumerState<AuthPanelWidget> {
 
               // メール/パスワード入力フォーム
               if (showSignInForm) ...[
+                // ユーザー名入力フィールド
+                TextFormField(
+                  controller: userNameController,
+                  decoration: const InputDecoration(
+                    labelText: 'ユーザー名',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.person),
+                    hintText: 'お名前（ニックネーム）',
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'ユーザー名を入力してください';
+                    }
+                    if (value.length < 1) {
+                      return 'ユーザー名は1文字以上で入力してください';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+
                 TextFormField(
                   controller: emailController,
                   decoration: const InputDecoration(

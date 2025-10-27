@@ -66,6 +66,28 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
         return cachedGroups;
       }
 
+      // ✅ Hiveが空の場合、Firestoreからフォールバック
+      if (cachedGroups.isEmpty &&
+          F.appFlavor == Flavor.prod &&
+          _firestoreRepo != null) {
+        developer.log('🔍 Hiveが空です。Firestoreから復旧を試みます...');
+        try {
+          final firestoreGroups = await _firestoreRepo!.getAllGroups();
+          developer.log('✅ Firestore復旧: ${firestoreGroups.length}グループを取得');
+
+          // Hiveにキャッシュ
+          for (final group in firestoreGroups) {
+            await _hiveRepo.saveGroup(group);
+          }
+          developer.log('💾 Hiveにキャッシュ保存完了');
+          return firestoreGroups;
+        } catch (firestoreError) {
+          developer.log('⚠️ Firestore復旧失敗: $firestoreError');
+          // Firestore復旧失敗時も、キャッシュの空リストを返す（オフライン対応）
+          return cachedGroups;
+        }
+      }
+
       // 2. バックグラウンドでFirestoreと同期（ノンブロッキング）
       _syncFromFirestoreInBackground();
 
@@ -462,17 +484,26 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
       final firestoreGroups = await _firestoreRepo!.getAllGroups();
       developer.log('📥 Firestoreから${firestoreGroups.length}グループを取得');
 
-      // Hiveを完全にクリア
-      await clearCache();
+      // ✅ Firestoreからグループが取得できた場合のみ、Hiveをクリアして更新
+      if (firestoreGroups.isNotEmpty) {
+        developer.log('✅ Firestore からグループを取得しました。Hive を更新します...');
 
-      // FirestoreデータをすべてHiveに保存
-      for (final group in firestoreGroups) {
-        await _hiveRepo.saveGroup(group);
+        // Hiveを完全にクリア
+        await clearCache();
+
+        // FirestoreデータをすべてHiveに保存
+        for (final group in firestoreGroups) {
+          await _hiveRepo.saveGroup(group);
+        }
+
+        developer.log('✅ Firestore→Hive同期完了 (${firestoreGroups.length}グループ)');
+      } else {
+        developer.log('⚠️ Firestore からグループが取得できませんでした。Hive はクリアしません。');
+        developer.log('💡 考えられる原因: ユーザーがグループに属していない、セキュリティルール制限、認証エラー等');
       }
-
-      developer.log('✅ Firestore→Hive同期完了 (${firestoreGroups.length}グループ)');
     } catch (e) {
       developer.log('❌ Firestore同期エラー: $e');
+      developer.log('💡 エラーの詳細: ${e.toString()}');
       rethrow;
     } finally {
       _isSyncing = false;

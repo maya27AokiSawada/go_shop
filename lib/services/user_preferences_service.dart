@@ -8,6 +8,8 @@ class UserPreferencesService {
   static const String _keyUserEmail = 'user_email';
   static const String _keyDataVersion = 'data_version';
   static const String _keyUserId = 'user_id';
+  static const String _keySavedEmailForSignIn =
+      'saved_email_for_signin'; // ホーム画面ログイン用
 
   /// ユーザー名を取得
   static Future<String?> getUserName() async {
@@ -164,11 +166,65 @@ class UserPreferencesService {
       await prefs.remove(_keyUserEmail);
       await prefs.remove(_keyUserId);
       await prefs.remove(_keyDataVersion);
+      await prefs.remove(_keySavedEmailForSignIn); // 記憶用メールアドレスも削除
       Log.info('🔥 SharedPreferences 完全リセット完了（ユーザー名も削除）');
       return true;
     } catch (e) {
       Log.error('❌ SharedPreferences completeReset エラー: $e');
       return false;
+    }
+  }
+
+  // ==================== ホーム画面サインイン用メールアドレス記憶機能 ====================
+
+  /// サインイン画面用の記憶メールアドレスを取得
+  static Future<String?> getSavedEmailForSignIn() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final email = prefs.getString(_keySavedEmailForSignIn);
+      Log.info('📧 記憶メールアドレス取得: $email');
+      return email;
+    } catch (e) {
+      Log.error('❌ 記憶メールアドレス取得エラー: $e');
+      return null;
+    }
+  }
+
+  /// サインイン画面用のメールアドレスを記憶
+  static Future<bool> saveEmailForSignIn(String email) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final success = await prefs.setString(_keySavedEmailForSignIn, email);
+      Log.info('💾 記憶メールアドレス保存: $email - 成功: $success');
+      return success;
+    } catch (e) {
+      Log.error('❌ 記憶メールアドレス保存エラー: $e');
+      return false;
+    }
+  }
+
+  /// サインイン画面用の記憶メールアドレスを削除
+  static Future<bool> clearSavedEmailForSignIn() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final success = await prefs.remove(_keySavedEmailForSignIn);
+      Log.info('🗑️ 記憶メールアドレス削除完了');
+      return success;
+    } catch (e) {
+      Log.error('❌ 記憶メールアドレス削除エラー: $e');
+      return false;
+    }
+  }
+
+  /// サインイン画面用メールアドレスを保存または削除
+  static Future<bool> saveOrClearEmailForSignIn({
+    required String email,
+    required bool shouldRemember,
+  }) async {
+    if (shouldRemember && email.isNotEmpty) {
+      return await saveEmailForSignIn(email);
+    } else {
+      return await clearSavedEmailForSignIn();
     }
   }
 }
