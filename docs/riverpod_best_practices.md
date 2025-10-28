@@ -14,10 +14,10 @@
 Future<List<PurchaseGroup>> build() async {
   final authState = ref.watch(authStateProvider);
   final repository = ref.read(purchaseGroupRepositoryProvider);
-  
+
   // 非同期処理中...
   final allGroups = await repository.getAllGroups();
-  
+
   // ❌ 危険: 非同期処理後の追加依存性取得
   final accessControl = ref.watch(accessControlServiceProvider);
   // これにより "abort() called" エラーが発生する
@@ -33,16 +33,16 @@ Future<List<PurchaseGroup>> build() async {
   final hiveReady = ref.watch(hiveInitializationStatusProvider);
   final repository = ref.read(purchaseGroupRepositoryProvider);
   final accessControl = ref.read(accessControlServiceProvider);
-  
+
   try {
     // ✅ その後で非同期処理を実行
     if (!hiveReady) {
       await ref.read(hiveUserInitializationProvider.future);
     }
-    
+
     final allGroups = await repository.getAllGroups();
     final visibilityMode = await accessControl.getGroupVisibilityMode();
-    
+
     // ... 処理続行
   } catch (e) {
     // エラー処理
@@ -82,7 +82,7 @@ Future<PurchaseGroup> _fixLegacyMemberRoles(PurchaseGroup group) async {
 #### ✅ 正しいパターン
 ```dart
 Future<PurchaseGroup> _fixLegacyMemberRoles(
-  PurchaseGroup group, 
+  PurchaseGroup group,
   PurchaseGroupRepository repository
 ) async {
   // ✅ 引数として依存性を受け取る
@@ -142,7 +142,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
       // メインの処理
       final allGroups = await repository.getAllGroups();
       final visibilityMode = await accessControl.getGroupVisibilityMode();
-      
+
       // フィルタリングとソート
       List<PurchaseGroup> filteredGroups;
       switch (visibilityMode) {
@@ -171,7 +171,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
 Future<Data> build() async {
   final repo = ref.read(repositoryProvider);
   final data = await repo.getData();
-  
+
   // 危険: 非同期処理後の依存性追加
   final service = ref.read(serviceProvider);
   return service.process(data);
@@ -182,7 +182,7 @@ Future<Data> build() async {
 Future<Data> build() async {
   final repo = ref.read(repositoryProvider);
   final service = ref.read(serviceProvider); // 最初に全て取得
-  
+
   final data = await repo.getData();
   return service.process(data);
 }
@@ -194,7 +194,7 @@ Future<Data> build() async {
 @override
 Future<Data> build() async {
   final condition = ref.watch(conditionProvider);
-  
+
   if (condition) {
     // 危険: 条件分岐内での依存性取得
     final service = ref.read(serviceProvider);
@@ -208,7 +208,7 @@ Future<Data> build() async {
 Future<Data> build() async {
   final condition = ref.watch(conditionProvider);
   final service = ref.read(serviceProvider); // 最初に取得
-  
+
   if (condition) {
     return service.getData();
   }
@@ -222,7 +222,7 @@ Future<Data> build() async {
 @override
 Future<Data> build() async {
   final repo = ref.read(repositoryProvider);
-  
+
   try {
     return await repo.getData();
   } catch (e) {
@@ -238,7 +238,7 @@ Future<Data> build() async {
 Future<Data> build() async {
   final repo = ref.read(repositoryProvider);
   final logger = ref.read(loggerProvider); // 最初に取得
-  
+
   try {
     return await repo.getData();
   } catch (e) {
@@ -254,7 +254,7 @@ Future<Data> build() async {
 
 1. **エラーログの確認**
    ```
-   [ERROR:flutter/runtime/dart_vm_initializer.cc(40)] Unhandled Exception: 
+   [ERROR:flutter/runtime/dart_vm_initializer.cc(40)] Unhandled Exception:
    abort() called
    ```
 
@@ -273,11 +273,11 @@ Future<Data> build() async {
 @override
 Future<Data> build() async {
   Log.info('🔄 [NOTIFIER] build() 開始');
-  
+
   // 依存性取得のログ
   final repo = ref.read(repositoryProvider);
   Log.info('🔄 [NOTIFIER] リポジトリ取得完了');
-  
+
   try {
     final data = await repo.getData();
     Log.info('🔄 [NOTIFIER] データ取得完了: ${data.length}件');
@@ -318,6 +318,6 @@ Future<Data> build() async {
 
 ---
 
-**最終更新**: 2025-10-28  
-**作成者**: GitHub Copilot  
+**最終更新**: 2025-10-28
+**作成者**: GitHub Copilot
 **プロジェクト**: Go Shop Flutter App
