@@ -8,11 +8,8 @@ import 'dart:developer' as developer;
 
 /// Dialog for creating new group with option to copy members from existing group
 class GroupCreationWithCopyDialog extends ConsumerStatefulWidget {
-  final List<PurchaseGroup> existingGroups;
-
   const GroupCreationWithCopyDialog({
     super.key,
-    required this.existingGroups,
   });
 
   @override
@@ -38,190 +35,259 @@ class _GroupCreationWithCopyDialogState
 
   @override
   Widget build(BuildContext context) {
-    Log.info('🔄 [GROUP_CREATION_WITH_COPY_DIALOG] build() 開始');
+    AppLogger.info('🔄 [GROUP_CREATION_WITH_COPY_DIALOG] build() 開始');
 
+    // allGroupsProviderから既存グループを取得
+    final allGroupsAsync = ref.watch(allGroupsProvider);
+
+    return allGroupsAsync.when(
+      data: (existingGroups) => _buildDialog(context, existingGroups),
+      loading: () => const Dialog(
+        child: Padding(
+          padding: EdgeInsets.all(32.0),
+          child: Center(
+            child: CircularProgressIndicator(),
+          ),
+        ),
+      ),
+      error: (error, _) => Dialog(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error, color: Colors.red, size: 48),
+              const SizedBox(height: 16),
+              Text('エラー: $error'),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('閉じる'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDialog(
+      BuildContext context, List<PurchaseGroup> existingGroups) {
     return Dialog(
       child: Container(
         width: MediaQuery.of(context).size.width * 0.9,
         constraints: BoxConstraints(
           maxHeight: MediaQuery.of(context).size.height * 0.8,
         ),
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Header
-                  Row(
+        child: Stack(
+          children: [
+            // メインコンテンツ
+            Form(
+              key: _formKey,
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Icon(Icons.group_add, color: Colors.blue),
-                      const SizedBox(width: 8),
-                      const Expanded(
-                        child: Text(
-                          '新しいグループを作成',
+                      // Header
+                      Row(
+                        children: [
+                          const Icon(Icons.group_add, color: Colors.blue),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              '新しいグループを作成',
+                              style: TextStyle(
+                                  fontSize: 20, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            icon: const Icon(Icons.close),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Group name input
+                      TextFormField(
+                        controller: _groupNameController,
+                        decoration: const InputDecoration(
+                          labelText: 'グループ名 *',
+                          hintText: 'グループ名を入力してください',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'グループ名を入力してください';
+                          }
+
+                          // Check for duplicate group names
+                          final trimmedName = value.trim();
+                          final isDuplicate = existingGroups.any((group) =>
+                              group.groupName.toLowerCase() ==
+                              trimmedName.toLowerCase());
+
+                          if (isDuplicate) {
+                            return 'このグループ名は既に使用されています';
+                          }
+
+                          return null;
+                        },
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Source group selection
+                      if (existingGroups.isNotEmpty) ...[
+                        const Text(
+                          'メンバーをコピーする既存グループ (任意):',
                           style: TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.bold),
+                              fontSize: 16, fontWeight: FontWeight.w500),
                         ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Group name input
-                  TextFormField(
-                    controller: _groupNameController,
-                    decoration: const InputDecoration(
-                      labelText: 'グループ名 *',
-                      hintText: 'グループ名を入力してください',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'グループ名を入力してください';
-                      }
-
-                      // Check for duplicate group names
-                      final trimmedName = value.trim();
-                      final isDuplicate = widget.existingGroups.any((group) =>
-                          group.groupName.toLowerCase() ==
-                          trimmedName.toLowerCase());
-
-                      if (isDuplicate) {
-                        return 'このグループ名は既に使用されています';
-                      }
-
-                      return null;
-                    },
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Source group selection
-                  if (widget.existingGroups.isNotEmpty) ...[
-                    const Text(
-                      'メンバーをコピーする既存グループ (任意):',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                    ),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<PurchaseGroup>(
-                      initialValue: _selectedSourceGroup,
-                      decoration: const InputDecoration(
-                        hintText: 'グループを選択...',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: [
-                        const DropdownMenuItem<PurchaseGroup>(
-                          value: null,
-                          child: Text('新しいグループ (メンバーなし)'),
-                        ),
-                        ...widget.existingGroups.map(
-                          (group) => DropdownMenuItem<PurchaseGroup>(
-                            value: group,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(group.groupName),
-                                Text(
-                                  'メンバー数: ${group.members?.length ?? 0}人',
-                                  style: const TextStyle(
-                                      fontSize: 12, color: Colors.grey),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<PurchaseGroup>(
+                          initialValue: _selectedSourceGroup,
+                          decoration: const InputDecoration(
+                            hintText: 'グループを選択...',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: [
+                            const DropdownMenuItem<PurchaseGroup>(
+                              value: null,
+                              child: Text('新しいグループ (メンバーなし)'),
+                            ),
+                            ...existingGroups.map(
+                              (group) => DropdownMenuItem<PurchaseGroup>(
+                                value: group,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(group.groupName),
+                                    Text(
+                                      'メンバー数: ${group.members?.length ?? 0}人',
+                                      style: const TextStyle(
+                                          fontSize: 12, color: Colors.grey),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
+                            ),
+                          ],
+                          onChanged: (group) {
+                            setState(() {
+                              _selectedSourceGroup = group;
+                              _updateMemberSelection();
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // Member selection list
+                      if (_selectedSourceGroup?.members?.isNotEmpty ==
+                          true) ...[
+                        const Text(
+                          'コピーするメンバーとその役割を選択:',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w500),
+                        ),
+                        const SizedBox(height: 8),
+                        Flexible(
+                          child: Container(
+                            constraints: const BoxConstraints(maxHeight: 300),
+                            child: ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: _selectedSourceGroup!.members!.length,
+                              itemBuilder: (context, index) {
+                                final member =
+                                    _selectedSourceGroup!.members![index];
+                                return _buildMemberSelectionTile(member);
+                              },
                             ),
                           ),
                         ),
-                      ],
-                      onChanged: (group) {
-                        setState(() {
-                          _selectedSourceGroup = group;
-                          _updateMemberSelection();
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // Member selection list
-                  if (_selectedSourceGroup?.members?.isNotEmpty == true) ...[
-                    const Text(
-                      'コピーするメンバーとその役割を選択:',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                    ),
-                    const SizedBox(height: 8),
-                    Flexible(
-                      child: Container(
-                        constraints: const BoxConstraints(maxHeight: 300),
-                        child: ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: _selectedSourceGroup!.members!.length,
-                          itemBuilder: (context, index) {
-                            final member =
-                                _selectedSourceGroup!.members![index];
-                            return _buildMemberSelectionTile(member);
-                          },
+                      ] else if (_selectedSourceGroup != null) ...[
+                        Container(
+                          height: 100,
+                          alignment: Alignment.center,
+                          child: const Text(
+                            '選択されたグループにはメンバーがいません',
+                            style: TextStyle(color: Colors.grey),
+                          ),
                         ),
-                      ),
-                    ),
-                  ] else if (_selectedSourceGroup != null) ...[
-                    Container(
-                      height: 100,
-                      alignment: Alignment.center,
-                      child: const Text(
-                        '選択されたグループにはメンバーがいません',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    ),
-                  ] else ...[
-                    Container(
-                      height: 100,
-                      alignment: Alignment.center,
-                      child: const Text(
-                        '既存グループを選択するとメンバーをコピーできます',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    ),
-                  ],
+                      ] else ...[
+                        Container(
+                          height: 100,
+                          alignment: Alignment.center,
+                          child: const Text(
+                            '既存グループを選択するとメンバーをコピーできます',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ),
+                      ],
 
-                  const SizedBox(height: 16),
+                      const SizedBox(height: 16),
 
-                  // Action buttons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: _isLoading
-                            ? null
-                            : () => Navigator.of(context).pop(),
-                        child: const Text('キャンセル'),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: _isLoading ? null : _createGroup,
-                        child: _isLoading
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Text('グループを作成'),
+                      // Action buttons
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: _isLoading
+                                ? null
+                                : () => Navigator.of(context).pop(),
+                            child: const Text('キャンセル'),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: _isLoading ? null : _createGroup,
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  )
+                                : const Text('グループを作成'),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
             ),
-          ),
+            // ローディングオーバーレイ
+            if (_isLoading)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black54,
+                  child: const Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'グループを作成中...',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -323,50 +389,65 @@ class _GroupCreationWithCopyDialogState
       return;
     }
 
+    AppLogger.info('🔄 [CREATE GROUP DIALOG] グループ作成開始');
     setState(() {
       _isLoading = true;
+      AppLogger.info('✅ [CREATE GROUP DIALOG] _isLoading = true に設定');
     });
 
-    try {
-      final groupName = _groupNameController.text.trim();
+    final groupName = _groupNameController.text.trim();
+    final hasMembersToAdd = _selectedMembers.values.any((selected) => selected);
 
+    try {
+      AppLogger.info('🔄 [CREATE GROUP DIALOG] createNewGroup() 呼び出し');
       // Create new group
       await ref.read(allGroupsProvider.notifier).createNewGroup(groupName);
+      AppLogger.info('✅ [CREATE GROUP DIALOG] createNewGroup() 完了');
 
-      // If members were selected, add them to the new group
-      if (_selectedMembers.values.any((selected) => selected)) {
+      // Add members BEFORE closing dialog (if needed)
+      if (hasMembersToAdd) {
+        AppLogger.info('🔄 [CREATE GROUP DIALOG] メンバー追加開始');
         final currentGroup = ref.read(selectedGroupNotifierProvider).value;
         if (currentGroup != null) {
           await _addSelectedMembers(currentGroup);
         }
+        AppLogger.info('✅ [CREATE GROUP DIALOG] メンバー追加完了');
       }
 
+      // ✅ 追加の待機時間: UIが安定するまで少し待つ
+      // Riverpodのstate更新がUIに反映されるまでの時間を確保
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      // Close dialog after ALL operations are complete
       if (mounted) {
         Navigator.of(context).pop(true); // Return success
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('グループ「$groupName」を作成しました'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        // Show snackbar after dialog is closed
+        Future.delayed(const Duration(milliseconds: 200), () {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('グループ「$groupName」を作成しました'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        });
       }
     } catch (e) {
       developer.log('❌ グループ作成エラー: $e');
 
       if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('グループ作成エラー: $e'),
             backgroundColor: Colors.red,
           ),
         );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
       }
     }
   }
@@ -409,12 +490,9 @@ class _GroupCreationWithCopyDialogState
 /// Show group creation with copy dialog
 Future<bool?> showGroupCreationWithCopyDialog({
   required BuildContext context,
-  required List<PurchaseGroup> existingGroups,
 }) async {
   return await showDialog<bool>(
     context: context,
-    builder: (context) => GroupCreationWithCopyDialog(
-      existingGroups: existingGroups,
-    ),
+    builder: (context) => const GroupCreationWithCopyDialog(),
   );
 }
