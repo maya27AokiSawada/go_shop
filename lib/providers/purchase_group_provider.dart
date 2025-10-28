@@ -31,17 +31,18 @@ final purchaseGroupRepositoryProvider = Provider<PurchaseGroupRepository>((
 class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
   @override
   Future<PurchaseGroup?> build() async {
+    // ✅ 最初に全ての依存性を確定する
     final selectedGroupId = ref.watch(selectedGroupIdProvider);
-    if (selectedGroupId.isEmpty) return null;
-
     final repository = ref.read(purchaseGroupRepositoryProvider);
+
+    if (selectedGroupId.isEmpty) return null;
 
     try {
       AppLogger.info(
         '🔄 [SELECTED GROUP] SelectedGroupNotifier.build() 開始: $selectedGroupId',
       );
       final group = await repository.getGroupById(selectedGroupId);
-      final fixedGroup = await _fixLegacyMemberRoles(group);
+      final fixedGroup = await _fixLegacyMemberRoles(group, repository);
       AppLogger.info('🔄 [SELECTED GROUP] グループロード完了: ${fixedGroup.groupName}');
       return fixedGroup;
     } catch (e, stackTrace) {
@@ -52,8 +53,8 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
   }
 
   /// Fix legacy member roles and ensure proper group structure
-  Future<PurchaseGroup> _fixLegacyMemberRoles(PurchaseGroup group) async {
-    final repository = ref.read(purchaseGroupRepositoryProvider);
+  Future<PurchaseGroup> _fixLegacyMemberRoles(
+      PurchaseGroup group, PurchaseGroupRepository repository) async {
     final originalMembers = group.members ?? [];
     bool needsUpdate = false;
 
@@ -173,7 +174,7 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
 
     try {
       final group = await repository.getGroupById(groupId);
-      final fixedGroup = await _fixLegacyMemberRoles(group);
+      final fixedGroup = await _fixLegacyMemberRoles(group, repository);
       state = AsyncData(fixedGroup);
 
       // Update selected group ID
