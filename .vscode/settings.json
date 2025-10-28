@@ -3,5 +3,35 @@
         "Cupertino",
         "Schyler",
         "sumomo"
-    ]
-}
+    ],
+    "terminal.integrated.defaultProfile.windows": "PowerShell",
+    "terminal.integrated.profiles.windows": {
+        "PowerShell": {
+            "source": "PowerShell",
+            "icon": "terminal-powershell"
+        },
+        "WSL": {
+            "path": "C:\\WINDOWS\\System32\\wsl.exe",
+            "args": [],
+            "icon": "terminal-ubuntu"
+        },
+        "Command Prompt": {
+            "path": "C:\\WINDOWS\\System32\\cmd.exe",
+            "args": [],
+            "icon": "terminal-cmd"
+        }
+    },
+    "files.eol": "\n",
+    "files.insertFinalNewline": true,
+    "files.trimTrailingWhitespace": true,
+    "dart.flutterSdkPath": null,
+    "dart.enableSdkFormatter": true,
+    "dart.lineLength": 80,
+    "dart.runPubGetOnPubspecChanges": "always",
+    "dart.previewLSP": false,
+    "flutter.copyProfilerUrl": true,
+    "git.autofetch": true,
+    "git.confirmSync": false,
+    "editor.codeActionsOnSave": {
+        "source.fixAll": "explicit"
+    }

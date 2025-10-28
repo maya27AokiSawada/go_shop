@@ -134,7 +134,7 @@ class _AuthPanelWidgetState extends ConsumerState<AuthPanelWidget> {
                     if (value == null || value.isEmpty) {
                       return 'ユーザー名を入力してください';
                     }
-                    if (value.length < 1) {
+                    if (value.isEmpty) {
                       return 'ユーザー名は1文字以上で入力してください';
                     }
                     return null;
