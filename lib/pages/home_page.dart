@@ -5,7 +5,6 @@ import '../services/access_control_service.dart';
 import '../services/user_preferences_service.dart';
 import '../widgets/auth_panel_widget.dart';
 import '../widgets/user_name_panel_widget.dart';
-import '../widgets/qr_code_panel_widget.dart';
 import '../widgets/news_and_ads_panel_widget.dart';
 
 class HomePage extends ConsumerStatefulWidget {
@@ -134,19 +133,6 @@ class _HomePageState extends ConsumerState<HomePage> {
                   AuthPanelWidget(
                     onAuthSuccess: () {
                       // 認証成功時の処理
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                ],
-
-                // 4. QRコード招待パネル（ログイン済み時のみ表示）
-                if (isAuthenticated) ...[
-                  QRCodePanelWidget(
-                    onShowSignInForm: () {
-                      // サインインフォーム表示要求時の処理
-                    },
-                    onQRSuccess: () {
-                      // QRコード処理成功時の処理
                     },
                   ),
                   const SizedBox(height: 20),
