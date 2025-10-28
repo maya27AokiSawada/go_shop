@@ -1,14 +1,20 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../models/purchase_group.dart';
 import '../datastore/purchase_group_repository.dart';
+import '../providers/firestore_provider.dart';
 import 'dart:developer' as developer;
 
 class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore _firestore;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final Uuid _uuid = const Uuid();
+
+  // Refを受け取り、firestoreProviderからインスタンスを取得
+  FirestorePurchaseGroupRepository(Ref ref)
+      : _firestore = ref.read(firestoreProvider);
 
   /// 購入グループコレクション（全体で一意）
   CollectionReference get _groupsCollection =>

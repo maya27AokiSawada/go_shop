@@ -6,6 +6,7 @@ import '../services/user_preferences_service.dart';
 import '../widgets/auth_panel_widget.dart';
 import '../widgets/user_name_panel_widget.dart';
 import '../widgets/news_and_ads_panel_widget.dart';
+import '../utils/app_logger.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -21,7 +22,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   void initState() {
     super.initState();
-    print('🚀 HomePage: initState実行 - 直接SharedPreferencesからユーザー名を読み込み');
+    AppLogger.info('HomePage初期化開始 - SharedPreferencesからユーザー名読み込み');
 
     // プロバイダーとは別に、直接SharedPreferencesから読み込みを実行
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -30,9 +31,9 @@ class _HomePageState extends ConsumerState<HomePage> {
           final userName = await UserPreferencesService.getUserName();
           if (userName != null && userName.isNotEmpty) {
             userNameController.text = userName;
-            print('✅ HomePage: UserPreferencesServiceから直接ユーザー名取得: $userName');
+            AppLogger.info('ユーザー名読み込み成功: $userName');
           } else {
-            print('❌ HomePage: UserPreferencesServiceにユーザー名が保存されていません');
+            AppLogger.warning('ユーザー名が保存されていません');
           }
 
           // シークレットモード状態も読み込み
@@ -42,7 +43,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             _isSecretMode = isSecretMode;
           });
         } catch (e) {
-          print('❌ HomePage: UserPreferences読み込みエラー: $e');
+          AppLogger.error('UserPreferences読み込みエラー', e);
         }
       }
     });
@@ -122,7 +123,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 UserNamePanelWidget(
                   userNameController: userNameController,
                   onSaveSuccess: () {
-                    print('🔄 HomePage: ユーザー名保存成功（シンプル）');
+                    AppLogger.info('ユーザー名保存成功');
                   },
                 ),
 
@@ -182,39 +183,44 @@ class _HomePageState extends ConsumerState<HomePage> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: () async {
-                              final accessControl =
-                                  ref.read(accessControlServiceProvider);
-                              await accessControl.toggleSecretMode();
-                              // 状態を更新（SharedPreferencesから直接読み込み）
-                              final newSecretMode =
-                                  await accessControl.isSecretModeEnabled();
-                              setState(() {
-                                _isSecretMode = newSecretMode;
-                              });
-                            },
-                            icon: Icon(
-                              _isSecretMode
-                                  ? Icons.visibility
-                                  : Icons.visibility_off,
-                            ),
-                            label: Text(
-                              _isSecretMode
-                                  ? 'シークレットモード: ON'
-                                  : 'シークレットモード: OFF',
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _isSecretMode
-                                  ? Colors.orange.shade100
-                                  : Colors.green.shade100,
-                              foregroundColor: _isSecretMode
-                                  ? Colors.orange.shade800
-                                  : Colors.green.shade800,
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                            ),
+                        // コンパクトボタンに変更
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            final accessControl =
+                                ref.read(accessControlServiceProvider);
+                            await accessControl.toggleSecretMode();
+                            // 状態を更新（SharedPreferencesから直接読み込み）
+                            final newSecretMode =
+                                await accessControl.isSecretModeEnabled();
+                            setState(() {
+                              _isSecretMode = newSecretMode;
+                            });
+                          },
+                          icon: Icon(
+                            _isSecretMode
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                            size: 16, // アイコンサイズを小さく
+                          ),
+                          label: Text(
+                            _isSecretMode ? 'シークレットモード: ON' : 'シークレットモード: OFF',
+                            style:
+                                const TextStyle(fontSize: 14), // テキストサイズを明示的に指定
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _isSecretMode
+                                ? Colors.orange.shade100
+                                : Colors.green.shade100,
+                            foregroundColor: _isSecretMode
+                                ? Colors.orange.shade800
+                                : Colors.green.shade800,
+                            // コンパクトなパディング
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            // ボタンの最小サイズを小さく
+                            minimumSize: const Size(0, 36),
+                            // テキストに合わせてボタンサイズを調整
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
                         ),
                       ],
@@ -225,42 +231,45 @@ class _HomePageState extends ConsumerState<HomePage> {
 
                 // 6. サインアウトボタン（認証済み時のみ表示）
                 if (isAuthenticated) ...[
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () async {
-                        // 確認ダイアログを表示
-                        final shouldSignOut = await showDialog<bool>(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: const Text('ログアウト確認'),
-                            content: const Text('ログアウトしますか？'),
-                            actions: [
-                              TextButton(
-                                onPressed: () =>
-                                    Navigator.of(context).pop(false),
-                                child: const Text('キャンセル'),
-                              ),
-                              ElevatedButton(
-                                onPressed: () =>
-                                    Navigator.of(context).pop(true),
-                                child: const Text('ログアウト'),
-                              ),
-                            ],
-                          ),
-                        );
+                  // サインアウトボタンもコンパクトに
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      // 確認ダイアログを表示
+                      final shouldSignOut = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('ログアウト確認'),
+                          content: const Text('ログアウトしますか？'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(false),
+                              child: const Text('キャンセル'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () => Navigator.of(context).pop(true),
+                              child: const Text('ログアウト'),
+                            ),
+                          ],
+                        ),
+                      );
 
-                        if (shouldSignOut == true) {
-                          await ref.read(authProvider).signOut();
-                        }
-                      },
-                      icon: const Icon(Icons.logout),
-                      label: const Text('ログアウト'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red.shade100,
-                        foregroundColor: Colors.red.shade800,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
+                      if (shouldSignOut == true) {
+                        await ref.read(authProvider).signOut();
+                      }
+                    },
+                    icon: const Icon(Icons.logout, size: 16), // アイコンサイズを小さく
+                    label: const Text('ログアウト',
+                        style: TextStyle(fontSize: 14)), // テキストサイズを明示的に指定
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red.shade100,
+                      foregroundColor: Colors.red.shade800,
+                      // コンパクトなパディング
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      // ボタンの最小サイズを小さく
+                      minimumSize: const Size(0, 36),
+                      // テキストに合わせてボタンサイズを調整
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                   ),
                   const SizedBox(height: 20),

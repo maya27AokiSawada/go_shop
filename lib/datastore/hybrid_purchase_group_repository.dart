@@ -25,9 +25,9 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
 
   HybridPurchaseGroupRepository(this._ref) {
     _hiveRepo = HivePurchaseGroupRepository(_ref);
-    // � Firestore統合を有効化（マルチユーザー・マルチデバイス対応）
+    // ✅ Firestore統合を有効化（マルチユーザー・マルチデバイス対応）
     if (F.appFlavor != Flavor.dev) {
-      _firestoreRepo = FirestorePurchaseGroupRepository();
+      _firestoreRepo = FirestorePurchaseGroupRepository(_ref);
       developer.log('🌐 [HYBRID_REPO] Firestore統合有効化 - クラウド同期開始');
     } else {
       developer.log('💡 [HYBRID_REPO] DEV環境 - Hiveのみで動作');
