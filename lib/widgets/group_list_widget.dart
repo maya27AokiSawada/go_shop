@@ -16,11 +16,12 @@ class GroupListWidget extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     Log.info('🔄 [GROUP_LIST_WIDGET] build() 開始');
 
+    // ✅ 最初に全ての依存性を確定する
     final allGroupsAsync = ref.watch(allGroupsProvider);
+    final selectedGroupId = ref.watch(selectedGroupIdProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
       children: [
         // ヘッダー部分
         Container(
@@ -56,41 +57,44 @@ class GroupListWidget extends ConsumerWidget {
                 ],
               ),
               // カレントグループ情報
-              _buildCurrentGroupInfo(ref),
+              _buildCurrentGroupInfo(ref, selectedGroupId, allGroupsAsync),
             ],
           ),
         ),
 
-        // グループリスト
-        allGroupsAsync.when(
-          data: (groups) => _buildGroupList(context, ref, groups),
-          loading: () => _buildLoadingWidget(),
-          error: (error, stack) => _buildErrorWidget(context, ref, error),
+        // グループリスト（スクロール可能に変更）
+        Expanded(
+          child: allGroupsAsync.when(
+            data: (groups) =>
+                _buildGroupList(context, ref, groups, selectedGroupId),
+            loading: () => _buildLoadingWidget(),
+            error: (error, stack) => _buildErrorWidget(context, ref, error),
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildGroupList(
-      BuildContext context, WidgetRef ref, List<PurchaseGroup> groups) {
+  Widget _buildGroupList(BuildContext context, WidgetRef ref,
+      List<PurchaseGroup> groups, String selectedGroupId) {
     AppLogger.info('📋 [GROUP_LIST] グループ数: ${groups.length}');
 
     if (groups.isEmpty) {
       return _buildEmptyState(context);
     }
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children:
-          groups.map((group) => _buildGroupTile(context, ref, group)).toList(),
+    return ListView.builder(
+      itemCount: groups.length,
+      itemBuilder: (context, index) {
+        return _buildGroupTile(context, ref, groups[index], selectedGroupId);
+      },
     );
   }
 
-  Widget _buildGroupTile(
-      BuildContext context, WidgetRef ref, PurchaseGroup group) {
+  Widget _buildGroupTile(BuildContext context, WidgetRef ref,
+      PurchaseGroup group, String selectedGroupId) {
     final isDefaultGroup = group.groupId == 'default_group';
     final memberCount = group.members?.length ?? 0;
-    final selectedGroupId = ref.watch(selectedGroupIdProvider);
     final isCurrentGroup = selectedGroupId == group.groupId;
 
     return Card(
@@ -152,7 +156,7 @@ class GroupListWidget extends ConsumerWidget {
                 ),
               )
             else
-              Text('メンバー: ${memberCount}人'),
+              Text('メンバー: $memberCount人'),
             if (!isDefaultGroup && group.ownerUid?.isNotEmpty == true)
               Text(
                 'オーナー: ${group.ownerName ?? group.ownerEmail ?? group.ownerUid}',
@@ -160,36 +164,13 @@ class GroupListWidget extends ConsumerWidget {
               ),
           ],
         ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (memberCount > 0)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade100,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '$memberCount',
-                  style: TextStyle(
-                    color: Colors.green.shade700,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            const SizedBox(width: 8),
-            // メンバー管理ボタン
-            IconButton(
-              icon: const Icon(Icons.settings, size: 18, color: Colors.grey),
-              onPressed: () {
-                AppLogger.info('📋 [GROUP_LIST] メンバー管理ボタン: ${group.groupId}');
-                _navigateToMemberManagement(context, ref, group);
-              },
-              tooltip: 'メンバー管理',
-            ),
-          ],
+        trailing: IconButton(
+          icon: const Icon(Icons.settings, size: 18, color: Colors.grey),
+          onPressed: () {
+            AppLogger.info('📋 [GROUP_LIST] メンバー管理ボタン: ${group.groupId}');
+            _navigateToMemberManagement(context, ref, group);
+          },
+          tooltip: 'メンバー管理',
         ),
         onTap: () {
           AppLogger.info('📋 [GROUP_LIST] グループ選択: ${group.groupId}');
@@ -244,10 +225,8 @@ class GroupListWidget extends ConsumerWidget {
     );
   }
 
-  Widget _buildCurrentGroupInfo(WidgetRef ref) {
-    final selectedGroupId = ref.watch(selectedGroupIdProvider);
-    final allGroupsAsync = ref.watch(allGroupsProvider);
-
+  Widget _buildCurrentGroupInfo(WidgetRef ref, String selectedGroupId,
+      AsyncValue<List<PurchaseGroup>> allGroupsAsync) {
     return allGroupsAsync.when(
       data: (groups) {
         final currentGroup =

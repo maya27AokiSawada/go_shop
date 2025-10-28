@@ -9,7 +9,6 @@ import '../flavors.dart';
 import '../helper/security_validator.dart';
 import '../services/access_control_service.dart';
 import '../services/user_preferences_service.dart';
-import 'auth_provider.dart';
 import 'user_specific_hive_provider.dart';
 
 // Logger instance
@@ -370,7 +369,6 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
     // ✅ 最初に全ての依存性を確定する
     // FutureProvider/StreamProviderは ref.watch() が必須（非同期データ監視）
     // Provider<T>は ref.read() で十分（同期的なサービス）
-    final authState = ref.watch(authStateProvider);
     final hiveReady = ref.watch(hiveInitializationStatusProvider);
     final repository = ref.read(purchaseGroupRepositoryProvider);
     final accessControl =
@@ -387,34 +385,18 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
 
       Log.info('🔄 [ALL GROUPS] リポジトリ取得完了: ${repository.runtimeType}');
 
-      // Auth状態に応じて処理を分ける
-      await authState.whenOrNull(
-        data: (user) async {
-          if (user != null) {
-            Log.info('🔄 [ALL GROUPS] ✅ サインイン状態でグループ取得: ${user.email}');
-            // ✅ Firestore同期を実行（ユーザーがサインインしている場合）
-            if (repository is HybridPurchaseGroupRepository) {
-              try {
-                Log.info('🔄 [ALL GROUPS] Firestore同期開始...');
-                // バックグラウンドで非同期に同期を実行（getAllGroups()をブロックしない）
-                repository.syncFromFirestore().catchError((e) {
-                  Log.warning('⚠️ [ALL GROUPS] バックグラウンド同期エラー: $e');
-                });
-              } catch (e) {
-                Log.warning('⚠️ [ALL GROUPS] Firestore同期開始エラー: $e');
-              }
-            }
-          } else {
-            Log.info('🔄 [ALL GROUPS] 未サインイン状態でグループ取得');
-          }
-        },
-        loading: () {
-          Log.info('🔄 [ALL GROUPS] Auth状態確認中...');
-        },
-        error: (error, stack) {
-          Log.warning('⚠️ [ALL GROUPS] Auth状態エラー: $error');
-        },
-      );
+      // ✅ Hive優先アーキテクチャ
+      // build()では常にHiveから即座にデータを返す（Firestore同期はbuild()内で実行しない）
+      // 理由:
+      // 1. build()が頻繁に呼ばれるため、毎回Firestore同期すると無限ループのリスク
+      // 2. グループ管理はリアルタイム性が低いため、定期同期で十分
+      // 3. UI応答性を優先（Hiveは同期的に即座にデータを返す）
+      //
+      // Firestore同期のタイミング:
+      // - アプリ起動時（main.dartなど）
+      // - ユーザーが明示的に同期ボタンを押した時（GroupListWidgetの同期ボタン）
+      // - グループ作成/更新/削除時（各mutation内で個別に同期）
+      Log.info('🔄 [ALL GROUPS] Hive優先モード: ローカルデータを即座に返す');
 
       Log.info('🔄 [ALL GROUPS] getAllGroups() 呼び出し開始');
       final allGroups = await repository.getAllGroups();
@@ -494,6 +476,8 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
     }
 
     final repository = ref.read(purchaseGroupRepositoryProvider);
+    Log.info('🔍 [CREATE GROUP] Repository type: ${repository.runtimeType}');
+    Log.info('🔍 [CREATE GROUP] Flavor: ${F.appFlavor}');
     final currentUserId = currentUser?.uid ?? '';
     final timestamp = DateTime.now().millisecondsSinceEpoch;
 
@@ -557,23 +541,25 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
         Log.warning('⚠️ [CREATE GROUP] グループ選択エラー（続行）: $e');
       }
 
-      // 楽観的更新：直接stateを更新（refreshは使わない）
+      // ✅ 楽観的更新: 新しいグループを既存リストに追加
+      // repository.getAllGroups()を再度呼ぶのではなく、
+      // 既存のstateに新しいグループを追加することで、build()の再トリガーを回避
       try {
-        final currentGroups = await repository.getAllGroups();
-        state = AsyncData(currentGroups);
-        Log.info('✅ [CREATE GROUP] 楽観的更新完了: ${currentGroups.length}グループ');
+        state.whenData((currentGroups) {
+          final updatedGroups = [...currentGroups, newGroup];
+          state = AsyncData(updatedGroups);
+          Log.info('✅ [CREATE GROUP] 楽観的更新完了: ${updatedGroups.length}グループ');
+        });
       } catch (e) {
-        Log.warning('⚠️ [CREATE GROUP] 楽観的更新エラー（続行）: $e');
+        Log.warning('⚠️ [CREATE GROUP] 楽観的更新エラー: $e');
+        Log.warning('⚠️ [CREATE GROUP] stateを再構築します');
+        // 失敗した場合はbuild()を再実行
+        ref.invalidateSelf();
       }
 
-      // メンバープールも更新（新しいオーナーが追加されるため）
-      try {
-        final memberPool = ref.read(memberPoolProvider.notifier);
-        await memberPool.syncPool();
-        Log.info('✅ [CREATE GROUP] メンバープール更新完了');
-      } catch (e) {
-        Log.warning('⚠️ [CREATE GROUP] メンバープール更新エラー（続行）: $e');
-      }
+      // ✅ メンバープール更新は不要
+      // グループ作成時はオーナー（自分）のみ追加され、既にメンバープールに存在
+      // 新規メンバー追加は招待機能でのみ実施されるため
     } catch (e, stackTrace) {
       Log.error('❌ [CREATE GROUP] 予期しないエラー発生: $e');
       Log.error('❌ [CREATE GROUP] スタックトレース: $stackTrace');

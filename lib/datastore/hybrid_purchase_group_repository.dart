@@ -164,16 +164,24 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
         return newGroup;
       }
 
+      developer.log('🔍 [HYBRID_REPO] Firestore sync check:');
+      developer.log('  - Flavor: ${F.appFlavor}');
+      developer.log('  - isOnline: $_isOnline');
+      developer.log('  - _firestoreRepo null?: ${_firestoreRepo == null}');
+
       if (F.appFlavor == Flavor.dev || !_isOnline || _firestoreRepo == null) {
+        developer.log('⚠️ [HYBRID_REPO] Skipping Firestore sync - Hive only');
         return newGroup;
       }
 
       // 2. Firestoreに非同期保存（メンバープール以外のみ）
+      developer.log('🔄 [HYBRID_REPO] Starting Firestore sync for: $groupName');
       _unawaited(
           _firestoreRepo!.createGroup(groupId, groupName, member).then((_) {
-        developer.log('🔄 Created synced to Firestore: $groupName');
+        developer
+            .log('✅ [HYBRID_REPO] Created synced to Firestore: $groupName');
       }).catchError((e) {
-        developer.log('⚠️ Failed to sync create to Firestore: $e');
+        developer.log('❌ [HYBRID_REPO] Failed to sync create to Firestore: $e');
         // TODO: 失敗したオペレーションをキューに保存
       }));
 

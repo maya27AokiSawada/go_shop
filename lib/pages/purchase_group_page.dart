@@ -101,27 +101,11 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
   }
 
   void _showCreateGroupDialog(BuildContext context) {
-    final allGroupsAsync = ref.read(allGroupsProvider);
-
-    allGroupsAsync.when(
-      data: (groups) {
-        showDialog(
-          context: context,
-          builder: (context) => GroupCreationWithCopyDialog(
-            existingGroups: groups,
-          ),
-        );
-      },
-      loading: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('グループ情報を読み込み中...')),
-        );
-      },
-      error: (error, _) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('エラー: $error')),
-        );
-      },
+    // ダイアログ内で直接allGroupsProviderを参照するため、
+    // ここでは何も取得せずにダイアログを表示
+    showDialog(
+      context: context,
+      builder: (context) => const GroupCreationWithCopyDialog(),
     );
   }
 
