@@ -84,10 +84,10 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
           ),
         ],
       ),
-      body: SafeArea(
+      body: const SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: const GroupListWidget(),
+          padding: EdgeInsets.all(16.0),
+          child: GroupListWidget(),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
