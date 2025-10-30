@@ -1,4 +1,4 @@
-// lib/services/user_initialization_service.dart
+// lb/services/user_initialization_service.darti
 import 'package:flutter/widgets.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/app_logger.dart';
 import '../models/purchase_group.dart';
 import '../providers/purchase_group_provider.dart';
+import '../flavors.dart';
 
 import '../datastore/hive_purchase_group_repository.dart' as hive_repo;
 
@@ -19,9 +20,14 @@ final userInitializationServiceProvider = Provider<UserInitializationService>((
 
 class UserInitializationService {
   final Ref _ref;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  FirebaseAuth? _auth;
 
-  UserInitializationService(this._ref);
+  UserInitializationService(this._ref) {
+    // 本番環境のみFirebase Authを初期化
+    if (F.appFlavor == Flavor.prod) {
+      _auth = FirebaseAuth.instance;
+    }
+  }
 
   /// Firebase Auth状態変化を監視してユーザー初期化を実行
   void startAuthStateListener() {
@@ -30,12 +36,15 @@ class UserInitializationService {
       _initializeBasedOnUserState();
     });
 
-    _auth.authStateChanges().listen((User? user) {
-      if (user != null) {
-        // ユーザーがログインした時の初期化処理
-        _initializeUserDefaults(user);
-      }
-    });
+    // 本番環境のみFirebase Auth監視
+    if (_auth != null) {
+      _auth!.authStateChanges().listen((User? user) {
+        if (user != null) {
+          // ユーザーがログインした時の初期化処理
+          _initializeUserDefaults(user);
+        }
+      });
+    }
   }
 
   /// ユーザー状態に応じた初期化処理
@@ -52,12 +61,8 @@ class UserInitializationService {
           groups.where((g) => g.groupId == 'default_group').firstOrNull;
       if (defaultGroup == null) {
         Log.info('🔄 [INIT] デフォルトグループが見つかりません。ローカルで作成します...');
-        final currentUser = _auth.currentUser;
-        if (currentUser != null) {
-          await _createDefaultGroupLocally(currentUser);
-        } else {
-          Log.warning('⚠️ [INIT] ユーザーがログインしていません - デフォルトグループ作成をスキップ');
-        }
+        // Dev環境ではFirebase Userが存在しないため、nullを許容
+        await _createDefaultGroupLocally(_auth?.currentUser);
       }
 
       // STEP3: Firestore同期を一時的に無効化（デバッグ用）
@@ -95,12 +100,13 @@ class UserInitializationService {
   }
 
   /// デフォルトグループをローカル（Hive）のみで作成
-  Future<void> _createDefaultGroupLocally(User user) async {
+  /// Dev環境ではuserがnullの可能性がある
+  Future<void> _createDefaultGroupLocally(User? user) async {
     try {
       // Hiveリポジトリを直接使用（Firestoreにはアクセスしない）
       final hiveRepository =
           _ref.read(hive_repo.hivePurchaseGroupRepositoryProvider);
-      final defaultGroupId = 'default_group'; // シンプルなID
+      const defaultGroupId = 'default_group'; // シンプルなID
 
       // 既存のデフォルトグループをチェック（ローカルのみ）
       try {
@@ -117,24 +123,25 @@ class UserInitializationService {
       final displayName = prefsName ?? 'maya';
       Log.info('📝 [DEFAULT GROUP] プリファレンス優先: $displayName');
 
-      // メールアドレスをSharedPreferencesに保存
-      if (user.email != null && user.email!.isNotEmpty) {
+      // メールアドレスをSharedPreferencesに保存（ユーザーが存在する場合のみ）
+      if (user?.email != null && user!.email!.isNotEmpty) {
         await UserPreferencesService.saveUserEmail(user.email!);
-        Log.info('� SharedPreferences saveUserEmail: ${user.email} - 成功: true');
+        Log.info(
+            '📧 SharedPreferences saveUserEmail: ${user.email} - 成功: true');
       }
 
-      // デフォルトグループのオーナーメンバーを作成（UIDを後で更新可能）
+      // デフォルトグループのオーナーメンバーを作成
       final ownerMember = PurchaseGroupMember.create(
         name: displayName,
-        contact: user.email ?? '',
+        contact: user?.email ?? '',
         role: PurchaseGroupRole.owner,
-        isSignedIn: true,
+        isSignedIn: user != null,
         isInvited: false,
         isInvitationAccepted: false,
       );
 
       // デフォルトグループをローカルで作成
-      final defaultGroupName = '${displayName}グループ';
+      final defaultGroupName = '$displayNameグループ';
       await hiveRepository.createGroup(
         defaultGroupId,
         defaultGroupName,
@@ -149,7 +156,7 @@ class UserInitializationService {
 
   /// 手動でデフォルトグループを作成（テスト用）
   Future<void> createDefaultGroupManually() async {
-    final user = _auth.currentUser;
+    final user = _auth?.currentUser;
     if (user != null) {
       await _createDefaultGroupLocally(user);
     } else {

@@ -9,21 +9,25 @@ import '../models/user_settings.dart';
 // import '../models/invitation.dart';  // 削除済み - QRコードシステムに移行
 // import '../models/accepted_invitation.dart';  // 削除済み - QRコードシステムに移行
 
-
-
 /// UID別のHiveデータベース管理サービス（改良版）
 class UserSpecificHiveService {
   static UserSpecificHiveService? _instance;
-  static UserSpecificHiveService get instance => _instance ??= UserSpecificHiveService._();
-  
+  static UserSpecificHiveService get instance =>
+      _instance ??= UserSpecificHiveService._();
+
   UserSpecificHiveService._();
-  
+
   String? _currentUserId;
   bool _isInitialized = false;
-  
+
   // 前回使用したUIDの保存・復元用キー
   static const String _lastUserIdKey = 'last_used_uid';
-  
+
+  // スキーマバージョンの管理
+  static const String _schemaVersionKey = 'hive_schema_version';
+  static const int _currentSchemaVersion =
+      2; // Version 2: PurchaseGroup.shoppingListIds 削除
+
   /// 前回使用したUIDを保存
   Future<void> saveLastUsedUid(String uid) async {
     // 仮設定UIDは保存しない
@@ -31,7 +35,7 @@ class UserSpecificHiveService {
       Log.info('🔄 仮設定UID検出 - 保存をスキップ: $uid');
       return;
     }
-    
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_lastUserIdKey, uid);
     Log.info('💾 Last used UID saved: $uid');
@@ -43,20 +47,22 @@ class UserSpecificHiveService {
     if (uid.startsWith('mock_')) {
       return true;
     }
-    
+
     // ローカルテスト用の仮設定UIDパターンを検出
-    if (uid.startsWith('local_') || uid.startsWith('temp_') || uid.startsWith('dev_')) {
+    if (uid.startsWith('local_') ||
+        uid.startsWith('temp_') ||
+        uid.startsWith('dev_')) {
       return true;
     }
-    
+
     // 空文字列や明らかに無効なUIDも仮設定として扱う
     if (uid.isEmpty || uid.length < 10) {
       return true;
     }
-    
+
     return false;
   }
-  
+
   /// 前回使用したUIDを取得
   Future<String?> getLastUsedUid() async {
     final prefs = await SharedPreferences.getInstance();
@@ -64,13 +70,13 @@ class UserSpecificHiveService {
     Log.info('📂 Last used UID retrieved: $uid');
     return uid;
   }
-  
+
   /// 現在のユーザーIDを取得
   String? get currentUserId => _currentUserId;
-  
+
   /// Hiveが初期化されているかどうか
   bool get isInitialized => _isInitialized;
-  
+
   /// グローバルなHive初期化（アダプター登録のみ）
   static Future<void> initializeAdapters() async {
     if (!Hive.isAdapterRegistered(0)) {
@@ -83,10 +89,11 @@ class UserSpecificHiveService {
       // Hive.registerAdapter(InvitationAdapter());  // 削除済み - QRコードシステムに移行
       // Hive.registerAdapter(AcceptedInvitationAdapter());  // 削除済み - QRコードシステムに移行
       Hive.registerAdapter(UserSettingsAdapter());
-      Log.info('📝 Hive adapters registered globally (InvitationStatus継続、招待アダプターは削除)');
+      Log.info(
+          '📝 Hive adapters registered globally (InvitationStatus継続、招待アダプターは削除)');
     }
   }
-  
+
   /// Windows用: 前回使用UIDまたは指定UIDでHiveを初期化
   Future<void> initializeForWindowsUser([String? userId]) async {
     if (!Platform.isWindows) {
@@ -96,7 +103,7 @@ class UserSpecificHiveService {
 
     // UIDが指定されていない場合は前回使用UIDを取得
     final targetUserId = userId ?? await getLastUsedUid();
-    
+
     // 仮設定UIDまたは無効UIDの場合はデフォルトHiveを使用
     if (targetUserId == null || _isTemporaryUid(targetUserId)) {
       Log.info('🔄 有効なUID未発見（${targetUserId ?? "null"}） - デフォルトHiveを使用');
@@ -104,103 +111,112 @@ class UserSpecificHiveService {
     }
 
     Log.info('🗂️ Initializing Hive for user: $targetUserId');
-    
+
     // 既存のinitializeForUserを利用
     await initializeForUser(targetUserId);
-    
+
     // 使用UIDを保存（仮設定UIDでない場合のみ）
     await saveLastUsedUid(targetUserId);
-    
+
     Log.info('✅ Hive initialized for Windows user: $targetUserId');
   }
-  
+
   /// ユーザー固有のHiveデータベースを初期化
   Future<void> initializeForUser(String userId) async {
     if (_currentUserId == userId && _isInitialized) {
       Log.info('✅ Already initialized for user: $userId');
       return;
     }
-    
+
     try {
       // 安全にすべてのBoxを閉じる
       await _closeAllBoxesSafely();
-      
+
       // Box閉じた後少し待つ（プロバイダー競合を防ぐ）
       await Future.delayed(const Duration(milliseconds: 300));
-      
+
       // ユーザー固有のディレクトリパスを作成
       final userDataPath = await _getUserDataPath(userId);
       Log.info('📁 User data path: $userDataPath');
-      
+
       // Hiveをユーザー固有のパスで初期化
       Hive.init(userDataPath);
-      
+
+      // ★★★ データマイグレーションを実行 ★★★
+      await _runMigrationIfNeeded();
+
       // Boxを開く
       await _openUserBoxes();
-      
+
       _currentUserId = userId;
       _isInitialized = true;
-      
+
       Log.info('✅ Hive initialized successfully for user: $userId');
-      
     } catch (e) {
       Log.error('❌ Failed to initialize Hive for user $userId: $e');
       rethrow;
     }
   }
-  
+
   /// デフォルトユーザー（UID未設定）用のHive初期化
   Future<void> initializeForDefaultUser() async {
     if (_currentUserId == 'default' && _isInitialized) {
       Log.info('✅ Already initialized for default user');
       return;
     }
-    
+
     try {
       // 安全にすべてのBoxを閉じる
       await _closeAllBoxesSafely();
-      
+
       // Box閉じた後少し待つ
       await Future.delayed(const Duration(milliseconds: 300));
-      
+
       // デフォルトのHiveパスを設定
       final directory = await getApplicationDocumentsDirectory();
       final defaultPath = '${directory.path}/hive_db';
-      
+
       Log.info('📁 Default Hive path: $defaultPath');
-      
+
       // ディレクトリが存在しない場合は作成
       final hiveDir = Directory(defaultPath);
       if (!await hiveDir.exists()) {
         await hiveDir.create(recursive: true);
         Log.info('📁 Created Hive directory: $defaultPath');
       }
-      
+
       // Hiveをデフォルトパスで初期化
       Hive.init(defaultPath);
-      
+
+      // ★★★ データマイグレーションを実行 ★★★
+      await _runMigrationIfNeeded();
+
       // Boxを順番に開く
       await _openUserBoxes();
-      
+
       _currentUserId = 'default';
       _isInitialized = true;
-      
+
       Log.info('✅ Hive initialized successfully for default user');
-      
     } catch (e) {
       Log.error('❌ Failed to initialize Hive for default user: $e');
       rethrow;
     }
   }
-  
+
   /// すべてのBoxを安全に閉じる（競合回避改良版）
   Future<void> _closeAllBoxesSafely() async {
     try {
       Log.info('📦 Attempting to close all Hive boxes safely...');
-      
+
       // 個別のBoxを順次閉じる（Hive.close()は使わない）
-      final boxesToClose = ['purchaseGroups', 'shoppingLists', 'userSettings', 'subscriptions'];
-      
+      final boxesToClose = [
+        'purchaseGroups',
+        'shoppingLists',
+        'userSettings',
+        'subscriptions'
+      ];
+
       for (String boxName in boxesToClose) {
         try {
           if (Hive.isBoxOpen(boxName)) {
@@ -214,38 +230,141 @@ class UserSpecificHiveService {
         // Box閉じる間に少し待つ
         await Future.delayed(const Duration(milliseconds: 50));
       }
-      
+
       Log.info('🔄 All Hive boxes closed successfully');
     } catch (e) {
       Log.warning('⚠️ Warning during box closing (will continue): $e');
     }
   }
-  
+
   /// ユーザー固有のデータパスを取得
   Future<String> _getUserDataPath(String userId) async {
     final directory = await getApplicationDocumentsDirectory();
     return '${directory.path}/go_shop_data/users/$userId';
   }
-  
+
   /// 必要なBoxをすべて開く（順番に開いて競合を回避）
   Future<void> _openUserBoxes() async {
     try {
       Log.info('📦 Opening PurchaseGroup box...');
       await Hive.openBox<PurchaseGroup>('purchaseGroups');
-      
+
       Log.info('📦 Opening ShoppingList box...');
       await Hive.openBox<ShoppingList>('shoppingLists');
-      
+
       Log.info('📦 Opening UserSettings box...');
       await Hive.openBox<UserSettings>('userSettings');
-      
+
       Log.info('📦 Opening Subscriptions box...');
       await Hive.openBox<Map>('subscriptions');
-      
+
       Log.info('📦 All user-specific boxes opened successfully');
     } catch (e) {
       Log.error('❌ Failed to open user boxes: $e');
       rethrow;
+    }
+  }
+
+  /// 必要に応じてデータマイグレーションを実行
+  Future<void> _runMigrationIfNeeded() async {
+    final prefs = await SharedPreferences.getInstance();
+    int currentVersion = prefs.getInt(_schemaVersionKey) ?? 0;
+    Log.info(
+        '🔄 Current Hive schema version: $currentVersion, App schema version: $_currentSchemaVersion');
+
+    // ⚠️ 重要: スキーマバージョン2への移行は、旧データファイルを削除するため
+    // バージョンが2と記録されていても、ファイルが残っていれば再実行する
+    if (currentVersion == 2) {
+      final appDocDir = await getApplicationDocumentsDirectory();
+      final hivePath = '${appDocDir.path}/hive_db';
+      final purchaseGroupsFile = File('$hivePath/purchaseGroups.hive');
+
+      if (await purchaseGroupsFile.exists()) {
+        Log.info(
+            '⚠️ Found old schema data files. Re-running migration to v2...');
+        await _migrateToV2();
+        Log.info('✅ Migration to v2 re-executed successfully.');
+        return;
+      }
+    }
+
+    if (currentVersion >= _currentSchemaVersion) {
+      Log.info('✅ Schema is up to date.');
+      return;
+    }
+
+    Log.info(
+        '⏳ Starting schema migration from version $currentVersion to $_currentSchemaVersion...');
+
+    // バージョンごとのマイグレーション処理
+    if (currentVersion < 1) {
+      // スキーマバージョン1へのマイグレーション（もしあれば）
+      // await _migrateToV1();
+      currentVersion = 1;
+      Log.info('Migrated to schema version 1');
+    }
+
+    if (currentVersion < 2) {
+      // スキーマバージョン2へのマイグレーション
+      await _migrateToV2();
+      currentVersion = 2;
+    }
+
+    // ... 将来のバージョンアップはここに追加 ...
+
+    await prefs.setInt(_schemaVersionKey, currentVersion);
+    Log.info('✅ Schema migration completed. New version: $currentVersion');
+  }
+
+  /// スキーマバージョン2へのマイグレーション
+  /// PurchaseGroupのスキーマ変更に伴い、関連するBoxのデータファイルを削除
+  Future<void> _migrateToV2() async {
+    Log.info(
+        '🚀 Running migration to v2: Deleting old purchaseGroups and shoppingLists data files...');
+    try {
+      // 現在のHiveパスを取得（デフォルトまたはユーザー固有のパス）
+      final appDocDir = await getApplicationDocumentsDirectory();
+      final hivePath = '${appDocDir.path}/hive_db';
+
+      Log.info('🔍 Hive data path: $hivePath');
+
+      // purchaseGroups のデータファイルを削除
+      final purchaseGroupsFile = File('$hivePath/purchaseGroups.hive');
+      if (await purchaseGroupsFile.exists()) {
+        await purchaseGroupsFile.delete();
+        Log.info('✅ Deleted purchaseGroups.hive file.');
+      } else {
+        Log.info(
+            'ℹ️  purchaseGroups.hive file not found (already deleted or never existed).');
+      }
+
+      final purchaseGroupsLockFile = File('$hivePath/purchaseGroups.lock');
+      if (await purchaseGroupsLockFile.exists()) {
+        await purchaseGroupsLockFile.delete();
+        Log.info('✅ Deleted purchaseGroups.lock file.');
+      }
+
+      // shoppingLists のデータファイルを削除
+      final shoppingListsFile = File('$hivePath/shoppingLists.hive');
+      if (await shoppingListsFile.exists()) {
+        await shoppingListsFile.delete();
+        Log.info('✅ Deleted shoppingLists.hive file.');
+      } else {
+        Log.info(
+            'ℹ️  shoppingLists.hive file not found (already deleted or never existed).');
+      }
+
+      final shoppingListsLockFile = File('$hivePath/shoppingLists.lock');
+      if (await shoppingListsLockFile.exists()) {
+        await shoppingListsLockFile.delete();
+        Log.info('✅ Deleted shoppingLists.lock file.');
+      }
+
+      Log.info(
+          '✅ Migration to v2 completed successfully by deleting old data files.');
+    } catch (e) {
+      Log.error('❌ Error during migration to v2 (deleting files): $e');
+      // エラーが発生しても、他の処理は継続させる
     }
   }
 }

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/purchase_group.dart';
 import '../providers/purchase_group_provider.dart';
+import '../providers/current_group_provider.dart';
+import '../providers/current_list_provider.dart';
 import '../utils/app_logger.dart';
 import '../pages/group_member_management_page.dart';
 import '../flavors.dart';
@@ -185,15 +187,24 @@ class GroupListWidget extends ConsumerWidget {
 
   void _selectCurrentGroup(
       BuildContext context, WidgetRef ref, PurchaseGroup group) {
-    final currentSelectedId = ref.read(selectedGroupIdProvider);
+    final currentGroup = ref.read(currentGroupProvider);
 
-    if (currentSelectedId == group.groupId) {
+    if (currentGroup?.groupId == group.groupId) {
       AppLogger.info('📋 [GROUP_SELECT] 既に選択済み: ${group.groupId}');
       return;
     }
 
     // グループを選択してカレントグループに設定
+    ref.read(currentGroupProvider.notifier).selectGroup(group);
+
+    // 旧システムとの互換性のため、selectedGroupIdProviderも更新
     ref.read(selectedGroupIdProvider.notifier).selectGroup(group.groupId);
+
+    // 🔄 グループ切り替え時は現在のリスト選択をクリア
+    // （別のグループのリストIDが残っているとDropdownエラーになるため）
+    ref.read(currentListProvider.notifier).clearSelection();
+    AppLogger.info('🗑️ [GROUP_SELECT] カレントリストをクリアしました');
+
     AppLogger.info(
         '📋 [GROUP_SELECT] カレントグループを変更: ${group.groupName} (${group.groupId})');
 
@@ -378,14 +389,14 @@ class GroupListWidget extends ConsumerWidget {
     // 現在のユーザー情報を安全に取得
     User? currentUser;
     try {
-      if (F.appFlavor != Flavor.dev) {
+      if (F.appFlavor == Flavor.prod) {
         currentUser = FirebaseAuth.instance.currentUser;
       }
     } catch (e) {
       AppLogger.info('🔄 [GROUP_OPTIONS] Firebase利用不可（開発環境）: $e');
       currentUser = null;
     }
-    if (currentUser == null && F.appFlavor != Flavor.dev) {
+    if (currentUser == null && F.appFlavor == Flavor.prod) {
       AppLogger.warning('⚠️  [GROUP_OPTIONS] ユーザーが認証されていません');
       return;
     }

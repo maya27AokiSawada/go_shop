@@ -163,7 +163,7 @@ class EnhancedInvitationService {
       ownerEmail: firestoreGroup.ownerEmail,
       ownerUid: firestoreGroup.ownerUid,
       members: updatedMembers,
-      shoppingListIds: firestoreGroup.shoppingListIds,
+      // shoppingListIds はサブコレクションに移行したため削除
     );
 
     final updatedGroup = FirestorePurchaseGroup(
@@ -228,7 +228,7 @@ class EnhancedInvitationService {
           ownerEmail: updatedGroup.ownerEmail,
           ownerUid: updatedGroup.ownerUid,
           members: updatedMembers,
-          shoppingListIds: updatedGroup.shoppingListIds,
+          // shoppingListIds はサブコレクションに移行したため削除
         );
 
         final finalGroup = FirestorePurchaseGroup(

@@ -410,79 +410,97 @@ class _GroupCreationWithCopyDialogState
         final currentGroup = ref.read(selectedGroupNotifierProvider).value;
         if (currentGroup != null) {
           await _addSelectedMembers(currentGroup);
+          AppLogger.info('✅ [CREATE GROUP DIALOG] メンバー追加完了');
+        } else {
+          AppLogger.warning(
+              '⚠️ [CREATE GROUP DIALOG] currentGroupがnull - メンバー追加をスキップ');
         }
-        AppLogger.info('✅ [CREATE GROUP DIALOG] メンバー追加完了');
       }
 
-      // ✅ 追加の待機時間: UIが安定するまで少し待つ
-      // Riverpodのstate更新がUIに反映されるまでの時間を確保
-      await Future.delayed(const Duration(milliseconds: 300));
+      // ✅ グループ作成処理完了
+      AppLogger.info('✅ [CREATE GROUP DIALOG] グループ作成処理完了: $groupName');
+      AppLogger.info('🔍 [CREATE GROUP DIALOG] mounted状態: $mounted');
 
-      // Close dialog after ALL operations are complete
+      // ローディング解除 - ユーザーに完了を視覚的に示す
       if (mounted) {
-        Navigator.of(context).pop(true); // Return success
-
-        // Show snackbar after dialog is closed
-        Future.delayed(const Duration(milliseconds: 200), () {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('グループ「$groupName」を作成しました'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
+        setState(() {
+          _isLoading = false;
         });
+        AppLogger.info('✅ [CREATE GROUP DIALOG] ローディング解除完了');
       }
-    } catch (e) {
-      developer.log('❌ グループ作成エラー: $e');
+
+      // 短い遅延の後にダイアログを閉じる（ユーザーが完了を認識できるように）
+      // awaitではなくunawaited callにすることで、mounted状態を保持
+      Future.delayed(const Duration(milliseconds: 200), () {
+        if (mounted) {
+          AppLogger.info('🔄 [CREATE GROUP DIALOG] Navigator.pop(true)を呼び出します');
+          try {
+            Navigator.of(context).pop(true);
+            AppLogger.info('✅ [CREATE GROUP DIALOG] Navigator.pop()完了');
+          } catch (e, stackTrace) {
+            AppLogger.error('❌ [CREATE GROUP DIALOG] Navigator.pop()でエラー: $e');
+            AppLogger.error('❌ [CREATE GROUP DIALOG] スタックトレース: $stackTrace');
+          }
+        } else {
+          AppLogger.warning('⚠️ [CREATE GROUP DIALOG] mounted=false, popをスキップ');
+        }
+      });
+    } catch (e, stackTrace) {
+      AppLogger.error('❌ [CREATE GROUP DIALOG] グループ作成エラー: $e');
+      AppLogger.error('❌ [CREATE GROUP DIALOG] スタックトレース: $stackTrace');
 
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('グループ作成エラー: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // エラー時はfalseを返す（Snackbarは呼び出し元で表示）
+        Navigator.of(context).pop(false);
       }
     }
   }
 
   Future<void> _addSelectedMembers(PurchaseGroup newGroup) async {
-    if (_selectedSourceGroup?.members == null) return;
+    try {
+      if (_selectedSourceGroup?.members == null) {
+        AppLogger.info('⚠️ [ADD MEMBERS] ソースグループにメンバーがいません');
+        return;
+      }
 
-    final selectedGroupNotifier =
-        ref.read(selectedGroupNotifierProvider.notifier);
+      final selectedGroupNotifier =
+          ref.read(selectedGroupNotifierProvider.notifier);
 
-    for (final member in _selectedSourceGroup!.members!) {
-      final memberId = member.memberId;
-      final isSelected = _selectedMembers[memberId] ?? false;
+      for (final member in _selectedSourceGroup!.members!) {
+        final memberId = member.memberId;
+        final isSelected = _selectedMembers[memberId] ?? false;
 
-      if (isSelected && member.role != PurchaseGroupRole.owner) {
-        final newRole = _memberRoles[memberId] ?? member.role;
+        if (isSelected && member.role != PurchaseGroupRole.owner) {
+          final newRole = _memberRoles[memberId] ?? member.role;
 
-        final newMember = PurchaseGroupMember.create(
-          name: member.name,
-          contact: member.contact,
-          role: newRole,
-          isSignedIn: member.isSignedIn,
-          invitationStatus: member.invitationStatus,
-          invitedAt: member.invitedAt,
-          acceptedAt: member.acceptedAt,
-        );
+          final newMember = PurchaseGroupMember.create(
+            name: member.name,
+            contact: member.contact,
+            role: newRole,
+            isSignedIn: member.isSignedIn,
+            invitationStatus: member.invitationStatus,
+            invitedAt: member.invitedAt,
+            acceptedAt: member.acceptedAt,
+          );
 
-        try {
-          await selectedGroupNotifier.addMember(newMember);
-          developer.log(
-              '✅ メンバー追加成功: ${member.name} (役割: ${_getRoleDisplayName(newRole)})');
-        } catch (e) {
-          developer.log('❌ メンバー追加エラー: ${member.name} - $e');
+          try {
+            await selectedGroupNotifier.addMember(newMember);
+            developer.log(
+                '✅ メンバー追加成功: ${member.name} (役割: ${_getRoleDisplayName(newRole)})');
+          } catch (e) {
+            developer.log('❌ メンバー追加エラー: ${member.name} - $e');
+            // 個別のメンバー追加失敗は続行（他のメンバーは追加）
+          }
         }
       }
+    } catch (e, stackTrace) {
+      AppLogger.error('❌ [ADD MEMBERS] メンバー追加処理でエラー発生: $e');
+      AppLogger.error('❌ [ADD MEMBERS] スタックトレース: $stackTrace');
+      rethrow; // 呼び出し元にエラーを伝播
     }
   }
 }

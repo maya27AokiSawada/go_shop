@@ -57,10 +57,10 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
     final originalMembers = group.members ?? [];
     bool needsUpdate = false;
 
-    // Get current Firebase user ID for owner validation
+    // Get current Firebase user ID for owner validation (本番環境のみ)
     User? currentUser;
     try {
-      if (F.appFlavor != Flavor.dev) {
+      if (F.appFlavor == Flavor.prod) {
         currentUser = FirebaseAuth.instance.currentUser;
       }
     } catch (e) {
@@ -321,7 +321,7 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
       // 🔒 セキュリティチェック: オーナー権限確認
       User? currentUser;
       try {
-        if (F.appFlavor != Flavor.dev) {
+        if (F.appFlavor == Flavor.prod) {
           currentUser = FirebaseAuth.instance.currentUser;
         }
       } catch (e) {
@@ -457,7 +457,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
     // 🔒 Firebase認証チェック（本番環境のみ）
     User? currentUser;
     try {
-      if (F.appFlavor != Flavor.dev) {
+      if (F.appFlavor == Flavor.prod) {
         currentUser = FirebaseAuth.instance.currentUser;
         if (currentUser == null) {
           throw Exception('新しいグループを作成するにはFirebase認証が必要です。サインインしてください。');
@@ -467,7 +467,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
         Log.info('🔧 [CREATE GROUP] DEV環境 - 認証チェックをスキップ');
       }
     } catch (e) {
-      if (F.appFlavor != Flavor.dev) {
+      if (F.appFlavor == Flavor.prod) {
         Log.error('❌ [CREATE GROUP] 認証エラー: $e');
         rethrow;
       }

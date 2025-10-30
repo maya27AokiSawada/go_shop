@@ -7,12 +7,17 @@ import 'shopping_list_repository.dart';
 import '../providers/firestore_provider.dart';
 
 class FirestoreShoppingListRepository implements ShoppingListRepository {
+  final Ref _ref;
   final FirebaseFirestore _firestore;
 
-  FirestoreShoppingListRepository(Ref ref)
-      : _firestore = ref.read(firestoreProvider);
+  FirestoreShoppingListRepository(this._ref)
+      : _firestore = _ref.read(firestoreProvider);
 
-  CollectionReference get _collection => _firestore.collection('shoppingLists');
+  // サブコレクションへの参照を返すメソッド
+  CollectionReference _collection(String groupId) => _firestore
+      .collection('purchaseGroups')
+      .doc(groupId)
+      .collection('shoppingLists');
 
   @override
   Future<ShoppingList> createShoppingList({
@@ -30,7 +35,7 @@ class FirestoreShoppingListRepository implements ShoppingListRepository {
       items: [],
     );
 
-    await _collection
+    await _collection(groupId)
         .doc(newList.listId)
         .set(_shoppingListToFirestore(newList));
     developer.log(
@@ -40,17 +45,24 @@ class FirestoreShoppingListRepository implements ShoppingListRepository {
 
   @override
   Future<ShoppingList?> getShoppingListById(String listId) async {
-    final doc = await _collection.doc(listId).get();
-    if (doc.exists) {
-      return _shoppingListFromFirestore(doc);
+    // コレクショングループクエリを使用して、groupIdが不明でもリストを検索
+    final querySnapshot = await _firestore
+        .collectionGroup('shoppingLists')
+        .where('listId', isEqualTo: listId)
+        .limit(1)
+        .get();
+
+    if (querySnapshot.docs.isNotEmpty) {
+      return _shoppingListFromFirestore(querySnapshot.docs.first);
     }
+
     developer.log('⚠️ Firestoreにリストが見つからない (ID: $listId)');
     return null;
   }
 
   @override
   Future<List<ShoppingList>> getShoppingListsByGroup(String groupId) async {
-    final query = await _collection.where('groupId', isEqualTo: groupId).get();
+    final query = await _collection(groupId).get();
     final lists =
         query.docs.map((doc) => _shoppingListFromFirestore(doc)).toList();
     developer.log('📋 Firestoreからグループ「$groupId」のリスト取得: ${lists.length}個');
@@ -59,21 +71,28 @@ class FirestoreShoppingListRepository implements ShoppingListRepository {
 
   @override
   Future<void> updateShoppingList(ShoppingList list) async {
-    await _collection.doc(list.listId).update(_shoppingListToFirestore(list));
+    await _collection(list.groupId)
+        .doc(list.listId)
+        .update(_shoppingListToFirestore(list));
     developer.log('💾 Firestoreでリスト更新: ${list.listName} (ID: ${list.listId})');
   }
 
   @override
   Future<void> deleteShoppingList(String listId) async {
-    await _collection.doc(listId).delete();
-    developer.log('🗑️ Firestoreからリスト削除 (ID: $listId)');
+    // 最初にリストを取得してgroupIdを特定
+    final list = await getShoppingListById(listId);
+    if (list != null) {
+      await _collection(list.groupId).doc(listId).delete();
+      developer.log('🗑️ Firestoreからリスト削除 (ID: $listId)');
+    } else {
+      developer.log('⚠️ 削除対象のリストが見つからない (ID: $listId)');
+    }
   }
 
   @override
   Future<void> deleteShoppingListsByGroupId(String groupId) async {
     final batch = _firestore.batch();
-    final querySnapshot =
-        await _collection.where('groupId', isEqualTo: groupId).get();
+    final querySnapshot = await _collection(groupId).get();
 
     for (final doc in querySnapshot.docs) {
       batch.delete(doc.reference);
@@ -86,7 +105,11 @@ class FirestoreShoppingListRepository implements ShoppingListRepository {
 
   @override
   Future<void> addItemToList(String listId, ShoppingItem item) async {
-    await _collection.doc(listId).update({
+    final list = await getShoppingListById(listId);
+    if (list == null) {
+      throw Exception('リストが見つかりません (ID: $listId)');
+    }
+    await _collection(list.groupId).doc(listId).update({
       'items': FieldValue.arrayUnion([_shoppingItemToFirestore(item)])
     });
     developer.log('➕ Firestoreにアイテム追加: ${item.name} → リストID「$listId」');
@@ -94,7 +117,11 @@ class FirestoreShoppingListRepository implements ShoppingListRepository {
 
   @override
   Future<void> removeItemFromList(String listId, ShoppingItem item) async {
-    await _collection.doc(listId).update({
+    final list = await getShoppingListById(listId);
+    if (list == null) {
+      throw Exception('リストが見つかりません (ID: $listId)');
+    }
+    await _collection(list.groupId).doc(listId).update({
       'items': FieldValue.arrayRemove([_shoppingItemToFirestore(item)])
     });
     developer.log('➖ Firestoreからアイテム削除: ${item.name} ← リストID「$listId」');

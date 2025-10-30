@@ -5,8 +5,11 @@ import '../models/shopping_list.dart';
 import '../providers/shopping_list_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/security_provider.dart';
+import '../providers/current_group_provider.dart';
+import '../providers/current_list_provider.dart';
 import '../services/access_control_service.dart';
 import '../helpers/validation_service.dart';
+import '../widgets/shopping_list_header_widget.dart';
 
 // NOTE: selectedGroupIdProviderはpurchase_group_provider.dartで定義済み
 
@@ -169,35 +172,215 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
       ),
       body: Column(
         children: [
-          // ドロップダウンでリスト選択
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: allGroupsAsync.when(
-              data: (groups) => Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.list_alt),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: groups.isNotEmpty
-                            ? DropdownButtonHideUnderline(
-                                child: DropdownButton<String>(
-                                  value: selectedListId ?? groups.first.groupId,
-                                  isExpanded: true,
-                                  hint: const Text('リストを選択'),
-                                  items: groups
-                                      .map((group) => DropdownMenuItem<String>(
-                                            value: group.groupId,
-                                            child: Text(group.groupName),
-                                          ))
-                                      .toList(),
-                                  onChanged: (String? value) async {
-                                    if (value != null) {
-                                      // 🔒 シークレットモード時のアクセス制御チェック
-                                      final accessControl = ref
-                                          .read(accessControlServiceProvider);
+          // 新しいヘッダーウィジェット
+          const ShoppingListHeaderWidget(),
+
+          // 以下は既存のアイテムリスト表示部分
+          Expanded(
+            child: _buildShoppingItemsList(context),
+          ),
+        ],
+      ),
+      floatingActionButton: _buildFloatingActionButton(context),
+    );
+  }
+
+  Widget _buildShoppingItemsList(BuildContext context) {
+    final currentList = ref.watch(currentListProvider);
+
+    if (currentList == null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.shopping_cart_outlined, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(
+              'リストを選択してください',
+              style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (currentList.items.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add_shopping_cart, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(
+              '買い物アイテムがありません',
+              style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '右下の + ボタンから追加してください',
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: currentList.items.length,
+      itemBuilder: (context, index) {
+        final item = currentList.items[index];
+        return _buildShoppingItemTile(context, item, index);
+      },
+    );
+  }
+
+  Widget _buildShoppingItemTile(BuildContext context, ShoppingItem item, int index) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: ListTile(
+        leading: Checkbox(
+          value: item.isPurchased,
+          onChanged: (bool? value) {
+            if (value != null) {
+              _toggleItemPurchased(index, value);
+            }
+          },
+        ),
+        title: Text(
+          item.name,
+          style: TextStyle(
+            decoration: item.isPurchased ? TextDecoration.lineThrough : null,
+            color: item.isPurchased ? Colors.grey : null,
+          ),
+        ),
+        subtitle: Text('数量: ${item.quantity}'),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (item.deadline != null)
+              Icon(
+                Icons.schedule,
+                size: 16,
+                color: _getDeadlineColor(item.deadline!),
+              ),
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              onPressed: () => _deleteItem(index),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getDeadlineColor(DateTime deadline) {
+    final now = DateTime.now();
+    final difference = deadline.difference(now).inDays;
+    if (difference < 0) return Colors.red;
+    if (difference <= 3) return Colors.orange;
+    return Colors.green;
+  }
+
+  void _toggleItemPurchased(int index, bool isPurchased) {
+    final currentList = ref.read(currentListProvider);
+    if (currentList == null) return;
+
+    final updatedItems = List<ShoppingItem>.from(currentList.items);
+    updatedItems[index] = updatedItems[index].copyWith(
+      isPurchased: isPurchased,
+      purchaseDate: isPurchased ? DateTime.now() : null,
+    );
+
+    final updatedList = currentList.copyWith(
+      items: updatedItems,
+      updatedAt: DateTime.now(),
+    );
+
+    ref.read(currentListProvider.notifier).updateList(updatedList);
+    // TODO: リポジトリに保存
+  }
+
+  void _deleteItem(int index) {
+    final currentList = ref.read(currentListProvider);
+    if (currentList == null) return;
+
+    final updatedItems = List<ShoppingItem>.from(currentList.items);
+    updatedItems.removeAt(index);
+
+    final updatedList = currentList.copyWith(
+      items: updatedItems,
+      updatedAt: DateTime.now(),
+    );
+
+    ref.read(currentListProvider.notifier).updateList(updatedList);
+    // TODO: リポジトリに保存
+  }
+
+  Widget _buildFloatingActionButton(BuildContext context) {
+    return FloatingActionButton(
+      onPressed: () => _showAddItemDialog(context),
+      tooltip: 'アイテムを追加',
+      child: const Icon(Icons.add),
+    );
+  }
+
+  void _showAddItemDialog(BuildContext context) {
+    final currentList = ref.read(currentListProvider);
+    if (currentList == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('リストを選択してください')),
+      );
+      return;
+    }
+
+    // TODO: アイテム追加ダイアログを実装
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('買い物アイテムを追加'),
+        content: const Text('TODO: アイテム追加フォーム'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('キャンセル'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 以下、既存のメソッドを維持（後で削除可能な古いコード）
+  void _showOldGroupSelectionUI() {
+    final allGroupsAsync = ref.watch(allGroupsProvider);
+    final selectedGroupId = ref.watch(selectedGroupIdProvider);
+
+    // 古いUI実装（参考用に残す）
+    // 選択されたグループIDに基づいてショッピングリストを取得
+    final shoppingListAsync =
+        ref.watch(shoppingListForGroupProvider(selectedGroupId));
+
+    // この下の古いコードは後で削除
+    if (true) return; // 一時的に無効化
+
+    allGroupsAsync.when(
+      data: (groups) {
+        // 古いドロップダウンコード
+        if (groups.isNotEmpty) {
+          // DropdownButton<String>(
+          //   value: selectedListId ?? groups.first.groupId,
+          //   isExpanded: true,
+          //   hint: const Text('リストを選択'),
+          //   items: groups
+          //       .map((group) => DropdownMenuItem<String>(
+          //             value: group.groupId,
+          //             child: Text(group.groupName),
+          //           ))
+          //       .toList(),
+          //   onChanged: (String? value) async {
+          //     if (value != null) {
+          //       // 🔒 シークレットモード時のアクセス制御チェック
+          //       final accessControl = ref
+          //           .read(accessControlServiceProvider);
                                       final visibilityMode = await accessControl
                                           .getGroupVisibilityMode();
 
@@ -335,7 +518,7 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
         ],
       ),
       floatingActionButton: _buildFloatingActionButton(context),
-    );
+    )
   }
 
   Widget _buildShoppingItemTile(ShoppingItem item) {

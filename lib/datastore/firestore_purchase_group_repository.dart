@@ -5,8 +5,8 @@ import 'package:uuid/uuid.dart';
 import '../models/purchase_group.dart';
 import '../datastore/purchase_group_repository.dart';
 import '../providers/firestore_provider.dart';
+import '../providers/shopping_list_provider.dart';
 import 'dart:developer' as developer;
-import 'package:go_shop/datastore/firestore_shopping_list_repository.dart';
 
 class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
   final Ref _ref;
@@ -146,8 +146,8 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
 
       final group = _groupFromFirestore(doc);
 
-      // グループに紐づくショッピングリストを削除
-      final shoppingListRepo = FirestoreShoppingListRepository(_ref);
+      // 新しいアーキテクチャ: サブコレクション内のショッピングリストを削除
+      final shoppingListRepo = _ref.read(shoppingListRepositoryProvider);
       await shoppingListRepo.deleteShoppingListsByGroupId(groupId);
 
       // グループ本体を削除
@@ -253,7 +253,7 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
       'ownerUid': group.ownerUid,
       'members': group.members?.map((m) => _memberToFirestore(m)).toList(),
       'ownerMessage': group.ownerMessage,
-      'shoppingListIds': group.shoppingListIds,
+      // shoppingListIds はサブコレクションに移行したため削除
       'allowedUid': group.allowedUid,
       'isSecret': group.isSecret,
       'acceptedUid': group.acceptedUid,
@@ -294,7 +294,7 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
       ownerUid: data['ownerUid'],
       members: membersList,
       ownerMessage: data['ownerMessage'],
-      shoppingListIds: List<String>.from(data['shoppingListIds'] ?? []),
+      // shoppingListIds はサブコレクションに移行したため削除
       allowedUid: List<String>.from(data['allowedUid'] ?? []),
       isSecret: data['isSecret'] ?? false,
       acceptedUid: (data['acceptedUid'] as List<dynamic>?)

@@ -264,20 +264,20 @@ class HiveShoppingListRepository implements ShoppingListRepository {
       await box.put(newList.listId, newList);
       developer.log('🆕 新規リスト作成: ${newList.listName} (ID: ${newList.listId})');
 
-      // Update PurchaseGroup's shoppingListIds
-      final purchaseGroupBox = ref.read(purchaseGroupBoxProvider);
-      final purchaseGroup = purchaseGroupBox.get(groupId);
-      if (purchaseGroup != null) {
-        final updatedShoppingListIds = <String>[
-          ...(purchaseGroup.shoppingListIds ?? []),
-          newList.listId
-        ];
-        final updatedGroup =
-            purchaseGroup.copyWith(shoppingListIds: updatedShoppingListIds);
-        await purchaseGroupBox.put(groupId, updatedGroup);
-        developer.log(
-            '📝 グループ「${purchaseGroup.groupName}」にリストID追加: ${newList.listId}');
-      }
+      // `PurchaseGroup`から`shoppingListIds`が削除されたため、この処理は不要
+      // final purchaseGroupBox = ref.read(purchaseGroupBoxProvider);
+      // final purchaseGroup = purchaseGroupBox.get(groupId);
+      // if (purchaseGroup != null) {
+      //   final updatedShoppingListIds = <String>[
+      //     ...(purchaseGroup.shoppingListIds ?? []),
+      //     newList.listId
+      //   ];
+      //   final updatedGroup =
+      //       purchaseGroup.copyWith(shoppingListIds: updatedShoppingListIds);
+      //   await purchaseGroupBox.put(groupId, updatedGroup);
+      //   developer.log(
+      //       '📝 グループ「${purchaseGroup.groupName}」にリストID追加: ${newList.listId}');
+      // }
 
       return newList;
     } catch (e) {
@@ -302,29 +302,14 @@ class HiveShoppingListRepository implements ShoppingListRepository {
   @override
   Future<List<ShoppingList>> getShoppingListsByGroup(String groupId) async {
     try {
-      final purchaseGroupBox = ref.read(purchaseGroupBoxProvider);
-      final purchaseGroup = purchaseGroupBox.get(groupId);
+      // HiveのBox全体をスキャンし、groupIdが一致するものをフィルタリング
+      final lists =
+          box.values.where((list) => list.groupId == groupId).toList();
 
-      final shoppingListIds = purchaseGroup?.shoppingListIds;
-      if (shoppingListIds == null || shoppingListIds.isEmpty) {
-        developer.log('📋 グループ「$groupId」のリストなし');
-        return [];
-      }
-
-      final lists = <ShoppingList>[];
-      for (final listId in shoppingListIds) {
-        final list = box.get(listId);
-        if (list != null) {
-          lists.add(list);
-        } else {
-          developer.log('⚠️ リストID「$listId」が見つからない (グループ: $groupId)');
-        }
-      }
-
-      developer.log('📋 グループ「$groupId」のリスト取得: ${lists.length}個');
+      developer.log('📋 グループ「$groupId」のリスト取得 (Hive): ${lists.length}個');
       return lists;
     } catch (e) {
-      developer.log('❌ グループリスト取得エラー (Group: $groupId): $e');
+      developer.log('❌ グループリスト取得エラー (Hive, Group: $groupId): $e');
       return [];
     }
   }
@@ -348,20 +333,20 @@ class HiveShoppingListRepository implements ShoppingListRepository {
         // Remove from Hive
         await box.delete(listId);
 
-        // Remove from PurchaseGroup's shoppingListIds
-        final purchaseGroupBox = ref.read(purchaseGroupBoxProvider);
-        final purchaseGroup = purchaseGroupBox.get(list.groupId);
-        if (purchaseGroup != null) {
-          final updatedShoppingListIds = (purchaseGroup.shoppingListIds ?? [])
-              .where((id) => id != listId)
-              .toList()
-              .cast<String>();
-          final updatedGroup =
-              purchaseGroup.copyWith(shoppingListIds: updatedShoppingListIds);
-          await purchaseGroupBox.put(list.groupId, updatedGroup);
-          developer
-              .log('📝 グループ「${purchaseGroup.groupName}」からリストID削除: $listId');
-        }
+        // `PurchaseGroup`から`shoppingListIds`が削除されたため、この処理は不要
+        // final purchaseGroupBox = ref.read(purchaseGroupBoxProvider);
+        // final purchaseGroup = purchaseGroupBox.get(list.groupId);
+        // if (purchaseGroup != null) {
+        //   final updatedShoppingListIds = (purchaseGroup.shoppingListIds ?? [])
+        //       .where((id) => id != listId)
+        //       .toList()
+        //       .cast<String>();
+        //   final updatedGroup =
+        //       purchaseGroup.copyWith(shoppingListIds: updatedShoppingListIds);
+        //   await purchaseGroupBox.put(list.groupId, updatedGroup);
+        //   developer
+        //       .log('📝 グループ「${purchaseGroup.groupName}」からリストID削除: $listId');
+        // }
 
         developer.log('🗑️ リスト削除: ${list.listName} (ID: $listId)');
       } else {
@@ -517,12 +502,11 @@ class HiveShoppingListRepository implements ShoppingListRepository {
   @override
   Future<void> deleteShoppingListsByGroupId(String groupId) async {
     try {
-      final purchaseGroupBox = ref.read(purchaseGroupBoxProvider);
-      final purchaseGroup = purchaseGroupBox.get(groupId);
-      final shoppingListIds = purchaseGroup?.shoppingListIds;
+      // groupIdが一致するリストのキーを特定
+      final keysToDelete =
+          box.keys.where((key) => (box.get(key)?.groupId == groupId)).toList();
 
-      if (shoppingListIds != null && shoppingListIds.isNotEmpty) {
-        final keysToDelete = shoppingListIds.toList();
+      if (keysToDelete.isNotEmpty) {
         await box.deleteAll(keysToDelete);
         developer.log(
             '🗑️ Group $groupId lists deleted from Hive: ${keysToDelete.length} lists');

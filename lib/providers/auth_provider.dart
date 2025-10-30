@@ -11,20 +11,27 @@ import '../providers/user_name_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../services/group_management_service.dart';
+import '../flavors.dart';
 
 // Logger instance
 
 // Firebase Auth Service
 class FirebaseAuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  FirebaseAuth? get _auth =>
+      F.appFlavor == Flavor.prod ? FirebaseAuth.instance : null;
 
   Future<User?> signIn(String email, String password) async {
+    if (_auth == null) {
+      Log.warning('🔧 DEV環境: Firebase認証は利用できません');
+      return null;
+    }
+
     try {
       Log.debug('🔥 FirebaseAuthService: signIn開始 - email: $email');
       Log.debug('🔥 FirebaseAuth instance: ${_auth.toString()}');
-      Log.debug('🔥 FirebaseAuth currentUser: ${_auth.currentUser}');
+      Log.debug('🔥 FirebaseAuth currentUser: ${_auth!.currentUser}');
 
-      final credential = await _auth.signInWithEmailAndPassword(
+      final credential = await _auth!.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
@@ -43,10 +50,15 @@ class FirebaseAuthService {
   }
 
   Future<User?> signUp(String email, String password) async {
+    if (_auth == null) {
+      Log.warning('🔧 DEV環境: Firebase認証は利用できません');
+      return null;
+    }
+
     try {
       Log.debug('🔥 FirebaseAuthService: signUp開始 - email: $email');
 
-      final credential = await _auth.createUserWithEmailAndPassword(
+      final credential = await _auth!.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
@@ -62,15 +74,24 @@ class FirebaseAuthService {
   }
 
   Future<void> signOut() async {
-    await _auth.signOut();
+    if (_auth == null) {
+      Log.warning('🔧 DEV環境: Firebase認証は利用できません');
+      return;
+    }
+    await _auth!.signOut();
   }
 
   Future<void> sendPasswordResetEmail(String email) async {
+    if (_auth == null) {
+      Log.warning('🔧 DEV環境: Firebase認証は利用できません');
+      return;
+    }
+
     try {
       Log.debug(
           '🔥 FirebaseAuthService: sendPasswordResetEmail開始 - email: $email');
 
-      await _auth.sendPasswordResetEmail(email: email);
+      await _auth!.sendPasswordResetEmail(email: email);
 
       Log.debug('🔥 FirebaseAuthService: sendPasswordResetEmail成功');
     } catch (e) {
@@ -81,7 +102,7 @@ class FirebaseAuthService {
     }
   }
 
-  User? get currentUser => _auth.currentUser;
+  User? get currentUser => _auth?.currentUser;
 
   /// Home Page用の統合認証操作
   /// サインイン処理
@@ -583,5 +604,10 @@ final authProvider = Provider<FirebaseAuthService>((ref) {
 
 // Firebase認証状態プロバイダー
 final authStateProvider = StreamProvider<User?>((ref) {
-  return FirebaseAuth.instance.authStateChanges();
+  if (F.appFlavor == Flavor.prod) {
+    return FirebaseAuth.instance.authStateChanges();
+  } else {
+    // DEV環境では常にnullを返すストリーム
+    return Stream.value(null);
+  }
 });

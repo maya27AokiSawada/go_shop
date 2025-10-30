@@ -100,13 +100,37 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
     );
   }
 
-  void _showCreateGroupDialog(BuildContext context) {
+  Future<void> _showCreateGroupDialog(BuildContext context) async {
     // ダイアログ内で直接allGroupsProviderを参照するため、
     // ここでは何も取得せずにダイアログを表示
-    showDialog(
+    final result = await showDialog<bool>(
       context: context,
       builder: (context) => const GroupCreationWithCopyDialog(),
     );
+
+    // ダイアログが閉じられた後、結果に応じてSnackbarを表示
+    if (!mounted) return;
+
+    if (result == true) {
+      // 成功
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('グループを作成しました'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } else if (result == false) {
+      // エラー
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('グループ作成に失敗しました'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+    // result == null の場合はキャンセルなので何もしない
   }
 
   void _showDeleteGroupDialog(BuildContext context, String groupId) {
