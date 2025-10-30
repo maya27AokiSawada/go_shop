@@ -14,7 +14,7 @@ abstract class ShoppingListRepository {
   Future<void> removeShoppingItem(String groupId, ShoppingItem item);
   @deprecated
   Future<void> updateShoppingItemStatus(String groupId, ShoppingItem item,
-       {required bool isPurchased});
+      {required bool isPurchased});
   @deprecated
   Future<ShoppingList> getOrCreateList(String groupId, String groupName);
 
@@ -38,6 +38,7 @@ abstract class ShoppingListRepository {
 
   /// Delete a shopping list by listId
   Future<void> deleteShoppingList(String listId);
+  Future<void> deleteShoppingListsByGroupId(String groupId);
 
   /// Add item to a specific shopping list (by listId)
   Future<void> addItemToList(String listId, ShoppingItem item);
@@ -46,7 +47,8 @@ abstract class ShoppingListRepository {
   Future<void> removeItemFromList(String listId, ShoppingItem item);
 
   /// Update item status in a specific shopping list
-  Future<void> updateItemStatusInList(String listId, ShoppingItem item, {required bool isPurchased});
+  Future<void> updateItemStatusInList(String listId, ShoppingItem item,
+      {required bool isPurchased});
 
   /// Clear all purchased items from a specific shopping list
   Future<void> clearPurchasedItemsFromList(String listId);

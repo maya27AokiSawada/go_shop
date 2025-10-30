@@ -14,6 +14,10 @@ T _$identity<T>(T value) => value;
 final _privateConstructorUsedError = UnsupportedError(
     'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
 
+PurchaseGroupMember _$PurchaseGroupMemberFromJson(Map<String, dynamic> json) {
+  return _PurchaseGroupMember.fromJson(json);
+}
+
 /// @nodoc
 mixin _$PurchaseGroupMember {
   @HiveField(0)
@@ -42,6 +46,7 @@ mixin _$PurchaseGroupMember {
   @Deprecated('Use invitationStatus instead')
   bool get isInvitationAccepted => throw _privateConstructorUsedError;
 
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
   $PurchaseGroupMemberCopyWith<PurchaseGroupMember> get copyWith =>
       throw _privateConstructorUsedError;
@@ -240,7 +245,7 @@ class __$$PurchaseGroupMemberImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$PurchaseGroupMemberImpl implements _PurchaseGroupMember {
   const _$PurchaseGroupMemberImpl(
       {@HiveField(0) this.memberId = '',
@@ -258,6 +263,9 @@ class _$PurchaseGroupMemberImpl implements _PurchaseGroupMember {
       @HiveField(6)
       @Deprecated('Use invitationStatus instead')
       this.isInvitationAccepted = false});
+
+  factory _$PurchaseGroupMemberImpl.fromJson(Map<String, dynamic> json) =>
+      _$$PurchaseGroupMemberImplFromJson(json);
 
   @override
   @JsonKey()
@@ -337,6 +345,7 @@ class _$PurchaseGroupMemberImpl implements _PurchaseGroupMember {
                 other.isInvitationAccepted == isInvitationAccepted));
   }
 
+  @JsonKey(ignore: true)
   @override
   int get hashCode => Object.hash(
       runtimeType,
@@ -358,6 +367,13 @@ class _$PurchaseGroupMemberImpl implements _PurchaseGroupMember {
   _$$PurchaseGroupMemberImplCopyWith<_$PurchaseGroupMemberImpl> get copyWith =>
       __$$PurchaseGroupMemberImplCopyWithImpl<_$PurchaseGroupMemberImpl>(
           this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$PurchaseGroupMemberImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class _PurchaseGroupMember implements PurchaseGroupMember {
@@ -377,6 +393,9 @@ abstract class _PurchaseGroupMember implements PurchaseGroupMember {
       @HiveField(6)
       @Deprecated('Use invitationStatus instead')
       final bool isInvitationAccepted}) = _$PurchaseGroupMemberImpl;
+
+  factory _PurchaseGroupMember.fromJson(Map<String, dynamic> json) =
+      _$PurchaseGroupMemberImpl.fromJson;
 
   @override
   @HiveField(0)
@@ -420,6 +439,10 @@ abstract class _PurchaseGroupMember implements PurchaseGroupMember {
       throw _privateConstructorUsedError;
 }
 
+PurchaseGroup _$PurchaseGroupFromJson(Map<String, dynamic> json) {
+  return _PurchaseGroup.fromJson(json);
+}
+
 /// @nodoc
 mixin _$PurchaseGroup {
   @HiveField(0)
@@ -435,11 +458,19 @@ mixin _$PurchaseGroup {
   @HiveField(5)
   List<PurchaseGroupMember>? get members => throw _privateConstructorUsedError;
   @HiveField(6)
-  String? get ownerMessage =>
-      throw _privateConstructorUsedError; // オーナーからメンバーへのメッセージ
+  String? get ownerMessage => throw _privateConstructorUsedError;
   @HiveField(7)
-  List<String>? get shoppingListIds => throw _privateConstructorUsedError;
+  List<String> get shoppingListIds => throw _privateConstructorUsedError;
+  @HiveField(11)
+  List<String> get allowedUid => throw _privateConstructorUsedError;
+  @HiveField(12)
+  bool get isSecret =>
+      throw _privateConstructorUsedError; // acceptedUid: [{uid: securityKey}] のような構造を想定
+  @HiveField(13)
+  List<Map<String, String>> get acceptedUid =>
+      throw _privateConstructorUsedError;
 
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
   $PurchaseGroupCopyWith<PurchaseGroup> get copyWith =>
       throw _privateConstructorUsedError;
@@ -459,7 +490,10 @@ abstract class $PurchaseGroupCopyWith<$Res> {
       @HiveField(4) String? ownerUid,
       @HiveField(5) List<PurchaseGroupMember>? members,
       @HiveField(6) String? ownerMessage,
-      @HiveField(7) List<String>? shoppingListIds});
+      @HiveField(7) List<String> shoppingListIds,
+      @HiveField(11) List<String> allowedUid,
+      @HiveField(12) bool isSecret,
+      @HiveField(13) List<Map<String, String>> acceptedUid});
 }
 
 /// @nodoc
@@ -482,7 +516,10 @@ class _$PurchaseGroupCopyWithImpl<$Res, $Val extends PurchaseGroup>
     Object? ownerUid = freezed,
     Object? members = freezed,
     Object? ownerMessage = freezed,
-    Object? shoppingListIds = freezed,
+    Object? shoppingListIds = null,
+    Object? allowedUid = null,
+    Object? isSecret = null,
+    Object? acceptedUid = null,
   }) {
     return _then(_value.copyWith(
       groupName: null == groupName
@@ -513,10 +550,22 @@ class _$PurchaseGroupCopyWithImpl<$Res, $Val extends PurchaseGroup>
           ? _value.ownerMessage
           : ownerMessage // ignore: cast_nullable_to_non_nullable
               as String?,
-      shoppingListIds: freezed == shoppingListIds
+      shoppingListIds: null == shoppingListIds
           ? _value.shoppingListIds
           : shoppingListIds // ignore: cast_nullable_to_non_nullable
-              as List<String>?,
+              as List<String>,
+      allowedUid: null == allowedUid
+          ? _value.allowedUid
+          : allowedUid // ignore: cast_nullable_to_non_nullable
+              as List<String>,
+      isSecret: null == isSecret
+          ? _value.isSecret
+          : isSecret // ignore: cast_nullable_to_non_nullable
+              as bool,
+      acceptedUid: null == acceptedUid
+          ? _value.acceptedUid
+          : acceptedUid // ignore: cast_nullable_to_non_nullable
+              as List<Map<String, String>>,
     ) as $Val);
   }
 }
@@ -537,7 +586,10 @@ abstract class _$$PurchaseGroupImplCopyWith<$Res>
       @HiveField(4) String? ownerUid,
       @HiveField(5) List<PurchaseGroupMember>? members,
       @HiveField(6) String? ownerMessage,
-      @HiveField(7) List<String>? shoppingListIds});
+      @HiveField(7) List<String> shoppingListIds,
+      @HiveField(11) List<String> allowedUid,
+      @HiveField(12) bool isSecret,
+      @HiveField(13) List<Map<String, String>> acceptedUid});
 }
 
 /// @nodoc
@@ -558,7 +610,10 @@ class __$$PurchaseGroupImplCopyWithImpl<$Res>
     Object? ownerUid = freezed,
     Object? members = freezed,
     Object? ownerMessage = freezed,
-    Object? shoppingListIds = freezed,
+    Object? shoppingListIds = null,
+    Object? allowedUid = null,
+    Object? isSecret = null,
+    Object? acceptedUid = null,
   }) {
     return _then(_$PurchaseGroupImpl(
       groupName: null == groupName
@@ -589,17 +644,29 @@ class __$$PurchaseGroupImplCopyWithImpl<$Res>
           ? _value.ownerMessage
           : ownerMessage // ignore: cast_nullable_to_non_nullable
               as String?,
-      shoppingListIds: freezed == shoppingListIds
+      shoppingListIds: null == shoppingListIds
           ? _value._shoppingListIds
           : shoppingListIds // ignore: cast_nullable_to_non_nullable
-              as List<String>?,
+              as List<String>,
+      allowedUid: null == allowedUid
+          ? _value._allowedUid
+          : allowedUid // ignore: cast_nullable_to_non_nullable
+              as List<String>,
+      isSecret: null == isSecret
+          ? _value.isSecret
+          : isSecret // ignore: cast_nullable_to_non_nullable
+              as bool,
+      acceptedUid: null == acceptedUid
+          ? _value._acceptedUid
+          : acceptedUid // ignore: cast_nullable_to_non_nullable
+              as List<Map<String, String>>,
     ));
   }
 }
 
 /// @nodoc
-
-class _$PurchaseGroupImpl implements _PurchaseGroup {
+@JsonSerializable()
+class _$PurchaseGroupImpl extends _PurchaseGroup {
   const _$PurchaseGroupImpl(
       {@HiveField(0) required this.groupName,
       @HiveField(1) required this.groupId,
@@ -608,9 +675,18 @@ class _$PurchaseGroupImpl implements _PurchaseGroup {
       @HiveField(4) this.ownerUid,
       @HiveField(5) final List<PurchaseGroupMember>? members,
       @HiveField(6) this.ownerMessage,
-      @HiveField(7) final List<String>? shoppingListIds})
+      @HiveField(7) final List<String> shoppingListIds = const [],
+      @HiveField(11) final List<String> allowedUid = const [],
+      @HiveField(12) this.isSecret = false,
+      @HiveField(13) final List<Map<String, String>> acceptedUid = const []})
       : _members = members,
-        _shoppingListIds = shoppingListIds;
+        _shoppingListIds = shoppingListIds,
+        _allowedUid = allowedUid,
+        _acceptedUid = acceptedUid,
+        super._();
+
+  factory _$PurchaseGroupImpl.fromJson(Map<String, dynamic> json) =>
+      _$$PurchaseGroupImplFromJson(json);
 
   @override
   @HiveField(0)
@@ -641,22 +717,45 @@ class _$PurchaseGroupImpl implements _PurchaseGroup {
   @override
   @HiveField(6)
   final String? ownerMessage;
-// オーナーからメンバーへのメッセージ
-  final List<String>? _shoppingListIds;
-// オーナーからメンバーへのメッセージ
+  final List<String> _shoppingListIds;
   @override
+  @JsonKey()
   @HiveField(7)
-  List<String>? get shoppingListIds {
-    final value = _shoppingListIds;
-    if (value == null) return null;
+  List<String> get shoppingListIds {
     if (_shoppingListIds is EqualUnmodifiableListView) return _shoppingListIds;
     // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(value);
+    return EqualUnmodifiableListView(_shoppingListIds);
+  }
+
+  final List<String> _allowedUid;
+  @override
+  @JsonKey()
+  @HiveField(11)
+  List<String> get allowedUid {
+    if (_allowedUid is EqualUnmodifiableListView) return _allowedUid;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_allowedUid);
+  }
+
+  @override
+  @JsonKey()
+  @HiveField(12)
+  final bool isSecret;
+// acceptedUid: [{uid: securityKey}] のような構造を想定
+  final List<Map<String, String>> _acceptedUid;
+// acceptedUid: [{uid: securityKey}] のような構造を想定
+  @override
+  @JsonKey()
+  @HiveField(13)
+  List<Map<String, String>> get acceptedUid {
+    if (_acceptedUid is EqualUnmodifiableListView) return _acceptedUid;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_acceptedUid);
   }
 
   @override
   String toString() {
-    return 'PurchaseGroup(groupName: $groupName, groupId: $groupId, ownerName: $ownerName, ownerEmail: $ownerEmail, ownerUid: $ownerUid, members: $members, ownerMessage: $ownerMessage, shoppingListIds: $shoppingListIds)';
+    return 'PurchaseGroup(groupName: $groupName, groupId: $groupId, ownerName: $ownerName, ownerEmail: $ownerEmail, ownerUid: $ownerUid, members: $members, ownerMessage: $ownerMessage, shoppingListIds: $shoppingListIds, allowedUid: $allowedUid, isSecret: $isSecret, acceptedUid: $acceptedUid)';
   }
 
   @override
@@ -677,9 +776,16 @@ class _$PurchaseGroupImpl implements _PurchaseGroup {
             (identical(other.ownerMessage, ownerMessage) ||
                 other.ownerMessage == ownerMessage) &&
             const DeepCollectionEquality()
-                .equals(other._shoppingListIds, _shoppingListIds));
+                .equals(other._shoppingListIds, _shoppingListIds) &&
+            const DeepCollectionEquality()
+                .equals(other._allowedUid, _allowedUid) &&
+            (identical(other.isSecret, isSecret) ||
+                other.isSecret == isSecret) &&
+            const DeepCollectionEquality()
+                .equals(other._acceptedUid, _acceptedUid));
   }
 
+  @JsonKey(ignore: true)
   @override
   int get hashCode => Object.hash(
       runtimeType,
@@ -690,25 +796,43 @@ class _$PurchaseGroupImpl implements _PurchaseGroup {
       ownerUid,
       const DeepCollectionEquality().hash(_members),
       ownerMessage,
-      const DeepCollectionEquality().hash(_shoppingListIds));
+      const DeepCollectionEquality().hash(_shoppingListIds),
+      const DeepCollectionEquality().hash(_allowedUid),
+      isSecret,
+      const DeepCollectionEquality().hash(_acceptedUid));
 
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$PurchaseGroupImplCopyWith<_$PurchaseGroupImpl> get copyWith =>
       __$$PurchaseGroupImplCopyWithImpl<_$PurchaseGroupImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$PurchaseGroupImplToJson(
+      this,
+    );
+  }
 }
 
-abstract class _PurchaseGroup implements PurchaseGroup {
+abstract class _PurchaseGroup extends PurchaseGroup {
   const factory _PurchaseGroup(
-      {@HiveField(0) required final String groupName,
-      @HiveField(1) required final String groupId,
-      @HiveField(2) final String? ownerName,
-      @HiveField(3) final String? ownerEmail,
-      @HiveField(4) final String? ownerUid,
-      @HiveField(5) final List<PurchaseGroupMember>? members,
-      @HiveField(6) final String? ownerMessage,
-      @HiveField(7) final List<String>? shoppingListIds}) = _$PurchaseGroupImpl;
+          {@HiveField(0) required final String groupName,
+          @HiveField(1) required final String groupId,
+          @HiveField(2) final String? ownerName,
+          @HiveField(3) final String? ownerEmail,
+          @HiveField(4) final String? ownerUid,
+          @HiveField(5) final List<PurchaseGroupMember>? members,
+          @HiveField(6) final String? ownerMessage,
+          @HiveField(7) final List<String> shoppingListIds,
+          @HiveField(11) final List<String> allowedUid,
+          @HiveField(12) final bool isSecret,
+          @HiveField(13) final List<Map<String, String>> acceptedUid}) =
+      _$PurchaseGroupImpl;
+  const _PurchaseGroup._() : super._();
+
+  factory _PurchaseGroup.fromJson(Map<String, dynamic> json) =
+      _$PurchaseGroupImpl.fromJson;
 
   @override
   @HiveField(0)
@@ -731,9 +855,18 @@ abstract class _PurchaseGroup implements PurchaseGroup {
   @override
   @HiveField(6)
   String? get ownerMessage;
-  @override // オーナーからメンバーへのメッセージ
+  @override
   @HiveField(7)
-  List<String>? get shoppingListIds;
+  List<String> get shoppingListIds;
+  @override
+  @HiveField(11)
+  List<String> get allowedUid;
+  @override
+  @HiveField(12)
+  bool get isSecret;
+  @override // acceptedUid: [{uid: securityKey}] のような構造を想定
+  @HiveField(13)
+  List<Map<String, String>> get acceptedUid;
   @override
   @JsonKey(ignore: true)
   _$$PurchaseGroupImplCopyWith<_$PurchaseGroupImpl> get copyWith =>

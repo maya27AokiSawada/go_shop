@@ -154,41 +154,47 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
   @override
   Future<PurchaseGroup> createGroup(
       String groupId, String groupName, PurchaseGroupMember member) async {
-    try {
-      // 1. まずHiveに保存（楽観的更新）
-      final newGroup = await _hiveRepo.createGroup(groupId, groupName, member);
+    // 1. まずHiveに保存（楽観的更新）
+    final newGroup = await _hiveRepo.createGroup(groupId, groupName, member);
 
-      // メンバープール用グループはHiveのみに保存する
-      if (groupId == 'member_pool') {
-        developer.log('🔒 Member pool group saved to Hive only: $groupName');
-        return newGroup;
-      }
-
-      developer.log('🔍 [HYBRID_REPO] Firestore sync check:');
-      developer.log('  - Flavor: ${F.appFlavor}');
-      developer.log('  - isOnline: $_isOnline');
-      developer.log('  - _firestoreRepo null?: ${_firestoreRepo == null}');
-
-      if (F.appFlavor == Flavor.dev || !_isOnline || _firestoreRepo == null) {
-        developer.log('⚠️ [HYBRID_REPO] Skipping Firestore sync - Hive only');
-        return newGroup;
-      }
-
-      // 2. Firestoreに非同期保存（メンバープール以外のみ）
-      developer.log('🔄 [HYBRID_REPO] Starting Firestore sync for: $groupName');
-      _unawaited(
-          _firestoreRepo!.createGroup(groupId, groupName, member).then((_) {
-        developer
-            .log('✅ [HYBRID_REPO] Created synced to Firestore: $groupName');
-      }).catchError((e) {
-        developer.log('❌ [HYBRID_REPO] Failed to sync create to Firestore: $e');
-        // TODO: 失敗したオペレーションをキューに保存
-      }));
-
+    // メンバープール用グループはHiveのみに保存する
+    if (groupId == 'member_pool') {
+      developer.log('🔒 Member pool group saved to Hive only: $groupName');
       return newGroup;
-    } catch (e) {
-      developer.log('❌ createGroup error: $e');
-      rethrow;
+    }
+
+    // 2. Firestoreへの同期を安全に実行
+    _syncCreateGroupToFirestore(newGroup);
+
+    return newGroup;
+  }
+
+  /// Firestoreへのグループ作成同期を安全に実行する
+  Future<void> _syncCreateGroupToFirestore(PurchaseGroup group) async {
+    developer.log('🔍 [HYBRID_REPO] Firestore sync check:');
+    developer.log('  - Flavor: ${F.appFlavor}');
+    developer.log('  - isOnline: $_isOnline');
+    developer.log('  - _firestoreRepo null?: ${_firestoreRepo == null}');
+
+    if (F.appFlavor == Flavor.dev || !_isOnline || _firestoreRepo == null) {
+      developer.log('⚠️ [HYBRID_REPO] Skipping Firestore sync - Hive only');
+      return;
+    }
+
+    try {
+      developer.log(
+          '🔄 [HYBRID_REPO] Starting Firestore sync for: ${group.groupName}');
+      // Firestoreに渡すメンバーはオーナーのみ
+      final ownerMember =
+          group.members!.firstWhere((m) => m.role == PurchaseGroupRole.owner);
+      await _firestoreRepo!
+          .createGroup(group.groupId, group.groupName, ownerMember);
+      developer.log(
+          '✅ [HYBRID_REPO] Created synced to Firestore: ${group.groupName}');
+    } catch (e, stackTrace) {
+      developer.log('❌ [HYBRID_REPO] Failed to sync create to Firestore: $e');
+      developer.log('📄 [HYBRID_REPO] StackTrace: $stackTrace');
+      // TODO: 失敗したオペレーションをキューに保存
     }
   }
 

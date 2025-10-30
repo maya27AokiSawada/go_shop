@@ -88,14 +88,19 @@ class PurchaseGroupAdapter extends TypeAdapter<PurchaseGroup> {
       ownerUid: fields[4] as String?,
       members: (fields[5] as List?)?.cast<PurchaseGroupMember>(),
       ownerMessage: fields[6] as String?,
-      shoppingListIds: (fields[7] as List?)?.cast<String>(),
+      shoppingListIds: (fields[7] as List).cast<String>(),
+      allowedUid: (fields[11] as List).cast<String>(),
+      isSecret: fields[12] as bool,
+      acceptedUid: (fields[13] as List)
+          .map((dynamic e) => (e as Map).cast<String, String>())
+          .toList(),
     );
   }
 
   @override
   void write(BinaryWriter writer, PurchaseGroup obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.groupName)
       ..writeByte(1)
@@ -111,7 +116,13 @@ class PurchaseGroupAdapter extends TypeAdapter<PurchaseGroup> {
       ..writeByte(6)
       ..write(obj.ownerMessage)
       ..writeByte(7)
-      ..write(obj.shoppingListIds);
+      ..write(obj.shoppingListIds)
+      ..writeByte(11)
+      ..write(obj.allowedUid)
+      ..writeByte(12)
+      ..write(obj.isSecret)
+      ..writeByte(13)
+      ..write(obj.acceptedUid);
   }
 
   @override
@@ -222,3 +233,100 @@ class InvitationStatusAdapter extends TypeAdapter<InvitationStatus> {
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
+
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+_$PurchaseGroupMemberImpl _$$PurchaseGroupMemberImplFromJson(
+        Map<String, dynamic> json) =>
+    _$PurchaseGroupMemberImpl(
+      memberId: json['memberId'] as String? ?? '',
+      name: json['name'] as String,
+      contact: json['contact'] as String,
+      role: $enumDecode(_$PurchaseGroupRoleEnumMap, json['role']),
+      isSignedIn: json['isSignedIn'] as bool? ?? false,
+      invitationStatus: $enumDecodeNullable(
+              _$InvitationStatusEnumMap, json['invitationStatus']) ??
+          InvitationStatus.self,
+      securityKey: json['securityKey'] as String?,
+      invitedAt: json['invitedAt'] == null
+          ? null
+          : DateTime.parse(json['invitedAt'] as String),
+      acceptedAt: json['acceptedAt'] == null
+          ? null
+          : DateTime.parse(json['acceptedAt'] as String),
+      isInvited: json['isInvited'] as bool? ?? false,
+      isInvitationAccepted: json['isInvitationAccepted'] as bool? ?? false,
+    );
+
+Map<String, dynamic> _$$PurchaseGroupMemberImplToJson(
+        _$PurchaseGroupMemberImpl instance) =>
+    <String, dynamic>{
+      'memberId': instance.memberId,
+      'name': instance.name,
+      'contact': instance.contact,
+      'role': _$PurchaseGroupRoleEnumMap[instance.role]!,
+      'isSignedIn': instance.isSignedIn,
+      'invitationStatus': _$InvitationStatusEnumMap[instance.invitationStatus]!,
+      'securityKey': instance.securityKey,
+      'invitedAt': instance.invitedAt?.toIso8601String(),
+      'acceptedAt': instance.acceptedAt?.toIso8601String(),
+      'isInvited': instance.isInvited,
+      'isInvitationAccepted': instance.isInvitationAccepted,
+    };
+
+const _$PurchaseGroupRoleEnumMap = {
+  PurchaseGroupRole.owner: 'owner',
+  PurchaseGroupRole.member: 'member',
+  PurchaseGroupRole.manager: 'manager',
+  PurchaseGroupRole.friend: 'friend',
+};
+
+const _$InvitationStatusEnumMap = {
+  InvitationStatus.self: 'self',
+  InvitationStatus.pending: 'pending',
+  InvitationStatus.accepted: 'accepted',
+  InvitationStatus.deleted: 'deleted',
+};
+
+_$PurchaseGroupImpl _$$PurchaseGroupImplFromJson(Map<String, dynamic> json) =>
+    _$PurchaseGroupImpl(
+      groupName: json['groupName'] as String,
+      groupId: json['groupId'] as String,
+      ownerName: json['ownerName'] as String?,
+      ownerEmail: json['ownerEmail'] as String?,
+      ownerUid: json['ownerUid'] as String?,
+      members: (json['members'] as List<dynamic>?)
+          ?.map((e) => PurchaseGroupMember.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      ownerMessage: json['ownerMessage'] as String?,
+      shoppingListIds: (json['shoppingListIds'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const [],
+      allowedUid: (json['allowedUid'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const [],
+      isSecret: json['isSecret'] as bool? ?? false,
+      acceptedUid: (json['acceptedUid'] as List<dynamic>?)
+              ?.map((e) => Map<String, String>.from(e as Map))
+              .toList() ??
+          const [],
+    );
+
+Map<String, dynamic> _$$PurchaseGroupImplToJson(_$PurchaseGroupImpl instance) =>
+    <String, dynamic>{
+      'groupName': instance.groupName,
+      'groupId': instance.groupId,
+      'ownerName': instance.ownerName,
+      'ownerEmail': instance.ownerEmail,
+      'ownerUid': instance.ownerUid,
+      'members': instance.members,
+      'ownerMessage': instance.ownerMessage,
+      'shoppingListIds': instance.shoppingListIds,
+      'allowedUid': instance.allowedUid,
+      'isSecret': instance.isSecret,
+      'acceptedUid': instance.acceptedUid,
+    };
