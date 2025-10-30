@@ -11,6 +11,10 @@ class AccessControlService {
   final Ref _ref;
   static const String _secretModeKey = 'secret_mode';
 
+  // DEV環境ではnull
+  FirebaseAuth? get _auth =>
+      F.appFlavor == Flavor.prod ? FirebaseAuth.instance : null;
+
   AccessControlService(this._ref);
 
   /// 現在のユーザーがグループ作成可能かチェック
@@ -21,7 +25,7 @@ class AccessControlService {
       return true; // 開発環境では制限なし
     }
 
-    final user = FirebaseAuth.instance.currentUser;
+    final user = _auth?.currentUser;
     if (user != null) {
       Log.info('🔒 グループ作成許可: 認証済みユーザー ${user.email}');
       return true;
@@ -44,7 +48,7 @@ class AccessControlService {
       return true;
     }
 
-    final user = FirebaseAuth.instance.currentUser;
+    final user = _auth?.currentUser;
     if (user != null) {
       Log.info('🔒 グループ編集許可: 認証済みユーザー ${user.email}');
       return true;
@@ -66,7 +70,7 @@ class AccessControlService {
       return false;
     }
 
-    final user = FirebaseAuth.instance.currentUser;
+    final user = _auth?.currentUser;
     if (user != null) {
       Log.info('🔒 メンバー招待許可: 認証済みユーザー ${user.email}');
       return true;
@@ -80,7 +84,7 @@ class AccessControlService {
   Future<GroupVisibilityMode> getGroupVisibilityMode() async {
     Log.info('🔄 [ACCESS_CONTROL_SERVICE] getGroupVisibilityMode() 開始');
 
-    final user = FirebaseAuth.instance.currentUser;
+    final user = _auth?.currentUser;
     final isSecretMode = await _isSecretModeEnabled();
 
     Log.info('🔒 [VISIBILITY] シークレットモード状態: $isSecretMode');
@@ -123,7 +127,7 @@ class AccessControlService {
 
   /// シークレットモードの切り替え（認証済みユーザーまたは開発環境）
   Future<bool> toggleSecretMode() async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = _auth?.currentUser;
     Log.info('🔒 [TOGGLE] 現在のユーザー: ${user?.email ?? "未サインイン"}');
     Log.info('🔒 [TOGGLE] 環境: ${F.appFlavor}');
 

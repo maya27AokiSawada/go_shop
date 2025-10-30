@@ -91,8 +91,7 @@ class FirestoreGroupSyncService {
                 ))
             .toList(),
         ownerMessage: groupData['ownerMessage'],
-        shoppingListIds:
-            (groupData['shoppingListIds'] as List<dynamic>?)?.cast<String>(),
+        // shoppingListIds はサブコレクションに移行したため削除
       );
 
       // ユーザーがそのグループのメンバーかチェック
@@ -137,7 +136,7 @@ class FirestoreGroupSyncService {
         'ownerEmail': group.ownerEmail,
         'ownerUid': group.ownerUid,
         'ownerMessage': group.ownerMessage,
-        'shoppingListIds': group.shoppingListIds,
+        // 'shoppingListIds': group.shoppingListIds, // サブコレクションに移行したため削除
         'members': group.members
             ?.map((member) => {
                   'memberId': member.memberId,
@@ -189,8 +188,7 @@ class FirestoreGroupSyncService {
                   ))
               .toList(),
           ownerMessage: groupData['ownerMessage'],
-          shoppingListIds:
-              (groupData['shoppingListIds'] as List<dynamic>?)?.cast<String>(),
+          // shoppingListIds はサブコレクションに移行したため削除
         );
         groups.add(group);
       }
@@ -223,8 +221,7 @@ class FirestoreGroupSyncService {
                       ))
                   .toList(),
               ownerMessage: groupData['ownerMessage'],
-              shoppingListIds: (groupData['shoppingListIds'] as List<dynamic>?)
-                  ?.cast<String>(),
+              // shoppingListIds はサブコレクションに移行したため削除
             );
             groups.add(group);
           }
@@ -271,8 +268,7 @@ class FirestoreGroupSyncService {
                   ))
               .toList(),
           ownerMessage: groupData['ownerMessage'],
-          shoppingListIds:
-              (groupData['shoppingListIds'] as List<dynamic>?)?.cast<String>(),
+          // shoppingListIds はサブコレクションに移行したため削除
         );
       }).toList();
     });

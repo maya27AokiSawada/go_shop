@@ -88,7 +88,6 @@ class PurchaseGroupAdapter extends TypeAdapter<PurchaseGroup> {
       ownerUid: fields[4] as String?,
       members: (fields[5] as List?)?.cast<PurchaseGroupMember>(),
       ownerMessage: fields[6] as String?,
-      shoppingListIds: (fields[7] as List).cast<String>(),
       allowedUid: (fields[11] as List).cast<String>(),
       isSecret: fields[12] as bool,
       acceptedUid: (fields[13] as List)
@@ -100,7 +99,7 @@ class PurchaseGroupAdapter extends TypeAdapter<PurchaseGroup> {
   @override
   void write(BinaryWriter writer, PurchaseGroup obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.groupName)
       ..writeByte(1)
@@ -115,8 +114,6 @@ class PurchaseGroupAdapter extends TypeAdapter<PurchaseGroup> {
       ..write(obj.members)
       ..writeByte(6)
       ..write(obj.ownerMessage)
-      ..writeByte(7)
-      ..write(obj.shoppingListIds)
       ..writeByte(11)
       ..write(obj.allowedUid)
       ..writeByte(12)
@@ -301,10 +298,6 @@ _$PurchaseGroupImpl _$$PurchaseGroupImplFromJson(Map<String, dynamic> json) =>
           ?.map((e) => PurchaseGroupMember.fromJson(e as Map<String, dynamic>))
           .toList(),
       ownerMessage: json['ownerMessage'] as String?,
-      shoppingListIds: (json['shoppingListIds'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toList() ??
-          const [],
       allowedUid: (json['allowedUid'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
@@ -325,7 +318,6 @@ Map<String, dynamic> _$$PurchaseGroupImplToJson(_$PurchaseGroupImpl instance) =>
       'ownerUid': instance.ownerUid,
       'members': instance.members,
       'ownerMessage': instance.ownerMessage,
-      'shoppingListIds': instance.shoppingListIds,
       'allowedUid': instance.allowedUid,
       'isSecret': instance.isSecret,
       'acceptedUid': instance.acceptedUid,

@@ -147,7 +147,7 @@ class PurchaseGroup with _$PurchaseGroup {
     @HiveField(4) String? ownerUid,
     @HiveField(5) List<PurchaseGroupMember>? members,
     @HiveField(6) String? ownerMessage,
-    @HiveField(7) @Default([]) List<String> shoppingListIds,
+    // @HiveField(7) @Default([]) List<String> shoppingListIds, // サブコレクション化のため不要に
     @HiveField(11) @Default([]) List<String> allowedUid,
     @HiveField(12) @Default(false) bool isSecret,
     // acceptedUid: [{uid: securityKey}] のような構造を想定
@@ -163,7 +163,7 @@ class PurchaseGroup with _$PurchaseGroup {
     required List<PurchaseGroupMember> members,
     String? groupId,
     String? ownerMessage,
-    List<String>? shoppingListIds,
+    // List<String>? shoppingListIds, // サブコレクション化のため不要に
     bool isSecret = false,
   }) {
     final owner = members.firstWhere(
@@ -179,7 +179,7 @@ class PurchaseGroup with _$PurchaseGroup {
       ownerUid: owner.memberId,
       members: members,
       ownerMessage: ownerMessage,
-      shoppingListIds: shoppingListIds ?? [],
+      // shoppingListIds: shoppingListIds ?? [], // サブコレクション化のため不要に
       allowedUid: [owner.memberId], // 作成者を自動的に許可リストに追加
       isSecret: isSecret,
       acceptedUid: [],
@@ -301,36 +301,5 @@ class PurchaseGroup with _$PurchaseGroup {
         .toList();
   }
 
-  /// ショッピングリスト管理メソッド
-  // 新しいショッピングリストIDを追加
-  PurchaseGroup addShoppingList(String listId) {
-    final currentList = shoppingListIds;
-    if (currentList.contains(listId)) return this;
-    return copyWith(
-      shoppingListIds: [...currentList, listId],
-    );
-  }
-
-  // ショッピングリストIDを削除
-  PurchaseGroup removeShoppingList(String listId) {
-    final currentList = shoppingListIds;
-    return copyWith(
-      shoppingListIds: currentList.where((id) => id != listId).toList(),
-    );
-  }
-
-  // 指定したショッピングリストが存在するか確認
-  bool hasShoppingList(String listId) {
-    return shoppingListIds.contains(listId);
-  }
-
-  // メインのショッピングリストID（最初のリスト）を取得
-  String? get primaryShoppingListId {
-    return shoppingListIds.isEmpty ? null : shoppingListIds.first;
-  }
-
-  // ショッピングリスト数を取得
-  int get shoppingListCount {
-    return shoppingListIds.length;
-  }
+  // shoppingListIds関連のメソッドはサブコレクション化により不要になったため削除
 }

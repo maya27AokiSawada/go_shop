@@ -458,9 +458,8 @@ mixin _$PurchaseGroup {
   @HiveField(5)
   List<PurchaseGroupMember>? get members => throw _privateConstructorUsedError;
   @HiveField(6)
-  String? get ownerMessage => throw _privateConstructorUsedError;
-  @HiveField(7)
-  List<String> get shoppingListIds => throw _privateConstructorUsedError;
+  String? get ownerMessage =>
+      throw _privateConstructorUsedError; // @HiveField(7) @Default([]) List<String> shoppingListIds, // サブコレクション化のため不要に
   @HiveField(11)
   List<String> get allowedUid => throw _privateConstructorUsedError;
   @HiveField(12)
@@ -490,7 +489,6 @@ abstract class $PurchaseGroupCopyWith<$Res> {
       @HiveField(4) String? ownerUid,
       @HiveField(5) List<PurchaseGroupMember>? members,
       @HiveField(6) String? ownerMessage,
-      @HiveField(7) List<String> shoppingListIds,
       @HiveField(11) List<String> allowedUid,
       @HiveField(12) bool isSecret,
       @HiveField(13) List<Map<String, String>> acceptedUid});
@@ -516,7 +514,6 @@ class _$PurchaseGroupCopyWithImpl<$Res, $Val extends PurchaseGroup>
     Object? ownerUid = freezed,
     Object? members = freezed,
     Object? ownerMessage = freezed,
-    Object? shoppingListIds = null,
     Object? allowedUid = null,
     Object? isSecret = null,
     Object? acceptedUid = null,
@@ -550,10 +547,6 @@ class _$PurchaseGroupCopyWithImpl<$Res, $Val extends PurchaseGroup>
           ? _value.ownerMessage
           : ownerMessage // ignore: cast_nullable_to_non_nullable
               as String?,
-      shoppingListIds: null == shoppingListIds
-          ? _value.shoppingListIds
-          : shoppingListIds // ignore: cast_nullable_to_non_nullable
-              as List<String>,
       allowedUid: null == allowedUid
           ? _value.allowedUid
           : allowedUid // ignore: cast_nullable_to_non_nullable
@@ -586,7 +579,6 @@ abstract class _$$PurchaseGroupImplCopyWith<$Res>
       @HiveField(4) String? ownerUid,
       @HiveField(5) List<PurchaseGroupMember>? members,
       @HiveField(6) String? ownerMessage,
-      @HiveField(7) List<String> shoppingListIds,
       @HiveField(11) List<String> allowedUid,
       @HiveField(12) bool isSecret,
       @HiveField(13) List<Map<String, String>> acceptedUid});
@@ -610,7 +602,6 @@ class __$$PurchaseGroupImplCopyWithImpl<$Res>
     Object? ownerUid = freezed,
     Object? members = freezed,
     Object? ownerMessage = freezed,
-    Object? shoppingListIds = null,
     Object? allowedUid = null,
     Object? isSecret = null,
     Object? acceptedUid = null,
@@ -644,10 +635,6 @@ class __$$PurchaseGroupImplCopyWithImpl<$Res>
           ? _value.ownerMessage
           : ownerMessage // ignore: cast_nullable_to_non_nullable
               as String?,
-      shoppingListIds: null == shoppingListIds
-          ? _value._shoppingListIds
-          : shoppingListIds // ignore: cast_nullable_to_non_nullable
-              as List<String>,
       allowedUid: null == allowedUid
           ? _value._allowedUid
           : allowedUid // ignore: cast_nullable_to_non_nullable
@@ -675,12 +662,10 @@ class _$PurchaseGroupImpl extends _PurchaseGroup {
       @HiveField(4) this.ownerUid,
       @HiveField(5) final List<PurchaseGroupMember>? members,
       @HiveField(6) this.ownerMessage,
-      @HiveField(7) final List<String> shoppingListIds = const [],
       @HiveField(11) final List<String> allowedUid = const [],
       @HiveField(12) this.isSecret = false,
       @HiveField(13) final List<Map<String, String>> acceptedUid = const []})
       : _members = members,
-        _shoppingListIds = shoppingListIds,
         _allowedUid = allowedUid,
         _acceptedUid = acceptedUid,
         super._();
@@ -717,17 +702,9 @@ class _$PurchaseGroupImpl extends _PurchaseGroup {
   @override
   @HiveField(6)
   final String? ownerMessage;
-  final List<String> _shoppingListIds;
-  @override
-  @JsonKey()
-  @HiveField(7)
-  List<String> get shoppingListIds {
-    if (_shoppingListIds is EqualUnmodifiableListView) return _shoppingListIds;
-    // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_shoppingListIds);
-  }
-
+// @HiveField(7) @Default([]) List<String> shoppingListIds, // サブコレクション化のため不要に
   final List<String> _allowedUid;
+// @HiveField(7) @Default([]) List<String> shoppingListIds, // サブコレクション化のため不要に
   @override
   @JsonKey()
   @HiveField(11)
@@ -755,7 +732,7 @@ class _$PurchaseGroupImpl extends _PurchaseGroup {
 
   @override
   String toString() {
-    return 'PurchaseGroup(groupName: $groupName, groupId: $groupId, ownerName: $ownerName, ownerEmail: $ownerEmail, ownerUid: $ownerUid, members: $members, ownerMessage: $ownerMessage, shoppingListIds: $shoppingListIds, allowedUid: $allowedUid, isSecret: $isSecret, acceptedUid: $acceptedUid)';
+    return 'PurchaseGroup(groupName: $groupName, groupId: $groupId, ownerName: $ownerName, ownerEmail: $ownerEmail, ownerUid: $ownerUid, members: $members, ownerMessage: $ownerMessage, allowedUid: $allowedUid, isSecret: $isSecret, acceptedUid: $acceptedUid)';
   }
 
   @override
@@ -776,8 +753,6 @@ class _$PurchaseGroupImpl extends _PurchaseGroup {
             (identical(other.ownerMessage, ownerMessage) ||
                 other.ownerMessage == ownerMessage) &&
             const DeepCollectionEquality()
-                .equals(other._shoppingListIds, _shoppingListIds) &&
-            const DeepCollectionEquality()
                 .equals(other._allowedUid, _allowedUid) &&
             (identical(other.isSecret, isSecret) ||
                 other.isSecret == isSecret) &&
@@ -796,7 +771,6 @@ class _$PurchaseGroupImpl extends _PurchaseGroup {
       ownerUid,
       const DeepCollectionEquality().hash(_members),
       ownerMessage,
-      const DeepCollectionEquality().hash(_shoppingListIds),
       const DeepCollectionEquality().hash(_allowedUid),
       isSecret,
       const DeepCollectionEquality().hash(_acceptedUid));
@@ -824,7 +798,6 @@ abstract class _PurchaseGroup extends PurchaseGroup {
           @HiveField(4) final String? ownerUid,
           @HiveField(5) final List<PurchaseGroupMember>? members,
           @HiveField(6) final String? ownerMessage,
-          @HiveField(7) final List<String> shoppingListIds,
           @HiveField(11) final List<String> allowedUid,
           @HiveField(12) final bool isSecret,
           @HiveField(13) final List<Map<String, String>> acceptedUid}) =
@@ -855,10 +828,7 @@ abstract class _PurchaseGroup extends PurchaseGroup {
   @override
   @HiveField(6)
   String? get ownerMessage;
-  @override
-  @HiveField(7)
-  List<String> get shoppingListIds;
-  @override
+  @override // @HiveField(7) @Default([]) List<String> shoppingListIds, // サブコレクション化のため不要に
   @HiveField(11)
   List<String> get allowedUid;
   @override
