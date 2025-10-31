@@ -6,6 +6,7 @@ import '../services/user_preferences_service.dart';
 import '../widgets/auth_panel_widget.dart';
 import '../widgets/user_name_panel_widget.dart';
 import '../widgets/news_and_ads_panel_widget.dart';
+import '../widgets/test_scenario_widget.dart';
 import '../utils/app_logger.dart';
 
 class HomePage extends ConsumerStatefulWidget {
@@ -229,7 +230,78 @@ class _HomePageState extends ConsumerState<HomePage> {
                   const SizedBox(height: 20),
                 ],
 
-                // 6. サインアウトボタン（認証済み時のみ表示）
+                // 6. テストシナリオボタン（開発環境用）
+                if (true) ...[
+                  // 開発環境では常に表示
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.teal.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.teal.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.science,
+                              color: Colors.teal.shade700,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '開発者ツール',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.teal.shade800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Firebase認証とCRUD操作のテストシナリオを実行できます',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.teal.shade600,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const TestScenarioWidget(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.play_circle_filled, size: 16),
+                          label: const Text(
+                            'テストシナリオ実行',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.teal.shade100,
+                            foregroundColor: Colors.teal.shade800,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            minimumSize: const Size(0, 36),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+
+                // 7. サインアウトボタン（認証済み時のみ表示）
                 if (isAuthenticated) ...[
                   // サインアウトボタンもコンパクトに
                   ElevatedButton.icon(

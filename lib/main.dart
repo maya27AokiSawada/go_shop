@@ -1,37 +1,53 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 import 'screens/home_screen.dart';
 // QRコード招待機能
 import 'screens/qr_scan_screen.dart';
 import 'pages/purchase_group_page_simple.dart';
-import 'services/hive_initialization_service.dart';
 import 'services/hive_lock_cleaner.dart';
+import 'services/user_specific_hive_service.dart';
 import 'widgets/app_initialize_widget.dart';
 import 'flavors.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // フレーバーの設定 - 開発環境（Hive のみ、Firestore無効）
-  F.appFlavor = Flavor.dev;
+  // フレーバーの設定 - 本番環境（Hybrid: Hive + Firestore）
+  F.appFlavor = Flavor.prod;
 
   // Firebase初期化（詳細なエラー情報を表示）
   if (F.appFlavor == Flavor.prod) {
     try {
       print('🔄 Firebase初期化開始...');
+      print('🎯 現在のプラットフォーム: $defaultTargetPlatform');
       print('📋 プロジェクトID: ${DefaultFirebaseOptions.currentPlatform.projectId}');
       print('📋 アプリID: ${DefaultFirebaseOptions.currentPlatform.appId}');
+      print('📋 API Key: ${DefaultFirebaseOptions.currentPlatform.apiKey}');
+      print(
+          '📋 Auth Domain: ${DefaultFirebaseOptions.currentPlatform.authDomain}');
 
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
       print('✅ Firebase初期化成功');
+
+      // Firebase Auth の状態確認
+      print('🔐 Firebase Auth インスタンス: ${FirebaseAuth.instance}');
+      print('🔐 現在のユーザー: ${FirebaseAuth.instance.currentUser}');
+
+      // Firestore の状態確認
+      print('🗃️ Firestore インスタンス: ${FirebaseFirestore.instance}');
     } catch (e, stackTrace) {
       print('❌ Firebase初期化エラー詳細: $e');
+      print('📚 エラータイプ: ${e.runtimeType}');
       print('📚 スタックトレース: $stackTrace');
       // Firebase初期化に失敗してもアプリは続行（Hiveで動作）
+      rethrow; // デバッグのためエラーを再スロー
     }
   } else {
     print('💡 開発環境：Firebaseをスキップ（Hiveのみ使用）');
@@ -40,8 +56,8 @@ void main() async {
   // ホットリスタート対応：既存のHiveロックファイルをクリア
   await HiveLockCleaner.clearOneDriveLocks();
 
-  // Hive初期化（アダプター登録、Box開封、データバージョンチェック）
-  await HiveInitializationService.initialize();
+  // グローバルHiveアダプター登録のみ実行（Box開封はUserSpecificHiveServiceに委任）
+  await UserSpecificHiveService.initializeAdapters();
 
   runApp(const ProviderScope(child: MyApp()));
 }

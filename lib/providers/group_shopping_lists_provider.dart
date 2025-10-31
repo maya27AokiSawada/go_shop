@@ -1,7 +1,7 @@
 // lib/providers/group_shopping_lists_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shopping_list.dart';
-import '../datastore/hive_shopping_list_repository.dart';
+import '../providers/shopping_list_provider.dart';
 import '../providers/current_group_provider.dart';
 import '../utils/app_logger.dart';
 
@@ -17,12 +17,9 @@ final groupShoppingListsProvider =
 
   Log.info('🔄 グループ「${currentGroup.groupName}」のリスト一覧を取得中...');
 
-  final repository = ref.read(hiveShoppingListRepositoryProvider);
-  final allLists = repository.getAllLists();
-
-  // グループIDでフィルタリング
+  final repository = ref.read(shoppingListRepositoryProvider);
   final groupLists =
-      allLists.where((list) => list.groupId == currentGroup.groupId).toList();
+      await repository.getShoppingListsByGroup(currentGroup.groupId);
 
   Log.info('✅ ${groupLists.length}件のリストを取得しました');
   return groupLists;

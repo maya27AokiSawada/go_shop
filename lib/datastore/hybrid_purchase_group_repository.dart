@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async';
 import 'dart:developer' as developer;
 import '../models/purchase_group.dart';
 import '../datastore/purchase_group_repository.dart';
@@ -23,14 +24,42 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
   bool _isOnline = true;
   bool _isSyncing = false;
 
+  // 同期キューとタイマー管理
+  final List<_SyncOperation> _syncQueue = [];
+  Timer? _syncTimer;
+
   HybridPurchaseGroupRepository(this._ref) {
-    _hiveRepo = HivePurchaseGroupRepository(_ref);
-    // ✅ Firestore統合を有効化（マルチユーザー・マルチデバイス対応）
-    if (F.appFlavor != Flavor.dev) {
+    developer.log('🆕 [HYBRID_REPO] HybridPurchaseGroupRepository初期化開始');
+    try {
+      _hiveRepo = HivePurchaseGroupRepository(_ref);
+      developer.log('✅ [HYBRID_REPO] HivePurchaseGroupRepository初期化成功');
+
+      // ✅ Firestore統合を有効化（マルチユーザー・マルチデバイス対応）
+      if (F.appFlavor != Flavor.dev) {
+        _initializeFirestoreWithSafetyNet();
+      } else {
+        developer.log('💡 [HYBRID_REPO] DEV環境 - Hiveのみで動作');
+      }
+      developer.log('✅ [HYBRID_REPO] HybridPurchaseGroupRepository初期化完了');
+    } catch (e, stackTrace) {
+      developer.log('❌ [HYBRID_REPO] コンストラクタでクリティカルエラー: $e');
+      developer.log('📄 [HYBRID_REPO] StackTrace: $stackTrace');
+      rethrow; // コンストラクタエラーは再スロー
+    }
+  }
+
+  /// Firestore初期化を安全に実行（非同期処理）
+  void _initializeFirestoreWithSafetyNet() {
+    try {
+      developer.log('🔄 [HYBRID_REPO] Firestore初期化開始...');
       _firestoreRepo = FirestorePurchaseGroupRepository(_ref);
       developer.log('🌐 [HYBRID_REPO] Firestore統合有効化 - クラウド同期開始');
-    } else {
-      developer.log('💡 [HYBRID_REPO] DEV環境 - Hiveのみで動作');
+    } catch (e, stackTrace) {
+      developer.log('❌ [HYBRID_REPO] Firestore初期化エラー: $e');
+      developer.log('📄 [HYBRID_REPO] StackTrace: $stackTrace');
+      _firestoreRepo = null;
+      _isOnline = false; // オフラインモードに設定
+      developer.log('🔧 [HYBRID_REPO] Fallback: Hiveのみで動作');
     }
   }
 
@@ -39,6 +68,18 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
 
   /// 同期状態をチェック
   bool get isSyncing => _isSyncing;
+
+  /// アプリ終了時の同期処理
+  Future<void> syncOnAppExit() async {
+    developer.log('🚪 [HYBRID_REPO] アプリ終了時同期開始');
+    _syncTimer?.cancel();
+
+    if (_syncQueue.isNotEmpty) {
+      await _processSyncQueue();
+    }
+
+    developer.log('👋 [HYBRID_REPO] アプリ終了時同期完了');
+  }
 
   /// ローカル（Hive）のみからグループを取得（Firestore同期なし）
   Future<List<PurchaseGroup>> getLocalGroups() async {
@@ -154,47 +195,169 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
   @override
   Future<PurchaseGroup> createGroup(
       String groupId, String groupName, PurchaseGroupMember member) async {
-    // 1. まずHiveに保存（楽観的更新）
-    final newGroup = await _hiveRepo.createGroup(groupId, groupName, member);
+    developer.log('🆕 [HYBRID_REPO] グループ作成開始: $groupName');
 
-    // メンバープール用グループはHiveのみに保存する
-    if (groupId == 'member_pool') {
-      developer.log('🔒 Member pool group saved to Hive only: $groupName');
+    try {
+      // 1. まずHiveに保存（楽観的更新）
+      developer.log('📝 [HYBRID_REPO] Hive保存開始...');
+      final newGroup = await _hiveRepo.createGroup(groupId, groupName, member);
+      developer.log('✅ [HYBRID_REPO] Hive保存完了: $groupName');
+
+      // メンバープール用グループはHiveのみに保存する
+      if (groupId == 'member_pool') {
+        developer
+            .log('🔒 [HYBRID_REPO] Member pool group - Hiveのみ: $groupName');
+        return newGroup;
+      }
+
+      // 2. Firestoreへの同期的書き込み（ユーザーを待たせてもOK）
+      await _syncCreateGroupToFirestoreWithFallback(newGroup);
+
       return newGroup;
+    } catch (e) {
+      developer.log('❌ [HYBRID_REPO] グループ作成エラー: $e');
+      rethrow;
     }
-
-    // 2. Firestoreへの同期を安全に実行
-    _syncCreateGroupToFirestore(newGroup);
-
-    return newGroup;
   }
 
-  /// Firestoreへのグループ作成同期を安全に実行する
-  Future<void> _syncCreateGroupToFirestore(PurchaseGroup group) async {
-    developer.log('🔍 [HYBRID_REPO] Firestore sync check:');
-    developer.log('  - Flavor: ${F.appFlavor}');
-    developer.log('  - isOnline: $_isOnline');
-    developer.log('  - _firestoreRepo null?: ${_firestoreRepo == null}');
+  // =================================================================
+  // 同期キューとタイマー管理
+  // =================================================================
 
-    if (F.appFlavor == Flavor.dev || !_isOnline || _firestoreRepo == null) {
-      developer.log('⚠️ [HYBRID_REPO] Skipping Firestore sync - Hive only');
+  /// 同期キューに操作を追加
+  void _addToSyncQueue(_SyncOperation operation) {
+    _syncQueue.add(operation);
+    developer.log(
+        '📋 [HYBRID_REPO] 同期キュー追加: ${operation.type} ${operation.groupId}');
+    developer.log('📊 [HYBRID_REPO] キューサイズ: ${_syncQueue.length}');
+  }
+
+  /// 同期タイマーをスケジュール（30秒後に再試行）
+  void _scheduleSync() {
+    _syncTimer?.cancel();
+    _syncTimer = Timer(const Duration(seconds: 30), () {
+      developer.log('⏰ [HYBRID_REPO] 定期同期開始');
+      _processSyncQueue();
+    });
+  }
+
+  /// 同期キューを処理
+  Future<void> _processSyncQueue() async {
+    if (_syncQueue.isEmpty || _isSyncing) {
+      return;
+    }
+
+    developer.log('🔄 [HYBRID_REPO] 同期キュー処理開始: ${_syncQueue.length}件');
+    _isSyncing = true;
+
+    final failedOperations = <_SyncOperation>[];
+
+    try {
+      for (final operation in _syncQueue) {
+        try {
+          await _executeSyncOperation(operation);
+          developer.log(
+              '✅ [HYBRID_REPO] 同期成功: ${operation.type} ${operation.groupId}');
+        } catch (e) {
+          developer.log(
+              '❌ [HYBRID_REPO] 同期失敗: ${operation.type} ${operation.groupId} - $e');
+
+          // 再試行回数が3回未満なら再キュー
+          if (operation.retryCount < 3) {
+            failedOperations
+                .add(operation.copyWith(retryCount: operation.retryCount + 1));
+          } else {
+            developer.log(
+                '💀 [HYBRID_REPO] 同期諦め（3回失敗）: ${operation.type} ${operation.groupId}');
+          }
+        }
+      }
+    } finally {
+      _syncQueue.clear();
+      _syncQueue.addAll(failedOperations);
+      _isSyncing = false;
+
+      // 失敗操作があれば再スケジュール
+      if (failedOperations.isNotEmpty) {
+        developer
+            .log('🔄 [HYBRID_REPO] 失敗操作の再スケジュール: ${failedOperations.length}件');
+        _scheduleSync();
+      }
+    }
+  }
+
+  /// 個別の同期操作を実行
+  Future<void> _executeSyncOperation(_SyncOperation operation) async {
+    if (_firestoreRepo == null) {
+      throw Exception('Firestore repository not available');
+    }
+
+    switch (operation.type) {
+      case 'create':
+        final ownerMember = PurchaseGroupMember(
+          memberId: operation.data['ownerMember']['memberId'],
+          name: operation.data['ownerMember']['name'],
+          contact: operation.data['ownerMember']['contact'],
+          role: PurchaseGroupRole.values.firstWhere(
+            (role) => role.name == operation.data['ownerMember']['role'],
+          ),
+        );
+        await _firestoreRepo!.createGroup(
+          operation.groupId,
+          operation.data['groupName'],
+          ownerMember,
+        );
+        break;
+      // TODO: update, delete操作も実装
+      default:
+        throw Exception('Unknown sync operation: ${operation.type}');
+    }
+  }
+
+  /// Firestoreへのグループ作成同期（フォールバック付き同期的書き込み）
+  Future<void> _syncCreateGroupToFirestoreWithFallback(
+      PurchaseGroup group) async {
+    developer.log('🔍 [HYBRID_REPO] Firestore同期的書き込み開始: ${group.groupName}');
+
+    if (F.appFlavor == Flavor.dev || _firestoreRepo == null) {
+      developer.log('⚠️ [HYBRID_REPO] DEV環境またはFirestore無効 - Hiveのみ');
       return;
     }
 
     try {
-      developer.log(
-          '🔄 [HYBRID_REPO] Starting Firestore sync for: ${group.groupName}');
-      // Firestoreに渡すメンバーはオーナーのみ
+      // 同期的書き込み（ユーザーを待たせてもOK）
       final ownerMember =
           group.members!.firstWhere((m) => m.role == PurchaseGroupRole.owner);
+
+      developer.log('⏳ [HYBRID_REPO] Firestore書き込み中...: ${group.groupName}');
       await _firestoreRepo!
-          .createGroup(group.groupId, group.groupName, ownerMember);
-      developer.log(
-          '✅ [HYBRID_REPO] Created synced to Firestore: ${group.groupName}');
+          .createGroup(group.groupId, group.groupName, ownerMember)
+          .timeout(const Duration(seconds: 10)); // 10秒タイムアウト
+
+      developer.log('✅ [HYBRID_REPO] Firestore書き込み成功: ${group.groupName}');
+      _isOnline = true; // オンライン状態を更新
     } catch (e, stackTrace) {
-      developer.log('❌ [HYBRID_REPO] Failed to sync create to Firestore: $e');
+      developer.log('❌ [HYBRID_REPO] Firestore書き込み失敗: $e');
       developer.log('📄 [HYBRID_REPO] StackTrace: $stackTrace');
-      // TODO: 失敗したオペレーションをキューに保存
+
+      // 同期キューに追加（タイマーで後で再試行）
+      _addToSyncQueue(_SyncOperation(
+        type: 'create',
+        groupId: group.groupId,
+        data: {
+          'groupName': group.groupName,
+          'ownerMember': {
+            'memberId': group.members!.first.memberId,
+            'name': group.members!.first.name,
+            'contact': group.members!.first.contact,
+            'role': group.members!.first.role.name,
+          }
+        },
+        timestamp: DateTime.now(),
+      ));
+
+      developer.log('📋 [HYBRID_REPO] 同期キューに追加 - 後で再試行');
+      _scheduleSync();
     }
   }
 
@@ -534,5 +697,32 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
     } finally {
       _isSyncing = false;
     }
+  }
+}
+
+/// 同期操作を表すクラス
+class _SyncOperation {
+  final String type; // 'create', 'update', 'delete'
+  final String groupId;
+  final Map<String, dynamic> data;
+  final DateTime timestamp;
+  final int retryCount;
+
+  const _SyncOperation({
+    required this.type,
+    required this.groupId,
+    required this.data,
+    required this.timestamp,
+    this.retryCount = 0,
+  });
+
+  _SyncOperation copyWith({int? retryCount}) {
+    return _SyncOperation(
+      type: type,
+      groupId: groupId,
+      data: data,
+      timestamp: timestamp,
+      retryCount: retryCount ?? this.retryCount,
+    );
   }
 }

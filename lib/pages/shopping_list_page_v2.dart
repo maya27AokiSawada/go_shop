@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shopping_list.dart';
 import '../providers/current_group_provider.dart';
 import '../providers/current_list_provider.dart';
+import '../providers/group_shopping_lists_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/shopping_list_provider.dart';
 import '../widgets/shopping_list_header_widget.dart';
@@ -199,7 +200,12 @@ class _ShoppingListPageV2State extends ConsumerState<ShoppingListPageV2> {
                 await repository.updateShoppingList(updatedList);
 
                 // プロバイダーを更新
-                ref.read(currentListProvider.notifier).updateList(updatedList);
+                await ref
+                    .read(currentListProvider.notifier)
+                    .updateList(updatedList);
+
+                // グループリストプロバイダーを無効化して再読み込みを促す
+                ref.invalidate(groupShoppingListsProvider);
 
                 Log.info('✅ アイテム追加成功: $name x $quantity');
 

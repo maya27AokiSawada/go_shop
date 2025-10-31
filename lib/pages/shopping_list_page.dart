@@ -193,7 +193,8 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.shopping_cart_outlined, size: 64, color: Colors.grey.shade400),
+            Icon(Icons.shopping_cart_outlined,
+                size: 64, color: Colors.grey.shade400),
             const SizedBox(height: 16),
             Text(
               'リストを選択してください',
@@ -209,7 +210,8 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.add_shopping_cart, size: 64, color: Colors.grey.shade400),
+            Icon(Icons.add_shopping_cart,
+                size: 64, color: Colors.grey.shade400),
             const SizedBox(height: 16),
             Text(
               '買い物アイテムがありません',
@@ -234,7 +236,8 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
     );
   }
 
-  Widget _buildShoppingItemTile(BuildContext context, ShoppingItem item, int index) {
+  Widget _buildShoppingItemTile(
+      BuildContext context, ShoppingItem item, int index) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: ListTile(
@@ -314,290 +317,6 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
 
     ref.read(currentListProvider.notifier).updateList(updatedList);
     // TODO: リポジトリに保存
-  }
-
-  Widget _buildFloatingActionButton(BuildContext context) {
-    return FloatingActionButton(
-      onPressed: () => _showAddItemDialog(context),
-      tooltip: 'アイテムを追加',
-      child: const Icon(Icons.add),
-    );
-  }
-
-  void _showAddItemDialog(BuildContext context) {
-    final currentList = ref.read(currentListProvider);
-    if (currentList == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('リストを選択してください')),
-      );
-      return;
-    }
-
-    // TODO: アイテム追加ダイアログを実装
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('買い物アイテムを追加'),
-        content: const Text('TODO: アイテム追加フォーム'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('キャンセル'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // 以下、既存のメソッドを維持（後で削除可能な古いコード）
-  void _showOldGroupSelectionUI() {
-    final allGroupsAsync = ref.watch(allGroupsProvider);
-    final selectedGroupId = ref.watch(selectedGroupIdProvider);
-
-    // 古いUI実装（参考用に残す）
-    // 選択されたグループIDに基づいてショッピングリストを取得
-    final shoppingListAsync =
-        ref.watch(shoppingListForGroupProvider(selectedGroupId));
-
-    // この下の古いコードは後で削除
-    if (true) return; // 一時的に無効化
-
-    allGroupsAsync.when(
-      data: (groups) {
-        // 古いドロップダウンコード
-        if (groups.isNotEmpty) {
-          // DropdownButton<String>(
-          //   value: selectedListId ?? groups.first.groupId,
-          //   isExpanded: true,
-          //   hint: const Text('リストを選択'),
-          //   items: groups
-          //       .map((group) => DropdownMenuItem<String>(
-          //             value: group.groupId,
-          //             child: Text(group.groupName),
-          //           ))
-          //       .toList(),
-          //   onChanged: (String? value) async {
-          //     if (value != null) {
-          //       // 🔒 シークレットモード時のアクセス制御チェック
-          //       final accessControl = ref
-          //           .read(accessControlServiceProvider);
-                                      final visibilityMode = await accessControl
-                                          .getGroupVisibilityMode();
-
-                                      // シークレットモード時は非デフォルトグループへのアクセスを制限
-                                      if (visibilityMode ==
-                                              GroupVisibilityMode.defaultOnly &&
-                                          value != 'default_group') {
-                                        if (mounted) {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            const SnackBar(
-                                              content: Text(
-                                                  '🔒 シークレットモード中です。MyListsのみ利用可能です。'),
-                                              backgroundColor: Colors.orange,
-                                              duration: Duration(seconds: 3),
-                                            ),
-                                          );
-                                        }
-                                        return; // グループ切り替えを中止
-                                      }
-
-                                      setState(() {
-                                        selectedListId = value;
-                                      });
-                                      // 選択されたグループIDをプロバイダーに保存
-                                      ref
-                                          .read(
-                                              selectedGroupIdProvider.notifier)
-                                          .selectGroup(value);
-                                    }
-                                  },
-                                ),
-                              )
-                            : const Text('グループが見つかりません'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              loading: () => const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text('グループ情報を読み込み中...',
-                        style: TextStyle(color: Colors.grey)),
-                  ],
-                ),
-              ),
-              error: (error, stack) => Text('エラー: $error'),
-            ),
-          ),
-
-          // 買い物アイテムリスト
-          Expanded(
-            child: shoppingListAsync.when(
-              data: (shoppingList) {
-                if (shoppingList.items.isEmpty) {
-                  return const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.shopping_cart_outlined,
-                            size: 64, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text('買い物アイテムがありません',
-                            style: TextStyle(color: Colors.grey)),
-                        Text('右上の + ボタンでアイテムを追加してください',
-                            style: TextStyle(color: Colors.grey)),
-                      ],
-                    ),
-                  );
-                }
-
-                // 未購入と購入済みに分けて表示
-                final unpurchasedItems = shoppingList.items
-                    .where((item) => !item.isPurchased)
-                    .toList();
-                final purchasedItems = shoppingList.items
-                    .where((item) => item.isPurchased)
-                    .toList();
-
-                // 未購入アイテムをdeadlineでソート（期限が近い順）
-                _sortItemsByDeadline(unpurchasedItems);
-
-                // 購入済みアイテムを購入日でソート（新しい順）
-                _sortPurchasedItemsByDate(purchasedItems);
-
-                return ListView(
-                  children: [
-                    if (unpurchasedItems.isNotEmpty) ...[
-                      const Padding(
-                        padding: EdgeInsets.all(16.0),
-                        child: Text(
-                          '未購入',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      ...unpurchasedItems
-                          .map((item) => _buildShoppingItemTile(item)),
-                    ],
-                    if (purchasedItems.isNotEmpty) ...[
-                      const Padding(
-                        padding: EdgeInsets.all(16.0),
-                        child: Text(
-                          '購入済み',
-                          style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey),
-                        ),
-                      ),
-                      ...purchasedItems
-                          .map((item) => _buildShoppingItemTile(item)),
-                    ],
-                  ],
-                );
-              },
-              loading: () => const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text('買い物リストを読み込み中...',
-                        style: TextStyle(color: Colors.grey)),
-                  ],
-                ),
-              ),
-              error: (error, stack) => Center(child: Text('エラー: $error')),
-            ),
-          ),
-        ],
-      ),
-      floatingActionButton: _buildFloatingActionButton(context),
-    )
-  }
-
-  Widget _buildShoppingItemTile(ShoppingItem item) {
-    // 期限による背景色を決定
-    Color? backgroundColor;
-    if (item.deadline != null && !item.isPurchased) {
-      backgroundColor = _getDeadlineColor(item.deadline!);
-    }
-
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-      color: backgroundColor,
-      child: GestureDetector(
-        // タップで編集
-        onTap: () => _showEditItemDialog(context, item),
-        // ダブルタップで購入済み切り替え
-        onDoubleTap: () {
-          final selectedGroupId = ref.read(selectedGroupIdProvider);
-          ref
-              .read(shoppingListForGroupProvider(selectedGroupId).notifier)
-              .togglePurchased(item);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(item.isPurchased
-                  ? '「${item.name}」を未購入に変更しました'
-                  : '「${item.name}」を購入済みに変更しました'),
-              duration: const Duration(seconds: 1),
-            ),
-          );
-        },
-        // 長押しで削除
-        onLongPress: () => _showDeleteConfirmDialog(context, item),
-        child: ListTile(
-          leading: Checkbox(
-            value: item.isPurchased,
-            onChanged: (bool? value) {
-              final selectedGroupId = ref.read(selectedGroupIdProvider);
-              ref
-                  .read(shoppingListForGroupProvider(selectedGroupId).notifier)
-                  .togglePurchased(item);
-            },
-          ),
-          title: Text(
-            item.name,
-            style: TextStyle(
-              decoration: item.isPurchased ? TextDecoration.lineThrough : null,
-              color: item.isPurchased ? Colors.grey : null,
-            ),
-          ),
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('数量: ${item.quantity}'),
-              if (item.deadline != null)
-                Text(
-                  '期限: ${_formatDate(item.deadline!)} (${_getDaysUntilDeadlineText(item.deadline!)})',
-                  style: TextStyle(
-                    color: _isDeadlinePassed(item.deadline!)
-                        ? Colors.red
-                        : Colors.orange,
-                    fontSize: 12,
-                  ),
-                ),
-              if (item.shoppingInterval > 0)
-                Text(
-                  '繰り返し: ${item.shoppingInterval}日間隔',
-                  style: const TextStyle(
-                    color: Colors.blue,
-                    fontSize: 12,
-                  ),
-                ),
-            ],
-          ),
-          trailing: item.isPurchased
-              ? const Icon(Icons.check_circle, color: Colors.green)
-              : null,
-        ),
-      ),
-    );
   }
 
   void _showAddItemDialog(BuildContext context) {
@@ -1107,22 +826,6 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
     final today = DateTime(now.year, now.month, now.day);
     final deadlineDate = DateTime(deadline.year, deadline.month, deadline.day);
     return deadlineDate.difference(today).inDays;
-  }
-
-  Color _getDeadlineColor(DateTime deadline) {
-    final daysUntil = _getDaysUntilDeadline(deadline);
-
-    if (daysUntil < 0) {
-      return Colors.red.shade100; // 期限切れ - 赤
-    } else if (daysUntil == 0) {
-      return Colors.orange.shade100; // 今日期限 - オレンジ
-    } else if (daysUntil == 1) {
-      return Colors.yellow.shade100; // 明日期限 - 黄色
-    } else if (daysUntil <= 3) {
-      return Colors.blue.shade50; // 3日以内 - 薄い青
-    } else {
-      return Colors.white; // 余裕あり - 白
-    }
   }
 
   String _getDaysUntilDeadlineText(DateTime deadline) {

@@ -17,36 +17,70 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
   // コンストラクタでRefを受け取る
   HivePurchaseGroupRepository(this._ref);
 
-  // Boxへのアクセスをプロバイダ経由で取得（安全性チェック付き）
-  Box<PurchaseGroup> get _box {
-    try {
-      // Hive初期化が完了しているかチェック
-      final isInitialized = _ref.read(hiveInitializationStatusProvider);
-      if (!isInitialized) {
-        throw Exception(
-            'Hive is not initialized yet. Please wait for initialization to complete.');
-      }
+  // Boxへのアクセスをプロバイダ経由で取得（再試行機能付き安全性チェック）
+  Future<Box<PurchaseGroup>> get _boxAsync async {
+    // 最大5回、500ms間隔で再試行
+    for (int attempt = 1; attempt <= 5; attempt++) {
+      try {
+        developer.log('🔍 [HIVE_REPO] _box アクセス開始 (試行 $attempt/5)');
 
-      // Boxが利用可能かチェック
-      if (!Hive.isBoxOpen('purchaseGroups')) {
-        throw StateError(
-            'PurchaseGroup box is not open. This may occur during app restart.');
-      }
+        // Hive初期化が完了しているかチェック
+        final isInitialized = _ref.read(hiveInitializationStatusProvider);
+        developer.log('🔍 [HIVE_REPO] 初期化状態: $isInitialized');
 
-      return _ref.read(purchaseGroupBoxProvider);
-    } on StateError catch (e) {
-      developer.log('⚠️ Box state error (normal during restart): $e');
-      rethrow;
-    } catch (e) {
-      developer.log('❌ Failed to access PurchaseGroup box: $e');
-      rethrow;
+        if (!isInitialized) {
+          if (attempt < 5) {
+            developer.log('🔄 [HIVE_REPO] 初期化待機中... ${attempt * 500}ms後に再試行');
+            await Future.delayed(const Duration(milliseconds: 500));
+            continue;
+          }
+          throw Exception(
+              'Hive is not initialized yet after $attempt attempts. Please wait for initialization to complete.');
+        }
+
+        // Boxが利用可能かチェック
+        final isBoxOpen = Hive.isBoxOpen('purchaseGroups');
+        developer.log('🔍 [HIVE_REPO] Box開いているか: $isBoxOpen');
+
+        if (!isBoxOpen) {
+          if (attempt < 5) {
+            developer.log('🔄 [HIVE_REPO] Box開封待機中... ${attempt * 500}ms後に再試行');
+            await Future.delayed(const Duration(milliseconds: 500));
+            continue;
+          }
+          throw StateError(
+              'PurchaseGroup box is not open after $attempt attempts. This may occur during app restart.');
+        }
+
+        final box = _ref.read(purchaseGroupBoxProvider);
+        developer.log('✅ [HIVE_REPO] Box取得成功 (試行 $attempt/5)');
+        return box;
+      } on StateError catch (e) {
+        if (attempt == 5) {
+          developer.log('⚠️ Box state error after $attempt attempts: $e');
+          rethrow;
+        }
+        developer.log('⚠️ Box state error (attempt $attempt): $e - 再試行中...');
+        await Future.delayed(const Duration(milliseconds: 500));
+      } catch (e) {
+        if (attempt == 5) {
+          developer.log(
+              '❌ Failed to access PurchaseGroup box after $attempt attempts: $e');
+          rethrow;
+        }
+        developer.log('❌ Box access error (attempt $attempt): $e - 再試行中...');
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
     }
+    throw Exception('Unexpected error: should not reach here');
   }
 
   // CRUDメソッド
+
   Future<void> saveGroup(PurchaseGroup group) async {
     try {
-      await _box.put(group.groupId, group);
+      final box = await _boxAsync;
+      await box.put(group.groupId, group);
       developer.log(
           '💾 PurchaseGroup保存: ${group.groupName} (${group.members?.length ?? 0}メンバー)');
     } on StateError catch (e) {
@@ -62,7 +96,9 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
   @override
   Future<List<PurchaseGroup>> getAllGroups() async {
     try {
-      final groups = _box.values.toList();
+      // 安全なBox取得（再試行機能付き）
+      final box = await _boxAsync;
+      final groups = box.values.toList();
       // 隠しグループを除外
       final visibleGroups =
           groups.where((group) => group.groupId != '__member_pool__').toList();
@@ -136,9 +172,12 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
   @override
   Future<PurchaseGroup> getGroupById(String groupId) async {
     developer.log('🔍 [HIVE] グループ検索開始: $groupId');
-    developer.log('🔍 [HIVE] 利用可能なキー: ${_box.keys.toList()}');
 
-    final group = _box.get(groupId);
+    // 安全なBox取得（再試行機能付き）
+    final box = await _boxAsync;
+    developer.log('🔍 [HIVE] 利用可能なキー: ${box.keys.toList()}');
+
+    final group = box.get(groupId);
     if (group != null) {
       developer.log('✅ [HIVE] グループ見つかりました: ${group.groupName}');
       return group;
@@ -184,13 +223,16 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
       ],
     );
 
-    await _box.put('default_group', defaultGroup);
+    // 安全なBox取得（再試行機能付き）
+    final box = await _boxAsync;
+    await box.put('default_group', defaultGroup);
     return defaultGroup;
   }
 
   @override
   Future<PurchaseGroup> updateGroup(String groupId, PurchaseGroup group) async {
-    await _box.put(groupId, group);
+    final box = await _boxAsync;
+    await box.put(groupId, group);
     return group;
   }
 
@@ -198,7 +240,8 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
   Future<PurchaseGroup> addMember(
       String groupId, PurchaseGroupMember member) async {
     try {
-      final group = _box.get(groupId);
+      final box = await _boxAsync;
+      final group = box.get(groupId);
       if (group == null) {
         throw Exception('Group not found: $groupId');
       }
@@ -217,7 +260,7 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
       }
 
       final updatedGroup = group.addMember(member);
-      await _box.put(groupId, updatedGroup);
+      await box.put(groupId, updatedGroup);
       developer.log('👥 メンバー追加: ${member.name} to ${group.groupName}');
       return updatedGroup;
     } catch (e) {
@@ -230,7 +273,8 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
   Future<PurchaseGroup> removeMember(
       String groupId, PurchaseGroupMember member) async {
     try {
-      final group = _box.get(groupId);
+      final box = await _boxAsync;
+      final group = box.get(groupId);
       if (group == null) {
         throw Exception('Group not found: $groupId');
       }
@@ -246,7 +290,7 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
       }
 
       final updatedGroup = group.removeMember(member);
-      await _box.put(groupId, updatedGroup);
+      await box.put(groupId, updatedGroup);
       developer.log('🚫 メンバー削除: ${member.name} from ${group.groupName}');
       return updatedGroup;
     } catch (e) {
@@ -259,19 +303,35 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
   Future<PurchaseGroup> createGroup(
       String groupId, String groupName, PurchaseGroupMember member) async {
     try {
+      developer.log('🆕 [HIVE_REPO] createGroup開始: $groupId, $groupName');
+      developer.log('🔍 [HIVE_REPO] 安全なBoxアクセス開始...');
+
+      // 安全なBox取得（再試行機能付き）
+      final box = await _boxAsync;
+      developer.log('✅ [HIVE_REPO] 安全なBoxアクセス成功');
+
       // 既存グループチェック
-      final existingGroup = _box.get(groupId);
+      developer.log('🔍 [HIVE_REPO] 既存グループチェック開始...');
+      final existingGroup = box.get(groupId);
+      developer.log('✅ [HIVE_REPO] 既存グループチェック完了');
+      developer.log('🔍 [HIVE_REPO] 既存グループ存在: ${existingGroup != null}');
+
       if (existingGroup != null) {
         throw Exception('Group already exists: $groupId');
       }
 
-      // グループ名の重複チェック
-      final allGroups = await getAllGroups();
-      final validation =
-          ValidationService.validateGroupName(groupName, allGroups);
-      if (validation.hasError) {
-        throw Exception(validation.errorMessage);
-      }
+      // グループ名の重複チェック（デフォルトグループ以外）
+      // TEMP: 一時的に無効化してデッドロックを回避
+      // if (groupId != 'default_group') {
+      //   final allGroups = await getAllGroups();
+      //   final validation =
+      //       ValidationService.validateGroupName(groupName, allGroups);
+      //   if (validation.hasError) {
+      //     throw Exception(validation.errorMessage);
+      //   }
+      // }
+
+      developer.log('🔍 [HIVE_REPO] PurchaseGroup作成開始');
 
       final newGroup = PurchaseGroup(
         groupId: groupId,
@@ -281,7 +341,12 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
         ownerEmail: member.contact,
         members: [member],
       );
-      await _box.put(groupId, newGroup);
+      developer.log('✅ [HIVE_REPO] PurchaseGroupオブジェクト作成完了');
+
+      developer.log('🔍 [HIVE_REPO] Box.put()実行開始');
+      await box.put(groupId, newGroup);
+      developer.log('✅ [HIVE_REPO] Box.put()実行完了');
+
       developer.log('🆕 グループ作成: $groupName ($groupId)');
       return newGroup;
     } catch (e) {
@@ -298,12 +363,13 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
         throw Exception('Cannot delete default group');
       }
 
-      final group = _box.get(groupId);
+      final box = await _boxAsync;
+      final group = box.get(groupId);
       if (group == null) {
         throw Exception('Group not found: $groupId');
       }
 
-      await _box.delete(groupId);
+      await box.delete(groupId);
       developer.log('🚫 グループ削除: ${group.groupName} ($groupId)');
       return group;
     } catch (e) {
@@ -317,7 +383,8 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
       String oldId, String newId, String? contact) async {
     try {
       const groupId = 'default_group';
-      final group = _box.get(groupId);
+      final box = await _boxAsync;
+      final group = box.get(groupId);
       if (group == null) {
         throw Exception('Default group not found');
       }
@@ -331,7 +398,7 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
       }).toList();
 
       final updatedGroup = group.copyWith(members: updatedMembers);
-      await _box.put(groupId, updatedGroup);
+      await box.put(groupId, updatedGroup);
       return updatedGroup;
     } catch (e) {
       developer.log('❌ MemberID更新エラー: $e');
@@ -341,10 +408,11 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
 
   Future<PurchaseGroup> updateMembers(
       String groupId, List<PurchaseGroupMember> members) async {
-    final group = _box.get(groupId);
+    final box = await _boxAsync;
+    final group = box.get(groupId);
     if (group != null) {
       final updatedGroup = group.copyWith(members: members);
-      await _box.put(groupId, updatedGroup);
+      await box.put(groupId, updatedGroup);
       return updatedGroup;
     }
     throw Exception('Group not found');
@@ -363,7 +431,8 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
     required PurchaseGroupRole role,
   }) async {
     try {
-      final group = _box.get(groupId);
+      final box = await _boxAsync;
+      final group = box.get(groupId);
       if (group == null) throw Exception('Group not found: $groupId');
 
       // 既にメールアドレスで仮メンバーが存在するかチェック
@@ -383,7 +452,7 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
         );
 
         final updatedGroup = group.copyWith(members: updatedMembers);
-        await _box.put(groupId, updatedGroup);
+        await box.put(groupId, updatedGroup);
         developer.log('🎉 仮メンバーアクティビーション: $name ($email)');
         return updatedGroup;
       } else {
@@ -401,7 +470,7 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
           newMember
         ];
         final updatedGroup = group.copyWith(members: updatedMembers);
-        await _box.put(groupId, updatedGroup);
+        await box.put(groupId, updatedGroup);
         developer.log('👥 新規招待メンバー: $name ($email)');
         return updatedGroup;
       }
@@ -419,7 +488,8 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
     required PurchaseGroupRole role,
   }) async {
     try {
-      final group = _box.get(groupId);
+      final box = await _boxAsync;
+      final group = box.get(groupId);
       if (group == null) throw Exception('Group not found: $groupId');
 
       // 既にメンバーが存在するかチェック
@@ -448,7 +518,7 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
         pendingMember
       ];
       final updatedGroup = group.copyWith(members: updatedMembers);
-      await _box.put(groupId, updatedGroup);
+      await box.put(groupId, updatedGroup);
       developer.log('📨 仮メンバー追加: $name ($email) - 招待ペンディング');
       return updatedGroup;
     } catch (e) {
@@ -464,7 +534,8 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
   Future<PurchaseGroup> getOrCreateMemberPool() async {
     try {
       const poolGroupId = '__member_pool__';
-      final existingPool = _box.get(poolGroupId);
+      final box = await _boxAsync;
+      final existingPool = box.get(poolGroupId);
 
       if (existingPool != null) {
         return existingPool;
@@ -480,7 +551,7 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
         members: [],
       );
 
-      await _box.put(poolGroupId, memberPool);
+      await box.put(poolGroupId, memberPool);
       developer.log('🔒 メンバープール作成完了');
       return memberPool;
     } catch (e) {
@@ -518,7 +589,8 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
         members: uniqueMembers.values.toList(),
       );
 
-      await _box.put('__member_pool__', updatedPool);
+      final box = await _boxAsync;
+      await box.put('__member_pool__', updatedPool);
       developer.log('🔄 メンバープール同期完了: ${uniqueMembers.length}件');
     } catch (e) {
       developer.log('❌ メンバープール同期エラー: $e');
