@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/app_logger.dart';
 import '../models/purchase_group.dart';
 import '../providers/purchase_group_provider.dart';
+import '../providers/user_specific_hive_provider.dart';
 import '../flavors.dart';
 
 import '../datastore/hive_purchase_group_repository.dart' as hive_repo;
@@ -56,11 +57,36 @@ class UserInitializationService {
       Log.info('🔄 [INIT] グループ一覧を初期化中...');
       final groups = await _ref.read(allGroupsProvider.future);
 
-      // STEP2: デフォルトグループが存在しない場合は作成（シンプル版）
+      // STEP2: デフォルトグループが存在しない場合は作成（Hive初期化完了を待つ）
       final defaultGroup =
           groups.where((g) => g.groupId == 'default_group').firstOrNull;
       if (defaultGroup == null) {
         Log.info('🔄 [INIT] デフォルトグループが見つかりません。ローカルで作成します...');
+
+        // Hive初期化完了まで待機
+        await _ref.read(hiveUserInitializationProvider.future);
+        Log.info('🔄 [INIT] Hive初期化完了、デフォルトグループ作成を続行...');
+
+        // 追加の安全性のため、少し待機してからBox状態を確認
+        await Future.delayed(const Duration(milliseconds: 100));
+
+        // hiveInitializationStatusProviderの状態を再確認
+        final hiveReady = _ref.read(hiveInitializationStatusProvider);
+        Log.info('🔄 [INIT] HiveBox状態確認: $hiveReady');
+
+        if (!hiveReady) {
+          Log.info('⚠️ [INIT] Hive初期化プロバイダーが完了したがBoxが準備できていません。追加待機...');
+          // 最大3秒まで待機
+          for (int i = 0; i < 30; i++) {
+            await Future.delayed(const Duration(milliseconds: 100));
+            final ready = _ref.read(hiveInitializationStatusProvider);
+            if (ready) {
+              Log.info('✅ [INIT] Hive Box準備完了 (${i * 100}ms後)');
+              break;
+            }
+          }
+        }
+
         // Dev環境ではFirebase Userが存在しないため、nullを許容
         await _createDefaultGroupLocally(_auth?.currentUser);
       }

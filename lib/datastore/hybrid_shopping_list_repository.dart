@@ -1,9 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async';
 import 'dart:developer' as developer;
 import '../models/shopping_list.dart';
 import '../datastore/shopping_list_repository.dart';
 import '../datastore/hive_shopping_list_repository.dart';
-import '../datastore/firebase_shopping_list_repository.dart';
+import '../datastore/firestore_shopping_list_repository.dart';
 import '../flavors.dart';
 
 /// Hive（ローカルキャッシュ）+ Firestore（リモート）のハイブリッドShoppingListリポジトリ
@@ -16,17 +17,30 @@ import '../flavors.dart';
 class HybridShoppingListRepository implements ShoppingListRepository {
   final Ref _ref;
   late final HiveShoppingListRepository _hiveRepo;
-  FirebaseSyncShoppingListRepository? _firestoreRepo;
+  FirestoreShoppingListRepository? _firestoreRepo;
 
   // 接続状態管理
   bool _isOnline = true;
   bool _isSyncing = false;
 
+  // 同期キューとタイマー管理
+  final List<_ShoppingListSyncOperation> _syncQueue = [];
+  Timer? _syncTimer;
+
   HybridShoppingListRepository(this._ref) {
     _hiveRepo = HiveShoppingListRepository(_ref);
     // DEVモードではFirestoreリポジトリを初期化しない
     if (F.appFlavor != Flavor.dev) {
-      _firestoreRepo = FirebaseSyncShoppingListRepository(_ref);
+      try {
+        _firestoreRepo = FirestoreShoppingListRepository(_ref);
+        developer.log('🌐 [HYBRID_SHOPPING] Firestore統合有効化');
+      } catch (e, stackTrace) {
+        developer.log('❌ [HYBRID_SHOPPING] Firestore初期化エラー: $e');
+        developer.log('📄 [HYBRID_SHOPPING] StackTrace: $stackTrace');
+        _firestoreRepo = null;
+        _isOnline = false; // オフラインモードに設定
+        developer.log('🔧 [HYBRID_SHOPPING] Fallback: Hiveのみで動作');
+      }
     }
   }
 
@@ -75,11 +89,42 @@ class HybridShoppingListRepository implements ShoppingListRepository {
         return; // Dev環境またはオフライン時はHiveのみ
       }
 
-      // 2. バックグラウンドでFirestoreに同期
-      _syncToFirestoreBackground(list);
+      // 2. 同期処理でFirestoreに保存（ユーザーを待たせてもOK）
+      await _syncListToFirestoreWithFallback(
+          list, _ShoppingListSyncOperationType.create);
     } catch (e) {
       developer.log('❌ HybridShoppingList.addItem error: $e');
       rethrow;
+    }
+  }
+
+  /// Firestoreへの同期処理（フォールバック付き）
+  Future<void> _syncListToFirestoreWithFallback(
+      ShoppingList list, _ShoppingListSyncOperationType operationType) async {
+    if (_firestoreRepo == null) {
+      developer.log('⚠️ Firestore repository not available');
+      return;
+    }
+
+    try {
+      // 10秒タイムアウトで同期実行
+      await _firestoreRepo!.updateShoppingList(list).timeout(
+            const Duration(seconds: 10),
+          );
+      developer.log('✅ Firestore同期成功: ${list.listName}');
+    } catch (e) {
+      developer.log('⚠️ Firestore同期失敗、キューに追加: $e');
+
+      // 同期キューに追加
+      _addToSyncQueue(_ShoppingListSyncOperation(
+        type: operationType,
+        listId: list.listId,
+        data: list,
+        timestamp: DateTime.now(),
+      ));
+
+      // タイマーで再同期をスケジュール
+      _scheduleSync();
     }
   }
 
@@ -111,14 +156,61 @@ class HybridShoppingListRepository implements ShoppingListRepository {
         return;
       }
 
-      // 2. Firestoreにも同期
-      final list = await _hiveRepo.getShoppingList(groupId);
-      if (list != null) {
-        _syncToFirestoreBackground(list);
-      }
+      // 2. 同期処理でFirestoreに追加
+      await _syncItemToFirestoreWithFallback(
+          groupId, item, _ShoppingListSyncOperationType.createItem);
     } catch (e) {
       developer.log('❌ HybridShoppingList.addShoppingItem error: $e');
       rethrow;
+    }
+  }
+
+  /// Firestoreへのアイテム同期処理（フォールバック付き）
+  Future<void> _syncItemToFirestoreWithFallback(String listId,
+      ShoppingItem item, _ShoppingListSyncOperationType operationType) async {
+    if (_firestoreRepo == null) {
+      developer.log('⚠️ Firestore repository not available');
+      return;
+    }
+
+    try {
+      // 10秒タイムアウトで同期実行
+      switch (operationType) {
+        case _ShoppingListSyncOperationType.createItem:
+          await _firestoreRepo!.addItemToList(listId, item).timeout(
+                const Duration(seconds: 10),
+              );
+          break;
+        case _ShoppingListSyncOperationType.updateItem:
+          await _firestoreRepo!
+              .updateItemStatusInList(listId, item,
+                  isPurchased: item.isPurchased)
+              .timeout(
+                const Duration(seconds: 10),
+              );
+          break;
+        case _ShoppingListSyncOperationType.deleteItem:
+          await _firestoreRepo!.removeItemFromList(listId, item).timeout(
+                const Duration(seconds: 10),
+              );
+          break;
+        default:
+          return;
+      }
+      developer.log('✅ Firestore item sync成功: ${item.name}');
+    } catch (e) {
+      developer.log('⚠️ Firestore item sync失敗、キューに追加: $e');
+
+      // 同期キューに追加
+      _addToSyncQueue(_ShoppingListSyncOperation(
+        type: operationType,
+        listId: listId,
+        data: {'item': item},
+        timestamp: DateTime.now(),
+      ));
+
+      // タイマーで再同期をスケジュール
+      _scheduleSync();
     }
   }
 
@@ -132,11 +224,9 @@ class HybridShoppingListRepository implements ShoppingListRepository {
         return;
       }
 
-      // 2. Firestoreにも同期
-      final list = await _hiveRepo.getShoppingList(groupId);
-      if (list != null) {
-        _syncToFirestoreBackground(list);
-      }
+      // 2. 同期処理でFirestoreからも削除
+      await _syncItemToFirestoreWithFallback(
+          groupId, item, _ShoppingListSyncOperationType.deleteItem);
     } catch (e) {
       developer.log('❌ HybridShoppingList.removeShoppingItem error: $e');
       rethrow;
@@ -155,11 +245,10 @@ class HybridShoppingListRepository implements ShoppingListRepository {
         return;
       }
 
-      // 2. Firestoreにも同期
-      final list = await _hiveRepo.getShoppingList(groupId);
-      if (list != null) {
-        _syncToFirestoreBackground(list);
-      }
+      // 2. 同期処理でFirestoreのステータスも更新
+      final updatedItem = item.copyWith(isPurchased: isPurchased);
+      await _syncItemToFirestoreWithFallback(
+          groupId, updatedItem, _ShoppingListSyncOperationType.updateItem);
     } catch (e) {
       developer.log('❌ HybridShoppingList.updateShoppingItemStatus error: $e');
       rethrow;
@@ -211,22 +300,6 @@ class HybridShoppingListRepository implements ShoppingListRepository {
         _isOnline = false; // 接続エラーをマーク
       } finally {
         _isSyncing = false;
-      }
-    });
-  }
-
-  /// Firestoreへバックグラウンド同期(非ブロッキング)
-  void _syncToFirestoreBackground(ShoppingList list) {
-    if (_firestoreRepo == null) return;
-
-    Future.microtask(() async {
-      try {
-        await _firestoreRepo!.addItem(list);
-        developer.log('🔄 Background sync: Hive→Firestore完了');
-        _isOnline = true; // 成功時はオンライン状態を確認
-      } catch (e) {
-        developer.log('⚠️ Background sync to Firestore error: $e');
-        _isOnline = false;
       }
     });
   }
@@ -371,4 +444,144 @@ class HybridShoppingListRepository implements ShoppingListRepository {
       }
     }
   }
+
+  // =================================================================
+  // 同期キュー管理メソッド
+  // =================================================================
+
+  /// 同期キューに追加
+  void _addToSyncQueue(_ShoppingListSyncOperation operation) {
+    _syncQueue.add(operation);
+    developer.log(
+        '📝 Sync queue added: ${operation.type} for list ${operation.listId}');
+  }
+
+  /// 同期スケジュール（タイマー使用）
+  void _scheduleSync() {
+    _syncTimer?.cancel();
+    _syncTimer = Timer(const Duration(seconds: 30), () {
+      _processSyncQueue();
+    });
+    developer.log('⏰ Sync scheduled in 30 seconds');
+  }
+
+  /// 同期キューを処理
+  Future<void> _processSyncQueue() async {
+    if (_syncQueue.isEmpty || _isSyncing) return;
+
+    _isSyncing = true;
+    developer.log('🔄 Processing sync queue: ${_syncQueue.length} operations');
+
+    final operationsToProcess =
+        List<_ShoppingListSyncOperation>.from(_syncQueue);
+    _syncQueue.clear();
+
+    for (final operation in operationsToProcess) {
+      try {
+        await _executeSyncOperation(operation);
+        developer.log('✅ Sync operation completed: ${operation.type}');
+      } catch (e) {
+        operation.retryCount++;
+        if (operation.retryCount < 3) {
+          _syncQueue.add(operation);
+          developer.log(
+              '🔄 Sync operation retry ${operation.retryCount}: ${operation.type}');
+        } else {
+          developer.log(
+              '❌ Sync operation failed after 3 retries: ${operation.type}');
+        }
+      }
+    }
+
+    _isSyncing = false;
+
+    // 残りの操作がある場合は再スケジュール
+    if (_syncQueue.isNotEmpty) {
+      _scheduleSync();
+    }
+  }
+
+  /// 個別同期操作を実行
+  Future<void> _executeSyncOperation(
+      _ShoppingListSyncOperation operation) async {
+    if (_firestoreRepo == null) {
+      throw Exception('Firestore repository not available');
+    }
+
+    switch (operation.type) {
+      case _ShoppingListSyncOperationType.create:
+        await _firestoreRepo!
+            .updateShoppingList(operation.data as ShoppingList);
+        break;
+      case _ShoppingListSyncOperationType.update:
+        await _firestoreRepo!
+            .updateShoppingList(operation.data as ShoppingList);
+        break;
+      case _ShoppingListSyncOperationType.delete:
+        await _firestoreRepo!.deleteShoppingList(operation.listId);
+        break;
+      case _ShoppingListSyncOperationType.createItem:
+        final itemData = operation.data as Map<String, dynamic>;
+        await _firestoreRepo!
+            .addItemToList(operation.listId, itemData['item'] as ShoppingItem);
+        break;
+      case _ShoppingListSyncOperationType.updateItem:
+        final itemData = operation.data as Map<String, dynamic>;
+        final item = itemData['item'] as ShoppingItem;
+        await _firestoreRepo!.updateItemStatusInList(operation.listId, item,
+            isPurchased: item.isPurchased);
+        break;
+      case _ShoppingListSyncOperationType.deleteItem:
+        final item = operation.data as ShoppingItem;
+        await _firestoreRepo!.removeItemFromList(operation.listId, item);
+        break;
+    }
+  }
+
+  /// アプリ終了時の同期実行
+  Future<void> syncOnAppExit() async {
+    if (_syncQueue.isEmpty) return;
+
+    developer.log('🔄 App exit sync: ${_syncQueue.length} operations');
+    _syncTimer?.cancel();
+
+    final operations = List<_ShoppingListSyncOperation>.from(_syncQueue);
+    _syncQueue.clear();
+
+    for (final operation in operations) {
+      try {
+        await _executeSyncOperation(operation);
+        developer.log('✅ App exit sync completed: ${operation.type}');
+      } catch (e) {
+        developer.log('❌ App exit sync failed: ${operation.type} - $e');
+      }
+    }
+  }
+}
+
+// 同期操作の種類を定義
+enum _ShoppingListSyncOperationType {
+  create,
+  update,
+  delete,
+  createItem,
+  updateItem,
+  deleteItem,
+}
+
+// 同期操作を表すクラス
+class _ShoppingListSyncOperation {
+  final _ShoppingListSyncOperationType type;
+  final String listId;
+  final dynamic data; // ShoppingList、ShoppingItem、またはアイテムID
+  final DateTime timestamp;
+  int retryCount;
+
+  _ShoppingListSyncOperation({
+    required this.type,
+    required this.listId,
+    this.data,
+    required this.timestamp,
+    this.retryCount = 0,
+  });
 }

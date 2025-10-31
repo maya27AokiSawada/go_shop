@@ -276,4 +276,11 @@ class FirestoreShoppingListRepository implements ShoppingListRepository {
         groupId: groupId,
         listName: '$groupNameのデフォルトリスト');
   }
+
+  @override
+  Future<ShoppingList> getOrCreateDefaultList(
+      String groupId, String groupName) async {
+    // getOrCreateListと同じ実装（後方互換性のため）
+    return getOrCreateList(groupId, groupName);
+  }
 }

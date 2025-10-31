@@ -42,10 +42,19 @@ class CurrentListNotifier extends StateNotifier<ShoppingList?> {
     state = null;
   }
 
-  /// リスト内容を更新
-  void updateList(ShoppingList updatedList) {
+  /// リスト内容を更新（SharedPreferencesにも保存）
+  Future<void> updateList(ShoppingList updatedList) async {
     Log.info('🔄 カレントリストを更新: ${updatedList.listName}');
     state = updatedList;
+
+    // SharedPreferencesにも保存
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_currentListIdKey, updatedList.listId);
+      Log.info('✅ カレントリストID更新保存: ${updatedList.listId}');
+    } catch (e) {
+      Log.error('❌ カレントリストID更新保存エラー: $e');
+    }
   }
 }
 

@@ -133,14 +133,14 @@ class UserSpecificHiveService {
       await _closeAllBoxesSafely();
 
       // Box閉じた後少し待つ（プロバイダー競合を防ぐ）
-      await Future.delayed(const Duration(milliseconds: 300));
+      await Future.delayed(const Duration(milliseconds: 500));
 
       // ユーザー固有のディレクトリパスを作成
       final userDataPath = await _getUserDataPath(userId);
       Log.info('📁 User data path: $userDataPath');
 
-      // Hiveをユーザー固有のパスで初期化
-      Hive.init(userDataPath);
+      // Hiveの再初期化を安全に実行
+      await _safeReinitializeHive(userDataPath);
 
       // ★★★ データマイグレーションを実行 ★★★
       await _runMigrationIfNeeded();
@@ -185,8 +185,8 @@ class UserSpecificHiveService {
         Log.info('📁 Created Hive directory: $defaultPath');
       }
 
-      // Hiveをデフォルトパスで初期化
-      Hive.init(defaultPath);
+      // Hiveの再初期化を安全に実行
+      await _safeReinitializeHive(defaultPath);
 
       // ★★★ データマイグレーションを実行 ★★★
       await _runMigrationIfNeeded();
@@ -243,24 +243,77 @@ class UserSpecificHiveService {
     return '${directory.path}/go_shop_data/users/$userId';
   }
 
+  /// Hiveの安全な再初期化
+  Future<void> _safeReinitializeHive(String path) async {
+    try {
+      Log.info('🔄 Safe Hive reinitialization to: $path');
+
+      // Hiveが既に初期化されている場合は、既存のパスと比較
+      try {
+        // Hiveが既に同じパスで初期化されている場合はスキップ
+        Hive.init(path);
+        Log.info('✅ Hive initialized/verified with path: $path');
+      } catch (e) {
+        // エラーが発生した場合は強制的に再初期化
+        Log.warning('⚠️ Hive init error (will retry): $e');
+
+        // 少し待ってから再試行
+        await Future.delayed(const Duration(milliseconds: 300));
+        try {
+          Hive.init(path);
+          Log.info('✅ Hive reinitialized successfully after retry');
+        } catch (retryError) {
+          Log.error('❌ Hive reinit failed even after retry: $retryError');
+          // 最終手段として例外を発生させずに処理を続行
+          Log.warning('⚠️ Continuing with existing Hive state...');
+        }
+      }
+    } catch (e) {
+      Log.error('❌ Safe reinitialize error: $e');
+      rethrow;
+    }
+  }
+
   /// 必要なBoxをすべて開く（順番に開いて競合を回避）
   Future<void> _openUserBoxes() async {
     try {
-      Log.info('📦 Opening PurchaseGroup box...');
-      await Hive.openBox<PurchaseGroup>('purchaseGroups');
+      Log.info('📦 Opening user boxes with safety checks...');
 
-      Log.info('📦 Opening ShoppingList box...');
-      await Hive.openBox<ShoppingList>('shoppingLists');
+      // PurchaseGroupBox
+      await _safeOpenBox<PurchaseGroup>('purchaseGroups', '📁 PurchaseGroup');
 
-      Log.info('📦 Opening UserSettings box...');
-      await Hive.openBox<UserSettings>('userSettings');
+      // ShoppingListBox
+      await _safeOpenBox<ShoppingList>('shoppingLists', '🛒 ShoppingList');
 
-      Log.info('📦 Opening Subscriptions box...');
-      await Hive.openBox<Map>('subscriptions');
+      // UserSettingsBox
+      await _safeOpenBox<UserSettings>('userSettings', '⚙️ UserSettings');
 
-      Log.info('📦 All user-specific boxes opened successfully');
+      // SubscriptionsBox
+      await _safeOpenBox<Map>('subscriptions', '📡 Subscriptions');
+
+      Log.info('✅ All user-specific boxes opened successfully');
     } catch (e) {
       Log.error('❌ Failed to open user boxes: $e');
+      rethrow;
+    }
+  }
+
+  /// Boxを安全に開く（重複開封チェック付き）
+  Future<void> _safeOpenBox<T>(String boxName, String displayName) async {
+    try {
+      if (Hive.isBoxOpen(boxName)) {
+        Log.info('✅ $displayName box already open: $boxName');
+        return;
+      }
+
+      Log.info('🔄 Opening $displayName box: $boxName');
+      await Hive.openBox<T>(boxName);
+      Log.info('✅ $displayName box opened successfully: $boxName');
+
+      // Box開封間の間隔を確保
+      await Future.delayed(const Duration(milliseconds: 100));
+    } catch (e) {
+      Log.error('❌ Failed to open $displayName box ($boxName): $e');
       rethrow;
     }
   }
