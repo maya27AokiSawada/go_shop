@@ -39,8 +39,11 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
     try {
       final user = _auth.currentUser;
       if (user == null) {
+        developer.log('❌ [FIRESTORE] User not logged in');
         throw Exception("User not logged in");
       }
+
+      developer.log('🔥 [FIRESTORE] Creating group: $groupName ($groupId)');
 
       // PurchaseGroup.createファクトリでallowedUidが自動設定される
       final newGroup = PurchaseGroup.create(
@@ -51,21 +54,38 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
 
       // 新しいアーキテクチャ: ルートの'purchaseGroups'にドキュメントを作成
       final groupDocRef = _groupsCollection.doc(groupId);
+      final groupData = {
+        ..._groupToFirestore(newGroup),
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
 
-      // `set` ではなく `runTransaction` を使って原子性を保証
-      await _firestore.runTransaction((transaction) async {
-        transaction.set(groupDocRef, {
-          ..._groupToFirestore(newGroup),
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
+      developer
+          .log('🔥 [FIRESTORE] Group data prepared, writing to Firestore...');
+
+      try {
+        // シンプルなset操作でトランザクションを避ける（crash-proof）
+        await groupDocRef.set(groupData);
+        developer
+            .log('✅ [FIRESTORE] Group write successful: $groupName ($groupId)');
+      } catch (writeError) {
+        developer
+            .log('❌ [FIRESTORE] Write failed, trying transaction: $writeError');
+
+        // setが失敗した場合のみトランザクションを試行
+        await _firestore.runTransaction((transaction) async {
+          transaction.set(groupDocRef, groupData);
         });
-      });
+        developer.log(
+            '✅ [FIRESTORE] Transaction write successful: $groupName ($groupId)');
+      }
 
       developer.log(
           '🔥 [FIRESTORE] Created group in root collection: $groupName ($groupId)');
       return newGroup;
     } catch (e, st) {
-      developer.log('❌ Firestore createGroup error: $e\n$st');
+      developer.log('❌ [FIRESTORE] createGroup error: $e');
+      developer.log('📄 [FIRESTORE] StackTrace: $st');
       rethrow;
     }
   }

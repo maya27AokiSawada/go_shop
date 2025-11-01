@@ -398,9 +398,13 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
       // - グループ作成/更新/削除時（各mutation内で個別に同期）
       Log.info('🔄 [ALL GROUPS] Hive優先モード: ローカルデータを即座に返す');
 
-      Log.info('🔄 [ALL GROUPS] getAllGroups() 呼び出し開始');
-      final allGroups = await repository.getAllGroups();
-      Log.info('🔄 [ALL GROUPS] getAllGroups() 完了: ${allGroups.length}グループ');
+      Log.info('🔄 [ALL GROUPS] Hiveから直接取得開始');
+
+      // Hiveから直接データ取得（初期化待機なし）
+      final hiveRepo = ref.read(hivePurchaseGroupRepositoryProvider);
+      final allGroups = await hiveRepo.getAllGroups();
+
+      Log.info('🔄 [ALL GROUPS] Hive直接取得完了: ${allGroups.length}グループ');
 
       // 🔒 アクセス制御によるフィルタリング
       final visibilityMode = await accessControl.getGroupVisibilityMode();

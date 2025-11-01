@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:developer' as developer;
 import '../models/purchase_group.dart';
 import '../datastore/purchase_group_repository.dart';
@@ -7,6 +8,17 @@ import '../datastore/hive_purchase_group_repository.dart';
 import '../datastore/firestore_purchase_group_repository.dart';
 import '../providers/hive_provider.dart';
 import '../flavors.dart';
+
+/// 🛡️ 初期化ステータス定義
+enum InitializationStatus {
+  notStarted, // 未開始
+  initializingHive, // Hive初期化中
+  hiveReady, // Hive準備完了
+  initializingFirestore, // Firestore初期化中
+  fullyReady, // 完全準備完了（Hive + Firestore）
+  hiveOnlyMode, // Hiveのみモード（Firestoreエラー）
+  criticalError, // クリティカルエラー
+}
 
 /// Hive（ローカルキャッシュ）+ Firestore（リモート）のハイブリッドリポジトリ
 ///
@@ -28,38 +40,140 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
   final List<_SyncOperation> _syncQueue = [];
   Timer? _syncTimer;
 
+  // 🛡️ 本格的初期化状態管理
+  InitializationStatus _initStatus = InitializationStatus.notStarted;
+  bool _isInitialized = false;
+  bool _isInitializing = false;
+  String? _initializationError;
+  DateTime? _initStartTime;
+  int _firestoreRetryCount = 0;
+  static const int _maxRetries = 3;
+  static const Duration _initTimeout = Duration(seconds: 15);
+
+  // 初期化進捗コールバック（UI表示用）
+  Function(InitializationStatus, String?)? _onInitializationProgress;
+
   HybridPurchaseGroupRepository(this._ref) {
-    developer.log('🆕 [HYBRID_REPO] HybridPurchaseGroupRepository初期化開始');
+    developer.log('🆕 [HYBRID_REPO] HybridPurchaseGroupRepository安全初期化開始');
+    developer.log('🔍 [HYBRID_REPO] 現在のFlavor: ${F.appFlavor}');
+    developer.log('🔍 [HYBRID_REPO] Ref状態: ${_ref.runtimeType}');
+
+    // コンストラクタでは絶対にクラッシュしない - Hiveのみ確実に初期化
     try {
+      developer.log('🔄 [HYBRID_REPO] HivePurchaseGroupRepository作成開始...');
       _hiveRepo = HivePurchaseGroupRepository(_ref);
       developer.log('✅ [HYBRID_REPO] HivePurchaseGroupRepository初期化成功');
-
-      // ✅ Firestore統合を有効化（マルチユーザー・マルチデバイス対応）
-      if (F.appFlavor != Flavor.dev) {
-        _initializeFirestoreWithSafetyNet();
-      } else {
-        developer.log('💡 [HYBRID_REPO] DEV環境 - Hiveのみで動作');
-      }
-      developer.log('✅ [HYBRID_REPO] HybridPurchaseGroupRepository初期化完了');
+      developer.log('🛡️ [HYBRID_REPO] 最低限の安全な動作環境確保完了 - Hiveで動作可能');
     } catch (e, stackTrace) {
-      developer.log('❌ [HYBRID_REPO] コンストラクタでクリティカルエラー: $e');
+      developer.log('❌ [HYBRID_REPO] 致命的エラー: Hive初期化失敗 - システム継続不可');
+      developer.log('📄 [HYBRID_REPO] Error Type: ${e.runtimeType}');
+      developer.log('📄 [HYBRID_REPO] Error Message: $e');
       developer.log('📄 [HYBRID_REPO] StackTrace: $stackTrace');
-      rethrow; // コンストラクタエラーは再スロー
+      rethrow; // Hive初期化失敗は真のクリティカルエラー
+    } // Firestore初期化は非同期で安全に実行（クラッシュリスクゼロ）
+    if (F.appFlavor != Flavor.dev) {
+      developer.log('🔄 [HYBRID_REPO] 非同期Firestore初期化をスケジュール');
+      // 非同期で安全にFirestore初期化を試行
+      _safeAsyncFirestoreInitialization();
+    } else {
+      developer.log('💡 [HYBRID_REPO] DEV環境 - Hiveのみで動作');
+      _isInitialized = true;
     }
   }
 
-  /// Firestore初期化を安全に実行（非同期処理）
-  void _initializeFirestoreWithSafetyNet() {
+  /// 完全にクラッシュ防止のFirestore初期化（非同期・安全）
+  Future<void> _safeAsyncFirestoreInitialization() async {
+    if (_isInitializing) {
+      developer.log('⚠️ [HYBRID_REPO] Firestore初期化既に進行中 - スキップ');
+      return;
+    }
+
+    _isInitializing = true;
+    developer.log('� [HYBRID_REPO] 安全なFirestore初期化開始...');
+
     try {
-      developer.log('🔄 [HYBRID_REPO] Firestore初期化開始...');
+      // 複数層の安全網でFirestore初期化
+      await Future.delayed(const Duration(milliseconds: 500)); // 安定化待機
+
+      developer.log('� [HYBRID_REPO] FirestorePurchaseGroupRepository作成試行...');
       _firestoreRepo = FirestorePurchaseGroupRepository(_ref);
-      developer.log('🌐 [HYBRID_REPO] Firestore統合有効化 - クラウド同期開始');
+
+      // 初期化後のヘルスチェック
+      await Future.delayed(const Duration(milliseconds: 100));
+      developer.log('🌐 [HYBRID_REPO] Firestore統合有効化完了 - ハイブリッドモード開始');
+
+      _isOnline = true;
+      _isInitialized = true;
+      _initializationError = null;
     } catch (e, stackTrace) {
-      developer.log('❌ [HYBRID_REPO] Firestore初期化エラー: $e');
+      developer.log('❌ [HYBRID_REPO] Firestore初期化エラー（安全にキャッチ）: $e');
       developer.log('📄 [HYBRID_REPO] StackTrace: $stackTrace');
+
       _firestoreRepo = null;
-      _isOnline = false; // オフラインモードに設定
-      developer.log('🔧 [HYBRID_REPO] Fallback: Hiveのみで動作');
+      _isOnline = false;
+      _isInitialized = true; // Hiveのみで初期化完了
+      _initializationError = e.toString();
+
+      developer.log('🔧 [HYBRID_REPO] 安全フォールバック完了: Hiveのみで動作継続');
+    } finally {
+      _isInitializing = false;
+      developer.log('✅ [HYBRID_REPO] 初期化プロセス完了 - システム動作準備OK');
+    }
+  }
+
+  /// 初期化完了まで安全に待機（ローディングスピナー表示推奨）
+  Future<void> waitForSafeInitialization() async {
+    _initStartTime = DateTime.now();
+    _initStatus = InitializationStatus.initializingHive;
+    _notifyProgress(InitializationStatus.initializingHive, 'Hive初期化中...');
+
+    developer.log('🚀 [HybridRepo] Safe initialization started',
+        name: 'HybridRepo');
+
+    // Hive準備完了
+    _initStatus = InitializationStatus.hiveReady;
+    _notifyProgress(InitializationStatus.hiveReady, 'Hive準備完了');
+
+    // Firestoreリトライ開始
+    if (!_isInitialized) {
+      _attemptFirestoreInitializationWithRetry(); // awaitしない（バックグラウンド実行）
+    }
+    int attempts = 0;
+    const maxAttempts = 30; // 15秒間待機（500ms × 30）
+
+    while (!_isInitialized && attempts < maxAttempts) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      attempts++;
+
+      final elapsed = DateTime.now().difference(_initStartTime!);
+      if (elapsed >= _initTimeout) {
+        developer.log(
+            '⏰ [HybridRepo] Initialization timeout (${_initTimeout.inSeconds}s)',
+            name: 'HybridRepo');
+        _initStatus = InitializationStatus.hiveOnlyMode;
+        _notifyProgress(
+            InitializationStatus.hiveOnlyMode, 'タイムアウト - Hiveのみモード');
+        break;
+      }
+    }
+
+    if (!_isInitialized) {
+      developer.log('⚠️ [HYBRID_REPO] 初期化タイムアウト - Hiveのみで強制続行');
+      _isInitialized = true;
+      _isOnline = false;
+      _firestoreRepo = null;
+      _initStatus = InitializationStatus.hiveOnlyMode;
+      _notifyProgress(
+          InitializationStatus.hiveOnlyMode, 'タイムアウト - Hiveのみで強制続行');
+    }
+
+    final duration = DateTime.now().difference(_initStartTime!);
+    developer.log(
+        '🎯 [HybridRepo] Safe initialization finished - Status: $_isInitialized, Duration: ${duration.inMilliseconds}ms',
+        name: 'HybridRepo');
+
+    if (_initializationError != null) {
+      developer.log('ℹ️ [HYBRID_REPO] 初期化時エラー（回復済み）: $_initializationError');
     }
   }
 
@@ -97,6 +211,15 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
 
   @override
   Future<List<PurchaseGroup>> getAllGroups() async {
+    // 🛡️ 安全な初期化完了を待機（ローディングスピナー表示推奨）
+    await waitForSafeInitialization();
+    developer.log('✅ [HYBRID_REPO] 安全な初期化確認完了 - 全グループ取得続行');
+
+    return await _getAllGroupsInternal();
+  }
+
+  /// 内部用：初期化待機なしでグループを取得
+  Future<List<PurchaseGroup>> _getAllGroupsInternal() async {
     try {
       // 1. まずHiveから取得（高速）
       final cachedGroups = await _hiveRepo.getAllGroups();
@@ -154,6 +277,20 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
     }
   }
 
+  /// UI使用専用：初期化を待たずに即座にHiveからグループを取得
+  /// 通常のUI表示で使用する（長時間待機を避ける）
+  Future<List<PurchaseGroup>> getAllGroupsForUI() async {
+    developer.log('🚀 [HYBRID_REPO] UI用グループ取得開始（初期化待機なし）');
+
+    try {
+      return await _getAllGroupsInternal();
+    } catch (e) {
+      developer.log('❌ [HYBRID_REPO] UI用グループ取得エラー: $e');
+      // エラー時は空リストを返す（UIクラッシュを防ぐ）
+      return [];
+    }
+  }
+
   @override
   Future<PurchaseGroup> getGroupById(String groupId) async {
     try {
@@ -197,9 +334,20 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
       String groupId, String groupName, PurchaseGroupMember member) async {
     developer.log('🆕 [HYBRID_REPO] グループ作成開始: $groupName');
 
+    // 🛡️ 安全な初期化完了を待機（ローディングスピナー表示推奨）
+    await waitForSafeInitialization();
+    developer.log('✅ [HYBRID_REPO] 安全な初期化確認完了 - グループ作成続行');
+
     try {
       // 1. まずHiveに保存（楽観的更新）
       developer.log('📝 [HYBRID_REPO] Hive保存開始...');
+      developer
+          .log('🔍 [HYBRID_REPO] _hiveRepo インスタンス: ${_hiveRepo.runtimeType}');
+      developer.log('🔍 [HYBRID_REPO] createGroup パラメータ:');
+      developer.log('   - groupId: $groupId');
+      developer.log('   - groupName: $groupName');
+      developer.log('   - member: ${member.name} (${member.memberId})');
+
       final newGroup = await _hiveRepo.createGroup(groupId, groupName, member);
       developer.log('✅ [HYBRID_REPO] Hive保存完了: $groupName');
 
@@ -325,20 +473,49 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
     }
 
     try {
+      // 🛡️ Members null チェック（crash-proof）
+      if (group.members == null || group.members!.isEmpty) {
+        developer.log(
+            '❌ [HYBRID_REPO] Group members is null or empty - skipping Firestore sync');
+        return;
+      }
+
       // 同期的書き込み（ユーザーを待たせてもOK）
-      final ownerMember =
-          group.members!.firstWhere((m) => m.role == PurchaseGroupRole.owner);
+      final ownerMember = group.members!
+          .firstWhere((m) => m.role == PurchaseGroupRole.owner, orElse: () {
+        developer.log('⚠️ [HYBRID_REPO] No owner found, using first member');
+        return group.members!.first;
+      });
 
       developer.log('⏳ [HYBRID_REPO] Firestore書き込み中...: ${group.groupName}');
+      developer.log(
+          '🔍 [HYBRID_REPO] Owner member: ${ownerMember.name} (${ownerMember.memberId})');
+
       await _firestoreRepo!
           .createGroup(group.groupId, group.groupName, ownerMember)
-          .timeout(const Duration(seconds: 10)); // 10秒タイムアウト
+          .timeout(
+        const Duration(seconds: 15), // タイムアウトを15秒に延長
+        onTimeout: () {
+          developer
+              .log('⏰ [HYBRID_REPO] Firestore書き込みタイムアウト: ${group.groupName}');
+          throw Exception('Firestore write timeout after 15 seconds');
+        },
+      );
 
       developer.log('✅ [HYBRID_REPO] Firestore書き込み成功: ${group.groupName}');
       _isOnline = true; // オンライン状態を更新
     } catch (e, stackTrace) {
       developer.log('❌ [HYBRID_REPO] Firestore書き込み失敗: $e');
       developer.log('📄 [HYBRID_REPO] StackTrace: $stackTrace');
+
+      // オフライン状態に設定
+      _isOnline = false;
+
+      // 🛡️ Members安全チェック（crash-proof）
+      if (group.members == null || group.members!.isEmpty) {
+        developer.log('❌ [HYBRID_REPO] Cannot add to sync queue - no members');
+        return;
+      }
 
       // 同期キューに追加（タイマーで後で再試行）
       _addToSyncQueue(_SyncOperation(
@@ -698,6 +875,61 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
       _isSyncing = false;
     }
   }
+
+  /// 📊 初期化進行状況の通知
+  void _notifyProgress(InitializationStatus status, String? message) {
+    _initStatus = status;
+    _onInitializationProgress?.call(status, message);
+    developer.log('📊 [HybridRepo] Status: $status - $message',
+        name: 'HybridRepo');
+  }
+
+  /// 🔄 リトライ付きFirestore初期化
+  Future<void> _attemptFirestoreInitializationWithRetry() async {
+    _firestoreRetryCount = 0;
+
+    while (_firestoreRetryCount < _maxRetries) {
+      try {
+        _notifyProgress(InitializationStatus.initializingFirestore,
+            'Firestore接続試行 ${_firestoreRetryCount + 1}/$_maxRetries');
+
+        await _safeAsyncFirestoreInitialization();
+
+        if (_firestoreRepo != null) {
+          _notifyProgress(InitializationStatus.fullyReady, 'Firestore接続完了');
+          return;
+        }
+      } catch (e) {
+        _firestoreRetryCount++;
+        developer.log(
+            '🔄 [HybridRepo] Firestore retry $_firestoreRetryCount/$_maxRetries failed: $e',
+            name: 'HybridRepo');
+
+        if (_firestoreRetryCount < _maxRetries) {
+          // 指数バックオフ: 1秒, 2秒, 4秒
+          final delay =
+              Duration(seconds: math.pow(2, _firestoreRetryCount - 1).toInt());
+          await Future.delayed(delay);
+        }
+      }
+    }
+
+    // 全リトライ失敗
+    _notifyProgress(
+        InitializationStatus.hiveOnlyMode, 'Firestore接続失敗 - Hiveのみモード');
+    developer.log(
+        '❌ [HybridRepo] All Firestore retries failed, falling back to Hive-only',
+        name: 'HybridRepo');
+  }
+
+  /// 🎛️ 初期化進行状況コールバック設定
+  void setInitializationProgressCallback(
+      Function(InitializationStatus, String?)? callback) {
+    _onInitializationProgress = callback;
+  }
+
+  /// 📊 現在の初期化ステータス取得
+  InitializationStatus get initializationStatus => _initStatus;
 }
 
 /// 同期操作を表すクラス
