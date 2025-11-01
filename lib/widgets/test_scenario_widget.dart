@@ -28,6 +28,11 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
   bool _isLoggedIn = false;
   User? _currentUser;
 
+  // 🛡️ 初期化状況表示用
+  String _initializationStatus = 'not_started';
+  String _initializationMessage = '初期化未開始';
+  bool _isInitializing = false;
+
   @override
   void initState() {
     super.initState();
@@ -49,21 +54,26 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
   void _log(String message) {
     final timestamp = DateTime.now().toString().substring(11, 19);
     final logMessage = '[$timestamp] $message';
-    setState(() {
-      _testLogs.add(logMessage);
-    });
-    AppLogger.info('🧪 TEST: $message');
 
-    // 自動スクロール
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_testOutputController.hasClients) {
-        _testOutputController.animateTo(
-          _testOutputController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 100),
-          curve: Curves.easeOut,
-        );
-      }
-    });
+    // mountedチェックを追加してメモリリークを防ぐ
+    if (mounted) {
+      setState(() {
+        _testLogs.add(logMessage);
+      });
+
+      // 自動スクロール
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _testOutputController.hasClients) {
+          _testOutputController.animateTo(
+            _testOutputController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 100),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+    }
+
+    AppLogger.info('🧪 TEST: $message');
   }
 
   void _clearLogs() {
@@ -144,6 +154,57 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
     try {
       final repository = ref.read(purchaseGroupRepositoryProvider);
       final testUserId = _currentUser?.uid ?? 'test_user_123';
+
+      // 🛡️ 安全な初期化完了を待機（クラッシュ防止）
+      // リポジトリの型をチェックして安全にキャスト
+      if (repository is HybridPurchaseGroupRepository) {
+        final hybridRepo = repository;
+        _log('⏳ HybridPurchaseGroupRepository 安全な初期化を待機中...');
+
+        // 初期化開始状態を設定
+        setState(() {
+          _isInitializing = true;
+          _initializationStatus = 'initializing';
+          _initializationMessage = '初期化中...';
+        });
+
+        // 📊 初期化進行状況監視コールバック設定
+        hybridRepo.setInitializationProgressCallback((status, message) {
+          final statusName = status.name;
+          _log('📊 初期化状況: $statusName - ${message ?? ''}');
+
+          // UI状態更新
+          setState(() {
+            _initializationStatus = statusName;
+            _initializationMessage = message ?? '';
+            _isInitializing = status.name != 'fullyReady' &&
+                status.name != 'hiveOnlyMode' &&
+                status.name != 'criticalError';
+          });
+        });
+
+        _log('🔄 現在の初期化ステータス: ${hybridRepo.initializationStatus.name}');
+
+        await hybridRepo.waitForSafeInitialization();
+
+        // 初期化完了状態を設定
+        setState(() {
+          _isInitializing = false;
+          _initializationStatus = hybridRepo.initializationStatus.name;
+          _initializationMessage = '初期化完了';
+        });
+
+        _log('✅ HybridPurchaseGroupRepository 初期化完了');
+        _log('🎯 最終ステータス: ${hybridRepo.initializationStatus.name}');
+      } else {
+        // HivePurchaseGroupRepositoryの場合は初期化不要
+        _log('ℹ️ HivePurchaseGroupRepository使用中 - 初期化スキップ');
+        setState(() {
+          _isInitializing = false;
+          _initializationStatus = 'ready';
+          _initializationMessage = 'Hive準備完了';
+        });
+      }
 
       // 1. グループ作成テスト
       _log('1️⃣ グループ作成テスト');
@@ -357,6 +418,13 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
       _log('📍 GroupRepository Type: ${groupRepo.runtimeType}');
       _log('📍 ListRepository Type: ${listRepo.runtimeType}');
 
+      // 🛡️ 安全な初期化完了を待機（クラッシュ防止）
+      if (groupRepo is HybridPurchaseGroupRepository) {
+        _log('⏳ HybridPurchaseGroupRepository 安全な初期化を待機中...');
+        await groupRepo.waitForSafeInitialization();
+        _log('✅ 安全な初期化完了確認 - テスト続行可能');
+      }
+
       // 1. ローカル（Hive）データ確認
       _log('1️⃣ ローカルデータ確認');
       if (groupRepo is HybridPurchaseGroupRepository) {
@@ -428,22 +496,43 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
 
           // テスト用ショッピングリスト作成（Firestoreタイムアウトをシミュレート）
           try {
-            final testItem = ShoppingItem.createNow(
-              memberId: userId,
-              name: '同期テスト商品_${DateTime.now().millisecondsSinceEpoch}',
-              quantity: 1,
-            );
+            // まず、テストグループに対してデフォルトのショッピングリストを作成
+            _log('🛒 テストグループ用ショッピングリスト作成...');
+            try {
+              final testShoppingList = await listRepo.createShoppingList(
+                ownerUid: userId,
+                groupId: testGroupId,
+                listName: 'テスト用買い物リスト',
+                description: 'Hybrid同期テスト用のリスト',
+              );
+              _log('✅ ショッピングリスト作成完了: ${testShoppingList.listName}');
 
-            // アイテム追加（同期キューテスト）
-            _log('🔄 商品追加で同期キューテスト実行中...');
-            await listRepo.addShoppingItem(testGroupId, testItem);
-            _log('✅ 商品追加完了（同期キューによる処理）');
+              final testItem = ShoppingItem.createNow(
+                memberId: userId,
+                name: '同期テスト商品_${DateTime.now().millisecondsSinceEpoch}',
+                quantity: 1,
+              );
 
-            // 少し待機してから同期状況確認
-            await Future.delayed(const Duration(seconds: 2));
-            _log('📊 同期キュー処理状況確認完了');
-          } catch (e) {
-            _log('⚠️ ショッピングリスト同期キューテストでエラー（想定内）: $e');
+              // アイテム追加（同期キューテスト）- 正しくlistIdを使用
+              _log('🔄 商品追加で同期キューテスト実行中...');
+              _log(
+                  '📍 Debug: listId=${testShoppingList.listId}, item=${testItem.name}');
+
+              await listRepo.addItemToList(testShoppingList.listId, testItem);
+              _log('✅ 商品追加完了（同期キューによる処理）');
+
+              // 少し待機してから同期状況確認
+              await Future.delayed(const Duration(seconds: 2));
+              _log('📊 同期キュー処理状況確認完了');
+            } catch (createError) {
+              _log('❌ ショッピングリスト作成エラー: $createError');
+              _log('❌ StackTrace: ${StackTrace.current}');
+              // createShoppingListが失敗した場合はこのテストをスキップ
+              _log('⏭️ ショッピングリスト同期キューテストをスキップします');
+            }
+          } catch (e, stackTrace) {
+            _log('❌ ショッピングリスト同期キューテストでエラー: $e');
+            _log('❌ StackTrace: $stackTrace');
           }
         }
       }
@@ -606,6 +695,81 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
                           ),
                         ],
                       ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // 🛡️ 初期化ステータス表示セクション
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          _isInitializing
+                              ? Icons.hourglass_empty
+                              : Icons.check_circle,
+                          color: _isInitializing
+                              ? Colors.orange
+                              : _initializationStatus == 'fullyReady'
+                                  ? Colors.green
+                                  : _initializationStatus == 'hiveOnlyMode'
+                                      ? Colors.blue
+                                      : Colors.grey,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'HybridRepository 初期化状況',
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: _isInitializing
+                                ? Colors.orange
+                                : _initializationStatus == 'fullyReady'
+                                    ? Colors.green
+                                    : _initializationStatus == 'hiveOnlyMode'
+                                        ? Colors.blue
+                                        : Colors.grey,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            _initializationStatus,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_isInitializing) ...[
+                      const SizedBox(height: 12),
+                      LinearProgressIndicator(
+                        backgroundColor: Colors.grey.shade300,
+                        valueColor:
+                            const AlwaysStoppedAnimation<Color>(Colors.orange),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    Text(
+                      _initializationMessage,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.grey.shade700,
+                          ),
                     ),
                   ],
                 ),

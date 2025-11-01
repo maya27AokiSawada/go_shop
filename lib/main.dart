@@ -17,7 +17,7 @@ import 'flavors.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // フレーバーの設定 - 本番環境（Hybrid: Hive + Firestore）
+  // フレーバーの設定 - 本番環境（Firestore + Hive Hybrid - crash-proof実装テスト）
   F.appFlavor = Flavor.prod;
 
   // Firebase初期化（詳細なエラー情報を表示）

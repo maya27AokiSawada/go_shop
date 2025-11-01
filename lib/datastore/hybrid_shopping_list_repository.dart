@@ -121,6 +121,7 @@ class HybridShoppingListRepository implements ShoppingListRepository {
         listId: list.listId,
         data: list,
         timestamp: DateTime.now(),
+        retryCount: 0,
       ));
 
       // タイマーで再同期をスケジュール
@@ -207,6 +208,7 @@ class HybridShoppingListRepository implements ShoppingListRepository {
         listId: listId,
         data: {'item': item},
         timestamp: DateTime.now(),
+        retryCount: 0,
       ));
 
       // タイマーで再同期をスケジュール
@@ -404,19 +406,62 @@ class HybridShoppingListRepository implements ShoppingListRepository {
 
   @override
   Future<void> addItemToList(String listId, ShoppingItem item) async {
-    await _hiveRepo.addItemToList(listId, item);
+    try {
+      // 1. Hiveに追加
+      await _hiveRepo.addItemToList(listId, item);
+
+      if (F.appFlavor == Flavor.dev || !_isOnline) {
+        return;
+      }
+
+      // 2. 同期処理でFirestoreに追加
+      await _syncItemToFirestoreWithFallback(
+          listId, item, _ShoppingListSyncOperationType.createItem);
+    } catch (e) {
+      developer.log('❌ HybridShoppingList.addItemToList error: $e');
+      rethrow;
+    }
   }
 
   @override
   Future<void> removeItemFromList(String listId, ShoppingItem item) async {
-    await _hiveRepo.removeItemFromList(listId, item);
+    try {
+      // 1. Hiveから削除
+      await _hiveRepo.removeItemFromList(listId, item);
+
+      if (F.appFlavor == Flavor.dev || !_isOnline) {
+        return;
+      }
+
+      // 2. 同期処理でFirestoreからも削除
+      await _syncItemToFirestoreWithFallback(
+          listId, item, _ShoppingListSyncOperationType.deleteItem);
+    } catch (e) {
+      developer.log('❌ HybridShoppingList.removeItemFromList error: $e');
+      rethrow;
+    }
   }
 
   @override
   Future<void> updateItemStatusInList(String listId, ShoppingItem item,
       {required bool isPurchased}) async {
-    await _hiveRepo.updateItemStatusInList(listId, item,
-        isPurchased: isPurchased);
+    try {
+      // 1. Hiveの状態を更新
+      await _hiveRepo.updateItemStatusInList(listId, item,
+          isPurchased: isPurchased);
+
+      if (F.appFlavor == Flavor.dev || !_isOnline) {
+        return;
+      }
+
+      // 2. 同期処理でFirestoreの状態も更新
+      final updatedItem = item.copyWith(isPurchased: isPurchased);
+      await _syncItemToFirestoreWithFallback(
+          listId, updatedItem, _ShoppingListSyncOperationType.updateItem);
+    } catch (e) {
+      developer.log('❌ HybridShoppingList.updateItemStatusInList error: $e');
+      rethrow;
+    }
   }
 
   @override
@@ -582,6 +627,6 @@ class _ShoppingListSyncOperation {
     required this.listId,
     this.data,
     required this.timestamp,
-    this.retryCount = 0,
-  });
+    int? retryCount,
+  }) : retryCount = retryCount ?? 0;
 }
