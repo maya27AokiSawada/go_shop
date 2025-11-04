@@ -278,7 +278,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
                               ),
                               title: Text(group.groupName),
                               subtitle: Text(
-                                '${group.members?.length ?? 0}メンバー • ${group.groupId}',
+                                '${group.members.length ?? 0}メンバー • ${group.groupId}',
                               ),
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -557,7 +557,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
       Log.info('📱 Hive Groups:');
       for (final group in localGroups) {
         Log.info(
-            '  - ${group.groupName} (${group.members?.length ?? 0} members) [${group.groupId}]');
+            '  - ${group.groupName} (${group.members.length ?? 0} members) [${group.groupId}]');
       }
 
       Log.info('🔥 Firestore Groups:');
@@ -620,9 +620,8 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
 
     final group = testGroups.first;
     final testMember = PurchaseGroupMember.create(
-      name: 'テストメンバー${DateTime.now().millisecondsSinceEpoch % 1000}',
-      contact:
-          'test${DateTime.now().millisecondsSinceEpoch % 1000}@example.com',
+      uid: 'test_uid_${DateTime.now().millisecondsSinceEpoch % 1000}',
+      displayName: 'テストメンバー${DateTime.now().millisecondsSinceEpoch % 1000}',
       role: PurchaseGroupRole.member,
     );
 
@@ -697,12 +696,12 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
           children: [
             Text('グループID: ${group.groupId}'),
             Text('オーナー: ${group.ownerName ?? 'N/A'}'),
-            Text('メンバー数: ${group.members?.length ?? 0}'),
-            if (group.members?.isNotEmpty == true) ...[
+            Text('メンバー数: ${group.members.length ?? 0}'),
+            if (group.members.isNotEmpty == true) ...[
               const SizedBox(height: 8),
               const Text('メンバー:',
                   style: TextStyle(fontWeight: FontWeight.bold)),
-              ...group.members!.map((member) => Padding(
+              ...group.members.map((member) => Padding(
                     padding: const EdgeInsets.only(left: 16, top: 4),
                     child: Text('• ${member.name} (${member.role.name})'),
                   )),
