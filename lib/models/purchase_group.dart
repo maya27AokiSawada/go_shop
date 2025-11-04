@@ -95,6 +95,9 @@ class PurchaseGroup with _$PurchaseGroup {
     @HiveField(3) @Default([]) List<PurchaseGroupMember> members,
     @HiveField(4) DateTime? createdAt,
     @HiveField(5) DateTime? updatedAt,
+    // シークレットモード機能
+    @HiveField(6) @Default(false) bool isSecret,
+    @HiveField(7) @Default([]) List<String> allowedUid,
   }) = _PurchaseGroup;
 
   factory PurchaseGroup.fromJson(Map<String, dynamic> json) =>
