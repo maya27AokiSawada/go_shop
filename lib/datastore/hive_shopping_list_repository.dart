@@ -234,9 +234,9 @@ class HiveShoppingListRepository implements ShoppingListRepository {
     final purchaseGroupBox = ref.read(purchaseGroupBoxProvider);
     final purchaseGroup = purchaseGroupBox.get(groupId);
 
-    if (purchaseGroup?.members == null) return false;
+    if (purchaseGroup == null) return false;
 
-    return purchaseGroup!.members!.any((member) => member.memberId == memberId);
+    return purchaseGroup.members.any((member) => member.uid == memberId);
   }
 
   // === New Multi-List Methods Implementation ===
