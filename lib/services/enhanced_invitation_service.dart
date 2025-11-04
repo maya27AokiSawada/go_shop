@@ -33,15 +33,12 @@ class EnhancedInvitationService {
         if (firestoreGroup.canInviteUsers(currentUser.uid)) {
           // Check if target email already exists in group
           final existingMember = firestoreGroup.members?.firstWhere(
-            (m) => m.contact.toLowerCase() == targetEmail.toLowerCase(),
+            (m) => m.contact?.toLowerCase() == targetEmail.toLowerCase(),
             orElse: () => const PurchaseGroupMember(
-                memberId: '',
-                name: '',
-                contact: '',
-                role: PurchaseGroupRole.member),
+                uid: '', displayName: '', role: PurchaseGroupRole.member),
           );
 
-          final isAlreadyMember = existingMember?.contact.isNotEmpty == true;
+          final isAlreadyMember = existingMember?.contact?.isNotEmpty == true;
 
           invitableGroups.add(GroupInvitationOption(
             group: firestoreGroup,

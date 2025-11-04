@@ -191,7 +191,7 @@ class _SignupProcessingWidgetState extends ConsumerState<SignupProcessingWidget>
             '🔍 [SIGNUP_WIDGET] ローカルデフォルトグループ検出: ${localDefaultGroup.groupName}',
           );
           Log.info(
-            '🔍 [SIGNUP_WIDGET] メンバー数: ${localDefaultGroup.members?.length ?? 0}',
+            '🔍 [SIGNUP_WIDGET] メンバー数: ${localDefaultGroup.members.length}',
           );
         } else {
           Log.info('💡 [SIGNUP_WIDGET] ローカルデフォルトグループなし');
@@ -229,11 +229,9 @@ class _SignupProcessingWidgetState extends ConsumerState<SignupProcessingWidget>
 
     // オーナーメンバーを作成
     final ownerMember = PurchaseGroupMember.create(
-      memberId: user.uid,
-      name: user.displayName ?? 'ユーザー',
-      contact: user.email ?? '',
+      uid: user.uid,
+      displayName: user.displayName ?? 'ユーザー',
       role: PurchaseGroupRole.owner,
-      isSignedIn: true,
     );
 
     // デフォルトグループを作成
@@ -255,16 +253,15 @@ class _SignupProcessingWidgetState extends ConsumerState<SignupProcessingWidget>
     final user = widget.user;
     final repository = ref.read(purchaseGroupRepositoryProvider);
 
-    // メンバーの移行（オーナーのmemberIdをFirebase UIDに変更）
+    // メンバーの移行（オーナーのuidをFirebase UIDに変更）
     final migratedMembers = <PurchaseGroupMember>[];
-    for (final member in localDefaultGroup.members ?? []) {
+    for (final member in localDefaultGroup.members) {
       if (member.role == PurchaseGroupRole.owner) {
-        // オーナーのmemberIdをFirebase UIDに変更
+        // オーナーのuidをFirebase UIDに変更
         final updatedOwner = member.copyWith(
-          memberId: user.uid,
-          name: user.displayName ?? member.name,
-          contact: user.email ?? member.contact,
-          isSignedIn: true,
+          uid: user.uid,
+          displayName: user.displayName ?? member.displayName,
+          contact: user.email,
         );
         migratedMembers.add(updatedOwner);
       } else {
@@ -288,13 +285,12 @@ class _SignupProcessingWidgetState extends ConsumerState<SignupProcessingWidget>
     // デフォルトグループのownerメンバーIDをFirebase UIDに更新
     try {
       final defaultGroup = await repository.getGroupById('default_group');
-      final updatedMembers = defaultGroup.members?.map((member) {
-            if (member.role == PurchaseGroupRole.owner) {
-              return member.copyWith(memberId: user.uid);
-            }
-            return member;
-          }).toList() ??
-          [];
+      final updatedMembers = defaultGroup.members.map((member) {
+        if (member.role == PurchaseGroupRole.owner) {
+          return member.copyWith(uid: user.uid);
+        }
+        return member;
+      }).toList();
 
       final updatedDefaultGroup = defaultGroup.copyWith(
         members: updatedMembers,
