@@ -180,16 +180,16 @@ class InviteWidget extends ConsumerWidget {
     await Clipboard.setData(ClipboardData(text: text));
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Row(
             children: [
-              const Icon(Icons.check_circle, color: Colors.white, size: 20),
-              const SizedBox(width: 8),
-              const Expanded(child: Text('クリップボードにコピーしました')),
+              Icon(Icons.check_circle, color: Colors.white, size: 20),
+              SizedBox(width: 8),
+              Expanded(child: Text('クリップボードにコピーしました')),
             ],
           ),
           backgroundColor: Colors.green,
-          duration: const Duration(seconds: 2),
+          duration: Duration(seconds: 2),
         ),
       );
     }
@@ -220,7 +220,9 @@ class InviteWidget extends ConsumerWidget {
               Text(
                 'LINEやメールなどで共有してください',
                 style: TextStyle(
-                    fontSize: 12, color: Colors.white.withOpacity(0.9)),
+                    // ignore: deprecated_member_use
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.9)),
               ),
             ],
           ),

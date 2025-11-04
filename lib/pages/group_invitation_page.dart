@@ -178,11 +178,14 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
                         ),
                   ),
                   const SizedBox(height: 16),
+                  // ignore: deprecated_member_use
                   RadioListTile<String>(
                     title: const Text('個別グループ招待'),
                     subtitle: const Text('このグループのみにアクセス可能'),
                     value: 'individual',
+                    // ignore: deprecated_member_use
                     groupValue: _invitationType,
+                    // ignore: deprecated_member_use
                     onChanged: (value) {
                       setState(() {
                         _invitationType = value!;
@@ -190,11 +193,14 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
                       });
                     },
                   ),
+                  // ignore: deprecated_member_use
                   RadioListTile<String>(
                     title: const Text('フレンド招待'),
                     subtitle: const Text('あなたのすべてのグループにアクセス可能'),
                     value: 'friend',
+                    // ignore: deprecated_member_use
                     groupValue: _invitationType,
+                    // ignore: deprecated_member_use
                     onChanged: (value) {
                       setState(() {
                         _invitationType = value!;

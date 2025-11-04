@@ -7,6 +7,7 @@ import 'shopping_list_repository.dart';
 import '../providers/firestore_provider.dart';
 
 class FirestoreShoppingListRepository implements ShoppingListRepository {
+  // ignore: unused_field
   final Ref _ref;
   final FirebaseFirestore _firestore;
 

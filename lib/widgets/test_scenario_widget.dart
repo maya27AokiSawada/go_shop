@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
 import '../flavors.dart';
 import '../utils/app_logger.dart';
 import '../providers/auth_provider.dart';
@@ -10,6 +11,8 @@ import '../models/purchase_group.dart';
 import '../models/shopping_list.dart';
 import '../datastore/hybrid_purchase_group_repository.dart';
 import '../datastore/hybrid_shopping_list_repository.dart';
+import '../services/access_control_service.dart';
+import '../services/user_preferences_service.dart';
 
 /// テストシナリオ実行ウィジェット
 /// Firebase認証とCRUD操作の統合テストを実行
@@ -232,6 +235,11 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
       _log(
           '✅ グループ作成成功: ${createdGroup.groupName} (ID: ${createdGroup.groupId})');
 
+      // 🔄 AllGroupsNotifierを更新して通常UIに反映
+      _log('🔄 TEST: AllGroupsNotifier更新中...');
+      await ref.read(allGroupsProvider.notifier).refresh();
+      _log('✅ TEST: AllGroupsNotifier更新完了 - 通常UIに反映されました');
+
       // 2. グループ取得テスト
       _log('2️⃣ グループ取得テスト');
       final retrievedGroup = await repository.getGroupById(testGroupId);
@@ -274,6 +282,7 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
   }
 
   /// ショッピングリストCRUDテスト
+
   Future<void> _testShoppingListCrud() async {
     if (!_isLoggedIn && F.appFlavor == Flavor.prod) {
       _log('❌ エラー: 先にFirebase認証を完了してください');
@@ -541,6 +550,492 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
     } catch (e) {
       _log('❌ Hybridテストエラー: $e');
       AppLogger.error('❌ Hybrid sync test error: $e');
+    }
+  }
+
+  /// エラーハンドリングテスト
+  Future<void> _testErrorHandling() async {
+    _log('❌ エラーハンドリングテスト開始...');
+
+    try {
+      // AllGroupsProviderに意図的にエラーを発生させる
+      _log('1️⃣ AllGroupsProviderエラー状態テスト');
+
+      // まず正常な状態を確認
+      final allGroupsAsync = ref.read(allGroupsProvider);
+      _log('現在のAllGroupsProvider状態: ${allGroupsAsync.runtimeType}');
+
+      // 直接AllGroupsNotifierのエラー状態を作成することは難しいため、
+      // Repository層で例外を発生させる方法を使用
+
+      _log('2️⃣ Repository層エラーシミュレーション');
+
+      final repository = ref.read(purchaseGroupRepositoryProvider);
+      _log('Repository type: ${repository.runtimeType}');
+
+      try {
+        // 存在しないグループIDで取得を試行してエラーを発生させる
+        await repository.getGroupById(
+            'nonexistent_group_${DateTime.now().millisecondsSinceEpoch}');
+        _log('⚠️ 予期しない成功: エラーが発生しませんでした');
+      } catch (e) {
+        _log('✅ Repository層エラー捕捉成功: $e');
+      }
+
+      _log('3️⃣ UI側でのエラー表示確認');
+      _log('📋 GroupListWidgetでエラー状態を確認してください:');
+      _log('   - 赤いエラーアイコンが表示されているか？');
+      _log('   - エラーメッセージが表示されているか？');
+      _log('   - 再試行ボタンが表示されているか？');
+
+      _log('4️⃣ AllGroupsProviderを無効化（エラー状態表示テスト）');
+      // AllGroupsProviderを無効化してエラー状態をトリガー
+      ref.invalidate(allGroupsProvider);
+      _log('✅ AllGroupsProvider無効化完了');
+      _log('📱 UI画面でエラー表示を確認してください');
+
+      _log('❌ エラーハンドリングテスト完了');
+    } catch (e) {
+      _log('❌ エラーハンドリングテスト自体でエラー: $e');
+    }
+  }
+
+  /// エラー復旧テスト
+  Future<void> _testErrorRecovery() async {
+    _log('🔄 エラー復旧テスト開始...');
+
+    try {
+      _log('1️⃣ AllGroupsProviderの状態確認');
+      final allGroupsAsync = ref.read(allGroupsProvider);
+
+      allGroupsAsync.when(
+        data: (groups) {
+          _log('✅ データ状態: ${groups.length}グループ取得済み');
+        },
+        loading: () {
+          _log('⏳ ローディング状態');
+        },
+        error: (error, stack) {
+          _log('❌ エラー状態: $error');
+        },
+      );
+
+      _log('2️⃣ AllGroupsProviderリフレッシュ（復旧試行）');
+      ref.invalidate(allGroupsProvider);
+
+      // 少し待機してから結果確認
+      await Future.delayed(const Duration(seconds: 2));
+
+      _log('3️⃣ 復旧後状態確認');
+      final refreshedAsync = ref.read(allGroupsProvider);
+
+      refreshedAsync.when(
+        data: (groups) {
+          _log('✅ 復旧成功: ${groups.length}グループ取得済み');
+        },
+        loading: () {
+          _log('⏳ まだローディング中...');
+        },
+        error: (error, stack) {
+          _log('❌ 復旧失敗: まだエラー状態 - $error');
+        },
+      );
+
+      _log('4️⃣ 手動でAllGroupsNotifierのrefresh()実行');
+      try {
+        await ref.read(allGroupsProvider.notifier).refresh();
+        _log('✅ 手動refresh完了');
+      } catch (e) {
+        _log('❌ 手動refresh失敗: $e');
+      }
+
+      _log('🔄 エラー復旧テスト完了');
+    } catch (e) {
+      _log('❌ エラー復旧テスト自体でエラー: $e');
+    }
+  }
+
+  /// 現在のデータ状況を詳しく確認
+  Future<void> _inspectCurrentData() async {
+    _log('🔍 現在のデータ状況調査開始...');
+
+    try {
+      _log('1️⃣ AllGroupsProvider状態確認');
+      final allGroupsAsync = ref.read(allGroupsProvider);
+
+      allGroupsAsync.when(
+        data: (groups) {
+          _log('✅ AllGroupsProvider: ${groups.length}グループ取得済み');
+          for (int i = 0; i < groups.length; i++) {
+            final group = groups[i];
+            _log('   [$i] ${group.groupName} (ID: ${group.groupId})');
+            _log('       メンバー数: ${group.members?.length ?? 0}');
+            if (group.members != null && group.members!.isNotEmpty) {
+              for (int j = 0; j < group.members!.length; j++) {
+                final member = group.members![j];
+                _log(
+                    '         [$j] ${member.name} (${member.contact}) - ${member.role}');
+              }
+            }
+          }
+        },
+        loading: () {
+          _log('⏳ AllGroupsProvider: ローディング中...');
+        },
+        error: (error, stack) {
+          _log('❌ AllGroupsProvider: エラー状態 - $error');
+        },
+      );
+
+      _log('2️⃣ Repository直接アクセス確認');
+      final repository = ref.read(purchaseGroupRepositoryProvider);
+      _log('Repository type: ${repository.runtimeType}');
+
+      try {
+        final directGroups = await repository.getAllGroups();
+        _log('✅ Repository直接アクセス: ${directGroups.length}グループ');
+        for (int i = 0; i < directGroups.length; i++) {
+          final group = directGroups[i];
+          _log('   [$i] ${group.groupName} (ID: ${group.groupId})');
+          _log('       メンバー数: ${group.members?.length ?? 0}');
+          if (group.members != null && group.members!.isNotEmpty) {
+            for (int j = 0; j < group.members!.length; j++) {
+              final member = group.members![j];
+              _log(
+                  '         [$j] ${member.name} (${member.contact}) - ${member.role}');
+            }
+          }
+        }
+      } catch (e) {
+        _log('❌ Repository直接アクセスエラー: $e');
+      }
+
+      _log('3️⃣ デフォルトグループ存在確認');
+      try {
+        final defaultGroup = await repository.getGroupById('default_group');
+        _log('✅ デフォルトグループ確認: ${defaultGroup.groupName}');
+        _log('   メンバー数: ${defaultGroup.members?.length ?? 0}');
+        _log('   オーナー: ${defaultGroup.ownerName ?? "不明"}');
+        if (defaultGroup.members != null && defaultGroup.members!.isNotEmpty) {
+          for (int j = 0; j < defaultGroup.members!.length; j++) {
+            final member = defaultGroup.members![j];
+            _log(
+                '     [$j] ${member.name} (${member.contact}) - ${member.role}');
+          }
+        }
+      } catch (e) {
+        _log('❌ デフォルトグループ不存在: $e');
+      }
+
+      _log('4️⃣ 現在のユーザー状態確認');
+      try {
+        final authService = ref.read(authProvider);
+        final currentUser = authService.currentUser;
+        _log('🔐 Firebase認証状態: ${currentUser != null ? "サインイン済み" : "未サインイン"}');
+        if (currentUser != null) {
+          _log('   ユーザーID: ${currentUser.uid}');
+          _log('   表示名: ${currentUser.displayName ?? "なし"}');
+          _log('   メールアドレス: ${currentUser.email ?? "なし"}');
+          _log('   認証確認済み: ${currentUser.emailVerified}');
+        }
+
+        // SharedPreferencesの保存情報も確認
+        final savedEmail = await UserPreferencesService.getUserEmail();
+        final savedName = await UserPreferencesService.getUserName();
+        _log('📱 SharedPreferences情報:');
+        _log('   保存メール: ${savedEmail ?? "なし"}');
+        _log('   保存表示名: ${savedName ?? "なし"}');
+      } catch (e) {
+        _log('❌ ユーザー状態確認エラー: $e');
+      }
+
+      _log('5️⃣ Hybridリポジトリ初期化状態確認');
+      try {
+        final repository = ref.read(purchaseGroupRepositoryProvider);
+        _log('🏪 Repository type: ${repository.runtimeType}');
+
+        // HybridPurchaseGroupRepositoryの場合、初期化状態を確認
+        if (repository is HybridPurchaseGroupRepository) {
+          _log('🔧 Hybrid初期化状態詳細調査:');
+          _log('   � 初期化ステータス: ${repository.initializationStatus}');
+          _log('   🌐 オンライン状態: ${repository.isOnline}');
+          _log('   🔄 同期中: ${repository.isSyncing}');
+
+          // 実際のグループアクセスで動作確認
+          try {
+            final testGroups = await repository.getAllGroups();
+            _log('✅ Hybridリポジトリ: アクセス可能 (${testGroups.length}グループ)');
+          } catch (e) {
+            _log('❌ Hybridリポジトリ: アクセスエラー - $e');
+          }
+        }
+      } catch (e) {
+        _log('❌ リポジトリ状態確認エラー: $e');
+      }
+
+      _log('6️⃣ AccessControlService状態確認');
+      final accessControl = ref.read(accessControlServiceProvider);
+      final visibilityMode = await accessControl.getGroupVisibilityMode();
+      final isSecretMode = await accessControl.isSecretModeEnabled();
+
+      _log('🔒 シークレットモード: $isSecretMode');
+      _log('👁️ 表示モード: $visibilityMode');
+
+      _log('🔍 データ状況調査完了');
+    } catch (e) {
+      _log('❌ データ調査でエラー: $e');
+    }
+  }
+
+  /// デフォルトグループを再作成
+  Future<void> _recreateDefaultGroup() async {
+    _log('🔧 デフォルトグループ再作成開始...');
+
+    try {
+      final repository = ref.read(purchaseGroupRepositoryProvider);
+
+      _log('1️⃣ 既存デフォルトグループ削除試行');
+      try {
+        await repository.deleteGroup('default_group');
+        _log('✅ 既存デフォルトグループ削除成功');
+      } catch (e) {
+        _log('ℹ️ デフォルトグループは存在しませんでした: $e');
+      }
+
+      _log('2️⃣ 新しいデフォルトグループ作成');
+      const defaultGroupId = 'default_group';
+      const defaultGroupName = 'デフォルトグループ';
+
+      final currentUser = ref.read(authStateProvider).value;
+      final userName = currentUser?.displayName ?? 'maya';
+      final userEmail = currentUser?.email ?? 'default@example.com';
+      final userUid = currentUser?.uid ?? 'defaultUser';
+
+      final ownerMember = PurchaseGroupMember(
+        memberId: userUid,
+        name: userName,
+        contact: userEmail,
+        role: PurchaseGroupRole.owner,
+        isSignedIn: currentUser != null,
+      );
+
+      final newDefaultGroup = await repository.createGroup(
+        defaultGroupId,
+        defaultGroupName,
+        ownerMember,
+      );
+
+      _log('✅ デフォルトグループ作成成功: ${newDefaultGroup.groupName}');
+
+      _log('3️⃣ AllGroupsProvider更新');
+      ref.invalidate(allGroupsProvider);
+
+      // 少し待機してから結果確認
+      await Future.delayed(const Duration(seconds: 1));
+
+      final updatedAsync = ref.read(allGroupsProvider);
+      updatedAsync.when(
+        data: (groups) {
+          _log('✅ UI更新成功: ${groups.length}グループ表示中');
+          final hasDefault = groups.any((g) => g.groupId == 'default_group');
+          _log('📋 デフォルトグループ表示: $hasDefault');
+        },
+        loading: () {
+          _log('⏳ UI更新中...');
+        },
+        error: (error, stack) {
+          _log('❌ UI更新エラー: $error');
+        },
+      );
+
+      _log('🔧 デフォルトグループ再作成完了');
+    } catch (e) {
+      _log('❌ デフォルトグループ再作成エラー: $e');
+    }
+  }
+
+  /// Hybridリポジトリ安全初期化（タイムアウト付き）
+  Future<void> _forceHybridInitialization() async {
+    _log('🔄 Hybridリポジトリ安全初期化開始...');
+
+    try {
+      // タイムアウト付きで実行
+      await Future.any([
+        _performHybridInitialization(),
+        Future.delayed(
+            const Duration(seconds: 10),
+            () => throw TimeoutException(
+                '初期化タイムアウト', const Duration(seconds: 10)))
+      ]);
+    } catch (e) {
+      _log('❌ Hybrid初期化エラー: $e');
+      _log('🚨 緊急回復: アプリ再起動を推奨します');
+
+      // 緊急回復手順
+      await _emergencyRecovery();
+    }
+
+    _log('🔄 Hybridリポジトリ初期化完了');
+  }
+
+  /// 実際のHybrid初期化処理
+  Future<void> _performHybridInitialization() async {
+    final repository = ref.read(purchaseGroupRepositoryProvider);
+
+    if (repository is HybridPurchaseGroupRepository) {
+      _log('🎯 HybridPurchaseGroupRepository検出');
+      _log('   現在のステータス: ${repository.initializationStatus}');
+      _log('   オンライン状態: ${repository.isOnline}');
+
+      // Providerを再読み込みして初期化を強制
+      _log('🔄 Providerリセット実行...');
+      ref.invalidate(purchaseGroupRepositoryProvider);
+
+      // 待機時間を短縮
+      await Future.delayed(const Duration(milliseconds: 200));
+
+      // 新しいインスタンスを取得（タイムアウト付き）
+      final newRepository = ref.read(purchaseGroupRepositoryProvider);
+      if (newRepository is HybridPurchaseGroupRepository) {
+        _log('✅ 新しいHybridインスタンス生成');
+        _log('   新しいステータス: ${newRepository.initializationStatus}');
+        _log('   新しいオンライン状態: ${newRepository.isOnline}');
+
+        // 軽量動作テスト（タイムアウト付き）
+        final testFuture = newRepository.getAllGroups();
+        final groups = await testFuture.timeout(const Duration(seconds: 5));
+        _log('✅ 初期化後動作確認: ${groups.length}グループ取得成功');
+      }
+    } else {
+      _log('ℹ️ HybridPurchaseGroupRepository以外: ${repository.runtimeType}');
+    }
+  }
+
+  /// 緊急回復処理
+  Future<void> _emergencyRecovery() async {
+    _log('🚨 緊急回復プロセス開始...');
+
+    try {
+      // 1. 全Providerをリセット
+      _log('🔄 全Provider強制リセット...');
+      ref.invalidate(purchaseGroupRepositoryProvider);
+      ref.invalidate(allGroupsProvider);
+
+      // 2. 短時間待機
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      // 3. 基本動作確認
+      _log('🧪 基本動作確認...');
+      final testRepo = ref.read(purchaseGroupRepositoryProvider);
+      _log('✅ 緊急回復後のRepository: ${testRepo.runtimeType}');
+    } catch (e) {
+      _log('❌ 緊急回復エラー: $e');
+      _log('💀 システム状態が不安定です - アプリ再起動が必要');
+    }
+
+    _log('🚨 緊急回復プロセス完了');
+  }
+
+  /// Hybridリポジトリ詳細デバッグ
+  Future<void> _debugHybridStatus() async {
+    _log('🐛 Hybridリポジトリ詳細デバッグ開始...');
+
+    try {
+      final repository = ref.read(purchaseGroupRepositoryProvider);
+
+      _log('📊 基本情報:');
+      _log('   Repository Type: ${repository.runtimeType}');
+      _log('   App Flavor: ${F.appFlavor}');
+
+      if (repository is HybridPurchaseGroupRepository) {
+        _log('🔍 Hybrid詳細状態:');
+        _log('   📈 初期化ステータス: ${repository.initializationStatus}');
+        _log('   🌐 オンライン状態: ${repository.isOnline}');
+        _log('   🔄 同期中フラグ: ${repository.isSyncing}');
+
+        // サブリポジトリ状態の推定
+        _log('🗃️ サブリポジトリ状態推定:');
+        _log('   📝 Hive: ローカルストレージ (常に利用可能)');
+        if (F.appFlavor != Flavor.dev) {
+          _log('   ☁️ Firestore: Prod環境 (初期化状態依存)');
+        } else {
+          _log('   🔧 Firestore: DEV環境 (無効化)');
+        } // ハイブリッドアクセステスト
+        _log('🔬 Hybrid統合テスト:');
+        final hybridGroups = await repository.getAllGroups();
+        _log('   ✅ Hybrid統合: ${hybridGroups.length}グループ');
+
+        for (int i = 0; i < hybridGroups.length && i < 3; i++) {
+          final group = hybridGroups[i];
+          _log(
+              '     [$i] ${group.groupName} (${group.members?.length ?? 0}メンバー)');
+        }
+      } else {
+        _log('ℹ️ HybridPurchaseGroupRepository以外の実装');
+      }
+    } catch (e) {
+      _log('❌ Hybridデバッグエラー: $e');
+    }
+
+    _log('🐛 Hybridリポジトリ詳細デバッグ完了');
+  }
+
+  /// 緊急システムリセット（ハング状態からの強制回復）
+  Future<void> _emergencySystemReset() async {
+    _log('🚨 緊急システムリセット開始 - ハング状態からの強制回復');
+
+    try {
+      // UIの強制リセット
+      if (mounted) {
+        setState(() {
+          _isRunning = false;
+          _isInitializing = false;
+        });
+      }
+
+      _log('🔄 UI状態強制リセット完了');
+
+      // 全Providerの完全リセット
+      _log('🧹 全Provider完全クリア開始...');
+
+      try {
+        ref.invalidate(purchaseGroupRepositoryProvider);
+        _log('   ✅ PurchaseGroupRepository リセット完了');
+      } catch (e) {
+        _log('   ⚠️ PurchaseGroupRepository リセットエラー: $e');
+      }
+
+      try {
+        ref.invalidate(allGroupsProvider);
+        _log('   ✅ AllGroupsProvider リセット完了');
+      } catch (e) {
+        _log('   ⚠️ AllGroupsProvider リセットエラー: $e');
+      } // 少し待機
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      // システム状態確認
+      _log('🧪 システム状態確認...');
+      try {
+        final testRepo = ref.read(purchaseGroupRepositoryProvider);
+        _log('   ✅ Repository復旧: ${testRepo.runtimeType}');
+
+        if (testRepo is HybridPurchaseGroupRepository) {
+          _log('   📊 初期化ステータス: ${testRepo.initializationStatus}');
+        }
+      } catch (e) {
+        _log('   ❌ Repository確認エラー: $e');
+      }
+
+      // UI表示更新
+      if (mounted) {
+        setState(() {});
+      }
+
+      _log('✅ 緊急システムリセット完了 - 通常操作可能');
+      _log('💡 アプリが不安定な場合は完全再起動を推奨します');
+    } catch (e) {
+      _log('❌ 緊急リセット中にエラー: $e');
+      _log('💀 システム状態が重篤 - アプリの完全再起動が必要です');
     }
   }
 
@@ -826,6 +1321,110 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 8),
+                    // エラーハンドリングテストボタン
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _isRunning ? null : _testErrorHandling,
+                            icon: const Icon(Icons.error_outline),
+                            label: const Text('エラー表示'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _isRunning ? null : _testErrorRecovery,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('復旧テスト'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.amber,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // データ確認ボタン
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _isRunning ? null : _inspectCurrentData,
+                            icon: const Icon(Icons.data_usage),
+                            label: const Text('データ確認'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.teal,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed:
+                                _isRunning ? null : _recreateDefaultGroup,
+                            icon: const Icon(Icons.restore),
+                            label: const Text('デフォルト復元'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.deepPurple,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // Hybridリポジトリ管理ボタン
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed:
+                                _isRunning ? null : _forceHybridInitialization,
+                            icon: const Icon(Icons.settings_backup_restore),
+                            label: const Text('Hybrid初期化'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _isRunning ? null : _debugHybridStatus,
+                            icon: const Icon(Icons.bug_report),
+                            label: const Text('Hybrid詳細'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red.shade600,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // 緊急時システムリセットボタン
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _emergencySystemReset,
+                        icon: const Icon(Icons.warning),
+                        label: const Text('🚨 緊急システムリセット (ハング回復)'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red.shade800,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 8),
                     // Hybridテスト用ボタン (prod環境でのみ表示)
