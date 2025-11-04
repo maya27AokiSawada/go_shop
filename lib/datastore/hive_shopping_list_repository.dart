@@ -36,7 +36,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
       data: (user) {
         if (user != null) {
           // Firebase UserまたはMockUserの場合、emailまたはuidを使用
-          final userId = user.email ?? user.uid ?? 'anonymous';
+          final userId = user.email ?? user.uid;
           return '${userId}_$groupId';
         }
         return 'anonymous_$groupId';
