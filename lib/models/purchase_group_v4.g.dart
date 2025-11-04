@@ -1,31 +1,31 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'purchase_group.dart';
+part of 'purchase_group_v4.dart';
 
 // **************************************************************************
 // TypeAdapterGenerator
 // **************************************************************************
 
-class PurchaseGroupMemberAdapter extends TypeAdapter<PurchaseGroupMember> {
+class PurchaseGroupMemberV4Adapter extends TypeAdapter<PurchaseGroupMemberV4> {
   @override
-  final int typeId = 1;
+  final int typeId = 16;
 
   @override
-  PurchaseGroupMember read(BinaryReader reader) {
+  PurchaseGroupMemberV4 read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return PurchaseGroupMember(
+    return PurchaseGroupMemberV4(
       uid: fields[0] as String,
       displayName: fields[1] as String,
-      role: fields[2] as PurchaseGroupRole,
+      role: fields[2] as PurchaseGroupRoleV4,
       joinedAt: fields[3] as DateTime?,
     );
   }
 
   @override
-  void write(BinaryWriter writer, PurchaseGroupMember obj) {
+  void write(BinaryWriter writer, PurchaseGroupMemberV4 obj) {
     writer
       ..writeByte(4)
       ..writeByte(0)
@@ -44,80 +44,33 @@ class PurchaseGroupMemberAdapter extends TypeAdapter<PurchaseGroupMember> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is PurchaseGroupMemberAdapter &&
+      other is PurchaseGroupMemberV4Adapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
 
-class LegacyPurchaseGroupMemberAdapter
-    extends TypeAdapter<LegacyPurchaseGroupMember> {
+class PurchaseGroupV4Adapter extends TypeAdapter<PurchaseGroupV4> {
   @override
-  final int typeId = 14;
+  final int typeId = 17;
 
   @override
-  LegacyPurchaseGroupMember read(BinaryReader reader) {
+  PurchaseGroupV4 read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return LegacyPurchaseGroupMember(
-      memberId: fields[0] as String,
-      name: fields[1] as String,
-      contact: fields[2] as String,
-      role: fields[3] as PurchaseGroupRole,
-      isSignedIn: fields[4] as bool,
-    );
-  }
-
-  @override
-  void write(BinaryWriter writer, LegacyPurchaseGroupMember obj) {
-    writer
-      ..writeByte(5)
-      ..writeByte(0)
-      ..write(obj.memberId)
-      ..writeByte(1)
-      ..write(obj.name)
-      ..writeByte(2)
-      ..write(obj.contact)
-      ..writeByte(3)
-      ..write(obj.role)
-      ..writeByte(4)
-      ..write(obj.isSignedIn);
-  }
-
-  @override
-  int get hashCode => typeId.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is LegacyPurchaseGroupMemberAdapter &&
-          runtimeType == other.runtimeType &&
-          typeId == other.typeId;
-}
-
-class PurchaseGroupAdapter extends TypeAdapter<PurchaseGroup> {
-  @override
-  final int typeId = 2;
-
-  @override
-  PurchaseGroup read(BinaryReader reader) {
-    final numOfFields = reader.readByte();
-    final fields = <int, dynamic>{
-      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
-    };
-    return PurchaseGroup(
+    return PurchaseGroupV4(
       groupId: fields[0] as String,
       groupName: fields[1] as String,
       ownerUid: fields[2] as String,
-      members: (fields[3] as List).cast<PurchaseGroupMember>(),
+      members: (fields[3] as List).cast<PurchaseGroupMemberV4>(),
       createdAt: fields[4] as DateTime?,
       updatedAt: fields[5] as DateTime?,
     );
   }
 
   @override
-  void write(BinaryWriter writer, PurchaseGroup obj) {
+  void write(BinaryWriter writer, PurchaseGroupV4 obj) {
     writer
       ..writeByte(6)
       ..writeByte(0)
@@ -140,39 +93,39 @@ class PurchaseGroupAdapter extends TypeAdapter<PurchaseGroup> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is PurchaseGroupAdapter &&
+      other is PurchaseGroupV4Adapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
 
-class PurchaseGroupRoleAdapter extends TypeAdapter<PurchaseGroupRole> {
+class PurchaseGroupRoleV4Adapter extends TypeAdapter<PurchaseGroupRoleV4> {
   @override
-  final int typeId = 0;
+  final int typeId = 15;
 
   @override
-  PurchaseGroupRole read(BinaryReader reader) {
+  PurchaseGroupRoleV4 read(BinaryReader reader) {
     switch (reader.readByte()) {
       case 0:
-        return PurchaseGroupRole.owner;
+        return PurchaseGroupRoleV4.owner;
       case 1:
-        return PurchaseGroupRole.member;
+        return PurchaseGroupRoleV4.member;
       case 2:
-        return PurchaseGroupRole.manager;
+        return PurchaseGroupRoleV4.manager;
       default:
-        return PurchaseGroupRole.owner;
+        return PurchaseGroupRoleV4.owner;
     }
   }
 
   @override
-  void write(BinaryWriter writer, PurchaseGroupRole obj) {
+  void write(BinaryWriter writer, PurchaseGroupRoleV4 obj) {
     switch (obj) {
-      case PurchaseGroupRole.owner:
+      case PurchaseGroupRoleV4.owner:
         writer.writeByte(0);
         break;
-      case PurchaseGroupRole.member:
+      case PurchaseGroupRoleV4.member:
         writer.writeByte(1);
         break;
-      case PurchaseGroupRole.manager:
+      case PurchaseGroupRoleV4.manager:
         writer.writeByte(2);
         break;
     }
@@ -184,7 +137,7 @@ class PurchaseGroupRoleAdapter extends TypeAdapter<PurchaseGroupRole> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is PurchaseGroupRoleAdapter &&
+      other is PurchaseGroupRoleV4Adapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
@@ -193,60 +146,41 @@ class PurchaseGroupRoleAdapter extends TypeAdapter<PurchaseGroupRole> {
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$PurchaseGroupMemberImpl _$$PurchaseGroupMemberImplFromJson(
+_$PurchaseGroupMemberV4Impl _$$PurchaseGroupMemberV4ImplFromJson(
         Map<String, dynamic> json) =>
-    _$PurchaseGroupMemberImpl(
+    _$PurchaseGroupMemberV4Impl(
       uid: json['uid'] as String,
       displayName: json['displayName'] as String,
-      role: $enumDecode(_$PurchaseGroupRoleEnumMap, json['role']),
+      role: $enumDecode(_$PurchaseGroupRoleV4EnumMap, json['role']),
       joinedAt: json['joinedAt'] == null
           ? null
           : DateTime.parse(json['joinedAt'] as String),
     );
 
-Map<String, dynamic> _$$PurchaseGroupMemberImplToJson(
-        _$PurchaseGroupMemberImpl instance) =>
+Map<String, dynamic> _$$PurchaseGroupMemberV4ImplToJson(
+        _$PurchaseGroupMemberV4Impl instance) =>
     <String, dynamic>{
       'uid': instance.uid,
       'displayName': instance.displayName,
-      'role': _$PurchaseGroupRoleEnumMap[instance.role]!,
+      'role': _$PurchaseGroupRoleV4EnumMap[instance.role]!,
       'joinedAt': instance.joinedAt?.toIso8601String(),
     };
 
-const _$PurchaseGroupRoleEnumMap = {
-  PurchaseGroupRole.owner: 'owner',
-  PurchaseGroupRole.member: 'member',
-  PurchaseGroupRole.manager: 'manager',
+const _$PurchaseGroupRoleV4EnumMap = {
+  PurchaseGroupRoleV4.owner: 'owner',
+  PurchaseGroupRoleV4.member: 'member',
+  PurchaseGroupRoleV4.manager: 'manager',
 };
 
-_$LegacyPurchaseGroupMemberImpl _$$LegacyPurchaseGroupMemberImplFromJson(
+_$PurchaseGroupV4Impl _$$PurchaseGroupV4ImplFromJson(
         Map<String, dynamic> json) =>
-    _$LegacyPurchaseGroupMemberImpl(
-      memberId: json['memberId'] as String? ?? '',
-      name: json['name'] as String,
-      contact: json['contact'] as String,
-      role: $enumDecode(_$PurchaseGroupRoleEnumMap, json['role']),
-      isSignedIn: json['isSignedIn'] as bool? ?? false,
-    );
-
-Map<String, dynamic> _$$LegacyPurchaseGroupMemberImplToJson(
-        _$LegacyPurchaseGroupMemberImpl instance) =>
-    <String, dynamic>{
-      'memberId': instance.memberId,
-      'name': instance.name,
-      'contact': instance.contact,
-      'role': _$PurchaseGroupRoleEnumMap[instance.role]!,
-      'isSignedIn': instance.isSignedIn,
-    };
-
-_$PurchaseGroupImpl _$$PurchaseGroupImplFromJson(Map<String, dynamic> json) =>
-    _$PurchaseGroupImpl(
+    _$PurchaseGroupV4Impl(
       groupId: json['groupId'] as String,
       groupName: json['groupName'] as String,
       ownerUid: json['ownerUid'] as String,
       members: (json['members'] as List<dynamic>?)
               ?.map((e) =>
-                  PurchaseGroupMember.fromJson(e as Map<String, dynamic>))
+                  PurchaseGroupMemberV4.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],
       createdAt: json['createdAt'] == null
@@ -257,7 +191,8 @@ _$PurchaseGroupImpl _$$PurchaseGroupImplFromJson(Map<String, dynamic> json) =>
           : DateTime.parse(json['updatedAt'] as String),
     );
 
-Map<String, dynamic> _$$PurchaseGroupImplToJson(_$PurchaseGroupImpl instance) =>
+Map<String, dynamic> _$$PurchaseGroupV4ImplToJson(
+        _$PurchaseGroupV4Impl instance) =>
     <String, dynamic>{
       'groupId': instance.groupId,
       'groupName': instance.groupName,
