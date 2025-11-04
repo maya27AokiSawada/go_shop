@@ -113,13 +113,15 @@ class PurchaseGroupAdapter extends TypeAdapter<PurchaseGroup> {
       members: (fields[3] as List).cast<PurchaseGroupMember>(),
       createdAt: fields[4] as DateTime?,
       updatedAt: fields[5] as DateTime?,
+      isSecret: fields[6] as bool,
+      allowedUid: (fields[7] as List).cast<String>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, PurchaseGroup obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.groupId)
       ..writeByte(1)
@@ -131,7 +133,11 @@ class PurchaseGroupAdapter extends TypeAdapter<PurchaseGroup> {
       ..writeByte(4)
       ..write(obj.createdAt)
       ..writeByte(5)
-      ..write(obj.updatedAt);
+      ..write(obj.updatedAt)
+      ..writeByte(6)
+      ..write(obj.isSecret)
+      ..writeByte(7)
+      ..write(obj.allowedUid);
   }
 
   @override
@@ -255,6 +261,11 @@ _$PurchaseGroupImpl _$$PurchaseGroupImplFromJson(Map<String, dynamic> json) =>
       updatedAt: json['updatedAt'] == null
           ? null
           : DateTime.parse(json['updatedAt'] as String),
+      isSecret: json['isSecret'] as bool? ?? false,
+      allowedUid: (json['allowedUid'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const [],
     );
 
 Map<String, dynamic> _$$PurchaseGroupImplToJson(_$PurchaseGroupImpl instance) =>
@@ -265,4 +276,6 @@ Map<String, dynamic> _$$PurchaseGroupImplToJson(_$PurchaseGroupImpl instance) =>
       'members': instance.members,
       'createdAt': instance.createdAt?.toIso8601String(),
       'updatedAt': instance.updatedAt?.toIso8601String(),
+      'isSecret': instance.isSecret,
+      'allowedUid': instance.allowedUid,
     };

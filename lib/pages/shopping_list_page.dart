@@ -62,19 +62,11 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
 
   @override
   Widget build(BuildContext context) {
-    // 🔒 シークレットモードチェック
-    return FutureBuilder<GroupVisibilityMode>(
-      future: ref.read(accessControlServiceProvider).getGroupVisibilityMode(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return Scaffold(
-            appBar: AppBar(title: const Text('買い物リスト')),
-            body: const Center(child: CircularProgressIndicator()),
-          );
-        }
+    // 🔒 シークレットモードチェック（リアクティブ）
+    final visibilityModeAsync = ref.watch(groupVisibilityModeProvider);
 
-        final visibilityMode = snapshot.data!;
-
+    return visibilityModeAsync.when(
+      data: (visibilityMode) {
         // シークレットモードON + 未サインイン時はブロック
         if (visibilityMode == GroupVisibilityMode.defaultOnly) {
           return Scaffold(
@@ -105,6 +97,16 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
         // 通常モード: 既存のUI表示
         return _buildNormalShoppingListUI(context);
       },
+      loading: () => Scaffold(
+        appBar: AppBar(title: const Text('買い物リスト')),
+        body: const Center(child: CircularProgressIndicator()),
+      ),
+      error: (error, stack) => Scaffold(
+        appBar: AppBar(title: const Text('買い物リスト')),
+        body: Center(
+          child: Text('エラー: $error'),
+        ),
+      ),
     );
   }
 
