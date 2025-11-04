@@ -216,10 +216,10 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
       _log('🔍 TEST: testUserId: $testUserId');
 
       final testMember = PurchaseGroupMember(
-        memberId: testUserId,
-        name: 'テストユーザー',
-        contact: _currentUser?.email ?? 'fatima.sumomo@gmail.com',
+        uid: testUserId,
+        displayName: 'テストユーザー',
         role: PurchaseGroupRole.owner,
+        joinedAt: DateTime.now(),
       );
       _log('✅ TEST: PurchaseGroupMember作成完了');
 
@@ -244,7 +244,7 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
       _log('2️⃣ グループ取得テスト');
       final retrievedGroup = await repository.getGroupById(testGroupId);
       _log('✅ グループ取得成功: ${retrievedGroup.groupName}');
-      _log('   メンバー数: ${retrievedGroup.members?.length ?? 0}');
+      _log('   メンバー数: ${retrievedGroup.members.length ?? 0}');
 
       // 3. 全グループ取得テスト
       _log('3️⃣ 全グループ取得テスト');
@@ -257,14 +257,14 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
       // 4. メンバー追加テスト
       _log('4️⃣ メンバー追加テスト');
       final newMember = PurchaseGroupMember(
-        memberId: 'test_member_${DateTime.now().millisecondsSinceEpoch}',
-        name: 'テストメンバー2',
-        contact: 'member2@example.com',
+        uid: 'test_member_${DateTime.now().millisecondsSinceEpoch}',
+        displayName: 'テストメンバー2',
         role: PurchaseGroupRole.member,
+        joinedAt: DateTime.now(),
       );
 
       final updatedGroup = await repository.addMember(testGroupId, newMember);
-      _log('✅ メンバー追加成功: ${updatedGroup.members?.length ?? 0}人のメンバー');
+      _log('✅ メンバー追加成功: ${updatedGroup.members.length ?? 0}人のメンバー');
 
       // 5. グループ更新テスト
       _log('5️⃣ グループ更新テスト');
@@ -440,7 +440,7 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
         final localGroups = await groupRepo.getLocalGroups();
         _log('📱 Hive内グループ数: ${localGroups.length}');
         for (final group in localGroups) {
-          _log('   - ${group.groupName} (${group.members?.length ?? 0}メンバー)');
+          _log('   - ${group.groupName} (${group.members.length ?? 0}メンバー)');
         }
       }
 
@@ -479,10 +479,10 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
 
         // テスト用オーナーメンバーを作成
         final ownerMember = PurchaseGroupMember(
-          memberId: userId,
-          name: 'テストユーザー',
-          contact: _currentUser?.email ?? 'test@example.com',
+          uid: userId,
+          displayName: 'テストユーザー',
           role: PurchaseGroupRole.owner,
+          joinedAt: DateTime.now(),
         );
 
         final savedGroup = await groupRepo.createGroup(
@@ -669,12 +669,11 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
           for (int i = 0; i < groups.length; i++) {
             final group = groups[i];
             _log('   [$i] ${group.groupName} (ID: ${group.groupId})');
-            _log('       メンバー数: ${group.members?.length ?? 0}');
-            if (group.members != null && group.members!.isNotEmpty) {
-              for (int j = 0; j < group.members!.length; j++) {
-                final member = group.members![j];
-                _log(
-                    '         [$j] ${member.name} (${member.contact}) - ${member.role}');
+            _log('       メンバー数: ${group.members.length ?? 0}');
+            if (group.members.isNotEmpty) {
+              for (int j = 0; j < group.members.length; j++) {
+                final member = group.members[j];
+                _log('         [$j] ${member.displayName} - ${member.role}');
               }
             }
           }
@@ -697,12 +696,11 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
         for (int i = 0; i < directGroups.length; i++) {
           final group = directGroups[i];
           _log('   [$i] ${group.groupName} (ID: ${group.groupId})');
-          _log('       メンバー数: ${group.members?.length ?? 0}');
-          if (group.members != null && group.members!.isNotEmpty) {
-            for (int j = 0; j < group.members!.length; j++) {
-              final member = group.members![j];
-              _log(
-                  '         [$j] ${member.name} (${member.contact}) - ${member.role}');
+          _log('       メンバー数: ${group.members.length}');
+          if (group.members.isNotEmpty) {
+            for (int j = 0; j < group.members.length; j++) {
+              final member = group.members[j];
+              _log('         [$j] ${member.displayName} - ${member.role}');
             }
           }
         }
@@ -714,13 +712,12 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
       try {
         final defaultGroup = await repository.getGroupById('default_group');
         _log('✅ デフォルトグループ確認: ${defaultGroup.groupName}');
-        _log('   メンバー数: ${defaultGroup.members?.length ?? 0}');
+        _log('   メンバー数: ${defaultGroup.members.length}');
         _log('   オーナー: ${defaultGroup.ownerName ?? "不明"}');
-        if (defaultGroup.members != null && defaultGroup.members!.isNotEmpty) {
-          for (int j = 0; j < defaultGroup.members!.length; j++) {
-            final member = defaultGroup.members![j];
-            _log(
-                '     [$j] ${member.name} (${member.contact}) - ${member.role}');
+        if (defaultGroup.members.isNotEmpty) {
+          for (int j = 0; j < defaultGroup.members.length; j++) {
+            final member = defaultGroup.members[j];
+            _log('     [$j] ${member.displayName} - ${member.role}');
           }
         }
       } catch (e) {
@@ -808,15 +805,13 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
 
       final currentUser = ref.read(authStateProvider).value;
       final userName = currentUser?.displayName ?? 'maya';
-      final userEmail = currentUser?.email ?? 'default@example.com';
       final userUid = currentUser?.uid ?? 'defaultUser';
 
       final ownerMember = PurchaseGroupMember(
-        memberId: userUid,
-        name: userName,
-        contact: userEmail,
+        uid: userUid,
+        displayName: userName,
         role: PurchaseGroupRole.owner,
-        isSignedIn: currentUser != null,
+        joinedAt: DateTime.now(),
       );
 
       final newDefaultGroup = await repository.createGroup(
@@ -967,8 +962,7 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
 
         for (int i = 0; i < hybridGroups.length && i < 3; i++) {
           final group = hybridGroups[i];
-          _log(
-              '     [$i] ${group.groupName} (${group.members?.length ?? 0}メンバー)');
+          _log('     [$i] ${group.groupName} (${group.members.length}メンバー)');
         }
       } else {
         _log('ℹ️ HybridPurchaseGroupRepository以外の実装');

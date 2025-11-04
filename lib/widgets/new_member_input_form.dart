@@ -84,10 +84,11 @@ class _PurchaseGroupMemberFormState
               if (formKey.currentState!.validate()) {
                 formKey.currentState!.save();
                 final newMember = PurchaseGroupMember(
-                  memberId: const Uuid().v4(), // ユニークなIDを生成
-                  name: name,
+                  uid: const Uuid().v4(), // ユニークなIDを生成
+                  displayName: name,
                   contact: contact,
                   role: _selectedRole,
+                  joinedAt: DateTime.now(),
                 );
                 ref
                     .read(selectedGroupNotifierProvider.notifier)

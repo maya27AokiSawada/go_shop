@@ -29,6 +29,7 @@ class PurchaseGroupMember with _$PurchaseGroupMember {
     @HiveField(1) required String displayName, // 表示名
     @HiveField(2) required PurchaseGroupRole role, // 権限
     @HiveField(3) DateTime? joinedAt, // 参加日時
+    @HiveField(4) String? contact, // QR/文字列招待用 (nullable, オプション)
   }) = _PurchaseGroupMember;
 
   factory PurchaseGroupMember.fromJson(Map<String, dynamic> json) =>
@@ -95,9 +96,6 @@ class PurchaseGroup with _$PurchaseGroup {
     @HiveField(3) @Default([]) List<PurchaseGroupMember> members,
     @HiveField(4) DateTime? createdAt,
     @HiveField(5) DateTime? updatedAt,
-    // シークレットモード機能
-    @HiveField(6) @Default(false) bool isSecret,
-    @HiveField(7) @Default([]) List<String> allowedUid,
   }) = _PurchaseGroup;
 
   factory PurchaseGroup.fromJson(Map<String, dynamic> json) =>

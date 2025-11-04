@@ -21,13 +21,14 @@ class PurchaseGroupMemberAdapter extends TypeAdapter<PurchaseGroupMember> {
       displayName: fields[1] as String,
       role: fields[2] as PurchaseGroupRole,
       joinedAt: fields[3] as DateTime?,
+      contact: fields[4] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, PurchaseGroupMember obj) {
     writer
-      ..writeByte(4)
+      ..writeByte(5)
       ..writeByte(0)
       ..write(obj.uid)
       ..writeByte(1)
@@ -35,7 +36,9 @@ class PurchaseGroupMemberAdapter extends TypeAdapter<PurchaseGroupMember> {
       ..writeByte(2)
       ..write(obj.role)
       ..writeByte(3)
-      ..write(obj.joinedAt);
+      ..write(obj.joinedAt)
+      ..writeByte(4)
+      ..write(obj.contact);
   }
 
   @override
@@ -113,15 +116,13 @@ class PurchaseGroupAdapter extends TypeAdapter<PurchaseGroup> {
       members: (fields[3] as List).cast<PurchaseGroupMember>(),
       createdAt: fields[4] as DateTime?,
       updatedAt: fields[5] as DateTime?,
-      isSecret: fields[6] as bool,
-      allowedUid: (fields[7] as List).cast<String>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, PurchaseGroup obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(6)
       ..writeByte(0)
       ..write(obj.groupId)
       ..writeByte(1)
@@ -133,11 +134,7 @@ class PurchaseGroupAdapter extends TypeAdapter<PurchaseGroup> {
       ..writeByte(4)
       ..write(obj.createdAt)
       ..writeByte(5)
-      ..write(obj.updatedAt)
-      ..writeByte(6)
-      ..write(obj.isSecret)
-      ..writeByte(7)
-      ..write(obj.allowedUid);
+      ..write(obj.updatedAt);
   }
 
   @override
@@ -208,6 +205,7 @@ _$PurchaseGroupMemberImpl _$$PurchaseGroupMemberImplFromJson(
       joinedAt: json['joinedAt'] == null
           ? null
           : DateTime.parse(json['joinedAt'] as String),
+      contact: json['contact'] as String?,
     );
 
 Map<String, dynamic> _$$PurchaseGroupMemberImplToJson(
@@ -217,6 +215,7 @@ Map<String, dynamic> _$$PurchaseGroupMemberImplToJson(
       'displayName': instance.displayName,
       'role': _$PurchaseGroupRoleEnumMap[instance.role]!,
       'joinedAt': instance.joinedAt?.toIso8601String(),
+      'contact': instance.contact,
     };
 
 const _$PurchaseGroupRoleEnumMap = {
@@ -261,11 +260,6 @@ _$PurchaseGroupImpl _$$PurchaseGroupImplFromJson(Map<String, dynamic> json) =>
       updatedAt: json['updatedAt'] == null
           ? null
           : DateTime.parse(json['updatedAt'] as String),
-      isSecret: json['isSecret'] as bool? ?? false,
-      allowedUid: (json['allowedUid'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toList() ??
-          const [],
     );
 
 Map<String, dynamic> _$$PurchaseGroupImplToJson(_$PurchaseGroupImpl instance) =>
@@ -276,6 +270,4 @@ Map<String, dynamic> _$$PurchaseGroupImplToJson(_$PurchaseGroupImpl instance) =>
       'members': instance.members,
       'createdAt': instance.createdAt?.toIso8601String(),
       'updatedAt': instance.updatedAt?.toIso8601String(),
-      'isSecret': instance.isSecret,
-      'allowedUid': instance.allowedUid,
     };

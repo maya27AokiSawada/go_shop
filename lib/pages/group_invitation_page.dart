@@ -46,7 +46,7 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
         shoppingListId: '', // widget.group.shoppingListIds?.first ?? '',
         purchaseGroupId: widget.group.groupId,
         groupName: widget.group.groupName,
-        groupOwnerUid: widget.group.ownerUid ?? '',
+        groupOwnerUid: widget.group.ownerUid,
         invitationType: _invitationType,
       );
 
@@ -151,7 +151,7 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'メンバー数: ${widget.group.members?.length ?? 0}人',
+                    'メンバー数: ${widget.group.members.length}人',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Colors.grey[600],
                         ),
