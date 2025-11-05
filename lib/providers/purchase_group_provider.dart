@@ -9,6 +9,7 @@ import '../flavors.dart';
 import '../helper/security_validator.dart';
 import '../services/access_control_service.dart';
 import '../services/user_preferences_service.dart';
+import '../services/user_initialization_service.dart';
 import 'user_specific_hive_provider.dart';
 
 // Logger instance
@@ -174,7 +175,12 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
     try {
       final group = await repository.getGroupById(groupId);
       final fixedGroup = await _fixLegacyMemberRoles(group, repository);
-      state = AsyncData(fixedGroup);
+
+      // アクセス日時を更新
+      final accessedGroup = fixedGroup.markAsAccessed();
+      await repository.updateGroup(groupId, accessedGroup);
+
+      state = AsyncData(accessedGroup);
 
       // Update selected group ID
       ref.read(selectedGroupIdProvider.notifier).selectGroup(groupId);
@@ -287,10 +293,32 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
       return;
     }
 
+    // デフォルトグループは削除不可
+    if (currentGroup.groupId == 'default_group') {
+      Log.error('❌ [DELETE GROUP] デフォルトグループは削除できません');
+      throw Exception('デフォルトグループ（MyLists）は削除できません');
+    }
+
     final repository = ref.read(purchaseGroupRepositoryProvider);
 
     try {
+      // ステップ1: Firestoreで削除フラグを立てる（本番環境のみ）
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (F.appFlavor == Flavor.prod && currentUser != null) {
+        try {
+          final initService = ref.read(userInitializationServiceProvider);
+          await initService.markGroupAsDeletedInFirestore(
+              currentUser, currentGroup.groupId);
+          Log.info(
+              '✅ [DELETE GROUP] Firestoreで削除フラグ設定: ${currentGroup.groupId}');
+        } catch (e) {
+          Log.warning('⚠️ [DELETE GROUP] Firestore削除フラグエラー（続行）: $e');
+        }
+      }
+
+      // ステップ2: Hiveから削除
       await repository.deleteGroup(currentGroup.groupId);
+      Log.info('✅ [DELETE GROUP] Hiveから削除完了: ${currentGroup.groupId}');
 
       // グループ削除後は全グループリストを更新
       await ref.read(allGroupsProvider.notifier).refresh();
@@ -370,6 +398,8 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
     // FutureProvider/StreamProviderは ref.watch() が必須（非同期データ監視）
     // Provider<T>は ref.read() で十分（同期的なサービス）
     final hiveReady = ref.watch(hiveInitializationStatusProvider);
+    // 初期化状態も監視（初期化完了時に自動的に再構築される）
+    ref.watch(userInitializationStatusProvider);
     final repository = ref.read(purchaseGroupRepositoryProvider);
     final accessControl =
         ref.read(accessControlServiceProvider); // ← Provider<T>なので read()
@@ -402,7 +432,14 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
 
       // Hiveから直接データ取得（初期化待機なし）
       final hiveRepo = ref.read(hivePurchaseGroupRepositoryProvider);
-      final allGroups = await hiveRepo.getAllGroups();
+      final allGroupsRaw = await hiveRepo.getAllGroups();
+
+      // 削除済みグループをフィルタリング
+      final allGroups = allGroupsRaw.where((g) => !g.isDeleted).toList();
+      final deletedCount = allGroupsRaw.length - allGroups.length;
+      if (deletedCount > 0) {
+        Log.info('🗑️ [ALL GROUPS] 削除済みグループを除外: $deletedCount グループ');
+      }
 
       Log.info('🔄 [ALL GROUPS] Hive直接取得完了: ${allGroups.length}グループ');
 
@@ -534,6 +571,17 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
       );
 
       Log.info('✅ [CREATE GROUP] グループ作成完了: ${newGroup.groupName}');
+
+      // Hive→Firestoreへの同期（本番環境のみ）
+      if (F.appFlavor == Flavor.prod && currentUser != null) {
+        try {
+          final initService = ref.read(userInitializationServiceProvider);
+          await initService.syncHiveToFirestore(currentUser);
+          Log.info('✅ [CREATE GROUP] Firestore同期完了');
+        } catch (e) {
+          Log.warning('⚠️ [CREATE GROUP] Firestore同期エラー（続行）: $e');
+        }
+      }
 
       // 作成したグループを選択状態にする
       try {

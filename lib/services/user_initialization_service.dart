@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/app_logger.dart';
 import '../models/purchase_group.dart';
 import '../providers/purchase_group_provider.dart';
@@ -18,6 +19,9 @@ final userInitializationServiceProvider = Provider<UserInitializationService>((
 ) {
   return UserInitializationService(ref);
 });
+
+/// 初期化完了状態を監視するStateProvider
+final userInitializationStatusProvider = StateProvider<bool>((ref) => false);
 
 class UserInitializationService {
   final Ref _ref;
@@ -187,6 +191,185 @@ class UserInitializationService {
       await _createDefaultGroupLocally(user);
     } else {
       Log.warning('⚠️ ユーザーがログインしていません');
+    }
+  }
+
+  /// Firestoreでグループを削除済みとしてマーク（物理削除せずフラグを立てる）
+  Future<void> markGroupAsDeletedInFirestore(User user, String groupId) async {
+    if (F.appFlavor != Flavor.prod) {
+      Log.info('💡 [FIRESTORE] Dev環境のため、Firestore削除フラグはスキップ');
+      return;
+    }
+
+    try {
+      final firestore = FirebaseFirestore.instance;
+      final docRef = firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('groups')
+          .doc(groupId);
+
+      await docRef.update({
+        'isDeleted': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      Log.info('✅ [FIRESTORE] グループに削除フラグを設定: $groupId');
+    } catch (e) {
+      Log.error('❌ [FIRESTORE] 削除フラグ設定エラー: $e');
+      rethrow;
+    }
+  }
+
+  /// Hive→Firestoreへの同期（グループ作成時などに呼び出す）
+  Future<void> syncHiveToFirestore(User user) async {
+    if (F.appFlavor != Flavor.prod) {
+      Log.info('💡 [FIRESTORE] Dev環境のため、Hive→Firestore同期はスキップ');
+      return;
+    }
+
+    try {
+      Log.info('⬆️ [SYNC] Hive→Firestore同期開始');
+      final firestore = FirebaseFirestore.instance;
+      final userGroupsRef =
+          firestore.collection('users').doc(user.uid).collection('groups');
+      final hiveRepository =
+          _ref.read(hive_repo.hivePurchaseGroupRepositoryProvider);
+
+      final allHiveGroups = await hiveRepository.getAllGroups();
+      final batch = firestore.batch();
+      int syncedCount = 0;
+
+      for (final group in allHiveGroups) {
+        // 削除済みグループはFirestoreに同期しない
+        if (group.isDeleted) {
+          Log.info('🗑️ [SYNC] 削除済みグループはスキップ: ${group.groupId}');
+          continue;
+        }
+
+        final docRef = userGroupsRef.doc(group.groupId);
+        batch.set(
+            docRef,
+            {
+              'groupId': group.groupId,
+              'groupName': group.groupName,
+              'ownerUid': group.ownerUid,
+              'ownerName': group.ownerName,
+              'ownerEmail': group.ownerEmail,
+              'members': group.members
+                      ?.map((m) => {
+                            'memberId': m.memberId,
+                            'name': m.name,
+                            'contact': m.contact,
+                            'role': m.role.name,
+                            'isSignedIn': m.isSignedIn,
+                            'invitationStatus': m.invitationStatus.name,
+                          })
+                      .toList() ??
+                  [],
+              'isDeleted': group.isDeleted,
+              'lastAccessedAt': group.lastAccessedAt?.toIso8601String(),
+              'createdAt': group.createdAt?.toIso8601String(),
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true));
+        syncedCount++;
+      }
+
+      if (syncedCount > 0) {
+        await batch.commit();
+        Log.info('✅ [SYNC] Hive→Firestore同期完了: $syncedCount グループ');
+      } else {
+        Log.info('💡 [SYNC] 同期対象グループなし');
+      }
+    } catch (e) {
+      Log.error('❌ [SYNC] Hive→Firestore同期エラー: $e');
+    }
+  }
+
+  /// Firestore→Hive同期（アプリ起動時などに呼び出す）
+  Future<void> syncFromFirestoreToHive(User user) async {
+    if (F.appFlavor != Flavor.prod) {
+      Log.info('💡 [FIRESTORE] Dev環境のため、Firestore→Hive同期はスキップ');
+      return;
+    }
+
+    try {
+      Log.info('⬇️ [SYNC] Firestore→Hive同期開始');
+      final firestore = FirebaseFirestore.instance;
+      final userGroupsRef =
+          firestore.collection('users').doc(user.uid).collection('groups');
+      final snapshot = await userGroupsRef.get();
+      final hiveRepository =
+          _ref.read(hive_repo.hivePurchaseGroupRepositoryProvider);
+
+      int syncedCount = 0;
+      int skippedCount = 0;
+
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final isDeleted = data['isDeleted'] as bool? ?? false;
+
+        // 削除済みグループはスキップ（Hiveにあれば削除）
+        if (isDeleted) {
+          try {
+            await hiveRepository.deleteGroup(doc.id);
+            Log.info('🗑️ [SYNC] 削除済みグループをHiveから削除: ${doc.id}');
+          } catch (e) {
+            // グループが存在しない場合はスキップ
+          }
+          skippedCount++;
+          continue;
+        }
+
+        // グループをHiveに保存/更新
+        try {
+          final members = (data['members'] as List?)
+                  ?.map((m) => PurchaseGroupMember(
+                        memberId: m['memberId'] ?? '',
+                        name: m['name'] ?? '',
+                        contact: m['contact'] ?? '',
+                        role: PurchaseGroupRole.values.firstWhere(
+                          (r) => r.name == (m['role'] ?? ''),
+                          orElse: () => PurchaseGroupRole.member,
+                        ),
+                        isSignedIn: m['isSignedIn'] ?? false,
+                        invitationStatus: InvitationStatus.values.firstWhere(
+                          (s) => s.name == (m['invitationStatus'] ?? ''),
+                          orElse: () => InvitationStatus.self,
+                        ),
+                      ))
+                  .toList() ??
+              [];
+
+          final group = PurchaseGroup(
+            groupId: doc.id,
+            groupName: data['groupName'] ?? '',
+            ownerUid: data['ownerUid'],
+            ownerName: data['ownerName'],
+            ownerEmail: data['ownerEmail'],
+            members: members,
+            isDeleted: false,
+            lastAccessedAt: data['lastAccessedAt'] != null
+                ? DateTime.parse(data['lastAccessedAt'])
+                : null,
+            createdAt: data['createdAt'] != null
+                ? DateTime.parse(data['createdAt'])
+                : null,
+            updatedAt: DateTime.now(),
+          );
+
+          await hiveRepository.saveGroup(group);
+          syncedCount++;
+        } catch (e) {
+          Log.warning('⚠️ [SYNC] グループ同期エラー（${doc.id}）: $e');
+        }
+      }
+
+      Log.info(
+          '✅ [SYNC] Firestore→Hive同期完了: $syncedCount 同期, $skippedCount スキップ');
+    } catch (e) {
+      Log.error('❌ [SYNC] Firestore→Hive同期エラー: $e');
     }
   }
 }

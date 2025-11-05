@@ -127,7 +127,7 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
 
       // 基本的なユーザー初期化サービスの開始のみ
       final userInitService = ref.read(userInitializationServiceProvider);
-      userInitService.startAuthStateListener();
+      await userInitService.startAuthStateListener();
       Log.info('✅ 基本初期化完了 - 各ページで必要な初期化を実行します');
     } catch (e) {
       Log.error('❌ 基本初期化エラー: $e');

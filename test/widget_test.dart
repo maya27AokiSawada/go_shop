@@ -94,14 +94,13 @@ void main() {
         invitationStatus: InvitationStatus.self,
       );
 
-      final group = PurchaseGroup(
+      const group = PurchaseGroup(
         groupName: 'Test Group',
         groupId: 'test-group-123',
         ownerName: 'Owner Name',
         ownerEmail: 'owner@example.com',
         ownerUid: 'owner-uid',
         members: [member],
-        shoppingListIds: [],
       );
 
       expect(group.groupName, 'Test Group');

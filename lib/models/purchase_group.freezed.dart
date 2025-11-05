@@ -467,7 +467,15 @@ mixin _$PurchaseGroup {
       throw _privateConstructorUsedError; // acceptedUid: [{uid: securityKey}] のような構造を想定
   @HiveField(13)
   List<Map<String, String>> get acceptedUid =>
-      throw _privateConstructorUsedError;
+      throw _privateConstructorUsedError; // 削除フラグと最終アクセス日時
+  @HiveField(14)
+  bool get isDeleted => throw _privateConstructorUsedError;
+  @HiveField(15)
+  DateTime? get lastAccessedAt => throw _privateConstructorUsedError;
+  @HiveField(16)
+  DateTime? get createdAt => throw _privateConstructorUsedError;
+  @HiveField(17)
+  DateTime? get updatedAt => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
@@ -491,7 +499,11 @@ abstract class $PurchaseGroupCopyWith<$Res> {
       @HiveField(6) String? ownerMessage,
       @HiveField(11) List<String> allowedUid,
       @HiveField(12) bool isSecret,
-      @HiveField(13) List<Map<String, String>> acceptedUid});
+      @HiveField(13) List<Map<String, String>> acceptedUid,
+      @HiveField(14) bool isDeleted,
+      @HiveField(15) DateTime? lastAccessedAt,
+      @HiveField(16) DateTime? createdAt,
+      @HiveField(17) DateTime? updatedAt});
 }
 
 /// @nodoc
@@ -517,6 +529,10 @@ class _$PurchaseGroupCopyWithImpl<$Res, $Val extends PurchaseGroup>
     Object? allowedUid = null,
     Object? isSecret = null,
     Object? acceptedUid = null,
+    Object? isDeleted = null,
+    Object? lastAccessedAt = freezed,
+    Object? createdAt = freezed,
+    Object? updatedAt = freezed,
   }) {
     return _then(_value.copyWith(
       groupName: null == groupName
@@ -559,6 +575,22 @@ class _$PurchaseGroupCopyWithImpl<$Res, $Val extends PurchaseGroup>
           ? _value.acceptedUid
           : acceptedUid // ignore: cast_nullable_to_non_nullable
               as List<Map<String, String>>,
+      isDeleted: null == isDeleted
+          ? _value.isDeleted
+          : isDeleted // ignore: cast_nullable_to_non_nullable
+              as bool,
+      lastAccessedAt: freezed == lastAccessedAt
+          ? _value.lastAccessedAt
+          : lastAccessedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      createdAt: freezed == createdAt
+          ? _value.createdAt
+          : createdAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      updatedAt: freezed == updatedAt
+          ? _value.updatedAt
+          : updatedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
     ) as $Val);
   }
 }
@@ -581,7 +613,11 @@ abstract class _$$PurchaseGroupImplCopyWith<$Res>
       @HiveField(6) String? ownerMessage,
       @HiveField(11) List<String> allowedUid,
       @HiveField(12) bool isSecret,
-      @HiveField(13) List<Map<String, String>> acceptedUid});
+      @HiveField(13) List<Map<String, String>> acceptedUid,
+      @HiveField(14) bool isDeleted,
+      @HiveField(15) DateTime? lastAccessedAt,
+      @HiveField(16) DateTime? createdAt,
+      @HiveField(17) DateTime? updatedAt});
 }
 
 /// @nodoc
@@ -605,6 +641,10 @@ class __$$PurchaseGroupImplCopyWithImpl<$Res>
     Object? allowedUid = null,
     Object? isSecret = null,
     Object? acceptedUid = null,
+    Object? isDeleted = null,
+    Object? lastAccessedAt = freezed,
+    Object? createdAt = freezed,
+    Object? updatedAt = freezed,
   }) {
     return _then(_$PurchaseGroupImpl(
       groupName: null == groupName
@@ -647,6 +687,22 @@ class __$$PurchaseGroupImplCopyWithImpl<$Res>
           ? _value._acceptedUid
           : acceptedUid // ignore: cast_nullable_to_non_nullable
               as List<Map<String, String>>,
+      isDeleted: null == isDeleted
+          ? _value.isDeleted
+          : isDeleted // ignore: cast_nullable_to_non_nullable
+              as bool,
+      lastAccessedAt: freezed == lastAccessedAt
+          ? _value.lastAccessedAt
+          : lastAccessedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      createdAt: freezed == createdAt
+          ? _value.createdAt
+          : createdAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      updatedAt: freezed == updatedAt
+          ? _value.updatedAt
+          : updatedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
     ));
   }
 }
@@ -664,7 +720,11 @@ class _$PurchaseGroupImpl extends _PurchaseGroup {
       @HiveField(6) this.ownerMessage,
       @HiveField(11) final List<String> allowedUid = const [],
       @HiveField(12) this.isSecret = false,
-      @HiveField(13) final List<Map<String, String>> acceptedUid = const []})
+      @HiveField(13) final List<Map<String, String>> acceptedUid = const [],
+      @HiveField(14) this.isDeleted = false,
+      @HiveField(15) this.lastAccessedAt,
+      @HiveField(16) this.createdAt,
+      @HiveField(17) this.updatedAt})
       : _members = members,
         _allowedUid = allowedUid,
         _acceptedUid = acceptedUid,
@@ -730,9 +790,24 @@ class _$PurchaseGroupImpl extends _PurchaseGroup {
     return EqualUnmodifiableListView(_acceptedUid);
   }
 
+// 削除フラグと最終アクセス日時
+  @override
+  @JsonKey()
+  @HiveField(14)
+  final bool isDeleted;
+  @override
+  @HiveField(15)
+  final DateTime? lastAccessedAt;
+  @override
+  @HiveField(16)
+  final DateTime? createdAt;
+  @override
+  @HiveField(17)
+  final DateTime? updatedAt;
+
   @override
   String toString() {
-    return 'PurchaseGroup(groupName: $groupName, groupId: $groupId, ownerName: $ownerName, ownerEmail: $ownerEmail, ownerUid: $ownerUid, members: $members, ownerMessage: $ownerMessage, allowedUid: $allowedUid, isSecret: $isSecret, acceptedUid: $acceptedUid)';
+    return 'PurchaseGroup(groupName: $groupName, groupId: $groupId, ownerName: $ownerName, ownerEmail: $ownerEmail, ownerUid: $ownerUid, members: $members, ownerMessage: $ownerMessage, allowedUid: $allowedUid, isSecret: $isSecret, acceptedUid: $acceptedUid, isDeleted: $isDeleted, lastAccessedAt: $lastAccessedAt, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -757,7 +832,15 @@ class _$PurchaseGroupImpl extends _PurchaseGroup {
             (identical(other.isSecret, isSecret) ||
                 other.isSecret == isSecret) &&
             const DeepCollectionEquality()
-                .equals(other._acceptedUid, _acceptedUid));
+                .equals(other._acceptedUid, _acceptedUid) &&
+            (identical(other.isDeleted, isDeleted) ||
+                other.isDeleted == isDeleted) &&
+            (identical(other.lastAccessedAt, lastAccessedAt) ||
+                other.lastAccessedAt == lastAccessedAt) &&
+            (identical(other.createdAt, createdAt) ||
+                other.createdAt == createdAt) &&
+            (identical(other.updatedAt, updatedAt) ||
+                other.updatedAt == updatedAt));
   }
 
   @JsonKey(ignore: true)
@@ -773,7 +856,11 @@ class _$PurchaseGroupImpl extends _PurchaseGroup {
       ownerMessage,
       const DeepCollectionEquality().hash(_allowedUid),
       isSecret,
-      const DeepCollectionEquality().hash(_acceptedUid));
+      const DeepCollectionEquality().hash(_acceptedUid),
+      isDeleted,
+      lastAccessedAt,
+      createdAt,
+      updatedAt);
 
   @JsonKey(ignore: true)
   @override
@@ -791,17 +878,20 @@ class _$PurchaseGroupImpl extends _PurchaseGroup {
 
 abstract class _PurchaseGroup extends PurchaseGroup {
   const factory _PurchaseGroup(
-          {@HiveField(0) required final String groupName,
-          @HiveField(1) required final String groupId,
-          @HiveField(2) final String? ownerName,
-          @HiveField(3) final String? ownerEmail,
-          @HiveField(4) final String? ownerUid,
-          @HiveField(5) final List<PurchaseGroupMember>? members,
-          @HiveField(6) final String? ownerMessage,
-          @HiveField(11) final List<String> allowedUid,
-          @HiveField(12) final bool isSecret,
-          @HiveField(13) final List<Map<String, String>> acceptedUid}) =
-      _$PurchaseGroupImpl;
+      {@HiveField(0) required final String groupName,
+      @HiveField(1) required final String groupId,
+      @HiveField(2) final String? ownerName,
+      @HiveField(3) final String? ownerEmail,
+      @HiveField(4) final String? ownerUid,
+      @HiveField(5) final List<PurchaseGroupMember>? members,
+      @HiveField(6) final String? ownerMessage,
+      @HiveField(11) final List<String> allowedUid,
+      @HiveField(12) final bool isSecret,
+      @HiveField(13) final List<Map<String, String>> acceptedUid,
+      @HiveField(14) final bool isDeleted,
+      @HiveField(15) final DateTime? lastAccessedAt,
+      @HiveField(16) final DateTime? createdAt,
+      @HiveField(17) final DateTime? updatedAt}) = _$PurchaseGroupImpl;
   const _PurchaseGroup._() : super._();
 
   factory _PurchaseGroup.fromJson(Map<String, dynamic> json) =
@@ -837,6 +927,18 @@ abstract class _PurchaseGroup extends PurchaseGroup {
   @override // acceptedUid: [{uid: securityKey}] のような構造を想定
   @HiveField(13)
   List<Map<String, String>> get acceptedUid;
+  @override // 削除フラグと最終アクセス日時
+  @HiveField(14)
+  bool get isDeleted;
+  @override
+  @HiveField(15)
+  DateTime? get lastAccessedAt;
+  @override
+  @HiveField(16)
+  DateTime? get createdAt;
+  @override
+  @HiveField(17)
+  DateTime? get updatedAt;
   @override
   @JsonKey(ignore: true)
   _$$PurchaseGroupImplCopyWith<_$PurchaseGroupImpl> get copyWith =>
