@@ -10,13 +10,11 @@ class MemberListTile extends StatelessWidget {
   String makeTitle(PurchaseGroupRole role) {
     switch (role) {
       case PurchaseGroupRole.owner:
-        return 'オーナー: ${member.name}';
+        return 'オーナー: ${member.displayName}';
       case PurchaseGroupRole.manager:
-        return '管理者: ${member.name}';
+        return '管理者: ${member.displayName}';
       case PurchaseGroupRole.member:
-        return 'メンバー: ${member.name}';
-      case PurchaseGroupRole.friend:
-        return 'フレンド: ${member.name}';
+        return 'メンバー: ${member.displayName}';
     }
   }
 
@@ -36,7 +34,8 @@ class MemberListTile extends StatelessWidget {
       ),
       // メンバーのフルネーム
       title: Text(makeTitle(member.role)),
-      subtitle: Text("contact: ${member.contact}"),
+      subtitle:
+          member.contact != null ? Text("contact: ${member.contact}") : null,
       // タップしたときの処理
       onTap: onTap,
     );

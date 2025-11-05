@@ -35,6 +35,7 @@ class _DataMigrationWidgetState extends ConsumerState<DataMigrationWidget>
   bool _isMigrating = false;
   bool _migrationComplete = false;
   String _currentStep = '';
+  // ignore: unused_field
   double _progress = 0.0;
 
   late AnimationController _animationController;
@@ -167,6 +168,7 @@ class _DataMigrationWidgetState extends ConsumerState<DataMigrationWidget>
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
+                  // ignore: deprecated_member_use
                   color: Colors.black.withOpacity(0.1),
                   blurRadius: 10,
                   spreadRadius: 2,

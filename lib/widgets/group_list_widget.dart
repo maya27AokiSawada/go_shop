@@ -111,7 +111,7 @@ class GroupListWidget extends ConsumerWidget {
   Widget _buildGroupTile(BuildContext context, WidgetRef ref,
       PurchaseGroup group, String selectedGroupId) {
     final isDefaultGroup = group.groupId == 'default_group';
-    final memberCount = group.members?.length ?? 0;
+    final memberCount = group.members.length;
     final isCurrentGroup = selectedGroupId == group.groupId;
 
     return Card(
@@ -174,7 +174,7 @@ class GroupListWidget extends ConsumerWidget {
               )
             else
               Text('メンバー: $memberCount人'),
-            if (!isDefaultGroup && group.ownerUid?.isNotEmpty == true)
+            if (!isDefaultGroup && group.ownerUid.isNotEmpty == true)
               Text(
                 'オーナー: ${group.ownerName ?? group.ownerUid}',
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
@@ -311,7 +311,7 @@ class GroupListWidget extends ConsumerWidget {
                 ),
               ),
               Text(
-                '${currentGroup.members?.length ?? 0}人',
+                '${currentGroup.members.length}人',
                 style: TextStyle(
                   fontSize: 11,
                   color: Colors.blue.shade600,
@@ -429,14 +429,13 @@ class GroupListWidget extends ConsumerWidget {
     }
 
     // グループのオーナーかどうかを確認
-    final members = group.members ?? [];
+    final members = group.members;
     final currentUserId = currentUser?.uid ?? '';
     final currentMember = members.firstWhere(
-      (member) => member.memberId == currentUserId,
+      (member) => member.uid == currentUserId,
       orElse: () => const PurchaseGroupMember(
-        memberId: '',
-        name: '',
-        contact: '',
+        uid: '',
+        displayName: '',
         role: PurchaseGroupRole.member,
       ),
     );

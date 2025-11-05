@@ -262,8 +262,7 @@ class ShoppingListHeaderWidget extends ConsumerWidget {
                 // リポジトリから新しいリストを作成
                 final repository = ref.read(shoppingListRepositoryProvider);
                 final newList = await repository.createShoppingList(
-                  ownerUid:
-                      currentGroup.members?.firstOrNull?.memberId ?? 'dev_user',
+                  ownerUid: currentGroup.members.firstOrNull?.uid ?? 'dev_user',
                   groupId: currentGroup.groupId,
                   listName: name,
                   description: descriptionController.text.trim().isEmpty

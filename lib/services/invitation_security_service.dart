@@ -111,23 +111,27 @@ class InvitationSecurityService {
   }
 
   /// PurchaseGroupMemberの招待状態を更新
+  /// NOTE: v4データモデルではInvitationStatus, securityKey, invitedAt, acceptedAtが削除されたため無効化
+  // ignore: unused_element
   PurchaseGroupMember updateInvitationStatus(
     PurchaseGroupMember member,
-    InvitationStatus newStatus, {
+    dynamic newStatus, {
+    // InvitationStatus削除のためdynamic
     String? securityKey,
     DateTime? statusChangeTime,
   }) {
-    final now = statusChangeTime ?? DateTime.now();
-
-    return member.copyWith(
-      invitationStatus: newStatus,
-      securityKey: securityKey ?? member.securityKey,
-      invitedAt: newStatus == InvitationStatus.pending
-          ? (member.invitedAt ?? now)
-          : member.invitedAt,
-      acceptedAt:
-          newStatus == InvitationStatus.accepted ? now : member.acceptedAt,
-    );
+    throw UnimplementedError('v4データモデルでは招待機能が削除されました');
+    // final now = statusChangeTime ?? DateTime.now();
+    //
+    // return member.copyWith(
+    //   invitationStatus: newStatus,
+    //   securityKey: securityKey ?? member.securityKey,
+    //   invitedAt: newStatus == InvitationStatus.pending
+    //       ? (member.invitedAt ?? now)
+    //       : member.invitedAt,
+    //   acceptedAt:
+    //       newStatus == InvitationStatus.accepted ? now : member.acceptedAt,
+    // );
   }
 
   /// 招待レスポンス用のデータを作成

@@ -36,7 +36,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
       data: (user) {
         if (user != null) {
           // Firebase UserまたはMockUserの場合、emailまたはuidを使用
-          final userId = user.email ?? user.uid ?? 'anonymous';
+          final userId = user.email ?? user.uid;
           return '${userId}_$groupId';
         }
         return 'anonymous_$groupId';
@@ -234,9 +234,9 @@ class HiveShoppingListRepository implements ShoppingListRepository {
     final purchaseGroupBox = ref.read(purchaseGroupBoxProvider);
     final purchaseGroup = purchaseGroupBox.get(groupId);
 
-    if (purchaseGroup?.members == null) return false;
+    if (purchaseGroup == null) return false;
 
-    return purchaseGroup!.members!.any((member) => member.memberId == memberId);
+    return purchaseGroup.members.any((member) => member.uid == memberId);
   }
 
   // === New Multi-List Methods Implementation ===

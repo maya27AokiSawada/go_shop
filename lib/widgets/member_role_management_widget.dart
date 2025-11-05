@@ -21,15 +21,15 @@ class MemberRoleManagementWidget extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // 現在のユーザーがオーナーかどうかチェック
     final isOwner = purchaseGroup.ownerUid == currentUserUid;
-    
+
     if (!isOwner) {
       return const SizedBox.shrink(); // オーナー以外には表示しない
     }
 
     final members = purchaseGroup.members ?? [];
-    final nonOwnerMembers = members.where(
-      (member) => member.role != PurchaseGroupRole.owner
-    ).toList();
+    final nonOwnerMembers = members
+        .where((member) => member.role != PurchaseGroupRole.owner)
+        .toList();
 
     if (nonOwnerMembers.isEmpty) {
       return const Card(
@@ -68,10 +68,10 @@ class MemberRoleManagementWidget extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             ...nonOwnerMembers.map((member) => _buildMemberTile(
-              context,
-              ref,
-              member,
-            )),
+                  context,
+                  ref,
+                  member,
+                )),
           ],
         ),
       ),
@@ -92,11 +92,11 @@ class MemberRoleManagementWidget extends ConsumerWidget {
           size: 20,
         ),
       ),
-      title: Text(member.name),
+      title: Text(member.displayName),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(member.contact),
+          if (member.contact != null) Text(member.contact!),
           Text(
             _getRoleDisplayName(member.role),
             style: TextStyle(
@@ -150,7 +150,7 @@ class MemberRoleManagementWidget extends ConsumerWidget {
       builder: (context) => AlertDialog(
         title: const Text('管理者に昇格'),
         content: Text(
-          '${member.name} さんを管理者に昇格させますか？\n\n'
+          '${member.displayName} さんを管理者に昇格させますか？\n\n'
           '管理者はグループの設定変更や他のメンバーの管理ができるようになります。',
         ),
         actions: [
@@ -172,10 +172,10 @@ class MemberRoleManagementWidget extends ConsumerWidget {
 
     if (confirmed == true && context.mounted) {
       await _updateMemberRole(ref, member, PurchaseGroupRole.manager);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${member.name} さんを管理者に昇格しました'),
+          content: Text('${member.displayName} さんを管理者に昇格しました'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -192,7 +192,7 @@ class MemberRoleManagementWidget extends ConsumerWidget {
       builder: (context) => AlertDialog(
         title: const Text('メンバーに降格'),
         content: Text(
-          '${member.name} さんをメンバーに降格させますか？\n\n'
+          '${member.displayName} さんをメンバーに降格させますか？\n\n'
           'グループの設定変更権限が取り消されます。',
         ),
         actions: [
@@ -214,10 +214,10 @@ class MemberRoleManagementWidget extends ConsumerWidget {
 
     if (confirmed == true && context.mounted) {
       await _updateMemberRole(ref, member, PurchaseGroupRole.member);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${member.name} さんをメンバーに降格しました'),
+          content: Text('${member.displayName} さんをメンバーに降格しました'),
           backgroundColor: Colors.blue,
         ),
       );
@@ -231,22 +231,21 @@ class MemberRoleManagementWidget extends ConsumerWidget {
   ) async {
     try {
       final repository = ref.read(purchaseGroupRepositoryProvider);
-      
+
       // メンバーのロールを更新
-      final updatedMembers = purchaseGroup.members?.map((m) {
-        if (m.memberId == member.memberId) {
+      final updatedMembers = purchaseGroup.members.map((m) {
+        if (m.uid == member.uid) {
           return m.copyWith(role: newRole);
         }
         return m;
-      }).toList() ?? [];
-      
+      }).toList();
+
       final updatedGroup = purchaseGroup.copyWith(members: updatedMembers);
-      
+
       await repository.updateGroup(purchaseGroup.groupId, updatedGroup);
-      
+
       // プロバイダーを更新
       ref.invalidate(selectedGroupNotifierProvider);
-      
     } catch (e) {
       Log.error('❌ メンバーロール更新エラー: $e');
     }

@@ -346,7 +346,7 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
       developer.log('🔍 [HYBRID_REPO] createGroup パラメータ:');
       developer.log('   - groupId: $groupId');
       developer.log('   - groupName: $groupName');
-      developer.log('   - member: ${member.name} (${member.memberId})');
+      developer.log('   - member: ${member.displayName} (${member.uid})');
 
       final newGroup = await _hiveRepo.createGroup(groupId, groupName, member);
       developer.log('✅ [HYBRID_REPO] Hive保存完了: $groupName');
@@ -443,12 +443,16 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
     switch (operation.type) {
       case 'create':
         final ownerMember = PurchaseGroupMember(
-          memberId: operation.data['ownerMember']['memberId'],
-          name: operation.data['ownerMember']['name'],
-          contact: operation.data['ownerMember']['contact'],
+          uid: operation.data['ownerMember']['uid'] ??
+              operation.data['ownerMember']['memberId'] ??
+              '',
+          displayName: operation.data['ownerMember']['displayName'] ??
+              operation.data['ownerMember']['name'] ??
+              '',
           role: PurchaseGroupRole.values.firstWhere(
             (role) => role.name == operation.data['ownerMember']['role'],
           ),
+          joinedAt: DateTime.now(),
         );
         await _firestoreRepo!.createGroup(
           operation.groupId,
@@ -473,23 +477,23 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
     }
 
     try {
-      // 🛡️ Members null チェック（crash-proof）
-      if (group.members == null || group.members!.isEmpty) {
+      // 🛡️ Members empty チェック（crash-proof）
+      if (group.members.isEmpty) {
         developer.log(
-            '❌ [HYBRID_REPO] Group members is null or empty - skipping Firestore sync');
+            '❌ [HYBRID_REPO] Group members is empty - skipping Firestore sync');
         return;
       }
 
       // 同期的書き込み（ユーザーを待たせてもOK）
-      final ownerMember = group.members!
+      final ownerMember = group.members
           .firstWhere((m) => m.role == PurchaseGroupRole.owner, orElse: () {
         developer.log('⚠️ [HYBRID_REPO] No owner found, using first member');
-        return group.members!.first;
+        return group.members.first;
       });
 
       developer.log('⏳ [HYBRID_REPO] Firestore書き込み中...: ${group.groupName}');
       developer.log(
-          '🔍 [HYBRID_REPO] Owner member: ${ownerMember.name} (${ownerMember.memberId})');
+          '🔍 [HYBRID_REPO] Owner member: ${ownerMember.displayName} (${ownerMember.uid})');
 
       await _firestoreRepo!
           .createGroup(group.groupId, group.groupName, ownerMember)
@@ -512,7 +516,7 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
       _isOnline = false;
 
       // 🛡️ Members安全チェック（crash-proof）
-      if (group.members == null || group.members!.isEmpty) {
+      if (group.members.isEmpty) {
         developer.log('❌ [HYBRID_REPO] Cannot add to sync queue - no members');
         return;
       }
@@ -524,10 +528,9 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
         data: {
           'groupName': group.groupName,
           'ownerMember': {
-            'memberId': group.members!.first.memberId,
-            'name': group.members!.first.name,
-            'contact': group.members!.first.contact,
-            'role': group.members!.first.role.name,
+            'uid': group.members.first.uid,
+            'displayName': group.members.first.displayName,
+            'role': group.members.first.role.name,
           }
         },
         timestamp: DateTime.now(),
