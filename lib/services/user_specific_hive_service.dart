@@ -337,6 +337,8 @@ class UserSpecificHiveService {
             '⚠️ Found old schema data files. Re-running migration to v2...');
         await _migrateToV2();
         Log.info('✅ Migration to v2 re-executed successfully.');
+        // マイグレーション後に必ずバージョン2を保存
+        await prefs.setInt(_schemaVersionKey, 2);
         return;
       }
     }
@@ -361,6 +363,8 @@ class UserSpecificHiveService {
       // スキーマバージョン2へのマイグレーション
       await _migrateToV2();
       currentVersion = 2;
+      // マイグレーション後に必ずバージョン2を保存
+      await prefs.setInt(_schemaVersionKey, 2);
     }
 
     // ... 将来のバージョンアップはここに追加 ...

@@ -7,6 +7,7 @@ import '../providers/current_group_provider.dart';
 import '../providers/current_list_provider.dart';
 import '../utils/app_logger.dart';
 import '../pages/group_member_management_page.dart';
+import '../services/user_initialization_service.dart';
 import '../flavors.dart';
 
 /// グループをリスト表示するウィジェット
@@ -43,18 +44,32 @@ class GroupListWidget extends ConsumerWidget {
                   // デバッグボタン
                   IconButton(
                     onPressed: () async {
-                      AppLogger.info('🔄 [DEBUG] グループ同期開始');
+                      AppLogger.info('🔄 [DEBUG] 双方向同期開始');
                       try {
+                        // Firestore→Hive同期
                         await ref.read(forceSyncProvider.future);
+
+                        // Hive→Firestore同期（本番環境のみ）
+                        final currentUser = FirebaseAuth.instance.currentUser;
+                        if (F.appFlavor == Flavor.prod && currentUser != null) {
+                          final initService =
+                              ref.read(userInitializationServiceProvider);
+                          await initService.syncHiveToFirestore(currentUser);
+                          AppLogger.info('✅ [DEBUG] Hive→Firestore同期完了');
+                        }
+
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('同期完了')),
+                          const SnackBar(content: Text('双方向同期完了')),
                         );
                       } catch (e) {
                         AppLogger.error('❌ [DEBUG] 同期エラー: $e');
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('同期エラー: $e')),
+                        );
                       }
                     },
                     icon: const Icon(Icons.sync, size: 20),
-                    tooltip: 'Firestore同期',
+                    tooltip: '双方向同期',
                   ),
                 ],
               ),
@@ -161,7 +176,7 @@ class GroupListWidget extends ConsumerWidget {
               Text('メンバー: $memberCount人'),
             if (!isDefaultGroup && group.ownerUid?.isNotEmpty == true)
               Text(
-                'オーナー: ${group.ownerName ?? group.ownerEmail ?? group.ownerUid}',
+                'オーナー: ${group.ownerName ?? group.ownerUid}',
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
               ),
           ],
@@ -174,9 +189,9 @@ class GroupListWidget extends ConsumerWidget {
           },
           tooltip: 'メンバー管理',
         ),
-        onTap: () {
+        onTap: () async {
           AppLogger.info('📋 [GROUP_LIST] グループ選択: ${group.groupId}');
-          _selectCurrentGroup(context, ref, group);
+          await _selectCurrentGroup(context, ref, group);
         },
         onLongPress: () {
           _showGroupOptions(context, ref, group);
@@ -185,8 +200,8 @@ class GroupListWidget extends ConsumerWidget {
     );
   }
 
-  void _selectCurrentGroup(
-      BuildContext context, WidgetRef ref, PurchaseGroup group) {
+  Future<void> _selectCurrentGroup(
+      BuildContext context, WidgetRef ref, PurchaseGroup group) async {
     final currentGroup = ref.read(currentGroupProvider);
 
     if (currentGroup?.groupId == group.groupId) {
@@ -194,8 +209,8 @@ class GroupListWidget extends ConsumerWidget {
       return;
     }
 
-    // グループを選択してカレントグループに設定
-    ref.read(currentGroupProvider.notifier).selectGroup(group);
+    // グループを選択してカレントグループに設定（awaitで非同期完了を待つ）
+    await ref.read(currentGroupProvider.notifier).selectGroup(group);
 
     // 旧システムとの互換性のため、selectedGroupIdProviderも更新
     ref.read(selectedGroupIdProvider.notifier).selectGroup(group.groupId);
@@ -386,6 +401,18 @@ class GroupListWidget extends ConsumerWidget {
 
   static Future<void> _showGroupOptions(
       BuildContext context, WidgetRef ref, PurchaseGroup group) async {
+    // デフォルトグループは削除不可
+    if (group.groupId == 'default_group') {
+      AppLogger.info('🔒 [GROUP_OPTIONS] デフォルトグループは削除できません');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('デフォルトグループ（MyLists）は削除できません'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     // 現在のユーザー情報を安全に取得
     User? currentUser;
     try {

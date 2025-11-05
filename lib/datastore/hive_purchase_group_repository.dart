@@ -103,62 +103,11 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
       final visibleGroups =
           groups.where((group) => group.groupId != '__member_pool__').toList();
 
-      // 現在のユーザーIDを取得
-      final currentUserId =
-          _ref.read(currentUserIdProvider) ?? 'mock_926522594';
-      developer.log(
-          '📋 [FILTER] フィルタリング開始 - currentUserId: $currentUserId, 全グループ数: ${visibleGroups.length}');
+      developer
+          .log('📋 [HIVE_REPO] getAllGroups: ${visibleGroups.length}グループ取得');
 
-      // 現在のユーザーが関係するグループのみをフィルタリング（レガシー修正前の元データで判定）
-      final userRelatedGroups = visibleGroups.where((group) {
-        developer.log(
-            '🔍 [FILTER] グループチェック: ${group.groupName} (ownerUid: ${group.ownerUid})');
-
-        // オーナーの場合
-        if (group.ownerUid == currentUserId) {
-          developer.log('✅ [FILTER] オーナーとして含める: ${group.groupName}');
-          return true;
-        }
-
-        // メンバーの場合（レガシー修正前の元のmemberIdで判定）
-        final isMember =
-            group.members?.any((member) => member.memberId == currentUserId) ==
-                true;
-        if (isMember) {
-          developer.log('✅ [FILTER] メンバーとして含める: ${group.groupName}');
-          return true;
-        }
-
-        // デフォルトグループは常に表示（後方互換性のため）
-        if (group.groupId == 'default_group') {
-          developer.log('✅ [FILTER] デフォルトグループとして含める: ${group.groupName}');
-          return true;
-        }
-
-        // 現在のユーザーのメールアドレスと一致するメンバーがいる場合も含める（メールベース判定）
-        final userSettingsBox = Hive.box<UserSettings>('userSettings');
-        final userSettings = userSettingsBox.get('settings');
-        final currentUserEmail = userSettings?.userEmail ?? '';
-
-        if (currentUserEmail.isNotEmpty) {
-          final hasMatchingEmail = group.members?.any((member) =>
-                  member.contact.toLowerCase() ==
-                  currentUserEmail.toLowerCase()) ==
-              true;
-          if (hasMatchingEmail) {
-            developer.log(
-                '✅ [FILTER] メールアドレスマッチで含める: ${group.groupName} (email: $currentUserEmail)');
-            return true;
-          }
-        }
-
-        developer.log('❌ [FILTER] 除外: ${group.groupName}');
-        return false;
-      }).toList();
-
-      developer.log(
-          '📋 [FILTER] フィルタリング完了: ${userRelatedGroups.length}グループ (元: ${visibleGroups.length}グループ)');
-      return userRelatedGroups;
+      // ✅ フィルタリングはAllGroupsNotifierで行うため、ここでは全グループを返す
+      return visibleGroups;
     } on StateError catch (e) {
       developer.log(
           '⚠️ Box not available during getAllGroups (app may be restarting): $e');
@@ -321,15 +270,18 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
       }
 
       // グループ名の重複チェック（デフォルトグループ以外）
-      // TEMP: 一時的に無効化してデッドロックを回避
-      // if (groupId != 'default_group') {
-      //   final allGroups = await getAllGroups();
-      //   final validation =
-      //       ValidationService.validateGroupName(groupName, allGroups);
-      //   if (validation.hasError) {
-      //     throw Exception(validation.errorMessage);
-      //   }
-      // }
+      // デッドロック回避: box.valuesから直接取得して重複チェック
+      if (groupId != 'default_group') {
+        developer.log('🔍 [HIVE_REPO] グループ名重複チェック開始');
+        final allGroupsFromBox = box.values.toList();
+        final validation =
+            ValidationService.validateGroupName(groupName, allGroupsFromBox);
+        if (validation.hasError) {
+          developer.log('❌ [HIVE_REPO] グループ名重複エラー: ${validation.errorMessage}');
+          throw Exception(validation.errorMessage);
+        }
+        developer.log('✅ [HIVE_REPO] グループ名重複チェック完了 - OK');
+      }
 
       developer.log('🔍 [HIVE_REPO] PurchaseGroup作成開始');
 

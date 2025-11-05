@@ -1,13 +1,10 @@
 // テスト用のグループデータを作成するスクリプト
 import '../services/hive_initialization_service.dart';
 import '../models/purchase_group.dart';
-import '../models/shopping_list.dart';
 import '../datastore/hive_purchase_group_repository.dart';
-import '../datastore/hive_shopping_list_repository.dart';
 import '../utils/app_logger.dart';
 import '../flavors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 
 void main() async {
   F.appFlavor = Flavor.dev;
@@ -19,56 +16,52 @@ void main() async {
   final container = ProviderContainer();
 
   try {
-    final groupRepo = HivePurchaseGroupRepository(container.ref);
+    final groupRepo = HivePurchaseGroupRepository(container as Ref);
 
     // テスト用グループを作成
     final testGroups = [
       PurchaseGroup.create(
-        groupId: 'family_group',
         groupName: '家族グループ',
-        ownerUid: 'test_user',
-        description: 'テスト用の家族グループ',
         members: [
-          PurchaseGroupMember(
+          const PurchaseGroupMember(
             memberId: 'test_user',
             name: 'テストユーザー',
-            role: PurchaseGroupRole.admin,
+            contact: '',
+            role: PurchaseGroupRole.owner,
           ),
-          PurchaseGroupMember(
+          const PurchaseGroupMember(
             memberId: 'family_member',
             name: '家族メンバー',
+            contact: '',
             role: PurchaseGroupRole.member,
           ),
         ],
       ),
       PurchaseGroup.create(
-        groupId: 'friends_group',
         groupName: '友達グループ',
-        ownerUid: 'test_user',
-        description: 'テスト用の友達グループ',
         members: [
-          PurchaseGroupMember(
+          const PurchaseGroupMember(
             memberId: 'test_user',
             name: 'テストユーザー',
-            role: PurchaseGroupRole.admin,
+            contact: '',
+            role: PurchaseGroupRole.owner,
           ),
-          PurchaseGroupMember(
+          const PurchaseGroupMember(
             memberId: 'friend1',
             name: '友達1',
+            contact: '',
             role: PurchaseGroupRole.member,
           ),
         ],
       ),
       PurchaseGroup.create(
-        groupId: 'work_group',
         groupName: '職場グループ',
-        ownerUid: 'test_user',
-        description: 'テスト用の職場グループ',
         members: [
-          PurchaseGroupMember(
+          const PurchaseGroupMember(
             memberId: 'test_user',
             name: 'テストユーザー',
-            role: PurchaseGroupRole.admin,
+            contact: '',
+            role: PurchaseGroupRole.owner,
           ),
         ],
       ),

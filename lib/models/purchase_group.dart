@@ -152,6 +152,11 @@ class PurchaseGroup with _$PurchaseGroup {
     @HiveField(12) @Default(false) bool isSecret,
     // acceptedUid: [{uid: securityKey}] のような構造を想定
     @HiveField(13) @Default([]) List<Map<String, String>> acceptedUid,
+    // 削除フラグと最終アクセス日時
+    @HiveField(14) @Default(false) bool isDeleted,
+    @HiveField(15) DateTime? lastAccessedAt,
+    @HiveField(16) DateTime? createdAt,
+    @HiveField(17) DateTime? updatedAt,
   }) = _PurchaseGroup;
 
   factory PurchaseGroup.fromJson(Map<String, dynamic> json) =>
@@ -171,6 +176,7 @@ class PurchaseGroup with _$PurchaseGroup {
       orElse: () => throw Exception('Owner not found in members list'),
     );
 
+    final now = DateTime.now();
     return PurchaseGroup(
       groupName: groupName,
       groupId: groupId ?? uuid.v4(),
@@ -183,6 +189,10 @@ class PurchaseGroup with _$PurchaseGroup {
       allowedUid: [owner.memberId], // 作成者を自動的に許可リストに追加
       isSecret: isSecret,
       acceptedUid: [],
+      isDeleted: false,
+      lastAccessedAt: now,
+      createdAt: now,
+      updatedAt: now,
     );
   }
 
@@ -300,6 +310,25 @@ class PurchaseGroup with _$PurchaseGroup {
             m.invitationStatus == InvitationStatus.self)
         .toList();
   }
+
+  // 最終アクセス日時を更新
+  PurchaseGroup markAsAccessed() {
+    return copyWith(
+      lastAccessedAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  // グループを削除済みとしてマーク
+  PurchaseGroup markAsDeleted() {
+    return copyWith(
+      isDeleted: true,
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  // グループが削除されているかチェック
+  bool get isDeletedGroup => isDeleted;
 
   // shoppingListIds関連のメソッドはサブコレクション化により不要になったため削除
 }

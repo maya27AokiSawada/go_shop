@@ -278,7 +278,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
                               ),
                               title: Text(group.groupName),
                               subtitle: Text(
-                                '${group.members?.length ?? 0}メンバー • ${group.groupId}',
+                                '${(group.members?.isNotEmpty ?? false) ? group.members!.length : 0}メンバー • ${group.groupId}',
                               ),
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -620,9 +620,9 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
 
     final group = testGroups.first;
     final testMember = PurchaseGroupMember.create(
+      memberId: 'test_uid_${DateTime.now().millisecondsSinceEpoch % 1000}',
       name: 'テストメンバー${DateTime.now().millisecondsSinceEpoch % 1000}',
-      contact:
-          'test${DateTime.now().millisecondsSinceEpoch % 1000}@example.com',
+      contact: '',
       role: PurchaseGroupRole.member,
     );
 
@@ -698,7 +698,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
             Text('グループID: ${group.groupId}'),
             Text('オーナー: ${group.ownerName ?? 'N/A'}'),
             Text('メンバー数: ${group.members?.length ?? 0}'),
-            if (group.members?.isNotEmpty == true) ...[
+            if ((group.members?.isNotEmpty ?? false)) ...[
               const SizedBox(height: 8),
               const Text('メンバー:',
                   style: TextStyle(fontWeight: FontWeight.bold)),

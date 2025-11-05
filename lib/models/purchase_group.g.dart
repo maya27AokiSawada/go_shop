@@ -93,13 +93,17 @@ class PurchaseGroupAdapter extends TypeAdapter<PurchaseGroup> {
       acceptedUid: (fields[13] as List)
           .map((dynamic e) => (e as Map).cast<String, String>())
           .toList(),
+      isDeleted: fields[14] as bool,
+      lastAccessedAt: fields[15] as DateTime?,
+      createdAt: fields[16] as DateTime?,
+      updatedAt: fields[17] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, PurchaseGroup obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(14)
       ..writeByte(0)
       ..write(obj.groupName)
       ..writeByte(1)
@@ -119,7 +123,15 @@ class PurchaseGroupAdapter extends TypeAdapter<PurchaseGroup> {
       ..writeByte(12)
       ..write(obj.isSecret)
       ..writeByte(13)
-      ..write(obj.acceptedUid);
+      ..write(obj.acceptedUid)
+      ..writeByte(14)
+      ..write(obj.isDeleted)
+      ..writeByte(15)
+      ..write(obj.lastAccessedAt)
+      ..writeByte(16)
+      ..write(obj.createdAt)
+      ..writeByte(17)
+      ..write(obj.updatedAt);
   }
 
   @override
@@ -307,6 +319,16 @@ _$PurchaseGroupImpl _$$PurchaseGroupImplFromJson(Map<String, dynamic> json) =>
               ?.map((e) => Map<String, String>.from(e as Map))
               .toList() ??
           const [],
+      isDeleted: json['isDeleted'] as bool? ?? false,
+      lastAccessedAt: json['lastAccessedAt'] == null
+          ? null
+          : DateTime.parse(json['lastAccessedAt'] as String),
+      createdAt: json['createdAt'] == null
+          ? null
+          : DateTime.parse(json['createdAt'] as String),
+      updatedAt: json['updatedAt'] == null
+          ? null
+          : DateTime.parse(json['updatedAt'] as String),
     );
 
 Map<String, dynamic> _$$PurchaseGroupImplToJson(_$PurchaseGroupImpl instance) =>
@@ -321,4 +343,8 @@ Map<String, dynamic> _$$PurchaseGroupImplToJson(_$PurchaseGroupImpl instance) =>
       'allowedUid': instance.allowedUid,
       'isSecret': instance.isSecret,
       'acceptedUid': instance.acceptedUid,
+      'isDeleted': instance.isDeleted,
+      'lastAccessedAt': instance.lastAccessedAt?.toIso8601String(),
+      'createdAt': instance.createdAt?.toIso8601String(),
+      'updatedAt': instance.updatedAt?.toIso8601String(),
     };
