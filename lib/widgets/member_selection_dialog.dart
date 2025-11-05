@@ -58,9 +58,8 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
         if (selectedPoolMember != null) {
           final currentGroupAsync = ref.read(selectedGroupNotifierProvider);
           final currentGroup = currentGroupAsync.valueOrNull;
-          final isAlreadyMember = currentGroup?.members?.any((groupMember) =>
-                  groupMember.memberId == selectedPoolMember!.memberId ||
-                  groupMember.contact == selectedPoolMember!.contact) ??
+          final isAlreadyMember = currentGroup?.members.any((groupMember) =>
+                  groupMember.uid == selectedPoolMember!.uid) ??
               false;
 
           if (isAlreadyMember) {
@@ -255,9 +254,8 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
           // 現在のグループのメンバーかチェック
           final currentGroupAsync = ref.watch(selectedGroupNotifierProvider);
           final currentGroup = currentGroupAsync.valueOrNull;
-          final isAlreadyMember = currentGroup?.members?.any((groupMember) =>
-                  groupMember.memberId == member.memberId ||
-                  groupMember.contact == member.contact) ??
+          final isAlreadyMember = currentGroup?.members
+                  .any((groupMember) => groupMember.uid == member.uid) ??
               false;
 
           return Card(
@@ -281,15 +279,15 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
                         : Colors.grey,
               ),
               title: Text(
-                member.name,
+                member.displayName,
                 style: TextStyle(
                   color: isAlreadyMember ? Colors.grey : null,
                 ),
               ),
               subtitle: Text(
                 isAlreadyMember
-                    ? '${member.contact} (${_getRoleDisplayName(member.role)}) - すでにメンバーです'
-                    : '${member.contact} (${_getRoleDisplayName(member.role)})',
+                    ? '${_getRoleDisplayName(member.role)} - すでにメンバーです'
+                    : _getRoleDisplayName(member.role),
                 style: TextStyle(
                   color: isAlreadyMember ? Colors.grey : null,
                 ),
@@ -363,9 +361,6 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
               case PurchaseGroupRole.member:
                 roleName = 'メンバー';
                 break;
-              case PurchaseGroupRole.friend:
-                roleName = 'フレンド';
-                break;
             }
             return DropdownMenuItem(
               value: role,
@@ -395,14 +390,13 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${duplicateMember?.name}さんのことですか？',
+            '${duplicateMember?.displayName}さんのことですか？',
             style: const TextStyle(
               fontWeight: FontWeight.bold,
               color: Colors.orange,
             ),
           ),
           const SizedBox(height: 8),
-          Text('メールアドレス: ${duplicateMember?.contact}'),
           Text('役割: ${duplicateMember?.role.name}'),
           const SizedBox(height: 8),
           Row(
@@ -441,9 +435,8 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
       // 現在のグループのメンバーかチェック
       final currentGroupAsync = ref.read(selectedGroupNotifierProvider);
       final currentGroup = currentGroupAsync.valueOrNull;
-      final isAlreadyMember = currentGroup?.members?.any((groupMember) =>
-              groupMember.memberId == selectedPoolMember!.memberId ||
-              groupMember.contact == selectedPoolMember!.contact) ??
+      final isAlreadyMember = currentGroup?.members.any(
+              (groupMember) => groupMember.uid == selectedPoolMember!.uid) ??
           false;
 
       return !isAlreadyMember;
@@ -460,17 +453,14 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
     PurchaseGroupMember memberToAdd;
 
     if (selectedType == MemberSelectionType.fromPool) {
-      // プールからの選択：新しいIDで追加
-      memberToAdd = selectedPoolMember!.copyWith(
-        memberId: 'member_${DateTime.now().millisecondsSinceEpoch}',
-      );
+      // プールからの選択：既存メンバーをそのまま使用
+      memberToAdd = selectedPoolMember!;
     } else {
       // 新規メンバー
       memberToAdd = PurchaseGroupMember.create(
-        name: nameController.text,
-        contact: contactController.text,
+        uid: 'member_${DateTime.now().millisecondsSinceEpoch}',
+        displayName: nameController.text,
         role: selectedRole,
-        isSignedIn: false,
       );
     }
 
@@ -486,8 +476,6 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
         return '管理者';
       case PurchaseGroupRole.member:
         return 'メンバー';
-      case PurchaseGroupRole.friend:
-        return 'フレンド';
     }
   }
 

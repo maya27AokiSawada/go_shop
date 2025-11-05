@@ -65,10 +65,13 @@ class _PurchaseGroupMemberFormState
           ),
           const SizedBox(height: 16.0),
           const Text('役割を選択してください:', style: TextStyle(fontSize: 16)),
+          // ignore: deprecated_member_use
           RadioListTile<PurchaseGroupRole>(
             title: const Text('メンバー'),
             value: PurchaseGroupRole.member,
+            // ignore: deprecated_member_use
             groupValue: _selectedRole,
+            // ignore: deprecated_member_use
             onChanged: (PurchaseGroupRole? value) {
               setState(() {
                 _selectedRole = value ?? PurchaseGroupRole.member;
@@ -81,10 +84,11 @@ class _PurchaseGroupMemberFormState
               if (formKey.currentState!.validate()) {
                 formKey.currentState!.save();
                 final newMember = PurchaseGroupMember(
-                  memberId: const Uuid().v4(), // ユニークなIDを生成
-                  name: name,
+                  uid: const Uuid().v4(), // ユニークなIDを生成
+                  displayName: name,
                   contact: contact,
                   role: _selectedRole,
+                  joinedAt: DateTime.now(),
                 );
                 ref
                     .read(selectedGroupNotifierProvider.notifier)

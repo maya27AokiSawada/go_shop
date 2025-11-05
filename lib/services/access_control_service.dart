@@ -188,4 +188,14 @@ final accessControlServiceProvider = Provider<AccessControlService>((ref) {
   return AccessControlService(ref);
 });
 
+// グループ表示モードをリアクティブに監視するプロバイダー
+final groupVisibilityModeProvider =
+    FutureProvider<GroupVisibilityMode>((ref) async {
+  // allGroupsProviderの変更を監視（シークレットモード切り替え時にinvalidateされる）
+  ref.watch(allGroupsProvider);
+
+  final accessControl = ref.read(accessControlServiceProvider);
+  return await accessControl.getGroupVisibilityMode();
+});
+
 // Note: secretModeStateProviderは循環依存を避けるため削除

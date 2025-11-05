@@ -46,7 +46,7 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
         shoppingListId: '', // widget.group.shoppingListIds?.first ?? '',
         purchaseGroupId: widget.group.groupId,
         groupName: widget.group.groupName,
-        groupOwnerUid: widget.group.ownerUid ?? '',
+        groupOwnerUid: widget.group.ownerUid,
         invitationType: _invitationType,
       );
 
@@ -151,7 +151,7 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'メンバー数: ${widget.group.members?.length ?? 0}人',
+                    'メンバー数: ${widget.group.members.length}人',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Colors.grey[600],
                         ),
@@ -178,11 +178,14 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
                         ),
                   ),
                   const SizedBox(height: 16),
+                  // ignore: deprecated_member_use
                   RadioListTile<String>(
                     title: const Text('個別グループ招待'),
                     subtitle: const Text('このグループのみにアクセス可能'),
                     value: 'individual',
+                    // ignore: deprecated_member_use
                     groupValue: _invitationType,
+                    // ignore: deprecated_member_use
                     onChanged: (value) {
                       setState(() {
                         _invitationType = value!;
@@ -190,11 +193,14 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
                       });
                     },
                   ),
+                  // ignore: deprecated_member_use
                   RadioListTile<String>(
                     title: const Text('フレンド招待'),
                     subtitle: const Text('あなたのすべてのグループにアクセス可能'),
                     value: 'friend',
+                    // ignore: deprecated_member_use
                     groupValue: _invitationType,
+                    // ignore: deprecated_member_use
                     onChanged: (value) {
                       setState(() {
                         _invitationType = value!;

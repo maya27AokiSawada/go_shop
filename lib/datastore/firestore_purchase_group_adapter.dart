@@ -10,40 +10,46 @@ import 'dart:developer' as developer;
 class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  
+
   FirestorePurchaseGroupAdapter();
-  
-  CollectionReference get _groupsCollection => _firestore.collection('purchaseGroups');
+
+  CollectionReference get _groupsCollection =>
+      _firestore.collection('purchaseGroups');
 
   @override
-  Future<PurchaseGroup> addMember(String groupId, PurchaseGroupMember member) async {
+  Future<PurchaseGroup> addMember(
+      String groupId, PurchaseGroupMember member) async {
     try {
       final groupDoc = await _groupsCollection.doc(groupId).get();
       if (!groupDoc.exists) {
         throw Exception('Group not found: $groupId');
       }
-      
+
       final groupData = groupDoc.data() as Map<String, dynamic>;
       final currentMembers = _parseMembers(groupData['members'] ?? []);
-      
+
       // ValidationServiceを使った重複チェック
-      final emailValidation = ValidationService.validateMemberEmail(member.contact, currentMembers);
-      if (emailValidation.hasError) {
-        throw Exception(emailValidation.errorMessage);
+      if (member.contact != null) {
+        final emailValidation = ValidationService.validateMemberEmail(
+            member.contact!, currentMembers);
+        if (emailValidation.hasError) {
+          throw Exception(emailValidation.errorMessage);
+        }
       }
-      
-      final nameValidation = ValidationService.validateMemberName(member.name, currentMembers);
+
+      final nameValidation = ValidationService.validateMemberName(
+          member.displayName, currentMembers);
       if (nameValidation.hasError) {
         throw Exception(nameValidation.errorMessage);
       }
-      
+
       final updatedMembers = [...currentMembers, member];
       await _groupsCollection.doc(groupId).update({
         'members': updatedMembers.map((m) => _memberToMap(m)).toList(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      
-      developer.log('➕ Firestore: メンバー追加: ${member.name} to $groupId');
+
+      developer.log('➕ Firestore: メンバー追加: ${member.displayName} to $groupId');
       final group = _mapToGroup(groupData);
       return group.copyWith(members: updatedMembers);
     } catch (e) {
@@ -53,26 +59,27 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
   }
 
   @override
-  Future<PurchaseGroup> removeMember(String groupId, PurchaseGroupMember member) async {
+  Future<PurchaseGroup> removeMember(
+      String groupId, PurchaseGroupMember member) async {
     try {
       final groupDoc = await _groupsCollection.doc(groupId).get();
       if (!groupDoc.exists) {
         throw Exception('Group not found: $groupId');
       }
-      
+
       final groupData = groupDoc.data() as Map<String, dynamic>;
       final currentMembers = _parseMembers(groupData['members'] ?? []);
-      
-      final updatedMembers = currentMembers.where((m) => 
-        m.memberId != member.memberId && m.contact != member.contact
-      ).toList();
-      
+
+      final updatedMembers =
+          currentMembers.where((m) => m.uid != member.uid).toList();
+
       await _groupsCollection.doc(groupId).update({
         'members': updatedMembers.map((m) => _memberToMap(m)).toList(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      
-      developer.log('🚫 Firestore: メンバー削除: ${member.name} from $groupId');
+
+      developer
+          .log('🚫 Firestore: メンバー削除: ${member.displayName} from $groupId');
       return _mapToGroup(groupData).copyWith(members: updatedMembers);
     } catch (e) {
       developer.log('❌ Firestore: メンバー削除エラー: $e');
@@ -88,21 +95,19 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
         // 認証されていない場合はデフォルトグループを作成
         return [await _createDefaultGroup()];
       }
-      
+
       // ユーザーが参加しているグループを取得
       final querySnapshot = await _groupsCollection
           .where('memberEmails', arrayContains: currentUser.email)
           .get();
-      
-      final groups = querySnapshot.docs
-          .map((doc) => _docToGroup(doc))
-          .toList();
-      
+
+      final groups = querySnapshot.docs.map((doc) => _docToGroup(doc)).toList();
+
       if (groups.isEmpty) {
         // グループがない場合はデフォルトグループを作成
         groups.add(await _createDefaultGroup());
       }
-      
+
       developer.log('📋 Firestore: グループ取得: ${groups.length}個');
       return groups;
     } catch (e) {
@@ -113,26 +118,28 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
   }
 
   @override
-  Future<PurchaseGroup> createGroup(String groupId, String groupName, PurchaseGroupMember member) async {
+  Future<PurchaseGroup> createGroup(
+      String groupId, String groupName, PurchaseGroupMember member) async {
     try {
       final currentUser = _auth.currentUser;
-      
+
       // グループ名の重複チェック
       final allGroups = await getAllGroups();
-      final validation = ValidationService.validateGroupName(groupName, allGroups);
+      final validation =
+          ValidationService.validateGroupName(groupName, allGroups);
       if (validation.hasError) {
         throw Exception(validation.errorMessage);
       }
-      
+
       final newGroup = PurchaseGroup(
         groupId: groupId,
         groupName: groupName,
-        ownerUid: currentUser?.uid ?? member.memberId,
-        ownerName: member.name,
-        ownerEmail: currentUser?.email ?? member.contact,
+        ownerUid: currentUser?.uid ?? member.uid,
         members: [member],
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
-      
+
       await _groupsCollection.doc(groupId).set({
         'groupName': groupName,
         'ownerUid': newGroup.ownerUid,
@@ -143,7 +150,7 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      
+
       developer.log('🆕 Firestore: グループ作成: $groupName ($groupId)');
       return newGroup;
     } catch (e) {
@@ -157,12 +164,15 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
     try {
       await _groupsCollection.doc(groupId).delete();
       developer.log('🗑️ Firestore: グループ削除: $groupId');
-      
+
       // 削除したグループを返す（削除されたことを示すため）
       return PurchaseGroup(
         groupId: groupId,
         groupName: 'Deleted Group',
+        ownerUid: '',
         members: [],
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
     } catch (e) {
       developer.log('❌ Firestore: グループ削除エラー: $e');
@@ -171,7 +181,8 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
   }
 
   @override
-  Future<PurchaseGroup> setMemberId(String oldId, String newId, String? contact) async {
+  Future<PurchaseGroup> setMemberId(
+      String oldId, String newId, String? contact) async {
     // TODO: Firestore実装
     throw UnimplementedError('setMemberId not implemented for Firestore yet');
   }
@@ -195,13 +206,15 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
     try {
       await _groupsCollection.doc(groupId).update({
         'groupName': group.groupName,
-        'ownerName': group.ownerName,
-        'ownerEmail': group.ownerEmail,
-        'members': group.members?.map((m) => _memberToMap(m)).toList() ?? [],
-        'memberEmails': group.members?.map((m) => m.contact).toList() ?? [],
+        'ownerUid': group.ownerUid,
+        'members': group.members.map((m) => _memberToMap(m)).toList(),
+        'memberEmails': group.members
+            .map((m) => m.contact)
+            .where((c) => c != null)
+            .toList(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      
+
       developer.log('🔄 Firestore: グループ更新: $groupId');
       return group;
     } catch (e) {
@@ -213,10 +226,13 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
   @override
   Future<PurchaseGroup> getOrCreateMemberPool() async {
     // TODO: Firestore対応
-    return const PurchaseGroup(
+    return PurchaseGroup(
       groupId: 'memberPool',
       groupName: 'Member Pool',
+      ownerUid: '',
       members: [],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     );
   }
 
@@ -242,22 +258,22 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
   Future<PurchaseGroup> _createDefaultGroup() async {
     final currentUser = _auth.currentUser;
     const groupId = 'default_group';
-    
+
     final defaultMember = PurchaseGroupMember(
-      memberId: currentUser?.uid ?? 'defaultUser',
-      name: currentUser?.displayName ?? 'ユーザー',
-      contact: currentUser?.email ?? 'user@example.com',
+      uid: currentUser?.uid ?? 'defaultUser',
+      displayName: currentUser?.displayName ?? 'ユーザー',
+      contact: currentUser?.email,
       role: PurchaseGroupRole.owner,
-      isSignedIn: currentUser != null,
+      joinedAt: DateTime.now(),
     );
-    
+
     return PurchaseGroup(
       groupId: groupId,
       groupName: 'あなたのグループ',
       ownerUid: currentUser?.uid ?? 'defaultUser',
-      ownerName: defaultMember.name,
-      ownerEmail: defaultMember.contact,
       members: [defaultMember],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     );
   }
 
@@ -271,9 +287,13 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
       groupId: data['groupId'] ?? '',
       groupName: data['groupName'] ?? '',
       ownerUid: data['ownerUid'] ?? '',
-      ownerName: data['ownerName'] ?? '',
-      ownerEmail: data['ownerEmail'] ?? '',
       members: _parseMembers(data['members'] ?? []),
+      createdAt: data['createdAt'] != null
+          ? (data['createdAt'] as Timestamp).toDate()
+          : DateTime.now(),
+      updatedAt: data['updatedAt'] != null
+          ? (data['updatedAt'] as Timestamp).toDate()
+          : DateTime.now(),
     );
   }
 
@@ -281,29 +301,36 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
     return membersData.map((memberData) {
       if (memberData is Map<String, dynamic>) {
         return PurchaseGroupMember(
-          memberId: memberData['memberId'] ?? '',
-          name: memberData['name'] ?? '',
-          contact: memberData['contact'] ?? '',
+          uid: memberData['uid'] ?? memberData['memberId'] ?? '',
+          displayName: memberData['displayName'] ?? memberData['name'] ?? '',
+          contact: memberData['contact'],
           role: _parseRole(memberData['role']),
-          isSignedIn: memberData['isSignedIn'] ?? false,
+          joinedAt: memberData['joinedAt'] != null
+              ? (memberData['joinedAt'] as Timestamp).toDate()
+              : null,
         );
       }
       return PurchaseGroupMember.create(
-        name: 'Unknown',
-        contact: 'unknown@example.com',
+        uid: 'unknown_${DateTime.now().millisecondsSinceEpoch}',
+        displayName: 'Unknown',
         role: PurchaseGroupRole.member,
       );
     }).toList();
   }
 
   Map<String, dynamic> _memberToMap(PurchaseGroupMember member) {
-    return {
-      'memberId': member.memberId,
-      'name': member.name,
-      'contact': member.contact,
+    final map = <String, dynamic>{
+      'uid': member.uid,
+      'displayName': member.displayName,
       'role': member.role.name,
-      'isSignedIn': member.isSignedIn,
     };
+    if (member.contact != null) {
+      map['contact'] = member.contact!;
+    }
+    if (member.joinedAt != null) {
+      map['joinedAt'] = Timestamp.fromDate(member.joinedAt!);
+    }
+    return map;
   }
 
   PurchaseGroupRole _parseRole(dynamic roleData) {
