@@ -62,7 +62,8 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
             onSelected: (value) {
               switch (value) {
                 case 'delete_group':
-                  if (selectedGroupId != 'default_group') {
+                  if (selectedGroupId != null &&
+                      selectedGroupId != 'default_group') {
                     _showDeleteGroupDialog(context, selectedGroupId);
                   }
                   break;

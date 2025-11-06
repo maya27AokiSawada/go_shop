@@ -7,6 +7,7 @@ import '../widgets/auth_panel_widget.dart';
 import '../widgets/user_name_panel_widget.dart';
 import '../widgets/news_and_ads_panel_widget.dart';
 import '../widgets/test_scenario_widget.dart';
+import '../services/user_initialization_service.dart';
 import '../utils/app_logger.dart';
 
 class HomePage extends ConsumerStatefulWidget {
@@ -59,6 +60,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
+    final syncStatus = ref.watch(firestoreSyncStatusProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -112,6 +114,75 @@ class _HomePageState extends ConsumerState<HomePage> {
                     ],
                   ),
                 ),
+
+                const SizedBox(height: 12),
+
+                // Firestore同期状態表示（サインイン済みの場合のみ）
+                if (isAuthenticated && syncStatus != 'idle') ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: syncStatus == 'syncing'
+                          ? Colors.orange.shade50
+                          : syncStatus == 'completed'
+                              ? Colors.green.shade50
+                              : Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: syncStatus == 'syncing'
+                            ? Colors.orange.shade200
+                            : syncStatus == 'completed'
+                                ? Colors.green.shade200
+                                : Colors.red.shade200,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          syncStatus == 'syncing'
+                              ? Icons.sync
+                              : syncStatus == 'completed'
+                                  ? Icons.check_circle
+                                  : Icons.error,
+                          color: syncStatus == 'syncing'
+                              ? Colors.orange
+                              : syncStatus == 'completed'
+                                  ? Colors.green
+                                  : Colors.red,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            syncStatus == 'syncing'
+                                ? 'Firestore同期中...'
+                                : syncStatus == 'completed'
+                                    ? 'Firestore同期完了'
+                                    : 'Firestore同期エラー',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: syncStatus == 'syncing'
+                                  ? Colors.orange.shade800
+                                  : syncStatus == 'completed'
+                                      ? Colors.green.shade800
+                                      : Colors.red.shade800,
+                            ),
+                          ),
+                        ),
+                        if (syncStatus == 'syncing')
+                          const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
 
                 const SizedBox(height: 20),
 

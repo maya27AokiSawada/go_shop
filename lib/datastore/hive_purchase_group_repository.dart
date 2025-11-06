@@ -99,14 +99,15 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
       // 安全なBox取得（再試行機能付き）
       final box = await _boxAsync;
       final groups = box.values.toList();
-      // 隠しグループを除外
-      final visibleGroups =
-          groups.where((group) => group.groupId != '__member_pool__').toList();
+      // 隠しグループと削除済みグループを除外
+      final visibleGroups = groups
+          .where(
+              (group) => group.groupId != '__member_pool__' && !group.isDeleted)
+          .toList();
 
-      developer
-          .log('📋 [HIVE_REPO] getAllGroups: ${visibleGroups.length}グループ取得');
+      developer.log(
+          '📋 [HIVE_REPO] getAllGroups: ${visibleGroups.length}グループ取得 (削除済み除外)');
 
-      // ✅ フィルタリングはAllGroupsNotifierで行うため、ここでは全グループを返す
       return visibleGroups;
     } on StateError catch (e) {
       developer.log(
@@ -321,9 +322,15 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
         throw Exception('Group not found: $groupId');
       }
 
-      await box.delete(groupId);
-      developer.log('🚫 グループ削除: ${group.groupName} ($groupId)');
-      return group;
+      // 論理削除: isDeletedフラグを立てる（物理削除はしない）
+      final deletedGroup = group.copyWith(
+        isDeleted: true,
+        updatedAt: DateTime.now(),
+      );
+      await box.put(groupId, deletedGroup);
+
+      developer.log('🚫 グループを論理削除: ${group.groupName} ($groupId)');
+      return deletedGroup;
     } catch (e) {
       developer.log('❌ グループ削除エラー: $e');
       rethrow;

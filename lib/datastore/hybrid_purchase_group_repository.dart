@@ -7,6 +7,7 @@ import '../datastore/purchase_group_repository.dart';
 import '../datastore/hive_purchase_group_repository.dart';
 import '../datastore/firestore_purchase_group_repository.dart';
 import '../providers/hive_provider.dart';
+import '../providers/firestore_provider.dart';
 import '../flavors.dart';
 
 /// 🛡️ 初期化ステータス定義
@@ -95,8 +96,9 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
       // 複数層の安全網でFirestore初期化
       await Future.delayed(const Duration(milliseconds: 500)); // 安定化待機
 
-      developer.log('� [HYBRID_REPO] FirestorePurchaseGroupRepository作成試行...');
-      _firestoreRepo = FirestorePurchaseGroupRepository(_ref);
+      developer.log('🔥 [HYBRID_REPO] FirestorePurchaseGroupRepository作成試行...');
+      final firestore = _ref.read(firestoreProvider);
+      _firestoreRepo = FirestorePurchaseGroupRepository(firestore);
 
       // 初期化後のヘルスチェック
       await Future.delayed(const Duration(milliseconds: 100));

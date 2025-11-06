@@ -43,11 +43,11 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
       // TODO: shoppingListIdsがなくなったため、招待ロジックを再検討する必要がある。
       // とりあえず空文字を渡してビルドエラーを回避する。
       final invitationData = await qrService.createQRInvitationData(
-  shoppingListId: '', // widget.group.shoppingListIds?.first ?? '',
-  purchaseGroupId: widget.group.groupId,
-  groupName: widget.group.groupName,
-  groupOwnerUid: widget.group.ownerUid ?? '',
-  invitationType: _invitationType,
+        shoppingListId: '', // widget.group.shoppingListIds?.first ?? '',
+        purchaseGroupId: widget.group.groupId,
+        groupName: widget.group.groupName,
+        groupOwnerUid: widget.group.ownerUid ?? '',
+        invitationType: _invitationType,
       );
 
       final qrData = jsonEncode(invitationData);
