@@ -21,15 +21,30 @@ PurchaseGroupMember _$PurchaseGroupMemberFromJson(Map<String, dynamic> json) {
 /// @nodoc
 mixin _$PurchaseGroupMember {
   @HiveField(0)
-  String get uid => throw _privateConstructorUsedError; // Firebase UID
+  String get memberId => throw _privateConstructorUsedError;
   @HiveField(1)
-  String get displayName => throw _privateConstructorUsedError; // 表示名
+  String get name => throw _privateConstructorUsedError;
   @HiveField(2)
-  PurchaseGroupRole get role => throw _privateConstructorUsedError; // 権限
+  String get contact => throw _privateConstructorUsedError; // email または phone
   @HiveField(3)
-  DateTime? get joinedAt => throw _privateConstructorUsedError; // 参加日時
+  PurchaseGroupRole get role => throw _privateConstructorUsedError;
   @HiveField(4)
-  String? get contact => throw _privateConstructorUsedError;
+  bool get isSignedIn => throw _privateConstructorUsedError; // 新しい招待管理フィールド
+  @HiveField(9)
+  InvitationStatus get invitationStatus => throw _privateConstructorUsedError;
+  @HiveField(10)
+  String? get securityKey => throw _privateConstructorUsedError; // 招待時のセキュリティキー
+  @HiveField(7)
+  DateTime? get invitedAt => throw _privateConstructorUsedError; // 招待日時
+  @HiveField(8)
+  DateTime? get acceptedAt => throw _privateConstructorUsedError; // 受諾日時
+// 既存のフィールドは後方互換性のため残す（非推奨）
+  @HiveField(5)
+  @Deprecated('Use invitationStatus instead')
+  bool get isInvited => throw _privateConstructorUsedError;
+  @HiveField(6)
+  @Deprecated('Use invitationStatus instead')
+  bool get isInvitationAccepted => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
@@ -44,11 +59,19 @@ abstract class $PurchaseGroupMemberCopyWith<$Res> {
       _$PurchaseGroupMemberCopyWithImpl<$Res, PurchaseGroupMember>;
   @useResult
   $Res call(
-      {@HiveField(0) String uid,
-      @HiveField(1) String displayName,
-      @HiveField(2) PurchaseGroupRole role,
-      @HiveField(3) DateTime? joinedAt,
-      @HiveField(4) String? contact});
+      {@HiveField(0) String memberId,
+      @HiveField(1) String name,
+      @HiveField(2) String contact,
+      @HiveField(3) PurchaseGroupRole role,
+      @HiveField(4) bool isSignedIn,
+      @HiveField(9) InvitationStatus invitationStatus,
+      @HiveField(10) String? securityKey,
+      @HiveField(7) DateTime? invitedAt,
+      @HiveField(8) DateTime? acceptedAt,
+      @HiveField(5) @Deprecated('Use invitationStatus instead') bool isInvited,
+      @HiveField(6)
+      @Deprecated('Use invitationStatus instead')
+      bool isInvitationAccepted});
 }
 
 /// @nodoc
@@ -64,33 +87,63 @@ class _$PurchaseGroupMemberCopyWithImpl<$Res, $Val extends PurchaseGroupMember>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? uid = null,
-    Object? displayName = null,
+    Object? memberId = null,
+    Object? name = null,
+    Object? contact = null,
     Object? role = null,
-    Object? joinedAt = freezed,
-    Object? contact = freezed,
+    Object? isSignedIn = null,
+    Object? invitationStatus = null,
+    Object? securityKey = freezed,
+    Object? invitedAt = freezed,
+    Object? acceptedAt = freezed,
+    Object? isInvited = null,
+    Object? isInvitationAccepted = null,
   }) {
     return _then(_value.copyWith(
-      uid: null == uid
-          ? _value.uid
-          : uid // ignore: cast_nullable_to_non_nullable
+      memberId: null == memberId
+          ? _value.memberId
+          : memberId // ignore: cast_nullable_to_non_nullable
               as String,
-      displayName: null == displayName
-          ? _value.displayName
-          : displayName // ignore: cast_nullable_to_non_nullable
+      name: null == name
+          ? _value.name
+          : name // ignore: cast_nullable_to_non_nullable
+              as String,
+      contact: null == contact
+          ? _value.contact
+          : contact // ignore: cast_nullable_to_non_nullable
               as String,
       role: null == role
           ? _value.role
           : role // ignore: cast_nullable_to_non_nullable
               as PurchaseGroupRole,
-      joinedAt: freezed == joinedAt
-          ? _value.joinedAt
-          : joinedAt // ignore: cast_nullable_to_non_nullable
-              as DateTime?,
-      contact: freezed == contact
-          ? _value.contact
-          : contact // ignore: cast_nullable_to_non_nullable
+      isSignedIn: null == isSignedIn
+          ? _value.isSignedIn
+          : isSignedIn // ignore: cast_nullable_to_non_nullable
+              as bool,
+      invitationStatus: null == invitationStatus
+          ? _value.invitationStatus
+          : invitationStatus // ignore: cast_nullable_to_non_nullable
+              as InvitationStatus,
+      securityKey: freezed == securityKey
+          ? _value.securityKey
+          : securityKey // ignore: cast_nullable_to_non_nullable
               as String?,
+      invitedAt: freezed == invitedAt
+          ? _value.invitedAt
+          : invitedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      acceptedAt: freezed == acceptedAt
+          ? _value.acceptedAt
+          : acceptedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      isInvited: null == isInvited
+          ? _value.isInvited
+          : isInvited // ignore: cast_nullable_to_non_nullable
+              as bool,
+      isInvitationAccepted: null == isInvitationAccepted
+          ? _value.isInvitationAccepted
+          : isInvitationAccepted // ignore: cast_nullable_to_non_nullable
+              as bool,
     ) as $Val);
   }
 }
@@ -104,11 +157,19 @@ abstract class _$$PurchaseGroupMemberImplCopyWith<$Res>
   @override
   @useResult
   $Res call(
-      {@HiveField(0) String uid,
-      @HiveField(1) String displayName,
-      @HiveField(2) PurchaseGroupRole role,
-      @HiveField(3) DateTime? joinedAt,
-      @HiveField(4) String? contact});
+      {@HiveField(0) String memberId,
+      @HiveField(1) String name,
+      @HiveField(2) String contact,
+      @HiveField(3) PurchaseGroupRole role,
+      @HiveField(4) bool isSignedIn,
+      @HiveField(9) InvitationStatus invitationStatus,
+      @HiveField(10) String? securityKey,
+      @HiveField(7) DateTime? invitedAt,
+      @HiveField(8) DateTime? acceptedAt,
+      @HiveField(5) @Deprecated('Use invitationStatus instead') bool isInvited,
+      @HiveField(6)
+      @Deprecated('Use invitationStatus instead')
+      bool isInvitationAccepted});
 }
 
 /// @nodoc
@@ -122,33 +183,63 @@ class __$$PurchaseGroupMemberImplCopyWithImpl<$Res>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? uid = null,
-    Object? displayName = null,
+    Object? memberId = null,
+    Object? name = null,
+    Object? contact = null,
     Object? role = null,
-    Object? joinedAt = freezed,
-    Object? contact = freezed,
+    Object? isSignedIn = null,
+    Object? invitationStatus = null,
+    Object? securityKey = freezed,
+    Object? invitedAt = freezed,
+    Object? acceptedAt = freezed,
+    Object? isInvited = null,
+    Object? isInvitationAccepted = null,
   }) {
     return _then(_$PurchaseGroupMemberImpl(
-      uid: null == uid
-          ? _value.uid
-          : uid // ignore: cast_nullable_to_non_nullable
+      memberId: null == memberId
+          ? _value.memberId
+          : memberId // ignore: cast_nullable_to_non_nullable
               as String,
-      displayName: null == displayName
-          ? _value.displayName
-          : displayName // ignore: cast_nullable_to_non_nullable
+      name: null == name
+          ? _value.name
+          : name // ignore: cast_nullable_to_non_nullable
+              as String,
+      contact: null == contact
+          ? _value.contact
+          : contact // ignore: cast_nullable_to_non_nullable
               as String,
       role: null == role
           ? _value.role
           : role // ignore: cast_nullable_to_non_nullable
               as PurchaseGroupRole,
-      joinedAt: freezed == joinedAt
-          ? _value.joinedAt
-          : joinedAt // ignore: cast_nullable_to_non_nullable
-              as DateTime?,
-      contact: freezed == contact
-          ? _value.contact
-          : contact // ignore: cast_nullable_to_non_nullable
+      isSignedIn: null == isSignedIn
+          ? _value.isSignedIn
+          : isSignedIn // ignore: cast_nullable_to_non_nullable
+              as bool,
+      invitationStatus: null == invitationStatus
+          ? _value.invitationStatus
+          : invitationStatus // ignore: cast_nullable_to_non_nullable
+              as InvitationStatus,
+      securityKey: freezed == securityKey
+          ? _value.securityKey
+          : securityKey // ignore: cast_nullable_to_non_nullable
               as String?,
+      invitedAt: freezed == invitedAt
+          ? _value.invitedAt
+          : invitedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      acceptedAt: freezed == acceptedAt
+          ? _value.acceptedAt
+          : acceptedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      isInvited: null == isInvited
+          ? _value.isInvited
+          : isInvited // ignore: cast_nullable_to_non_nullable
+              as bool,
+      isInvitationAccepted: null == isInvitationAccepted
+          ? _value.isInvitationAccepted
+          : isInvitationAccepted // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }
@@ -157,38 +248,75 @@ class __$$PurchaseGroupMemberImplCopyWithImpl<$Res>
 @JsonSerializable()
 class _$PurchaseGroupMemberImpl implements _PurchaseGroupMember {
   const _$PurchaseGroupMemberImpl(
-      {@HiveField(0) required this.uid,
-      @HiveField(1) required this.displayName,
-      @HiveField(2) required this.role,
-      @HiveField(3) this.joinedAt,
-      @HiveField(4) this.contact});
+      {@HiveField(0) this.memberId = '',
+      @HiveField(1) required this.name,
+      @HiveField(2) required this.contact,
+      @HiveField(3) required this.role,
+      @HiveField(4) this.isSignedIn = false,
+      @HiveField(9) this.invitationStatus = InvitationStatus.self,
+      @HiveField(10) this.securityKey,
+      @HiveField(7) this.invitedAt,
+      @HiveField(8) this.acceptedAt,
+      @HiveField(5)
+      @Deprecated('Use invitationStatus instead')
+      this.isInvited = false,
+      @HiveField(6)
+      @Deprecated('Use invitationStatus instead')
+      this.isInvitationAccepted = false});
 
   factory _$PurchaseGroupMemberImpl.fromJson(Map<String, dynamic> json) =>
       _$$PurchaseGroupMemberImplFromJson(json);
 
   @override
+  @JsonKey()
   @HiveField(0)
-  final String uid;
-// Firebase UID
+  final String memberId;
   @override
   @HiveField(1)
-  final String displayName;
-// 表示名
+  final String name;
   @override
   @HiveField(2)
-  final PurchaseGroupRole role;
-// 権限
+  final String contact;
+// email または phone
   @override
   @HiveField(3)
-  final DateTime? joinedAt;
-// 参加日時
+  final PurchaseGroupRole role;
   @override
+  @JsonKey()
   @HiveField(4)
-  final String? contact;
+  final bool isSignedIn;
+// 新しい招待管理フィールド
+  @override
+  @JsonKey()
+  @HiveField(9)
+  final InvitationStatus invitationStatus;
+  @override
+  @HiveField(10)
+  final String? securityKey;
+// 招待時のセキュリティキー
+  @override
+  @HiveField(7)
+  final DateTime? invitedAt;
+// 招待日時
+  @override
+  @HiveField(8)
+  final DateTime? acceptedAt;
+// 受諾日時
+// 既存のフィールドは後方互換性のため残す（非推奨）
+  @override
+  @JsonKey()
+  @HiveField(5)
+  @Deprecated('Use invitationStatus instead')
+  final bool isInvited;
+  @override
+  @JsonKey()
+  @HiveField(6)
+  @Deprecated('Use invitationStatus instead')
+  final bool isInvitationAccepted;
 
   @override
   String toString() {
-    return 'PurchaseGroupMember(uid: $uid, displayName: $displayName, role: $role, joinedAt: $joinedAt, contact: $contact)';
+    return 'PurchaseGroupMember(memberId: $memberId, name: $name, contact: $contact, role: $role, isSignedIn: $isSignedIn, invitationStatus: $invitationStatus, securityKey: $securityKey, invitedAt: $invitedAt, acceptedAt: $acceptedAt, isInvited: $isInvited, isInvitationAccepted: $isInvitationAccepted)';
   }
 
   @override
@@ -196,19 +324,42 @@ class _$PurchaseGroupMemberImpl implements _PurchaseGroupMember {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$PurchaseGroupMemberImpl &&
-            (identical(other.uid, uid) || other.uid == uid) &&
-            (identical(other.displayName, displayName) ||
-                other.displayName == displayName) &&
+            (identical(other.memberId, memberId) ||
+                other.memberId == memberId) &&
+            (identical(other.name, name) || other.name == name) &&
+            (identical(other.contact, contact) || other.contact == contact) &&
             (identical(other.role, role) || other.role == role) &&
-            (identical(other.joinedAt, joinedAt) ||
-                other.joinedAt == joinedAt) &&
-            (identical(other.contact, contact) || other.contact == contact));
+            (identical(other.isSignedIn, isSignedIn) ||
+                other.isSignedIn == isSignedIn) &&
+            (identical(other.invitationStatus, invitationStatus) ||
+                other.invitationStatus == invitationStatus) &&
+            (identical(other.securityKey, securityKey) ||
+                other.securityKey == securityKey) &&
+            (identical(other.invitedAt, invitedAt) ||
+                other.invitedAt == invitedAt) &&
+            (identical(other.acceptedAt, acceptedAt) ||
+                other.acceptedAt == acceptedAt) &&
+            (identical(other.isInvited, isInvited) ||
+                other.isInvited == isInvited) &&
+            (identical(other.isInvitationAccepted, isInvitationAccepted) ||
+                other.isInvitationAccepted == isInvitationAccepted));
   }
 
   @JsonKey(ignore: true)
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, uid, displayName, role, joinedAt, contact);
+  int get hashCode => Object.hash(
+      runtimeType,
+      memberId,
+      name,
+      contact,
+      role,
+      isSignedIn,
+      invitationStatus,
+      securityKey,
+      invitedAt,
+      acceptedAt,
+      isInvited,
+      isInvitationAccepted);
 
   @JsonKey(ignore: true)
   @override
@@ -227,260 +378,24 @@ class _$PurchaseGroupMemberImpl implements _PurchaseGroupMember {
 
 abstract class _PurchaseGroupMember implements PurchaseGroupMember {
   const factory _PurchaseGroupMember(
-      {@HiveField(0) required final String uid,
-      @HiveField(1) required final String displayName,
-      @HiveField(2) required final PurchaseGroupRole role,
-      @HiveField(3) final DateTime? joinedAt,
-      @HiveField(4) final String? contact}) = _$PurchaseGroupMemberImpl;
-
-  factory _PurchaseGroupMember.fromJson(Map<String, dynamic> json) =
-      _$PurchaseGroupMemberImpl.fromJson;
-
-  @override
-  @HiveField(0)
-  String get uid;
-  @override // Firebase UID
-  @HiveField(1)
-  String get displayName;
-  @override // 表示名
-  @HiveField(2)
-  PurchaseGroupRole get role;
-  @override // 権限
-  @HiveField(3)
-  DateTime? get joinedAt;
-  @override // 参加日時
-  @HiveField(4)
-  String? get contact;
-  @override
-  @JsonKey(ignore: true)
-  _$$PurchaseGroupMemberImplCopyWith<_$PurchaseGroupMemberImpl> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-LegacyPurchaseGroupMember _$LegacyPurchaseGroupMemberFromJson(
-    Map<String, dynamic> json) {
-  return _LegacyPurchaseGroupMember.fromJson(json);
-}
-
-/// @nodoc
-mixin _$LegacyPurchaseGroupMember {
-  @HiveField(0)
-  String get memberId => throw _privateConstructorUsedError;
-  @HiveField(1)
-  String get name => throw _privateConstructorUsedError;
-  @HiveField(2)
-  String get contact => throw _privateConstructorUsedError;
-  @HiveField(3)
-  PurchaseGroupRole get role => throw _privateConstructorUsedError;
-  @HiveField(4)
-  bool get isSignedIn => throw _privateConstructorUsedError;
-
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
-  $LegacyPurchaseGroupMemberCopyWith<LegacyPurchaseGroupMember> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class $LegacyPurchaseGroupMemberCopyWith<$Res> {
-  factory $LegacyPurchaseGroupMemberCopyWith(LegacyPurchaseGroupMember value,
-          $Res Function(LegacyPurchaseGroupMember) then) =
-      _$LegacyPurchaseGroupMemberCopyWithImpl<$Res, LegacyPurchaseGroupMember>;
-  @useResult
-  $Res call(
-      {@HiveField(0) String memberId,
-      @HiveField(1) String name,
-      @HiveField(2) String contact,
-      @HiveField(3) PurchaseGroupRole role,
-      @HiveField(4) bool isSignedIn});
-}
-
-/// @nodoc
-class _$LegacyPurchaseGroupMemberCopyWithImpl<$Res,
-        $Val extends LegacyPurchaseGroupMember>
-    implements $LegacyPurchaseGroupMemberCopyWith<$Res> {
-  _$LegacyPurchaseGroupMemberCopyWithImpl(this._value, this._then);
-
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
-
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? memberId = null,
-    Object? name = null,
-    Object? contact = null,
-    Object? role = null,
-    Object? isSignedIn = null,
-  }) {
-    return _then(_value.copyWith(
-      memberId: null == memberId
-          ? _value.memberId
-          : memberId // ignore: cast_nullable_to_non_nullable
-              as String,
-      name: null == name
-          ? _value.name
-          : name // ignore: cast_nullable_to_non_nullable
-              as String,
-      contact: null == contact
-          ? _value.contact
-          : contact // ignore: cast_nullable_to_non_nullable
-              as String,
-      role: null == role
-          ? _value.role
-          : role // ignore: cast_nullable_to_non_nullable
-              as PurchaseGroupRole,
-      isSignedIn: null == isSignedIn
-          ? _value.isSignedIn
-          : isSignedIn // ignore: cast_nullable_to_non_nullable
-              as bool,
-    ) as $Val);
-  }
-}
-
-/// @nodoc
-abstract class _$$LegacyPurchaseGroupMemberImplCopyWith<$Res>
-    implements $LegacyPurchaseGroupMemberCopyWith<$Res> {
-  factory _$$LegacyPurchaseGroupMemberImplCopyWith(
-          _$LegacyPurchaseGroupMemberImpl value,
-          $Res Function(_$LegacyPurchaseGroupMemberImpl) then) =
-      __$$LegacyPurchaseGroupMemberImplCopyWithImpl<$Res>;
-  @override
-  @useResult
-  $Res call(
-      {@HiveField(0) String memberId,
-      @HiveField(1) String name,
-      @HiveField(2) String contact,
-      @HiveField(3) PurchaseGroupRole role,
-      @HiveField(4) bool isSignedIn});
-}
-
-/// @nodoc
-class __$$LegacyPurchaseGroupMemberImplCopyWithImpl<$Res>
-    extends _$LegacyPurchaseGroupMemberCopyWithImpl<$Res,
-        _$LegacyPurchaseGroupMemberImpl>
-    implements _$$LegacyPurchaseGroupMemberImplCopyWith<$Res> {
-  __$$LegacyPurchaseGroupMemberImplCopyWithImpl(
-      _$LegacyPurchaseGroupMemberImpl _value,
-      $Res Function(_$LegacyPurchaseGroupMemberImpl) _then)
-      : super(_value, _then);
-
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? memberId = null,
-    Object? name = null,
-    Object? contact = null,
-    Object? role = null,
-    Object? isSignedIn = null,
-  }) {
-    return _then(_$LegacyPurchaseGroupMemberImpl(
-      memberId: null == memberId
-          ? _value.memberId
-          : memberId // ignore: cast_nullable_to_non_nullable
-              as String,
-      name: null == name
-          ? _value.name
-          : name // ignore: cast_nullable_to_non_nullable
-              as String,
-      contact: null == contact
-          ? _value.contact
-          : contact // ignore: cast_nullable_to_non_nullable
-              as String,
-      role: null == role
-          ? _value.role
-          : role // ignore: cast_nullable_to_non_nullable
-              as PurchaseGroupRole,
-      isSignedIn: null == isSignedIn
-          ? _value.isSignedIn
-          : isSignedIn // ignore: cast_nullable_to_non_nullable
-              as bool,
-    ));
-  }
-}
-
-/// @nodoc
-@JsonSerializable()
-class _$LegacyPurchaseGroupMemberImpl implements _LegacyPurchaseGroupMember {
-  const _$LegacyPurchaseGroupMemberImpl(
-      {@HiveField(0) this.memberId = '',
-      @HiveField(1) required this.name,
-      @HiveField(2) required this.contact,
-      @HiveField(3) required this.role,
-      @HiveField(4) this.isSignedIn = false});
-
-  factory _$LegacyPurchaseGroupMemberImpl.fromJson(Map<String, dynamic> json) =>
-      _$$LegacyPurchaseGroupMemberImplFromJson(json);
-
-  @override
-  @JsonKey()
-  @HiveField(0)
-  final String memberId;
-  @override
-  @HiveField(1)
-  final String name;
-  @override
-  @HiveField(2)
-  final String contact;
-  @override
-  @HiveField(3)
-  final PurchaseGroupRole role;
-  @override
-  @JsonKey()
-  @HiveField(4)
-  final bool isSignedIn;
-
-  @override
-  String toString() {
-    return 'LegacyPurchaseGroupMember(memberId: $memberId, name: $name, contact: $contact, role: $role, isSignedIn: $isSignedIn)';
-  }
-
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$LegacyPurchaseGroupMemberImpl &&
-            (identical(other.memberId, memberId) ||
-                other.memberId == memberId) &&
-            (identical(other.name, name) || other.name == name) &&
-            (identical(other.contact, contact) || other.contact == contact) &&
-            (identical(other.role, role) || other.role == role) &&
-            (identical(other.isSignedIn, isSignedIn) ||
-                other.isSignedIn == isSignedIn));
-  }
-
-  @JsonKey(ignore: true)
-  @override
-  int get hashCode =>
-      Object.hash(runtimeType, memberId, name, contact, role, isSignedIn);
-
-  @JsonKey(ignore: true)
-  @override
-  @pragma('vm:prefer-inline')
-  _$$LegacyPurchaseGroupMemberImplCopyWith<_$LegacyPurchaseGroupMemberImpl>
-      get copyWith => __$$LegacyPurchaseGroupMemberImplCopyWithImpl<
-          _$LegacyPurchaseGroupMemberImpl>(this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$LegacyPurchaseGroupMemberImplToJson(
-      this,
-    );
-  }
-}
-
-abstract class _LegacyPurchaseGroupMember implements LegacyPurchaseGroupMember {
-  const factory _LegacyPurchaseGroupMember(
       {@HiveField(0) final String memberId,
       @HiveField(1) required final String name,
       @HiveField(2) required final String contact,
       @HiveField(3) required final PurchaseGroupRole role,
-      @HiveField(4) final bool isSignedIn}) = _$LegacyPurchaseGroupMemberImpl;
+      @HiveField(4) final bool isSignedIn,
+      @HiveField(9) final InvitationStatus invitationStatus,
+      @HiveField(10) final String? securityKey,
+      @HiveField(7) final DateTime? invitedAt,
+      @HiveField(8) final DateTime? acceptedAt,
+      @HiveField(5)
+      @Deprecated('Use invitationStatus instead')
+      final bool isInvited,
+      @HiveField(6)
+      @Deprecated('Use invitationStatus instead')
+      final bool isInvitationAccepted}) = _$PurchaseGroupMemberImpl;
 
-  factory _LegacyPurchaseGroupMember.fromJson(Map<String, dynamic> json) =
-      _$LegacyPurchaseGroupMemberImpl.fromJson;
+  factory _PurchaseGroupMember.fromJson(Map<String, dynamic> json) =
+      _$PurchaseGroupMemberImpl.fromJson;
 
   @override
   @HiveField(0)
@@ -491,16 +406,37 @@ abstract class _LegacyPurchaseGroupMember implements LegacyPurchaseGroupMember {
   @override
   @HiveField(2)
   String get contact;
-  @override
+  @override // email または phone
   @HiveField(3)
   PurchaseGroupRole get role;
   @override
   @HiveField(4)
   bool get isSignedIn;
+  @override // 新しい招待管理フィールド
+  @HiveField(9)
+  InvitationStatus get invitationStatus;
+  @override
+  @HiveField(10)
+  String? get securityKey;
+  @override // 招待時のセキュリティキー
+  @HiveField(7)
+  DateTime? get invitedAt;
+  @override // 招待日時
+  @HiveField(8)
+  DateTime? get acceptedAt;
+  @override // 受諾日時
+// 既存のフィールドは後方互換性のため残す（非推奨）
+  @HiveField(5)
+  @Deprecated('Use invitationStatus instead')
+  bool get isInvited;
+  @override
+  @HiveField(6)
+  @Deprecated('Use invitationStatus instead')
+  bool get isInvitationAccepted;
   @override
   @JsonKey(ignore: true)
-  _$$LegacyPurchaseGroupMemberImplCopyWith<_$LegacyPurchaseGroupMemberImpl>
-      get copyWith => throw _privateConstructorUsedError;
+  _$$PurchaseGroupMemberImplCopyWith<_$PurchaseGroupMemberImpl> get copyWith =>
+      throw _privateConstructorUsedError;
 }
 
 PurchaseGroup _$PurchaseGroupFromJson(Map<String, dynamic> json) {
@@ -510,17 +446,16 @@ PurchaseGroup _$PurchaseGroupFromJson(Map<String, dynamic> json) {
 /// @nodoc
 mixin _$PurchaseGroup {
   @HiveField(0)
-  String get groupId => throw _privateConstructorUsedError;
-  @HiveField(1)
   String get groupName => throw _privateConstructorUsedError;
+  @HiveField(1)
+  String get groupId => throw _privateConstructorUsedError;
   @HiveField(2)
-  String get ownerUid => throw _privateConstructorUsedError;
+  String? get ownerName => throw _privateConstructorUsedError;
   @HiveField(3)
-  List<PurchaseGroupMember> get members => throw _privateConstructorUsedError;
+  String? get ownerEmail => throw _privateConstructorUsedError;
   @HiveField(4)
-  DateTime? get createdAt => throw _privateConstructorUsedError;
+  String? get ownerUid => throw _privateConstructorUsedError;
   @HiveField(5)
-<<<<<<< HEAD
   List<PurchaseGroupMember>? get members => throw _privateConstructorUsedError;
   @HiveField(6)
   String? get ownerMessage =>
@@ -540,8 +475,6 @@ mixin _$PurchaseGroup {
   @HiveField(16)
   DateTime? get createdAt => throw _privateConstructorUsedError;
   @HiveField(17)
-=======
->>>>>>> 093bd883a86c3ba9297d4b1df48adafb766abfe7
   DateTime? get updatedAt => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -557,7 +490,6 @@ abstract class $PurchaseGroupCopyWith<$Res> {
       _$PurchaseGroupCopyWithImpl<$Res, PurchaseGroup>;
   @useResult
   $Res call(
-<<<<<<< HEAD
       {@HiveField(0) String groupName,
       @HiveField(1) String groupId,
       @HiveField(2) String? ownerName,
@@ -572,14 +504,6 @@ abstract class $PurchaseGroupCopyWith<$Res> {
       @HiveField(15) DateTime? lastAccessedAt,
       @HiveField(16) DateTime? createdAt,
       @HiveField(17) DateTime? updatedAt});
-=======
-      {@HiveField(0) String groupId,
-      @HiveField(1) String groupName,
-      @HiveField(2) String ownerUid,
-      @HiveField(3) List<PurchaseGroupMember> members,
-      @HiveField(4) DateTime? createdAt,
-      @HiveField(5) DateTime? updatedAt});
->>>>>>> 093bd883a86c3ba9297d4b1df48adafb766abfe7
 }
 
 /// @nodoc
@@ -595,8 +519,8 @@ class _$PurchaseGroupCopyWithImpl<$Res, $Val extends PurchaseGroup>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
+    Object? groupName = null,
     Object? groupId = null,
-<<<<<<< HEAD
     Object? ownerName = freezed,
     Object? ownerEmail = freezed,
     Object? ownerUid = freezed,
@@ -607,31 +531,33 @@ class _$PurchaseGroupCopyWithImpl<$Res, $Val extends PurchaseGroup>
     Object? acceptedUid = null,
     Object? isDeleted = null,
     Object? lastAccessedAt = freezed,
-=======
-    Object? groupName = null,
-    Object? ownerUid = null,
-    Object? members = null,
->>>>>>> 093bd883a86c3ba9297d4b1df48adafb766abfe7
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
   }) {
     return _then(_value.copyWith(
-      groupId: null == groupId
-          ? _value.groupId
-          : groupId // ignore: cast_nullable_to_non_nullable
-              as String,
       groupName: null == groupName
           ? _value.groupName
           : groupName // ignore: cast_nullable_to_non_nullable
               as String,
-      ownerUid: null == ownerUid
+      groupId: null == groupId
+          ? _value.groupId
+          : groupId // ignore: cast_nullable_to_non_nullable
+              as String,
+      ownerName: freezed == ownerName
+          ? _value.ownerName
+          : ownerName // ignore: cast_nullable_to_non_nullable
+              as String?,
+      ownerEmail: freezed == ownerEmail
+          ? _value.ownerEmail
+          : ownerEmail // ignore: cast_nullable_to_non_nullable
+              as String?,
+      ownerUid: freezed == ownerUid
           ? _value.ownerUid
           : ownerUid // ignore: cast_nullable_to_non_nullable
-              as String,
-      members: null == members
+              as String?,
+      members: freezed == members
           ? _value.members
           : members // ignore: cast_nullable_to_non_nullable
-<<<<<<< HEAD
               as List<PurchaseGroupMember>?,
       ownerMessage: freezed == ownerMessage
           ? _value.ownerMessage
@@ -657,9 +583,6 @@ class _$PurchaseGroupCopyWithImpl<$Res, $Val extends PurchaseGroup>
           ? _value.lastAccessedAt
           : lastAccessedAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
-=======
-              as List<PurchaseGroupMember>,
->>>>>>> 093bd883a86c3ba9297d4b1df48adafb766abfe7
       createdAt: freezed == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -681,7 +604,6 @@ abstract class _$$PurchaseGroupImplCopyWith<$Res>
   @override
   @useResult
   $Res call(
-<<<<<<< HEAD
       {@HiveField(0) String groupName,
       @HiveField(1) String groupId,
       @HiveField(2) String? ownerName,
@@ -696,14 +618,6 @@ abstract class _$$PurchaseGroupImplCopyWith<$Res>
       @HiveField(15) DateTime? lastAccessedAt,
       @HiveField(16) DateTime? createdAt,
       @HiveField(17) DateTime? updatedAt});
-=======
-      {@HiveField(0) String groupId,
-      @HiveField(1) String groupName,
-      @HiveField(2) String ownerUid,
-      @HiveField(3) List<PurchaseGroupMember> members,
-      @HiveField(4) DateTime? createdAt,
-      @HiveField(5) DateTime? updatedAt});
->>>>>>> 093bd883a86c3ba9297d4b1df48adafb766abfe7
 }
 
 /// @nodoc
@@ -717,8 +631,8 @@ class __$$PurchaseGroupImplCopyWithImpl<$Res>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
+    Object? groupName = null,
     Object? groupId = null,
-<<<<<<< HEAD
     Object? ownerName = freezed,
     Object? ownerEmail = freezed,
     Object? ownerUid = freezed,
@@ -729,31 +643,33 @@ class __$$PurchaseGroupImplCopyWithImpl<$Res>
     Object? acceptedUid = null,
     Object? isDeleted = null,
     Object? lastAccessedAt = freezed,
-=======
-    Object? groupName = null,
-    Object? ownerUid = null,
-    Object? members = null,
->>>>>>> 093bd883a86c3ba9297d4b1df48adafb766abfe7
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
   }) {
     return _then(_$PurchaseGroupImpl(
-      groupId: null == groupId
-          ? _value.groupId
-          : groupId // ignore: cast_nullable_to_non_nullable
-              as String,
       groupName: null == groupName
           ? _value.groupName
           : groupName // ignore: cast_nullable_to_non_nullable
               as String,
-      ownerUid: null == ownerUid
+      groupId: null == groupId
+          ? _value.groupId
+          : groupId // ignore: cast_nullable_to_non_nullable
+              as String,
+      ownerName: freezed == ownerName
+          ? _value.ownerName
+          : ownerName // ignore: cast_nullable_to_non_nullable
+              as String?,
+      ownerEmail: freezed == ownerEmail
+          ? _value.ownerEmail
+          : ownerEmail // ignore: cast_nullable_to_non_nullable
+              as String?,
+      ownerUid: freezed == ownerUid
           ? _value.ownerUid
           : ownerUid // ignore: cast_nullable_to_non_nullable
-              as String,
-      members: null == members
+              as String?,
+      members: freezed == members
           ? _value._members
           : members // ignore: cast_nullable_to_non_nullable
-<<<<<<< HEAD
               as List<PurchaseGroupMember>?,
       ownerMessage: freezed == ownerMessage
           ? _value.ownerMessage
@@ -779,9 +695,6 @@ class __$$PurchaseGroupImplCopyWithImpl<$Res>
           ? _value.lastAccessedAt
           : lastAccessedAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
-=======
-              as List<PurchaseGroupMember>,
->>>>>>> 093bd883a86c3ba9297d4b1df48adafb766abfe7
       createdAt: freezed == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -798,7 +711,6 @@ class __$$PurchaseGroupImplCopyWithImpl<$Res>
 @JsonSerializable()
 class _$PurchaseGroupImpl extends _PurchaseGroup {
   const _$PurchaseGroupImpl(
-<<<<<<< HEAD
       {@HiveField(0) required this.groupName,
       @HiveField(1) required this.groupId,
       @HiveField(2) this.ownerName,
@@ -813,15 +725,9 @@ class _$PurchaseGroupImpl extends _PurchaseGroup {
       @HiveField(15) this.lastAccessedAt,
       @HiveField(16) this.createdAt,
       @HiveField(17) this.updatedAt})
-=======
-      {@HiveField(0) required this.groupId,
-      @HiveField(1) required this.groupName,
-      @HiveField(2) required this.ownerUid,
-      @HiveField(3) final List<PurchaseGroupMember> members = const [],
-      @HiveField(4) this.createdAt,
-      @HiveField(5) this.updatedAt})
->>>>>>> 093bd883a86c3ba9297d4b1df48adafb766abfe7
       : _members = members,
+        _allowedUid = allowedUid,
+        _acceptedUid = acceptedUid,
         super._();
 
   factory _$PurchaseGroupImpl.fromJson(Map<String, dynamic> json) =>
@@ -829,29 +735,60 @@ class _$PurchaseGroupImpl extends _PurchaseGroup {
 
   @override
   @HiveField(0)
-  final String groupId;
-  @override
-  @HiveField(1)
   final String groupName;
   @override
-  @HiveField(2)
-  final String ownerUid;
-  final List<PurchaseGroupMember> _members;
+  @HiveField(1)
+  final String groupId;
   @override
-  @JsonKey()
+  @HiveField(2)
+  final String? ownerName;
+  @override
   @HiveField(3)
-  List<PurchaseGroupMember> get members {
+  final String? ownerEmail;
+  @override
+  @HiveField(4)
+  final String? ownerUid;
+  final List<PurchaseGroupMember>? _members;
+  @override
+  @HiveField(5)
+  List<PurchaseGroupMember>? get members {
+    final value = _members;
+    if (value == null) return null;
     if (_members is EqualUnmodifiableListView) return _members;
     // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_members);
+    return EqualUnmodifiableListView(value);
   }
 
   @override
-  @HiveField(4)
-  final DateTime? createdAt;
+  @HiveField(6)
+  final String? ownerMessage;
+// @HiveField(7) @Default([]) List<String> shoppingListIds, // サブコレクション化のため不要に
+  final List<String> _allowedUid;
+// @HiveField(7) @Default([]) List<String> shoppingListIds, // サブコレクション化のため不要に
   @override
-  @HiveField(5)
-  final DateTime? updatedAt;
+  @JsonKey()
+  @HiveField(11)
+  List<String> get allowedUid {
+    if (_allowedUid is EqualUnmodifiableListView) return _allowedUid;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_allowedUid);
+  }
+
+  @override
+  @JsonKey()
+  @HiveField(12)
+  final bool isSecret;
+// acceptedUid: [{uid: securityKey}] のような構造を想定
+  final List<Map<String, String>> _acceptedUid;
+// acceptedUid: [{uid: securityKey}] のような構造を想定
+  @override
+  @JsonKey()
+  @HiveField(13)
+  List<Map<String, String>> get acceptedUid {
+    if (_acceptedUid is EqualUnmodifiableListView) return _acceptedUid;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_acceptedUid);
+  }
 
 // 削除フラグと最終アクセス日時
   @override
@@ -870,11 +807,7 @@ class _$PurchaseGroupImpl extends _PurchaseGroup {
 
   @override
   String toString() {
-<<<<<<< HEAD
     return 'PurchaseGroup(groupName: $groupName, groupId: $groupId, ownerName: $ownerName, ownerEmail: $ownerEmail, ownerUid: $ownerUid, members: $members, ownerMessage: $ownerMessage, allowedUid: $allowedUid, isSecret: $isSecret, acceptedUid: $acceptedUid, isDeleted: $isDeleted, lastAccessedAt: $lastAccessedAt, createdAt: $createdAt, updatedAt: $updatedAt)';
-=======
-    return 'PurchaseGroup(groupId: $groupId, groupName: $groupName, ownerUid: $ownerUid, members: $members, createdAt: $createdAt, updatedAt: $updatedAt)';
->>>>>>> 093bd883a86c3ba9297d4b1df48adafb766abfe7
   }
 
   @override
@@ -882,13 +815,16 @@ class _$PurchaseGroupImpl extends _PurchaseGroup {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$PurchaseGroupImpl &&
-            (identical(other.groupId, groupId) || other.groupId == groupId) &&
             (identical(other.groupName, groupName) ||
                 other.groupName == groupName) &&
+            (identical(other.groupId, groupId) || other.groupId == groupId) &&
+            (identical(other.ownerName, ownerName) ||
+                other.ownerName == ownerName) &&
+            (identical(other.ownerEmail, ownerEmail) ||
+                other.ownerEmail == ownerEmail) &&
             (identical(other.ownerUid, ownerUid) ||
                 other.ownerUid == ownerUid) &&
             const DeepCollectionEquality().equals(other._members, _members) &&
-<<<<<<< HEAD
             (identical(other.ownerMessage, ownerMessage) ||
                 other.ownerMessage == ownerMessage) &&
             const DeepCollectionEquality()
@@ -901,8 +837,6 @@ class _$PurchaseGroupImpl extends _PurchaseGroup {
                 other.isDeleted == isDeleted) &&
             (identical(other.lastAccessedAt, lastAccessedAt) ||
                 other.lastAccessedAt == lastAccessedAt) &&
-=======
->>>>>>> 093bd883a86c3ba9297d4b1df48adafb766abfe7
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
@@ -911,7 +845,6 @@ class _$PurchaseGroupImpl extends _PurchaseGroup {
 
   @JsonKey(ignore: true)
   @override
-<<<<<<< HEAD
   int get hashCode => Object.hash(
       runtimeType,
       groupName,
@@ -928,10 +861,6 @@ class _$PurchaseGroupImpl extends _PurchaseGroup {
       lastAccessedAt,
       createdAt,
       updatedAt);
-=======
-  int get hashCode => Object.hash(runtimeType, groupId, groupName, ownerUid,
-      const DeepCollectionEquality().hash(_members), createdAt, updatedAt);
->>>>>>> 093bd883a86c3ba9297d4b1df48adafb766abfe7
 
   @JsonKey(ignore: true)
   @override
@@ -949,7 +878,6 @@ class _$PurchaseGroupImpl extends _PurchaseGroup {
 
 abstract class _PurchaseGroup extends PurchaseGroup {
   const factory _PurchaseGroup(
-<<<<<<< HEAD
       {@HiveField(0) required final String groupName,
       @HiveField(1) required final String groupId,
       @HiveField(2) final String? ownerName,
@@ -964,14 +892,6 @@ abstract class _PurchaseGroup extends PurchaseGroup {
       @HiveField(15) final DateTime? lastAccessedAt,
       @HiveField(16) final DateTime? createdAt,
       @HiveField(17) final DateTime? updatedAt}) = _$PurchaseGroupImpl;
-=======
-      {@HiveField(0) required final String groupId,
-      @HiveField(1) required final String groupName,
-      @HiveField(2) required final String ownerUid,
-      @HiveField(3) final List<PurchaseGroupMember> members,
-      @HiveField(4) final DateTime? createdAt,
-      @HiveField(5) final DateTime? updatedAt}) = _$PurchaseGroupImpl;
->>>>>>> 093bd883a86c3ba9297d4b1df48adafb766abfe7
   const _PurchaseGroup._() : super._();
 
   factory _PurchaseGroup.fromJson(Map<String, dynamic> json) =
@@ -979,22 +899,21 @@ abstract class _PurchaseGroup extends PurchaseGroup {
 
   @override
   @HiveField(0)
-  String get groupId;
-  @override
-  @HiveField(1)
   String get groupName;
   @override
+  @HiveField(1)
+  String get groupId;
+  @override
   @HiveField(2)
-  String get ownerUid;
+  String? get ownerName;
   @override
   @HiveField(3)
-  List<PurchaseGroupMember> get members;
+  String? get ownerEmail;
   @override
   @HiveField(4)
-  DateTime? get createdAt;
+  String? get ownerUid;
   @override
   @HiveField(5)
-<<<<<<< HEAD
   List<PurchaseGroupMember>? get members;
   @override
   @HiveField(6)
@@ -1019,8 +938,6 @@ abstract class _PurchaseGroup extends PurchaseGroup {
   DateTime? get createdAt;
   @override
   @HiveField(17)
-=======
->>>>>>> 093bd883a86c3ba9297d4b1df48adafb766abfe7
   DateTime? get updatedAt;
   @override
   @JsonKey(ignore: true)

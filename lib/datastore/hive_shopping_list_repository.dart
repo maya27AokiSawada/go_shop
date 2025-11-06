@@ -236,7 +236,9 @@ class HiveShoppingListRepository implements ShoppingListRepository {
 
     if (purchaseGroup == null) return false;
 
-    return purchaseGroup.members.any((member) => member.uid == memberId);
+    return purchaseGroup.members
+            ?.any((member) => member.memberId == memberId) ??
+        false;
   }
 
   // === New Multi-List Methods Implementation ===

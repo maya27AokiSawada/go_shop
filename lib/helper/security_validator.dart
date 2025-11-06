@@ -7,19 +7,23 @@ import '../utils/app_logger.dart';
 
 /// 本番環境セキュリティ検証ヘルパー
 class SecurityValidator {
-  /// Firebase Auth UIDと uidの整合性チェック
+  /// Firebase Auth UIDと memberIdの整合性チェック
   static bool validateMemberIdConsistency(
       PurchaseGroup group, String currentUid) {
     // 開発環境ではスキップ
     if (F.appFlavor == Flavor.dev) return true;
 
-    final member = group.members.firstWhere(
-      (m) => m.uid == currentUid,
+    final member = group.members?.firstWhere(
+      (m) => m.memberId == currentUid,
       orElse: () => throw SecurityException('User not found in group members'),
     );
 
-    // uidとFirebase Auth UIDの一致確認
-    return member.uid == currentUid;
+    if (member == null) {
+      throw SecurityException('User not found in group members');
+    }
+
+    // memberIdとFirebase Auth UIDの一致確認
+    return member.memberId == currentUid;
   }
 
   /// オーナー権限の厳密チェック
@@ -39,9 +43,10 @@ class SecurityValidator {
     // オーナーアクセス
     if (validateOwnerAccess(group, currentUid)) return true;
 
-    // メンバーリストでのUID確認（v4: isInvitationAccepted削除、joinedAtで判定）
-    return group.members
-        .any((member) => member.uid == currentUid && member.joinedAt != null);
+    // メンバーリストでのUID確認（v4: acceptedAtで判定）
+    return group.members?.any((member) =>
+            member.memberId == currentUid && member.acceptedAt != null) ??
+        false;
   }
 
   /// 招待権限の厳密チェック
@@ -53,12 +58,17 @@ class SecurityValidator {
     if (validateOwnerAccess(group, currentUid)) return true;
 
     // 管理者も招待可能
-    final member = group.members.firstWhere(
-      (m) => m.uid == currentUid,
+    final member = group.members?.firstWhere(
+      (m) => m.memberId == currentUid,
       orElse: () => throw SecurityException('User not found in group members'),
     );
 
-    return member.role == PurchaseGroupRole.manager && member.joinedAt != null;
+    if (member == null) {
+      throw SecurityException('User not found in group members');
+    }
+
+    return member.role == PurchaseGroupRole.manager &&
+        member.acceptedAt != null;
   }
 
   /// Firestoreセキュリティルール準拠チェック
@@ -99,12 +109,13 @@ class SecurityValidator {
     if (currentUser == null) return group;
 
     // メンバーリストでcurrentUserのエントリを探してUIDを修復
-    final updatedMembers = group.members.map((member) {
-      // emailが一致するメンバーのuidをFirebase UIDに修正
+    final updatedMembers = group.members?.map((member) {
+      // emailが一致するメンバーのmemberIdをFirebase UIDに修正
       if (member.contact == currentUser.email &&
-          member.uid != currentUser.uid) {
-        Log.info('🔧 Member ID repair: ${member.uid} -> ${currentUser.uid}');
-        return member.copyWith(uid: currentUser.uid);
+          member.memberId != currentUser.uid) {
+        Log.info(
+            '🔧 Member ID repair: ${member.memberId} -> ${currentUser.uid}');
+        return member.copyWith(memberId: currentUser.uid);
       }
       return member;
     }).toList();
