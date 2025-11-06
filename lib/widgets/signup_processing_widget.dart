@@ -191,7 +191,7 @@ class _SignupProcessingWidgetState extends ConsumerState<SignupProcessingWidget>
             '🔍 [SIGNUP_WIDGET] ローカルデフォルトグループ検出: ${localDefaultGroup.groupName}',
           );
           Log.info(
-            '🔍 [SIGNUP_WIDGET] メンバー数: ${localDefaultGroup.members.length}',
+            '🔍 [SIGNUP_WIDGET] メンバー数: ${(localDefaultGroup.members?.length ?? 0)}',
           );
         } else {
           Log.info('💡 [SIGNUP_WIDGET] ローカルデフォルトグループなし');
@@ -229,8 +229,9 @@ class _SignupProcessingWidgetState extends ConsumerState<SignupProcessingWidget>
 
     // オーナーメンバーを作成
     final ownerMember = PurchaseGroupMember.create(
-      uid: user.uid,
-      displayName: user.displayName ?? 'ユーザー',
+      memberId: user.uid,
+      name: user.displayName ?? 'ユーザー',
+      contact: user.email ?? '',
       role: PurchaseGroupRole.owner,
     );
 
@@ -255,13 +256,13 @@ class _SignupProcessingWidgetState extends ConsumerState<SignupProcessingWidget>
 
     // メンバーの移行（オーナーのuidをFirebase UIDに変更）
     final migratedMembers = <PurchaseGroupMember>[];
-    for (final member in localDefaultGroup.members) {
+    for (final member in localDefaultGroup.members ?? []) {
       if (member.role == PurchaseGroupRole.owner) {
-        // オーナーのuidをFirebase UIDに変更
+        // オーナーのmemberIdをFirebase UIDに変更
         final updatedOwner = member.copyWith(
-          uid: user.uid,
-          displayName: user.displayName ?? member.displayName,
-          contact: user.email,
+          memberId: user.uid,
+          name: user.displayName ?? member.name,
+          contact: user.email ?? '',
         );
         migratedMembers.add(updatedOwner);
       } else {
@@ -285,9 +286,9 @@ class _SignupProcessingWidgetState extends ConsumerState<SignupProcessingWidget>
     // デフォルトグループのownerメンバーIDをFirebase UIDに更新
     try {
       final defaultGroup = await repository.getGroupById('default_group');
-      final updatedMembers = defaultGroup.members.map((member) {
+      final updatedMembers = (defaultGroup.members ?? []).map((member) {
         if (member.role == PurchaseGroupRole.owner) {
-          return member.copyWith(uid: user.uid);
+          return member.copyWith(memberId: user.uid);
         }
         return member;
       }).toList();
