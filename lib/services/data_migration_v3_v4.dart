@@ -7,21 +7,21 @@ class DataMigrationV3ToV4 {
   /// PurchaseGroupMember (v3) → PurchaseGroupMemberV4 (v4)
   static PurchaseGroupMemberV4 migrateMember(PurchaseGroupMember v3Member) {
     return PurchaseGroupMemberV4(
-      uid: v3Member.uid,
-      displayName: v3Member.displayName,
+      uid: v3Member.memberId,
+      displayName: v3Member.name,
       role: _migrateRole(v3Member.role),
-      joinedAt: v3Member.joinedAt ?? DateTime.now(),
+      joinedAt: v3Member.invitedAt ?? DateTime.now(),
     );
   }
 
   /// PurchaseGroup (v3) → PurchaseGroupV4 (v4)
   static PurchaseGroupV4 migrateGroup(PurchaseGroup v3Group) {
-    final v4Members = v3Group.members.map(migrateMember).toList();
+    final v4Members = v3Group.members?.map(migrateMember).toList() ?? [];
 
     return PurchaseGroupV4(
       groupId: v3Group.groupId,
       groupName: v3Group.groupName,
-      ownerUid: v3Group.ownerUid,
+      ownerUid: v3Group.ownerUid ?? '',
       members: v4Members,
       createdAt: v3Group.createdAt ?? DateTime.now(),
       updatedAt: v3Group.updatedAt ?? DateTime.now(),
@@ -42,6 +42,8 @@ class DataMigrationV3ToV4 {
         return PurchaseGroupRoleV4.member;
       case PurchaseGroupRole.manager:
         return PurchaseGroupRoleV4.manager;
+      case PurchaseGroupRole.friend:
+        return PurchaseGroupRoleV4.member; // friendはmemberにマッピング
     }
   }
 
@@ -49,10 +51,11 @@ class DataMigrationV3ToV4 {
   static PurchaseGroupMember reverseMigrateMember(
       PurchaseGroupMemberV4 v4Member) {
     return PurchaseGroupMember(
-      uid: v4Member.uid,
-      displayName: v4Member.displayName,
+      memberId: v4Member.uid,
+      name: v4Member.displayName,
+      contact: '', // v4ではcontact情報がないため空文字
       role: _reverseMigrateRole(v4Member.role),
-      joinedAt: v4Member.joinedAt,
+      invitedAt: v4Member.joinedAt,
     );
   }
 
