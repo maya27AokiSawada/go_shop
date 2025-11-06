@@ -49,8 +49,7 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
       final newGroup = PurchaseGroup.create(
         groupId: groupId,
         groupName: groupName,
-        ownerUid: member.uid,
-        ownerDisplayName: member.displayName,
+        members: [member],
       );
 
       // 新しいアーキテクチャ: ルートの'purchaseGroups'にドキュメントを作成
@@ -196,7 +195,7 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
           .update(_groupToFirestore(updatedGroup));
 
       developer.log(
-          '🔥 [FIRESTORE] Added member and created membership: ${member.displayName} to $groupId');
+          '🔥 [FIRESTORE] Added member and created membership: ${member.name} to $groupId');
       return updatedGroup;
     } catch (e) {
       developer.log('❌ Firestore addMember error: $e');
@@ -209,7 +208,7 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
       String groupId, PurchaseGroupMember member) async {
     try {
       final group = await getGroupById(groupId);
-      final updatedGroup = group.removeMember(member.uid);
+      final updatedGroup = group.removeMember(member);
 
       // グループデータを更新（members配列が含まれている）
       await _groupsCollection
@@ -217,7 +216,7 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
           .update(_groupToFirestore(updatedGroup));
 
       developer.log(
-          '🔥 [FIRESTORE] Removed member and deleted membership: ${member.displayName} from $groupId');
+          '🔥 [FIRESTORE] Removed member and deleted membership: ${member.name} from $groupId');
       return updatedGroup;
     } catch (e) {
       developer.log('❌ Firestore removeMember error: $e');
@@ -270,7 +269,8 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
       'groupName': group.groupName,
       'groupId': group.groupId,
       'ownerUid': group.ownerUid,
-      'members': group.members.map((m) => _memberToFirestore(m)).toList(),
+      'members':
+          group.members?.map((m) => _memberToFirestore(m)).toList() ?? [],
       'createdAt': group.createdAt,
       'updatedAt': group.updatedAt,
       // v4: シンプル化されたデータ構造
@@ -279,10 +279,14 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
 
   Map<String, dynamic> _memberToFirestore(PurchaseGroupMember m) {
     return {
-      'uid': m.uid,
-      'displayName': m.displayName,
+      'memberId': m.memberId,
+      'name': m.name,
+      'contact': m.contact,
       'role': m.role.name, // enumを文字列として保存
-      'joinedAt': m.joinedAt != null ? Timestamp.fromDate(m.joinedAt!) : null,
+      'invitedAt':
+          m.invitedAt != null ? Timestamp.fromDate(m.invitedAt!) : null,
+      'acceptedAt':
+          m.acceptedAt != null ? Timestamp.fromDate(m.acceptedAt!) : null,
     };
   }
 
@@ -307,11 +311,16 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
 
   PurchaseGroupMember _memberFromFirestore(Map<String, dynamic> data) {
     return PurchaseGroupMember(
-      uid: data['uid'] ?? data['memberId'] ?? '',
-      displayName: data['displayName'] ?? data['name'] ?? '',
+      memberId: data['uid'] ?? data['memberId'] ?? '',
+      name: data['displayName'] ?? data['name'] ?? '',
+      contact: data['contact'] ?? '',
       role: PurchaseGroupRole.values.firstWhere((e) => e.name == data['role'],
           orElse: () => PurchaseGroupRole.member),
-      joinedAt: (data['joinedAt'] as Timestamp?)?.toDate(),
+      invitedAt: (data['invitedAt'] as Timestamp?)?.toDate() ??
+          (data['joinedAt'] as Timestamp?)?.toDate() ??
+          DateTime.now(),
+      acceptedAt: (data['acceptedAt'] as Timestamp?)?.toDate() ??
+          (data['joinedAt'] as Timestamp?)?.toDate(),
     );
   }
 }

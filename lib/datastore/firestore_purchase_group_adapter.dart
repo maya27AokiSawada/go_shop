@@ -29,16 +29,14 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
       final currentMembers = _parseMembers(groupData['members'] ?? []);
 
       // ValidationServiceを使った重複チェック
-      if (member.contact != null) {
-        final emailValidation = ValidationService.validateMemberEmail(
-            member.contact!, currentMembers);
-        if (emailValidation.hasError) {
-          throw Exception(emailValidation.errorMessage);
-        }
+      final emailValidation =
+          ValidationService.validateMemberEmail(member.contact, currentMembers);
+      if (emailValidation.hasError) {
+        throw Exception(emailValidation.errorMessage);
       }
 
-      final nameValidation = ValidationService.validateMemberName(
-          member.displayName, currentMembers);
+      final nameValidation =
+          ValidationService.validateMemberName(member.name, currentMembers);
       if (nameValidation.hasError) {
         throw Exception(nameValidation.errorMessage);
       }
@@ -49,7 +47,7 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      developer.log('➕ Firestore: メンバー追加: ${member.displayName} to $groupId');
+      developer.log('➕ Firestore: メンバー追加: ${member.name} to $groupId');
       final group = _mapToGroup(groupData);
       return group.copyWith(members: updatedMembers);
     } catch (e) {
@@ -71,15 +69,14 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
       final currentMembers = _parseMembers(groupData['members'] ?? []);
 
       final updatedMembers =
-          currentMembers.where((m) => m.uid != member.uid).toList();
+          currentMembers.where((m) => m.memberId != member.memberId).toList();
 
       await _groupsCollection.doc(groupId).update({
         'members': updatedMembers.map((m) => _memberToMap(m)).toList(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      developer
-          .log('🚫 Firestore: メンバー削除: ${member.displayName} from $groupId');
+      developer.log('🚫 Firestore: メンバー削除: ${member.name} from $groupId');
       return _mapToGroup(groupData).copyWith(members: updatedMembers);
     } catch (e) {
       developer.log('❌ Firestore: メンバー削除エラー: $e');
@@ -134,7 +131,7 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
       final newGroup = PurchaseGroup(
         groupId: groupId,
         groupName: groupName,
-        ownerUid: currentUser?.uid ?? member.uid,
+        ownerUid: currentUser?.uid ?? member.memberId,
         members: [member],
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -207,11 +204,8 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
       await _groupsCollection.doc(groupId).update({
         'groupName': group.groupName,
         'ownerUid': group.ownerUid,
-        'members': group.members.map((m) => _memberToMap(m)).toList(),
-        'memberEmails': group.members
-            .map((m) => m.contact)
-            .where((c) => c != null)
-            .toList(),
+        'members': group.members?.map((m) => _memberToMap(m)).toList() ?? [],
+        'memberEmails': group.members?.map((m) => m.contact).toList() ?? [],
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
@@ -260,11 +254,12 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
     const groupId = 'default_group';
 
     final defaultMember = PurchaseGroupMember(
-      uid: currentUser?.uid ?? 'defaultUser',
-      displayName: currentUser?.displayName ?? 'ユーザー',
-      contact: currentUser?.email,
+      memberId: currentUser?.uid ?? 'defaultUser',
+      name: currentUser?.displayName ?? 'ユーザー',
+      contact: currentUser?.email ?? '',
       role: PurchaseGroupRole.owner,
-      joinedAt: DateTime.now(),
+      invitedAt: DateTime.now(),
+      acceptedAt: DateTime.now(),
     );
 
     return PurchaseGroup(
@@ -301,34 +296,44 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
     return membersData.map((memberData) {
       if (memberData is Map<String, dynamic>) {
         return PurchaseGroupMember(
-          uid: memberData['uid'] ?? memberData['memberId'] ?? '',
-          displayName: memberData['displayName'] ?? memberData['name'] ?? '',
-          contact: memberData['contact'],
+          memberId: memberData['uid'] ?? memberData['memberId'] ?? '',
+          name: memberData['displayName'] ?? memberData['name'] ?? '',
+          contact: memberData['contact'] ?? '',
           role: _parseRole(memberData['role']),
-          joinedAt: memberData['joinedAt'] != null
-              ? (memberData['joinedAt'] as Timestamp).toDate()
-              : null,
+          invitedAt: memberData['invitedAt'] != null
+              ? (memberData['invitedAt'] as Timestamp).toDate()
+              : (memberData['joinedAt'] != null
+                  ? (memberData['joinedAt'] as Timestamp).toDate()
+                  : DateTime.now()),
+          acceptedAt: memberData['acceptedAt'] != null
+              ? (memberData['acceptedAt'] as Timestamp).toDate()
+              : (memberData['joinedAt'] != null
+                  ? (memberData['joinedAt'] as Timestamp).toDate()
+                  : null),
         );
       }
-      return PurchaseGroupMember.create(
-        uid: 'unknown_${DateTime.now().millisecondsSinceEpoch}',
-        displayName: 'Unknown',
+      return PurchaseGroupMember(
+        memberId: 'unknown_${DateTime.now().millisecondsSinceEpoch}',
+        name: 'Unknown',
+        contact: '',
         role: PurchaseGroupRole.member,
+        invitedAt: DateTime.now(),
       );
     }).toList();
   }
 
   Map<String, dynamic> _memberToMap(PurchaseGroupMember member) {
     final map = <String, dynamic>{
-      'uid': member.uid,
-      'displayName': member.displayName,
+      'memberId': member.memberId,
+      'name': member.name,
+      'contact': member.contact,
       'role': member.role.name,
     };
-    if (member.contact != null) {
-      map['contact'] = member.contact!;
+    if (member.invitedAt != null) {
+      map['invitedAt'] = Timestamp.fromDate(member.invitedAt!);
     }
-    if (member.joinedAt != null) {
-      map['joinedAt'] = Timestamp.fromDate(member.joinedAt!);
+    if (member.acceptedAt != null) {
+      map['acceptedAt'] = Timestamp.fromDate(member.acceptedAt!);
     }
     return map;
   }

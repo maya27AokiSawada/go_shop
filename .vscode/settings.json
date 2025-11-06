@@ -34,5 +34,6 @@
     "git.confirmSync": false,
     "editor.codeActionsOnSave": {
         "source.fixAll": "explicit"
-    }
+    },
+    "chat.agent.maxRequests": 10
 }
