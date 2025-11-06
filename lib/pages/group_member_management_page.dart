@@ -161,13 +161,13 @@ class _GroupMemberManagementPageState
           ),
         ),
         title: Text(
-          member.displayName.isNotEmpty ? member.displayName : 'Unknown User',
+          member.name.isNotEmpty ? member.name : 'Unknown User',
           style: const TextStyle(fontWeight: FontWeight.w500),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (member.contact != null) Text(member.contact!),
+            Text(member.contact),
             Text(
               _getRoleDisplayName(member.role),
               style: TextStyle(
@@ -246,6 +246,8 @@ class _GroupMemberManagementPageState
         return '管理者';
       case PurchaseGroupRole.member:
         return 'メンバー';
+      case PurchaseGroupRole.friend:
+        return '友達';
     }
   }
 
@@ -362,9 +364,9 @@ class _GroupMemberManagementPageState
 
       ref.invalidate(selectedGroupProvider);
 
-      AppLogger.info('✅ [MEMBER_MGMT] メンバー追加完了: ${member.displayName}');
+      AppLogger.info('✅ [MEMBER_MGMT] メンバー追加完了: ${member.name}');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${member.displayName} を追加しました')),
+        SnackBar(content: Text('${member.name} を追加しました')),
       );
     } catch (e) {
       AppLogger.error('❌ [MEMBER_MGMT] メンバー追加エラー: $e');
@@ -396,7 +398,7 @@ class _GroupMemberManagementPageState
 
   void _showRoleEditDialog(PurchaseGroupMember member, PurchaseGroup group) {
     // TODO: 権限変更ダイアログの実装
-    AppLogger.info('⚙️ [MEMBER_MGMT] 権限変更: ${member.displayName}');
+    AppLogger.info('⚙️ [MEMBER_MGMT] 権限変更: ${member.name}');
   }
 
   void _showRemoveMemberDialog(
@@ -405,7 +407,7 @@ class _GroupMemberManagementPageState
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('メンバーを削除'),
-        content: Text('${member.displayName} をグループから削除しますか？'),
+        content: Text('${member.name} をグループから削除しますか？'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -433,9 +435,9 @@ class _GroupMemberManagementPageState
 
       ref.invalidate(selectedGroupProvider);
 
-      AppLogger.info('✅ [MEMBER_MGMT] メンバー削除完了: ${member.displayName}');
+      AppLogger.info('✅ [MEMBER_MGMT] メンバー削除完了: ${member.name}');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${member.displayName} を削除しました')),
+        SnackBar(content: Text('${member.name} を削除しました')),
       );
     } catch (e) {
       AppLogger.error('❌ [MEMBER_MGMT] メンバー削除エラー: $e');

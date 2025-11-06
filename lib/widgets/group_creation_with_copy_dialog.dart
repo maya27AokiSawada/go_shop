@@ -167,7 +167,7 @@ class _GroupCreationWithCopyDialogState
                                   children: [
                                     Text(group.groupName),
                                     Text(
-                                      'メンバー数: ${group.members.length ?? 0}人',
+                                      'メンバー数: ${group.members?.length ?? 0}人',
                                       style: const TextStyle(
                                           fontSize: 12, color: Colors.grey),
                                     ),
@@ -187,7 +187,8 @@ class _GroupCreationWithCopyDialogState
                       ],
 
                       // Member selection list
-                      if (_selectedSourceGroup?.members.isNotEmpty == true) ...[
+                      if (_selectedSourceGroup?.members?.isNotEmpty ==
+                          true) ...[
                         const Text(
                           'コピーするメンバーとその役割を選択:',
                           style: TextStyle(
@@ -199,10 +200,11 @@ class _GroupCreationWithCopyDialogState
                             constraints: const BoxConstraints(maxHeight: 300),
                             child: ListView.builder(
                               shrinkWrap: true,
-                              itemCount: _selectedSourceGroup!.members.length,
+                              itemCount:
+                                  _selectedSourceGroup!.members?.length ?? 0,
                               itemBuilder: (context, index) {
                                 final member =
-                                    _selectedSourceGroup!.members[index];
+                                    _selectedSourceGroup!.members![index];
                                 return _buildMemberSelectionTile(member);
                               },
                             ),
@@ -293,7 +295,7 @@ class _GroupCreationWithCopyDialogState
   }
 
   Widget _buildMemberSelectionTile(PurchaseGroupMember member) {
-    final memberId = member.uid;
+    final memberId = member.memberId;
     final isSelected = _selectedMembers[memberId] ?? false;
 
     // Don't show owner in the copy list (they can't be copied with owner role)
@@ -317,13 +319,13 @@ class _GroupCreationWithCopyDialogState
           },
         ),
         title: Text(
-          member.displayName,
+          member.name,
           style: const TextStyle(fontWeight: FontWeight.w500),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (member.contact != null) Text(member.contact!),
+            Text(member.contact),
             Text(
               '現在の役割: ${_getRoleDisplayName(member.role)}',
               style: const TextStyle(fontSize: 12, color: Colors.grey),
@@ -372,11 +374,14 @@ class _GroupCreationWithCopyDialogState
     _selectedMembers.clear();
     _memberRoles.clear();
 
-    for (final member in _selectedSourceGroup!.members) {
-      if (member.role != PurchaseGroupRole.owner) {
-        // Auto-select non-owner members by default
-        _selectedMembers[member.uid] = true;
-        _memberRoles[member.uid] = member.role;
+    final members = _selectedSourceGroup!.members;
+    if (members != null) {
+      for (final member in members) {
+        if (member.role != PurchaseGroupRole.owner) {
+          // Auto-select non-owner members by default
+          _selectedMembers[member.memberId] = true;
+          _memberRoles[member.memberId] = member.role;
+        }
       }
     }
   }
@@ -467,26 +472,30 @@ class _GroupCreationWithCopyDialogState
       final selectedGroupNotifier =
           ref.read(selectedGroupNotifierProvider.notifier);
 
-      for (final member in _selectedSourceGroup!.members) {
-        final memberId = member.uid;
-        final isSelected = _selectedMembers[memberId] ?? false;
+      final members = _selectedSourceGroup!.members;
+      if (members != null) {
+        for (final member in members) {
+          final memberId = member.memberId;
+          final isSelected = _selectedMembers[memberId] ?? false;
 
-        if (isSelected && member.role != PurchaseGroupRole.owner) {
-          final newRole = _memberRoles[memberId] ?? member.role;
+          if (isSelected && member.role != PurchaseGroupRole.owner) {
+            final newRole = _memberRoles[memberId] ?? member.role;
 
-          final newMember = PurchaseGroupMember.create(
-            uid: member.uid,
-            displayName: member.displayName,
-            role: newRole,
-          );
+            final newMember = PurchaseGroupMember.create(
+              memberId: member.memberId,
+              name: member.name,
+              contact: member.contact,
+              role: newRole,
+            );
 
-          try {
-            await selectedGroupNotifier.addMember(newMember);
-            developer.log(
-                '✅ メンバー追加成功: ${member.displayName} (役割: ${_getRoleDisplayName(newRole)})');
-          } catch (e) {
-            developer.log('❌ メンバー追加エラー: ${member.displayName} - $e');
-            // 個別のメンバー追加失敗は続行（他のメンバーは追加）
+            try {
+              await selectedGroupNotifier.addMember(newMember);
+              developer.log(
+                  '✅ メンバー追加成功: ${member.name} (役割: ${_getRoleDisplayName(newRole)})');
+            } catch (e) {
+              developer.log('❌ メンバー追加エラー: ${member.name} - $e');
+              // 個別のメンバー追加失敗は続行（他のメンバーは追加）
+            }
           }
         }
       }
