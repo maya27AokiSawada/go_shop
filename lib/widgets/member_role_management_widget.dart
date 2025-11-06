@@ -92,11 +92,11 @@ class MemberRoleManagementWidget extends ConsumerWidget {
           size: 20,
         ),
       ),
-      title: Text(member.displayName),
+      title: Text(member.name),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (member.contact != null) Text(member.contact!),
+          Text(member.contact),
           Text(
             _getRoleDisplayName(member.role),
             style: TextStyle(
@@ -150,7 +150,7 @@ class MemberRoleManagementWidget extends ConsumerWidget {
       builder: (context) => AlertDialog(
         title: const Text('管理者に昇格'),
         content: Text(
-          '${member.displayName} さんを管理者に昇格させますか？\n\n'
+          '${member.name} さんを管理者に昇格させますか？\n\n'
           '管理者はグループの設定変更や他のメンバーの管理ができるようになります。',
         ),
         actions: [
@@ -175,7 +175,7 @@ class MemberRoleManagementWidget extends ConsumerWidget {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${member.displayName} さんを管理者に昇格しました'),
+          content: Text('${member.name} さんを管理者に昇格しました'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -192,7 +192,7 @@ class MemberRoleManagementWidget extends ConsumerWidget {
       builder: (context) => AlertDialog(
         title: const Text('メンバーに降格'),
         content: Text(
-          '${member.displayName} さんをメンバーに降格させますか？\n\n'
+          '${member.name} さんをメンバーに降格させますか？\n\n'
           'グループの設定変更権限が取り消されます。',
         ),
         actions: [
@@ -217,7 +217,7 @@ class MemberRoleManagementWidget extends ConsumerWidget {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${member.displayName} さんをメンバーに降格しました'),
+          content: Text('${member.name} さんをメンバーに降格しました'),
           backgroundColor: Colors.blue,
         ),
       );
@@ -233,8 +233,8 @@ class MemberRoleManagementWidget extends ConsumerWidget {
       final repository = ref.read(purchaseGroupRepositoryProvider);
 
       // メンバーのロールを更新
-      final updatedMembers = purchaseGroup.members.map((m) {
-        if (m.uid == member.uid) {
+      final updatedMembers = purchaseGroup.members?.map((m) {
+        if (m.memberId == member.memberId) {
           return m.copyWith(role: newRole);
         }
         return m;
