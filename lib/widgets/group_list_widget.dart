@@ -5,6 +5,7 @@ import '../models/purchase_group.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/current_group_provider.dart';
 import '../providers/current_list_provider.dart';
+import '../providers/group_shopping_lists_provider.dart';
 import '../utils/app_logger.dart';
 import '../pages/group_member_management_page.dart';
 import '../services/user_initialization_service.dart';
@@ -22,6 +23,24 @@ class GroupListWidget extends ConsumerWidget {
     // ✅ 最初に全ての依存性を確定する
     final allGroupsAsync = ref.watch(allGroupsProvider);
     final selectedGroupId = ref.watch(selectedGroupIdProvider);
+    final syncStatus = ref.watch(firestoreSyncStatusProvider);
+
+    // 同期中の場合はローディング表示
+    if (syncStatus == 'syncing') {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text(
+              'Firestore同期中...',
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -74,7 +93,8 @@ class GroupListWidget extends ConsumerWidget {
                 ],
               ),
               // カレントグループ情報
-              _buildCurrentGroupInfo(ref, selectedGroupId, allGroupsAsync),
+              _buildCurrentGroupInfo(
+                  ref, selectedGroupId ?? 'default_group', allGroupsAsync),
             ],
           ),
         ),
@@ -82,8 +102,8 @@ class GroupListWidget extends ConsumerWidget {
         // グループリスト（スクロール可能に変更）
         Expanded(
           child: allGroupsAsync.when(
-            data: (groups) =>
-                _buildGroupList(context, ref, groups, selectedGroupId),
+            data: (groups) => _buildGroupList(
+                context, ref, groups, selectedGroupId ?? 'default_group'),
             loading: () => _buildLoadingWidget(),
             error: (error, stack) => _buildErrorWidget(context, ref, error),
           ),
@@ -206,14 +226,13 @@ class GroupListWidget extends ConsumerWidget {
 
     if (currentGroup?.groupId == group.groupId) {
       AppLogger.info('📋 [GROUP_SELECT] 既に選択済み: ${group.groupId}');
+      // 既に選択済みの場合もリストを再取得してUIを更新
+      ref.invalidate(groupShoppingListsProvider);
       return;
     }
 
     // グループを選択してカレントグループに設定（awaitで非同期完了を待つ）
     await ref.read(currentGroupProvider.notifier).selectGroup(group);
-
-    // 旧システムとの互換性のため、selectedGroupIdProviderも更新
-    ref.read(selectedGroupIdProvider.notifier).selectGroup(group.groupId);
 
     // 🔄 グループ切り替え時は現在のリスト選択をクリア
     // （別のグループのリストIDが残っているとDropdownエラーになるため）
@@ -239,6 +258,9 @@ class GroupListWidget extends ConsumerWidget {
         duration: const Duration(seconds: 2),
       ),
     );
+
+    // グループ切り替え時にリスト一覧プロバイダーも再取得
+    ref.invalidate(groupShoppingListsProvider);
   }
 
   void _navigateToMemberManagement(

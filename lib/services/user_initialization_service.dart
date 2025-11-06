@@ -23,6 +23,10 @@ final userInitializationServiceProvider = Provider<UserInitializationService>((
 /// 初期化完了状態を監視するStateProvider
 final userInitializationStatusProvider = StateProvider<bool>((ref) => false);
 
+/// Firestore同期状態を監視するStateProvider
+final firestoreSyncStatusProvider = StateProvider<String>(
+    (ref) => 'idle'); // 'idle', 'syncing', 'completed', 'error'
+
 class UserInitializationService {
   final Ref _ref;
   FirebaseAuth? _auth;
@@ -95,15 +99,14 @@ class UserInitializationService {
         await _createDefaultGroupLocally(_auth?.currentUser);
       }
 
-      // STEP3: Firestore同期を一時的に無効化（デバッグ用）
-      Log.info('🔧 [INIT] Firestore同期は一時的に無効化されています（デバッグ用）');
-      // final currentUser = _auth.currentUser;
-      // if (currentUser != null && _isFirebaseUserId(currentUser.uid)) {
-      //   Log.info('🔄 [INIT] Firebase認証済みユーザー検出 - Firestoreとの同期を開始');
-      //   await _syncWithFirestore(currentUser);
-      // } else {
-      //   Log.info('💡 [INIT] 未サインインまたはローカルユーザー - ローカルデータで動作');
-      // }
+      // STEP3: Firestore同期を実行（サインイン状態の場合）
+      final currentUser = _auth?.currentUser;
+      if (currentUser != null && _isFirebaseUserId(currentUser.uid)) {
+        Log.info('🔄 [INIT] Firebase認証済みユーザー検出 - Firestoreとの同期を開始');
+        await _syncWithFirestore(currentUser);
+      } else {
+        Log.info('💡 [INIT] 未サインインまたはローカルユーザー - ローカルデータで動作');
+      }
 
       // STEP4: プロバイダーを更新（userNameProviderはホーム画面表示時まで遅延）
       _ref.invalidate(allGroupsProvider);
@@ -111,6 +114,38 @@ class UserInitializationService {
     } catch (e) {
       Log.error('❌ [INIT] ユーザー状態初期化エラー: $e');
       // エラーが発生した場合はAllGroupsProviderに委ねる（自動でデフォルトグループが作成される）
+    }
+  }
+
+  /// FirebaseユーザーIDかどうかを判定
+  bool _isFirebaseUserId(String uid) {
+    // Firebase AuthのUIDは通常28文字の英数字
+    return uid.length >= 20 && RegExp(r'^[a-zA-Z0-9]+$').hasMatch(uid);
+  }
+
+  /// Firestoreとの同期を実行
+  Future<void> _syncWithFirestore(User user) async {
+    try {
+      // 同期状態を開始
+      _ref.read(firestoreSyncStatusProvider.notifier).state = 'syncing';
+      Log.info('🔄 [SYNC] Firestore同期を開始');
+
+      // 【重要】Firestore→Hive同期を先に実行して、Firestoreの状態を優先
+      // これによりFirestoreで削除されたグループがHiveからも削除される
+      await syncFromFirestoreToHive(user);
+
+      // Hive→Firestore同期は実行しない（起動時はFirestoreが真実の情報源）
+      // グループ作成・更新時のみ個別に同期する
+      Log.info('💡 [SYNC] 起動時はFirestore→Hive同期のみ実行（Hive→Firestoreはスキップ）');
+
+      // 同期状態を完了に設定
+      _ref.read(firestoreSyncStatusProvider.notifier).state = 'completed';
+      Log.info('✅ [SYNC] Firestore同期完了');
+    } catch (e) {
+      // 同期状態をエラーに設定
+      _ref.read(firestoreSyncStatusProvider.notifier).state = 'error';
+      Log.error('❌ [SYNC] Firestore同期エラー: $e');
+      rethrow;
     }
   }
 
@@ -122,6 +157,12 @@ class UserInitializationService {
 
       // デフォルトグループをローカル（Hive）のみで作成
       await _createDefaultGroupLocally(user);
+
+      // サインイン時もFirestore同期を実行
+      if (_isFirebaseUserId(user.uid)) {
+        Log.info('🔄 [INIT] サインイン検出 - Firestoreとの同期を開始');
+        await _syncWithFirestore(user);
+      }
 
       Log.info('✅ ユーザーデフォルト初期化完了');
     } catch (e) {
@@ -299,12 +340,45 @@ class UserInitializationService {
       final firestore = FirebaseFirestore.instance;
       final userGroupsRef =
           firestore.collection('users').doc(user.uid).collection('groups');
-      final snapshot = await userGroupsRef.get();
+
+      // 削除済みでないグループのみ取得
+      final snapshot =
+          await userGroupsRef.where('isDeleted', isEqualTo: false).get();
+
       final hiveRepository =
           _ref.read(hive_repo.hivePurchaseGroupRepositoryProvider);
 
       int syncedCount = 0;
       int skippedCount = 0;
+
+      // Firestoreにないグループ(削除済み)をHiveから削除
+      final firestoreGroupIds = snapshot.docs.map((doc) => doc.id).toSet();
+      Log.info('📊 [SYNC] Firestoreから取得したグループ: ${firestoreGroupIds.length}個');
+      for (final groupId in firestoreGroupIds) {
+        Log.info('  - $groupId');
+      }
+
+      final hiveGroups = await hiveRepository.getAllGroups();
+      Log.info('📊 [SYNC] Hiveに存在するグループ: ${hiveGroups.length}個');
+      for (final hiveGroup in hiveGroups) {
+        Log.info('  - ${hiveGroup.groupName} (${hiveGroup.groupId})');
+      }
+
+      for (final hiveGroup in hiveGroups) {
+        if (!firestoreGroupIds.contains(hiveGroup.groupId) &&
+            hiveGroup.groupId != 'default_group' &&
+            hiveGroup.groupId != 'defaultGroup' &&
+            hiveGroup.groupId != 'current_list') {
+          try {
+            await hiveRepository.deleteGroup(hiveGroup.groupId);
+            Log.info(
+                '🗑️ [SYNC] Firestoreにないグループを削除: ${hiveGroup.groupName} (${hiveGroup.groupId})');
+            skippedCount++;
+          } catch (e) {
+            Log.warning('⚠️ [SYNC] グループ削除失敗: ${hiveGroup.groupId}');
+          }
+        }
+      }
 
       for (final doc in snapshot.docs) {
         final data = doc.data();
@@ -349,7 +423,7 @@ class UserInitializationService {
             ownerName: data['ownerName'],
             ownerEmail: data['ownerEmail'],
             members: members,
-            isDeleted: false,
+            isDeleted: data['isDeleted'] as bool? ?? false, // Firestoreの値を使用
             lastAccessedAt: data['lastAccessedAt'] != null
                 ? DateTime.parse(data['lastAccessedAt'])
                 : null,

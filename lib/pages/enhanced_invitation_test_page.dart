@@ -310,12 +310,9 @@ class _EnhancedInvitationTestPageState
   }
 
   Future<void> _showGroupCreationDialog() async {
-    final allGroups = await ref.read(allGroupsProvider.future);
-
     if (mounted) {
       final result = await showGroupCreationWithCopyDialog(
         context: context,
-        existingGroups: allGroups,
       );
 
       if (result == true) {

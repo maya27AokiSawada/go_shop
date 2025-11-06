@@ -35,7 +35,10 @@ class EnhancedInvitationService {
           final existingMember = firestoreGroup.members?.firstWhere(
             (m) => m.contact.toLowerCase() == targetEmail.toLowerCase(),
             orElse: () => const PurchaseGroupMember(
-                memberId: '', name: '', contact: '', role: PurchaseGroupRole.member),
+                memberId: '',
+                name: '',
+                contact: '',
+                role: PurchaseGroupRole.member),
           );
 
           final isAlreadyMember = existingMember?.contact.isNotEmpty == true;

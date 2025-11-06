@@ -143,7 +143,9 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
     final selectedGroupId = ref.watch(selectedGroupIdProvider);
 
     // 選択されたグループIDに基づいてショッピングリストを取得
-    ref.watch(shoppingListForGroupProvider(selectedGroupId));
+    // selectedGroupIdがnullの場合はデフォルトグループを使用
+    final groupId = selectedGroupId ?? 'default_group';
+    ref.watch(shoppingListForGroupProvider(groupId));
 
     return Scaffold(
       appBar: AppBar(
@@ -654,9 +656,9 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
             onPressed: () async {
               try {
                 final selectedGroupId = ref.read(selectedGroupIdProvider);
+                final groupId = selectedGroupId ?? 'default_group';
                 await ref
-                    .read(
-                        shoppingListForGroupProvider(selectedGroupId).notifier)
+                    .read(shoppingListForGroupProvider(groupId).notifier)
                     .removeItem(item);
                 if (context.mounted) {
                   Navigator.of(context).pop();
@@ -702,9 +704,9 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
 
     // 既存アイテムの重複チェック
     final selectedGroupId = ref.read(selectedGroupIdProvider);
+    final groupId = selectedGroupId ?? 'default_group';
     try {
-      final currentListAsync =
-          ref.read(shoppingListForGroupProvider(selectedGroupId));
+      final currentListAsync = ref.read(shoppingListForGroupProvider(groupId));
 
       await currentListAsync.when(
         data: (currentList) async {
@@ -758,8 +760,9 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
       );
 
       final selectedGroupId = ref.read(selectedGroupIdProvider);
+      final groupId = selectedGroupId ?? 'default_group';
       await ref
-          .read(shoppingListForGroupProvider(selectedGroupId).notifier)
+          .read(shoppingListForGroupProvider(groupId).notifier)
           .addItem(newItem);
       if (context.mounted) {
         Navigator.of(context).pop();
@@ -986,9 +989,9 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
             onPressed: () async {
               try {
                 final selectedGroupId = ref.read(selectedGroupIdProvider);
+                final groupId = selectedGroupId ?? 'default_group';
                 await ref
-                    .read(
-                        shoppingListForGroupProvider(selectedGroupId).notifier)
+                    .read(shoppingListForGroupProvider(groupId).notifier)
                     .clearPurchasedItems();
                 if (context.mounted) {
                   Navigator.of(context).pop();

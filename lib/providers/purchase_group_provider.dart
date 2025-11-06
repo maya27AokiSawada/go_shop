@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/app_logger.dart';
 import '../models/purchase_group.dart';
 import '../datastore/purchase_group_repository.dart';
@@ -35,7 +36,7 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
     final selectedGroupId = ref.watch(selectedGroupIdProvider);
     final repository = ref.read(purchaseGroupRepositoryProvider);
 
-    if (selectedGroupId.isEmpty) return null;
+    if (selectedGroupId == null || selectedGroupId.isEmpty) return null;
 
     try {
       AppLogger.info(
@@ -379,15 +380,6 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
   }
 }
 
-// Group selection management
-class SelectedGroupIdNotifier extends StateNotifier<String> {
-  SelectedGroupIdNotifier() : super('default_group');
-
-  void selectGroup(String groupId) {
-    state = groupId;
-  }
-}
-
 // All groups provider
 class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
   @override
@@ -627,10 +619,116 @@ final selectedGroupNotifierProvider =
   () => SelectedGroupNotifier(),
 );
 
+// Selected Group ID Management - 選択されたグループIDを管理するProvider
+class SelectedGroupIdNotifier extends StateNotifier<String?> {
+  static const String _selectedGroupIdKey = 'selected_group_id';
+
+  SelectedGroupIdNotifier() : super(null) {
+    _loadInitialValue();
+  }
+
+  Future<void> _loadInitialValue() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedId = prefs.getString(_selectedGroupIdKey);
+      if (savedId != null && savedId.isNotEmpty) {
+        state = savedId;
+        Log.info('✅ SelectedGroupIdNotifier: 初期値ロード完了: $savedId');
+      } else {
+        // デフォルトグループを設定
+        state = 'default_group';
+        Log.info('ℹ️ SelectedGroupIdNotifier: デフォルトグループを設定');
+      }
+    } catch (e) {
+      Log.error('❌ SelectedGroupIdNotifier: 初期値ロードエラー: $e');
+      state = 'default_group';
+    }
+  }
+
+  /// 選択されたグループIDが有効なグループリストに存在するか検証し、無効な場合はデフォルトに設定
+  void validateSelection(List<PurchaseGroup> availableGroups) {
+    if (state == null || state == 'default_group') {
+      return; // 既にデフォルトまたは未選択
+    }
+
+    final isValidSelection =
+        availableGroups.any((group) => group.groupId == state);
+    if (!isValidSelection) {
+      Log.info(
+          '⚠️ SelectedGroupIdNotifier: 選択されたグループが見つからないためデフォルトに設定: $state');
+      state = 'default_group';
+    }
+  }
+
+  /// グループリストが更新されたときに、選択状態を検証・復元
+  void validateAndRestoreSelection(List<PurchaseGroup> availableGroups) {
+    if (state == null || state == 'default_group') {
+      // 未選択またはデフォルトの場合、非デフォルトグループがあれば最初のものを選択
+      final nonDefaultGroups = availableGroups
+          .where((group) => group.groupId != 'default_group')
+          .toList();
+      if (nonDefaultGroups.isNotEmpty) {
+        final groupToSelect = nonDefaultGroups.first;
+        Log.info(
+            '🔄 SelectedGroupIdNotifier: 非デフォルトグループを自動選択: ${groupToSelect.groupName} (${groupToSelect.groupId})');
+        state = groupToSelect.groupId;
+        // SharedPreferencesにも保存
+        _saveToPreferences(groupToSelect.groupId);
+      }
+    } else {
+      // 現在の選択が有効かチェック
+      final isValidSelection =
+          availableGroups.any((group) => group.groupId == state);
+      if (!isValidSelection) {
+        Log.info(
+            '⚠️ SelectedGroupIdNotifier: 選択されたグループが見つからないためデフォルトに設定: $state');
+        state = 'default_group';
+      }
+    }
+  }
+
+  Future<void> _saveToPreferences(String groupId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_selectedGroupIdKey, groupId);
+      Log.info('✅ SelectedGroupIdNotifier: グループID保存完了: $groupId');
+    } catch (e) {
+      Log.error('❌ SelectedGroupIdNotifier: グループID保存エラー: $e');
+    }
+  }
+
+  Future<void> selectGroup(String groupId) async {
+    Log.info('📋 [SELECTED_GROUP_ID] グループ選択: $groupId');
+    state = groupId;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_selectedGroupIdKey, groupId);
+      Log.info('✅ SelectedGroupIdNotifier: グループID保存完了: $groupId');
+    } catch (e) {
+      Log.error('❌ SelectedGroupIdNotifier: グループID保存エラー: $e');
+    }
+  }
+
+  void clearSelection() {
+    Log.info('🔄 SelectedGroupIdNotifier: 選択クリア');
+    state = null;
+  }
+}
+
 final selectedGroupIdProvider =
-    StateNotifierProvider<SelectedGroupIdNotifier, String>(
-  (ref) => SelectedGroupIdNotifier(),
-);
+    StateNotifierProvider<SelectedGroupIdNotifier, String?>((ref) {
+  final notifier = SelectedGroupIdNotifier();
+
+  // グループリストが変更されたら選択を検証
+  ref.listen(allGroupsProvider, (previous, next) {
+    next.whenData((groups) {
+      notifier.validateAndRestoreSelection(groups);
+    });
+  });
+
+  return notifier;
+});
 
 // Member Pool Management - メンバープール管理用
 class MemberPoolNotifier extends AsyncNotifier<PurchaseGroup> {

@@ -1,22 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../models/purchase_group.dart';
 import '../datastore/purchase_group_repository.dart';
-import '../providers/firestore_provider.dart';
-import '../providers/shopping_list_provider.dart';
 import 'dart:developer' as developer;
 
 class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
-  final Ref _ref;
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final Uuid _uuid = const Uuid();
 
-  // Refを受け取り、firestoreProviderからインスタンスを取得
-  FirestorePurchaseGroupRepository(this._ref)
-      : _firestore = _ref.read(firestoreProvider);
+  // FirebaseFirestoreインスタンスを直接受け取る
+  FirestorePurchaseGroupRepository(this._firestore);
 
   /// 購入グループコレクション（全体で一意）
   CollectionReference get _groupsCollection =>
@@ -166,16 +161,16 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
 
       final group = _groupFromFirestore(doc);
 
-      // 新しいアーキテクチャ: サブコレクション内のショッピングリストを削除
-      final shoppingListRepo = _ref.read(shoppingListRepositoryProvider);
-      await shoppingListRepo.deleteShoppingListsByGroupId(groupId);
+      // 論理削除: isDeletedフラグを立てる（物理削除はしない）
+      await _groupsCollection.doc(groupId).update({
+        'isDeleted': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
-      // グループ本体を削除
-      await _groupsCollection.doc(groupId).delete();
+      developer.log('🔥 [FIRESTORE] Marked group as deleted: $groupId');
 
-      developer.log(
-          '🔥 [FIRESTORE] Deleted group and associated shopping lists: $groupId');
-      return group;
+      // 削除フラグを立てたグループを返す
+      return group.copyWith(isDeleted: true, updatedAt: DateTime.now());
     } catch (e) {
       developer.log('❌ Firestore deleteGroup error: $e');
       rethrow;
