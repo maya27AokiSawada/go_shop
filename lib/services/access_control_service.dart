@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/app_logger.dart';
 import '../flavors.dart';
 import '../providers/purchase_group_provider.dart';
+import '../providers/current_group_provider.dart';
 
 /// ユーザーのアクセス権限を管理するサービス
 class AccessControlService {
@@ -193,6 +194,9 @@ final groupVisibilityModeProvider =
     FutureProvider<GroupVisibilityMode>((ref) async {
   // allGroupsProviderの変更を監視（シークレットモード切り替え時にinvalidateされる）
   ref.watch(allGroupsProvider);
+
+  // currentGroupProviderの変更も監視（カレントグループ変更時に再評価）
+  ref.watch(currentGroupProvider);
 
   final accessControl = ref.read(accessControlServiceProvider);
   return await accessControl.getGroupVisibilityMode();
