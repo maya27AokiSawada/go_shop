@@ -9,6 +9,7 @@ import '../datastore/firestore_purchase_group_repository.dart';
 import '../providers/hive_provider.dart';
 import '../providers/firestore_provider.dart';
 import '../flavors.dart';
+import '../utils/app_logger.dart';
 
 /// 🛡️ 初期化ステータス定義
 enum InitializationStatus {
@@ -581,25 +582,40 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
   @override
   Future<PurchaseGroup> deleteGroup(String groupId) async {
     try {
+      Log.info('🗑️ [DELETE] グループ削除開始: $groupId');
+
       // 1. Hiveから削除
       final deletedGroup = await _hiveRepo.deleteGroup(groupId);
+      Log.info('✅ [DELETE] Hive削除完了: $groupId');
 
       // メンバープール用グループはHiveのみで削除
       if (groupId == 'member_pool') {
-        developer.log('🔒 Member pool group deleted from Hive only: $groupId');
+        Log.info('🔒 Member pool group deleted from Hive only: $groupId');
         return deletedGroup;
       }
+
+      // Firestore削除の前提条件チェック
+      Log.info('🔍 [DELETE] Firestore削除条件チェック:');
+      Log.info('  - Flavor: ${F.appFlavor} (prod必須)');
+      Log.info('  - _isOnline: $_isOnline');
+      Log.info(
+          '  - _firestoreRepo: ${_firestoreRepo != null ? "初期化済み" : "null"}');
 
       if (F.appFlavor == Flavor.dev || !_isOnline || _firestoreRepo == null) {
+        Log.warning('⚠️ [DELETE] Firestore削除スキップ (条件未満たず)');
         return deletedGroup;
       }
 
-      // 2. Firestoreから非同期削除（メンバープール以外のみ）
-      _unawaited(_firestoreRepo!.deleteGroup(groupId).then((_) {
-        developer.log('🔄 Delete synced to Firestore: $groupId');
-      }).catchError((e) {
-        developer.log('⚠️ Failed to sync delete to Firestore: $e');
-      }));
+      // 2. Firestoreから同期削除（メンバープール以外のみ）
+      // 削除操作は確実に完了させるため、awaitで待つ
+      Log.info('🔥 [DELETE] Firestore削除実行開始: $groupId');
+      try {
+        await _firestoreRepo!.deleteGroup(groupId);
+        Log.info('✅ [DELETE] Firestore削除完了: $groupId');
+      } catch (e) {
+        Log.error('❌ [DELETE] Firestore削除失敗: $e');
+        // Firestoreへの削除が失敗してもHive削除は完了しているので処理継続
+      }
 
       return deletedGroup;
     } catch (e) {

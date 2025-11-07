@@ -1,0 +1,18 @@
+Could not find an option or flag "-d".
+
+Usage: dart run [arguments] [<dart-file|package-target> [args]]
+-h, --help                                   Print this usage information.
+
+Debugging options:
+    --observe=<[<port>[/<bind-address>]]>    The observe flag is a convenience flag used to run a program with a set of common options useful for debugging. Run `dart help -v run` for details.
+    --[no-]enable-asserts                    Enable assert statements.
+
+Logging options:
+    --verbosity                              Sets the verbosity level of the compilation.
+
+          [error]                            Show only error messages
+          [warning]                          Show only error and warning messages
+          [info]                             Show error, warning, and info messages
+          [all] (default)                    Show all messages
+
+Run "dart help" to see global options.
