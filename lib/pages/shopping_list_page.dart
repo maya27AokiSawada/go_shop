@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shopping_list.dart';
 import '../providers/shopping_list_provider.dart';
 import '../providers/purchase_group_provider.dart';
+import '../providers/current_group_provider.dart';
 import '../providers/security_provider.dart';
 import '../providers/current_list_provider.dart';
 import '../services/access_control_service.dart';
@@ -287,6 +288,7 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
 
   void _toggleItemPurchased(int index, bool isPurchased) {
     final currentList = ref.read(currentListProvider);
+    final currentGroup = ref.read(currentGroupProvider);
     if (currentList == null) return;
 
     final updatedItems = List<ShoppingItem>.from(currentList.items);
@@ -300,12 +302,16 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
       updatedAt: DateTime.now(),
     );
 
-    ref.read(currentListProvider.notifier).updateList(updatedList);
+    ref.read(currentListProvider.notifier).updateList(
+          updatedList,
+          groupId: currentGroup?.groupId,
+        );
     // TODO: リポジトリに保存
   }
 
   void _deleteItem(int index) {
     final currentList = ref.read(currentListProvider);
+    final currentGroup = ref.read(currentGroupProvider);
     if (currentList == null) return;
 
     final updatedItems = List<ShoppingItem>.from(currentList.items);
@@ -316,7 +322,10 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
       updatedAt: DateTime.now(),
     );
 
-    ref.read(currentListProvider.notifier).updateList(updatedList);
+    ref.read(currentListProvider.notifier).updateList(
+          updatedList,
+          groupId: currentGroup?.groupId,
+        );
     // TODO: リポジトリに保存
   }
 
