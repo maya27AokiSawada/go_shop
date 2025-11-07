@@ -325,24 +325,6 @@ class UserSpecificHiveService {
     Log.info(
         '🔄 Current Hive schema version: $currentVersion, App schema version: $_currentSchemaVersion');
 
-    // ⚠️ 重要: スキーマバージョン2への移行は、旧データファイルを削除するため
-    // バージョンが2と記録されていても、ファイルが残っていれば再実行する
-    if (currentVersion == 2) {
-      final appDocDir = await getApplicationDocumentsDirectory();
-      final hivePath = '${appDocDir.path}/hive_db';
-      final purchaseGroupsFile = File('$hivePath/purchaseGroups.hive');
-
-      if (await purchaseGroupsFile.exists()) {
-        Log.info(
-            '⚠️ Found old schema data files. Re-running migration to v2...');
-        await _migrateToV2();
-        Log.info('✅ Migration to v2 re-executed successfully.');
-        // マイグレーション後に必ずバージョン2を保存
-        await prefs.setInt(_schemaVersionKey, 2);
-        return;
-      }
-    }
-
     if (currentVersion >= _currentSchemaVersion) {
       Log.info('✅ Schema is up to date.');
       return;
