@@ -47,22 +47,22 @@ class HiveShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<ShoppingList?> getShoppingList(String groupId) async {
-    final userKey = _getUserSpecificKey(groupId);
-    return box.get(userKey);
+  Future<ShoppingList?> getShoppingList(String listId) async {
+    // listIdで直接取得（新方式）
+    return box.get(listId);
   }
 
   @override
   Future<void> addItem(ShoppingList list) async {
     try {
-      final userKey = _getUserSpecificKey(list.groupId);
-      await box.put(userKey, list);
+      // listIdをキーとして保存（updateShoppingListと統一）
+      await box.put(list.listId, list);
       developer.log(
-          '💾 HiveShoppingListRepository: データを保存 - Key: $userKey, Items: ${list.items.length}個');
+          '💾 HiveShoppingListRepository: データを保存 - Key: ${list.listId}, Items: ${list.items.length}個');
       developer.log('📦 Box contents after save: ${box.length} lists total');
 
       // 保存確認
-      final saved = box.get(userKey);
+      final saved = box.get(list.listId);
       if (saved != null) {
         developer.log('✅ 保存確認成功: ${saved.items.length}個のアイテム');
       } else {
@@ -75,12 +75,12 @@ class HiveShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<void> clearShoppingList(String groupId) async {
-    final userKey = _getUserSpecificKey(groupId);
-    final list = box.get(userKey);
+  Future<void> clearShoppingList(String listId) async {
+    // listIdで直接取得
+    final list = box.get(listId);
     if (list != null) {
       final clearedList = list.copyWith(items: []);
-      await box.put(userKey, clearedList);
+      await box.put(listId, clearedList);
     }
   }
 
