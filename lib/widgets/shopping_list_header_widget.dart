@@ -92,6 +92,7 @@ class ShoppingListHeaderWidget extends ConsumerWidget {
                   ref,
                   lists,
                   currentList,
+                  currentGroup.groupId,
                 );
               },
               loading: () => const Center(
@@ -155,6 +156,7 @@ class ShoppingListHeaderWidget extends ConsumerWidget {
     WidgetRef ref,
     List<ShoppingList> lists,
     ShoppingList? currentList,
+    String? currentGroupId,
   ) {
     return Row(
       children: [
@@ -190,8 +192,12 @@ class ShoppingListHeaderWidget extends ConsumerWidget {
                 final selectedList = lists.firstWhere(
                   (list) => list.listId == listId,
                 );
-                ref.read(currentListProvider.notifier).selectList(selectedList);
-                Log.info('📝 リスト選択: ${selectedList.listName}');
+                ref.read(currentListProvider.notifier).selectList(
+                      selectedList,
+                      groupId: currentGroupId,
+                    );
+                Log.info(
+                    '📝 リスト選択: ${selectedList.listName} (グループ: $currentGroupId)');
               }
             },
           ),
@@ -279,7 +285,10 @@ class ShoppingListHeaderWidget extends ConsumerWidget {
                 ref.invalidate(groupShoppingListsProvider);
 
                 // 作成したリストをカレントリストに設定
-                ref.read(currentListProvider.notifier).selectList(newList);
+                ref.read(currentListProvider.notifier).selectList(
+                      newList,
+                      groupId: currentGroup.groupId,
+                    );
 
                 Navigator.of(context).pop();
 

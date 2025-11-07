@@ -1,4 +1,5 @@
 // lib/providers/current_list_provider.dart
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/shopping_list.dart';
@@ -6,26 +7,78 @@ import '../utils/app_logger.dart';
 
 /// 現在選択されている買い物リストを管理するProvider
 class CurrentListNotifier extends StateNotifier<ShoppingList?> {
-  static const String _currentListIdKey = 'current_list_id';
+  static const String _currentListIdKey = 'current_list_id'; // 後方互換用（非推奨）
+  static const String _groupListMapKey = 'group_list_map'; // グループごとの最終使用リストマップ
 
   CurrentListNotifier() : super(null);
 
-  /// リストを選択
-  Future<void> selectList(ShoppingList list) async {
+  /// リストを選択（グループIDと紐付けて保存）
+  Future<void> selectList(ShoppingList list, {String? groupId}) async {
     Log.info('📝 カレントリストを設定: ${list.listName} (${list.listId})');
     state = list;
 
-    // SharedPreferencesに保存
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_currentListIdKey, list.listId);
-      Log.info('✅ カレントリストIDを保存: ${list.listId}');
-    } catch (e) {
-      Log.error('❌ カレントリストID保存エラー: $e');
+    // グループIDが指定されている場合はマップに保存
+    if (groupId != null) {
+      await _saveListForGroup(groupId, list.listId);
+    } else {
+      // 後方互換用：グループIDがない場合は従来の方法で保存
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_currentListIdKey, list.listId);
+        Log.info('✅ カレントリストIDを保存（後方互換）: ${list.listId}');
+      } catch (e) {
+        Log.error('❌ カレントリストID保存エラー: $e');
+      }
     }
   }
 
-  /// 保存されているリストIDを取得
+  /// グループごとにリストIDを保存
+  Future<void> _saveListForGroup(String groupId, String listId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // 既存のマップを取得
+      final mapJson = prefs.getString(_groupListMapKey);
+      final Map<String, String> groupListMap =
+          mapJson != null ? Map<String, String>.from(json.decode(mapJson)) : {};
+
+      // グループのリストIDを更新
+      groupListMap[groupId] = listId;
+
+      // マップを保存
+      await prefs.setString(_groupListMapKey, json.encode(groupListMap));
+      Log.info('✅ グループ[$groupId]の最終使用リストを保存: $listId');
+    } catch (e) {
+      Log.error('❌ グループリストマップ保存エラー: $e');
+    }
+  }
+
+  /// グループの最終使用リストIDを取得
+  Future<String?> getSavedListIdForGroup(String groupId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final mapJson = prefs.getString(_groupListMapKey);
+
+      if (mapJson != null) {
+        final Map<String, String> groupListMap =
+            Map<String, String>.from(json.decode(mapJson));
+        final listId = groupListMap[groupId];
+
+        if (listId != null) {
+          Log.info('📖 グループ[$groupId]の最終使用リスト取得: $listId');
+          return listId;
+        }
+      }
+
+      Log.info('💡 グループ[$groupId]の最終使用リスト情報なし');
+      return null;
+    } catch (e) {
+      Log.error('❌ グループリストマップ取得エラー: $e');
+      return null;
+    }
+  }
+
+  /// 保存されているリストIDを取得（後方互換用）
   Future<String?> getSavedListId() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -43,17 +96,22 @@ class CurrentListNotifier extends StateNotifier<ShoppingList?> {
   }
 
   /// リスト内容を更新（SharedPreferencesにも保存）
-  Future<void> updateList(ShoppingList updatedList) async {
+  Future<void> updateList(ShoppingList updatedList, {String? groupId}) async {
     Log.info('🔄 カレントリストを更新: ${updatedList.listName}');
     state = updatedList;
 
-    // SharedPreferencesにも保存
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_currentListIdKey, updatedList.listId);
-      Log.info('✅ カレントリストID更新保存: ${updatedList.listId}');
-    } catch (e) {
-      Log.error('❌ カレントリストID更新保存エラー: $e');
+    // グループIDが指定されている場合はマップに保存
+    if (groupId != null) {
+      await _saveListForGroup(groupId, updatedList.listId);
+    } else {
+      // 後方互換用：グループIDがない場合は従来の方法で保存
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_currentListIdKey, updatedList.listId);
+        Log.info('✅ カレントリストID更新保存（後方互換）: ${updatedList.listId}');
+      } catch (e) {
+        Log.error('❌ カレントリストID更新保存エラー: $e');
+      }
     }
   }
 }

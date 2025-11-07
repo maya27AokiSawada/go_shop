@@ -221,6 +221,43 @@ class GroupListWidget extends ConsumerWidget {
     );
   }
 
+  /// グループの最終使用リストを復元
+  Future<void> _restoreLastUsedList(WidgetRef ref, String groupId) async {
+    try {
+      // 最終使用リストIDを取得
+      final listId = await ref
+          .read(currentListProvider.notifier)
+          .getSavedListIdForGroup(groupId);
+
+      if (listId != null) {
+        // グループのリスト一覧を取得
+        final listsAsync = await ref.read(groupShoppingListsProvider.future);
+
+        // リストIDに一致するリストを検索
+        final list = listsAsync.where((l) => l.listId == listId).firstOrNull;
+
+        if (list != null) {
+          // リストを復元
+          ref.read(currentListProvider.notifier).selectList(
+                list,
+                groupId: groupId,
+              );
+          AppLogger.info(
+              '✅ [LIST_RESTORE] グループ[$groupId]の最終使用リストを復元: ${list.listName}');
+        } else {
+          AppLogger.info('⚠️ [LIST_RESTORE] リストID[$listId]が見つかりません');
+          ref.read(currentListProvider.notifier).clearSelection();
+        }
+      } else {
+        AppLogger.info('💡 [LIST_RESTORE] グループ[$groupId]の最終使用リスト情報なし');
+        ref.read(currentListProvider.notifier).clearSelection();
+      }
+    } catch (e) {
+      AppLogger.error('❌ [LIST_RESTORE] リスト復元エラー: $e');
+      ref.read(currentListProvider.notifier).clearSelection();
+    }
+  }
+
   Future<void> _selectCurrentGroup(
       BuildContext context, WidgetRef ref, PurchaseGroup group) async {
     final currentGroup = ref.read(currentGroupProvider);
@@ -240,10 +277,8 @@ class GroupListWidget extends ConsumerWidget {
     AppLogger.info(
         '📋 [GROUP_SELECT] selectedGroupIdProviderも更新: ${group.groupId}');
 
-    // 🔄 グループ切り替え時は現在のリスト選択をクリア
-    // （別のグループのリストIDが残っているとDropdownエラーになるため）
-    ref.read(currentListProvider.notifier).clearSelection();
-    AppLogger.info('🗑️ [GROUP_SELECT] カレントリストをクリアしました');
+    // 🔄 グループ切り替え時：最終使用リストを復元
+    await _restoreLastUsedList(ref, group.groupId);
 
     AppLogger.info(
         '📋 [GROUP_SELECT] カレントグループを変更: ${group.groupName} (${group.groupId})');
