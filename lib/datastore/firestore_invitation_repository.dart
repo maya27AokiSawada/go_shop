@@ -187,16 +187,18 @@ class FirestoreInvitationRepository implements InvitationRepository {
     try {
       final now = Timestamp.now();
 
-      // 有効期限内の招待のみ取得
+      // 一時的な回避策: インデックス不要の単一条件クエリ
+      // TODO: Firebaseインデックス作成後、複合クエリに戻す
       final querySnapshot = await _invitationsCollection
           .where('groupId', isEqualTo: groupId)
-          .where('expiresAt', isGreaterThan: now)
-          .orderBy('expiresAt', descending: true)
           .get();
 
+      // クライアント側で有効期限フィルタリングとソート
       final invitations = querySnapshot.docs
           .map((doc) => Invitation.fromFirestore(doc))
-          .toList();
+          .where((inv) => inv.expiresAt.toDate().isAfter(DateTime.now()))
+          .toList()
+        ..sort((a, b) => b.expiresAt.compareTo(a.expiresAt));
 
       Log.info('📋 [INVITATION] グループ招待取得: $groupId (${invitations.length}件)');
       return invitations;
