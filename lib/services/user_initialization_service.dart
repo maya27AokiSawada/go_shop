@@ -341,9 +341,9 @@ class UserInitializationService {
       final userGroupsRef =
           firestore.collection('users').doc(user.uid).collection('groups');
 
-      // 削除済みでないグループのみ取得
-      final snapshot =
-          await userGroupsRef.where('isDeleted', isEqualTo: false).get();
+      // 全グループを取得してから、削除済みでないものをフィルタ
+      // isDeletedフィールドが存在しない古いデータにも対応
+      final snapshot = await userGroupsRef.get();
 
       final hiveRepository =
           _ref.read(hive_repo.hivePurchaseGroupRepositoryProvider);
@@ -351,9 +351,18 @@ class UserInitializationService {
       int syncedCount = 0;
       int skippedCount = 0;
 
-      // Firestoreにないグループ(削除済み)をHiveから削除
-      final firestoreGroupIds = snapshot.docs.map((doc) => doc.id).toSet();
-      Log.info('📊 [SYNC] Firestoreから取得したグループ: ${firestoreGroupIds.length}個');
+      // 削除済みでないグループのIDを取得（isDeletedフィールドがない場合は有効とみなす）
+      final firestoreGroupIds = snapshot.docs
+          .where((doc) {
+            final data = doc.data();
+            final isDeleted = data['isDeleted'] as bool? ?? false;
+            return !isDeleted;
+          })
+          .map((doc) => doc.id)
+          .toSet();
+
+      Log.info(
+          '📊 [SYNC] Firestoreから取得したグループ: ${snapshot.docs.length}個 (削除済み除外後: ${firestoreGroupIds.length}個)');
       for (final groupId in firestoreGroupIds) {
         Log.info('  - $groupId');
       }

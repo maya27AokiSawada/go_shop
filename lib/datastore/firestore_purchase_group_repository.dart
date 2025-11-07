@@ -13,9 +13,14 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
   // FirebaseFirestoreインスタンスを直接受け取る
   FirestorePurchaseGroupRepository(this._firestore);
 
-  /// 購入グループコレクション（全体で一意）
-  CollectionReference get _groupsCollection =>
-      _firestore.collection('purchaseGroups');
+  /// 購入グループコレクション（ユーザーごと）
+  CollectionReference get _groupsCollection {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('User not logged in');
+    }
+    return _firestore.collection('users').doc(user.uid).collection('groups');
+  }
 
   /// ショッピングリストID生成（groupId + UUID）
   String generateShoppingListId(String groupId) {
@@ -154,9 +159,17 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
   @override
   Future<PurchaseGroup> deleteGroup(String groupId) async {
     try {
+      final user = _auth.currentUser;
+      developer
+          .log('🔍 [FIRESTORE DELETE] Attempting to delete group: $groupId');
+      developer.log(
+          '🔍 [FIRESTORE DELETE] User path: users/${user?.uid}/groups/$groupId');
+
       final doc = await _groupsCollection.doc(groupId).get();
+      developer.log('🔍 [FIRESTORE DELETE] Document exists: ${doc.exists}');
+
       if (!doc.exists) {
-        throw Exception('Group not found: $groupId');
+        throw Exception('Group not found: $groupId (User: ${user?.uid})');
       }
 
       final group = _groupFromFirestore(doc);

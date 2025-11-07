@@ -99,6 +99,14 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
       // 安全なBox取得（再試行機能付き）
       final box = await _boxAsync;
       final groups = box.values.toList();
+
+      // デバッグ: 全グループの削除フラグを確認
+      developer.log('🔍 [HIVE_REPO] Box内の全グループ (${groups.length}個):');
+      for (final group in groups) {
+        developer.log(
+            '  - ${group.groupName} (${group.groupId}): isDeleted=${group.isDeleted}');
+      }
+
       // 隠しグループと削除済みグループを除外
       final visibleGroups = groups
           .where(
@@ -329,7 +337,12 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
       );
       await box.put(groupId, deletedGroup);
 
+      // 確認のため保存後のデータを取得
+      final savedGroup = box.get(groupId);
       developer.log('🚫 グループを論理削除: ${group.groupName} ($groupId)');
+      developer.log('   保存前 isDeleted: ${group.isDeleted}');
+      developer.log('   保存後 isDeleted: ${savedGroup?.isDeleted}');
+
       return deletedGroup;
     } catch (e) {
       developer.log('❌ グループ削除エラー: $e');
