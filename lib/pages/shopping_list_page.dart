@@ -286,7 +286,7 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
     return Colors.green;
   }
 
-  void _toggleItemPurchased(int index, bool isPurchased) {
+  Future<void> _toggleItemPurchased(int index, bool isPurchased) async {
     final currentList = ref.read(currentListProvider);
     final currentGroup = ref.read(currentGroupProvider);
     if (currentList == null) return;
@@ -306,10 +306,13 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
           updatedList,
           groupId: currentGroup?.groupId,
         );
-    // TODO: リポジトリに保存
+
+    // リポジトリに保存
+    final repository = ref.read(shoppingListRepositoryProvider);
+    await repository.updateShoppingList(updatedList);
   }
 
-  void _deleteItem(int index) {
+  Future<void> _deleteItem(int index) async {
     final currentList = ref.read(currentListProvider);
     final currentGroup = ref.read(currentGroupProvider);
     if (currentList == null) return;
@@ -326,7 +329,10 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
           updatedList,
           groupId: currentGroup?.groupId,
         );
-    // TODO: リポジトリに保存
+
+    // リポジトリに保存
+    final repository = ref.read(shoppingListRepositoryProvider);
+    await repository.updateShoppingList(updatedList);
   }
 
   void _showAddItemDialog(BuildContext context) {
