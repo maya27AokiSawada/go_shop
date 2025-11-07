@@ -10,6 +10,8 @@ import '../utils/app_logger.dart';
 import '../pages/group_member_management_page.dart';
 import '../services/user_initialization_service.dart';
 import '../flavors.dart';
+import 'invitation_management_dialog.dart';
+import 'accept_invitation_widget.dart';
 
 /// グループをリスト表示するウィジェット
 /// タップでメンバー管理画面に遷移
@@ -99,6 +101,9 @@ class GroupListWidget extends ConsumerWidget {
             ],
           ),
         ),
+
+        // 招待を受ける
+        const AcceptInvitationWidget(),
 
         // グループリスト（スクロール可能に変更）
         Expanded(
@@ -202,13 +207,40 @@ class GroupListWidget extends ConsumerWidget {
               ),
           ],
         ),
-        trailing: IconButton(
+        trailing: PopupMenuButton<String>(
           icon: const Icon(Icons.settings, size: 18, color: Colors.grey),
-          onPressed: () {
-            AppLogger.info('📋 [GROUP_LIST] メンバー管理ボタン: ${group.groupId}');
-            _navigateToMemberManagement(context, ref, group);
+          tooltip: 'グループ設定',
+          onSelected: (value) {
+            if (value == 'members') {
+              AppLogger.info('📋 [GROUP_LIST] メンバー管理: ${group.groupId}');
+              _navigateToMemberManagement(context, ref, group);
+            } else if (value == 'invite') {
+              AppLogger.info('📋 [GROUP_LIST] 招待管理: ${group.groupId}');
+              _showInvitationDialog(context, ref, group);
+            }
           },
-          tooltip: 'メンバー管理',
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'members',
+              child: Row(
+                children: [
+                  Icon(Icons.people, size: 18),
+                  SizedBox(width: 8),
+                  Text('メンバー管理'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'invite',
+              child: Row(
+                children: [
+                  Icon(Icons.person_add, size: 18),
+                  SizedBox(width: 8),
+                  Text('招待管理'),
+                ],
+              ),
+            ),
+          ],
         ),
         onTap: () async {
           AppLogger.info('📋 [GROUP_LIST] グループ選択: ${group.groupId}');
@@ -623,5 +655,14 @@ class GroupListWidget extends ConsumerWidget {
         );
       }
     }
+  }
+
+  /// 招待管理ダイアログを表示
+  void _showInvitationDialog(
+      BuildContext context, WidgetRef ref, PurchaseGroup group) {
+    showDialog(
+      context: context,
+      builder: (context) => InvitationManagementDialog(group: group),
+    );
   }
 }
