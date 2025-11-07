@@ -22,6 +22,7 @@ class GroupListWidget extends ConsumerWidget {
 
     // ✅ 最初に全ての依存性を確定する
     final allGroupsAsync = ref.watch(allGroupsProvider);
+    // selectedGroupIdProviderとcurrentGroupProviderを同期して使用
     final selectedGroupId = ref.watch(selectedGroupIdProvider);
     final syncStatus = ref.watch(firestoreSyncStatusProvider);
 
@@ -233,6 +234,11 @@ class GroupListWidget extends ConsumerWidget {
 
     // グループを選択してカレントグループに設定（awaitで非同期完了を待つ）
     await ref.read(currentGroupProvider.notifier).selectGroup(group);
+
+    // selectedGroupIdProviderも同期（UI表示用）
+    ref.read(selectedGroupIdProvider.notifier).selectGroup(group.groupId);
+    AppLogger.info(
+        '📋 [GROUP_SELECT] selectedGroupIdProviderも更新: ${group.groupId}');
 
     // 🔄 グループ切り替え時は現在のリスト選択をクリア
     // （別のグループのリストIDが残っているとDropdownエラーになるため）
