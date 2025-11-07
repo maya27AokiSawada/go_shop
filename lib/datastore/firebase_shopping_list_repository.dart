@@ -51,7 +51,7 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
     );
   }
 
-  /// Firestoreコレクション参�Eを取征E
+  /// Firestoreコレクション参照を取得
   CollectionReference? _getUserShoppingListsCollection() {
     final user = _currentUser;
     if (user == null) return null;
@@ -59,7 +59,7 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
     return FirebaseFirestore.instance
         .collection('users')
         .doc(user.uid)
-        .collection('groups');
+        .collection('shoppingLists');
   }
 
   @override
