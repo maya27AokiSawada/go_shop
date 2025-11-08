@@ -10,6 +10,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../utils/app_logger.dart';
 import 'invitation_security_service.dart';
 import 'user_initialization_service.dart';
+import 'notification_service.dart';
 import '../providers/purchase_group_provider.dart';
 import '../models/purchase_group.dart';
 
@@ -440,7 +441,25 @@ class QRInvitationService {
       await repository.updateGroup(groupId, updatedGroup);
 
       Log.info('✅ 個別招待でグループに追加: $acceptorUid → $groupId');
-      Log.info('✅ 個別招待処理完了');
+
+      // グループの全メンバーに通知を送信（参加者本人は除く）
+      final notificationService = _ref.read(notificationServiceProvider);
+      final acceptorUser = _auth.currentUser;
+      final userName =
+          acceptorUser?.displayName ?? acceptorUser?.email ?? 'ユーザー';
+
+      await notificationService.sendNotificationToGroup(
+        groupId: groupId,
+        type: NotificationType.groupMemberAdded,
+        message: '$userName さんがグループに参加しました',
+        excludeUserIds: [acceptorUid], // 参加者本人には送らない
+        metadata: {
+          'newMemberId': acceptorUid,
+          'newMemberName': userName,
+        },
+      );
+
+      Log.info('✅ 個別招待処理完了 + 通知送信完了');
     } catch (e) {
       Log.error('❌ 個別招待処理エラー: $e');
       rethrow;

@@ -1,76 +1,97 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     // ニュースコレクション：誰でも読み取り可能（未サインインでもOK）
     match /furestorenews/{newsId} {
       allow read: if true;  // 誰でも読み取り可
       allow write: if false;  // 書き込みは管理者のみ（Consoleから）
     }
-    
+
     // メール送信コレクション（Trigger Email Extension用）
     match /mail/{mailId} {
       allow create: if request.auth != null;  // 認証済みユーザーのみ作成可能
       allow read, update, delete: if false;  // セキュリティのため禁止
     }
-    
+
+    // 通知コレクション：リアルタイム通知用
+    match /notifications/{notificationId} {
+      // 自分宛の通知のみ読み取り可能
+      allow read: if request.auth != null &&
+                     resource.data.userId == request.auth.uid;
+
+      // 認証済みユーザーは通知を作成可能
+      allow create: if request.auth != null;
+
+      // 自分宛の通知のみ更新・削除可能
+      allow update, delete: if request.auth != null &&
+                               resource.data.userId == request.auth.uid;
+    }
+
+    // 招待ログコレクション：招待受諾の記録用
+    match /invitation_logs/{logId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if false;  // 記録は変更不可
+    }
+
     // 開発環境では認証済みユーザーに全アクセスを許可
     // 本番環境では以下の詳細ルールを使用すること
     match /{document=**} {
       allow read, write: if request.auth != null;
     }
-    
+
     /*
     // 本番環境用の詳細セキュリティルール
     // 現在はコメントアウト - 開発完了後に有効化
-    
+
     // 🔒 新アーキテクチャ対応セキュリティルール
-    
+
     // ユーザードキュメント（基本情報）
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
-      
+
       // 受諾招待コレクション：誰でも書き込み可能（招待受諾用）
       match /acceptedInvitations/{acceptorUid} {
         // 📝 重要: 認証済みユーザーなら誰でも作成可能（招待受諾記録用）
-        allow create: if request.auth != null && 
+        allow create: if request.auth != null &&
                          request.auth.uid == acceptorUid &&
                          request.resource.data.acceptorUid == acceptorUid;
-        
+
         // 読み取り・更新・削除は招待元（親ドキュメントオーナー）のみ
-        allow read, update, delete: if request.auth != null && 
+        allow read, update, delete: if request.auth != null &&
                                        request.auth.uid == userId;
       }
     }
-    
+
     // PurchaseGroup：allowedUidsベースのアクセス制御
     match /purchaseGroups/{groupId} {
       allow read: if request.auth != null && (
         resource.data.ownerUid == request.auth.uid ||
         request.auth.uid in resource.data.allowedUids
       );
-      
-      allow write, update: if request.auth != null && 
+
+      allow write, update: if request.auth != null &&
         resource.data.ownerUid == request.auth.uid;
-      
-      allow create: if request.auth != null && 
+
+      allow create: if request.auth != null &&
         request.resource.data.ownerUid == request.auth.uid;
-      
-      allow delete: if request.auth != null && 
+
+      allow delete: if request.auth != null &&
         resource.data.ownerUid == request.auth.uid;
     }
-    
+
     // ShoppingList：allowedUidsベースのアクセス制御
     match /shoppingLists/{listId} {
       allow read, write: if request.auth != null && (
         resource.data.ownerUid == request.auth.uid ||
         request.auth.uid in resource.data.allowedUids
       );
-      
-      allow create: if request.auth != null && 
+
+      allow create: if request.auth != null &&
         request.resource.data.ownerUid == request.auth.uid;
-      
-      allow delete: if request.auth != null && 
+
+      allow delete: if request.auth != null &&
         resource.data.ownerUid == request.auth.uid;
     }
 
@@ -78,10 +99,10 @@ service cloud.firestore {
     function existsInMembersList(members, uid) {
       return members.where('memberId', '==', uid).size() > 0;
     }
-    
+
     function hasGroupAccess(groupId, uid) {
       let group = get(/databases/$(database)/documents/purchaseGroups/$(groupId));
-      return group.data.ownerUid == uid || 
+      return group.data.ownerUid == uid ||
              uid in group.data.allowedUids;
     }
     */

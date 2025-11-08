@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/data_version_service.dart';
 import '../services/user_initialization_service.dart';
+import '../services/notification_service.dart';
 import '../widgets/data_migration_widget.dart';
 import '../utils/app_logger.dart';
 
@@ -128,6 +129,11 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
       // 基本的なユーザー初期化サービスの開始のみ
       final userInitService = ref.read(userInitializationServiceProvider);
       userInitService.startAuthStateListener();
+
+      // 通知リスナーを起動（認証済みの場合のみ）
+      final notificationService = ref.read(notificationServiceProvider);
+      notificationService.startListening();
+
       Log.info('✅ 基本初期化完了 - 各ページで必要な初期化を実行します');
     } catch (e) {
       Log.error('❌ 基本初期化エラー: $e');
