@@ -19,13 +19,8 @@ import 'user_specific_hive_provider.dart';
 final purchaseGroupRepositoryProvider = Provider<PurchaseGroupRepository>((
   ref,
 ) {
-  if (F.appFlavor == Flavor.prod) {
-    // 本番環境ではハイブリッド（Hive + Firestore）を使用
-    return HybridPurchaseGroupRepository(ref);
-  } else {
-    // 開発環境ではHiveのみ
-    return HivePurchaseGroupRepository(ref);
-  }
+  // 🔥 開発環境でもHybridRepositoryを使用（QR招待のFirestore連携のため）
+  return HybridPurchaseGroupRepository(ref);
 });
 
 // Selected Group Management - 選択されたグループの詳細操作用

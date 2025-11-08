@@ -390,12 +390,15 @@ class QRInvitationService {
       Log.info('👤 個別招待を処理中...');
 
       final groupId = invitationData['purchaseGroupId'] as String;
-      Log.info('🔍 [QR_INVITATION] グループID: $groupId');
+      final groupName = invitationData['groupName'] as String;
 
-      // リポジトリ経由でグループを取得（HiveまたはFirestoreの実装に応じて自動的に適切なソースから取得）
+      Log.info('🔍 [QR_INVITATION] グループID: $groupId');
+      Log.info('🔍 [QR_INVITATION] グループ名: $groupName');
+
+      // リポジトリ経由でグループを取得
       final repository = _ref.read(purchaseGroupRepositoryProvider);
       final group = await repository.getGroupById(groupId);
-      Log.info('🔍 [QR_INVITATION] グループ取得: ${group.groupName}');
+      Log.info('🔍 [QR_INVITATION] 既存グループ取得: ${group.groupName}');
 
       final allowedUid = List<String>.from(group.allowedUid);
       final members = List<PurchaseGroupMember>.from(group.members ?? []);

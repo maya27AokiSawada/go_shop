@@ -128,6 +128,8 @@ class GroupListWidget extends ConsumerWidget {
 
     return ListView.builder(
       itemCount: groups.length,
+      padding:
+          const EdgeInsets.only(bottom: 80), // FloatingActionButtonの分の余白を追加
       itemBuilder: (context, index) {
         return _buildGroupTile(context, ref, groups[index], selectedGroupId);
       },

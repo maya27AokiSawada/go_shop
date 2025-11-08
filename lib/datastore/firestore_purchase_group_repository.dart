@@ -13,13 +13,9 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
   // FirebaseFirestoreインスタンスを直接受け取る
   FirestorePurchaseGroupRepository(this._firestore);
 
-  /// 購入グループコレクション（ユーザーごと）
+  /// 購入グループコレクション（ルート直下 - QR招待のため）
   CollectionReference get _groupsCollection {
-    final user = _auth.currentUser;
-    if (user == null) {
-      throw Exception('User not logged in');
-    }
-    return _firestore.collection('users').doc(user.uid).collection('groups');
+    return _firestore.collection('purchaseGroups');
   }
 
   /// ショッピングリストID生成（groupId + UUID）
