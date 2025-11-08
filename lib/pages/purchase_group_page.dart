@@ -98,6 +98,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
         icon: const Icon(Icons.group_add),
         label: const Text('新しいグループ'),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
