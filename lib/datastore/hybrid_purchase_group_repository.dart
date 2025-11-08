@@ -72,15 +72,14 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
       developer.log('📄 [HYBRID_REPO] Error Message: $e');
       developer.log('📄 [HYBRID_REPO] StackTrace: $stackTrace');
       rethrow; // Hive初期化失敗は真のクリティカルエラー
-    } // Firestore初期化は非同期で安全に実行（クラッシュリスクゼロ）
-    if (F.appFlavor != Flavor.dev) {
-      developer.log('🔄 [HYBRID_REPO] 非同期Firestore初期化をスケジュール');
-      // 非同期で安全にFirestore初期化を試行
-      _safeAsyncFirestoreInitialization();
-    } else {
-      developer.log('💡 [HYBRID_REPO] DEV環境 - Hiveのみで動作');
-      _isInitialized = true;
     }
+
+    // Firestore初期化は非同期で安全に実行（クラッシュリスクゼロ）
+    // 🔥 devモードでもFirestore初期化を実行（QR招待のため）
+    developer.log(
+        '🔄 [HYBRID_REPO] 非同期Firestore初期化をスケジュール (Flavor: ${F.appFlavor})');
+    // 非同期で安全にFirestore初期化を試行
+    _safeAsyncFirestoreInitialization();
   }
 
   /// 完全にクラッシュ防止のFirestore初期化（非同期・安全）
