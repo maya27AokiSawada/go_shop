@@ -338,12 +338,14 @@ class UserInitializationService {
     try {
       Log.info('⬇️ [SYNC] Firestore→Hive同期開始');
       final firestore = FirebaseFirestore.instance;
-      final userGroupsRef =
-          firestore.collection('users').doc(user.uid).collection('groups');
 
-      // 全グループを取得してから、削除済みでないものをフィルタ
-      // isDeletedフィールドが存在しない古いデータにも対応
-      final snapshot = await userGroupsRef.get();
+      // purchaseGroupsルートコレクションからallowedUidでフィルタ
+      final purchaseGroupsRef = firestore.collection('purchaseGroups');
+      final snapshot = await purchaseGroupsRef
+          .where('allowedUid', arrayContains: user.uid)
+          .get();
+
+      Log.info('📊 [SYNC] Firestoreクエリ完了: ${snapshot.docs.length}個のグループ');
 
       final hiveRepository =
           _ref.read(hive_repo.hivePurchaseGroupRepositoryProvider);
