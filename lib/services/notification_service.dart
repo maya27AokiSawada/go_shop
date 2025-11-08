@@ -1,0 +1,307 @@
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../utils/app_logger.dart';
+import 'user_initialization_service.dart';
+import '../providers/purchase_group_provider.dart';
+
+/// 通知サービスプロバイダー
+final notificationServiceProvider = Provider<NotificationService>((ref) {
+  return NotificationService(ref);
+});
+
+/// 通知タイプ
+enum NotificationType {
+  groupMemberAdded('group_member_added'),
+  groupUpdated('group_updated'),
+  invitationAccepted('invitation_accepted'),
+  groupDeleted('group_deleted');
+
+  const NotificationType(this.value);
+  final String value;
+
+  static NotificationType? fromString(String value) {
+    return NotificationType.values.firstWhere(
+      (type) => type.value == value,
+      orElse: () => NotificationType.groupUpdated,
+    );
+  }
+}
+
+/// 通知データモデル
+class NotificationData {
+  final String id;
+  final String userId;
+  final NotificationType type;
+  final String groupId;
+  final String message;
+  final DateTime timestamp;
+  final bool read;
+  final Map<String, dynamic>? metadata;
+
+  NotificationData({
+    required this.id,
+    required this.userId,
+    required this.type,
+    required this.groupId,
+    required this.message,
+    required this.timestamp,
+    required this.read,
+    this.metadata,
+  });
+
+  factory NotificationData.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return NotificationData(
+      id: doc.id,
+      userId: data['userId'] ?? '',
+      type: NotificationType.fromString(data['type'] ?? '') ??
+          NotificationType.groupUpdated,
+      groupId: data['groupId'] ?? '',
+      message: data['message'] ?? '',
+      timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      read: data['read'] ?? false,
+      metadata: data['metadata'] as Map<String, dynamic>?,
+    );
+  }
+}
+
+/// リアルタイム通知サービス
+class NotificationService {
+  final Ref _ref;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  StreamSubscription<QuerySnapshot>? _notificationSubscription;
+  bool _isListening = false;
+
+  NotificationService(this._ref);
+
+  /// 通知リスナーを開始
+  void startListening() {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      AppLogger.info('🔕 [NOTIFICATION] 認証なし - 通知リスナー起動スキップ');
+      return;
+    }
+
+    if (_isListening) {
+      AppLogger.info('🔔 [NOTIFICATION] 既にリスナー起動中');
+      return;
+    }
+
+    AppLogger.info('🔔 [NOTIFICATION] リアルタイム通知リスナー起動: ${currentUser.uid}');
+
+    _notificationSubscription = _firestore
+        .collection('notifications')
+        .where('userId', isEqualTo: currentUser.uid)
+        .where('read', isEqualTo: false)
+        .orderBy('timestamp', descending: true)
+        .snapshots()
+        .listen(
+      (snapshot) {
+        for (var change in snapshot.docChanges) {
+          if (change.type == DocumentChangeType.added) {
+            final notification = NotificationData.fromFirestore(change.doc);
+            _handleNotification(notification);
+          }
+        }
+      },
+      onError: (error) {
+        AppLogger.error('❌ [NOTIFICATION] リスナーエラー: $error');
+      },
+    );
+
+    _isListening = true;
+  }
+
+  /// 通知リスナーを停止
+  void stopListening() {
+    _notificationSubscription?.cancel();
+    _notificationSubscription = null;
+    _isListening = false;
+    AppLogger.info('🔕 [NOTIFICATION] リスナー停止');
+  }
+
+  /// 通知を処理
+  Future<void> _handleNotification(NotificationData notification) async {
+    try {
+      AppLogger.info(
+          '📬 [NOTIFICATION] 受信: ${notification.type.value} - ${notification.message}');
+
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        AppLogger.error('❌ [NOTIFICATION] 認証なし - 処理スキップ');
+        return;
+      }
+
+      // 通知タイプによって処理を分岐
+      switch (notification.type) {
+        case NotificationType.groupMemberAdded:
+        case NotificationType.invitationAccepted:
+        case NotificationType.groupUpdated:
+          // Firestore→Hive同期
+          AppLogger.info('🔄 [NOTIFICATION] Firestore→Hive同期開始');
+          final userInitService = _ref.read(userInitializationServiceProvider);
+          await userInitService.syncFromFirestoreToHive(currentUser);
+
+          // UI更新
+          _ref.invalidate(allGroupsProvider);
+          AppLogger.info('✅ [NOTIFICATION] 同期完了 - UI更新');
+          break;
+
+        case NotificationType.groupDeleted:
+          // グループ削除通知
+          AppLogger.info('🗑️ [NOTIFICATION] グループ削除通知');
+          _ref.invalidate(allGroupsProvider);
+          break;
+      }
+
+      // 通知を既読にする
+      await markAsRead(notification.id);
+    } catch (e) {
+      AppLogger.error('❌ [NOTIFICATION] 処理エラー: $e');
+    }
+  }
+
+  /// 通知を送信
+  Future<void> sendNotification({
+    required String targetUserId,
+    required NotificationType type,
+    required String groupId,
+    required String message,
+    Map<String, dynamic>? metadata,
+  }) async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        AppLogger.error('❌ [NOTIFICATION] 認証なし - 送信スキップ');
+        return;
+      }
+
+      // 自分自身には送信しない
+      if (targetUserId == currentUser.uid) {
+        AppLogger.info('📭 [NOTIFICATION] 自分自身への送信スキップ');
+        return;
+      }
+
+      final notificationData = {
+        'userId': targetUserId,
+        'type': type.value,
+        'groupId': groupId,
+        'message': message,
+        'timestamp': FieldValue.serverTimestamp(),
+        'read': false,
+        'senderId': currentUser.uid,
+        'senderName': currentUser.displayName ?? currentUser.email ?? 'Unknown',
+      };
+
+      if (metadata != null) {
+        notificationData['metadata'] = metadata;
+      }
+
+      await _firestore.collection('notifications').add(notificationData);
+
+      AppLogger.info('📤 [NOTIFICATION] 送信完了: $targetUserId - ${type.value}');
+    } catch (e) {
+      AppLogger.error('❌ [NOTIFICATION] 送信エラー: $e');
+    }
+  }
+
+  /// グループの全メンバーに通知を送信
+  Future<void> sendNotificationToGroup({
+    required String groupId,
+    required NotificationType type,
+    required String message,
+    List<String>? excludeUserIds,
+    Map<String, dynamic>? metadata,
+  }) async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) return;
+
+      // グループ情報を取得
+      final groupDoc =
+          await _firestore.collection('purchaseGroups').doc(groupId).get();
+      if (!groupDoc.exists) {
+        AppLogger.error('❌ [NOTIFICATION] グループが見つかりません: $groupId');
+        return;
+      }
+
+      final groupData = groupDoc.data()!;
+      final members =
+          List<Map<String, dynamic>>.from(groupData['members'] ?? []);
+
+      AppLogger.info(
+          '📢 [NOTIFICATION] グループメンバーへ一斉送信: $groupId (${members.length}人)');
+
+      // 各メンバーに通知
+      for (var member in members) {
+        final memberId = member['memberId'] as String?;
+        if (memberId == null) continue;
+
+        // 除外リストチェック
+        if (excludeUserIds != null && excludeUserIds.contains(memberId)) {
+          continue;
+        }
+
+        await sendNotification(
+          targetUserId: memberId,
+          type: type,
+          groupId: groupId,
+          message: message,
+          metadata: metadata,
+        );
+      }
+
+      AppLogger.info('✅ [NOTIFICATION] グループへの一斉送信完了');
+    } catch (e) {
+      AppLogger.error('❌ [NOTIFICATION] グループ送信エラー: $e');
+    }
+  }
+
+  /// 通知を既読にする
+  Future<void> markAsRead(String notificationId) async {
+    try {
+      await _firestore.collection('notifications').doc(notificationId).update({
+        'read': true,
+        'readAt': FieldValue.serverTimestamp(),
+      });
+      AppLogger.info('✅ [NOTIFICATION] 既読: $notificationId');
+    } catch (e) {
+      AppLogger.error('❌ [NOTIFICATION] 既読エラー: $e');
+    }
+  }
+
+  /// 古い通知をクリーンアップ（7日以上前の既読通知を削除）
+  Future<void> cleanupOldNotifications() async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) return;
+
+      final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
+
+      final oldNotifications = await _firestore
+          .collection('notifications')
+          .where('userId', isEqualTo: currentUser.uid)
+          .where('read', isEqualTo: true)
+          .where('timestamp', isLessThan: Timestamp.fromDate(sevenDaysAgo))
+          .get();
+
+      final batch = _firestore.batch();
+      for (var doc in oldNotifications.docs) {
+        batch.delete(doc.reference);
+      }
+
+      await batch.commit();
+      AppLogger.info(
+          '🧹 [NOTIFICATION] 古い通知を削除: ${oldNotifications.docs.length}件');
+    } catch (e) {
+      AppLogger.error('❌ [NOTIFICATION] クリーンアップエラー: $e');
+    }
+  }
+
+  /// リスナーが起動中かどうか
+  bool get isListening => _isListening;
+}
