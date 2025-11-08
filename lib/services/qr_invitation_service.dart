@@ -458,6 +458,7 @@ class QRInvitationService {
         message: '$userName さんがグループに参加しました',
         excludeUserIds: [acceptorUid], // 参加者本人には送らない
         metadata: {
+          'groupId': groupId, // 招待元がこのグループを再同期するため
           'newMemberId': acceptorUid,
           'newMemberName': userName,
         },
