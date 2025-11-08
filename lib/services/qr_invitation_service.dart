@@ -248,6 +248,10 @@ class QRInvitationService {
       // 招待受諾の記録
       await _recordInvitationAcceptance(invitationData, acceptorUid);
 
+      // Firestore書き込みの伝播を待つ（重要！）
+      Log.info('⏳ Firestore伝播待機中...');
+      await Future.delayed(const Duration(seconds: 2));
+
       // Firestore→Hive同期を実行
       Log.info('🔄 招待受諾後のFirestore→Hive同期を開始');
       final userInitService = ref.read(userInitializationServiceProvider);
