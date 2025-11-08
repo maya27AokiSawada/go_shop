@@ -1,4 +1,5 @@
 // lib/widgets/invitation_management_dialog.dart
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -239,6 +240,23 @@ class _InvitationManagementDialogState
 
   /// 招待カード（QRコード + テキスト）
   Widget _buildInvitationCard(Invitation invitation) {
+    // QRコード用のJSON データを生成
+    final qrData = jsonEncode({
+      'purchaseGroupId': widget.group.groupId,
+      'groupName': widget.group.groupName,
+      'inviterUid': invitation.invitedBy,
+      'inviterName': invitation.inviterName,
+      'expiresAt': invitation.expiresAt.toIso8601String(),
+      'maxUses': invitation.maxUses,
+      'token': invitation.token, // 手動入力用のトークンも含める
+    });
+
+    // デバッグ用ログ
+    Log.info('🔍 [QR_GENERATION] QRコードデータ生成:');
+    Log.info('  - purchaseGroupId: ${widget.group.groupId}');
+    Log.info('  - groupName: ${widget.group.groupName}');
+    Log.info('  - QR JSON: $qrData');
+
     return Card(
       elevation: 4,
       color: Colors.blue.shade50,
@@ -252,7 +270,7 @@ class _InvitationManagementDialogState
             ),
             const SizedBox(height: 16),
 
-            // QRコード
+            // QRコード（JSON形式）
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -260,7 +278,7 @@ class _InvitationManagementDialogState
                 borderRadius: BorderRadius.circular(8),
               ),
               child: QrImageView(
-                data: invitation.token,
+                data: qrData, // JSON形式のデータを使用
                 version: QrVersions.auto,
                 size: 200,
               ),
@@ -268,7 +286,7 @@ class _InvitationManagementDialogState
 
             const SizedBox(height: 16),
 
-            // トークンテキスト
+            // トークンテキスト（手動入力用）
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -279,12 +297,22 @@ class _InvitationManagementDialogState
               child: Row(
                 children: [
                   Expanded(
-                    child: SelectableText(
-                      invitation.token,
-                      style: const TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: 14,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          '手動入力用コード:',
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                        const SizedBox(height: 4),
+                        SelectableText(
+                          invitation.token,
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   IconButton(

@@ -1,8 +1,10 @@
 {
-  "projects": {},
+  "projects": {
+    "default": "gotoshop-572b7"
+  },
   "targets": {},
   "etags": {
-    "go-shopping-61515": {
+    "gotoshop-572b7": {
       "extensionInstances": {
         "firestore-send-email": "new_etag_after_extension_installation"
       }

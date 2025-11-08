@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "37061888509",
-    "project_id": "go-shopping-61515",
-    "storage_bucket": "go-shopping-61515.firebasestorage.app"
+    "project_number": "895658199748",
+    "project_id": "gotoshop-572b7",
+    "storage_bucket": "gotoshop-572b7.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:37061888509:android:3af7ee6e3d88bf1e36f194",
+        "mobilesdk_app_id": "1:895658199748:android:9bc037ca25d380a018d791",
         "android_client_info": {
-          "package_name": "com.oneness_as.goshopping"
+          "package_name": "net.sumomo_planning.go_shop"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBFFV9-nJ97gVgnoJH7_5_Fl3R30EyuupQ"
+          "current_key": "AIzaSyCiPnY6GaBSrUfnCkFzJu-Y3p7D8Cqg1aI"
         }
       ],
       "services": {
