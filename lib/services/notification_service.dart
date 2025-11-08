@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../utils/app_logger.dart';
 import 'user_initialization_service.dart';
 import '../providers/purchase_group_provider.dart';
+import '../models/purchase_group.dart';
+import '../datastore/purchase_group_repository.dart';
 
 /// 通知サービスプロバイダー
 final notificationServiceProvider = Provider<NotificationService>((ref) {
@@ -139,6 +141,23 @@ class NotificationService {
       // 通知タイプによって処理を分岐
       switch (notification.type) {
         case NotificationType.groupMemberAdded:
+          // 新メンバー追加通知 - 特定グループのみFirestoreから再取得
+          AppLogger.info('👥 [NOTIFICATION] 新メンバー追加 - グループ再取得');
+          final groupId = notification.metadata?['groupId'] as String?;
+          if (groupId != null) {
+            await _syncSpecificGroupFromFirestore(groupId);
+          } else {
+            // groupIdがない場合は全体同期
+            final userInitService =
+                _ref.read(userInitializationServiceProvider);
+            await userInitService.syncFromFirestoreToHive(currentUser);
+          }
+
+          // UI更新
+          _ref.invalidate(allGroupsProvider);
+          AppLogger.info('✅ [NOTIFICATION] 同期完了 - UI更新');
+          break;
+
         case NotificationType.invitationAccepted:
         case NotificationType.groupUpdated:
           // Firestore→Hive同期
@@ -162,6 +181,36 @@ class NotificationService {
       await markAsRead(notification.id);
     } catch (e) {
       AppLogger.error('❌ [NOTIFICATION] 処理エラー: $e');
+    }
+  }
+
+  /// 特定グループをFirestoreから取得してHiveに同期
+  Future<void> _syncSpecificGroupFromFirestore(String groupId) async {
+    try {
+      AppLogger.info('🔄 [NOTIFICATION] グループ同期開始: $groupId');
+      
+      // Firestoreから最新のグループデータを取得
+      final groupDoc = await _firestore
+          .collection('purchaseGroups')
+          .doc(groupId)
+          .get();
+
+      if (!groupDoc.exists) {
+        AppLogger.warning('⚠️ [NOTIFICATION] グループが存在しません: $groupId');
+        return;
+      }
+
+      // PurchaseGroupオブジェクトに変換
+      final groupData = groupDoc.data()!;
+      final group = PurchaseGroup.fromJson(groupData);
+
+      // Hiveに保存
+      final repository = _ref.read(purchaseGroupRepositoryProvider);
+      await repository.updateGroup(groupId, group);
+
+      AppLogger.info('✅ [NOTIFICATION] グループ同期完了: ${group.groupName}');
+    } catch (e) {
+      AppLogger.error('❌ [NOTIFICATION] グループ同期エラー: $e');
     }
   }
 
@@ -271,6 +320,37 @@ class NotificationService {
       AppLogger.info('✅ [NOTIFICATION] 既読: $notificationId');
     } catch (e) {
       AppLogger.error('❌ [NOTIFICATION] 既読エラー: $e');
+    }
+  }
+
+  /// 特定のグループをFirestoreから再取得してHiveに同期
+  Future<void> _syncSpecificGroupFromFirestore(String groupId) async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) return;
+
+      AppLogger.info('🔄 [NOTIFICATION] 特定グループ同期: $groupId');
+
+      // Firestoreから該当グループを取得
+      final groupDoc =
+          await _firestore.collection('purchaseGroups').doc(groupId).get();
+
+      if (!groupDoc.exists) {
+        AppLogger.warning('⚠️ [NOTIFICATION] グループが見つかりません: $groupId');
+        return;
+      }
+
+      final groupData = groupDoc.data()!;
+      final group =
+          PurchaseGroup.fromJson({...groupData, 'groupId': groupDoc.id});
+
+      // Hiveに保存
+      final repository = _ref.read(purchaseGroupRepositoryProvider);
+      await repository.updateGroup(groupId, group);
+
+      AppLogger.info('✅ [NOTIFICATION] グループ同期完了: ${group.groupName}');
+    } catch (e) {
+      AppLogger.error('❌ [NOTIFICATION] グループ同期エラー: $e');
     }
   }
 
