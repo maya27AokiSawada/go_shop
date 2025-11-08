@@ -188,12 +188,10 @@ class NotificationService {
   Future<void> _syncSpecificGroupFromFirestore(String groupId) async {
     try {
       AppLogger.info('🔄 [NOTIFICATION] グループ同期開始: $groupId');
-      
+
       // Firestoreから最新のグループデータを取得
-      final groupDoc = await _firestore
-          .collection('purchaseGroups')
-          .doc(groupId)
-          .get();
+      final groupDoc =
+          await _firestore.collection('purchaseGroups').doc(groupId).get();
 
       if (!groupDoc.exists) {
         AppLogger.warning('⚠️ [NOTIFICATION] グループが存在しません: $groupId');
