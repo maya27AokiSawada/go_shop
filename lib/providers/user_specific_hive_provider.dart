@@ -18,11 +18,12 @@ final hiveUserInitializationProvider = FutureProvider<void>((ref) async {
 
   if (isWindows) {
     // Windows版: 前回使用UIDフォルダを自動継続（認証状態に関係なく）
-    Log.info('🔄 [Windows] Initializing Hive with last used UID folder');
+    AppLogger.info('🔄 [Windows] Initializing Hive with last used UID folder');
     await hiveService.initializeForWindowsUser();
   } else {
     // Android/iOS版: 従来通りのデフォルトフォルダ
-    Log.info('🔄 [${Platform.operatingSystem}] Using default Hive folder');
+    AppLogger.info(
+        '🔄 [${Platform.operatingSystem}] Using default Hive folder');
     await hiveService.initializeForDefaultUser();
   }
 });
