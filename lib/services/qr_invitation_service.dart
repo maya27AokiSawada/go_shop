@@ -78,6 +78,16 @@ class QRInvitationService {
       'version': '3.0', // セキュリティ強化版
     };
 
+    // Firestoreのinvitationsコレクションに保存
+    await _firestore.collection('invitations').doc(invitationId).set({
+      ...invitationData,
+      'createdAt': FieldValue.serverTimestamp(),
+      'expiresAt': DateTime.now().add(const Duration(hours: 24)),
+      'status': 'pending', // pending, accepted, expired
+    });
+
+    Log.info('🔐 招待データをFirestoreに保存: $invitationId');
+
     return invitationData;
   }
 
@@ -221,7 +231,8 @@ class QRInvitationService {
       }
 
       // セキュリティ検証
-      if (!_validateInvitationSecurity(invitationData, providedSecurityKey)) {
+      if (!await _validateInvitationSecurity(
+          invitationData, providedSecurityKey)) {
         throw Exception('招待のセキュリティ検証に失敗しました');
       }
 
@@ -248,6 +259,17 @@ class QRInvitationService {
       // 招待受諾の記録
       await _recordInvitationAcceptance(invitationData, acceptorUid);
 
+      // Firestoreのinvitationsコレクションのステータスを更新
+      final invitationId = invitationData['invitationId'] as String?;
+      if (invitationId != null) {
+        await _firestore.collection('invitations').doc(invitationId).update({
+          'status': 'accepted',
+          'acceptedAt': FieldValue.serverTimestamp(),
+          'acceptorUid': acceptorUid,
+        });
+        Log.info('✅ 招待ステータスを更新: $invitationId → accepted');
+      }
+
       // Firestore書き込みの伝播を待つ（重要！）
       Log.info('⏳ Firestore伝播待機中...');
       await Future.delayed(const Duration(seconds: 2));
@@ -268,23 +290,58 @@ class QRInvitationService {
     }
   }
 
-  /// 招待のセキュリティを検証
-  bool _validateInvitationSecurity(
-      Map<String, dynamic> invitationData, String? providedKey) {
+  /// 招待のセキュリティを検証（Firestoreから取得）
+  Future<bool> _validateInvitationSecurity(
+      Map<String, dynamic> invitationData, String? providedKey) async {
     final version = invitationData['version'] as String?;
 
     // v3.0（セキュア版）の場合
     if (version == '3.0') {
-      final expectedKey = invitationData['securityKey'] as String?;
-      if (expectedKey == null || providedKey == null) {
-        Log.info('セキュリティキーが不足');
+      final invitationId = invitationData['invitationId'] as String?;
+      if (invitationId == null) {
+        Log.info('❌ 招待IDが不足');
         return false;
       }
 
-      if (!_securityService.validateSecurityKey(providedKey, expectedKey)) {
-        Log.info('セキュリティキーが無効');
+      // Firestoreから実際の招待データを取得
+      final invitationDoc =
+          await _firestore.collection('invitations').doc(invitationId).get();
+
+      if (!invitationDoc.exists) {
+        Log.info('❌ 招待が見つかりません: $invitationId');
         return false;
       }
+
+      final storedData = invitationDoc.data()!;
+      final storedSecurityKey = storedData['securityKey'] as String?;
+      final status = storedData['status'] as String?;
+      final expiresAt = storedData['expiresAt'] as Timestamp?;
+
+      // ステータスチェック
+      if (status != 'pending') {
+        Log.info('❌ 招待は既に使用済みまたは無効です: $status');
+        return false;
+      }
+
+      // 有効期限チェック
+      if (expiresAt != null && expiresAt.toDate().isBefore(DateTime.now())) {
+        Log.info('❌ 招待の有効期限が切れています');
+        return false;
+      }
+
+      // セキュリティキー検証
+      if (storedSecurityKey == null || providedKey == null) {
+        Log.info('❌ セキュリティキーが不足');
+        return false;
+      }
+
+      if (!_securityService.validateSecurityKey(
+          providedKey, storedSecurityKey)) {
+        Log.info('❌ セキュリティキーが無効');
+        return false;
+      }
+
+      Log.info('✅ セキュリティ検証成功');
     }
 
     return true;
