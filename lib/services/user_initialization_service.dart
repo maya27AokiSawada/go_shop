@@ -13,6 +13,7 @@ import '../flavors.dart';
 import '../datastore/hive_purchase_group_repository.dart' as hive_repo;
 
 import 'user_preferences_service.dart';
+import 'notification_service.dart';
 
 final userInitializationServiceProvider = Provider<UserInitializationService>((
   ref,
@@ -51,6 +52,16 @@ class UserInitializationService {
         if (user != null) {
           // ユーザーがログインした時の初期化処理
           _initializeUserDefaults(user);
+
+          // 通知リスナーを起動
+          final notificationService = _ref.read(notificationServiceProvider);
+          notificationService.startListening();
+          Log.info('🔔 [INIT] 認証状態変更 - 通知リスナー起動');
+        } else {
+          // ログアウト時は通知リスナーを停止
+          final notificationService = _ref.read(notificationServiceProvider);
+          notificationService.stopListening();
+          Log.info('🔕 [INIT] ログアウト - 通知リスナー停止');
         }
       });
     }
