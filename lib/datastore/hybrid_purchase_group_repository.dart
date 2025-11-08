@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:developer' as developer;
@@ -90,9 +91,24 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
     }
 
     _isInitializing = true;
-    developer.log('� [HYBRID_REPO] 安全なFirestore初期化開始...');
+    developer.log('🔄 [HYBRID_REPO] 安全なFirestore初期化開始...');
 
     try {
+      // 🔐 認証状態チェック - 認証なしではFirestoreを使わない
+      final auth = FirebaseAuth.instance;
+      final currentUser = auth.currentUser;
+
+      if (currentUser == null) {
+        developer.log('⚠️ [HYBRID_REPO] 認証なし - Firestore同期スキップ（Hiveのみモード）');
+        _firestoreRepo = null;
+        _isOnline = false;
+        _isInitialized = true;
+        _initializationError = 'No authentication - Hive only mode';
+        return;
+      }
+
+      developer.log('✅ [HYBRID_REPO] 認証確認: ${currentUser.uid}');
+
       // 複数層の安全網でFirestore初期化
       await Future.delayed(const Duration(milliseconds: 500)); // 安定化待機
 
