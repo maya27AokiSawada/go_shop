@@ -9,6 +9,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../utils/app_logger.dart';
 import 'invitation_security_service.dart';
+import 'user_initialization_service.dart';
+import '../providers/purchase_group_provider.dart';
+import '../models/purchase_group.dart';
 
 // QRコード招待サービスプロバイダー
 final qrInvitationServiceProvider = Provider<QRInvitationService>((ref) {
@@ -244,6 +247,15 @@ class QRInvitationService {
       // 招待受諾の記録
       await _recordInvitationAcceptance(invitationData, acceptorUid);
 
+      // Firestore→Hive同期を実行
+      Log.info('🔄 招待受諾後のFirestore→Hive同期を開始');
+      final userInitService = ref.read(userInitializationServiceProvider);
+      await userInitService.syncFromFirestoreToHive(currentUser);
+
+      // AllGroupsProviderを再読み込み
+      ref.invalidate(allGroupsProvider);
+      Log.info('✅ 招待受諾後の同期完了');
+
       return true;
     } catch (e) {
       Log.error('QR招待受諾エラー: $e');
@@ -319,7 +331,7 @@ class QRInvitationService {
 
       // 招待者がオーナーのグループを取得
       final ownerGroupsQuery = await _firestore
-          .collection('purchase_groups')
+          .collection('purchaseGroups')
           .where('ownerUid', isEqualTo: inviterUid)
           .get();
 
@@ -327,17 +339,41 @@ class QRInvitationService {
       for (final doc in ownerGroupsQuery.docs) {
         final groupData = doc.data();
         final allowedUids = List<String>.from(groupData['allowedUids'] ?? []);
+        final members =
+            List<Map<String, dynamic>>.from(groupData['members'] ?? []);
 
+        // allowedUidsに追加
         if (!allowedUids.contains(acceptorUid)) {
           allowedUids.add(acceptorUid);
-
-          await doc.reference.update({
-            'allowedUids': allowedUids,
-            'lastUpdated': FieldValue.serverTimestamp(),
-          });
-
-          Log.info('✅ フレンドとして ${doc.id} グループに追加: $acceptorUid');
+          Log.info('✅ allowedUidsに追加: $acceptorUid → ${doc.id}');
         }
+
+        // membersリストにも追加
+        final memberExists = members.any((m) => m['memberId'] == acceptorUid);
+        if (!memberExists) {
+          // ユーザー情報を取得
+          final acceptorUser = _auth.currentUser;
+          final userName = acceptorUser?.displayName ?? 'Unknown User';
+
+          // 新しいメンバーを追加
+          final newMember = {
+            'memberId': acceptorUid,
+            'name': userName,
+            'role': 'member', // デフォルトは一般メンバー
+            'joinedAt': FieldValue.serverTimestamp(),
+          };
+          members.add(newMember);
+          Log.info('✅ membersリストに追加: $userName ($acceptorUid) → ${doc.id}');
+        }
+
+        // Firestoreを更新
+        await doc.reference.update({
+          'allowedUids': allowedUids,
+          'members': members,
+          'lastUpdated': FieldValue.serverTimestamp(),
+        });
+
+        Log.info('✅ フレンドとして ${doc.id} グループに追加: $acceptorUid');
       }
 
       Log.info('✅ フレンド招待処理完了');
@@ -354,29 +390,53 @@ class QRInvitationService {
       Log.info('👤 個別招待を処理中...');
 
       final groupId = invitationData['purchaseGroupId'] as String;
+      Log.info('🔍 [QR_INVITATION] グループID: $groupId');
 
-      // 特定のグループのallowedUidsに追加
-      final groupRef = _firestore.collection('purchase_groups').doc(groupId);
-      final groupDoc = await groupRef.get();
+      // リポジトリ経由でグループを取得（HiveまたはFirestoreの実装に応じて自動的に適切なソースから取得）
+      final repository = _ref.read(purchaseGroupRepositoryProvider);
+      final group = await repository.getGroupById(groupId);
+      Log.info('🔍 [QR_INVITATION] グループ取得: ${group.groupName}');
 
-      if (!groupDoc.exists) {
-        throw Exception('指定されたグループが見つかりません');
+      final allowedUid = List<String>.from(group.allowedUid);
+      final members = List<PurchaseGroupMember>.from(group.members ?? []);
+
+      // allowedUidに追加
+      if (!allowedUid.contains(acceptorUid)) {
+        allowedUid.add(acceptorUid);
+        Log.info('✅ allowedUidに追加: $acceptorUid');
       }
 
-      final groupData = groupDoc.data()!;
-      final allowedUids = List<String>.from(groupData['allowedUids'] ?? []);
+      // membersリストにも追加
+      final memberExists = members.any((m) => m.memberId == acceptorUid);
+      if (!memberExists) {
+        // ユーザー情報を取得
+        final acceptorUser = _auth.currentUser;
+        final userName = acceptorUser?.displayName ?? 'Unknown User';
+        final userEmail = acceptorUser?.email ?? '';
 
-      if (!allowedUids.contains(acceptorUid)) {
-        allowedUids.add(acceptorUid);
-
-        await groupRef.update({
-          'allowedUids': allowedUids,
-          'lastUpdated': FieldValue.serverTimestamp(),
-        });
-
-        Log.info('✅ 個別招待でグループに追加: $acceptorUid → $groupId');
+        // 新しいメンバーを追加
+        final newMember = PurchaseGroupMember(
+          memberId: acceptorUid,
+          name: userName,
+          contact: userEmail,
+          role: PurchaseGroupRole.member, // デフォルトは一般メンバー
+          isSignedIn: true,
+          invitationStatus: InvitationStatus.accepted,
+          acceptedAt: DateTime.now(),
+        );
+        members.add(newMember);
+        Log.info('✅ membersリストに追加: $userName ($acceptorUid)');
       }
 
+      // グループを更新（リポジトリ経由）
+      final updatedGroup = group.copyWith(
+        allowedUid: allowedUid,
+        members: members,
+        updatedAt: DateTime.now(),
+      );
+      await repository.updateGroup(groupId, updatedGroup);
+
+      Log.info('✅ 個別招待でグループに追加: $acceptorUid → $groupId');
       Log.info('✅ 個別招待処理完了');
     } catch (e) {
       Log.error('❌ 個別招待処理エラー: $e');

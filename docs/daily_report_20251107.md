@@ -32,12 +32,12 @@
   - QRコード生成（qr_flutter 使用）
   - アクティブな招待一覧表示
   - 招待キャンセル機能
-  
+
 - `lib/widgets/accept_invitation_widget.dart` (438行)
   - QRスキャナー（mobile_scanner 使用）
   - 手動トークン入力
   - 招待受諾確認フロー
-  
+
 - `lib/widgets/group_list_widget.dart` - 統合
   - 設定ボタンをポップアップメニュー化
   - メニュー項目：メンバー管理・招待管理
@@ -55,7 +55,7 @@
 [cloud_firestore/failed-precondition] The query requires an index.
 ```
 
-**原因**: 
+**原因**:
 複合クエリ（`groupId` == X AND `expiresAt` > now ORDER BY `expiresAt` DESC）にインデックスが必要
 
 **対応内容**:
@@ -204,6 +204,6 @@ E/qdgralloc(32545): GetSize: Unrecognized pixel format: 0x38
 
 ---
 
-**作業者**: GitHub Copilot  
-**日時**: 2025年11月7日 退勤時  
+**作業者**: GitHub Copilot
+**日時**: 2025年11月7日 退勤時
 **次回作業**: インデックス構築完了確認 → 招待機能の動作テスト
