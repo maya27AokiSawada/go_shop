@@ -365,8 +365,8 @@ class _GroupCreationWithCopyDialogState
         return '管理者';
       case PurchaseGroupRole.member:
         return 'メンバー';
-      case PurchaseGroupRole.friend:
-        return 'フレンド';
+      case PurchaseGroupRole.partner:
+        return 'パートナー';
     }
   }
 

@@ -42,8 +42,8 @@ class DataMigrationV3ToV4 {
         return PurchaseGroupRoleV4.member;
       case PurchaseGroupRole.manager:
         return PurchaseGroupRoleV4.manager;
-      case PurchaseGroupRole.friend:
-        return PurchaseGroupRoleV4.member; // friendはmemberにマッピング
+      case PurchaseGroupRole.partner:
+        return PurchaseGroupRoleV4.manager; // partnerはmanagerにマッピング
     }
   }
 
