@@ -15,8 +15,8 @@ class MemberListTile extends StatelessWidget {
         return '管理者: ${member.name}';
       case PurchaseGroupRole.member:
         return 'メンバー: ${member.name}';
-      case PurchaseGroupRole.friend:
-        return '友達: ${member.name}';
+      case PurchaseGroupRole.partner:
+        return 'パートナー: ${member.name}';
     }
   }
 

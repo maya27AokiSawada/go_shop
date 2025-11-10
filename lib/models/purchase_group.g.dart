@@ -97,13 +97,14 @@ class PurchaseGroupAdapter extends TypeAdapter<PurchaseGroup> {
       lastAccessedAt: fields[15] as DateTime?,
       createdAt: fields[16] as DateTime?,
       updatedAt: fields[17] as DateTime?,
+      syncStatus: fields[18] as SyncStatus,
     );
   }
 
   @override
   void write(BinaryWriter writer, PurchaseGroup obj) {
     writer
-      ..writeByte(14)
+      ..writeByte(15)
       ..writeByte(0)
       ..write(obj.groupName)
       ..writeByte(1)
@@ -131,7 +132,9 @@ class PurchaseGroupAdapter extends TypeAdapter<PurchaseGroup> {
       ..writeByte(16)
       ..write(obj.createdAt)
       ..writeByte(17)
-      ..write(obj.updatedAt);
+      ..write(obj.updatedAt)
+      ..writeByte(18)
+      ..write(obj.syncStatus);
   }
 
   @override
@@ -159,7 +162,7 @@ class PurchaseGroupRoleAdapter extends TypeAdapter<PurchaseGroupRole> {
       case 2:
         return PurchaseGroupRole.manager;
       case 3:
-        return PurchaseGroupRole.friend;
+        return PurchaseGroupRole.partner;
       default:
         return PurchaseGroupRole.owner;
     }
@@ -177,7 +180,7 @@ class PurchaseGroupRoleAdapter extends TypeAdapter<PurchaseGroupRole> {
       case PurchaseGroupRole.manager:
         writer.writeByte(2);
         break;
-      case PurchaseGroupRole.friend:
+      case PurchaseGroupRole.partner:
         writer.writeByte(3);
         break;
     }
@@ -243,6 +246,89 @@ class InvitationStatusAdapter extends TypeAdapter<InvitationStatus> {
           typeId == other.typeId;
 }
 
+class InvitationTypeAdapter extends TypeAdapter<InvitationType> {
+  @override
+  final int typeId = 9;
+
+  @override
+  InvitationType read(BinaryReader reader) {
+    switch (reader.readByte()) {
+      case 0:
+        return InvitationType.individual;
+      case 1:
+        return InvitationType.partner;
+      default:
+        return InvitationType.individual;
+    }
+  }
+
+  @override
+  void write(BinaryWriter writer, InvitationType obj) {
+    switch (obj) {
+      case InvitationType.individual:
+        writer.writeByte(0);
+        break;
+      case InvitationType.partner:
+        writer.writeByte(1);
+        break;
+    }
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is InvitationTypeAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class SyncStatusAdapter extends TypeAdapter<SyncStatus> {
+  @override
+  final int typeId = 10;
+
+  @override
+  SyncStatus read(BinaryReader reader) {
+    switch (reader.readByte()) {
+      case 0:
+        return SyncStatus.synced;
+      case 1:
+        return SyncStatus.pending;
+      case 2:
+        return SyncStatus.local;
+      default:
+        return SyncStatus.synced;
+    }
+  }
+
+  @override
+  void write(BinaryWriter writer, SyncStatus obj) {
+    switch (obj) {
+      case SyncStatus.synced:
+        writer.writeByte(0);
+        break;
+      case SyncStatus.pending:
+        writer.writeByte(1);
+        break;
+      case SyncStatus.local:
+        writer.writeByte(2);
+        break;
+    }
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SyncStatusAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
 // **************************************************************************
 // JsonSerializableGenerator
 // **************************************************************************
@@ -289,7 +375,7 @@ const _$PurchaseGroupRoleEnumMap = {
   PurchaseGroupRole.owner: 'owner',
   PurchaseGroupRole.member: 'member',
   PurchaseGroupRole.manager: 'manager',
-  PurchaseGroupRole.friend: 'friend',
+  PurchaseGroupRole.partner: 'partner',
 };
 
 const _$InvitationStatusEnumMap = {
@@ -329,6 +415,9 @@ _$PurchaseGroupImpl _$$PurchaseGroupImplFromJson(Map<String, dynamic> json) =>
       updatedAt: json['updatedAt'] == null
           ? null
           : DateTime.parse(json['updatedAt'] as String),
+      syncStatus:
+          $enumDecodeNullable(_$SyncStatusEnumMap, json['syncStatus']) ??
+              SyncStatus.synced,
     );
 
 Map<String, dynamic> _$$PurchaseGroupImplToJson(_$PurchaseGroupImpl instance) =>
@@ -347,4 +436,11 @@ Map<String, dynamic> _$$PurchaseGroupImplToJson(_$PurchaseGroupImpl instance) =>
       'lastAccessedAt': instance.lastAccessedAt?.toIso8601String(),
       'createdAt': instance.createdAt?.toIso8601String(),
       'updatedAt': instance.updatedAt?.toIso8601String(),
+      'syncStatus': _$SyncStatusEnumMap[instance.syncStatus]!,
     };
+
+const _$SyncStatusEnumMap = {
+  SyncStatus.synced: 'synced',
+  SyncStatus.pending: 'pending',
+  SyncStatus.local: 'local',
+};

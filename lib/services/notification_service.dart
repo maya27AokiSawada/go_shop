@@ -6,7 +6,6 @@ import '../utils/app_logger.dart';
 import 'user_initialization_service.dart';
 import '../providers/purchase_group_provider.dart';
 import '../models/purchase_group.dart';
-import '../datastore/purchase_group_repository.dart';
 
 /// 通知サービスプロバイダー
 final notificationServiceProvider = Provider<NotificationService>((ref) {
@@ -18,7 +17,8 @@ enum NotificationType {
   groupMemberAdded('group_member_added'),
   groupUpdated('group_updated'),
   invitationAccepted('invitation_accepted'),
-  groupDeleted('group_deleted');
+  groupDeleted('group_deleted'),
+  syncConfirmation('sync_confirmation'); // 同期確認通知
 
   const NotificationType(this.value);
   final String value;
@@ -146,6 +146,20 @@ class NotificationService {
           final groupId = notification.metadata?['groupId'] as String?;
           if (groupId != null) {
             await _syncSpecificGroupFromFirestore(groupId);
+
+            // 受諾者に確認通知を送信
+            final acceptorUid =
+                notification.metadata?['acceptorUid'] as String?;
+            if (acceptorUid != null) {
+              AppLogger.info('📤 [NOTIFICATION] 確認通知を送信: $acceptorUid');
+              await sendNotification(
+                targetUserId: acceptorUid,
+                type: NotificationType.syncConfirmation,
+                groupId: groupId,
+                message: 'グループ同期完了',
+                metadata: {'confirmedBy': currentUser.uid},
+              );
+            }
           } else {
             // groupIdがない場合は全体同期
             final userInitService =
@@ -168,6 +182,15 @@ class NotificationService {
           // UI更新
           _ref.invalidate(allGroupsProvider);
           AppLogger.info('✅ [NOTIFICATION] 同期完了 - UI更新');
+          break;
+
+        case NotificationType.syncConfirmation:
+          // 同期確認通知 - 念のため同期実行（二重保険）
+          AppLogger.info('✅ [NOTIFICATION] 同期確認受信 - 念のため同期実行');
+          final userInitService = _ref.read(userInitializationServiceProvider);
+          await userInitService.syncFromFirestoreToHive(currentUser);
+          _ref.invalidate(allGroupsProvider);
+          AppLogger.info('✅ [NOTIFICATION] 確認通知による同期完了');
           break;
 
         case NotificationType.groupDeleted:
@@ -321,34 +344,64 @@ class NotificationService {
     }
   }
 
-  /// 特定のグループをFirestoreから再取得してHiveに同期
-  Future<void> _syncSpecificGroupFromFirestore(String groupId) async {
+  /// 確認通知を待機（最大10秒）
+  Future<bool> waitForSyncConfirmation({
+    required String groupId,
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
     try {
       final currentUser = _auth.currentUser;
-      if (currentUser == null) return;
-
-      AppLogger.info('🔄 [NOTIFICATION] 特定グループ同期: $groupId');
-
-      // Firestoreから該当グループを取得
-      final groupDoc =
-          await _firestore.collection('purchaseGroups').doc(groupId).get();
-
-      if (!groupDoc.exists) {
-        AppLogger.warning('⚠️ [NOTIFICATION] グループが見つかりません: $groupId');
-        return;
+      if (currentUser == null) {
+        AppLogger.error('❌ [NOTIFICATION] 認証なし - 確認待機スキップ');
+        return false;
       }
 
-      final groupData = groupDoc.data()!;
-      final group =
-          PurchaseGroup.fromJson({...groupData, 'groupId': groupDoc.id});
+      AppLogger.info('⏳ [NOTIFICATION] 確認通知待機中... (最大${timeout.inSeconds}秒)');
 
-      // Hiveに保存
-      final repository = _ref.read(purchaseGroupRepositoryProvider);
-      await repository.updateGroup(groupId, group);
+      final completer = Completer<bool>();
+      StreamSubscription<QuerySnapshot>? subscription;
 
-      AppLogger.info('✅ [NOTIFICATION] グループ同期完了: ${group.groupName}');
+      // タイムアウトタイマー
+      final timer = Timer(timeout, () {
+        if (!completer.isCompleted) {
+          AppLogger.warning('⚠️ [NOTIFICATION] 確認通知タイムアウト');
+          subscription?.cancel();
+          completer.complete(false);
+        }
+      });
+
+      // 確認通知を待機
+      subscription = _firestore
+          .collection('notifications')
+          .where('userId', isEqualTo: currentUser.uid)
+          .where('type', isEqualTo: NotificationType.syncConfirmation.value)
+          .where('groupId', isEqualTo: groupId)
+          .where('read', isEqualTo: false)
+          .orderBy('timestamp', descending: true)
+          .limit(1)
+          .snapshots()
+          .listen((snapshot) {
+        if (snapshot.docChanges.isNotEmpty && !completer.isCompleted) {
+          AppLogger.info('✅ [NOTIFICATION] 確認通知受信！');
+          timer.cancel();
+          subscription?.cancel();
+
+          // 確認通知を既読にする
+          for (var change in snapshot.docChanges) {
+            if (change.type == DocumentChangeType.added) {
+              markAsRead(change.doc.id);
+            }
+          }
+
+          completer.complete(true);
+        }
+      });
+
+      final result = await completer.future;
+      return result;
     } catch (e) {
-      AppLogger.error('❌ [NOTIFICATION] グループ同期エラー: $e');
+      AppLogger.error('❌ [NOTIFICATION] 確認待機エラー: $e');
+      return false;
     }
   }
 

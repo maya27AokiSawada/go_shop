@@ -17,7 +17,7 @@ enum PurchaseGroupRole {
   @HiveField(2)
   manager,
   @HiveField(3)
-  friend, // フレンド招待で追加されたメンバー
+  partner, // パートナー招待で追加されたメンバー（全グループへの管理者権限）
 }
 
 // 招待状態を定義するenum
@@ -31,6 +31,26 @@ enum InvitationStatus {
   accepted, // 受諾済み
   @HiveField(3)
   deleted, // アカウント削除済み
+}
+
+// 招待タイプを定義するenum
+@HiveType(typeId: 9)
+enum InvitationType {
+  @HiveField(0)
+  individual, // 個別グループ招待
+  @HiveField(1)
+  partner, // パートナー招待（全グループへの管理者アクセス）
+}
+
+// 同期ステータスを定義するenum
+@HiveType(typeId: 10)
+enum SyncStatus {
+  @HiveField(0)
+  synced, // Firestoreと同期済み
+  @HiveField(1)
+  pending, // 招待受諾中（プレースホルダー）
+  @HiveField(2)
+  local, // ローカルのみ（Firestoreに未送信）
 }
 
 @HiveType(typeId: 1)
@@ -157,6 +177,7 @@ class PurchaseGroup with _$PurchaseGroup {
     @HiveField(15) DateTime? lastAccessedAt,
     @HiveField(16) DateTime? createdAt,
     @HiveField(17) DateTime? updatedAt,
+    @HiveField(18) @Default(SyncStatus.synced) SyncStatus syncStatus,
   }) = _PurchaseGroup;
 
   factory PurchaseGroup.fromJson(Map<String, dynamic> json) =>

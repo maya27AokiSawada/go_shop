@@ -246,8 +246,8 @@ class _GroupMemberManagementPageState
         return '管理者';
       case PurchaseGroupRole.member:
         return 'メンバー';
-      case PurchaseGroupRole.friend:
-        return '友達';
+      case PurchaseGroupRole.partner:
+        return 'パートナー';
     }
   }
 

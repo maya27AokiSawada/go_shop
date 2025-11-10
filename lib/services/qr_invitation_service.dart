@@ -12,7 +12,7 @@ import 'invitation_security_service.dart';
 import 'user_initialization_service.dart';
 import 'notification_service.dart';
 import '../providers/purchase_group_provider.dart';
-import '../models/purchase_group.dart';
+import '../models/purchase_group.dart' as models;
 
 // QRコード招待サービスプロバイダー
 final qrInvitationServiceProvider = Provider<QRInvitationService>((ref) {
@@ -35,7 +35,7 @@ class QRInvitationService {
     required String purchaseGroupId,
     required String groupName,
     required String groupOwnerUid,
-    required String invitationType, // 'individual' または 'friend'
+    required String invitationType, // 'individual' または 'partner'
     String? customMessage,
   }) async {
     final currentUser = _auth.currentUser;
@@ -249,9 +249,18 @@ class QRInvitationService {
 
       Log.info('💡 セキュア招待受諾: タイプ=$invitationType');
 
-      // 招待タイプによって処理を分岐
-      if (invitationType == 'friend') {
-        await _processFriendInvitation(inviterUid, acceptorUid);
+      // 1. 先にHiveにプレースホルダーグループを作成（これが重要！）
+      await _createPlaceholderGroup(
+        groupId: invitationData['purchaseGroupId'],
+        groupName: invitationData['groupName'],
+        inviterUid: inviterUid,
+        acceptorUid: acceptorUid,
+      );
+      Log.info('✅ プレースホルダーグループ作成完了');
+
+      // 2. 招待タイプによって処理を分岐（Firestoreへの書き込み）
+      if (invitationType == 'partner') {
+        await _processPartnerInvitation(inviterUid, acceptorUid);
       } else {
         await _processIndividualInvitation(invitationData, acceptorUid);
       }
@@ -270,23 +279,133 @@ class QRInvitationService {
         Log.info('✅ 招待ステータスを更新: $invitationId → accepted');
       }
 
-      // Firestore書き込みの伝播を待つ（重要！）
-      Log.info('⏳ Firestore伝播待機中...');
-      await Future.delayed(const Duration(seconds: 2));
+      // 即座に成功を返す（UIをブロックしない）
+      // バックグラウンドで確認通知を待機して同期
+      _waitForConfirmationAndSync(
+        groupId: invitationData['purchaseGroupId'],
+        currentUser: currentUser,
+      );
 
-      // Firestore→Hive同期を実行
-      Log.info('🔄 招待受諾後のFirestore→Hive同期を開始');
-      final userInitService = ref.read(userInitializationServiceProvider);
-      await userInitService.syncFromFirestoreToHive(currentUser);
-
-      // AllGroupsProviderを再読み込み
-      ref.invalidate(allGroupsProvider);
-      Log.info('✅ 招待受諾後の同期完了');
+      Log.info('✅ 招待受諾処理完了 - バックグラウンド同期開始');
 
       return true;
     } catch (e) {
       Log.error('QR招待受諾エラー: $e');
       return false;
+    }
+  }
+
+  /// 確認通知を待機してFirestore→Hive同期（バックグラウンド）
+  Future<void> _waitForConfirmationAndSync({
+    required String groupId,
+    required User currentUser,
+  }) async {
+    try {
+      Log.info('⏳ [BACKGROUND] 確認通知待機開始...');
+
+      final notificationService = _ref.read(notificationServiceProvider);
+
+      // 最大10秒待機（短縮）
+      final confirmed = await notificationService.waitForSyncConfirmation(
+        groupId: groupId,
+        timeout: const Duration(seconds: 10),
+      );
+
+      if (!confirmed) {
+        Log.warning('⚠️ [BACKGROUND] 確認通知タイムアウト - 短い待機後同期');
+        // タイムアウト時は2秒待機
+        await Future.delayed(const Duration(seconds: 2));
+      } else {
+        Log.info('✅ [BACKGROUND] 確認通知受信 - 即座に同期');
+      }
+
+      // Firestore→Hive同期を実行
+      Log.info('🔄 [BACKGROUND] Firestore→Hive同期開始');
+      final userInitService = _ref.read(userInitializationServiceProvider);
+      await userInitService.syncFromFirestoreToHive(currentUser);
+
+      // AllGroupsProviderを再読み込み
+      _ref.invalidate(allGroupsProvider);
+
+      // SelectedGroupProviderも再読み込み（現在選択中のグループがある場合）
+      try {
+        _ref.invalidate(selectedGroupProvider);
+        Log.info('✅ [BACKGROUND] selectedGroupProviderも無効化');
+      } catch (e) {
+        Log.info('ℹ️ [BACKGROUND] selectedGroupProvider無効化スキップ: $e');
+      }
+
+      Log.info('✅ [BACKGROUND] バックグラウンド同期完了');
+    } catch (e) {
+      Log.error('❌ [BACKGROUND] バックグラウンド同期エラー: $e');
+    }
+  }
+
+  /// Hiveにプレースホルダーグループを作成
+  Future<void> _createPlaceholderGroup({
+    required String groupId,
+    required String groupName,
+    required String inviterUid,
+    required String acceptorUid,
+  }) async {
+    try {
+      Log.info('🔧 [PLACEHOLDER] プレースホルダーグループ作成開始');
+
+      // リポジトリ取得
+      final repository = _ref.read(purchaseGroupRepositoryProvider);
+
+      // 既に存在する場合はスキップ
+      try {
+        final existingGroup = await repository.getGroupById(groupId);
+        Log.info(
+            'ℹ️ [PLACEHOLDER] グループは既に存在: $groupId, ${existingGroup.groupName}');
+        return;
+      } catch (e) {
+        // グループが存在しない場合は続行
+        Log.info('📝 [PLACEHOLDER] グループが存在しないため作成します: $groupId');
+      }
+
+      // プレースホルダーグループ作成
+      final placeholderGroup = models.PurchaseGroup(
+        groupId: groupId,
+        groupName: groupName,
+        ownerUid: inviterUid,
+        ownerName: '招待元ユーザー', // 仮データ
+        ownerEmail: '',
+        allowedUid: [inviterUid, acceptorUid], // 両方のUIDを設定
+        members: [
+          models.PurchaseGroupMember(
+            memberId: inviterUid,
+            name: '招待元ユーザー',
+            contact: '',
+            role: models.PurchaseGroupRole.owner,
+            isSignedIn: true,
+            invitationStatus: models.InvitationStatus.self,
+          ),
+          models.PurchaseGroupMember(
+            memberId: acceptorUid,
+            name: '招待されたユーザー',
+            contact: '',
+            role: models.PurchaseGroupRole.member,
+            isSignedIn: true,
+            invitationStatus: models.InvitationStatus.pending,
+          ),
+        ],
+        syncStatus: models.SyncStatus.pending, // pending状態に設定
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      // Hiveに保存
+      await repository.updateGroup(groupId, placeholderGroup);
+      Log.info('✅ [PLACEHOLDER] プレースホルダーグループ保存完了: $groupId');
+
+      // UI更新
+      _ref.invalidate(allGroupsProvider);
+      Log.info('✅ [PLACEHOLDER] UI更新完了');
+    } catch (e) {
+      Log.error('❌ [PLACEHOLDER] プレースホルダーグループ作成エラー: $e');
+      rethrow;
     }
   }
 
@@ -362,17 +481,17 @@ class QRInvitationService {
     }
   }
 
-  /// フレンド招待を処理 - 招待者の全グループへのアクセスを許可
-  Future<void> _processFriendInvitation(
+  /// パートナー招待を処理 - 招待者の全グループへのアクセスを許可
+  Future<void> _processPartnerInvitation(
       String inviterUid, String acceptorUid) async {
     try {
-      Log.info('🤝 フレンド招待を処理中...');
+      Log.info('🤝 パートナー招待を処理中...');
 
-      // フレンドリストに追加
+      // パートナーリストに追加
       await _firestore
           .collection('users')
           .doc(inviterUid)
-          .collection('friends')
+          .collection('partners')
           .doc(acceptorUid)
           .set({
         'uid': acceptorUid,
@@ -383,7 +502,7 @@ class QRInvitationService {
       await _firestore
           .collection('users')
           .doc(acceptorUid)
-          .collection('friends')
+          .collection('partners')
           .doc(inviterUid)
           .set({
         'uid': inviterUid,
@@ -397,7 +516,7 @@ class QRInvitationService {
           .where('ownerUid', isEqualTo: inviterUid)
           .get();
 
-      // 各グループに友達として追加
+      // 各グループにパートナーとして追加
       for (final doc in ownerGroupsQuery.docs) {
         final groupData = doc.data();
         final allowedUids = List<String>.from(groupData['allowedUids'] ?? []);
@@ -417,11 +536,11 @@ class QRInvitationService {
           final acceptorUser = _auth.currentUser;
           final userName = acceptorUser?.displayName ?? 'Unknown User';
 
-          // 新しいメンバーを追加
+          // 新しいメンバーを追加（パートナーロール）
           final newMember = {
             'memberId': acceptorUid,
             'name': userName,
-            'role': 'member', // デフォルトは一般メンバー
+            'role': 'partner', // パートナーロール
             'joinedAt': FieldValue.serverTimestamp(),
           };
           members.add(newMember);
@@ -435,10 +554,30 @@ class QRInvitationService {
           'lastUpdated': FieldValue.serverTimestamp(),
         });
 
-        Log.info('✅ フレンドとして ${doc.id} グループに追加: $acceptorUid');
+        Log.info('✅ パートナーとして ${doc.id} グループに追加: $acceptorUid');
+
+        // グループの全メンバーに通知を送信（参加者本人は除く）
+        final notificationService = _ref.read(notificationServiceProvider);
+        final acceptorUser = _auth.currentUser;
+        final userName =
+            acceptorUser?.displayName ?? acceptorUser?.email ?? 'ユーザー';
+
+        await notificationService.sendNotificationToGroup(
+          groupId: doc.id,
+          type: NotificationType.groupMemberAdded,
+          message: '$userName さんがパートナーとして参加しました',
+          excludeUserIds: [acceptorUid], // 参加者本人には送らない
+          metadata: {
+            'groupId': doc.id,
+            'newMemberId': acceptorUid,
+            'newMemberName': userName,
+            'acceptorUid': acceptorUid, // 確認通知送信先
+            'invitationType': 'partner',
+          },
+        );
       }
 
-      Log.info('✅ フレンド招待処理完了');
+      Log.info('✅ パートナー招待処理完了');
     } catch (e) {
       Log.error('❌ フレンド招待処理エラー: $e');
       rethrow;
@@ -463,7 +602,8 @@ class QRInvitationService {
       Log.info('🔍 [QR_INVITATION] 既存グループ取得: ${group.groupName}');
 
       final allowedUid = List<String>.from(group.allowedUid);
-      final members = List<PurchaseGroupMember>.from(group.members ?? []);
+      final members =
+          List<models.PurchaseGroupMember>.from(group.members ?? []);
 
       // allowedUidに追加
       if (!allowedUid.contains(acceptorUid)) {
@@ -480,13 +620,13 @@ class QRInvitationService {
         final userEmail = acceptorUser?.email ?? '';
 
         // 新しいメンバーを追加
-        final newMember = PurchaseGroupMember(
+        final newMember = models.PurchaseGroupMember(
           memberId: acceptorUid,
           name: userName,
           contact: userEmail,
-          role: PurchaseGroupRole.member, // デフォルトは一般メンバー
+          role: models.PurchaseGroupRole.member, // デフォルトは一般メンバー
           isSignedIn: true,
-          invitationStatus: InvitationStatus.accepted,
+          invitationStatus: models.InvitationStatus.accepted,
           acceptedAt: DateTime.now(),
         );
         members.add(newMember);
@@ -518,6 +658,7 @@ class QRInvitationService {
           'groupId': groupId, // 招待元がこのグループを再同期するため
           'newMemberId': acceptorUid,
           'newMemberName': userName,
+          'acceptorUid': acceptorUid, // 確認通知送信先
         },
       );
 

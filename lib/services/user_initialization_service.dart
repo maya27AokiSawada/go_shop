@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/app_logger.dart';
-import '../models/purchase_group.dart';
+import '../models/purchase_group.dart' as models;
 import '../providers/purchase_group_provider.dart';
 import '../providers/user_specific_hive_provider.dart';
 import '../flavors.dart';
@@ -213,10 +213,10 @@ class UserInitializationService {
       }
 
       // デフォルトグループのオーナーメンバーを作成
-      final ownerMember = PurchaseGroupMember.create(
+      final ownerMember = models.PurchaseGroupMember.create(
         name: displayName,
         contact: user?.email ?? '',
-        role: PurchaseGroupRole.owner,
+        role: models.PurchaseGroupRole.owner,
         isSignedIn: user != null,
         isInvited: false,
         isInvitationAccepted: false,
@@ -309,13 +309,13 @@ class UserInitializationService {
               'ownerName': group.ownerName,
               'ownerEmail': group.ownerEmail,
               'members': group.members
-                      ?.map((m) => {
-                            'memberId': m.memberId,
-                            'name': m.name,
-                            'contact': m.contact,
-                            'role': m.role.name,
-                            'isSignedIn': m.isSignedIn,
-                            'invitationStatus': m.invitationStatus.name,
+                      ?.map((member) => {
+                            'memberId': member.memberId,
+                            'name': member.name,
+                            'contact': member.contact,
+                            'role': member.role.name,
+                            'isSignedIn': member.isSignedIn,
+                            'invitationStatus': member.invitationStatus.name,
                           })
                       .toList() ??
                   [],
@@ -391,6 +391,14 @@ class UserInitializationService {
             hiveGroup.groupId != 'default_group' &&
             hiveGroup.groupId != 'defaultGroup' &&
             hiveGroup.groupId != 'current_list') {
+          // pending状態のグループは削除しない（招待受諾中のプレースホルダー）
+          if (hiveGroup.syncStatus == models.SyncStatus.pending) {
+            Log.info(
+                '⏳ [SYNC] pending状態のグループをスキップ: ${hiveGroup.groupName} (${hiveGroup.groupId})');
+            skippedCount++;
+            continue;
+          }
+
           try {
             await hiveRepository.deleteGroup(hiveGroup.groupId);
             Log.info(
@@ -421,24 +429,25 @@ class UserInitializationService {
         // グループをHiveに保存/更新
         try {
           final members = (data['members'] as List?)
-                  ?.map((m) => PurchaseGroupMember(
+                  ?.map((m) => models.PurchaseGroupMember(
                         memberId: m['memberId'] ?? '',
                         name: m['name'] ?? '',
                         contact: m['contact'] ?? '',
-                        role: PurchaseGroupRole.values.firstWhere(
+                        role: models.PurchaseGroupRole.values.firstWhere(
                           (r) => r.name == (m['role'] ?? ''),
-                          orElse: () => PurchaseGroupRole.member,
+                          orElse: () => models.PurchaseGroupRole.member,
                         ),
                         isSignedIn: m['isSignedIn'] ?? false,
-                        invitationStatus: InvitationStatus.values.firstWhere(
+                        invitationStatus:
+                            models.InvitationStatus.values.firstWhere(
                           (s) => s.name == (m['invitationStatus'] ?? ''),
-                          orElse: () => InvitationStatus.self,
+                          orElse: () => models.InvitationStatus.self,
                         ),
                       ))
                   .toList() ??
               [];
 
-          final group = PurchaseGroup(
+          final group = models.PurchaseGroup(
             groupId: doc.id,
             groupName: data['groupName'] ?? '',
             ownerUid: data['ownerUid'],

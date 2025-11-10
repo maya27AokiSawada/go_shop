@@ -95,6 +95,16 @@ class HiveInitializationService {
         AppLogger.info('InvitationStatusAdapter (typeId: 8) 登録');
       }
 
+      if (!Hive.isAdapterRegistered(9)) {
+        Hive.registerAdapter(InvitationTypeAdapter());
+        AppLogger.info('InvitationTypeAdapter (typeId: 9) 登録');
+      }
+
+      if (!Hive.isAdapterRegistered(10)) {
+        Hive.registerAdapter(SyncStatusAdapter());
+        AppLogger.info('SyncStatusAdapter (typeId: 10) 登録');
+      }
+
       AppLogger.info('Hiveアダプター登録完了');
     } catch (e) {
       AppLogger.error('Hiveアダプター登録エラー: -Forcee');

@@ -168,9 +168,9 @@ class FirestoreDataMigrationService {
       case 'manager':
       case 'PurchaseGroupRole.manager':
         return PurchaseGroupRole.manager;
-      case 'friend':
-      case 'PurchaseGroupRole.friend':
-        return PurchaseGroupRole.friend;
+      case 'partner':
+      case 'PurchaseGroupRole.partner':
+        return PurchaseGroupRole.partner;
       default:
         return PurchaseGroupRole.member;
     }
