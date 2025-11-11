@@ -164,7 +164,11 @@ class UserInfoService {
 
   /// デフォルトグループを更新
   Future<void> _updateDefaultGroup(String userName, String userEmail) async {
-    const groupId = 'default_group';
+    // デフォルトグループIDはユーザーのuidをそのまま使用
+    // 未認証時はローカル専用の固定ID
+    final authService = _ref.read(authProvider);
+    final currentUser = authService.currentUser;
+    final groupId = currentUser?.uid ?? 'local_default';
 
     // 既存のデフォルトグループを取得
     PurchaseGroup? existingGroup;

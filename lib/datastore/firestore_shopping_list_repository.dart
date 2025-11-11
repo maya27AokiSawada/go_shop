@@ -1,13 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:developer' as developer;
-
+import 'dart:developer' as developer show log;
 import '../models/shopping_list.dart';
 import 'shopping_list_repository.dart';
 import '../providers/firestore_provider.dart';
 
 class FirestoreShoppingListRepository implements ShoppingListRepository {
-  // ignore: unused_field
   final Ref _ref;
   final FirebaseFirestore _firestore;
 
