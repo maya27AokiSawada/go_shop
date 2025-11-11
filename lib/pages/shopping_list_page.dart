@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shopping_list.dart';
 import '../providers/shopping_list_provider.dart';
 import '../providers/purchase_group_provider.dart';
-import '../providers/current_group_provider.dart';
 import '../providers/security_provider.dart';
 import '../providers/current_list_provider.dart';
 import '../services/access_control_service.dart';
@@ -63,11 +62,19 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
 
   @override
   Widget build(BuildContext context) {
-    // 🔒 シークレットモードチェック（リアクティブ）
-    final visibilityModeAsync = ref.watch(groupVisibilityModeProvider);
+    // 🔒 シークレットモードチェック
+    return FutureBuilder<GroupVisibilityMode>(
+      future: ref.read(accessControlServiceProvider).getGroupVisibilityMode(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('買い物リスト')),
+            body: const Center(child: CircularProgressIndicator()),
+          );
+        }
 
-    return visibilityModeAsync.when(
-      data: (visibilityMode) {
+        final visibilityMode = snapshot.data!;
+
         // シークレットモードON + 未サインイン時はブロック
         if (visibilityMode == GroupVisibilityMode.defaultOnly) {
           return Scaffold(
@@ -98,16 +105,6 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
         // 通常モード: 既存のUI表示
         return _buildNormalShoppingListUI(context);
       },
-      loading: () => Scaffold(
-        appBar: AppBar(title: const Text('買い物リスト')),
-        body: const Center(child: CircularProgressIndicator()),
-      ),
-      error: (error, stack) => Scaffold(
-        appBar: AppBar(title: const Text('買い物リスト')),
-        body: Center(
-          child: Text('エラー: $error'),
-        ),
-      ),
     );
   }
 
@@ -141,12 +138,12 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
       );
     }
 
+    final allGroupsAsync = ref.watch(allGroupsProvider);
     final selectedGroupId = ref.watch(selectedGroupIdProvider);
 
     // 選択されたグループIDに基づいてショッピングリストを取得
-    // selectedGroupIdがnullの場合はデフォルトグループを使用
-    final groupId = selectedGroupId ?? 'default_group';
-    ref.watch(shoppingListForGroupProvider(groupId));
+    final shoppingListAsync =
+        ref.watch(shoppingListForGroupProvider(selectedGroupId));
 
     return Scaffold(
       appBar: AppBar(
@@ -286,9 +283,8 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
     return Colors.green;
   }
 
-  Future<void> _toggleItemPurchased(int index, bool isPurchased) async {
+  void _toggleItemPurchased(int index, bool isPurchased) {
     final currentList = ref.read(currentListProvider);
-    final currentGroup = ref.read(currentGroupProvider);
     if (currentList == null) return;
 
     final updatedItems = List<ShoppingItem>.from(currentList.items);
@@ -302,19 +298,12 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
       updatedAt: DateTime.now(),
     );
 
-    ref.read(currentListProvider.notifier).updateList(
-          updatedList,
-          groupId: currentGroup?.groupId,
-        );
-
-    // リポジトリに保存
-    final repository = ref.read(shoppingListRepositoryProvider);
-    await repository.updateShoppingList(updatedList);
+    ref.read(currentListProvider.notifier).updateList(updatedList);
+    // TODO: リポジトリに保存
   }
 
-  Future<void> _deleteItem(int index) async {
+  void _deleteItem(int index) {
     final currentList = ref.read(currentListProvider);
-    final currentGroup = ref.read(currentGroupProvider);
     if (currentList == null) return;
 
     final updatedItems = List<ShoppingItem>.from(currentList.items);
@@ -325,14 +314,8 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
       updatedAt: DateTime.now(),
     );
 
-    ref.read(currentListProvider.notifier).updateList(
-          updatedList,
-          groupId: currentGroup?.groupId,
-        );
-
-    // リポジトリに保存
-    final repository = ref.read(shoppingListRepositoryProvider);
-    await repository.updateShoppingList(updatedList);
+    ref.read(currentListProvider.notifier).updateList(updatedList);
+    // TODO: リポジトリに保存
   }
 
   void _showAddItemDialog(BuildContext context) {
@@ -494,7 +477,6 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
     );
   }
 
-  // ignore: unused_element
   void _showEditItemDialog(BuildContext context, ShoppingItem item) {
     _itemNameController.text = item.name;
     _quantityController.text = item.quantity.toString();
@@ -655,7 +637,6 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
     );
   }
 
-  // ignore: unused_element
   void _showDeleteConfirmDialog(BuildContext context, ShoppingItem item) {
     showDialog(
       context: context,
@@ -671,9 +652,9 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
             onPressed: () async {
               try {
                 final selectedGroupId = ref.read(selectedGroupIdProvider);
-                final groupId = selectedGroupId ?? 'default_group';
                 await ref
-                    .read(shoppingListForGroupProvider(groupId).notifier)
+                    .read(
+                        shoppingListForGroupProvider(selectedGroupId).notifier)
                     .removeItem(item);
                 if (context.mounted) {
                   Navigator.of(context).pop();
@@ -719,9 +700,9 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
 
     // 既存アイテムの重複チェック
     final selectedGroupId = ref.read(selectedGroupIdProvider);
-    final groupId = selectedGroupId ?? 'default_group';
     try {
-      final currentListAsync = ref.read(shoppingListForGroupProvider(groupId));
+      final currentListAsync =
+          ref.read(shoppingListForGroupProvider(selectedGroupId));
 
       await currentListAsync.when(
         data: (currentList) async {
@@ -775,9 +756,8 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
       );
 
       final selectedGroupId = ref.read(selectedGroupIdProvider);
-      final groupId = selectedGroupId ?? 'default_group';
       await ref
-          .read(shoppingListForGroupProvider(groupId).notifier)
+          .read(shoppingListForGroupProvider(selectedGroupId).notifier)
           .addItem(newItem);
       if (context.mounted) {
         Navigator.of(context).pop();
@@ -833,7 +813,6 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
     return '${date.year}/${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}';
   }
 
-  // ignore: unused_element
   bool _isDeadlinePassed(DateTime deadline) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -848,7 +827,6 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
     return deadlineDate.difference(today).inDays;
   }
 
-  // ignore: unused_element
   String _getDaysUntilDeadlineText(DateTime deadline) {
     final daysUntil = _getDaysUntilDeadline(deadline);
 
@@ -863,7 +841,6 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
     }
   }
 
-  // ignore: unused_element
   void _sortItemsByDeadline(List<ShoppingItem> items) {
     items.sort((a, b) {
       // 期限なしのアイテムは最後に
@@ -876,7 +853,6 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
     });
   }
 
-  // ignore: unused_element
   void _sortPurchasedItemsByDate(List<ShoppingItem> items) {
     items.sort((a, b) {
       // 購入日なしのアイテムは最後に
@@ -1004,9 +980,9 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
             onPressed: () async {
               try {
                 final selectedGroupId = ref.read(selectedGroupIdProvider);
-                final groupId = selectedGroupId ?? 'default_group';
                 await ref
-                    .read(shoppingListForGroupProvider(groupId).notifier)
+                    .read(
+                        shoppingListForGroupProvider(selectedGroupId).notifier)
                     .clearPurchasedItems();
                 if (context.mounted) {
                   Navigator.of(context).pop();

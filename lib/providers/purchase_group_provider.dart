@@ -634,42 +634,45 @@ class SelectedGroupIdNotifier extends StateNotifier<String?> {
         state = savedId;
         Log.info('✅ SelectedGroupIdNotifier: 初期値ロード完了: $savedId');
       } else {
-        // デフォルトグループを設定
-        state = 'default_group';
-        Log.info('ℹ️ SelectedGroupIdNotifier: デフォルトグループを設定');
+        // 未選択状態で開始（グループリスト読み込み後に自動選択される）
+        state = null;
+        Log.info('ℹ️ SelectedGroupIdNotifier: 未選択状態で開始');
       }
     } catch (e) {
       Log.error('❌ SelectedGroupIdNotifier: 初期値ロードエラー: $e');
-      state = 'default_group';
+      state = null;
     }
   }
 
-  /// 選択されたグループIDが有効なグループリストに存在するか検証し、無効な場合はデフォルトに設定
+  /// 選択されたグループIDが有効なグループリストに存在するか検証し、無効な場合は最初のグループを設定
   void validateSelection(List<PurchaseGroup> availableGroups) {
-    if (state == null || state == 'default_group') {
-      return; // 既にデフォルトまたは未選択
+    if (state == null) {
+      return; // 未選択状態はvalidateAndRestoreSelectionで処理される
     }
 
     final isValidSelection =
         availableGroups.any((group) => group.groupId == state);
     if (!isValidSelection) {
       Log.info(
-          '⚠️ SelectedGroupIdNotifier: 選択されたグループが見つからないためデフォルトに設定: $state');
-      state = 'default_group';
+          '⚠️ SelectedGroupIdNotifier: 選択されたグループが見つからないため最初のグループを選択: $state');
+      // 利用可能なグループがあれば最初のものを選択
+      if (availableGroups.isNotEmpty) {
+        state = availableGroups.first.groupId;
+        _saveToPreferences(availableGroups.first.groupId);
+      } else {
+        state = null;
+      }
     }
   }
 
   /// グループリストが更新されたときに、選択状態を検証・復元
   void validateAndRestoreSelection(List<PurchaseGroup> availableGroups) {
-    if (state == null || state == 'default_group') {
-      // 未選択またはデフォルトの場合、非デフォルトグループがあれば最初のものを選択
-      final nonDefaultGroups = availableGroups
-          .where((group) => group.groupId != 'default_group')
-          .toList();
-      if (nonDefaultGroups.isNotEmpty) {
-        final groupToSelect = nonDefaultGroups.first;
+    if (state == null) {
+      // 未選択の場合、利用可能なグループがあれば最初のものを選択
+      if (availableGroups.isNotEmpty) {
+        final groupToSelect = availableGroups.first;
         Log.info(
-            '🔄 SelectedGroupIdNotifier: 非デフォルトグループを自動選択: ${groupToSelect.groupName} (${groupToSelect.groupId})');
+            '🔄 SelectedGroupIdNotifier: 最初のグループを自動選択: ${groupToSelect.groupName} (${groupToSelect.groupId})');
         state = groupToSelect.groupId;
         // SharedPreferencesにも保存
         _saveToPreferences(groupToSelect.groupId);
@@ -680,8 +683,14 @@ class SelectedGroupIdNotifier extends StateNotifier<String?> {
           availableGroups.any((group) => group.groupId == state);
       if (!isValidSelection) {
         Log.info(
-            '⚠️ SelectedGroupIdNotifier: 選択されたグループが見つからないためデフォルトに設定: $state');
-        state = 'default_group';
+            '⚠️ SelectedGroupIdNotifier: 選択されたグループが見つからないため最初のグループを選択: $state');
+        // 利用可能なグループがあれば最初のものを選択
+        if (availableGroups.isNotEmpty) {
+          state = availableGroups.first.groupId;
+          _saveToPreferences(availableGroups.first.groupId);
+        } else {
+          state = null;
+        }
       }
     }
   }

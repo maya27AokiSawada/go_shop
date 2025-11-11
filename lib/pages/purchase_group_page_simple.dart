@@ -24,8 +24,8 @@ class PurchaseGroupPageSimple extends ConsumerWidget {
         child: Column(
           children: [
             // グループ選択 - 動的サイズ
-            IntrinsicHeight(
-              child: const GroupSelectorWidget(),
+            const IntrinsicHeight(
+              child: GroupSelectorWidget(),
             ),
             const SizedBox(height: 20),
             // グループ詳細

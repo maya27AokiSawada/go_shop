@@ -220,9 +220,7 @@ class InviteWidget extends ConsumerWidget {
               Text(
                 'LINEやメールなどで共有してください',
                 style: TextStyle(
-                    // ignore: deprecated_member_use
-                    fontSize: 12,
-                    color: Colors.white.withOpacity(0.9)),
+                    fontSize: 12, color: Colors.white.withOpacity(0.9)),
               ),
             ],
           ),

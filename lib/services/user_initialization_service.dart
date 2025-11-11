@@ -76,11 +76,14 @@ class UserInitializationService {
       Log.info('🔄 [INIT] グループ一覧を初期化中...');
       final groups = await _ref.read(allGroupsProvider.future);
 
-      // STEP2: デフォルトグループが存在しない場合は作成（Hive初期化完了を待つ）
+      // STEP2: デフォルトグループ（ユーザーuidと同じgroupId）が存在しない場合は作成
+      final user = _auth?.currentUser;
+      final expectedDefaultGroupId = user?.uid ?? 'local_default';
       final defaultGroup =
-          groups.where((g) => g.groupId == 'default_group').firstOrNull;
+          groups.where((g) => g.groupId == expectedDefaultGroupId).firstOrNull;
       if (defaultGroup == null) {
-        Log.info('🔄 [INIT] デフォルトグループが見つかりません。ローカルで作成します...');
+        Log.info(
+            '🔄 [INIT] デフォルトグループ($expectedDefaultGroupId)が見つかりません。ローカルで作成します...');
 
         // Hive初期化完了まで待機
         await _ref.read(hiveUserInitializationProvider.future);
@@ -188,7 +191,10 @@ class UserInitializationService {
       // Hiveリポジトリを直接使用（Firestoreにはアクセスしない）
       final hiveRepository =
           _ref.read(hive_repo.hivePurchaseGroupRepositoryProvider);
-      const defaultGroupId = 'default_group'; // シンプルなID
+
+      // デフォルトグループIDはユーザーのuidをそのまま使用
+      // 未認証時はローカル専用の固定ID
+      final defaultGroupId = user?.uid ?? 'local_default';
 
       // 既存のデフォルトグループをチェック（ローカルのみ）
       try {

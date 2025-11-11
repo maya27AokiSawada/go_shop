@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../utils/app_logger.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/security_provider.dart';
+import '../providers/auth_provider.dart';
 import '../widgets/group_list_widget.dart';
 import '../widgets/group_creation_with_copy_dialog.dart';
 
@@ -62,26 +63,36 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
             onSelected: (value) {
               switch (value) {
                 case 'delete_group':
-                  if (selectedGroupId != null &&
-                      selectedGroupId != 'default_group') {
-                    _showDeleteGroupDialog(context, selectedGroupId);
+                  // グループが選択されており、ユーザーのデフォルトグループ(uid==groupId)でない場合のみ削除可能
+                  if (selectedGroupId != null) {
+                    final currentUser = ref.read(authProvider).currentUser;
+                    final isDefaultGroup = currentUser != null &&
+                        selectedGroupId == currentUser.uid;
+                    if (!isDefaultGroup) {
+                      _showDeleteGroupDialog(context, selectedGroupId);
+                    }
                   }
                   break;
               }
             },
-            itemBuilder: (context) => [
-              if (selectedGroupId != 'default_group')
-                const PopupMenuItem(
-                  value: 'delete_group',
-                  child: Row(
-                    children: [
-                      Icon(Icons.delete, color: Colors.red),
-                      SizedBox(width: 8),
-                      Text('グループを削除'),
-                    ],
+            itemBuilder: (context) {
+              final currentUser = ref.read(authProvider).currentUser;
+              final isDefaultGroup =
+                  currentUser != null && selectedGroupId == currentUser.uid;
+              return [
+                if (!isDefaultGroup)
+                  const PopupMenuItem(
+                    value: 'delete_group',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete, color: Colors.red),
+                        SizedBox(width: 8),
+                        Text('グループを削除'),
+                      ],
+                    ),
                   ),
-                ),
-            ],
+              ];
+            },
           ),
         ],
       ),
