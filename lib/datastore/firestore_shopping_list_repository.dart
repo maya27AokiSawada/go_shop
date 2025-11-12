@@ -6,11 +6,10 @@ import 'shopping_list_repository.dart';
 import '../providers/firestore_provider.dart';
 
 class FirestoreShoppingListRepository implements ShoppingListRepository {
-  final Ref _ref;
   final FirebaseFirestore _firestore;
 
-  FirestoreShoppingListRepository(this._ref)
-      : _firestore = _ref.read(firestoreProvider);
+  FirestoreShoppingListRepository(Ref ref)
+      : _firestore = ref.read(firestoreProvider);
 
   // サブコレクションへの参照を返すメソッド
   CollectionReference _collection(String groupId) => _firestore
