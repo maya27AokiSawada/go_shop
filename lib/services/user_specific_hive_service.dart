@@ -86,6 +86,8 @@ class UserSpecificHiveService {
       Hive.registerAdapter(ShoppingItemAdapter());
       Hive.registerAdapter(ShoppingListAdapter());
       Hive.registerAdapter(InvitationStatusAdapter()); // 継続使用
+      Hive.registerAdapter(
+          SyncStatusAdapter()); // ⚠️ 追加: PurchaseGroupのsyncStatusフィールド用
       // Hive.registerAdapter(InvitationAdapter());  // 削除済み - QRコードシステムに移行
       // Hive.registerAdapter(AcceptedInvitationAdapter());  // 削除済み - QRコードシステムに移行
       Hive.registerAdapter(UserSettingsAdapter());

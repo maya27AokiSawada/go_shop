@@ -2,7 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/app_logger.dart';
-import '../models/purchase_group.dart';
+import '../models/purchase_group.dart' hide SyncStatus;
+import '../models/purchase_group.dart' as models show SyncStatus;
 import '../datastore/purchase_group_repository.dart';
 import '../datastore/hive_purchase_group_repository.dart';
 import '../datastore/hybrid_purchase_group_repository.dart';
@@ -425,6 +426,9 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
       final hiveRepo = ref.read(hivePurchaseGroupRepositoryProvider);
       final allGroupsRaw = await hiveRepo.getAllGroups();
 
+      Log.info(
+          '🔍 [ALL GROUPS] Hive Raw取得: ${allGroupsRaw.length}グループ（削除済み含む）');
+
       // 削除済みグループをフィルタリング
       final allGroups = allGroupsRaw.where((g) => !g.isDeleted).toList();
       final deletedCount = allGroupsRaw.length - allGroups.length;
@@ -460,12 +464,13 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
         }
       }
 
-      // デフォルトグループ(MyLists)の確認
-      final hasDefaultGroup =
-          allGroups.any((g) => g.groupId == 'default_group');
-      if (!hasDefaultGroup) {
+      // デフォルトグループの確認（情報ログのみ）
+      // ⚠️ 注意: デフォルトグループIDはuser.uidなので固定IDではチェックできない
+      if (allGroups.isEmpty) {
         Log.info(
-            '🔄 [ALL GROUPS] デフォルトグループ(MyLists)が見つかりません。UserInitializationServiceで作成されます');
+            '🔄 [ALL GROUPS] グループが0個です。UserInitializationServiceでデフォルトグループが作成されます');
+      } else {
+        Log.info('📊 [ALL GROUPS] グループ数: ${allGroups.length}個');
       }
 
       return filteredGroups;
@@ -608,6 +613,104 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
       Log.error('❌ [CREATE GROUP] スタックトレース: $stackTrace');
       // グループ作成後のエラーは致命的ではないため、ログのみ出力して続行
       // rethrowしない（UI層でのクラッシュを防ぐ）
+    }
+  }
+
+  /// デフォルトグループを作成（groupId = user.uid）
+  /// user_initialization_serviceから呼び出される
+  Future<void> createDefaultGroup(User? user) async {
+    try {
+      Log.info('🆕 [CREATE DEFAULT] デフォルトグループ作成開始（AllGroupsNotifier）');
+
+      // デフォルトグループIDはユーザーのuidをそのまま使用
+      final defaultGroupId = user?.uid ?? 'local_default';
+      Log.info('🆔 [CREATE DEFAULT] グループID: $defaultGroupId');
+
+      // プリファレンスからユーザー名を取得
+      final prefsName = await UserPreferencesService.getUserName();
+      final displayName = prefsName ?? (user?.displayName ?? 'maya');
+      Log.info('👤 [CREATE DEFAULT] ユーザー名: $displayName');
+
+      // メールアドレスをSharedPreferencesに保存
+      if (user?.email != null && user!.email!.isNotEmpty) {
+        await UserPreferencesService.saveUserEmail(user.email!);
+        Log.info('📧 [CREATE DEFAULT] メール保存: ${user.email}');
+      }
+
+      // デフォルトグループ作成（createNewGroupのロジックを再利用）
+      final defaultGroupName = '$displayNameグループ';
+      Log.info('📝 [CREATE DEFAULT] グループ作成: $defaultGroupName');
+
+      // ⚠️ 重要: ref.read()は全てawaitの前に取得（Riverpodルール）
+      final hiveReady = ref.read(hiveInitializationStatusProvider);
+      final hiveInitFuture = ref.read(hiveUserInitializationProvider.future);
+      final hiveRepository = ref.read(hivePurchaseGroupRepositoryProvider);
+
+      Log.info(
+          '🔍 [CREATE DEFAULT] 直接Hiveリポジトリ使用: ${hiveRepository.runtimeType}');
+
+      // Hive初期化完了を待機
+      if (!hiveReady) {
+        Log.info('⏳ [CREATE DEFAULT] Hive初期化完了待機中...');
+        await hiveInitFuture;
+        Log.info('✅ [CREATE DEFAULT] Hive初期化完了');
+      }
+
+      // ⚠️ 既存グループチェック: すでに存在する場合はスキップ
+      try {
+        final existingGroup = await hiveRepository.getGroupById(defaultGroupId);
+        Log.info(
+            '✅ [CREATE DEFAULT] デフォルトグループは既に存在します: ${existingGroup.groupName} (ID: $defaultGroupId)');
+        Log.info(
+            '💡 [CREATE DEFAULT] 既存グループのsyncStatus: ${existingGroup.syncStatus}');
+
+        // syncStatus=localの場合、同期処理でFirestoreにアップロードされることを通知
+        if (existingGroup.syncStatus == models.SyncStatus.local) {
+          Log.info('💡 [CREATE DEFAULT] このグループは次回の同期処理でFirestoreにアップロードされます');
+        }
+
+        // ⚠️ デバッグ: ref.invalidateSelf()前のHive状態確認
+        final allGroups = await hiveRepository.getAllGroups();
+        Log.info(
+            '🔍 [CREATE DEFAULT] ref.invalidateSelf()前のHive内グループ数: ${allGroups.length}個');
+
+        // プロバイダーを更新（既存グループを表示）
+        ref.invalidateSelf();
+        return;
+      } catch (e) {
+        // グループが存在しない場合は新規作成を続行
+        Log.info('📝 [CREATE DEFAULT] 既存グループなし - 新規作成を続行');
+      }
+
+      // オーナーメンバーを作成
+      final ownerMember = PurchaseGroupMember.create(
+        name: displayName,
+        contact: user?.email ?? '',
+        role: PurchaseGroupRole.owner,
+        isSignedIn: user != null,
+        isInvited: false,
+        isInvitationAccepted: false,
+      );
+
+      // グループをHiveに直接作成（groupIdを明示的に指定）
+      await hiveRepository.createGroup(
+        defaultGroupId, // ★ user.uidを直接使用
+        defaultGroupName,
+        ownerMember,
+      );
+
+      Log.info(
+          '✅ [CREATE DEFAULT] グループ作成完了: $defaultGroupName (ID: $defaultGroupId)');
+      Log.info(
+          '� [CREATE DEFAULT] syncStatus=local として作成。同期処理でFirestoreにアップロードされます');
+
+      // プロバイダーを更新
+      ref.invalidateSelf();
+      Log.info('🔄 [CREATE DEFAULT] UI更新完了');
+    } catch (e, stackTrace) {
+      Log.error('❌ [CREATE DEFAULT] デフォルトグループ作成エラー: $e');
+      Log.error('❌ [CREATE DEFAULT] スタックトレース: $stackTrace');
+      rethrow;
     }
   }
 }
