@@ -138,12 +138,25 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
       );
     }
 
-    final allGroupsAsync = ref.watch(allGroupsProvider);
     final selectedGroupId = ref.watch(selectedGroupIdProvider);
 
-    // 選択されたグループIDに基づいてショッピングリストを取得
-    final shoppingListAsync =
-        ref.watch(shoppingListForGroupProvider(selectedGroupId));
+    // グループが選択されていない場合は空リスト表示
+    if (selectedGroupId == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('買い物リスト')),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.group_off, size: 64, color: Colors.grey),
+              SizedBox(height: 16),
+              Text('グループが選択されていません',
+                  style: TextStyle(fontSize: 18, color: Colors.grey)),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -652,6 +665,7 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
             onPressed: () async {
               try {
                 final selectedGroupId = ref.read(selectedGroupIdProvider);
+                if (selectedGroupId == null) return;
                 await ref
                     .read(
                         shoppingListForGroupProvider(selectedGroupId).notifier)
@@ -700,6 +714,12 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
 
     // 既存アイテムの重複チェック
     final selectedGroupId = ref.read(selectedGroupIdProvider);
+    if (selectedGroupId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('グループが選択されていません')),
+      );
+      return;
+    }
     try {
       final currentListAsync =
           ref.read(shoppingListForGroupProvider(selectedGroupId));
@@ -756,6 +776,9 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
       );
 
       final selectedGroupId = ref.read(selectedGroupIdProvider);
+      if (selectedGroupId == null) {
+        throw Exception('グループが選択されていません');
+      }
       await ref
           .read(shoppingListForGroupProvider(selectedGroupId).notifier)
           .addItem(newItem);
@@ -980,6 +1003,7 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
             onPressed: () async {
               try {
                 final selectedGroupId = ref.read(selectedGroupIdProvider);
+                if (selectedGroupId == null) return;
                 await ref
                     .read(
                         shoppingListForGroupProvider(selectedGroupId).notifier)

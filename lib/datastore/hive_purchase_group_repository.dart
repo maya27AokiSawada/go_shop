@@ -9,6 +9,7 @@ import '../providers/hive_provider.dart';
 import '../providers/user_specific_hive_provider.dart';
 import '../flavors.dart';
 import '../helpers/validation_service.dart';
+import '../utils/app_logger.dart';
 
 class HivePurchaseGroupRepository implements PurchaseGroupRepository {
   // Riverpod Refを使用してBoxにアクセス
@@ -102,8 +103,11 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
 
       // デバッグ: 全グループの削除フラグを確認
       developer.log('🔍 [HIVE_REPO] Box内の全グループ (${groups.length}個):');
+      Log.info('🔍 [HIVE_REPO] Box内の全グループ (${groups.length}個):');
       for (final group in groups) {
         developer.log(
+            '  - ${group.groupName} (${group.groupId}): isDeleted=${group.isDeleted}');
+        Log.info(
             '  - ${group.groupName} (${group.groupId}): isDeleted=${group.isDeleted}');
       }
 
@@ -114,6 +118,8 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
           .toList();
 
       developer.log(
+          '📋 [HIVE_REPO] getAllGroups: ${visibleGroups.length}グループ取得 (削除済み除外)');
+      Log.info(
           '📋 [HIVE_REPO] getAllGroups: ${visibleGroups.length}グループ取得 (削除済み除外)');
 
       return visibleGroups;
@@ -301,8 +307,9 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
         ownerName: member.name,
         ownerEmail: member.contact,
         members: [member],
+        syncStatus: SyncStatus.local, // ⚠️ ローカル専用グループとして作成
       );
-      developer.log('✅ [HIVE_REPO] PurchaseGroupオブジェクト作成完了');
+      developer.log('✅ [HIVE_REPO] PurchaseGroupオブジェクト作成完了 (syncStatus=local)');
 
       developer.log('🔍 [HIVE_REPO] Box.put()実行開始');
       await box.put(groupId, newGroup);
@@ -340,6 +347,8 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
       // 確認のため保存後のデータを取得
       final savedGroup = box.get(groupId);
       developer.log('🚫 グループを論理削除: ${group.groupName} ($groupId)');
+      Log.warning('🚫 [HIVE_REPO] グループを論理削除: ${group.groupName} ($groupId)');
+      Log.warning('   スタックトレース: ${StackTrace.current}');
       developer.log('   保存前 isDeleted: ${group.isDeleted}');
       developer.log('   保存後 isDeleted: ${savedGroup?.isDeleted}');
 

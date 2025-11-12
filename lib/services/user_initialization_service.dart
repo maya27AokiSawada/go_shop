@@ -7,12 +7,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/app_logger.dart';
 import '../models/purchase_group.dart' as models;
 import '../providers/purchase_group_provider.dart';
-import '../providers/user_specific_hive_provider.dart';
+import '../datastore/hive_purchase_group_repository.dart'
+    show hivePurchaseGroupRepositoryProvider;
 import '../flavors.dart';
 
-import '../datastore/hive_purchase_group_repository.dart' as hive_repo;
-
-import 'user_preferences_service.dart';
 import 'notification_service.dart';
 
 final userInitializationServiceProvider = Provider<UserInitializationService>((
@@ -72,51 +70,56 @@ class UserInitializationService {
   /// 2. Firebase認証済みの場合はFirestoreと同期
   Future<void> _initializeBasedOnUserState() async {
     try {
-      // STEP1: AllGroupsProviderでグループ一覧を取得
+      // STEP1: AllGroupsProviderでグループ一覧を取得（内部でHive初期化を待機する）
       Log.info('🔄 [INIT] グループ一覧を初期化中...');
-      final groups = await _ref.read(allGroupsProvider.future);
+      await _ref.read(allGroupsProvider.future);
 
-      // STEP2: デフォルトグループ（ユーザーuidと同じgroupId）が存在しない場合は作成
+      // STEP2: デフォルトグループ（groupId = user.uid）の確認・復活・作成
       final user = _auth?.currentUser;
       final expectedDefaultGroupId = user?.uid ?? 'local_default';
-      final defaultGroup =
-          groups.where((g) => g.groupId == expectedDefaultGroupId).firstOrNull;
-      if (defaultGroup == null) {
-        Log.info(
-            '🔄 [INIT] デフォルトグループ($expectedDefaultGroupId)が見つかりません。ローカルで作成します...');
+      Log.info('🔍 [INIT] デフォルトグループID確認: $expectedDefaultGroupId');
 
-        // Hive初期化完了まで待機
-        await _ref.read(hiveUserInitializationProvider.future);
-        Log.info('🔄 [INIT] Hive初期化完了、デフォルトグループ作成を続行...');
+      // STEP2-1: isDeleted=trueの削除済みデフォルトグループを確認・復活
+      final hiveRepository = _ref.read(hivePurchaseGroupRepositoryProvider);
+      try {
+        final deletedDefaultGroup =
+            await hiveRepository.getGroupById(expectedDefaultGroupId);
+        await hiveRepository.getGroupById(expectedDefaultGroupId);
 
-        // 追加の安全性のため、少し待機してからBox状態を確認
-        await Future.delayed(const Duration(milliseconds: 100));
+        if (deletedDefaultGroup.isDeleted) {
+          Log.warning(
+              '⚠️ [INIT] 削除済みデフォルトグループを検出。復活させます: ${deletedDefaultGroup.groupName}');
+          final revivedGroup = deletedDefaultGroup.copyWith(
+            isDeleted: false,
+            syncStatus: models.SyncStatus.local,
+            updatedAt: DateTime.now(),
+          );
+          await hiveRepository.saveGroup(revivedGroup);
+          Log.info('✅ [INIT] デフォルトグループを復活: ${revivedGroup.groupName}');
 
-        // hiveInitializationStatusProviderの状態を再確認
-        final hiveReady = _ref.read(hiveInitializationStatusProvider);
-        Log.info('🔄 [INIT] HiveBox状態確認: $hiveReady');
-
-        if (!hiveReady) {
-          Log.info('⚠️ [INIT] Hive初期化プロバイダーが完了したがBoxが準備できていません。追加待機...');
-          // 最大3秒まで待機
-          for (int i = 0; i < 30; i++) {
-            await Future.delayed(const Duration(milliseconds: 100));
-            final ready = _ref.read(hiveInitializationStatusProvider);
-            if (ready) {
-              Log.info('✅ [INIT] Hive Box準備完了 (${i * 100}ms後)');
-              break;
-            }
-          }
+          // プロバイダーを更新して復活を反映
+          _ref.invalidate(allGroupsProvider);
+        } else {
+          Log.info('✅ [INIT] デフォルトグループは既に存在: ${deletedDefaultGroup.groupName}');
         }
+      } catch (e) {
+        // グループが存在しない場合は新規作成
+        Log.info(
+            '🆕 [INIT] デフォルトグループ($expectedDefaultGroupId)が見つかりません。AllGroupsNotifierで作成します...');
 
-        // Dev環境ではFirebase Userが存在しないため、nullを許容
-        await _createDefaultGroupLocally(_auth?.currentUser);
+        // AllGroupsNotifier経由でデフォルトグループを作成（安全）
+        final groupNotifier = _ref.read(allGroupsProvider.notifier);
+        await groupNotifier.createDefaultGroup(user);
+
+        Log.info('✅ [INIT] デフォルトグループ作成完了');
       }
 
-      // STEP3: Firestore同期を実行（サインイン状態の場合）
+      // STEP3: Firestore同期（ローカル専用グループは保護される）
+      // ⚠️ 注意: syncFromFirestoreToHiveでsyncStatus=localのグループは削除されない
       final currentUser = _auth?.currentUser;
       if (currentUser != null && _isFirebaseUserId(currentUser.uid)) {
         Log.info('🔄 [INIT] Firebase認証済みユーザー検出 - Firestoreとの同期を開始');
+        Log.info('💡 [INIT] デフォルトグループ(syncStatus=local)は同期処理で保護されます');
         await _syncWithFirestore(currentUser);
       } else {
         Log.info('💡 [INIT] 未サインインまたはローカルユーザー - ローカルデータで動作');
@@ -169,86 +172,19 @@ class UserInitializationService {
       // 広告サービス無効化（AdMob未設定のため）
       Log.info('💡 広告サービスは無効化されています');
 
-      // デフォルトグループをローカル（Hive）のみで作成
-      await _createDefaultGroupLocally(user);
+      // デフォルトグループをAllGroupsNotifierで作成
+      // ⚠️ 注意: Hive初期化は AllGroupsNotifier.build() 内で完了される
+      Log.info('🔄 [INIT] AllGroupsNotifierでデフォルトグループを作成');
+      final groupNotifier = _ref.read(allGroupsProvider.notifier);
+      await groupNotifier.createDefaultGroup(user);
 
-      // サインイン時もFirestore同期を実行
-      if (_isFirebaseUserId(user.uid)) {
-        Log.info('🔄 [INIT] サインイン検出 - Firestoreとの同期を開始');
-        await _syncWithFirestore(user);
-      }
+      // ⚠️ 重要: Firestore同期はデフォルトグループ作成後に実行しない
+      // デフォルトグループはsyncStatus=localなので、同期処理で保護される
+      Log.info('� [INIT] デフォルトグループ作成完了 - Firestore同期はスキップ（ローカル専用）');
 
       Log.info('✅ ユーザーデフォルト初期化完了');
     } catch (e) {
       Log.warning('⚠️ ユーザー初期化エラー: $e');
-    }
-  }
-
-  /// デフォルトグループをローカル（Hive）のみで作成
-  /// Dev環境ではuserがnullの可能性がある
-  Future<void> _createDefaultGroupLocally(User? user) async {
-    try {
-      // Hiveリポジトリを直接使用（Firestoreにはアクセスしない）
-      final hiveRepository =
-          _ref.read(hive_repo.hivePurchaseGroupRepositoryProvider);
-
-      // デフォルトグループIDはユーザーのuidをそのまま使用
-      // 未認証時はローカル専用の固定ID
-      final defaultGroupId = user?.uid ?? 'local_default';
-
-      // 既存のデフォルトグループをチェック（ローカルのみ）
-      try {
-        final existingGroup = await hiveRepository.getGroupById(defaultGroupId);
-        Log.info('✅ ローカルデフォルトグループは既に存在します: ${existingGroup.groupName}');
-        return;
-      } catch (e) {
-        // グループが存在しない場合は作成を続行
-        Log.info('💡 ローカルデフォルトグループが存在しないため、新規作成します');
-      }
-
-      // プリファレンスからユーザー名を取得（シンプル）
-      final prefsName = await UserPreferencesService.getUserName();
-      final displayName = prefsName ?? 'maya';
-      Log.info('📝 [DEFAULT GROUP] プリファレンス優先: $displayName');
-
-      // メールアドレスをSharedPreferencesに保存（ユーザーが存在する場合のみ）
-      if (user?.email != null && user!.email!.isNotEmpty) {
-        await UserPreferencesService.saveUserEmail(user.email!);
-        Log.info(
-            '📧 SharedPreferences saveUserEmail: ${user.email} - 成功: true');
-      }
-
-      // デフォルトグループのオーナーメンバーを作成
-      final ownerMember = models.PurchaseGroupMember.create(
-        name: displayName,
-        contact: user?.email ?? '',
-        role: models.PurchaseGroupRole.owner,
-        isSignedIn: user != null,
-        isInvited: false,
-        isInvitationAccepted: false,
-      );
-
-      // デフォルトグループをローカルで作成
-      final defaultGroupName = '$displayNameグループ';
-      await hiveRepository.createGroup(
-        defaultGroupId,
-        defaultGroupName,
-        ownerMember,
-      );
-
-      Log.info('✅ デフォルトグループを作成しました: $defaultGroupName (ID: $defaultGroupId)');
-    } catch (e) {
-      Log.error('❌ ローカルデフォルトグループ作成エラー: $e');
-    }
-  }
-
-  /// 手動でデフォルトグループを作成（テスト用）
-  Future<void> createDefaultGroupManually() async {
-    final user = _auth?.currentUser;
-    if (user != null) {
-      await _createDefaultGroupLocally(user);
-    } else {
-      Log.warning('⚠️ ユーザーがログインしていません');
     }
   }
 
@@ -289,12 +225,11 @@ class UserInitializationService {
     try {
       Log.info('⬆️ [SYNC] Hive→Firestore同期開始');
       final firestore = FirebaseFirestore.instance;
-      final userGroupsRef =
-          firestore.collection('users').doc(user.uid).collection('groups');
-      final hiveRepository =
-          _ref.read(hive_repo.hivePurchaseGroupRepositoryProvider);
+      // 新パス構造: purchaseGroupsルートコレクションを使用
+      final purchaseGroupsRef = firestore.collection('purchaseGroups');
+      final repository = _ref.read(purchaseGroupRepositoryProvider);
 
-      final allHiveGroups = await hiveRepository.getAllGroups();
+      final allHiveGroups = await repository.getAllGroups();
       final batch = firestore.batch();
       int syncedCount = 0;
 
@@ -305,7 +240,7 @@ class UserInitializationService {
           continue;
         }
 
-        final docRef = userGroupsRef.doc(group.groupId);
+        final docRef = purchaseGroupsRef.doc(group.groupId);
         batch.set(
             docRef,
             {
@@ -314,6 +249,7 @@ class UserInitializationService {
               'ownerUid': group.ownerUid,
               'ownerName': group.ownerName,
               'ownerEmail': group.ownerEmail,
+              'allowedUid': group.allowedUid, // 新パス構造で必要
               'members': group.members
                       ?.map((member) => {
                             'memberId': member.memberId,
@@ -364,8 +300,7 @@ class UserInitializationService {
 
       Log.info('📊 [SYNC] Firestoreクエリ完了: ${snapshot.docs.length}個のグループ');
 
-      final hiveRepository =
-          _ref.read(hive_repo.hivePurchaseGroupRepositoryProvider);
+      final repository = _ref.read(purchaseGroupRepositoryProvider);
 
       int syncedCount = 0;
       int skippedCount = 0;
@@ -386,17 +321,74 @@ class UserInitializationService {
         Log.info('  - $groupId');
       }
 
+      // ⚠️ 重要: 直接Hiveリポジトリを使用（Hybridの初期化待機を回避）
+      final hiveRepository = _ref.read(hivePurchaseGroupRepositoryProvider);
       final hiveGroups = await hiveRepository.getAllGroups();
       Log.info('📊 [SYNC] Hiveに存在するグループ: ${hiveGroups.length}個');
       for (final hiveGroup in hiveGroups) {
-        Log.info('  - ${hiveGroup.groupName} (${hiveGroup.groupId})');
+        Log.info(
+            '  - ${hiveGroup.groupName} (${hiveGroup.groupId}), syncStatus=${hiveGroup.syncStatus}');
       }
 
+      // ⚠️ STEP1: local状態のグループをFirestoreにアップロード
+      int uploadedCount = 0;
+      for (final hiveGroup in hiveGroups) {
+        if (hiveGroup.syncStatus == models.SyncStatus.local) {
+          Log.info(
+              '📤 [SYNC] local状態のグループをFirestoreにアップロード: ${hiveGroup.groupName}');
+          try {
+            await purchaseGroupsRef.doc(hiveGroup.groupId).set({
+              'groupId': hiveGroup.groupId,
+              'groupName': hiveGroup.groupName,
+              'ownerUid': hiveGroup.ownerUid,
+              'ownerName': hiveGroup.ownerName,
+              'ownerEmail': hiveGroup.ownerEmail,
+              'allowedUid': [hiveGroup.ownerUid],
+              'members': (hiveGroup.members ?? [])
+                  .map((m) => {
+                        'memberId': m.memberId,
+                        'name': m.name,
+                        'contact': m.contact,
+                        'role': m.role.name,
+                        'isSignedIn': m.isSignedIn,
+                        'isInvited': m.isInvited,
+                        'isInvitationAccepted': m.isInvitationAccepted,
+                      })
+                  .toList(),
+              'isDeleted': false,
+              'createdAt': FieldValue.serverTimestamp(),
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+
+            // syncStatusをsyncedに更新
+            final syncedGroup =
+                hiveGroup.copyWith(syncStatus: models.SyncStatus.synced);
+            await hiveRepository.saveGroup(syncedGroup);
+
+            // アップロードしたグループをFirestoreリストに追加（削除対象から除外）
+            firestoreGroupIds.add(hiveGroup.groupId);
+
+            uploadedCount++;
+            Log.info('✅ [SYNC] アップロード完了: ${hiveGroup.groupName}');
+          } catch (e) {
+            Log.error('❌ [SYNC] アップロード失敗: ${hiveGroup.groupName}, $e');
+          }
+        }
+      }
+
+      if (uploadedCount > 0) {
+        Log.info('📤 [SYNC] $uploadedCount個のlocalグループをFirestoreにアップロードしました');
+      }
+
+      // ⚠️ STEP2: Firestoreにないグループの処理
       for (final hiveGroup in hiveGroups) {
         if (!firestoreGroupIds.contains(hiveGroup.groupId) &&
             hiveGroup.groupId != 'default_group' &&
             hiveGroup.groupId != 'defaultGroup' &&
             hiveGroup.groupId != 'current_list') {
+          Log.info(
+              '🔍 [SYNC] グループ削除判定: ${hiveGroup.groupName}, syncStatus=${hiveGroup.syncStatus}');
+
           // pending状態のグループは削除しない（招待受諾中のプレースホルダー）
           if (hiveGroup.syncStatus == models.SyncStatus.pending) {
             Log.info(
@@ -405,8 +397,29 @@ class UserInitializationService {
             continue;
           }
 
+          // ⚠️ 重要: local状態のグループは削除しない（ローカル専用グループ）
+          if (hiveGroup.syncStatus == models.SyncStatus.local) {
+            Log.info(
+                '📱 [SYNC] local状態のグループをスキップ: ${hiveGroup.groupName} (${hiveGroup.groupId})');
+            skippedCount++;
+            continue;
+          }
+
+          // ⚠️ デフォルトグループがsynced状態でFirestoreにない場合はlocalに戻す
+          if (hiveGroup.groupId == user.uid &&
+              hiveGroup.syncStatus == models.SyncStatus.synced) {
+            Log.warning(
+                '⚠️ [SYNC] デフォルトグループがFirestoreにありません。syncStatus=localに戻します: ${hiveGroup.groupName}');
+            final localGroup =
+                hiveGroup.copyWith(syncStatus: models.SyncStatus.local);
+            await hiveRepository.saveGroup(localGroup);
+            skippedCount++;
+            continue;
+          }
+
+          // その他のsynced状態グループはFirestoreから削除されたと判断して削除
           try {
-            await hiveRepository.deleteGroup(hiveGroup.groupId);
+            await repository.deleteGroup(hiveGroup.groupId);
             Log.info(
                 '🗑️ [SYNC] Firestoreにないグループを削除: ${hiveGroup.groupName} (${hiveGroup.groupId})');
             skippedCount++;
@@ -423,7 +436,7 @@ class UserInitializationService {
         // 削除済みグループはスキップ（Hiveにあれば削除）
         if (isDeleted) {
           try {
-            await hiveRepository.deleteGroup(doc.id);
+            await repository.deleteGroup(doc.id);
             Log.info('🗑️ [SYNC] 削除済みグループをHiveから削除: ${doc.id}');
           } catch (e) {
             // グループが存在しない場合はスキップ
@@ -470,7 +483,7 @@ class UserInitializationService {
             updatedAt: DateTime.now(),
           );
 
-          await hiveRepository.saveGroup(group);
+          await repository.updateGroup(group.groupId, group);
           syncedCount++;
         } catch (e) {
           Log.warning('⚠️ [SYNC] グループ同期エラー（${doc.id}）: $e');
