@@ -1,7 +1,7 @@
 # Go Shop - AI Coding Agent Instructions
 
 ## Project Overview
-Go Shopは家族・グループ向けの買い物リスト共有Flutterアプリです。Firebase AuthとHive（ローカルDB）を使用し、将来的にFirestoreへの移行を予定しています。
+Go Shopは家族・グループ向けの買い物リスト共有Flutterアプリです。Firebase Auth（ユーザー認証）とCloud Firestore（データベース）を使用し、Hiveをローカルキャッシュとして併用するハイブリッド構成です。
 
 ## Architecture & Key Components
 
@@ -15,9 +15,11 @@ final purchaseGroupProvider = AsyncNotifierProvider<PurchaseGroupNotifier, Purch
 // Repository abstraction via Provider
 final purchaseGroupRepositoryProvider = Provider<PurchaseGroupRepository>((ref) {
   if (F.appFlavor == Flavor.prod) {
-    throw UnimplementedError('FirestorePurchaseGroupRepository is not implemented yet');
+    // Production: Use Firestore with Hive cache (hybrid mode)
+    return FirestorePurchaseGroupRepository(ref);
   } else {
-    return HivePurchaseGroupRepository(ref);  
+    // Development: Use Hive only for faster local testing
+    return HivePurchaseGroupRepository(ref);
   }
 });
 ```
@@ -26,15 +28,16 @@ final purchaseGroupRepositoryProvider = Provider<PurchaseGroupRepository>((ref) 
 
 ### Data Layer - Repository Pattern
 - **Abstract**: `lib/datastore/purchase_group_repository.dart`
-- **Hive Implementation**: `lib/datastore/hive_purchase_group_repository.dart`  
-- **Firestore**: Not implemented yet, use `throw UnimplementedError()`
+- **Hive Implementation**: `lib/datastore/hive_purchase_group_repository.dart` (dev環境)
+- **Firestore Implementation**: `lib/datastore/firestore_purchase_group_repository.dart` (prod環境)
+- **Sync Service**: `lib/services/sync_service.dart` - Firestore ⇄ Hive同期を一元管理
 
 Repository constructors must accept `Ref` for Riverpod integration:
 ```dart
 class HivePurchaseGroupRepository implements PurchaseGroupRepository {
   final Ref _ref;
   HivePurchaseGroupRepository(this._ref);
-  
+
   Box<PurchaseGroup> get _box => _ref.read(purchaseGroupBoxProvider);
 }
 ```
@@ -58,8 +61,11 @@ class PurchaseGroupMember with _$PurchaseGroupMember {
 ### Environment Configuration
 Use `lib/flavors.dart` for environment switching:
 ```dart
-F.appFlavor = Flavor.dev;  // Set in main()
+F.appFlavor = Flavor.dev;   // Hive only (local development)
+F.appFlavor = Flavor.prod;  // Firestore + Hive hybrid (production)
 ```
+
+**Current Setting**: `Flavor.prod` - Firestore with Hive caching enabled
 
 ## Critical Development Patterns
 
@@ -74,7 +80,7 @@ void main() async {
 ```
 
 ### Error-Prone Areas to Avoid
-1. **Property Naming**: Always use `memberId`, never `memberID` 
+1. **Property Naming**: Always use `memberId`, never `memberID`
 2. **Null Safety**: Guard against `purchaseGroup.members` being null
 3. **Hive Box Access**: Ensure Boxes are opened in `_initializeHive()` before use
 4. **Riverpod Generator**: DO NOT use - causes build failures
@@ -101,15 +107,21 @@ Generated files: `*.g.dart` (Hive adapters), `*.freezed.dart` (Freezed classes)
 - Inject Repository via `Provider<Repository>` pattern
 - Access Hive Boxes through `ref.read(boxProvider)`
 
-### Firebase Integration (Future)
-Firebase is configured but not actively used. Current auth is placeholder. When implementing:
-- Replace `lib/firebase_options.dart` dummy values
-- Implement Firestore repository variants
-- Use Flavor switching for data source selection
+### Firebase Integration (Current Status)
+Firebase is **actively used** in production environment:
+- **Firebase Auth**: User authentication and session management
+- **Cloud Firestore**: Primary database for groups, lists, and items
+- **Hybrid Architecture**: Firestore (prod) + Hive cache for offline support
+- **Sync Service**: `lib/services/sync_service.dart` handles bidirectional sync
+- **Configuration**: `lib/firebase_options.dart` contains real credentials
+
+Development workflow:
+- `Flavor.dev`: Hive-only mode for fast local testing
+- `Flavor.prod`: Full Firestore integration with Hive fallback
 
 ## Common Issues & Solutions
 - **Build failures**: Check for Riverpod Generator imports, remove them
-- **Missing variables**: Ensure controllers and providers are properly defined before use  
+- **Missing variables**: Ensure controllers and providers are properly defined before use
 - **Null reference errors**: Always null-check `members` lists and async data
 - **Property not found**: Verify `memberId` vs `memberID` consistency across codebase
 
