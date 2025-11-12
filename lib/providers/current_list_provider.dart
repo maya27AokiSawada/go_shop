@@ -15,12 +15,14 @@ class CurrentListNotifier extends StateNotifier<ShoppingList?> {
   /// リストを選択（グループIDと紐付けて保存）
   Future<void> selectList(ShoppingList list, {String? groupId}) async {
     Log.info('📝 カレントリストを設定: ${list.listName} (${list.listId})');
+    Log.info('🔧 [DEBUG] selectList - groupId: $groupId');
     state = list;
 
     // グループIDが指定されている場合はマップに保存
     if (groupId != null) {
       await _saveListForGroup(groupId, list.listId);
     } else {
+      Log.info('⚠️ [DEBUG] groupIdがnullなので後方互換モードで保存');
       // 後方互換用：グループIDがない場合は従来の方法で保存
       try {
         final prefs = await SharedPreferences.getInstance();
@@ -35,18 +37,24 @@ class CurrentListNotifier extends StateNotifier<ShoppingList?> {
   /// グループごとにリストIDを保存
   Future<void> _saveListForGroup(String groupId, String listId) async {
     try {
+      Log.info(
+          '🔧 [DEBUG] _saveListForGroup開始 - groupId: $groupId, listId: $listId');
       final prefs = await SharedPreferences.getInstance();
 
       // 既存のマップを取得
       final mapJson = prefs.getString(_groupListMapKey);
+      Log.info('🔧 [DEBUG] 既存のマップJSON: $mapJson');
       final Map<String, String> groupListMap =
           mapJson != null ? Map<String, String>.from(json.decode(mapJson)) : {};
 
       // グループのリストIDを更新
       groupListMap[groupId] = listId;
+      Log.info('🔧 [DEBUG] 更新後のマップ: $groupListMap');
 
       // マップを保存
-      await prefs.setString(_groupListMapKey, json.encode(groupListMap));
+      final savedJson = json.encode(groupListMap);
+      await prefs.setString(_groupListMapKey, savedJson);
+      Log.info('🔧 [DEBUG] 保存したJSON: $savedJson');
       Log.info('✅ グループ[$groupId]の最終使用リストを保存: $listId');
     } catch (e) {
       Log.error('❌ グループリストマップ保存エラー: $e');
@@ -56,12 +64,15 @@ class CurrentListNotifier extends StateNotifier<ShoppingList?> {
   /// グループの最終使用リストIDを取得
   Future<String?> getSavedListIdForGroup(String groupId) async {
     try {
+      Log.info('🔍 [DEBUG] getSavedListIdForGroup開始 - groupId: $groupId');
       final prefs = await SharedPreferences.getInstance();
       final mapJson = prefs.getString(_groupListMapKey);
+      Log.info('🔍 [DEBUG] 取得したマップJSON: $mapJson');
 
       if (mapJson != null) {
         final Map<String, String> groupListMap =
             Map<String, String>.from(json.decode(mapJson));
+        Log.info('🔍 [DEBUG] デコード後のマップ: $groupListMap');
         final listId = groupListMap[groupId];
 
         if (listId != null) {

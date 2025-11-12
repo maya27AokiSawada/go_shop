@@ -1,6 +1,5 @@
-// lb/services/user_initialization_service.darti
+// lib/services/user_initialization_service.dart
 import 'package:flutter/widgets.dart';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -10,8 +9,9 @@ import '../providers/purchase_group_provider.dart';
 import '../datastore/hive_purchase_group_repository.dart'
     show hivePurchaseGroupRepositoryProvider;
 import '../flavors.dart';
-
 import 'notification_service.dart';
+import 'sync_service.dart';
+import '../utils/error_handler.dart';
 
 final userInitializationServiceProvider = Provider<UserInitializationService>((
   ref,

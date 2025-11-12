@@ -12,6 +12,13 @@ class CurrentGroupNotifier extends StateNotifier<PurchaseGroup?> {
 
   /// グループを選択
   Future<void> selectGroup(PurchaseGroup group) async {
+    // 削除済みグループは選択できない
+    if (group.isDeleted) {
+      Log.warning('⚠️ 削除済みグループは選択できません: ${group.groupName} (${group.groupId})');
+      clearSelection();
+      return;
+    }
+
     Log.info('📦 カレントグループを設定: ${group.groupName} (${group.groupId})');
     state = group;
 
