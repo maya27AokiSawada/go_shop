@@ -62,7 +62,6 @@ FixResult fixLoggerImport(String content, String filePath) {
   bool hasLoggerImport = false;
   bool hasLoggerInstance = false;
   int firstImportIndex = -1;
-  int lastImportIndex = -1;
 
   // 既存のimportとlogger宣言を除去し、正しい位置を特定
   for (int i = 0; i < lines.length; i++) {
@@ -70,7 +69,6 @@ FixResult fixLoggerImport(String content, String filePath) {
 
     if (line.startsWith("import '") || line.startsWith('import "')) {
       if (firstImportIndex == -1) firstImportIndex = i;
-      lastImportIndex = i;
 
       if (line == "import 'package:logger/logger.dart';") {
         hasLoggerImport = true;

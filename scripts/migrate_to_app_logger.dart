@@ -37,7 +37,6 @@ void main() {
 }
 
 List<File> _getFilesMatchingPattern(String pattern) {
-  final directory = Directory('.');
   final prefix = pattern.split('*').first;
   final suffix = pattern.split('*').last;
 
@@ -54,7 +53,6 @@ List<File> _getFilesMatchingPattern(String pattern) {
 bool _migrateFileToAppLogger(File file) {
   try {
     String content = file.readAsStringSync();
-    String originalContent = content;
     bool changed = false;
 
     // main.dartへのimportを削除
