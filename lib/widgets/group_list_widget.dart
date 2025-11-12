@@ -629,6 +629,14 @@ class GroupListWidget extends ConsumerWidget {
       final repository = ref.read(purchaseGroupRepositoryProvider);
       await repository.deleteGroup(group.groupId);
 
+      // 削除されたグループがカレントグループの場合はクリア
+      final currentGroup = ref.read(currentGroupProvider);
+      if (currentGroup?.groupId == group.groupId) {
+        AppLogger.info('🔄 [GROUP_DELETE] カレントグループをクリア: ${group.groupId}');
+        ref.read(currentGroupProvider.notifier).clearSelection();
+        ref.read(currentListProvider.notifier).clearSelection();
+      }
+
       // プロバイダーを更新
       ref.invalidate(allGroupsProvider);
 

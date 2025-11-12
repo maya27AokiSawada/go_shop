@@ -13,6 +13,7 @@ import '../services/access_control_service.dart';
 import '../services/user_preferences_service.dart';
 import '../services/user_initialization_service.dart';
 import 'user_specific_hive_provider.dart';
+import 'current_group_provider.dart';
 
 // Logger instance
 
@@ -569,11 +570,13 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
       Log.info('✅ [CREATE GROUP] グループ作成完了: ${newGroup.groupName}');
 
       // Hive→Firestoreへの同期（本番環境のみ）
+      // TODO: SyncServiceに移行予定
       if (F.appFlavor == Flavor.prod && currentUser != null) {
         try {
-          final initService = ref.read(userInitializationServiceProvider);
-          await initService.syncHiveToFirestore(currentUser);
-          Log.info('✅ [CREATE GROUP] Firestore同期完了');
+          // 一旦コメントアウト - SyncServiceへの移行作業中
+          // final initService = ref.read(userInitializationServiceProvider);
+          // await initService.syncHiveToFirestore(currentUser);
+          Log.info('⚠️ [CREATE GROUP] Firestore同期は一時的にスキップ（リファクタリング中）');
         } catch (e) {
           Log.warning('⚠️ [CREATE GROUP] Firestore同期エラー（続行）: $e');
         }
@@ -581,10 +584,17 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
 
       // 作成したグループを選択状態にする
       try {
+        // selectedGroupIdProviderを更新
         ref
             .read(selectedGroupIdProvider.notifier)
             .selectGroup(newGroup.groupId);
-        Log.info('✅ [CREATE GROUP] グループ選択完了: ${newGroup.groupId}');
+        Log.info(
+            '✅ [CREATE GROUP] selectedGroupIdProvider更新完了: ${newGroup.groupId}');
+
+        // currentGroupProviderも更新（リスト画面用）
+        ref.read(currentGroupProvider.notifier).selectGroup(newGroup);
+        Log.info(
+            '✅ [CREATE GROUP] currentGroupProvider更新完了: ${newGroup.groupName}');
       } catch (e) {
         Log.warning('⚠️ [CREATE GROUP] グループ選択エラー（続行）: $e');
       }
@@ -593,11 +603,17 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
       // repository.getAllGroups()を再度呼ぶのではなく、
       // 既存のstateに新しいグループを追加することで、build()の再トリガーを回避
       try {
-        state.whenData((currentGroups) {
+        final currentState = state;
+        if (currentState is AsyncData<List<PurchaseGroup>>) {
+          final currentGroups = currentState.value;
           final updatedGroups = [...currentGroups, newGroup];
           state = AsyncData(updatedGroups);
           Log.info('✅ [CREATE GROUP] 楽観的更新完了: ${updatedGroups.length}グループ');
-        });
+        } else {
+          Log.warning(
+              '⚠️ [CREATE GROUP] stateがAsyncDataではない: ${currentState.runtimeType}');
+          ref.invalidateSelf();
+        }
       } catch (e) {
         Log.warning('⚠️ [CREATE GROUP] 楽観的更新エラー: $e');
         Log.warning('⚠️ [CREATE GROUP] stateを再構築します');

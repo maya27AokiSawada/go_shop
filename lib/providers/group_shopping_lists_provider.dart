@@ -10,8 +10,17 @@ final groupShoppingListsProvider =
     FutureProvider.autoDispose<List<ShoppingList>>((ref) async {
   final currentGroup = ref.watch(currentGroupProvider);
 
+  Log.info(
+      '🔍 [DEBUG] groupShoppingListsProvider - currentGroup: ${currentGroup?.groupName} (${currentGroup?.groupId})');
+
   if (currentGroup == null) {
     Log.info('⚠️ カレントグループが未設定のため、空リストを返します');
+    return [];
+  }
+
+  // 削除されたグループのリストは表示しない
+  if (currentGroup.isDeleted) {
+    Log.warning('⚠️ グループ「${currentGroup.groupName}」は削除済みのため、空リストを返します');
     return [];
   }
 
