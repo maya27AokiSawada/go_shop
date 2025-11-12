@@ -2,9 +2,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shopping_list.dart';
-import '../providers/current_group_provider.dart';
 import '../providers/current_list_provider.dart';
 import '../providers/group_shopping_lists_provider.dart';
+import '../providers/purchase_group_provider.dart';
 import '../providers/shopping_list_provider.dart';
 import '../utils/app_logger.dart';
 
@@ -16,9 +16,16 @@ class ShoppingListHeaderWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentGroup = ref.watch(currentGroupProvider);
+    final selectedGroupId = ref.watch(selectedGroupIdProvider);
+    final allGroupsAsync = ref.watch(allGroupsProvider);
     final currentList = ref.watch(currentListProvider);
     final groupListsAsync = ref.watch(groupShoppingListsProvider);
+
+    // selectedGroupIdからcurrentGroupを取得
+    final currentGroup = allGroupsAsync.whenOrNull(
+      data: (groups) =>
+          groups.where((g) => g.groupId == selectedGroupId).firstOrNull,
+    );
 
     return Container(
       padding: const EdgeInsets.all(16.0),
@@ -256,10 +263,27 @@ class ShoppingListHeaderWidget extends ConsumerWidget {
                 return;
               }
 
-              final currentGroup = ref.read(currentGroupProvider);
-              if (currentGroup == null) {
+              final selectedGroupId = ref.read(selectedGroupIdProvider);
+              if (selectedGroupId == null) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('グループが選択されていません')),
+                );
+                return;
+              }
+
+              // allGroupsProviderからcurrentGroupを取得
+              final allGroupsAsync = ref.read(allGroupsProvider);
+              final currentGroup = await allGroupsAsync.when(
+                data: (groups) async => groups
+                    .where((g) => g.groupId == selectedGroupId)
+                    .firstOrNull,
+                loading: () async => null,
+                error: (_, __) async => null,
+              );
+
+              if (currentGroup == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('グループ情報の取得に失敗しました')),
                 );
                 return;
               }

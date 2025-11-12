@@ -2,19 +2,33 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shopping_list.dart';
 import '../providers/shopping_list_provider.dart';
-import '../providers/current_group_provider.dart';
+import '../providers/purchase_group_provider.dart';
 import '../utils/app_logger.dart';
 
 /// 現在のグループに属する買い物リスト一覧を取得するProvider
 final groupShoppingListsProvider =
     FutureProvider.autoDispose<List<ShoppingList>>((ref) async {
-  final currentGroup = ref.watch(currentGroupProvider);
+  final selectedGroupId = ref.watch(selectedGroupIdProvider);
+
+  if (selectedGroupId == null) {
+    Log.info('⚠️ グループが未選択のため、空リストを返します');
+    return [];
+  }
+
+  // allGroupsProviderからcurrentGroupを取得
+  final allGroupsAsync = ref.watch(allGroupsProvider);
+  final currentGroup = await allGroupsAsync.when(
+    data: (groups) async =>
+        groups.where((g) => g.groupId == selectedGroupId).firstOrNull,
+    loading: () async => null,
+    error: (_, __) async => null,
+  );
 
   Log.info(
       '🔍 [DEBUG] groupShoppingListsProvider - currentGroup: ${currentGroup?.groupName} (${currentGroup?.groupId})');
 
   if (currentGroup == null) {
-    Log.info('⚠️ カレントグループが未設定のため、空リストを返します');
+    Log.info('⚠️ グループ情報の取得に失敗したため、空リストを返します');
     return [];
   }
 
