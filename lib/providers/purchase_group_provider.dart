@@ -13,7 +13,6 @@ import '../services/access_control_service.dart';
 import '../services/user_preferences_service.dart';
 import '../services/user_initialization_service.dart';
 import 'user_specific_hive_provider.dart';
-import 'current_group_provider.dart';
 
 // Logger instance
 
@@ -590,11 +589,6 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
             .selectGroup(newGroup.groupId);
         Log.info(
             '✅ [CREATE GROUP] selectedGroupIdProvider更新完了: ${newGroup.groupId}');
-
-        // currentGroupProviderも更新（リスト画面用）
-        ref.read(currentGroupProvider.notifier).selectGroup(newGroup);
-        Log.info(
-            '✅ [CREATE GROUP] currentGroupProvider更新完了: ${newGroup.groupName}');
       } catch (e) {
         Log.warning('⚠️ [CREATE GROUP] グループ選択エラー（続行）: $e');
       }
@@ -760,6 +754,19 @@ class SelectedGroupIdNotifier extends StateNotifier<String?> {
     } catch (e) {
       Log.error('❌ SelectedGroupIdNotifier: 初期値ロードエラー: $e');
       state = null;
+    }
+  }
+
+  /// SharedPreferencesから保存されたグループIDを取得
+  Future<String?> getSavedGroupId() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedId = prefs.getString(_selectedGroupIdKey);
+      Log.info('🔍 SelectedGroupIdNotifier: 保存されたグループID取得: $savedId');
+      return savedId;
+    } catch (e) {
+      Log.error('❌ SelectedGroupIdNotifier: グループID取得エラー: $e');
+      return null;
     }
   }
 

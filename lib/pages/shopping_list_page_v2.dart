@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shopping_list.dart';
-import '../providers/current_group_provider.dart';
 import '../providers/current_list_provider.dart';
 import '../providers/group_shopping_lists_provider.dart';
 import '../providers/purchase_group_provider.dart';
@@ -34,16 +33,27 @@ class _ShoppingListPageV2State extends ConsumerState<ShoppingListPageV2> {
   /// 2. IDが存在しない場合は最初のグループを自動選択
   Future<void> _initializeCurrentGroup() async {
     try {
-      final currentGroup = ref.read(currentGroupProvider);
-      if (currentGroup != null) {
-        Log.info('✅ 既にカレントグループが設定済み: ${currentGroup.groupName}');
-        return; // 既に設定されている場合は何もしない
+      final selectedGroupId = ref.read(selectedGroupIdProvider);
+      if (selectedGroupId != null) {
+        // 既に選択されているグループが存在するか確認
+        final allGroupsAsync = ref.read(allGroupsProvider);
+        final groupExists = allGroupsAsync.when(
+          data: (groups) => groups.any((g) => g.groupId == selectedGroupId),
+          loading: () => false,
+          error: (_, __) => false,
+        );
+
+        if (groupExists) {
+          Log.info('✅ 既にグループが選択済み: $selectedGroupId');
+          return;
+        }
       }
 
       Log.info('🔄 カレントグループを初期化中...');
 
-      final currentGroupNotifier = ref.read(currentGroupProvider.notifier);
-      final savedGroupId = await currentGroupNotifier.getSavedGroupId();
+      final selectedGroupIdNotifier =
+          ref.read(selectedGroupIdProvider.notifier);
+      final savedGroupId = await selectedGroupIdNotifier.getSavedGroupId();
 
       // 全グループを取得
       final allGroupsAsync = ref.read(allGroupsProvider);
@@ -60,7 +70,7 @@ class _ShoppingListPageV2State extends ConsumerState<ShoppingListPageV2> {
             final savedGroup =
                 groups.where((g) => g.groupId == savedGroupId).firstOrNull;
             if (savedGroup != null) {
-              await currentGroupNotifier.selectGroup(savedGroup);
+              await selectedGroupIdNotifier.selectGroup(savedGroup.groupId);
               Log.info('✅ カレントグループを復元: ${savedGroup.groupName}');
               return;
             } else {
@@ -70,7 +80,7 @@ class _ShoppingListPageV2State extends ConsumerState<ShoppingListPageV2> {
 
           // 保存されたIDがない or 見つからない場合は最初のグループを選択
           final firstGroup = groups.first;
-          await currentGroupNotifier.selectGroup(firstGroup);
+          await selectedGroupIdNotifier.selectGroup(firstGroup.groupId);
           Log.info('✅ 最初のグループを自動選択: ${firstGroup.groupName}');
         },
         loading: () {

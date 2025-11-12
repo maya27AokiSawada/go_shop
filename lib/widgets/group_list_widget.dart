@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/purchase_group.dart';
 import '../providers/purchase_group_provider.dart';
-import '../providers/current_group_provider.dart';
 import '../providers/current_list_provider.dart';
 import '../providers/group_shopping_lists_provider.dart';
 import '../utils/app_logger.dart';
@@ -294,22 +293,20 @@ class GroupListWidget extends ConsumerWidget {
 
   Future<void> _selectCurrentGroup(
       BuildContext context, WidgetRef ref, PurchaseGroup group) async {
-    final currentGroup = ref.read(currentGroupProvider);
+    final selectedGroupId = ref.read(selectedGroupIdProvider);
 
-    if (currentGroup?.groupId == group.groupId) {
+    if (selectedGroupId == group.groupId) {
       AppLogger.info('📋 [GROUP_SELECT] 既に選択済み: ${group.groupId}');
       // 既に選択済みの場合もリストを再取得してUIを更新
       ref.invalidate(groupShoppingListsProvider);
       return;
     }
 
-    // グループを選択してカレントグループに設定（awaitで非同期完了を待つ）
-    await ref.read(currentGroupProvider.notifier).selectGroup(group);
+    // グループを選択（awaitで非同期完了を待つ）
+    await ref.read(selectedGroupIdProvider.notifier).selectGroup(group.groupId);
 
-    // selectedGroupIdProviderも同期（UI表示用）
-    ref.read(selectedGroupIdProvider.notifier).selectGroup(group.groupId);
     AppLogger.info(
-        '📋 [GROUP_SELECT] selectedGroupIdProviderも更新: ${group.groupId}');
+        '📋 [GROUP_SELECT] selectedGroupIdProviderを更新: ${group.groupId}');
 
     // 🔄 グループ切り替え時：最終使用リストを復元
     await _restoreLastUsedList(ref, group.groupId);
@@ -629,11 +626,11 @@ class GroupListWidget extends ConsumerWidget {
       final repository = ref.read(purchaseGroupRepositoryProvider);
       await repository.deleteGroup(group.groupId);
 
-      // 削除されたグループがカレントグループの場合はクリア
-      final currentGroup = ref.read(currentGroupProvider);
-      if (currentGroup?.groupId == group.groupId) {
-        AppLogger.info('🔄 [GROUP_DELETE] カレントグループをクリア: ${group.groupId}');
-        ref.read(currentGroupProvider.notifier).clearSelection();
+      // 削除されたグループが選択中のグループの場合はクリア
+      final selectedGroupId = ref.read(selectedGroupIdProvider);
+      if (selectedGroupId == group.groupId) {
+        AppLogger.info('🔄 [GROUP_DELETE] 選択中のグループをクリア: ${group.groupId}');
+        ref.read(selectedGroupIdProvider.notifier).clearSelection();
         ref.read(currentListProvider.notifier).clearSelection();
       }
 
