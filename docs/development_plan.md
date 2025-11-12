@@ -240,28 +240,76 @@
 - Git/GitHub
 - ワイヤレスADB接続
 
-## 現在の優先タスク（2025-11-08）
+## 現在の優先タスク（2025-11-12更新）
 
-### 即時対応
-1. **Firestoreインデックス構築確認** (P0)
-   - URL: https://console.firebase.google.com/project/gotoshop-572b7/firestore/indexes
-   - Status: "Building" → "Enabled" を確認
+### リファクタリング進行中 🔄
 
-2. **招待機能動作テスト** (P0)
-   - Android実機での招待作成
-   - QRコード生成・表示確認
-   - エラーメッセージ解消確認
+#### 完了済み ✅
+1. **共通サービス抽出** (Step 2)
+   - SyncService作成: 314行、Firestore⇔Hive同期ロジック統一
+   - ErrorHandler作成: 4メソッド、エラーハンドリングパターン統一
 
-3. **マルチユーザーテスト** (P1)
-   - 2台目デバイスでの招待受諾
-   - グループ同期確認
+2. **プロバイダー統一** (設計改善)
+   - currentGroupProviderとselectedGroupIdProviderの二重管理を解消
+   - selectedGroupIdProviderに統一（使用頻度と軽量性を考慮）
+   - 影響ファイル: 6ファイル修正、1ファイル削除
+   - 効果: 同期バグの構造的原因を排除、コード-66行削減
 
-### 短期改善
-- UI Overflow修正（InvitationManagementDialog）
+3. **バグ修正**
+   - グループ作成時のUI同期問題を解決
+   - グループ削除時の状態クリア実装
+   - 削除済みグループのフィルタリング強化
+
+#### 進行中 🔄
+- **UserInitializationServiceの移行**
+  - 現状: SyncService/ErrorHandlerのimport済み
+  - 次回: _syncSpecificGroupFromFirestoreをSyncService.syncSpecificGroupに置き換え
+  - 期待効果: 約500行のコード削減
+
+#### 次回タスク 📋
+1. **UserInitializationService移行完了** (P0)
+   - syncHiveToFirestore → SyncService使用
+   - syncFromFirestoreToHive → SyncService使用
+   - エラーハンドリングをErrorHandlerに統一
+
+2. **NotificationService移行** (P1)
+   - 同様のパターンでSyncService活用
+
+3. **リファクタリング完了後の動作検証** (P0)
+   - Firestore同期の正常動作確認
+   - エラーハンドリングの動作確認
+   - 全画面遷移の動作確認
+
+### リファクタリング進捗
+```
+Step 1: サービス抽出準備        [████████████████████] 100% ✅
+Step 2: 共通ロジック抽出        [████████████████░░░░]  80% 🔄
+  - SyncService作成            [████████████████████] 100% ✅
+  - ErrorHandler作成           [████████████████████] 100% ✅
+  - UserInitService移行        [░░░░░░░░░░░░░░░░░░░░]   0% 📋
+  - NotificationService移行    [░░░░░░░░░░░░░░░░░░░░]   0% 📋
+Step 3: Provider簡素化         [░░░░░░░░░░░░░░░░░░░░]   0%
+Step 4: 冗長コード削除          [░░░░░░░░░░░░░░░░░░░░]   0%
+Step 5: ドキュメント更新        [░░░░░░░░░░░░░░░░░░░░]   0%
+```
+
+### 品質向上の成果
+- **技術的負債の返済**: 二重管理プロバイダーを根本解決
+- **バグ予防**: 構造的な同期漏れリスクを排除
+- **コード品質**: 単一責任原則の徹底、状態管理の明確化
+- **開発速度**: 更新箇所が半減、デバッグが容易に
+
+---
+
+### 招待機能（Phase 2）- 保留中
+*リファクタリング完了後に再テスト予定*
+
+### 短期改善（Phase 2後）
+- UI Overflow修正
 - エッジケーステスト実施
 - エラーハンドリング強化
 
 ---
 
-*最終更新: 2025年11月8日*
+*最終更新: 2025年11月12日*
 *この開発計画は進捗に応じて随時更新されます。*
