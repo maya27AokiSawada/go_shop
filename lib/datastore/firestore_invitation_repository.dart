@@ -106,22 +106,28 @@ class FirestoreInvitationRepository implements InvitationRepository {
         'invitationStatus': InvitationStatus.accepted.name,
       };
 
-      // メンバー追加
+      // メンバー追加 + allowedUidに追加
       await groupRef.update({
         'members': FieldValue.arrayUnion([newMember]),
+        'allowedUid': FieldValue.arrayUnion([userId]), // 追加: クエリ用のUID配列
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // 自分のFirestoreにもグループ情報をコピー
-      final groupData = groupDoc.data()!;
-      groupData['updatedAt'] = FieldValue.serverTimestamp();
+      // オーナー側の最新データを再取得してから自分のFirestoreにコピー
+      final updatedGroupDoc = await groupRef.get();
+      if (!updatedGroupDoc.exists) {
+        throw Exception('更新後のグループ情報取得に失敗');
+      }
+
+      final updatedGroupData = updatedGroupDoc.data()!;
+      updatedGroupData['updatedAt'] = FieldValue.serverTimestamp();
 
       await _firestore
           .collection('users')
           .doc(userId)
           .collection('groups')
           .doc(invitation.groupId)
-          .set(groupData, SetOptions(merge: true));
+          .set(updatedGroupData, SetOptions(merge: true));
 
       // 招待トークン更新
       await _invitationsCollection.doc(token).update({

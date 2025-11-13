@@ -273,10 +273,12 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
       'groupName': group.groupName,
       'groupId': group.groupId,
       'ownerUid': group.ownerUid,
+      'allowedUid': group.allowedUid, // 🔥 CRITICAL: 招待機能に必須
       'members':
           group.members?.map((m) => _memberToFirestore(m)).toList() ?? [],
       'createdAt': group.createdAt,
       'updatedAt': group.updatedAt,
+      'isDeleted': group.isDeleted, // 削除フラグも保存
       // v4: シンプル化されたデータ構造
     };
   }

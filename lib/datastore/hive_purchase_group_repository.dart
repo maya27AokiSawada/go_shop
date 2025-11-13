@@ -300,16 +300,16 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
 
       developer.log('🔍 [HIVE_REPO] PurchaseGroup作成開始');
 
-      final newGroup = PurchaseGroup(
+      // PurchaseGroup.create()ファクトリーを使用してallowedUidを自動設定
+      final newGroup = PurchaseGroup.create(
         groupId: groupId,
         groupName: groupName,
-        ownerUid: member.memberId,
-        ownerName: member.name,
-        ownerEmail: member.contact,
         members: [member],
+      ).copyWith(
         syncStatus: SyncStatus.local, // ⚠️ ローカル専用グループとして作成
       );
-      developer.log('✅ [HIVE_REPO] PurchaseGroupオブジェクト作成完了 (syncStatus=local)');
+      developer.log(
+          '✅ [HIVE_REPO] PurchaseGroupオブジェクト作成完了 (syncStatus=local, allowedUid=[${member.memberId}])');
 
       developer.log('🔍 [HIVE_REPO] Box.put()実行開始');
       await box.put(groupId, newGroup);

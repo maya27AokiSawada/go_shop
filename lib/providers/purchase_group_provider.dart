@@ -569,15 +569,16 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
       Log.info('✅ [CREATE GROUP] グループ作成完了: ${newGroup.groupName}');
 
       // Hive→Firestoreへの同期（本番環境のみ）
-      // TODO: SyncServiceに移行予定
+      // 🔥 CRITICAL FIX: Firestore同期を再有効化（招待機能に必須）
       if (F.appFlavor == Flavor.prod && currentUser != null) {
         try {
-          // 一旦コメントアウト - SyncServiceへの移行作業中
-          // final initService = ref.read(userInitializationServiceProvider);
-          // await initService.syncHiveToFirestore(currentUser);
-          Log.info('⚠️ [CREATE GROUP] Firestore同期は一時的にスキップ（リファクタリング中）');
+          Log.info('🔄 [CREATE GROUP] Firestoreへグループを同期中...');
+          final repository = ref.read(purchaseGroupRepositoryProvider);
+          await repository.updateGroup(newGroup.groupId, newGroup);
+          Log.info('✅ [CREATE GROUP] Firestore同期完了');
         } catch (e) {
-          Log.warning('⚠️ [CREATE GROUP] Firestore同期エラー（続行）: $e');
+          Log.error('❌ [CREATE GROUP] Firestore同期エラー: $e');
+          // エラーでも続行（ローカルには保存済み）
         }
       }
 
