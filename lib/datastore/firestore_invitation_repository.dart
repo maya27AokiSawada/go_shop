@@ -84,17 +84,18 @@ class FirestoreInvitationRepository implements InvitationRepository {
         throw Exception('すでにこの招待を使用しています');
       }
 
-      // グループ情報取得
-      final groupRef = _firestore
-          .collection('users')
-          .doc(invitation.invitedBy)
-          .collection('groups')
-          .doc(invitation.groupId);
+      // グループ情報取得（新アーキテクチャ：ルートコレクション）
+      final groupRef =
+          _firestore.collection('purchaseGroups').doc(invitation.groupId);
 
       final groupDoc = await groupRef.get();
       if (!groupDoc.exists) {
         throw Exception('グループが見つかりません');
       }
+
+      Log.info('📋 [INVITATION] グループ取得成功: ${invitation.groupName}');
+      Log.info(
+          '🔍 [INVITATION] 更新前のallowedUid: ${groupDoc.data()?["allowedUid"]}');
 
       // 新メンバー情報
       final newMember = {
@@ -107,27 +108,27 @@ class FirestoreInvitationRepository implements InvitationRepository {
       };
 
       // メンバー追加 + allowedUidに追加
+      Log.info('🔄 [INVITATION] グループ更新開始: メンバー追加 + allowedUid更新');
       await groupRef.update({
         'members': FieldValue.arrayUnion([newMember]),
         'allowedUid': FieldValue.arrayUnion([userId]), // 追加: クエリ用のUID配列
         'updatedAt': FieldValue.serverTimestamp(),
       });
+      Log.info('✅ [INVITATION] グループ更新完了');
 
-      // オーナー側の最新データを再取得してから自分のFirestoreにコピー
+      // 更新後のデータ確認（新アーキテクチャではルートコレクションで共有）
       final updatedGroupDoc = await groupRef.get();
       if (!updatedGroupDoc.exists) {
         throw Exception('更新後のグループ情報取得に失敗');
       }
 
-      final updatedGroupData = updatedGroupDoc.data()!;
-      updatedGroupData['updatedAt'] = FieldValue.serverTimestamp();
+      Log.info(
+          '🔍 [INVITATION] 更新後のallowedUid: ${updatedGroupDoc.data()?["allowedUid"]}');
+      Log.info(
+          '🔍 [INVITATION] 更新後のメンバー数: ${(updatedGroupDoc.data()?["members"] as List?)?.length}');
 
-      await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('groups')
-          .doc(invitation.groupId)
-          .set(updatedGroupData, SetOptions(merge: true));
+      // 新アーキテクチャではルートコレクションで全員が共有するため、
+      // ユーザーごとのサブコレクションへのコピーは不要
 
       // 招待トークン更新
       await _invitationsCollection.doc(token).update({

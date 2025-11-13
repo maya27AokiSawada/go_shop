@@ -183,8 +183,9 @@ class NotificationService {
             await userInitService.syncFromFirestoreToHive(currentUser);
           }
 
-          // UI更新
+          // UI更新（全グループと選択中グループの両方を更新）
           _ref.invalidate(allGroupsProvider);
+          _ref.invalidate(selectedGroupProvider);
           AppLogger.info('✅ [NOTIFICATION] 同期完了 - UI更新');
           break;
 
@@ -195,8 +196,9 @@ class NotificationService {
           final userInitService = _ref.read(userInitializationServiceProvider);
           await userInitService.syncFromFirestoreToHive(currentUser);
 
-          // UI更新
+          // UI更新（全グループと選択中グループの両方を更新）
           _ref.invalidate(allGroupsProvider);
+          _ref.invalidate(selectedGroupProvider);
           AppLogger.info('✅ [NOTIFICATION] 同期完了 - UI更新');
           break;
 
@@ -237,9 +239,13 @@ class NotificationService {
         return;
       }
 
-      // PurchaseGroupオブジェクトに変換
-      final groupData = groupDoc.data()!;
+      // PurchaseGroupオブジェクトに変換（Timestamp変換）
+      final groupData =
+          _convertTimestamps(Map<String, dynamic>.from(groupDoc.data()!));
+
       final group = PurchaseGroup.fromJson(groupData);
+
+      AppLogger.info('🔍 [NOTIFICATION] 同期グループallowedUid: ${group.allowedUid}');
 
       // Hiveに保存
       final repository = _ref.read(purchaseGroupRepositoryProvider);
@@ -447,6 +453,35 @@ class NotificationService {
     } catch (e) {
       AppLogger.error('❌ [NOTIFICATION] クリーンアップエラー: $e');
     }
+  }
+
+  /// Firestore Timestampを再帰的にISO8601文字列に変換
+  Map<String, dynamic> _convertTimestamps(Map<String, dynamic> data) {
+    final converted = <String, dynamic>{};
+
+    data.forEach((key, value) {
+      if (value is Timestamp) {
+        // Timestamp → ISO8601文字列
+        converted[key] = value.toDate().toIso8601String();
+      } else if (value is Map) {
+        // ネストされたMapを再帰的に変換
+        converted[key] = _convertTimestamps(Map<String, dynamic>.from(value));
+      } else if (value is List) {
+        // Listの要素も変換
+        converted[key] = value.map((item) {
+          if (item is Timestamp) {
+            return item.toDate().toIso8601String();
+          } else if (item is Map) {
+            return _convertTimestamps(Map<String, dynamic>.from(item));
+          }
+          return item;
+        }).toList();
+      } else {
+        converted[key] = value;
+      }
+    });
+
+    return converted;
   }
 
   /// リスナーが起動中かどうか

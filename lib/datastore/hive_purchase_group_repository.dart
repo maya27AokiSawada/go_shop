@@ -81,9 +81,11 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
   Future<void> saveGroup(PurchaseGroup group) async {
     try {
       final box = await _boxAsync;
+      developer.log(
+          '🔍 [HIVE SAVE] groupId: ${group.groupId}, allowedUid: ${group.allowedUid}');
       await box.put(group.groupId, group);
       developer.log(
-          '💾 PurchaseGroup保存: ${group.groupName} (${group.members?.length ?? 0}メンバー)');
+          '💾 PurchaseGroup保存完了: ${group.groupName} (${group.members?.length ?? 0}メンバー, allowedUid: ${group.allowedUid.length}個)');
     } on StateError catch (e) {
       developer.log(
           '⚠️ Box not available during saveGroup (app may be restarting): $e');
@@ -106,9 +108,9 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
       Log.info('🔍 [HIVE_REPO] Box内の全グループ (${groups.length}個):');
       for (final group in groups) {
         developer.log(
-            '  - ${group.groupName} (${group.groupId}): isDeleted=${group.isDeleted}');
+            '  - ${group.groupName} (${group.groupId}): isDeleted=${group.isDeleted}, allowedUid=${group.allowedUid}');
         Log.info(
-            '  - ${group.groupName} (${group.groupId}): isDeleted=${group.isDeleted}');
+            '  - ${group.groupName} (${group.groupId}): isDeleted=${group.isDeleted}, allowedUid=${group.allowedUid}');
       }
 
       // 隠しグループと削除済みグループを除外

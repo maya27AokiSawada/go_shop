@@ -268,9 +268,12 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
   }
 
   Future<void> _processQRInvitation(String qrData) async {
+    Log.info(
+        '🔍 [QR_SCAN] _processQRInvitation開始, _isProcessing: $_isProcessing');
     if (_isProcessing) return;
 
     setState(() => _isProcessing = true);
+    Log.info('🔍 [QR_SCAN] _isProcessing=true に設定');
 
     try {
       final user = ref.read(authStateProvider).valueOrNull;
@@ -428,8 +431,8 @@ class _ManualInvitationInputDialogState
     );
   }
 
-  Future<void> _processInvitation() async {
-    final token = _controller.text.trim();
+  Future<void> _processInvitation([String? tokenParam]) async {
+    final token = (tokenParam ?? _controller.text).trim();
 
     if (token.isEmpty || !token.startsWith('INV_')) {
       ScaffoldMessenger.of(context).showSnackBar(

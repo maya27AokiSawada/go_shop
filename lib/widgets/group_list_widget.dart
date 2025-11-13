@@ -67,17 +67,27 @@ class GroupListWidget extends ConsumerWidget {
                     onPressed: () async {
                       AppLogger.info('🔄 [DEBUG] 双方向同期開始');
                       try {
-                        // Firestore→Hive同期
-                        await ref.read(forceSyncProvider.future);
-
-                        // Hive→Firestore同期（本番環境のみ）
                         final currentUser = FirebaseAuth.instance.currentUser;
-                        if (F.appFlavor == Flavor.prod && currentUser != null) {
+                        if (currentUser == null) {
+                          throw Exception('ユーザーがサインインしていません');
+                        }
+
+                        // 1. Hive→Firestore同期（ローカルの最新データをアップロード）
+                        if (F.appFlavor == Flavor.prod) {
                           final initService =
                               ref.read(userInitializationServiceProvider);
+                          AppLogger.info('⬆️ [DEBUG] Hive→Firestore同期開始...');
                           await initService.syncHiveToFirestore(currentUser);
                           AppLogger.info('✅ [DEBUG] Hive→Firestore同期完了');
+
+                          // Firestore書き込み反映を待つ
+                          await Future.delayed(const Duration(seconds: 2));
                         }
+
+                        // 2. Firestore→Hive同期（Firestoreから最新データを取得）
+                        AppLogger.info('⬇️ [DEBUG] Firestore→Hive同期開始...');
+                        await ref.read(forceSyncProvider.future);
+                        AppLogger.info('✅ [DEBUG] Firestore→Hive同期完了');
 
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('双方向同期完了')),
