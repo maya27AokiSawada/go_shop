@@ -1,7 +1,7 @@
 # Go Shop - AI Coding Agent Instructions
 
 ## Project Overview
-Go Shopは家族・グループ向けの買い物リスト共有Flutterアプリです。Firebase AuthとHive（ローカルDB）を使用し、将来的にFirestoreへの移行を予定しています。
+Go Shopは家族・グループ向けの買い物リスト共有Flutterアプリです。Firebase AuthとHive（ローカルDB）を使用し、現在はFirestore統合開発中です
 
 ## Architecture & Key Components
 
@@ -46,6 +46,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
 
 ### 基本方針
 - **安定性最優先**: クラッシュ防止、ローディングスピナー許容
+　初期化、グループ、ショッピングリストCRUDはユーザーを待たせても確実な実行、ショッピングアイテムのCRUD処理はリアルタイムを重視
 - **ユーザー体験重視**: 詳細な進行状況表示、適切なエラーメッセージ
 - **フォールバック戦略**: Firestore接続失敗時はHiveのみモードで継続
 
@@ -119,7 +120,49 @@ class PurchaseGroupMember with _$PurchaseGroupMember {
     - `shoppingLists/{listId}/`
     - `allowedUids`: グループアクセス可能ユーザーIDリスト
     - `acceptedUids`: 招待受諾ユーザーとセキュリティキーのマップ
-- **ID生成**: UID=FirebaseAuth自動、groupId/listId=UUIDv4
+
+### Invitation System (QR Code & Link based)
+**Firestore Collection**: `/invitations/{invitationToken}`
+
+招待トークン情報を一時保存（24時間有効、期限切れ後は自動削除対象）
+
+```typescript
+{
+  token: "INV_abc123xyz789",           // UUID v4形式の招待トークン
+  groupId: "1762322612481",            // 招待先グループID
+  groupName: "家族グループ",            // 招待先グループ名
+  invitedBy: "ownerUid",               // 招待元ユーザーUID
+  inviterName: "Maya",                 // 招待元ユーザー名
+  createdAt: Timestamp,                // 作成日時
+  expiresAt: Timestamp,                // 有効期限（作成から24時間後）
+  maxUses: 5,                          // 最大使用回数（1トークンで最大5人）
+  currentUses: 0,                      // 現在の使用回数
+  usedBy: string[]                     // 使用済みユーザーUIDリスト
+}
+```
+
+**招待フロー**:
+1. オーナー/管理者が「メンバー招待」でQRコード生成
+2. QRコードに`{type: "go_shop_invitation", version: "1.0", token: "INV_xxx"}`を埋め込み
+3. 招待ユーザーがQRスキャン → 招待ページ表示
+4. 認証後に`acceptInvitation()`でグループ参加
+5. `currentUses`インクリメント、`usedBy`にUID追加
+6. `currentUses >= maxUses`または期限切れで無効化
+
+**対応モデル**: `lib/models/invitation.dart` (Freezed + Hive TypeID: 5)
+
+**関連サービス**:
+- `lib/services/qr_invitation_service.dart` - QRコード生成・読取
+- `lib/services/invitation_service.dart` - 招待送信・承諾処理
+- `lib/datastore/firestore_invitation_repository.dart` - Firestore CRUD
+
+**セキュリティ**:
+- 24時間有効期限
+- 最大5回使用制限
+- 使用済みユーザー重複チェック
+- トークン推測攻撃対策（UUID v4使用）
+
+- **ID生成**: UID=FirebaseAuth自動、groupId/listId=UUIDv4、invitationToken=UUID v4
 ## Critical Development Patterns
 
 ### Initialization Sequence
