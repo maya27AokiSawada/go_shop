@@ -269,8 +269,12 @@ class UserInitializationService {
                       .toList() ??
                   [],
               'isDeleted': group.isDeleted,
-              'lastAccessedAt': group.lastAccessedAt?.toIso8601String(),
-              'createdAt': group.createdAt?.toIso8601String(),
+              'lastAccessedAt': group.lastAccessedAt != null
+                  ? Timestamp.fromDate(group.lastAccessedAt!)
+                  : null,
+              'createdAt': group.createdAt != null
+                  ? Timestamp.fromDate(group.createdAt!)
+                  : null,
               'updatedAt': FieldValue.serverTimestamp(),
             },
             SetOptions(merge: true));
@@ -424,6 +428,18 @@ class UserInitializationService {
             continue;
           }
 
+          // ⚠️ 重要: 最近更新されたグループは保護（Firestore反映待ちの可能性）
+          final updatedAt = hiveGroup.updatedAt ?? hiveGroup.createdAt;
+          final isRecentlyUpdated = updatedAt != null &&
+              DateTime.now().difference(updatedAt).inMinutes < 5;
+
+          if (isRecentlyUpdated) {
+            Log.warning(
+                '🛡️ [SYNC] 最近更新されたグループを保護（Firestore反映待ち）: ${hiveGroup.groupName} (${hiveGroup.groupId})');
+            skippedCount++;
+            continue;
+          }
+
           // その他のsynced状態グループはFirestoreから削除されたと判断して削除
           try {
             await repository.deleteGroup(hiveGroup.groupId);
@@ -454,41 +470,17 @@ class UserInitializationService {
 
         // グループをHiveに保存/更新
         try {
-          final members = (data['members'] as List?)
-                  ?.map((m) => models.PurchaseGroupMember(
-                        memberId: m['memberId'] ?? '',
-                        name: m['name'] ?? '',
-                        contact: m['contact'] ?? '',
-                        role: models.PurchaseGroupRole.values.firstWhere(
-                          (r) => r.name == (m['role'] ?? ''),
-                          orElse: () => models.PurchaseGroupRole.member,
-                        ),
-                        isSignedIn: m['isSignedIn'] ?? false,
-                        invitationStatus:
-                            models.InvitationStatus.values.firstWhere(
-                          (s) => s.name == (m['invitationStatus'] ?? ''),
-                          orElse: () => models.InvitationStatus.self,
-                        ),
-                      ))
-                  .toList() ??
-              [];
+          // Firestoreの Timestamp を DateTime に変換してから fromJson を使用
+          final convertedData = _convertTimestamps(data);
 
-          final group = models.PurchaseGroup(
-            groupId: doc.id,
-            groupName: data['groupName'] ?? '',
-            ownerUid: data['ownerUid'],
-            ownerName: data['ownerName'],
-            ownerEmail: data['ownerEmail'],
-            members: members,
-            isDeleted: data['isDeleted'] as bool? ?? false, // Firestoreの値を使用
-            lastAccessedAt: data['lastAccessedAt'] != null
-                ? DateTime.parse(data['lastAccessedAt'])
-                : null,
-            createdAt: data['createdAt'] != null
-                ? DateTime.parse(data['createdAt'])
-                : null,
+          // PurchaseGroup.fromJson()を使用してallowedUidを含む全フィールドを正しく復元
+          final group = models.PurchaseGroup.fromJson(convertedData).copyWith(
+            groupId: doc.id, // ドキュメントIDを確実に設定
             updatedAt: DateTime.now(),
           );
+
+          Log.info(
+              '🔍 [SYNC] グループ同期: ${group.groupName}, allowedUid: ${group.allowedUid}');
 
           await repository.updateGroup(group.groupId, group);
           syncedCount++;
@@ -502,5 +494,34 @@ class UserInitializationService {
     } catch (e) {
       Log.error('❌ [SYNC] Firestore→Hive同期エラー: $e');
     }
+  }
+
+  /// Firestore Timestampを再帰的にISO8601文字列に変換
+  Map<String, dynamic> _convertTimestamps(Map<String, dynamic> data) {
+    final converted = <String, dynamic>{};
+
+    data.forEach((key, value) {
+      if (value is Timestamp) {
+        // Timestamp → ISO8601文字列
+        converted[key] = value.toDate().toIso8601String();
+      } else if (value is Map) {
+        // ネストされたMapを再帰的に変換
+        converted[key] = _convertTimestamps(Map<String, dynamic>.from(value));
+      } else if (value is List) {
+        // Listの要素も変換
+        converted[key] = value.map((item) {
+          if (item is Timestamp) {
+            return item.toDate().toIso8601String();
+          } else if (item is Map) {
+            return _convertTimestamps(Map<String, dynamic>.from(item));
+          }
+          return item;
+        }).toList();
+      } else {
+        converted[key] = value;
+      }
+    });
+
+    return converted;
   }
 }

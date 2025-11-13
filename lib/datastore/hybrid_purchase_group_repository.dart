@@ -566,28 +566,36 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
   @override
   Future<PurchaseGroup> updateGroup(String groupId, PurchaseGroup group) async {
     try {
+      developer.log(
+          '🔍 [HYBRID UPDATE] groupId: $groupId, allowedUid: ${group.allowedUid}');
+
       // 1. Hiveを即座に更新
       await _hiveRepo.saveGroup(group);
+      developer.log('✅ [HYBRID UPDATE] Hive保存完了');
 
       if (F.appFlavor == Flavor.dev || !_isOnline || _firestoreRepo == null) {
+        developer.log(
+            '💡 [HYBRID UPDATE] Firestore同期スキップ (dev=${F.appFlavor == Flavor.dev}, online=$_isOnline)');
         return group;
       }
 
-      // 2. Firestoreに非同期同期
-      _unawaited(_firestoreRepo!
-          .updateGroup(groupId, group)
-          .then((updatedGroup) async {
+      developer.log('🔥 [HYBRID UPDATE] Firestore同期開始...');
+
+      // 2. Firestoreに同期（allowedUid更新の確実性のため完了を待つ）
+      try {
+        final updatedGroup = await _firestoreRepo!.updateGroup(groupId, group);
+        developer.log('✅ [HYBRID UPDATE] Firestore同期完了');
         // Firestoreで更新された場合、差分をHiveに反映
         if (updatedGroup.hashCode != group.hashCode) {
           await _hiveRepo.saveGroup(updatedGroup);
           developer.log('🔄 Firestore changes synced back to cache');
         }
-      }).catchError((e) {
-        developer.log('⚠️ Failed to sync update to Firestore: $e');
-        // TODO: 競合解決ロジック
-      }));
-
-      return group;
+        return updatedGroup;
+      } catch (e) {
+        developer.log('⚠️ [HYBRID UPDATE] Firestore同期失敗: $e');
+        // Hiveは既に保存済みなので継続
+        return group;
+      }
     } catch (e) {
       developer.log('❌ updateGroup error: $e');
       rethrow;

@@ -40,6 +40,8 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
       }
 
       developer.log('🔥 [FIRESTORE] Creating group: $groupName ($groupId)');
+      developer.log('🔍 [FIRESTORE] Owner member.memberId: ${member.memberId}');
+      developer.log('🔍 [FIRESTORE] Owner member.name: ${member.name}');
 
       // PurchaseGroup.createファクトリを使用
       final newGroup = PurchaseGroup.create(
@@ -58,6 +60,10 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
 
       developer
           .log('🔥 [FIRESTORE] Group data prepared, writing to Firestore...');
+      developer
+          .log('🔍 [FIRESTORE] allowedUid in newGroup: ${newGroup.allowedUid}');
+      developer.log(
+          '🔍 [FIRESTORE] allowedUid in groupData: ${groupData['allowedUid']}');
 
       try {
         // シンプルなset操作でトランザクションを避ける（crash-proof）
@@ -139,12 +145,21 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
   @override
   Future<PurchaseGroup> updateGroup(String groupId, PurchaseGroup group) async {
     try {
-      await _groupsCollection.doc(groupId).update({
-        ..._groupToFirestore(group),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      final updateData = _groupToFirestore(group);
+      developer.log('🔍 [FIRESTORE UPDATE] groupId: $groupId');
+      developer
+          .log('🔍 [FIRESTORE UPDATE] group.allowedUid: ${group.allowedUid}');
+      developer.log(
+          '🔍 [FIRESTORE UPDATE] updateData[allowedUid]: ${updateData['allowedUid']}');
 
-      developer.log('🔥 Updated in Firestore: ${group.groupName}');
+      // set(merge: true)を使用してドキュメントが存在しない場合も対応
+      await _groupsCollection.doc(groupId).set({
+        ...updateData,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      developer
+          .log('✅ [FIRESTORE UPDATE] Updated in Firestore: ${group.groupName}');
       return group;
     } catch (e) {
       developer.log('❌ Firestore updateGroup error: $e');
@@ -276,8 +291,10 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
       'allowedUid': group.allowedUid, // 🔥 CRITICAL: 招待機能に必須
       'members':
           group.members?.map((m) => _memberToFirestore(m)).toList() ?? [],
-      'createdAt': group.createdAt,
-      'updatedAt': group.updatedAt,
+      'createdAt':
+          group.createdAt != null ? Timestamp.fromDate(group.createdAt!) : null,
+      'updatedAt':
+          group.updatedAt != null ? Timestamp.fromDate(group.updatedAt!) : null,
       'isDeleted': group.isDeleted, // 削除フラグも保存
       // v4: シンプル化されたデータ構造
     };
@@ -309,9 +326,14 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
       groupName: data['groupName'] ?? '',
       groupId: data['groupId'] ?? doc.id,
       ownerUid: data['ownerUid'] ?? '',
+      ownerName: data['ownerName'] ?? '',
+      ownerEmail: data['ownerEmail'] ?? '',
+      allowedUid:
+          List<String>.from(data['allowedUid'] ?? []), // 🔥 CRITICAL: これが抜けていた！
       members: membersList,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
+      isDeleted: data['isDeleted'] ?? false,
     );
   }
 
