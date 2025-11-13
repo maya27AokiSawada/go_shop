@@ -299,10 +299,10 @@ class UserInitializationService {
       Log.info('⬇️ [SYNC] Firestore→Hive同期開始');
       final firestore = FirebaseFirestore.instance;
 
-      // purchaseGroupsルートコレクションからallowedUidでフィルタ
+      // purchaseGroupsルートコレクションからallowedUidsでフィルタ
       final purchaseGroupsRef = firestore.collection('purchaseGroups');
       final snapshot = await purchaseGroupsRef
-          .where('allowedUid', arrayContains: user.uid)
+          .where('allowedUids', arrayContains: user.uid)
           .get();
 
       Log.info('📊 [SYNC] Firestoreクエリ完了: ${snapshot.docs.length}個のグループ');
