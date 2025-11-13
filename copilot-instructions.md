@@ -112,14 +112,35 @@ class PurchaseGroupMember with _$PurchaseGroupMember {
 **Hive TypeIDs**: 0=PurchaseGroupRole, 1=PurchaseGroupMember, 2=PurchaseGroup, 3=ShoppingItem, 4=ShoppingList
 
 ## Firestore Structure
-- `/users/{uid}/` (UID一致時のみアクセス可能)
-    - `userProfile`: ユーザープロフィール情報
-    - `purchaseGroups`: ユーザー所属グループIDリスト
-- `/purchaseGroups/{groupId}/`
-    - `purchaseGroupクラスデータ` (allowedUidsにUID含む場合のみアクセス可能)
-    - `shoppingLists/{listId}/`
-    - `allowedUids`: グループアクセス可能ユーザーIDリスト
-    - `acceptedUids`: 招待受諾ユーザーとセキュリティキーのマップ
+
+### `/users/{uid}/` (UID一致時のみアクセス可能)
+ユーザー個人情報を格納するトップレベルコレクション
+
+- **userProfile**: ユーザープロフィール情報（表示名、アバター等）
+- **purchaseGroups**: `string[]` - ユーザーが参加しているグループIDのリスト
+  - 例: `["1762322612481", "VqNEozvTyXXw55Q46mNiGNMNngw2"]`
+  - グループデータ本体は `/purchaseGroups/{groupId}` に存在
+
+### `/purchaseGroups/{groupId}/` (allowedUidsに含まれるUIDのみアクセス可能)
+グループ共有データを格納するトップレベルコレクション
+
+**フィールド構造**:
+```typescript
+{
+  groupId: string;              // グループID
+  groupName: string;            // グループ名
+  ownerUid: string;             // オーナーUID
+  ownerName: string;            // オーナー表示名
+  ownerEmail: string;           // オーナーメールアドレス
+  members: PurchaseGroupMember[]; // メンバー配列
+  allowedUids: string[];        // アクセス権限を持つUIDリスト
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+```
+
+**サブコレクション**:
+- `shoppingLists/{listId}/` - 買い物リスト（グループメンバー全員がアクセス可能）
 
 ### Invitation System (QR Code & Link based)
 **Firestore Collection**: `/invitations/{invitationToken}`
