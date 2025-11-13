@@ -95,7 +95,8 @@ class NotificationService {
 
     AppLogger.info('🔔 [NOTIFICATION] リアルタイム通知リスナー起動開始...');
     AppLogger.info('🔔 [NOTIFICATION] ユーザーUID: ${currentUser.uid}');
-    AppLogger.info('🔔 [NOTIFICATION] クエリ条件: userId == ${currentUser.uid}, read == false');
+    AppLogger.info(
+        '🔔 [NOTIFICATION] クエリ条件: userId == ${currentUser.uid}, read == false');
 
     _notificationSubscription = _firestore
         .collection('notifications')
@@ -105,12 +106,14 @@ class NotificationService {
         .snapshots()
         .listen(
       (snapshot) {
-        AppLogger.info('🔔 [NOTIFICATION] スナップショット受信: ${snapshot.docChanges.length}件の変更');
+        AppLogger.info(
+            '🔔 [NOTIFICATION] スナップショット受信: ${snapshot.docChanges.length}件の変更');
         for (var change in snapshot.docChanges) {
           AppLogger.info('🔔 [NOTIFICATION] 変更タイプ: ${change.type}');
           if (change.type == DocumentChangeType.added) {
             final notification = NotificationData.fromFirestore(change.doc);
-            AppLogger.info('🔔 [NOTIFICATION] 新規通知検出: type=${notification.type}, groupId=${notification.groupId}');
+            AppLogger.info(
+                '🔔 [NOTIFICATION] 新規通知検出: type=${notification.type}, groupId=${notification.groupId}');
             _handleNotification(notification);
           }
         }
@@ -152,8 +155,10 @@ class NotificationService {
           AppLogger.info('👥 [NOTIFICATION] 新メンバー追加通知を受信！');
           final groupId = notification.metadata?['groupId'] as String?;
           AppLogger.info('👥 [NOTIFICATION] グループID: $groupId');
-          AppLogger.info('👥 [NOTIFICATION] 新メンバーID: ${notification.metadata?['newMemberId']}');
-          AppLogger.info('👥 [NOTIFICATION] 新メンバー名: ${notification.metadata?['newMemberName']}');
+          AppLogger.info(
+              '👥 [NOTIFICATION] 新メンバーID: ${notification.metadata?['newMemberId']}');
+          AppLogger.info(
+              '👥 [NOTIFICATION] 新メンバー名: ${notification.metadata?['newMemberName']}');
           if (groupId != null) {
             AppLogger.info('🔄 [NOTIFICATION] グループ同期開始: $groupId');
             await _syncSpecificGroupFromFirestore(groupId);

@@ -42,6 +42,13 @@ class UserInitializationService {
     // アプリ起動時にユーザー状態に応じた初期化を実行
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeBasedOnUserState();
+
+      // 🔧 FIX: 既にログイン済みの場合も通知リスナーを起動
+      if (_auth != null && _auth!.currentUser != null) {
+        final notificationService = _ref.read(notificationServiceProvider);
+        notificationService.startListening();
+        Log.info('🔔 [INIT] アプリ起動時 - 既存ユーザーで通知リスナー起動');
+      }
     });
 
     // 本番環境のみFirebase Auth監視
