@@ -204,6 +204,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 // 3. サインインパネル（未認証時のみ表示）
                 if (!isAuthenticated) ...[
                   AuthPanelWidget(
+                    userNameController: userNameController,
                     onAuthSuccess: () {
                       // 認証成功時の処理
                     },

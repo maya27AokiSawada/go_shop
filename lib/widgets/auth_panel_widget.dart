@@ -21,9 +21,13 @@ class AuthPanelWidget extends ConsumerStatefulWidget {
   /// 認証成功時のコールバック
   final VoidCallback? onAuthSuccess;
 
+  /// ユーザー名コントローラー（親から渡される）
+  final TextEditingController? userNameController;
+
   const AuthPanelWidget({
     super.key,
     this.onAuthSuccess,
+    this.userNameController,
   });
 
   @override
@@ -31,7 +35,7 @@ class AuthPanelWidget extends ConsumerStatefulWidget {
 }
 
 class _AuthPanelWidgetState extends ConsumerState<AuthPanelWidget> {
-  final userNameController = TextEditingController();
+  late final TextEditingController userNameController;
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
@@ -44,12 +48,17 @@ class _AuthPanelWidgetState extends ConsumerState<AuthPanelWidget> {
   @override
   void initState() {
     super.initState();
+    // 親からコントローラーが渡されている場合はそれを使用、なければ新規作成
+    userNameController = widget.userNameController ?? TextEditingController();
     _loadSavedData();
   }
 
   @override
   void dispose() {
-    userNameController.dispose();
+    // 親から渡されていない場合のみdispose
+    if (widget.userNameController == null) {
+      userNameController.dispose();
+    }
     emailController.dispose();
     passwordController.dispose();
     super.dispose();
@@ -58,11 +67,16 @@ class _AuthPanelWidgetState extends ConsumerState<AuthPanelWidget> {
   /// 保存されたメールアドレスとユーザー名を読み込む（初期化用）
   Future<void> _loadSavedData() async {
     try {
-      // ユーザー名を読み込む
-      final savedUserName = await UserPreferencesService.getUserName();
-      if (savedUserName != null && savedUserName.isNotEmpty && mounted) {
-        userNameController.text = savedUserName;
-        AppLogger.info('� AuthPanel: 保存されたユーザー名を設定: $savedUserName');
+      // ユーザー名を読み込む（コントローラーが空の場合のみ）
+      if (userNameController.text.isEmpty) {
+        final savedUserName = await UserPreferencesService.getUserName();
+        if (savedUserName != null && savedUserName.isNotEmpty && mounted) {
+          userNameController.text = savedUserName;
+          AppLogger.info('👤 AuthPanel: 保存されたユーザー名を設定: $savedUserName');
+        }
+      } else {
+        AppLogger.info(
+            '👤 AuthPanel: 親からユーザー名が渡されています: ${userNameController.text}');
       }
 
       // メールアドレスを読み込む

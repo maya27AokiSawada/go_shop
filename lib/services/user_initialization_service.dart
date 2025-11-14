@@ -11,6 +11,7 @@ import '../datastore/hive_purchase_group_repository.dart'
 import '../flavors.dart';
 import 'notification_service.dart';
 import 'sync_service.dart';
+import 'user_preferences_service.dart';
 import '../utils/error_handler.dart';
 
 final userInitializationServiceProvider = Provider<UserInitializationService>((
@@ -40,7 +41,12 @@ class UserInitializationService {
   /// Firebase Auth状態変化を監視してユーザー初期化を実行
   void startAuthStateListener() {
     // アプリ起動時にユーザー状態に応じた初期化を実行
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // アプリ起動時にもプロフィール同期を実行
+      if (_auth != null && _auth!.currentUser != null) {
+        await _syncUserProfile(_auth!.currentUser!);
+      }
+
       _initializeBasedOnUserState();
 
       // 🔧 FIX: 既にログイン済みの場合も通知リスナーを起動
@@ -53,8 +59,11 @@ class UserInitializationService {
 
     // 本番環境のみFirebase Auth監視
     if (_auth != null) {
-      _auth!.authStateChanges().listen((User? user) {
+      _auth!.authStateChanges().listen((User? user) async {
         if (user != null) {
+          // ユーザープロフィールをFirestoreと同期
+          await _syncUserProfile(user);
+
           // ユーザーがログインした時の初期化処理
           _initializeUserDefaults(user);
 
@@ -145,6 +154,84 @@ class UserInitializationService {
   bool _isFirebaseUserId(String uid) {
     // Firebase AuthのUIDは通常28文字の英数字
     return uid.length >= 20 && RegExp(r'^[a-zA-Z0-9]+$').hasMatch(uid);
+  }
+
+  /// Firestoreのユーザープロフィールとローカルのプリファレンスを同期
+  Future<void> _syncUserProfile(User user) async {
+    try {
+      Log.info('🔄 [PROFILE SYNC] ユーザープロフィール同期開始: UID=${user.uid}');
+
+      final firestore = FirebaseFirestore.instance;
+      final profileDoc = firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('profile')
+          .doc('userName');
+
+      // Firestoreからプロフィールを取得
+      final profileSnapshot = await profileDoc.get();
+      final firestoreData = profileSnapshot.exists
+          ? profileSnapshot.data() as Map<String, dynamic>
+          : null;
+
+      // SharedPreferencesから現在のデータを取得
+      final localUserName = await UserPreferencesService.getUserName();
+      final localUserEmail = await UserPreferencesService.getUserEmail();
+      final localUserId = await UserPreferencesService.getUserId();
+
+      // Firebase Authのメールアドレスを取得
+      final authEmail = user.email;
+
+      Log.info(
+          '📊 [PROFILE SYNC] Firestore: ${firestoreData != null ? firestoreData['userName'] : 'なし'}');
+      Log.info('📊 [PROFILE SYNC] Local: $localUserName');
+
+      // 同期の優先順位: Firestore > Local
+      String? finalUserName;
+      String finalUserEmail = authEmail ?? localUserEmail ?? '';
+      String finalUserId = user.uid;
+
+      if (firestoreData != null && firestoreData['userName'] != null) {
+        // Firestoreにデータがある場合
+        finalUserName = firestoreData['userName'] as String;
+
+        // ローカルと異なる場合は更新
+        if (finalUserName != localUserName) {
+          Log.info('📥 [PROFILE SYNC] Firestoreからローカルに同期: $finalUserName');
+          await UserPreferencesService.saveUserName(finalUserName);
+        } else {
+          Log.info('✅ [PROFILE SYNC] ユーザー名は既に同期済み');
+        }
+      } else if (localUserName != null && localUserName.isNotEmpty) {
+        // Firestoreにデータがなく、ローカルにある場合
+        finalUserName = localUserName;
+        Log.info('📤 [PROFILE SYNC] ローカルからFirestoreに同期: $finalUserName');
+        await profileDoc.set({
+          'userName': finalUserName,
+          'userEmail': finalUserEmail,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      } else {
+        // 両方にデータがない場合
+        Log.info('⚠️ [PROFILE SYNC] ユーザー名が未設定');
+      }
+
+      // メールアドレスとユーザーIDをローカルに保存
+      if (finalUserEmail.isNotEmpty && finalUserEmail != localUserEmail) {
+        await UserPreferencesService.saveUserEmail(finalUserEmail);
+        Log.info('💾 [PROFILE SYNC] メールアドレスを保存: $finalUserEmail');
+      }
+
+      if (finalUserId != localUserId) {
+        await UserPreferencesService.saveUserId(finalUserId);
+        Log.info('💾 [PROFILE SYNC] ユーザーIDを保存: $finalUserId');
+      }
+
+      Log.info('✅ [PROFILE SYNC] ユーザープロフィール同期完了');
+    } catch (e) {
+      Log.error('❌ [PROFILE SYNC] プロフィール同期エラー: $e');
+      // エラーがあっても初期化は続行
+    }
   }
 
   /// Firestoreとの同期を実行
