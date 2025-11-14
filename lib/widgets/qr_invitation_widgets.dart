@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/qr_invitation_service.dart';
 import '../services/pending_invitation_service.dart';
 import '../helpers/ui_helper.dart';
+import '../utils/error_handler.dart';
 
 /// QRコード招待ボタンウィジェット
 class QRInviteButton extends ConsumerWidget {
@@ -38,39 +39,43 @@ class QRInviteButton extends ConsumerWidget {
   }
 
   Future<void> _showQRInviteDialog(BuildContext context, WidgetRef ref) async {
-    final qrService = ref.read(qrInvitationServiceProvider);
-
-    try {
-      final invitationData = await qrService.createQRInvitationData(
-        shoppingListId: shoppingListId,
-        purchaseGroupId: purchaseGroupId,
-        groupName: groupName,
-        groupOwnerUid: groupOwnerUid,
-        customMessage: customMessage,
-        invitationType: 'individual', // デフォルトは個別招待
-      );
-
-      final qrData = qrService.encodeQRData(invitationData);
-
-      if (context.mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => QRInviteDialog(
-            qrData: qrData,
-            invitationData: invitationData,
-          ),
+    await ErrorHandler.handleAsync(
+      operation: () async {
+        final qrService = ref.read(qrInvitationServiceProvider);
+        final invitationData = await qrService.createQRInvitationData(
+          shoppingListId: shoppingListId,
+          purchaseGroupId: purchaseGroupId,
+          groupName: groupName,
+          groupOwnerUid: groupOwnerUid,
+          customMessage: customMessage,
+          invitationType: 'individual',
         );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('QRコード生成エラー: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
+
+        final qrData = qrService.encodeQRData(invitationData);
+
+        if (context.mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => QRInviteDialog(
+              qrData: qrData,
+              invitationData: invitationData,
+            ),
+          );
+        }
+      },
+      context: 'QR_INVITE:showDialog',
+      defaultValue: null,
+      onError: (error, stackTrace) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('QRコード生成エラー: $error'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      },
+    );
   }
 }
 
@@ -325,41 +330,46 @@ class _QRScannerPageState extends ConsumerState<QRScannerPage> {
       isProcessing = true;
     });
 
-    try {
-      final qrService = ref.read(qrInvitationServiceProvider);
-      final invitationData = qrService.decodeQRData(qrData);
+    await ErrorHandler.handleAsync(
+      operation: () async {
+        final qrService = ref.read(qrInvitationServiceProvider);
+        final invitationData = qrService.decodeQRData(qrData);
 
-      if (invitationData == null) {
-        throw Exception('無効なQRコードです');
-      }
-
-      // 招待受諾確認ダイアログを表示
-      if (mounted) {
-        final result = await showDialog<bool>(
-          context: context,
-          builder: (context) => QRInvitationAcceptDialog(
-            invitationData: invitationData,
-          ),
-        );
-
-        if (result == true) {
-          Navigator.of(context).pop(); // スキャナーページを閉じる
+        if (invitationData == null) {
+          throw Exception('無効なQRコードです');
         }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('エラー: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      setState(() {
-        isProcessing = false;
-      });
-    }
+
+        // 招待受諾確認ダイアログを表示
+        if (mounted) {
+          final result = await showDialog<bool>(
+            context: context,
+            builder: (context) => QRInvitationAcceptDialog(
+              invitationData: invitationData,
+            ),
+          );
+
+          if (result == true) {
+            Navigator.of(context).pop(); // スキャナーページを閉じる
+          }
+        }
+      },
+      context: 'QR_SCANNER:handleScan',
+      defaultValue: null,
+      onError: (error, stackTrace) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('エラー: $error'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      },
+    );
+
+    setState(() {
+      isProcessing = false;
+    });
   }
 
   @override
@@ -419,51 +429,54 @@ class QRInvitationAcceptDialog extends ConsumerWidget {
   }
 
   Future<void> _acceptInvitation(BuildContext context, WidgetRef ref) async {
-    try {
-      final currentUser = ref.read(firebaseAuthProvider).currentUser;
+    await ErrorHandler.handleAsync(
+      operation: () async {
+        final currentUser = ref.read(firebaseAuthProvider).currentUser;
 
-      // 未サインイン時の処理
-      if (currentUser == null) {
-        // 招待情報を一時保存
-        final saved = await PendingInvitationService.savePendingInvitation(
-            invitationData);
+        // 未サインイン時の処理
+        if (currentUser == null) {
+          final saved = await PendingInvitationService.savePendingInvitation(
+              invitationData);
+
+          if (context.mounted) {
+            if (saved) {
+              await _showSignInPromptDialog(context);
+              Navigator.of(context).pop(true);
+            } else {
+              UiHelper.showErrorMessage(
+                context,
+                '招待情報の保存に失敗しました。再度お試しください。',
+              );
+            }
+          }
+          return;
+        }
+
+        // サインイン済みの場合の処理
+        final qrService = ref.read(qrInvitationServiceProvider);
+        final success = await qrService.acceptQRInvitation(
+          invitationData: invitationData,
+          acceptorUid: currentUser.uid,
+          ref: ref,
+        );
 
         if (context.mounted) {
-          if (saved) {
-            // 保存成功 → サインイン画面へ誘導
-            await _showSignInPromptDialog(context);
-            Navigator.of(context).pop(true); // ダイアログを閉じる
+          if (success) {
+            UiHelper.showSuccessMessage(context, '招待を受諾しました！');
+            Navigator.of(context).pop(true);
           } else {
-            UiHelper.showErrorMessage(
-              context,
-              '招待情報の保存に失敗しました。再度お試しください。',
-            );
+            throw Exception('招待の受諾に失敗しました');
           }
         }
-        return;
-      }
-
-      // サインイン済みの場合の処理
-      final qrService = ref.read(qrInvitationServiceProvider);
-      final success = await qrService.acceptQRInvitation(
-        invitationData: invitationData,
-        acceptorUid: currentUser.uid,
-        ref: ref,
-      );
-
-      if (context.mounted) {
-        if (success) {
-          UiHelper.showSuccessMessage(context, '招待を受諾しました！');
-          Navigator.of(context).pop(true);
-        } else {
-          throw Exception('招待の受諾に失敗しました');
+      },
+      context: 'QR_ACCEPT:acceptInvitation',
+      defaultValue: null,
+      onError: (error, stackTrace) {
+        if (context.mounted) {
+          UiHelper.showErrorMessage(context, 'エラー: $error');
         }
-      }
-    } catch (e) {
-      if (context.mounted) {
-        UiHelper.showErrorMessage(context, 'エラー: $e');
-      }
-    }
+      },
+    );
   }
 
   /// サインイン促進ダイアログを表示

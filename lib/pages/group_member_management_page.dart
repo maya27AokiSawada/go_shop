@@ -29,7 +29,8 @@ class _GroupMemberManagementPageState
 
   @override
   Widget build(BuildContext context) {
-    final selectedGroupAsync = ref.watch(selectedGroupProvider);
+    // allGroupsProviderから対象グループを取得（リアルタイム更新対応）
+    final allGroupsAsync = ref.watch(allGroupsProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -48,14 +49,14 @@ class _GroupMemberManagementPageState
             ),
         ],
       ),
-      body: selectedGroupAsync.when(
-        data: (group) {
-          if (group == null) {
-            return const Center(
-              child: Text('グループが見つかりません'),
-            );
-          }
-          return _buildMemberList(group);
+      body: allGroupsAsync.when(
+        data: (groups) {
+          // 対象グループを検索
+          final targetGroup = groups.firstWhere(
+            (g) => g.groupId == widget.group.groupId,
+            orElse: () => widget.group, // 見つからない場合は初期値を使用
+          );
+          return _buildMemberList(targetGroup);
         },
         loading: () => const Center(
           child: CircularProgressIndicator(),
@@ -71,7 +72,7 @@ class _GroupMemberManagementPageState
               Text(error.toString()),
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: () => ref.invalidate(selectedGroupProvider),
+                onPressed: () => ref.invalidate(allGroupsProvider),
                 child: const Text('再試行'),
               ),
             ],

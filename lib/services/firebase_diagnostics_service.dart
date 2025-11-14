@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/app_logger.dart';
 
-import '../helper/firebase_diagnostics.dart';
+import '../helpers/firebase_diagnostics.dart';
 
 /// Firebase診断サービス
 /// Firebase接続テストと完全診断を提供

@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shopping_list.dart';
 import '../providers/auth_provider.dart';
-import '../helper/mock_auth_service.dart';
+import '../helpers/mock_auth_service.dart';
 import 'shopping_list_repository.dart';
 import 'hive_shopping_list_repository.dart';
 import '../utils/app_logger.dart';

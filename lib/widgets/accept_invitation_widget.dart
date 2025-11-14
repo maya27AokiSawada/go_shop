@@ -9,6 +9,7 @@ import '../providers/invitation_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../services/qr_invitation_service.dart';
 import '../utils/app_logger.dart';
+import '../utils/error_handler.dart';
 
 /// 招待受諾ウィジェット
 ///
@@ -176,94 +177,98 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
 
     setState(() => _isProcessing = true);
 
-    try {
-      final user = ref.read(authStateProvider).valueOrNull;
-      if (user == null) {
-        throw Exception('ユーザー情報が取得できません');
-      }
+    await ErrorHandler.handleAsync(
+      operation: () async {
+        final user = ref.read(authStateProvider).valueOrNull;
+        if (user == null) {
+          throw Exception('ユーザー情報が取得できません');
+        }
 
-      // 招待情報を取得して確認
-      final service = ref.read(invitationServiceProvider);
-      final invitation = await service.validateAndGetInvitation(token);
+        // 招待情報を取得して確認
+        final service = ref.read(invitationServiceProvider);
+        final invitation = await service.validateAndGetInvitation(token);
 
-      if (invitation == null || !mounted) {
-        throw Exception('無効な招待コードです');
-      }
+        if (invitation == null || !mounted) {
+          throw Exception('無効な招待コードです');
+        }
 
-      // 確認ダイアログ
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('グループに参加'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('以下のグループに参加しますか？'),
-              const SizedBox(height: 16),
-              Text(
-                invitation.groupName,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+        // 確認ダイアログ
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('グループに参加'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('以下のグループに参加しますか？'),
+                const SizedBox(height: 16),
+                Text(
+                  invitation.groupName,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
+                const SizedBox(height: 8),
+                Text('招待者: ${invitation.inviterName}'),
+                Text('有効期限: ${invitation.remainingTime.inHours}時間'),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('キャンセル'),
               ),
-              const SizedBox(height: 8),
-              Text('招待者: ${invitation.inviterName}'),
-              Text('有効期限: ${invitation.remainingTime.inHours}時間'),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('参加する'),
+              ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('キャンセル'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('参加する'),
-            ),
-          ],
-        ),
-      );
-
-      if (confirmed == true && mounted) {
-        // 招待を受諾
-        final success = await service.acceptInvitation(
-          token: token,
-          userId: user.uid,
-          userName: user.displayName ?? 'Unknown',
-          userEmail: user.email ?? '',
         );
 
-        if (success && mounted) {
-          // グループ一覧を更新
-          ref.invalidate(allGroupsProvider);
+        if (confirmed == true && mounted) {
+          // 招待を受諾
+          final success = await service.acceptInvitation(
+            token: token,
+            userId: user.uid,
+            userName: user.displayName ?? 'Unknown',
+            userEmail: user.email ?? '',
+          );
 
-          Navigator.of(context).pop(); // スキャナー画面を閉じる
+          if (success && mounted) {
+            // グループ一覧を更新
+            ref.invalidate(allGroupsProvider);
+
+            Navigator.of(context).pop(); // スキャナー画面を閉じる
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('「${invitation.groupName}」に参加しました'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          } else if (mounted) {
+            throw Exception('グループへの参加に失敗しました');
+          }
+        }
+      },
+      context: 'ACCEPT_INVITE:processInvitation',
+      defaultValue: null,
+      onError: (error, stackTrace) {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('「${invitation.groupName}」に参加しました'),
-              backgroundColor: Colors.green,
+              content: Text('エラー: $error'),
+              backgroundColor: Colors.red,
             ),
           );
-        } else if (mounted) {
-          throw Exception('グループへの参加に失敗しました');
         }
-      }
-    } catch (e) {
-      Log.error('❌ [INVITATION] 招待処理エラー: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('エラー: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isProcessing = false);
-      }
+      },
+    );
+
+    if (mounted) {
+      setState(() => _isProcessing = false);
     }
   }
 
@@ -275,93 +280,97 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
     setState(() => _isProcessing = true);
     Log.info('🔍 [QR_SCAN] _isProcessing=true に設定');
 
-    try {
-      final user = ref.read(authStateProvider).valueOrNull;
-      if (user == null) {
-        throw Exception('ユーザー情報が取得できません');
-      }
+    await ErrorHandler.handleAsync(
+      operation: () async {
+        final user = ref.read(authStateProvider).valueOrNull;
+        if (user == null) {
+          throw Exception('ユーザー情報が取得できません');
+        }
 
-      // QRデータをJSONとしてパース
-      Map<String, dynamic> invitationData;
-      try {
-        invitationData = jsonDecode(qrData) as Map<String, dynamic>;
-        Log.info('🔍 [QR_SCAN] 受信したQRデータ: $qrData');
-        Log.info(
-            '🔍 [QR_SCAN] purchaseGroupId: ${invitationData['purchaseGroupId']}');
-        Log.info('🔍 [QR_SCAN] groupName: ${invitationData['groupName']}');
-      } catch (e) {
-        throw Exception('無効なQRコード形式です');
-      }
+        // QRデータをJSONとしてパース
+        Map<String, dynamic> invitationData;
+        try {
+          invitationData = jsonDecode(qrData) as Map<String, dynamic>;
+          Log.info('🔍 [QR_SCAN] 受信したQRデータ: $qrData');
+          Log.info(
+              '🔍 [QR_SCAN] purchaseGroupId: ${invitationData['purchaseGroupId']}');
+          Log.info('🔍 [QR_SCAN] groupName: ${invitationData['groupName']}');
+        } catch (e) {
+          throw Exception('無効なQRコード形式です');
+        }
 
-      // 確認ダイアログ
-      final groupName = invitationData['groupName'] as String? ?? '不明なグループ';
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('グループに参加'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('以下のグループに参加しますか？'),
-              const SizedBox(height: 16),
-              Text(
-                groupName,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+        // 確認ダイアログ
+        final groupName = invitationData['groupName'] as String? ?? '不明なグループ';
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('グループに参加'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('以下のグループに参加しますか？'),
+                const SizedBox(height: 16),
+                Text(
+                  groupName,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('キャンセル'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('参加する'),
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('キャンセル'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('参加する'),
-            ),
-          ],
-        ),
-      );
-
-      if (confirmed == true && mounted) {
-        // QR招待を受諾
-        final qrService = ref.read(qrInvitationServiceProvider);
-        final success = await qrService.acceptQRInvitation(
-          invitationData: invitationData,
-          acceptorUid: user.uid,
-          ref: ref,
         );
 
-        if (success && mounted) {
-          Navigator.of(context).pop(); // スキャナー画面を閉じる
+        if (confirmed == true && mounted) {
+          // QR招待を受諾
+          final qrService = ref.read(qrInvitationServiceProvider);
+          final success = await qrService.acceptQRInvitation(
+            invitationData: invitationData,
+            acceptorUid: user.uid,
+            ref: ref,
+          );
+
+          if (success && mounted) {
+            Navigator.of(context).pop(); // スキャナー画面を閉じる
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('「$groupName」に参加しました'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          } else if (mounted) {
+            throw Exception('グループへの参加に失敗しました');
+          }
+        }
+      },
+      context: 'ACCEPT_INVITE:processQRInvitation',
+      defaultValue: null,
+      onError: (error, stackTrace) {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('「$groupName」に参加しました'),
-              backgroundColor: Colors.green,
+              content: Text('エラー: $error'),
+              backgroundColor: Colors.red,
             ),
           );
-        } else if (mounted) {
-          throw Exception('グループへの参加に失敗しました');
         }
-      }
-    } catch (e) {
-      Log.error('❌ [QR_INVITATION] QR招待処理エラー: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('エラー: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isProcessing = false);
-      }
+      },
+    );
+
+    if (mounted) {
+      setState(() => _isProcessing = false);
     }
   }
 
@@ -446,91 +455,95 @@ class _ManualInvitationInputDialogState
 
     setState(() => _isProcessing = true);
 
-    try {
-      final user = ref.read(authStateProvider).valueOrNull;
-      if (user == null) {
-        throw Exception('ユーザー情報が取得できません');
-      }
+    await ErrorHandler.handleAsync(
+      operation: () async {
+        final user = ref.read(authStateProvider).valueOrNull;
+        if (user == null) {
+          throw Exception('ユーザー情報が取得できません');
+        }
 
-      final service = ref.read(invitationServiceProvider);
-      final invitation = await service.validateAndGetInvitation(token);
+        final service = ref.read(invitationServiceProvider);
+        final invitation = await service.validateAndGetInvitation(token);
 
-      if (invitation == null || !mounted) {
-        throw Exception('無効な招待コードです');
-      }
+        if (invitation == null || !mounted) {
+          throw Exception('無効な招待コードです');
+        }
 
-      // ダイアログを閉じて確認ダイアログを表示
-      Navigator.of(context).pop();
+        // ダイアログを閉じて確認ダイアログを表示
+        Navigator.of(context).pop();
 
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('グループに参加'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('以下のグループに参加しますか？'),
-              const SizedBox(height: 16),
-              Text(
-                invitation.groupName,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('グループに参加'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('以下のグループに参加しますか？'),
+                const SizedBox(height: 16),
+                Text(
+                  invitation.groupName,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
+                const SizedBox(height: 8),
+                Text('招待者: ${invitation.inviterName}'),
+                Text('有効期限: ${invitation.remainingTime.inHours}時間'),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('キャンセル'),
               ),
-              const SizedBox(height: 8),
-              Text('招待者: ${invitation.inviterName}'),
-              Text('有効期限: ${invitation.remainingTime.inHours}時間'),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('参加する'),
+              ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('キャンセル'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('参加する'),
-            ),
-          ],
-        ),
-      );
-
-      if (confirmed == true && mounted) {
-        final success = await service.acceptInvitation(
-          token: token,
-          userId: user.uid,
-          userName: user.displayName ?? 'Unknown',
-          userEmail: user.email ?? '',
         );
 
-        if (success && mounted) {
-          ref.invalidate(allGroupsProvider);
+        if (confirmed == true && mounted) {
+          final success = await service.acceptInvitation(
+            token: token,
+            userId: user.uid,
+            userName: user.displayName ?? 'Unknown',
+            userEmail: user.email ?? '',
+          );
+
+          if (success && mounted) {
+            ref.invalidate(allGroupsProvider);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('「${invitation.groupName}」に参加しました'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          } else if (mounted) {
+            throw Exception('グループへの参加に失敗しました');
+          }
+        }
+      },
+      context: 'ACCEPT_INVITE:manualInput',
+      defaultValue: null,
+      onError: (error, stackTrace) {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('「${invitation.groupName}」に参加しました'),
-              backgroundColor: Colors.green,
+              content: Text('エラー: $error'),
+              backgroundColor: Colors.red,
             ),
           );
-        } else if (mounted) {
-          throw Exception('グループへの参加に失敗しました');
         }
-      }
-    } catch (e) {
-      Log.error('❌ [INVITATION] 招待処理エラー: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('エラー: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isProcessing = false);
-      }
+      },
+    );
+
+    if (mounted) {
+      setState(() => _isProcessing = false);
     }
   }
 }

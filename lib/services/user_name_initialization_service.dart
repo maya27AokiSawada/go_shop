@@ -1,6 +1,7 @@
 // lib/services/user_name_initialization_service.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../utils/app_logger.dart';
+import '../utils/error_handler.dart';
 import 'user_preferences_service.dart';
 import 'group_management_service.dart';
 
@@ -86,12 +87,14 @@ class UserNameInitializationService {
 
   /// ユーザー名をクリア
   Future<void> clearUserName() async {
-    try {
-      await UserPreferencesService.saveUserName('');
-      Log.info('🗑️ ユーザー名をクリアしました');
-    } catch (e) {
-      Log.error('❌ ユーザー名クリアエラー: $e');
-    }
+    await ErrorHandler.handleAsync(
+      operation: () async {
+        await UserPreferencesService.saveUserName('');
+        Log.info('🗑️ ユーザー名をクリアしました');
+      },
+      context: 'USER_NAME_INIT:clearUserName',
+      defaultValue: null,
+    );
   }
 
   /// 現在のユーザー名を取得
