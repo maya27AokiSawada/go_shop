@@ -106,6 +106,8 @@ class _ShoppingListPageV2State extends ConsumerState<ShoppingListPageV2> {
             onPressed: () {
               // リストを再読み込み
               Log.info('🔄 リストを再読み込み');
+              ref.invalidate(groupShoppingListsProvider);
+              ref.invalidate(currentListProvider);
             },
             tooltip: '再読み込み',
           ),

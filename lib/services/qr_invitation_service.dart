@@ -83,9 +83,18 @@ class QRInvitationService {
     // Firestoreのinvitationsコレクションに保存
     await _firestore.collection('invitations').doc(invitationId).set({
       ...invitationData,
+      'token': invitationId, // Invitationモデルのtokenフィールド用
+      'groupId': purchaseGroupId, // Invitationモデル用 (purchaseGroupIdのエイリアス)
+      'invitedBy': currentUser.uid, // Invitationモデル用
+      'inviterName': currentUser.displayName ??
+          currentUser.email ??
+          'ユーザー', // Invitationモデル用
       'createdAt': FieldValue.serverTimestamp(),
       'expiresAt': DateTime.now().add(const Duration(hours: 24)),
       'status': 'pending', // pending, accepted, expired
+      'maxUses': 5, // 最大5人まで使用可能
+      'currentUses': 0, // 初期値は0
+      'usedBy': [], // 使用済みユーザーのUIDリスト
     });
 
     Log.info('🔐 招待データをFirestoreに保存: $invitationId');
@@ -279,6 +288,13 @@ class QRInvitationService {
           'acceptorUid': acceptorUid,
         });
         Log.info('✅ 招待ステータスを更新: $invitationId → accepted');
+
+        // 招待トークンの使用回数をインクリメント
+        final invitationToken = invitationData['invitationToken'] as String?;
+        if (invitationToken != null) {
+          await _updateInvitationUsage(
+              invitationId, invitationToken, acceptorUid);
+        }
       }
 
       // 即座に成功を返す（UIをブロックしない）
@@ -424,6 +440,10 @@ class QRInvitationService {
         return false;
       }
 
+      // QRデータ内のセキュリティキーを取得（providedKeyがnullの場合）
+      final securityKeyToValidate =
+          providedKey ?? invitationData['securityKey'] as String?;
+
       // Firestoreから実際の招待データを取得
       final invitationDoc =
           await _firestore.collection('invitations').doc(invitationId).get();
@@ -451,13 +471,13 @@ class QRInvitationService {
       }
 
       // セキュリティキー検証
-      if (storedSecurityKey == null || providedKey == null) {
+      if (storedSecurityKey == null || securityKeyToValidate == null) {
         Log.info('❌ セキュリティキーが不足');
         return false;
       }
 
       if (!_securityService.validateSecurityKey(
-          providedKey, storedSecurityKey)) {
+          securityKeyToValidate, storedSecurityKey)) {
         Log.info('❌ セキュリティキーが無効');
         return false;
       }
@@ -890,6 +910,25 @@ class QRInvitationService {
     } catch (e) {
       Log.error('❌ 個別招待処理エラー: $e');
       rethrow;
+    }
+  }
+
+  /// 招待トークンの使用回数を更新
+  Future<void> _updateInvitationUsage(
+      String invitationId, String invitationToken, String acceptorUid) async {
+    try {
+      // invitationsコレクション内のドキュメントを更新
+      final docRef = _firestore.collection('invitations').doc(invitationId);
+      await docRef.update({
+        'currentUses': FieldValue.increment(1),
+        'usedBy': FieldValue.arrayUnion([acceptorUid]),
+        'lastUsedAt': FieldValue.serverTimestamp(),
+      });
+
+      Log.info('✅ 招待使用回数を更新: $invitationId (currentUses +1, usedBy追加)');
+    } catch (e) {
+      Log.error('❌ 招待使用回数の更新エラー: $e');
+      // エラーが発生してもメイン処理は失敗させない
     }
   }
 }

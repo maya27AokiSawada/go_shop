@@ -10,7 +10,7 @@ import '../utils/error_handler.dart';
 import '../pages/group_member_management_page.dart';
 import '../services/user_initialization_service.dart';
 import '../flavors.dart';
-import 'invitation_management_dialog.dart';
+import 'group_invitation_dialog.dart';
 import 'accept_invitation_widget.dart';
 
 /// グループをリスト表示するウィジェット
@@ -689,12 +689,12 @@ class GroupListWidget extends ConsumerWidget {
     }
   }
 
-  /// 招待管理ダイアログを表示
-  void _showInvitationDialog(
-      BuildContext context, WidgetRef ref, PurchaseGroup group) {
+  /// QR招待ダイアログを表示
+  Future<void> _showInvitationDialog(
+      BuildContext context, WidgetRef ref, PurchaseGroup group) async {
     showDialog(
       context: context,
-      builder: (context) => InvitationManagementDialog(group: group),
+      builder: (context) => GroupInvitationDialog(group: group),
     );
   }
 }
