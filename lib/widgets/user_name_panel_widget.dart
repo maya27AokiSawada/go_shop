@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../services/user_preferences_service.dart';
+import '../services/firestore_user_name_service.dart';
 import '../utils/app_logger.dart';
+import '../flavors.dart';
 
 /// ユーザー名管理パネルウィジェット
 class UserNamePanelWidget extends ConsumerStatefulWidget {
@@ -142,13 +145,27 @@ class _UserNamePanelWidgetState extends ConsumerState<UserNamePanelWidget> {
       final userName = widget.userNameController.text.trim();
       AppLogger.info('👤 ユーザー名保存開始: $userName');
 
-      // 直接SharedPreferencesに保存（シンプル）
+      // SharedPreferencesに保存
       final success = await UserPreferencesService.saveUserName(userName);
 
       if (success) {
-        AppLogger.success('✅ ユーザー名保存完了');
+        AppLogger.success('✅ ユーザー名保存完了（SharedPreferences）');
       } else {
         throw Exception('SharedPreferencesへの保存に失敗');
+      }
+
+      // Firestoreにも保存（認証済みの場合）
+      if (F.appFlavor == Flavor.prod) {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          final firestoreSuccess =
+              await FirestoreUserNameService.saveUserName(userName);
+          if (firestoreSuccess) {
+            AppLogger.success('✅ ユーザー名保存完了（Firestore）');
+          } else {
+            AppLogger.warning('⚠️ Firestoreへの保存に失敗（SharedPreferencesには保存済み）');
+          }
+        }
       }
 
       if (mounted) {
