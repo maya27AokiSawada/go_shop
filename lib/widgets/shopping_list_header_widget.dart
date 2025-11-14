@@ -165,13 +165,19 @@ class ShoppingListHeaderWidget extends ConsumerWidget {
     ShoppingList? currentList,
     String? currentGroupId,
   ) {
+    // currentListIdがlists内に存在するかチェック
+    final currentListId = currentList?.listId;
+    final isCurrentListInLists = currentListId != null &&
+        lists.any((list) => list.listId == currentListId);
+    final validInitialValue = isCurrentListInLists ? currentListId : null;
+
     return Row(
       children: [
         Icon(Icons.list, color: Colors.blue.shade700, size: 20),
         const SizedBox(width: 8),
         Expanded(
           child: DropdownButtonFormField<String>(
-            initialValue: currentList?.listId,
+            initialValue: validInitialValue, // initialValueではなくvalueを使用
             decoration: InputDecoration(
               filled: true,
               fillColor: Colors.white,

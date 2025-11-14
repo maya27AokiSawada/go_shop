@@ -119,6 +119,99 @@ Development workflow:
 - `Flavor.dev`: Hive-only mode for fast local testing
 - `Flavor.prod`: Full Firestore integration with Hive fallback
 
+### QR Invitation System
+**Single Source of Truth**: Use `qr_invitation_service.dart` only (旧招待システムは削除済み)
+
+#### Invitation Data Structure
+Firestore: `/invitations/{invitationId}`
+```dart
+{
+  'invitationId': String,  // Generated ID
+  'token': String,         // Same as invitationId (for Invitation model)
+  'groupId': String,       // purchaseGroupId
+  'groupName': String,
+  'invitedBy': String,     // inviter UID
+  'inviterName': String,
+  'securityKey': String,   // For validation
+  'invitationToken': String, // JWT-like token
+  'maxUses': 5,            // Max invitation slots
+  'currentUses': 0,        // Current usage count
+  'usedBy': [],            // Array of acceptor UIDs
+  'status': 'pending',     // pending | accepted | expired
+  'createdAt': Timestamp,
+  'expiresAt': DateTime,   // 24 hours from creation
+  'type': 'secure_qr_invitation',
+  'version': '3.0'
+}
+```
+
+#### Key Files
+- **Service**: `lib/services/qr_invitation_service.dart`
+  - `createQRInvitationData()`: Create invitation in Firestore
+  - `acceptQRInvitation()`: Process invitation acceptance
+  - `_updateInvitationUsage()`: Increment currentUses, add to usedBy
+  - `_validateInvitationSecurity()`: Validate with securityKey
+
+- **UI**: `lib/widgets/group_invitation_dialog.dart`
+  - StreamBuilder for real-time invitation list
+  - Display remainingUses (maxUses - currentUses)
+  - QR code generation with `qr_flutter`
+  - Delete and copy actions
+
+- **Scanner**: `lib/widgets/accept_invitation_widget.dart`
+  - QR scanning only (manual input removed)
+  - Calls `acceptQRInvitation()` with invitationData
+
+#### Critical Patterns
+1. **Invitation Creation**:
+   ```dart
+   await _firestore.collection('invitations').doc(invitationId).set({
+     ...invitationData,
+     'maxUses': 5,
+     'currentUses': 0,
+     'usedBy': [],
+   });
+   ```
+
+2. **Usage Update** (Atomic):
+   ```dart
+   await _firestore.collection('invitations').doc(invitationId).update({
+     'currentUses': FieldValue.increment(1),
+     'usedBy': FieldValue.arrayUnion([acceptorUid]),
+     'lastUsedAt': FieldValue.serverTimestamp(),
+   });
+   ```
+
+3. **Security Validation**:
+   ```dart
+   final securityKey = providedKey ?? invitationData['securityKey'];
+   if (!_securityService.validateSecurityKey(securityKey, storedKey)) {
+     throw Exception('Security validation failed');
+   }
+   ```
+
+4. **Real-time List Display**:
+   ```dart
+   StreamBuilder<QuerySnapshot>(
+     stream: _firestore.collection('invitations')
+       .where('groupId', isEqualTo: groupId)
+       .where('status', isEqualTo: 'pending')
+       .snapshots(),
+   )
+   ```
+
+#### Invitation Model Integration
+- `lib/models/invitation.dart` provides:
+  - `remainingUses`: getter for (maxUses - currentUses)
+  - `isValid`: checks !isExpired && !isMaxUsesReached
+  - `isMaxUsesReached`: currentUses >= maxUses
+
+⚠️ **DELETED FILES** (Do not reference):
+- ~~`invitation_repository.dart`~~
+- ~~`firestore_invitation_repository.dart`~~
+- ~~`invitation_provider.dart`~~
+- ~~`invitation_management_dialog.dart`~~
+
 ## Common Issues & Solutions
 - **Build failures**: Check for Riverpod Generator imports, remove them
 - **Missing variables**: Ensure controllers and providers are properly defined before use
