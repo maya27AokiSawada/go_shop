@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/app_logger.dart';
 import '../models/purchase_group.dart' hide SyncStatus;
@@ -8,7 +9,7 @@ import '../datastore/purchase_group_repository.dart';
 import '../datastore/hive_purchase_group_repository.dart';
 import '../datastore/hybrid_purchase_group_repository.dart';
 import '../flavors.dart';
-import '../helper/security_validator.dart';
+import '../helpers/security_validator.dart';
 import '../services/access_control_service.dart';
 import '../services/user_preferences_service.dart';
 import '../services/user_initialization_service.dart';
@@ -519,16 +520,57 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
 
     try {
-      // ユーザー情報を安全に取得
+      // ユーザー情報を安全に取得（優先順位: SharedPreferences > Firestore profile > Firebase Auth）
       String userName = 'ゲスト';
       String userEmail = 'guest@local.app';
 
       if (currentUser != null) {
         // サインイン済みユーザーの場合
-        userName = currentUser.displayName ??
-            currentUser.email?.split('@')[0] ??
-            'ユーザー';
         userEmail = currentUser.email ?? 'unknown@local.app';
+
+        // 1. SharedPreferencesから取得を試みる
+        try {
+          final storedName = await UserPreferencesService.getUserName();
+          if (storedName != null && storedName.isNotEmpty) {
+            userName = storedName;
+            Log.info('✅ [CREATE GROUP] SharedPreferencesからユーザー名取得: $userName');
+          }
+        } catch (e) {
+          Log.warning('⚠️ [CREATE GROUP] SharedPreferences取得エラー: $e');
+        }
+
+        // 2. Firestore /users/{uid}/profile/userName から取得を試みる
+        if (userName == 'ゲスト') {
+          try {
+            final profileDoc = await FirebaseFirestore.instance
+                .collection('users')
+                .doc(currentUser.uid)
+                .collection('profile')
+                .doc('userName')
+                .get();
+
+            if (profileDoc.exists) {
+              final profileData = profileDoc.data();
+              final firestoreName = profileData?['userName'];
+              if (firestoreName != null && firestoreName.isNotEmpty) {
+                userName = firestoreName;
+                Log.info(
+                    '✅ [CREATE GROUP] Firestore profileからユーザー名取得: $userName');
+              }
+            }
+          } catch (e) {
+            Log.warning('⚠️ [CREATE GROUP] Firestore profile取得エラー: $e');
+          }
+        }
+
+        // 3. Firebase Auth displayNameから取得を試みる
+        if (userName == 'ゲスト') {
+          userName = currentUser.displayName ??
+              currentUser.email?.split('@')[0] ??
+              'ユーザー';
+          Log.info('✅ [CREATE GROUP] Firebase Auth displayNameから取得: $userName');
+        }
+
         Log.info('🆕 [CREATE GROUP] サインイン済みユーザー: $userName ($userEmail)');
       } else {
         // 未サインインユーザーの場合

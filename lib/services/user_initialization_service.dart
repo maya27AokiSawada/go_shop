@@ -4,10 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/app_logger.dart';
+import '../utils/firestore_converter.dart'; // Firestore変換ユーティリティ
 import '../models/purchase_group.dart' as models;
 import '../providers/purchase_group_provider.dart';
+import '../providers/hive_provider.dart'; // Hive Box プロバイダー
 import '../datastore/hive_purchase_group_repository.dart'
     show hivePurchaseGroupRepositoryProvider;
+import '../datastore/firestore_purchase_group_repository.dart'; // Repository型チェック用
 import '../flavors.dart';
 import 'notification_service.dart';
 import 'sync_service.dart';
@@ -324,7 +327,6 @@ class UserInitializationService {
       final repository = _ref.read(purchaseGroupRepositoryProvider);
 
       final allHiveGroups = await repository.getAllGroups();
-      final batch = firestore.batch();
       int syncedCount = 0;
 
       for (final group in allHiveGroups) {
@@ -335,41 +337,61 @@ class UserInitializationService {
         }
 
         final docRef = purchaseGroupsRef.doc(group.groupId);
-        batch.set(
-            docRef,
-            {
-              'groupId': group.groupId,
-              'groupName': group.groupName,
-              'ownerUid': group.ownerUid,
-              'ownerName': group.ownerName,
-              'ownerEmail': group.ownerEmail,
-              'allowedUid': group.allowedUid, // 新パス構造で必要
-              'members': group.members
-                      ?.map((member) => {
-                            'memberId': member.memberId,
-                            'name': member.name,
-                            'contact': member.contact,
-                            'role': member.role.name,
-                            'isSignedIn': member.isSignedIn,
-                            'invitationStatus': member.invitationStatus.name,
-                          })
-                      .toList() ??
-                  [],
-              'isDeleted': group.isDeleted,
-              'lastAccessedAt': group.lastAccessedAt != null
-                  ? Timestamp.fromDate(group.lastAccessedAt!)
-                  : null,
-              'createdAt': group.createdAt != null
-                  ? Timestamp.fromDate(group.createdAt!)
-                  : null,
-              'updatedAt': FieldValue.serverTimestamp(),
-            },
-            SetOptions(merge: true));
+
+        // 🔥 CRITICAL FIX: Firestoreの既存allowedUidをマージ（上書き防止）
+        List<String> finalAllowedUid = List<String>.from(group.allowedUid);
+        try {
+          final existingDoc = await docRef.get();
+          if (existingDoc.exists) {
+            final existingData = existingDoc.data();
+            final existingAllowedUid =
+                List<String>.from(existingData?['allowedUid'] ?? []);
+
+            // マージ（重複除去）
+            final mergedSet = <String>{
+              ...existingAllowedUid,
+              ...group.allowedUid,
+            };
+            finalAllowedUid = mergedSet.toList();
+
+            Log.info(
+                '🔀 [SYNC] allowedUidマージ: Hive=${group.allowedUid.length}個, Firestore=${existingAllowedUid.length}個 → 最終=${finalAllowedUid.length}個');
+          }
+        } catch (e) {
+          Log.warning('⚠️ [SYNC] Firestore読み取りエラー、Hiveのみ使用: $e');
+        }
+
+        await docRef.set({
+          'groupId': group.groupId,
+          'groupName': group.groupName,
+          'ownerUid': group.ownerUid,
+          'ownerName': group.ownerName,
+          'ownerEmail': group.ownerEmail,
+          'allowedUid': finalAllowedUid, // マージ後のallowedUid
+          'members': group.members
+                  ?.map((member) => {
+                        'memberId': member.memberId,
+                        'name': member.name,
+                        'contact': member.contact,
+                        'role': member.role.name,
+                        'isSignedIn': member.isSignedIn,
+                        'invitationStatus': member.invitationStatus.name,
+                      })
+                  .toList() ??
+              [],
+          'isDeleted': group.isDeleted,
+          'lastAccessedAt': group.lastAccessedAt != null
+              ? Timestamp.fromDate(group.lastAccessedAt!)
+              : null,
+          'createdAt': group.createdAt != null
+              ? Timestamp.fromDate(group.createdAt!)
+              : null,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
         syncedCount++;
       }
 
       if (syncedCount > 0) {
-        await batch.commit();
         Log.info('✅ [SYNC] Hive→Firestore同期完了: $syncedCount グループ');
       } else {
         Log.info('💡 [SYNC] 同期対象グループなし');
@@ -558,7 +580,7 @@ class UserInitializationService {
         // グループをHiveに保存/更新
         try {
           // Firestoreの Timestamp を DateTime に変換してから fromJson を使用
-          final convertedData = _convertTimestamps(data);
+          final convertedData = FirestoreConverter.convertTimestamps(data);
 
           // PurchaseGroup.fromJson()を使用してallowedUidを含む全フィールドを正しく復元
           final group = models.PurchaseGroup.fromJson(convertedData).copyWith(
@@ -569,7 +591,16 @@ class UserInitializationService {
           Log.info(
               '🔍 [SYNC] グループ同期: ${group.groupName}, allowedUid: ${group.allowedUid}');
 
-          await repository.updateGroup(group.groupId, group);
+          // 🔥 CRITICAL FIX: Hiveにのみ保存（Firestoreへの逆書き込みを防ぐ）
+          if (repository is FirestorePurchaseGroupRepository) {
+            // Hive Boxに直接書き込む
+            final purchaseGroupBox = _ref.read(purchaseGroupBoxProvider);
+            await purchaseGroupBox.put(group.groupId, group);
+            Log.info('✅ [SYNC] HiveのみにGroup保存（Firestore書き戻し回避）');
+          } else {
+            // HiveRepositoryの場合は通常のupdateを使用
+            await repository.updateGroup(group.groupId, group);
+          }
           syncedCount++;
         } catch (e) {
           Log.warning('⚠️ [SYNC] グループ同期エラー（${doc.id}）: $e');
@@ -581,34 +612,5 @@ class UserInitializationService {
     } catch (e) {
       Log.error('❌ [SYNC] Firestore→Hive同期エラー: $e');
     }
-  }
-
-  /// Firestore Timestampを再帰的にISO8601文字列に変換
-  Map<String, dynamic> _convertTimestamps(Map<String, dynamic> data) {
-    final converted = <String, dynamic>{};
-
-    data.forEach((key, value) {
-      if (value is Timestamp) {
-        // Timestamp → ISO8601文字列
-        converted[key] = value.toDate().toIso8601String();
-      } else if (value is Map) {
-        // ネストされたMapを再帰的に変換
-        converted[key] = _convertTimestamps(Map<String, dynamic>.from(value));
-      } else if (value is List) {
-        // Listの要素も変換
-        converted[key] = value.map((item) {
-          if (item is Timestamp) {
-            return item.toDate().toIso8601String();
-          } else if (item is Map) {
-            return _convertTimestamps(Map<String, dynamic>.from(item));
-          }
-          return item;
-        }).toList();
-      } else {
-        converted[key] = value;
-      }
-    });
-
-    return converted;
   }
 }

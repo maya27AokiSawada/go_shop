@@ -6,6 +6,7 @@ import '../providers/purchase_group_provider.dart';
 import '../providers/current_list_provider.dart';
 import '../providers/group_shopping_lists_provider.dart';
 import '../utils/app_logger.dart';
+import '../utils/error_handler.dart';
 import '../pages/group_member_management_page.dart';
 import '../services/user_initialization_service.dart';
 import '../flavors.dart';
@@ -65,39 +66,47 @@ class GroupListWidget extends ConsumerWidget {
                   // デバッグボタン
                   IconButton(
                     onPressed: () async {
-                      AppLogger.info('🔄 [DEBUG] 双方向同期開始');
-                      try {
-                        final currentUser = FirebaseAuth.instance.currentUser;
-                        if (currentUser == null) {
-                          throw Exception('ユーザーがサインインしていません');
-                        }
+                      await ErrorHandler.handleAsync(
+                        operation: () async {
+                          AppLogger.info('🔄 [DEBUG] 双方向同期開始');
+                          final currentUser = FirebaseAuth.instance.currentUser;
+                          if (currentUser == null) {
+                            throw Exception('ユーザーがサインインしていません');
+                          }
 
-                        // 1. Hive→Firestore同期（ローカルの最新データをアップロード）
-                        if (F.appFlavor == Flavor.prod) {
-                          final initService =
-                              ref.read(userInitializationServiceProvider);
-                          AppLogger.info('⬆️ [DEBUG] Hive→Firestore同期開始...');
-                          await initService.syncHiveToFirestore(currentUser);
-                          AppLogger.info('✅ [DEBUG] Hive→Firestore同期完了');
+                          // 1. Hive→Firestore同期（ローカルの最新データをアップロード）
+                          if (F.appFlavor == Flavor.prod) {
+                            final initService =
+                                ref.read(userInitializationServiceProvider);
+                            AppLogger.info('⬆️ [DEBUG] Hive→Firestore同期開始...');
+                            await initService.syncHiveToFirestore(currentUser);
+                            AppLogger.info('✅ [DEBUG] Hive→Firestore同期完了');
 
-                          // Firestore書き込み反映を待つ
-                          await Future.delayed(const Duration(seconds: 2));
-                        }
+                            // Firestore書き込み反映を待つ
+                            await Future.delayed(const Duration(seconds: 2));
+                          }
 
-                        // 2. Firestore→Hive同期（Firestoreから最新データを取得）
-                        AppLogger.info('⬇️ [DEBUG] Firestore→Hive同期開始...');
-                        await ref.read(forceSyncProvider.future);
-                        AppLogger.info('✅ [DEBUG] Firestore→Hive同期完了');
+                          // 2. Firestore→Hive同期（Firestoreから最新データを取得）
+                          AppLogger.info('⬇️ [DEBUG] Firestore→Hive同期開始...');
+                          await ref.read(forceSyncProvider.future);
+                          AppLogger.info('✅ [DEBUG] Firestore→Hive同期完了');
 
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('双方向同期完了')),
-                        );
-                      } catch (e) {
-                        AppLogger.error('❌ [DEBUG] 同期エラー: $e');
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('同期エラー: $e')),
-                        );
-                      }
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('双方向同期完了')),
+                            );
+                          }
+                        },
+                        context: 'GROUP_LIST:debugSync',
+                        defaultValue: null,
+                        onError: (error, stackTrace) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('同期エラー: $error')),
+                            );
+                          }
+                        },
+                      );
                     },
                     icon: const Icon(Icons.sync, size: 20),
                     tooltip: '双方向同期',
@@ -266,39 +275,43 @@ class GroupListWidget extends ConsumerWidget {
 
   /// グループの最終使用リストを復元
   Future<void> _restoreLastUsedList(WidgetRef ref, String groupId) async {
-    try {
-      // 最終使用リストIDを取得
-      final listId = await ref
-          .read(currentListProvider.notifier)
-          .getSavedListIdForGroup(groupId);
+    await ErrorHandler.handleAsync(
+      operation: () async {
+        // 最終使用リストIDを取得
+        final listId = await ref
+            .read(currentListProvider.notifier)
+            .getSavedListIdForGroup(groupId);
 
-      if (listId != null) {
-        // グループのリスト一覧を取得
-        final listsAsync = await ref.read(groupShoppingListsProvider.future);
+        if (listId != null) {
+          // グループのリスト一覧を取得
+          final listsAsync = await ref.read(groupShoppingListsProvider.future);
 
-        // リストIDに一致するリストを検索
-        final list = listsAsync.where((l) => l.listId == listId).firstOrNull;
+          // リストIDに一致するリストを検索
+          final list = listsAsync.where((l) => l.listId == listId).firstOrNull;
 
-        if (list != null) {
-          // リストを復元
-          ref.read(currentListProvider.notifier).selectList(
-                list,
-                groupId: groupId,
-              );
-          AppLogger.info(
-              '✅ [LIST_RESTORE] グループ[$groupId]の最終使用リストを復元: ${list.listName}');
+          if (list != null) {
+            // リストを復元
+            ref.read(currentListProvider.notifier).selectList(
+                  list,
+                  groupId: groupId,
+                );
+            AppLogger.info(
+                '✅ [LIST_RESTORE] グループ[$groupId]の最終使用リストを復元: ${list.listName}');
+          } else {
+            AppLogger.info('⚠️ [LIST_RESTORE] リストID[$listId]が見つかりません');
+            ref.read(currentListProvider.notifier).clearSelection();
+          }
         } else {
-          AppLogger.info('⚠️ [LIST_RESTORE] リストID[$listId]が見つかりません');
+          AppLogger.info('💡 [LIST_RESTORE] グループ[$groupId]の最終使用リスト情報なし');
           ref.read(currentListProvider.notifier).clearSelection();
         }
-      } else {
-        AppLogger.info('💡 [LIST_RESTORE] グループ[$groupId]の最終使用リスト情報なし');
+      },
+      context: 'GROUP_LIST:restoreLastUsedList',
+      defaultValue: null,
+      onError: (error, stackTrace) {
         ref.read(currentListProvider.notifier).clearSelection();
-      }
-    } catch (e) {
-      AppLogger.error('❌ [LIST_RESTORE] リスト復元エラー: $e');
-      ref.read(currentListProvider.notifier).clearSelection();
-    }
+      },
+    );
   }
 
   Future<void> _selectCurrentGroup(
@@ -518,15 +531,17 @@ class GroupListWidget extends ConsumerWidget {
     }
 
     // 現在のユーザー情報を安全に取得
-    User? currentUser;
-    try {
-      if (F.appFlavor == Flavor.prod) {
-        currentUser = FirebaseAuth.instance.currentUser;
-      }
-    } catch (e) {
-      AppLogger.info('🔄 [GROUP_OPTIONS] Firebase利用不可（開発環境）: $e');
-      currentUser = null;
-    }
+    final currentUser = ErrorHandler.handleSync<User?>(
+      operation: () {
+        if (F.appFlavor == Flavor.prod) {
+          return FirebaseAuth.instance.currentUser;
+        }
+        return null;
+      },
+      context: 'GROUP_LIST:getCurrentUser',
+      defaultValue: null,
+    );
+
     if (currentUser == null && F.appFlavor == Flavor.prod) {
       AppLogger.warning('⚠️  [GROUP_OPTIONS] ユーザーが認証されていません');
       return;

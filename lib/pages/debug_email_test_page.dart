@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../utils/app_logger.dart';
 import '../firebase_options.dart';
-import '../helper/firebase_diagnostics.dart';
+import '../helpers/firebase_diagnostics.dart';
 
 class DebugEmailTestPage extends StatefulWidget {
   const DebugEmailTestPage({super.key});

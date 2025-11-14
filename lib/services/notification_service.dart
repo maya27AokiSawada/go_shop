@@ -3,9 +3,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../utils/app_logger.dart';
+import '../utils/firestore_helper.dart'; // Firestore操作ヘルパー
 import 'user_initialization_service.dart';
 import '../providers/purchase_group_provider.dart';
+import '../providers/hive_provider.dart'; // Hive Box プロバイダー
 import '../models/purchase_group.dart';
+import '../datastore/firestore_purchase_group_repository.dart'; // Repository型チェック用
 
 /// 通知サービスプロバイダー
 final notificationServiceProvider = Provider<NotificationService>((ref) {
@@ -163,6 +166,19 @@ class NotificationService {
             AppLogger.info('🔄 [NOTIFICATION] グループ同期開始: $groupId');
             await _syncSpecificGroupFromFirestore(groupId);
 
+            // UI更新（全グループプロバイダーを即座に更新）
+            _ref.invalidate(allGroupsProvider);
+
+            // 現在選択中のグループIDを確認
+            final selectedGroupId = _ref.read(selectedGroupIdProvider);
+            if (selectedGroupId == groupId) {
+              // 対象グループが現在選択中の場合、selectedGroupProviderも更新
+              _ref.invalidate(selectedGroupProvider);
+              AppLogger.info('✅ [NOTIFICATION] 選択中グループも更新: $groupId');
+            } else {
+              AppLogger.info('💡 [NOTIFICATION] 対象グループは選択されていない（バックグラウンド同期完了）');
+            }
+
             // 受諾者に確認通知を送信
             final acceptorUid =
                 notification.metadata?['acceptorUid'] as String?;
@@ -181,11 +197,12 @@ class NotificationService {
             final userInitService =
                 _ref.read(userInitializationServiceProvider);
             await userInitService.syncFromFirestoreToHive(currentUser);
+
+            // UI更新
+            _ref.invalidate(allGroupsProvider);
+            _ref.invalidate(selectedGroupProvider);
           }
 
-          // UI更新（全グループと選択中グループの両方を更新）
-          _ref.invalidate(allGroupsProvider);
-          _ref.invalidate(selectedGroupProvider);
           AppLogger.info('✅ [NOTIFICATION] 同期完了 - UI更新');
           break;
 
@@ -230,28 +247,30 @@ class NotificationService {
     try {
       AppLogger.info('🔄 [NOTIFICATION] グループ同期開始: $groupId');
 
-      // Firestoreから最新のグループデータを取得
-      final groupDoc =
-          await _firestore.collection('purchaseGroups').doc(groupId).get();
+      // 🔥 共通ユーティリティでFirestoreから取得
+      final group = await FirestoreHelper.fetchGroup(groupId);
 
-      if (!groupDoc.exists) {
+      if (group == null) {
         AppLogger.warning('⚠️ [NOTIFICATION] グループが存在しません: $groupId');
         return;
       }
 
-      // PurchaseGroupオブジェクトに変換（Timestamp変換）
-      final groupData =
-          _convertTimestamps(Map<String, dynamic>.from(groupDoc.data()!));
-
-      final group = PurchaseGroup.fromJson(groupData);
-
       AppLogger.info('🔍 [NOTIFICATION] 同期グループallowedUid: ${group.allowedUid}');
 
-      // Hiveに保存
+      // 🔥 CRITICAL FIX: Hiveにのみ保存（Firestoreへの逆書き込みを防ぐ）
       final repository = _ref.read(purchaseGroupRepositoryProvider);
-      await repository.updateGroup(groupId, group);
 
-      AppLogger.info('✅ [NOTIFICATION] グループ同期完了: ${group.groupName}');
+      // FirestoreRepositoryの場合は、Hive Boxに直接書き込む
+      if (repository is FirestorePurchaseGroupRepository) {
+        final purchaseGroupBox = _ref.read(purchaseGroupBoxProvider);
+        await purchaseGroupBox.put(groupId, group);
+        AppLogger.info(
+            '✅ [NOTIFICATION] HiveのみにGroup保存（Firestore書き戻し回避）: ${group.groupName}');
+      } else {
+        // HiveRepositoryの場合は通常のupdateを使用
+        await repository.updateGroup(groupId, group);
+        AppLogger.info('✅ [NOTIFICATION] グループ同期完了: ${group.groupName}');
+      }
     } catch (e) {
       AppLogger.error('❌ [NOTIFICATION] グループ同期エラー: $e');
     }
@@ -453,35 +472,6 @@ class NotificationService {
     } catch (e) {
       AppLogger.error('❌ [NOTIFICATION] クリーンアップエラー: $e');
     }
-  }
-
-  /// Firestore Timestampを再帰的にISO8601文字列に変換
-  Map<String, dynamic> _convertTimestamps(Map<String, dynamic> data) {
-    final converted = <String, dynamic>{};
-
-    data.forEach((key, value) {
-      if (value is Timestamp) {
-        // Timestamp → ISO8601文字列
-        converted[key] = value.toDate().toIso8601String();
-      } else if (value is Map) {
-        // ネストされたMapを再帰的に変換
-        converted[key] = _convertTimestamps(Map<String, dynamic>.from(value));
-      } else if (value is List) {
-        // Listの要素も変換
-        converted[key] = value.map((item) {
-          if (item is Timestamp) {
-            return item.toDate().toIso8601String();
-          } else if (item is Map) {
-            return _convertTimestamps(Map<String, dynamic>.from(item));
-          }
-          return item;
-        }).toList();
-      } else {
-        converted[key] = value;
-      }
-    });
-
-    return converted;
   }
 
   /// リスナーが起動中かどうか

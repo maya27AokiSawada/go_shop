@@ -8,8 +8,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../utils/app_logger.dart';
+import '../utils/firestore_helper.dart'; // Firestore操作ヘルパー
 import 'invitation_security_service.dart';
 import 'user_initialization_service.dart';
+import 'user_preferences_service.dart';
 import 'notification_service.dart';
 import '../providers/purchase_group_provider.dart';
 import '../models/purchase_group.dart' as models;
@@ -519,22 +521,75 @@ class QRInvitationService {
       // 各グループにパートナーとして追加
       for (final doc in ownerGroupsQuery.docs) {
         final groupData = doc.data();
-        final allowedUids = List<String>.from(groupData['allowedUids'] ?? []);
+        final allowedUid =
+            List<String>.from(groupData['allowedUid'] ?? []); // 単数形に統一
         final members =
             List<Map<String, dynamic>>.from(groupData['members'] ?? []);
 
-        // allowedUidsに追加
-        if (!allowedUids.contains(acceptorUid)) {
-          allowedUids.add(acceptorUid);
-          Log.info('✅ allowedUidsに追加: $acceptorUid → ${doc.id}');
+        // allowedUidに追加
+        if (!allowedUid.contains(acceptorUid)) {
+          allowedUid.add(acceptorUid);
+          Log.info('✅ allowedUidに追加: $acceptorUid → ${doc.id}');
         }
 
         // membersリストにも追加
         final memberExists = members.any((m) => m['memberId'] == acceptorUid);
         if (!memberExists) {
-          // ユーザー情報を取得
+          // ユーザー情報を取得（優先順位: SharedPreferences > Firestore profile > Firebase Auth）
           final acceptorUser = _auth.currentUser;
-          final userName = acceptorUser?.displayName ?? 'Unknown User';
+          String userName = '';
+
+          // 1. SharedPreferencesから取得を試みる
+          try {
+            final prefs = await UserPreferencesService.getUserName();
+            if (prefs != null && prefs.isNotEmpty) {
+              userName = prefs;
+              Log.info('✅ [PARTNER] SharedPreferencesからユーザー名取得: "$userName"');
+            }
+          } catch (e) {
+            Log.warning('⚠️ [PARTNER] SharedPreferences取得エラー: $e');
+          }
+
+          // 2. Firestore /users/{uid}/profile/userName から取得を試みる
+          if (userName.isEmpty) {
+            try {
+              final profileDoc = await _firestore
+                  .collection('users')
+                  .doc(acceptorUid)
+                  .collection('profile')
+                  .doc('userName')
+                  .get();
+
+              if (profileDoc.exists) {
+                final profileData = profileDoc.data();
+                userName = profileData?['userName'] ?? '';
+                if (userName.isNotEmpty) {
+                  Log.info(
+                      '✅ [PARTNER] Firestore profileからユーザー名取得: "$userName"');
+                }
+              }
+            } catch (e) {
+              Log.error('⚠️ [PARTNER] Firestore profile取得エラー: $e');
+            }
+          }
+
+          // 3. Firebase Auth displayNameから取得を試みる
+          if (userName.isEmpty) {
+            userName = acceptorUser?.displayName ?? '';
+            if (userName.isNotEmpty) {
+              Log.info(
+                  '✅ [PARTNER] Firebase Auth displayNameから取得: "$userName"');
+            }
+          }
+
+          // 4. 最終フォールバック
+          if (userName.isEmpty) {
+            final userEmail = acceptorUser?.email ?? '';
+            userName = userEmail.isNotEmpty
+                ? userEmail.split('@').first
+                : 'Unknown User';
+            Log.warning('⚠️ [PARTNER] すべての取得失敗 - フォールバック: "$userName"');
+          }
 
           // 新しいメンバーを追加（パートナーロール）
           final newMember = {
@@ -549,9 +604,10 @@ class QRInvitationService {
 
         // Firestoreを更新
         await doc.reference.update({
-          'allowedUids': allowedUids,
+          'allowedUid': allowedUid, // 正しいフィールド名 & 変数名に修正
           'members': members,
-          'lastUpdated': FieldValue.serverTimestamp(),
+          'updatedAt':
+              FieldValue.serverTimestamp(), // lastUpdated → updatedAt に統一
         });
 
         Log.info('✅ パートナーとして ${doc.id} グループに追加: $acceptorUid');
@@ -600,57 +656,22 @@ class QRInvitationService {
       final repository = _ref.read(purchaseGroupRepositoryProvider);
 
       // 1. Firestoreから最新データを取得（招待元のallowedUidを保持するため）
+      models.PurchaseGroup? firestoreGroup;
       List<String> firestoreAllowedUid = [];
       List<models.PurchaseGroupMember> firestoreMembers = [];
-      models.PurchaseGroup? firestoreGroup;
 
-      try {
-        final firestoreDoc =
-            await _firestore.collection('purchaseGroups').doc(groupId).get();
-        if (firestoreDoc.exists) {
-          final data = firestoreDoc.data()!;
-          firestoreAllowedUid = List<String>.from(data['allowedUid'] ?? []);
-          firestoreMembers = (data['members'] as List?)
-                  ?.map((m) => models.PurchaseGroupMember(
-                        memberId: m['memberId'] ?? '',
-                        name: m['name'] ?? '',
-                        contact: m['contact'] ?? '',
-                        role: models.PurchaseGroupRole.values.firstWhere(
-                          (r) => r.name == m['role'],
-                          orElse: () => models.PurchaseGroupRole.member,
-                        ),
-                        isSignedIn: m['isSignedIn'] ?? false,
-                        invitationStatus:
-                            models.InvitationStatus.values.firstWhere(
-                          (s) => s.name == m['invitationStatus'],
-                          orElse: () => models.InvitationStatus.pending,
-                        ),
-                      ))
-                  .toList() ??
-              [];
-
-          firestoreGroup = models.PurchaseGroup(
-            groupId: data['groupId'] ?? groupId,
-            groupName: data['groupName'] ?? groupName,
-            ownerUid: data['ownerUid'] ?? '',
-            ownerName: data['ownerName'] ?? '',
-            ownerEmail: data['ownerEmail'] ?? '',
-            allowedUid: firestoreAllowedUid,
-            members: firestoreMembers,
-            createdAt:
-                (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-            updatedAt:
-                (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-          );
-          Log.info(
-              '✅ [QR_INVITATION] Firestoreから取得: ${firestoreGroup.groupName}');
-          Log.info(
-              '🔍 [QR_INVITATION] Firestore allowedUid: $firestoreAllowedUid');
-        } else {
-          Log.info('⚠️ [QR_INVITATION] Firestoreにグループなし');
-        }
-      } catch (e) {
-        Log.error('⚠️ [QR_INVITATION] Firestore取得エラー: $e');
+      // 🔥 共通ユーティリティでFirestoreから取得
+      firestoreGroup = await FirestoreHelper.fetchGroup(groupId);
+      if (firestoreGroup != null) {
+        firestoreAllowedUid = List<String>.from(firestoreGroup.allowedUid);
+        firestoreMembers =
+            List<models.PurchaseGroupMember>.from(firestoreGroup.members ?? []);
+        Log.info(
+            '✅ [QR_INVITATION] Firestoreから取得: ${firestoreGroup.groupName}');
+        Log.info(
+            '🔍 [QR_INVITATION] Firestore allowedUid: $firestoreAllowedUid');
+      } else {
+        Log.info('⚠️ [QR_INVITATION] Firestoreにグループなし');
       }
 
       // 2. Hiveからプレースホルダーを取得
@@ -684,56 +705,81 @@ class QRInvitationService {
 
       Log.info('🔍 [QR_INVITATION] ベースグループ: ${baseGroup.groupName}');
 
-      final allowedUid = mergedAllowedUid;
+      // allowedUidを準備（マージ済みリストのコピー + acceptorUid追加）
+      final allowedUid = List<String>.from(mergedAllowedUid);
       final members = List<models.PurchaseGroupMember>.from(
         firestoreMembers.isNotEmpty ? firestoreMembers : hiveMembers,
       );
 
-      // allowedUidに追加
+      // allowedUidに追加（重複チェック）
       if (!allowedUid.contains(acceptorUid)) {
         allowedUid.add(acceptorUid);
-        Log.info('✅ allowedUidに追加: $acceptorUid');
+        Log.info('✅ [QR_INVITATION] acceptorUidを追加: $acceptorUid');
+      } else {
+        Log.info('💡 [QR_INVITATION] acceptorUidは既に存在: $acceptorUid');
       }
+
+      Log.info('🔍 [QR_INVITATION] 最終 allowedUid: $allowedUid');
 
       // membersリストにも追加
       final memberExists = members.any((m) => m.memberId == acceptorUid);
       if (!memberExists) {
-        // ユーザー情報を取得（FirestoreのusersコレクションとFirebase Authから）
+        // ユーザー情報を取得（優先順位: SharedPreferences > Firestore profile > Firebase Auth > メールアドレス）
         final acceptorUser = _auth.currentUser;
-        String userName = acceptorUser?.displayName ?? '';
+        String userName = '';
         String userEmail = acceptorUser?.email ?? '';
 
-        Log.info('🔍 [QR_INVITATION] Firebase Auth displayName: "$userName"');
-        Log.info('🔍 [QR_INVITATION] Firebase Auth email: "$userEmail"');
+        Log.info('🔍 [QR_INVITATION] ユーザー名取得開始');
 
-        // displayNameが空の場合、Firestoreのusersコレクションから取得を試みる
+        // 1. SharedPreferencesから取得を試みる
+        try {
+          final prefs = await UserPreferencesService.getUserName();
+          if (prefs != null && prefs.isNotEmpty) {
+            userName = prefs;
+            Log.info(
+                '✅ [QR_INVITATION] SharedPreferencesからユーザー名取得: "$userName"');
+          }
+        } catch (e) {
+          Log.warning('⚠️ [QR_INVITATION] SharedPreferences取得エラー: $e');
+        }
+
+        // 2. Firestore /users/{uid}/profile/userName から取得を試みる
         if (userName.isEmpty) {
-          Log.info('⚠️ [QR_INVITATION] displayName空 - Firestoreから取得試行');
+          Log.info(
+              '⚠️ [QR_INVITATION] SharedPreferences空 - Firestore profileから取得試行');
           try {
-            final userDoc =
-                await _firestore.collection('users').doc(acceptorUid).get();
-            Log.info('🔍 [QR_INVITATION] Firestoreドキュメント存在: ${userDoc.exists}');
-            if (userDoc.exists) {
-              final userData = userDoc.data();
-              userName = userData?['displayName'] ??
-                  userData?['name'] ??
-                  userEmail.split('@').first;
-              Log.info('✅ [QR_INVITATION] Firestoreからユーザー名取得: "$userName"');
-            } else {
-              Log.info('⚠️ [QR_INVITATION] Firestoreドキュメント不存在 - メールから生成');
-              userName =
-                  userEmail.isNotEmpty ? userEmail.split('@').first : 'ユーザー';
+            final profileDoc = await _firestore
+                .collection('users')
+                .doc(acceptorUid)
+                .collection('profile')
+                .doc('userName')
+                .get();
+
+            Log.info(
+                '🔍 [QR_INVITATION] Firestore profileドキュメント存在: ${profileDoc.exists}');
+            if (profileDoc.exists) {
+              final profileData = profileDoc.data();
+              userName = profileData?['userName'] ?? '';
+              Log.info(
+                  '✅ [QR_INVITATION] Firestore profileからユーザー名取得: "$userName"');
             }
           } catch (e) {
-            Log.error('⚠️ [QR_INVITATION] Firestoreユーザー情報取得エラー: $e');
-            userName =
-                userEmail.isNotEmpty ? userEmail.split('@').first : 'ユーザー';
+            Log.error('⚠️ [QR_INVITATION] Firestore profile取得エラー: $e');
           }
         }
 
-        // それでも名前が取得できない場合、メールアドレスから生成
+        // 3. Firebase Auth displayNameから取得を試みる
         if (userName.isEmpty) {
-          Log.warning('⚠️ [QR_INVITATION] userName依然として空 - 最終fallback');
+          userName = acceptorUser?.displayName ?? '';
+          if (userName.isNotEmpty) {
+            Log.info(
+                '✅ [QR_INVITATION] Firebase Auth displayNameから取得: "$userName"');
+          }
+        }
+
+        // 4. 最終フォールバック: メールアドレスのローカル部分
+        if (userName.isEmpty) {
+          Log.warning('⚠️ [QR_INVITATION] すべての取得失敗 - メールから生成');
           userName = userEmail.isNotEmpty ? userEmail.split('@').first : 'ユーザー';
         }
 
@@ -765,9 +811,61 @@ class QRInvitationService {
           '🔍 [QR_INVITATION] 更新後 - allowedUid: ${updatedGroup.allowedUid}');
       Log.info('🔍 [QR_INVITATION] メンバー数: ${updatedGroup.members?.length}');
 
+      // Hiveに保存
       await repository.updateGroup(groupId, updatedGroup);
+      Log.info('✅ Hiveにグループ更新完了');
+
+      // Firestoreにも直接保存（set with merge:true で確実に更新）
+      Log.info(
+          '📤 [FIRESTORE] 保存開始 - allowedUid: $allowedUid (${allowedUid.length}個)');
+      Log.info('📤 [FIRESTORE] 保存データ詳細:');
+      Log.info('   - groupId: $groupId');
+      Log.info('   - allowedUid: $allowedUid');
+      Log.info('   - members: ${members.length}人');
+
+      // update()ではなくset(merge:true)を使用して確実にフィールドを更新
+      await _firestore.collection('purchaseGroups').doc(groupId).set({
+        'allowedUid': allowedUid,
+        'members': members
+            .map((m) => {
+                  'memberId': m.memberId,
+                  'name': m.name,
+                  'contact': m.contact,
+                  'role': m.role.name,
+                  'isSignedIn': m.isSignedIn,
+                  'invitationStatus': m.invitationStatus.name,
+                  'acceptedAt': m.acceptedAt,
+                })
+            .toList(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      Log.info(
+          '✅ Firestoreにグループ更新完了 (merge:true) - allowedUid保存確認: $allowedUid');
+
+      // 🔍 保存後の確認: Firestoreから実際に読み取って検証
+      try {
+        final verifyDoc =
+            await _firestore.collection('purchaseGroups').doc(groupId).get();
+        if (verifyDoc.exists) {
+          final verifyData = verifyDoc.data();
+          final savedAllowedUid = verifyData?['allowedUid'] as List?;
+          Log.info(
+              '🔍 [VERIFICATION] Firestore保存確認 - allowedUid: $savedAllowedUid (${savedAllowedUid?.length ?? 0}個)');
+          if (savedAllowedUid != null && savedAllowedUid.length >= 2) {
+            Log.info('✅ [VERIFICATION] allowedUid正常保存 - 両方のUIDを確認');
+          } else {
+            Log.warning(
+                '⚠️ [VERIFICATION] allowedUid異常 - 期待: 2個, 実際: ${savedAllowedUid?.length ?? 0}個');
+          }
+        }
+      } catch (e) {
+        Log.warning('⚠️ [VERIFICATION] Firestore確認読み取りエラー: $e');
+      }
 
       Log.info('✅ 個別招待でグループに追加: $acceptorUid → $groupId');
+
+      // Firestoreの書き込みが完全に反映されるまで少し待機
+      await Future.delayed(const Duration(milliseconds: 500));
 
       // グループの全メンバーに通知を送信（参加者本人は除く）
       final notificationService = _ref.read(notificationServiceProvider);
