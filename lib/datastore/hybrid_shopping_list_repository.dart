@@ -11,8 +11,8 @@ import '../flavors.dart';
 /// Hive（ローカルキャッシュ）+ Firestore（リモート）のハイブリッドShoppingListリポジトリ
 ///
 /// 動作原理:
-/// - デフォルトグループ: Hive優先（ローカル専用、syncStatus=local）
-/// - 共有グループ: Firestore優先（リアルタイム同期必須）
+/// - 全グループ: Firestore優先（リアルタイム同期）
+/// - デフォルトグループも他グループと同様に同期（他ユーザーを招待しないだけ）
 /// - 読み取り: まずHiveから取得、なければFirestoreから取得してHiveにキャッシュ
 /// - 書き込み: HiveとFirestore両方に保存（楽観的更新）
 /// - 同期: バックグラウンドでFirestore→Hiveの差分同期
@@ -53,13 +53,15 @@ class HybridShoppingListRepository implements ShoppingListRepository {
   /// 同期状態をチェック
   bool get isSyncing => _isSyncing;
 
-  /// 共有グループかどうかを判定（デフォルトグループ以外は共有グループ）
+  /// 共有グループかどうかを判定
+  /// デフォルトグループも含め、すべてのグループをFirestoreと同期する
+  /// （デフォルトグループは他ユーザーを招待しないだけで、同期は行う）
   bool _isSharedGroup(String groupId) {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) return false;
 
-    // groupId == user.uid ならデフォルトグループ（個人専用）
-    return groupId != currentUser.uid;
+    // すべてのグループをFirestoreと同期対象とする
+    return true;
   }
 
   // =================================================================
@@ -404,12 +406,12 @@ class HybridShoppingListRepository implements ShoppingListRepository {
   @override
   Future<List<ShoppingList>> getShoppingListsByGroup(String groupId) async {
     try {
-      // 共有グループの場合はFirestore優先、デフォルトグループはHive優先
+      // すべてのグループでFirestore優先（デフォルトグループも含む）
       if (_isSharedGroup(groupId) &&
           _isOnline &&
           _firestoreRepo != null &&
           F.appFlavor != Flavor.dev) {
-        developer.log('🌐 [SHARED GROUP] Firestore優先でリスト取得: $groupId');
+        developer.log('🌐 [FIRESTORE優先] リスト取得: $groupId');
 
         // 1. Firestoreから最新データを取得
         final firestoreLists =
@@ -423,12 +425,12 @@ class HybridShoppingListRepository implements ShoppingListRepository {
         }
 
         developer
-            .log('✅ [SHARED GROUP] Firestoreから${firestoreLists.length}件取得');
+            .log('✅ [FIRESTORE] ${firestoreLists.length}件取得完了');
         return firestoreLists;
       }
 
-      // デフォルトグループまたはオフライン時はHive優先
-      developer.log('📦 [DEFAULT GROUP] Hive優先でリスト取得: $groupId');
+      // オフライン時またはDev環境はHive優先
+      developer.log('📦 [HIVE優先] リスト取得: $groupId');
       return await _hiveRepo.getShoppingListsByGroup(groupId);
     } catch (e) {
       developer.log('❌ HybridShoppingList.getShoppingListsByGroup error: $e');
@@ -447,11 +449,11 @@ class HybridShoppingListRepository implements ShoppingListRepository {
         return; // Dev環境またはオフライン時はHiveのみ
       }
 
-      // 2. 共有グループの場合はFirestoreにも同期
+      // 2. すべてのグループでFirestoreにも同期
       if (_isSharedGroup(list.groupId)) {
         await _syncListToFirestoreWithFallback(
             list, _ShoppingListSyncOperationType.update);
-        developer.log('🌐 [SHARED GROUP] Firestoreに同期: ${list.listName}');
+        developer.log('🌐 [FIRESTORE同期] ${list.listName}');
       }
     } catch (e) {
       developer.log('❌ HybridShoppingList.updateShoppingList error: $e');
