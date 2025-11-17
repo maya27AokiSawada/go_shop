@@ -23,13 +23,16 @@ mixin _$UserSettings {
   @HiveField(0)
   String get userName => throw _privateConstructorUsedError;
   @HiveField(1)
-  String get lastUsedGroupId => throw _privateConstructorUsedError;
+  String get lastUsedGroupId =>
+      throw _privateConstructorUsedError; // 空文字列で初期化、グループリストから自動選択
   @HiveField(2)
   String get lastUsedShoppingListId => throw _privateConstructorUsedError;
   @HiveField(3)
   String get userId => throw _privateConstructorUsedError;
   @HiveField(4)
-  String get userEmail => throw _privateConstructorUsedError;
+  String get userEmail => throw _privateConstructorUsedError; // メールアドレスフィールドを追加
+  @HiveField(5)
+  int get appMode => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
@@ -48,7 +51,8 @@ abstract class $UserSettingsCopyWith<$Res> {
       @HiveField(1) String lastUsedGroupId,
       @HiveField(2) String lastUsedShoppingListId,
       @HiveField(3) String userId,
-      @HiveField(4) String userEmail});
+      @HiveField(4) String userEmail,
+      @HiveField(5) int appMode});
 }
 
 /// @nodoc
@@ -69,6 +73,7 @@ class _$UserSettingsCopyWithImpl<$Res, $Val extends UserSettings>
     Object? lastUsedShoppingListId = null,
     Object? userId = null,
     Object? userEmail = null,
+    Object? appMode = null,
   }) {
     return _then(_value.copyWith(
       userName: null == userName
@@ -91,6 +96,10 @@ class _$UserSettingsCopyWithImpl<$Res, $Val extends UserSettings>
           ? _value.userEmail
           : userEmail // ignore: cast_nullable_to_non_nullable
               as String,
+      appMode: null == appMode
+          ? _value.appMode
+          : appMode // ignore: cast_nullable_to_non_nullable
+              as int,
     ) as $Val);
   }
 }
@@ -108,7 +117,8 @@ abstract class _$$UserSettingsImplCopyWith<$Res>
       @HiveField(1) String lastUsedGroupId,
       @HiveField(2) String lastUsedShoppingListId,
       @HiveField(3) String userId,
-      @HiveField(4) String userEmail});
+      @HiveField(4) String userEmail,
+      @HiveField(5) int appMode});
 }
 
 /// @nodoc
@@ -127,6 +137,7 @@ class __$$UserSettingsImplCopyWithImpl<$Res>
     Object? lastUsedShoppingListId = null,
     Object? userId = null,
     Object? userEmail = null,
+    Object? appMode = null,
   }) {
     return _then(_$UserSettingsImpl(
       userName: null == userName
@@ -149,6 +160,10 @@ class __$$UserSettingsImplCopyWithImpl<$Res>
           ? _value.userEmail
           : userEmail // ignore: cast_nullable_to_non_nullable
               as String,
+      appMode: null == appMode
+          ? _value.appMode
+          : appMode // ignore: cast_nullable_to_non_nullable
+              as int,
     ));
   }
 }
@@ -158,10 +173,11 @@ class __$$UserSettingsImplCopyWithImpl<$Res>
 class _$UserSettingsImpl implements _UserSettings {
   const _$UserSettingsImpl(
       {@HiveField(0) this.userName = '',
-      @HiveField(1) this.lastUsedGroupId = 'default_group',
+      @HiveField(1) this.lastUsedGroupId = '',
       @HiveField(2) this.lastUsedShoppingListId = '',
       @HiveField(3) this.userId = '',
-      @HiveField(4) this.userEmail = ''});
+      @HiveField(4) this.userEmail = '',
+      @HiveField(5) this.appMode = 0});
 
   factory _$UserSettingsImpl.fromJson(Map<String, dynamic> json) =>
       _$$UserSettingsImplFromJson(json);
@@ -174,6 +190,7 @@ class _$UserSettingsImpl implements _UserSettings {
   @JsonKey()
   @HiveField(1)
   final String lastUsedGroupId;
+// 空文字列で初期化、グループリストから自動選択
   @override
   @JsonKey()
   @HiveField(2)
@@ -186,10 +203,15 @@ class _$UserSettingsImpl implements _UserSettings {
   @JsonKey()
   @HiveField(4)
   final String userEmail;
+// メールアドレスフィールドを追加
+  @override
+  @JsonKey()
+  @HiveField(5)
+  final int appMode;
 
   @override
   String toString() {
-    return 'UserSettings(userName: $userName, lastUsedGroupId: $lastUsedGroupId, lastUsedShoppingListId: $lastUsedShoppingListId, userId: $userId, userEmail: $userEmail)';
+    return 'UserSettings(userName: $userName, lastUsedGroupId: $lastUsedGroupId, lastUsedShoppingListId: $lastUsedShoppingListId, userId: $userId, userEmail: $userEmail, appMode: $appMode)';
   }
 
   @override
@@ -205,13 +227,14 @@ class _$UserSettingsImpl implements _UserSettings {
                 other.lastUsedShoppingListId == lastUsedShoppingListId) &&
             (identical(other.userId, userId) || other.userId == userId) &&
             (identical(other.userEmail, userEmail) ||
-                other.userEmail == userEmail));
+                other.userEmail == userEmail) &&
+            (identical(other.appMode, appMode) || other.appMode == appMode));
   }
 
   @JsonKey(ignore: true)
   @override
   int get hashCode => Object.hash(runtimeType, userName, lastUsedGroupId,
-      lastUsedShoppingListId, userId, userEmail);
+      lastUsedShoppingListId, userId, userEmail, appMode);
 
   @JsonKey(ignore: true)
   @override
@@ -233,7 +256,8 @@ abstract class _UserSettings implements UserSettings {
       @HiveField(1) final String lastUsedGroupId,
       @HiveField(2) final String lastUsedShoppingListId,
       @HiveField(3) final String userId,
-      @HiveField(4) final String userEmail}) = _$UserSettingsImpl;
+      @HiveField(4) final String userEmail,
+      @HiveField(5) final int appMode}) = _$UserSettingsImpl;
 
   factory _UserSettings.fromJson(Map<String, dynamic> json) =
       _$UserSettingsImpl.fromJson;
@@ -244,7 +268,7 @@ abstract class _UserSettings implements UserSettings {
   @override
   @HiveField(1)
   String get lastUsedGroupId;
-  @override
+  @override // 空文字列で初期化、グループリストから自動選択
   @HiveField(2)
   String get lastUsedShoppingListId;
   @override
@@ -253,6 +277,9 @@ abstract class _UserSettings implements UserSettings {
   @override
   @HiveField(4)
   String get userEmail;
+  @override // メールアドレスフィールドを追加
+  @HiveField(5)
+  int get appMode;
   @override
   @JsonKey(ignore: true)
   _$$UserSettingsImplCopyWith<_$UserSettingsImpl> get copyWith =>

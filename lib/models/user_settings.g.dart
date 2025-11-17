@@ -22,13 +22,14 @@ class UserSettingsAdapter extends TypeAdapter<UserSettings> {
       lastUsedShoppingListId: fields[2] as String,
       userId: fields[3] as String,
       userEmail: fields[4] as String,
+      appMode: fields[5] as int,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserSettings obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(6)
       ..writeByte(0)
       ..write(obj.userName)
       ..writeByte(1)
@@ -38,7 +39,9 @@ class UserSettingsAdapter extends TypeAdapter<UserSettings> {
       ..writeByte(3)
       ..write(obj.userId)
       ..writeByte(4)
-      ..write(obj.userEmail);
+      ..write(obj.userEmail)
+      ..writeByte(5)
+      ..write(obj.appMode);
   }
 
   @override
@@ -59,10 +62,11 @@ class UserSettingsAdapter extends TypeAdapter<UserSettings> {
 _$UserSettingsImpl _$$UserSettingsImplFromJson(Map<String, dynamic> json) =>
     _$UserSettingsImpl(
       userName: json['userName'] as String? ?? '',
-      lastUsedGroupId: json['lastUsedGroupId'] as String? ?? 'default_group',
+      lastUsedGroupId: json['lastUsedGroupId'] as String? ?? '',
       lastUsedShoppingListId: json['lastUsedShoppingListId'] as String? ?? '',
       userId: json['userId'] as String? ?? '',
       userEmail: json['userEmail'] as String? ?? '',
+      appMode: (json['appMode'] as num?)?.toInt() ?? 0,
     );
 
 Map<String, dynamic> _$$UserSettingsImplToJson(_$UserSettingsImpl instance) =>
@@ -72,4 +76,5 @@ Map<String, dynamic> _$$UserSettingsImplToJson(_$UserSettingsImpl instance) =>
       'lastUsedShoppingListId': instance.lastUsedShoppingListId,
       'userId': instance.userId,
       'userEmail': instance.userEmail,
+      'appMode': instance.appMode,
     };
