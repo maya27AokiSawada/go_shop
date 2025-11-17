@@ -424,8 +424,7 @@ class HybridShoppingListRepository implements ShoppingListRepository {
           });
         }
 
-        developer
-            .log('✅ [FIRESTORE] ${firestoreLists.length}件取得完了');
+        developer.log('✅ [FIRESTORE] ${firestoreLists.length}件取得完了');
         return firestoreLists;
       }
 

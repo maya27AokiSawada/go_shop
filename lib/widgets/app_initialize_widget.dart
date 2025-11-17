@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../services/data_version_service.dart';
 import '../services/user_initialization_service.dart';
 import '../services/notification_service.dart';
 import '../widgets/data_migration_widget.dart';
 import '../utils/app_logger.dart';
+import '../helpers/user_id_change_helper.dart';
+import '../flavors.dart';
 
 /// アプリ初期化を管理するウィジェット
 ///
@@ -31,12 +34,55 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
   bool _isInitialized = false;
   bool _isInitializing = false;
   String _initializationStatus = 'アプリを準備中...';
+  String? _previousUserId; // 前回のユーザーID
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _performAppInitialization();
+    });
+
+    // Firebase Auth状態の監視を開始
+    if (F.appFlavor == Flavor.prod) {
+      _startAuthListener();
+    }
+  }
+
+  /// Auth状態変化を監視してUID変更を検出
+  void _startAuthListener() {
+    FirebaseAuth.instance.authStateChanges().listen((User? user) async {
+      if (user == null) {
+        // ログアウト時
+        _previousUserId = null;
+        return;
+      }
+
+      final currentUid = user.uid;
+
+      // 初回ログイン時は前回UIDを記録するのみ
+      if (_previousUserId == null) {
+        _previousUserId = currentUid;
+        Log.info('🔑 [UID_WATCH] 初回UID記録: $currentUid');
+        return;
+      }
+
+      // UID変更を検出
+      if (_previousUserId != currentUid && mounted) {
+        Log.info('🔄 [UID_WATCH] UID変更検出: $_previousUserId → $currentUid');
+
+        // UserIdChangeHelper呼び出し
+        await UserIdChangeHelper.handleUserIdChange(
+          ref: ref,
+          context: context,
+          newUserId: currentUid,
+          userEmail: user.email ?? 'Unknown User',
+          mounted: mounted,
+        );
+
+        // 新しいUIDを記録
+        _previousUserId = currentUid;
+      }
     });
   }
 
