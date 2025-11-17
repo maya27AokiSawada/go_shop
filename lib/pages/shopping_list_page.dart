@@ -312,7 +312,10 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
     );
 
     ref.read(currentListProvider.notifier).updateList(updatedList);
-    // TODO: リポジトリに保存
+
+    // リポジトリに保存
+    final repository = ref.read(shoppingListRepositoryProvider);
+    repository.updateShoppingList(updatedList);
   }
 
   void _deleteItem(int index) {
@@ -328,7 +331,10 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
     );
 
     ref.read(currentListProvider.notifier).updateList(updatedList);
-    // TODO: リポジトリに保存
+
+    // リポジトリに保存
+    final repository = ref.read(shoppingListRepositoryProvider);
+    repository.updateShoppingList(updatedList);
   }
 
   void _showAddItemDialog(BuildContext context) {

@@ -177,8 +177,8 @@ class EnhancedInvitationService {
     // Update Firestore
     await groupDoc.reference.update(updatedGroup.toFirestoreData());
 
-    // TODO: Send actual email invitation
-    // await _sendEmailInvitation(firestoreGroup, targetEmail, customMessage);
+    // メール招待機能は実装しない（QR招待を使用）
+    // Email invitations are not implemented - use QR code invitations instead
 
     developer
         .log('📧 招待送信完了: $targetEmail → グループ「${firestoreGroup.groupName}」');
