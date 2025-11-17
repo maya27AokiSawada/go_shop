@@ -378,10 +378,13 @@ class _GroupMemberManagementPageState
   }
 
   void _sendEmailInvitation(String email) {
-    // TODO: メール招待機能の実装
-    AppLogger.info('📧 [MEMBER_MGMT] メール招待: $email');
+    // メール招待機能は実装しない（QR招待を使用）
+    AppLogger.info('📧 [MEMBER_MGMT] メール招待は未実装: $email');
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$email に招待を送信しました')),
+      const SnackBar(
+        content: Text('メール招待は利用できません。QR招待をご利用ください。'),
+        backgroundColor: Colors.orange,
+      ),
     );
   }
 
@@ -398,8 +401,14 @@ class _GroupMemberManagementPageState
   }
 
   void _showRoleEditDialog(PurchaseGroupMember member, PurchaseGroup group) {
-    // TODO: 権限変更ダイアログの実装
-    AppLogger.info('⚙️ [MEMBER_MGMT] 権限変更: ${member.name}');
+    // 権限変更機能は将来実装予定
+    AppLogger.info('⚙️ [MEMBER_MGMT] 権限変更（未実装）: ${member.name}');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('権限変更機能は現在開発中です'),
+        backgroundColor: Colors.orange,
+      ),
+    );
   }
 
   void _showRemoveMemberDialog(

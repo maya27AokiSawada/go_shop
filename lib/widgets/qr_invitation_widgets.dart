@@ -196,7 +196,8 @@ class QRInviteDialog extends ConsumerWidget {
   }
 
   Future<void> _shareQR(BuildContext context) async {
-    // TODO: Share機能の実装（share_plusライブラリなど）
+    // 将来実装予定: OSネイティブシェア機能（share_plusライブラリ使用）
+    // Future implementation: Native OS share functionality using share_plus
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('共有機能は今後実装予定です'),
