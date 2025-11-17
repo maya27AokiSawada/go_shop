@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/data_version_service.dart';
 import '../services/user_initialization_service.dart';
 import '../services/notification_service.dart';
+import '../services/user_preferences_service.dart';
 import '../widgets/data_migration_widget.dart';
 import '../utils/app_logger.dart';
 import '../helpers/user_id_change_helper.dart';
@@ -34,54 +35,91 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
   bool _isInitialized = false;
   bool _isInitializing = false;
   String _initializationStatus = 'アプリを準備中...';
-  String? _previousUserId; // 前回のユーザーID
 
   @override
   void initState() {
     super.initState();
+    Log.info('🚀 [APP_INIT] AppInitializeWidget initState()');
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _performAppInitialization();
     });
 
     // Firebase Auth状態の監視を開始
+    Log.info('🔍 [APP_INIT] Flavor check: ${F.appFlavor}');
     if (F.appFlavor == Flavor.prod) {
+      Log.info('🔍 [APP_INIT] Starting auth listener...');
       _startAuthListener();
+    } else {
+      Log.info('⚠️ [APP_INIT] Skipping auth listener (not prod flavor)');
     }
   }
 
   /// Auth状態変化を監視してUID変更を検出
   void _startAuthListener() {
+    Log.info('🔍 [UID_WATCH] Auth listener started');
+
     FirebaseAuth.instance.authStateChanges().listen((User? user) async {
+      Log.info('🔔 [UID_WATCH] Auth state changed: ${user?.uid ?? "null"}');
+
       if (user == null) {
         // ログアウト時
-        _previousUserId = null;
+        Log.info('🔓 [UID_WATCH] ログアウト検出');
         return;
       }
 
       final currentUid = user.uid;
+      final currentEmail = user.email ?? 'Unknown';
+      Log.info('🔑 [UID_WATCH] Current UID: $currentUid, Email: $currentEmail');
 
-      // 初回ログイン時は前回UIDを記録するのみ
-      if (_previousUserId == null) {
-        _previousUserId = currentUid;
-        Log.info('🔑 [UID_WATCH] 初回UID記録: $currentUid');
-        return;
-      }
+      // SharedPreferencesに保存されたUIDと比較（保存前にチェック）
+      try {
+        // SharedPreferencesから直接前回のUIDを取得
+        final storedUid = await UserPreferencesService.getUserId();
+        Log.info(
+            '🔍 [UID_CHECK] Stored UID: "$storedUid", New UID: "$currentUid"');
 
-      // UID変更を検出
-      if (_previousUserId != currentUid && mounted) {
-        Log.info('🔄 [UID_WATCH] UID変更検出: $_previousUserId → $currentUid');
+        // UID変更を検出
+        bool hasChanged = false;
+        if (storedUid == null || storedUid.isEmpty) {
+          // 初回ログイン
+          Log.info('🆕 [UID_CHECK] 初回ログイン検出');
+          hasChanged = false;
+        } else if (storedUid != currentUid) {
+          // UID変更
+          Log.info('⚠️ [UID_CHECK] UID変更を検知: $storedUid → $currentUid');
+          hasChanged = true;
+        } else {
+          // 同じユーザー
+          Log.info('✅ [UID_CHECK] 同じユーザーでログイン: $currentUid');
+          hasChanged = false;
+        }
 
-        // UserIdChangeHelper呼び出し
-        await UserIdChangeHelper.handleUserIdChange(
-          ref: ref,
-          context: context,
-          newUserId: currentUid,
-          userEmail: user.email ?? 'Unknown User',
-          mounted: mounted,
-        );
+        Log.info('🔍 [UID_WATCH] UID変更チェック結果: $hasChanged');
 
-        // 新しいUIDを記録
-        _previousUserId = currentUid;
+        if (hasChanged && mounted) {
+          Log.info('🚨 [UID_WATCH] UID変更検出 - ダイアログ表示');
+
+          // UID変更ダイアログを表示してユーザーに選択させる
+          // - 初期化: Hive削除 → 新UID保存
+          // - 引継ぎ: Hiveそのまま → 新UID保存（allowedUid追加でマージ）
+          // 注: UID保存はhandleUserIdChange内で実行される
+          await UserIdChangeHelper.handleUserIdChange(
+            ref: ref,
+            context: context,
+            newUserId: currentUid,
+            userEmail: user.email ?? 'Unknown User',
+            mounted: mounted,
+          );
+        } else {
+          Log.info('✅ [UID_WATCH] UID変更なし or 初回ログイン: $currentUid');
+
+          // UID変更なしの場合のみ、ここでUID保存
+          await UserPreferencesService.saveUserId(currentUid);
+          Log.info('💾 [UID_WATCH] UID保存完了: $currentUid');
+        }
+      } catch (e) {
+        Log.error('❌ [UID_WATCH] UID変更チェックエラー: $e');
       }
     });
   }

@@ -7,6 +7,7 @@ import '../providers/current_list_provider.dart';
 import '../providers/group_shopping_lists_provider.dart';
 import '../utils/app_logger.dart';
 import '../utils/error_handler.dart';
+import '../utils/group_helpers.dart';
 import '../pages/group_member_management_page.dart';
 import '../services/user_initialization_service.dart';
 import '../flavors.dart';
@@ -156,7 +157,8 @@ class GroupListWidget extends ConsumerWidget {
 
   Widget _buildGroupTile(BuildContext context, WidgetRef ref,
       PurchaseGroup group, String selectedGroupId) {
-    final isDefaultGroup = group.groupId == 'default_group';
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final isDefGroup = isDefaultGroup(group, currentUser);
     final memberCount = group.members?.length ?? 0;
     final isCurrentGroup = selectedGroupId == group.groupId;
 
@@ -168,12 +170,12 @@ class GroupListWidget extends ConsumerWidget {
         leading: CircleAvatar(
           backgroundColor: isCurrentGroup
               ? Colors.blue.shade200
-              : (isDefaultGroup ? Colors.green.shade100 : Colors.blue.shade100),
+              : (isDefGroup ? Colors.green.shade100 : Colors.blue.shade100),
           child: isCurrentGroup
               ? const Icon(Icons.check_circle, color: Colors.white, size: 20)
               : Icon(
-                  isDefaultGroup ? Icons.person : Icons.group,
-                  color: isDefaultGroup ? Colors.green.shade700 : Colors.blue,
+                  isDefGroup ? Icons.person : Icons.group,
+                  color: isDefGroup ? Colors.green.shade700 : Colors.blue,
                 ),
         ),
         title: Row(
@@ -209,7 +211,7 @@ class GroupListWidget extends ConsumerWidget {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (isDefaultGroup)
+            if (isDefGroup)
               Text(
                 'プライベート専用（あなたのみ）',
                 style: TextStyle(
@@ -220,7 +222,7 @@ class GroupListWidget extends ConsumerWidget {
               )
             else
               Text('メンバー: $memberCount人'),
-            if (!isDefaultGroup && (group.ownerUid?.isNotEmpty ?? false))
+            if (!isDefGroup && (group.ownerUid?.isNotEmpty ?? false))
               Text(
                 'オーナー: ${group.ownerName ?? group.ownerUid}',
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
@@ -533,8 +535,7 @@ class GroupListWidget extends ConsumerWidget {
     final currentUserId = currentUser?.uid ?? '';
 
     // デフォルトグループ（groupIdがuidと同じもの）は削除不可
-    final isProtectedGroup = group.groupId == 'default_group' ||
-        (currentUserId.isNotEmpty && group.groupId == currentUserId);
+    final isProtectedGroup = isDefaultGroup(group, currentUser);
     if (isProtectedGroup) {
       AppLogger.info('🔒 [GROUP_OPTIONS] デフォルトグループは削除できません');
       ScaffoldMessenger.of(context).showSnackBar(

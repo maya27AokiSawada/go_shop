@@ -212,10 +212,99 @@ Firestore: `/invitations/{invitationId}`
 - ~~`invitation_provider.dart`~~
 - ~~`invitation_management_dialog.dart`~~
 
+### Default Group System (Updated: 2025-11-17)
+**デフォルトグループ** = ユーザー専用のプライベートグループ
+
+#### Identification Rules
+**統一ヘルパー使用必須**: `lib/utils/group_helpers.dart`
+```dart
+bool isDefaultGroup(PurchaseGroup group, User? currentUser) {
+  // Legacy support
+  if (group.groupId == 'default_group') return true;
+  
+  // Official specification
+  if (currentUser != null && group.groupId == currentUser.uid) return true;
+  
+  return false;
+}
+```
+
+**判定条件**:
+1. `groupId == 'default_group'` (レガシー対応)
+2. `groupId == user.uid` (正式仕様)
+
+#### Key Characteristics
+- **groupId**: `user.uid` (ユーザー固有)
+- **groupName**: `{userName}グループ` (例: "mayaグループ")
+- **syncStatus**: `SyncStatus.local` (Firestoreに同期しない)
+- **Deletion Protected**: UI/Repository/Providerの3層で保護
+- **No Invitation**: 招待機能は無効化
+
+#### Creation Logic
+**AllGroupsNotifier.createDefaultGroup()** (`lib/providers/purchase_group_provider.dart`):
+```dart
+final defaultGroupId = user?.uid ?? 'local_default';
+final defaultGroupName = '$displayNameグループ';
+
+await hiveRepository.createGroup(
+  defaultGroupId,  // Use user.uid directly
+  defaultGroupName,
+  ownerMember,
+);
+```
+
+**Automatic Creation Triggers**:
+1. App startup (if no groups exist)
+2. User sign-in (via `authStateChanges()`)
+3. UID change with data clear (explicit call in `user_id_change_helper.dart`)
+
+#### Legacy Migration (Automatic)
+**UserInitializationService** (STEP2-0):
+```dart
+// Migrate 'default_group' → user.uid on app startup
+if (legacyGroupExists && !uidGroupExists) {
+  final migratedGroup = legacyGroup.copyWith(
+    groupId: user.uid,
+    syncStatus: SyncStatus.local,
+  );
+  await hiveRepository.saveGroup(migratedGroup);
+  await hiveRepository.deleteGroup('default_group');
+}
+```
+
+#### Critical Implementation Points
+1. **Always use helper method**: `isDefaultGroup(group, currentUser)`
+2. **Never hardcode check**: Avoid `group.groupId == 'default_group'` directly
+3. **Deletion prevention**: Check in UI, Repository, and Provider layers
+4. **UID change handling**: Explicitly call `createDefaultGroup()` after data clear
+
+**Modified Files** (2025-11-17):
+- `lib/utils/group_helpers.dart` (new)
+- `lib/helpers/user_id_change_helper.dart`
+- `lib/services/user_initialization_service.dart`
+- `lib/widgets/group_list_widget.dart`
+- `lib/pages/group_member_management_page.dart`
+- `lib/providers/purchase_group_provider.dart`
+- `lib/datastore/hive_purchase_group_repository.dart`
+
+### UID Change Detection & Data Migration
+**Flow** (`lib/helpers/user_id_change_helper.dart`):
+1. Detect UID change in `app_initialize_widget.dart`
+2. Show `UserDataMigrationDialog` (初期化 / 引継ぎ)
+3. If "初期化" selected:
+   - Clear Hive boxes (PurchaseGroup + ShoppingList)
+   - Call `SelectedGroupIdNotifier.clearSelection()`
+   - Sync from Firestore (download new user's data)
+   - **Create default group** (explicit call)
+   - Invalidate providers sequentially
+
+**Critical**: After UID change data clear, must explicitly create default group as `authStateChanges()` doesn't fire for existing login.
+
 ## Common Issues & Solutions
 - **Build failures**: Check for Riverpod Generator imports, remove them
 - **Missing variables**: Ensure controllers and providers are properly defined before use
 - **Null reference errors**: Always null-check `members` lists and async data
 - **Property not found**: Verify `memberId` vs `memberID` consistency across codebase
+- **Default group not appearing**: Ensure `createDefaultGroup()` called after UID change data clear
 
 Focus on maintaining consistency with existing patterns rather than introducing new architectural approaches.

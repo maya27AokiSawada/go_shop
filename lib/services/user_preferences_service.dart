@@ -142,14 +142,17 @@ class UserPreferencesService {
     };
   }
 
-  /// ユーザー認証情報のみクリア（ユーザー名は保持）
+  /// ユーザー認証情報のみクリア（ユーザー名・UIDは保持）
+  /// 注: UIDは次回ログイン時のUID変更検出のため保持する
   static Future<bool> clearAuthInfo() async {
     return await ErrorHandler.handleAsync(
           operation: () async {
             final prefs = await SharedPreferences.getInstance();
             await prefs.remove(_keyUserEmail);
-            await prefs.remove(_keyUserId);
-            Log.info('🗑️ SharedPreferences 認証情報をクリア完了（ユーザー名・データバージョン保持）');
+            // UIDは削除しない - 次回ログイン時にUID変更を検出するため保持
+            // await prefs.remove(_keyUserId);
+            Log.info(
+                '🗑️ SharedPreferences メールアドレスをクリア完了（ユーザー名・UID・データバージョン保持）');
             return true;
           },
           context: 'USER_PREFS:clearAuthInfo',

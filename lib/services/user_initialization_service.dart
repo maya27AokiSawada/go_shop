@@ -99,8 +99,57 @@ class UserInitializationService {
       final expectedDefaultGroupId = user?.uid ?? 'local_default';
       Log.info('🔍 [INIT] デフォルトグループID確認: $expectedDefaultGroupId');
 
-      // STEP2-1: isDeleted=trueの削除済みデフォルトグループを確認・復活
       final hiveRepository = _ref.read(hivePurchaseGroupRepositoryProvider);
+
+      // STEP2-0: レガシー'default_group'をuidに移行
+      if (user != null && expectedDefaultGroupId != 'local_default') {
+        try {
+          final legacyGroup =
+              await hiveRepository.getGroupById('default_group');
+          Log.info('🔄 [INIT] レガシーdefault_groupを検出: ${legacyGroup.groupName}');
+
+          // UIDグループが既に存在するかチェック
+          bool uidGroupExists = false;
+          try {
+            await hiveRepository.getGroupById(expectedDefaultGroupId);
+            uidGroupExists = true;
+          } catch (_) {
+            // UID グループは存在しない
+          }
+
+          if (!uidGroupExists) {
+            // レガシーグループをuidに移行
+            final migratedGroup = legacyGroup.copyWith(
+              groupId: expectedDefaultGroupId,
+              syncStatus: models.SyncStatus.local,
+              updatedAt: DateTime.now(),
+            );
+            await hiveRepository.saveGroup(migratedGroup);
+            Log.info('✅ [INIT] default_group → $expectedDefaultGroupId に移行完了');
+
+            // レガシーグループを削除
+            try {
+              await hiveRepository.deleteGroup('default_group');
+              Log.info('🗑️ [INIT] レガシーdefault_groupを削除');
+            } catch (e) {
+              Log.warning('⚠️ [INIT] レガシーdefault_group削除エラー: $e');
+            }
+          } else {
+            Log.info('💡 [INIT] UIDグループが既に存在。レガシーグループは削除のみ実行');
+            try {
+              await hiveRepository.deleteGroup('default_group');
+              Log.info('🗑️ [INIT] レガシーdefault_groupを削除');
+            } catch (e) {
+              Log.warning('⚠️ [INIT] レガシーdefault_group削除エラー: $e');
+            }
+          }
+        } catch (e) {
+          // レガシーグループが存在しない場合は何もしない
+          Log.info('💡 [INIT] レガシーdefault_groupは存在しません');
+        }
+      }
+
+      // STEP2-1: isDeleted=trueの削除済みデフォルトグループを確認・復活
       try {
         final deletedDefaultGroup =
             await hiveRepository.getGroupById(expectedDefaultGroupId);

@@ -718,14 +718,16 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
       return;
     }
 
-    // 既存アイテムの重複チェック
+    // カレントリスト選択チェック（必須）
     final selectedGroupId = ref.read(selectedGroupIdProvider);
     if (selectedGroupId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('グループが選択されていません')),
+        const SnackBar(content: Text('カレントリストを選択してください')),
       );
-      return;
+      return; // ここで処理を中断
     }
+
+    // 既存アイテムの重複チェック
     try {
       final currentListAsync =
           ref.read(shoppingListForGroupProvider(selectedGroupId));
@@ -781,9 +783,10 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
             : 0,
       );
 
+      // 上でnullチェック済みだが念のため再確認
       final selectedGroupId = ref.read(selectedGroupIdProvider);
       if (selectedGroupId == null) {
-        throw Exception('グループが選択されていません');
+        throw Exception('カレントリストが選択されていません');
       }
       await ref
           .read(shoppingListForGroupProvider(selectedGroupId).notifier)
