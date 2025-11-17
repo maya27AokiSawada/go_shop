@@ -13,6 +13,7 @@ class UserSettings with _$UserSettings {
     @HiveField(2) @Default('') String lastUsedShoppingListId,
     @HiveField(3) @Default('') String userId,
     @HiveField(4) @Default('') String userEmail, // メールアドレスフィールドを追加
+    @HiveField(5) @Default(0) int appMode, // 0=shopping, 1=todo
   }) = _UserSettings;
 
   factory UserSettings.fromJson(Map<String, dynamic> json) =>
