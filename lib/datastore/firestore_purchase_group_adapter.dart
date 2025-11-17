@@ -350,4 +350,13 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
     }
     return PurchaseGroupRole.member;
   }
+
+  @override
+  Future<int> cleanupDeletedGroups() async {
+    // FirestoreアダプターではHiveのような物理削除は不要
+    // 論理削除されたデータは自動的にクエリから除外される
+    developer.log(
+        '⚠️ [ADAPTER] cleanupDeletedGroups is not implemented (Firestore manages this automatically)');
+    return 0;
+  }
 }

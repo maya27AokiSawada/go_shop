@@ -351,4 +351,14 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
           (data['joinedAt'] as Timestamp?)?.toDate(),
     );
   }
+
+  @override
+  Future<int> cleanupDeletedGroups() async {
+    // Firestoreでは論理削除されたグループは自動的にクエリから除外されるため、
+    // 物理削除は手動で行う必要がある。ただし、本番環境では慎重に扱う必要があるため、
+    // 現状は何もしない（0を返す）
+    developer.log(
+        '⚠️ [FIRESTORE] cleanupDeletedGroups is not implemented for production safety');
+    return 0;
+  }
 }

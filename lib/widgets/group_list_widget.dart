@@ -518,18 +518,6 @@ class GroupListWidget extends ConsumerWidget {
 
   static Future<void> _showGroupOptions(
       BuildContext context, WidgetRef ref, PurchaseGroup group) async {
-    // デフォルトグループは削除不可
-    if (group.groupId == 'default_group') {
-      AppLogger.info('🔒 [GROUP_OPTIONS] デフォルトグループは削除できません');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('デフォルトグループ（MyLists）は削除できません'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
     // 現在のユーザー情報を安全に取得
     final currentUser = ErrorHandler.handleSync<User?>(
       operation: () {
@@ -542,6 +530,22 @@ class GroupListWidget extends ConsumerWidget {
       defaultValue: null,
     );
 
+    final currentUserId = currentUser?.uid ?? '';
+
+    // デフォルトグループ（groupIdがuidと同じもの）は削除不可
+    final isProtectedGroup = group.groupId == 'default_group' ||
+        (currentUserId.isNotEmpty && group.groupId == currentUserId);
+    if (isProtectedGroup) {
+      AppLogger.info('🔒 [GROUP_OPTIONS] デフォルトグループは削除できません');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('デフォルトグループは削除できません'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     if (currentUser == null && F.appFlavor == Flavor.prod) {
       AppLogger.warning('⚠️  [GROUP_OPTIONS] ユーザーが認証されていません');
       return;
@@ -549,7 +553,6 @@ class GroupListWidget extends ConsumerWidget {
 
     // グループのオーナーかどうかを確認
     final members = group.members;
-    final currentUserId = currentUser?.uid ?? '';
     final currentMember = members?.firstWhere(
           (member) => member.memberId == currentUserId,
           orElse: () => const PurchaseGroupMember(

@@ -73,6 +73,9 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                     }
                   }
                   break;
+                case 'cleanup_hive':
+                  _showCleanupDialog(context, ref);
+                  break;
               }
             },
             itemBuilder: (context) {
@@ -91,6 +94,16 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
                       ],
                     ),
                   ),
+                const PopupMenuItem(
+                  value: 'cleanup_hive',
+                  child: Row(
+                    children: [
+                      Icon(Icons.cleaning_services, color: Colors.orange),
+                      SizedBox(width: 8),
+                      Text('削除済みデータをクリーンアップ'),
+                    ],
+                  ),
+                ),
               ];
             },
           ),
@@ -178,6 +191,55 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
               }
             },
             child: const Text('削除', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCleanupDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('データベースクリーンアップ'),
+        content: const Text(
+          '削除済みのグループデータを物理的に削除します。\n'
+          'この操作はデータベースを最適化し、ストレージ容量を解放します。\n\n'
+          '実行しますか？',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('キャンセル'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            onPressed: () async {
+              try {
+                final repository = ref.read(purchaseGroupRepositoryProvider);
+                final deletedCount = await repository.cleanupDeletedGroups();
+
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('$deletedCount件の削除済みデータをクリーンアップしました'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+
+                // グループリストを更新
+                ref.invalidate(allGroupsProvider);
+              } catch (e) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('クリーンアップに失敗しました: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            child: const Text('実行', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
