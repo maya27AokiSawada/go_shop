@@ -722,6 +722,13 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
   }
 
   @override
+  Future<int> cleanupDeletedGroups() async {
+    // Hiveのクリーンアップメソッドを呼び出す
+    developer.log('🧹 [HYBRID_REPO] Delegating cleanup to Hive repository');
+    return await _hiveRepo.cleanupDeletedGroups();
+  }
+
+  @override
   Future<PurchaseGroup> setMemberId(
       String oldId, String newId, String? contact) async {
     try {

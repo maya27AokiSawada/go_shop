@@ -135,6 +135,44 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
     }
   }
 
+  /// 削除済みHiveデータを物理削除してデータベースを最適化
+  Future<int> cleanupDeletedGroups() async {
+    try {
+      final box = await _boxAsync;
+      final allGroups = box.values.toList();
+
+      final deletedGroups =
+          allGroups.where((group) => group.isDeleted).toList();
+
+      if (deletedGroups.isEmpty) {
+        Log.info('✅ [CLEANUP] 削除済みグループなし');
+        return 0;
+      }
+
+      Log.info('🧹 [CLEANUP] ${deletedGroups.length}個の削除済みグループを物理削除します');
+
+      int count = 0;
+      for (final group in deletedGroups) {
+        try {
+          await box.delete(group.groupId);
+          count++;
+          Log.info('  ✓ 削除: ${group.groupName} (${group.groupId})');
+        } catch (e) {
+          Log.error('  ✗ エラー: ${group.groupName} - $e');
+        }
+      }
+
+      // Box最適化
+      await box.compact();
+      Log.info('✅ [CLEANUP] $count個削除、Box最適化完了');
+
+      return count;
+    } catch (e) {
+      Log.error('❌ [CLEANUP] クリーンアップエラー: $e');
+      return 0;
+    }
+  }
+
   @override
   Future<PurchaseGroup> getGroupById(String groupId) async {
     developer.log('🔍 [HIVE] グループ検索開始: $groupId');

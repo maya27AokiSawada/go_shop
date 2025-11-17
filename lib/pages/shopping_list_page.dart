@@ -161,7 +161,7 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('買い物リスト'),
-        actions: [
+        actions: [ko
           IconButton(
             icon: const Icon(Icons.playlist_add),
             onPressed: () => _showAddShoppingListDialog(context),
