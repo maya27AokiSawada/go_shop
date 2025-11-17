@@ -221,10 +221,10 @@ Firestore: `/invitations/{invitationId}`
 bool isDefaultGroup(PurchaseGroup group, User? currentUser) {
   // Legacy support
   if (group.groupId == 'default_group') return true;
-  
+
   // Official specification
   if (currentUser != null && group.groupId == currentUser.uid) return true;
-  
+
   return false;
 }
 ```
