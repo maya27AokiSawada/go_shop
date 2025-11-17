@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/purchase_group.dart';
 import '../providers/purchase_group_provider.dart';
 import '../utils/app_logger.dart';
+import '../utils/group_helpers.dart';
 import '../widgets/member_selection_dialog.dart';
 import '../pages/group_invitation_page.dart';
 
@@ -24,7 +26,8 @@ class GroupMemberManagementPage extends ConsumerStatefulWidget {
 class _GroupMemberManagementPageState
     extends ConsumerState<GroupMemberManagementPage> {
   bool _isDefaultGroup(PurchaseGroup group) {
-    return group.groupId == 'default_group';
+    final currentUser = FirebaseAuth.instance.currentUser;
+    return isDefaultGroup(group, currentUser);
   }
 
   @override

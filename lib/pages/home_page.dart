@@ -9,6 +9,7 @@ import '../widgets/news_and_ads_panel_widget.dart';
 import '../widgets/test_scenario_widget.dart';
 import '../services/user_initialization_service.dart';
 import '../utils/app_logger.dart';
+import '../pages/help_page.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -65,6 +66,20 @@ class _HomePageState extends ConsumerState<HomePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Go Shop'),
+        actions: [
+          // ヘルプボタン
+          IconButton(
+            icon: const Icon(Icons.help_outline),
+            tooltip: 'ヘルプ',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const HelpPage(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: authState.when(
         data: (user) {

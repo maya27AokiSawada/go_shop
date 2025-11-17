@@ -102,15 +102,15 @@ class AuthenticationService {
     try {
       Log.info('🔄 サインイン後処理開始: UID=${user.uid}');
 
-      // 1. UIDをSharedPreferencesに保存
-      await UserPreferencesService.saveUserId(user.uid);
+      // 注: UIDの保存はAuth listenerでUID変更チェック後に行う
+      // ここでは保存しない（タイミング問題を回避）
 
-      // 2. メールアドレスをSharedPreferencesに保存
+      // 1. メールアドレスをSharedPreferencesに保存
       if (user.email != null) {
         await UserPreferencesService.saveUserEmail(user.email!);
       }
 
-      // 3. Firestoreデータマイグレーション実行（本番環境のみ）
+      // 2. Firestoreデータマイグレーション実行（本番環境のみ）
       if (F.appFlavor == Flavor.prod) {
         // データバージョンをチェックしてマイグレーションが必要か確認
         final dataVersionService = DataVersionService();
@@ -134,13 +134,13 @@ class AuthenticationService {
         }
       }
 
-      // 4. Firestoreからグループデータを同期（本番環境のみ）
+      // 3. Firestoreからグループデータを同期（本番環境のみ）
       if (F.appFlavor == Flavor.prod) {
         final groups = await FirestoreGroupSyncService.syncGroupsOnSignIn();
         Log.info('📦 Firestoreから${groups.length}件のグループを同期');
       }
 
-      // 5. Firestoreからユーザー名を復帰（本番環境のみ）
+      // 4. Firestoreからユーザー名を復帰（本番環境のみ）
       if (F.appFlavor == Flavor.prod) {
         final firestoreName = await FirestoreUserNameService.getUserName();
         if (firestoreName != null && firestoreName.isNotEmpty) {

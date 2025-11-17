@@ -296,7 +296,9 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
     }
 
     // デフォルトグループは削除不可
-    if (currentGroup.groupId == 'default_group') {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentGroup.groupId == 'default_group' ||
+        (currentUser != null && currentGroup.groupId == currentUser.uid)) {
       Log.error('❌ [DELETE GROUP] デフォルトグループは削除できません');
       throw Exception('デフォルトグループ（MyLists）は削除できません');
     }

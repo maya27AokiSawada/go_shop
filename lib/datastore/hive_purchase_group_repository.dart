@@ -1,6 +1,7 @@
 import 'package:hive/hive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:developer' as developer;
 import '../models/purchase_group.dart';
 import '../models/user_settings.dart';
@@ -367,7 +368,9 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
   Future<PurchaseGroup> deleteGroup(String groupId) async {
     try {
       // デフォルトグループは削除不可
-      if (groupId == 'default_group') {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (groupId == 'default_group' ||
+          (currentUser != null && groupId == currentUser.uid)) {
         throw Exception('Cannot delete default group');
       }
 

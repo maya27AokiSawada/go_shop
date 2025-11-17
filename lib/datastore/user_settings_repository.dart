@@ -19,27 +19,28 @@ abstract class UserSettingsRepository {
 
 class HiveUserSettingsRepository implements UserSettingsRepository {
   final Ref _ref;
-  
+
   HiveUserSettingsRepository(this._ref);
-  
+
   Box<UserSettings> get _box => _ref.read(userSettingsBoxProvider);
-  
+
   static const String _settingsKey = 'user_settings';
-  
+
   @override
   Future<UserSettings> getSettings() async {
     try {
       final dynamic rawSettings = _box.get(_settingsKey);
-      
+
       // 型安全性チェック
       if (rawSettings is UserSettings) {
         return rawSettings;
       } else if (rawSettings != null) {
         // 不正な型の場合、削除してデフォルト値を返す
-        logger.i('Warning: Invalid UserSettings type found (${rawSettings.runtimeType}), clearing...');
+        logger.i(
+            'Warning: Invalid UserSettings type found (${rawSettings.runtimeType}), clearing...');
         await _box.delete(_settingsKey);
       }
-      
+
       return const UserSettings();
     } catch (e) {
       logger.i('Error loading UserSettings: $e');
@@ -50,41 +51,42 @@ class HiveUserSettingsRepository implements UserSettingsRepository {
       return const UserSettings();
     }
   }
-  
+
   @override
   Future<void> saveSettings(UserSettings settings) async {
     await _box.put(_settingsKey, settings);
   }
-  
+
   @override
   Future<void> updateUserName(String userName) async {
     logger.i('💾 ユーザー名更新開始: $userName');
-    
+
     final currentSettings = await getSettings();
     logger.i('📖 現在の設定: ${currentSettings.toString()}');
-    
+
     final updatedSettings = currentSettings.copyWith(userName: userName);
     logger.i('🔄 更新後の設定: ${updatedSettings.toString()}');
-    
+
     await saveSettings(updatedSettings);
     logger.i('✅ ユーザー名更新完了: $userName');
-    
+
     // 確認のため再読み込み
     final verifySettings = await getSettings();
     logger.i('🔍 保存確認: ${verifySettings.userName}');
   }
-  
+
   @override
   Future<void> updateLastUsedGroupId(String groupId) async {
     final currentSettings = await getSettings();
     final updatedSettings = currentSettings.copyWith(lastUsedGroupId: groupId);
     await saveSettings(updatedSettings);
   }
-  
+
   @override
   Future<void> updateLastUsedShoppingListId(String shoppingListId) async {
     final currentSettings = await getSettings();
-    final updatedSettings = currentSettings.copyWith(lastUsedShoppingListId: shoppingListId);
+    final updatedSettings =
+        currentSettings.copyWith(lastUsedShoppingListId: shoppingListId);
     await saveSettings(updatedSettings);
   }
 
@@ -114,47 +116,57 @@ class HiveUserSettingsRepository implements UserSettingsRepository {
   Future<bool> hasUserIdChanged(String newUserId) async {
     final currentSettings = await getSettings();
     final currentUserId = currentSettings.userId;
-    
-    // 仮設定UIDの場合は常にfalseを返す（変更として扱わない）
-    if (_isTemporaryUid(newUserId) || _isTemporaryUid(currentUserId)) {
-      logger.i('🔄 仮設定UID検出 - 変更なしとして扱います: $currentUserId → $newUserId');
+
+    logger.i(
+        '🔍 [UID_CHECK] Stored UID: "$currentUserId", New UID: "$newUserId"');
+
+    // 新しいUIDが仮設定の場合は常にfalseを返す（変更として扱わない）
+    if (_isTemporaryUid(newUserId)) {
+      logger.i('🔄 新しいUIDが仮設定 - 変更なしとして扱います: $currentUserId → $newUserId');
       return false;
     }
-    
-    // 初回サインイン時（前回のUIDが空）はfalseを返す
-    if (currentUserId.isEmpty) {
-      logger.i('🆕 初回UID設定: $newUserId');
+
+    // 初回サインイン時（前回のUIDが空 or 仮設定）はfalseを返す
+    if (currentUserId.isEmpty || _isTemporaryUid(currentUserId)) {
+      logger.i('🆕 初回UID設定 or 仮設定から本設定へ: "$currentUserId" → "$newUserId"');
       return false;
     }
-    
-    // UIDが変更されたかチェック
+
+    // UIDが変更されたかチェック（両方とも有効なUIDの場合のみ）
     final hasChanged = currentUserId != newUserId;
     if (hasChanged) {
-      logger.i('🔄 UID変更を検知: $currentUserId → $newUserId');
+      logger.i('⚠️ UID変更を検知: $currentUserId → $newUserId');
     } else {
       logger.i('✅ 同じUIDでサインイン: $newUserId');
     }
-    
+
     return hasChanged;
   }
 
   // 仮設定UID（開発・テスト用）かどうかを判定するヘルパーメソッド
   bool _isTemporaryUid(String uid) {
+    // 空文字列は仮設定として扱わない（初回ログインとして扱う）
+    if (uid.isEmpty) {
+      return false;
+    }
+
     // MockAuthServiceが生成する仮設定UIDパターンを検出
     if (uid.startsWith('mock_')) {
       return true;
     }
-    
+
     // ローカルテスト用の仮設定UIDパターンを検出
-    if (uid.startsWith('local_') || uid.startsWith('temp_') || uid.startsWith('dev_')) {
+    if (uid.startsWith('local_') ||
+        uid.startsWith('temp_') ||
+        uid.startsWith('dev_')) {
       return true;
     }
-    
-    // 空文字列や明らかに無効なUIDも仮設定として扱う
-    if (uid.isEmpty || uid.length < 10) {
+
+    // 明らかに無効なUID（短すぎる）も仮設定として扱う
+    if (uid.length < 10) {
       return true;
     }
-    
+
     return false;
   }
 }
