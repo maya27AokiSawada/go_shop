@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
+import '../providers/user_settings_provider.dart';
+import '../providers/app_mode_notifier_provider.dart';
+import '../datastore/user_settings_repository.dart';
 import '../services/access_control_service.dart';
 import '../services/user_preferences_service.dart';
 import '../widgets/auth_panel_widget.dart';
@@ -10,6 +13,7 @@ import '../widgets/test_scenario_widget.dart';
 import '../services/user_initialization_service.dart';
 import '../utils/app_logger.dart';
 import '../pages/help_page.dart';
+import '../config/app_mode_config.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -213,6 +217,11 @@ class _HomePageState extends ConsumerState<HomePage> {
                     AppLogger.info('ユーザー名保存成功');
                   },
                 ),
+
+                const SizedBox(height: 20),
+
+                // 2.5. アプリモード切り替えパネル
+                _buildAppModeSwitchPanel(ref),
 
                 const SizedBox(height: 20),
 
@@ -490,6 +499,131 @@ class _HomePageState extends ConsumerState<HomePage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  /// アプリモード切り替えパネル
+  Widget _buildAppModeSwitchPanel(WidgetRef ref) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.swap_horiz, color: Colors.blue.shade700, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'アプリモード',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.blue.shade800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'このアプリの用途を選択してください',
+            style: TextStyle(fontSize: 12, color: Colors.blue.shade600),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildModeButton(
+                  ref,
+                  icon: Icons.shopping_cart,
+                  label: '買い物リスト',
+                  mode: 0,
+                  color: Colors.green,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildModeButton(
+                  ref,
+                  icon: Icons.checklist,
+                  label: 'TODO共有',
+                  mode: 1,
+                  color: Colors.orange,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModeButton(
+    WidgetRef ref, {
+    required IconData icon,
+    required String label,
+    required int mode,
+    required Color color,
+  }) {
+    final userSettings = ref.watch(userSettingsProvider);
+    final currentMode = userSettings.value?.appMode ?? 0;
+    final isSelected = currentMode == mode;
+
+    return ElevatedButton(
+      onPressed: () async {
+        final settings = userSettings.value;
+        if (settings == null) return;
+
+        if (!context.mounted) return;
+        final messenger = ScaffoldMessenger.of(context);
+
+        final updatedSettings = settings.copyWith(appMode: mode);
+        final repository = ref.read(userSettingsRepositoryProvider);
+        await repository.saveSettings(updatedSettings);
+
+        // AppModeSettingsに反映
+        AppModeSettings.setMode(AppMode.values[mode]);
+
+        // 全画面を強制的に再描画
+        ref.invalidate(userSettingsProvider);
+        // HomeScreenを強制的に再構築（BottomNavigationBar用語更新）
+        ref.read(appModeNotifierProvider.notifier).state = AppMode.values[mode];
+
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('モードを「$label」に変更しました'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: isSelected ? color : Colors.grey.shade300,
+        foregroundColor: isSelected ? Colors.white : Colors.black87,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(
+            color: isSelected ? color : Colors.grey.shade400,
+            width: 2,
+          ),
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 24),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12),
+          ),
+        ],
       ),
     );
   }

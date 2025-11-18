@@ -14,6 +14,7 @@ import '../services/access_control_service.dart';
 import '../services/user_preferences_service.dart';
 import '../services/user_initialization_service.dart';
 import 'user_specific_hive_provider.dart';
+import 'auth_provider.dart';
 
 // Logger instance
 
@@ -474,6 +475,9 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
             '🔄 [ALL GROUPS] グループが0個です。UserInitializationServiceでデフォルトグループが作成されます');
       } else {
         Log.info('📊 [ALL GROUPS] グループ数: ${allGroups.length}個');
+
+        // ⚠️ 重複デフォルトグループのクリーンアップ
+        await _cleanupDuplicateDefaultGroups(hiveRepo);
       }
 
       return filteredGroups;
@@ -719,6 +723,19 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
         Log.info(
             '💡 [CREATE DEFAULT] 既存グループのsyncStatus: ${existingGroup.syncStatus}');
 
+        // ⚠️ レガシー'default_group'が残っている場合は削除
+        if (defaultGroupId != 'default_group') {
+          try {
+            await hiveRepository.getGroupById('default_group');
+            // レガシーグループが存在する場合は削除
+            await hiveRepository.deleteGroup('default_group');
+            Log.info('🗑️ [CREATE DEFAULT] レガシーdefault_groupを削除しました');
+          } catch (e) {
+            // レガシーグループが存在しない場合は何もしない
+            Log.info('💡 [CREATE DEFAULT] レガシーdefault_groupは存在しません');
+          }
+        }
+
         // syncStatus=localの場合、同期処理でFirestoreにアップロードされることを通知
         if (existingGroup.syncStatus == models.SyncStatus.local) {
           Log.info('💡 [CREATE DEFAULT] このグループは次回の同期処理でFirestoreにアップロードされます');
@@ -766,6 +783,36 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
       Log.error('❌ [CREATE DEFAULT] デフォルトグループ作成エラー: $e');
       Log.error('❌ [CREATE DEFAULT] スタックトレース: $stackTrace');
       rethrow;
+    }
+  }
+
+  /// 重複デフォルトグループをクリーンアップ
+  Future<void> _cleanupDuplicateDefaultGroups(
+      HivePurchaseGroupRepository hiveRepo) async {
+    try {
+      final authState = ref.read(authStateProvider);
+      final user = authState.maybeWhen(data: (u) => u, orElse: () => null);
+
+      if (user == null) return;
+
+      final currentUserId = user.uid;
+
+      try {
+        await hiveRepo.getGroupById('default_group');
+
+        try {
+          await hiveRepo.getGroupById(currentUserId);
+
+          await hiveRepo.deleteGroup('default_group');
+          Log.info('🗑️ [CLEANUP] 重複デフォルトグループ(default_group)を削除しました');
+
+          ref.invalidateSelf();
+        } catch (_) {
+          Log.info('💡 [CLEANUP] UIDグループ未存在のためレガシーグループを保持');
+        }
+      } catch (_) {}
+    } catch (e) {
+      Log.warning('⚠️ [CLEANUP] デフォルトグループクリーンアップエラー: $e');
     }
   }
 }

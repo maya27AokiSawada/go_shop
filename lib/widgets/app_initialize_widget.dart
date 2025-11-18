@@ -6,10 +6,13 @@ import '../services/data_version_service.dart';
 import '../services/user_initialization_service.dart';
 import '../services/notification_service.dart';
 import '../services/user_preferences_service.dart';
+import '../services/user_specific_hive_service.dart';
 import '../widgets/data_migration_widget.dart';
 import '../utils/app_logger.dart';
 import '../helpers/user_id_change_helper.dart';
 import '../flavors.dart';
+import '../config/app_mode_config.dart';
+import '../providers/user_settings_provider.dart';
 
 /// アプリ初期化を管理するウィジェット
 ///
@@ -203,12 +206,32 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
     }
   }
 
-  /// 最小限の初期化（基本サービスのみ）
+  /// 最小限の初期化(基本サービスのみ)
   Future<void> _initializeUserServices() async {
     try {
       setState(() {
         _initializationStatus = 'サービス準備中...';
       });
+
+      // Hive Boxを開く（UserSettingsにアクセスする前に必須）
+      // Android/iOS/MacOSではinitializeForDefaultUserを使用
+      try {
+        await UserSpecificHiveService.instance.initializeForDefaultUser();
+        Log.info('✅ Hive Box初期化完了（デフォルトユーザー）');
+      } catch (e) {
+        Log.error('❌ Hive Box初期化エラー: $e');
+      }
+
+      // AppMode初期化: UserSettingsからモードを読み込み
+      try {
+        final userSettings = await ref.read(userSettingsProvider.future);
+        final appMode = AppMode.values[userSettings.appMode];
+        AppModeSettings.setMode(appMode);
+        Log.info('✅ AppMode初期化: ${appMode.name}');
+      } catch (e) {
+        Log.error('⚠️ AppMode初期化エラー: $e (デフォルトモード使用)');
+        // エラー時はデフォルト(shopping)のまま
+      }
 
       // 基本的なユーザー初期化サービスの開始のみ
       final userInitService = ref.read(userInitializationServiceProvider);

@@ -3,6 +3,7 @@
 ## 📋 本日の作業サマリー
 
 ### 🎯 主要課題
+
 **UID変更時のデータ初期化後、デフォルトグループが作成されない問題の修正**
 
 ---
@@ -10,13 +11,16 @@
 ## 🔧 実装内容
 
 ### 1. **デフォルトグループ作成ロジックの修正**
+
 **問題**: UID変更時の「初期化」処理後、Firestoreから0件のグループをダウンロードしても、デフォルトグループが自動作成されなかった。
 
 **原因**:
+
 - `UserInitializationService`のデフォルトグループ作成は、Firebase Authの`authStateChanges()`イベント時のみトリガー
 - UID変更時は既にログイン済みのため、このイベントは発火しない
 
 **解決策**:
+
 ```dart
 // lib/helpers/user_id_change_helper.dart
 // Firestore同期後に明示的にデフォルトグループを作成
@@ -30,6 +34,7 @@ if (user != null) {
 ```
 
 **修正ファイル**:
+
 - `lib/helpers/user_id_change_helper.dart`: デフォルトグループ作成処理を追加
 
 ---
@@ -37,13 +42,16 @@ if (user != null) {
 ### 2. **デフォルトグループ判定の統一化**
 
 **問題**: デフォルトグループの判定ロジックが複数箇所で不統一
+
 - 正式仕様: `groupId == user.uid`
 - レガシー実装: `groupId == 'default_group'`
 
 **解決策**: 統一ヘルパーメソッドを作成
 
 #### 新規ファイル作成
+
 **`lib/utils/group_helpers.dart`**:
+
 ```dart
 /// デフォルトグループかどうかを判定
 ///
@@ -72,7 +80,9 @@ bool isDefaultGroupById(String groupId, String? currentUserId) {
 ```
 
 #### 全箇所の判定ロジックを統一
+
 **修正ファイル**:
+
 1. **`lib/widgets/group_list_widget.dart`**:
    - UI表示判定を統一ヘルパーに置き換え
    - 削除制限判定を統一
@@ -82,6 +92,7 @@ bool isDefaultGroupById(String groupId, String? currentUserId) {
 
 3. **`lib/providers/purchase_group_provider.dart`**:
    - 削除制限にUID一致チェックを追加
+
    ```dart
    if (currentGroup.groupId == 'default_group' ||
        (currentUser != null && currentGroup.groupId == currentUser.uid)) {
@@ -140,6 +151,7 @@ if (user != null && expectedDefaultGroupId != 'local_default') {
 ```
 
 **移行フロー**:
+
 1. ユーザーログイン時に`'default_group'`の存在確認
 2. 存在すれば`groupId`を`user.uid`に変更して保存
 3. レガシーグループを削除
@@ -150,10 +162,12 @@ if (user != null && expectedDefaultGroupId != 'local_default') {
 ## 🎯 動作仕様
 
 ### デフォルトグループ判定ルール
+
 - `groupId == 'default_group'` → デフォルト（レガシー対応）
 - `groupId == user.uid` → デフォルト（正式仕様）
 
 ### UID変更時の完全フロー
+
 1. UID変更検出 → `UserDataMigrationDialog`表示
 2. 「初期化」選択:
    - Hiveデータクリア（PurchaseGroup + ShoppingList）
@@ -168,9 +182,11 @@ if (user != null && expectedDefaultGroupId != 'local_default') {
 ## 📝 修正ファイル一覧
 
 ### 新規作成
+
 - `lib/utils/group_helpers.dart`
 
 ### 修正
+
 - `lib/helpers/user_id_change_helper.dart`
 - `lib/services/user_initialization_service.dart`
 - `lib/widgets/group_list_widget.dart`
@@ -193,6 +209,7 @@ if (user != null && expectedDefaultGroupId != 'local_default') {
 ## 🔄 継続課題
 
 ### 明日のテスト予定
+
 - 異なるユーザーでサインイン時の動作確認
 - デフォルトグループ作成確認
 - レガシーグループ移行確認
@@ -203,12 +220,14 @@ if (user != null && expectedDefaultGroupId != 'local_default') {
 ## 📊 技術的知見
 
 ### デフォルトグループの設計思想
+
 - **groupId = user.uid**: ユーザー専用グループとして識別
 - **syncStatus = local**: Firestoreに同期しない（プライベートグループ）
 - **削除不可**: UI・Repository・Providerの3層で保護
 - **レガシー対応**: `'default_group'`との後方互換性維持
 
 ### Riverpodでの非同期処理パターン
+
 ```dart
 // ❌ 間違い: awaitの後にref.read()
 await someAsyncOperation();
@@ -225,12 +244,14 @@ await provider.someMethod();
 ## 🐛 発見した既存の問題
 
 ### 判定ロジックの不統一
+
 - 6箇所で異なる判定ロジック使用
 - 一部は`'default_group'`のみチェック
 - 一部はUID一致のみチェック
 - → 統一ヘルパーで解決
 
 ### Firebase Auth イベントへの依存
+
 - `authStateChanges()`イベントがないとデフォルトグループ未作成
 - UID変更時は既ログイン状態のためイベント発火せず
 - → 明示的な作成処理追加で解決
@@ -256,6 +277,7 @@ await provider.someMethod();
 ## 📈 進捗状況
 
 ### セキュリティ機能
+
 - ✅ UID変更検出（完了）
 - ✅ データ初期化フロー（完了）
 - ✅ Firestore同期（完了）
@@ -263,6 +285,7 @@ await provider.someMethod();
 - ⏳ データ引き継ぎ（マージ処理）（未実装）
 
 ### コード品質
+
 - ✅ 判定ロジック統一（本日完了）
 - ✅ レガシー互換性（本日完了）
 - ⏳ テストカバレッジ拡充（継続）
@@ -272,6 +295,7 @@ await provider.someMethod();
 ## 👨‍💻 開発者メモ
 
 ### デバッグに有効なログ
+
 ```
 🆕 [UID変更] デフォルトグループ作成チェック...
 ✅ [UID変更] デフォルトグループ作成完了
@@ -280,6 +304,7 @@ await provider.someMethod();
 ```
 
 ### 確認コマンド
+
 ```bash
 # ビルドエラーチェック
 flutter analyze

@@ -300,6 +300,104 @@ if (legacyGroupExists && !uidGroupExists) {
 
 **Critical**: After UID change data clear, must explicitly create default group as `authStateChanges()` doesn't fire for existing login.
 
+### App Mode & Terminology System (Added: 2025-11-18)
+**アプリモード機能** = 買い物リストモード ⇄ TODOタスク管理モード切り替え
+
+#### Architecture
+**Central Configuration**: `lib/config/app_mode_config.dart`
+```dart
+enum AppMode { shopping, todo }
+
+class AppModeConfig {
+  final AppMode mode;
+
+  String get groupName => mode == shopping ? 'グループ' : 'チーム';
+  String get listName => mode == shopping ? 'リスト' : 'プロジェクト';
+  String get itemName => mode == shopping ? 'アイテム' : 'タスク';
+  // 50+ terminology mappings
+}
+
+class AppModeSettings {
+  static AppMode _currentMode = AppMode.shopping;
+  static AppModeConfig get config => AppModeConfig(_currentMode);
+  static void setMode(AppMode mode) => _currentMode = mode;
+}
+```
+
+#### Persistence Layer
+**UserSettings Model** (`lib/models/user_settings.dart`):
+```dart
+@HiveField(5) @Default(0) int appMode;  // 0=shopping, 1=todo
+```
+
+**Mode Switching Flow**:
+1. User taps mode button in `home_page.dart`
+2. Save to Hive via `userSettingsRepository.saveSettings()`
+3. Update global state: `AppModeSettings.setMode(newMode)`
+4. Trigger UI refresh: `ref.read(appModeNotifierProvider.notifier).state = newMode`
+5. All widgets using `AppModeSettings.config.*` update instantly
+
+#### UI Integration Pattern
+**Before** (hardcoded):
+```dart
+Text('グループ')
+```
+
+**After** (dynamic):
+```dart
+Text(AppModeSettings.config.groupName)  // 'グループ' or 'チーム'
+```
+
+#### Key Components
+- **Config Provider**: `lib/providers/app_mode_notifier_provider.dart`
+  - `appModeNotifierProvider`: StateProvider for triggering UI rebuilds
+  - Watch this provider in screens that need immediate updates
+
+- **Mode Switcher UI**: `lib/pages/home_page.dart` (lines 560-600)
+  - SegmentedButton with shopping/todo options
+  - Saves to Hive + updates AppModeSettings + invalidates providers
+
+- **Initialization**: `lib/widgets/app_initialize_widget.dart`
+  - Loads saved mode from Hive on app startup
+  - Sets `AppModeSettings.setMode()` before UI renders
+
+#### Critical Rules
+1. **Always use config**: `AppModeSettings.config.{property}` for all UI text
+2. **Never hardcode**: No `'グループ'` or `'リスト'` strings in widgets
+3. **Import required**: `import '../config/app_mode_config.dart';`
+4. **Watch provider**: For instant updates, `ref.watch(appModeNotifierProvider)`
+
+#### Terminology Coverage (50+ terms)
+- **Group**: groupName, createGroup, selectGroup, groupMembers
+- **List**: listName, createList, selectList, shoppingList
+- **Item**: itemName, addItem, itemList, itemCount
+- **Actions**: createAction, editAction, deleteAction, shareAction
+- **UI Labels**: All buttons, dialogs, snackbars, navigation labels
+
+**Files Modified** (2025-11-18):
+- `lib/config/app_mode_config.dart` (new - 345 lines)
+- `lib/providers/app_mode_notifier_provider.dart` (new)
+- `lib/pages/home_page.dart` (mode switcher added)
+- `lib/screens/home_screen.dart` (BottomNavigationBar labels)
+- `lib/widgets/app_initialize_widget.dart` (mode initialization)
+- `lib/models/user_settings.dart` (appMode field added)
+
+#### Access Control Integration
+**Pre-signup restrictions**:
+- `GroupVisibilityMode.defaultOnly`: Only default group visible
+- `canCreateGroup() = false`: Group creation disabled
+- User can only use default group (local-only)
+
+**Post-signup capabilities**:
+- `GroupVisibilityMode.all`: All groups visible
+- `canCreateGroup() = true`: Group creation enabled
+- Default group syncs to Firestore with `groupId = user.uid`
+
+**Firestore Safety**:
+- Default group uses `user.uid` as document key (unique per user)
+- **Multiple default groups physically impossible** in Firestore
+- Each user can only have ONE default group synced to Firestore
+
 ## Common Issues & Solutions
 - **Build failures**: Check for Riverpod Generator imports, remove them
 - **Missing variables**: Ensure controllers and providers are properly defined before use
