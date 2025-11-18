@@ -678,6 +678,11 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
   /// デフォルトグループを作成（groupId = user.uid）
   /// user_initialization_serviceから呼び出される
   Future<void> createDefaultGroup(User? user) async {
+    // ⚠️ CRITICAL: ref.read()を全てメソッド開始時に取得（async処理前）
+    final hiveReady = ref.read(hiveInitializationStatusProvider);
+    final hiveInitFuture = ref.read(hiveUserInitializationProvider.future);
+    final hiveRepository = ref.read(hivePurchaseGroupRepositoryProvider);
+
     try {
       Log.info('🆕 [CREATE DEFAULT] デフォルトグループ作成開始（AllGroupsNotifier）');
 
@@ -699,11 +704,6 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
       // デフォルトグループ作成（createNewGroupのロジックを再利用）
       final defaultGroupName = '$displayNameグループ';
       Log.info('📝 [CREATE DEFAULT] グループ作成: $defaultGroupName');
-
-      // ⚠️ 重要: ref.read()は全てawaitの前に取得（Riverpodルール）
-      final hiveReady = ref.read(hiveInitializationStatusProvider);
-      final hiveInitFuture = ref.read(hiveUserInitializationProvider.future);
-      final hiveRepository = ref.read(hivePurchaseGroupRepositoryProvider);
 
       Log.info(
           '🔍 [CREATE DEFAULT] 直接Hiveリポジトリ使用: ${hiveRepository.runtimeType}');
@@ -741,13 +741,12 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
           Log.info('💡 [CREATE DEFAULT] このグループは次回の同期処理でFirestoreにアップロードされます');
         }
 
-        // ⚠️ デバッグ: ref.invalidateSelf()前のHive状態確認
+        // ⚠️ デバッグ: Hive状態確認
         final allGroups = await hiveRepository.getAllGroups();
-        Log.info(
-            '🔍 [CREATE DEFAULT] ref.invalidateSelf()前のHive内グループ数: ${allGroups.length}個');
+        Log.info('🔍 [CREATE DEFAULT] Hive内グループ数: ${allGroups.length}個');
 
-        // プロバイダーを更新（既存グループを表示）
-        ref.invalidateSelf();
+        // 既存グループがあるので何もせず終了（プロバイダー更新不要）
+        Log.info('✅ [CREATE DEFAULT] 既存グループを使用（更新なし）');
         return;
       } catch (e) {
         // グループが存在しない場合は新規作成を続行

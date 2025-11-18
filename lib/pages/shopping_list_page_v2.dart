@@ -97,34 +97,27 @@ class _ShoppingListPageV2State extends ConsumerState<ShoppingListPageV2> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('買い物リスト'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              // リストを再読み込み
-              Log.info('🔄 リストを再読み込み');
-              ref.invalidate(groupShoppingListsProvider);
-              ref.invalidate(currentListProvider);
-            },
-            tooltip: '再読み込み',
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // ヘッダー：グループ選択＋リスト選択
-          const ShoppingListHeaderWidget(),
+    return Stack(
+      children: [
+        SafeArea(
+          child: Column(
+            children: [
+              // ヘッダー：グループ選択＋リスト選択
+              const ShoppingListHeaderWidget(),
 
-          // アイテム一覧
-          Expanded(
-            child: _ShoppingItemsListWidget(),
+              // アイテム一覧
+              Expanded(
+                child: _ShoppingItemsListWidget(),
+              ),
+            ],
           ),
-        ],
-      ),
-      floatingActionButton: _buildFloatingActionButton(context, ref),
+        ),
+        Positioned(
+          right: 16,
+          bottom: 16,
+          child: _buildFloatingActionButton(context, ref),
+        ),
+      ],
     );
   }
 

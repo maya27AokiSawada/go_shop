@@ -12,7 +12,6 @@ import '../widgets/news_and_ads_panel_widget.dart';
 import '../widgets/test_scenario_widget.dart';
 import '../services/user_initialization_service.dart';
 import '../utils/app_logger.dart';
-import '../pages/help_page.dart';
 import '../config/app_mode_config.dart';
 
 class HomePage extends ConsumerStatefulWidget {
@@ -67,25 +66,8 @@ class _HomePageState extends ConsumerState<HomePage> {
     final authState = ref.watch(authStateProvider);
     final syncStatus = ref.watch(firestoreSyncStatusProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Go Shop'),
-        actions: [
-          // ヘルプボタン
-          IconButton(
-            icon: const Icon(Icons.help_outline),
-            tooltip: 'ヘルプ',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const HelpPage(),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-      body: authState.when(
+    return SafeArea(
+      child: authState.when(
         data: (user) {
           final isAuthenticated = user != null;
 

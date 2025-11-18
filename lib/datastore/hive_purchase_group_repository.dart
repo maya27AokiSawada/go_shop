@@ -137,6 +137,7 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
   }
 
   /// 削除済みHiveデータを物理削除してデータベースを最適化
+  @override
   Future<int> cleanupDeletedGroups() async {
     try {
       final box = await _boxAsync;
@@ -367,10 +368,9 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
   @override
   Future<PurchaseGroup> deleteGroup(String groupId) async {
     try {
-      // デフォルトグループは削除不可
+      // UIDベースのデフォルトグループのみ削除不可（レガシーdefault_groupは削除可能）
       final currentUser = FirebaseAuth.instance.currentUser;
-      if (groupId == 'default_group' ||
-          (currentUser != null && groupId == currentUser.uid)) {
+      if (currentUser != null && groupId == currentUser.uid) {
         throw Exception('Cannot delete default group');
       }
 
