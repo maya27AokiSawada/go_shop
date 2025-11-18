@@ -332,17 +332,13 @@ class AppModeSettings {
 
   /// 設定ファイルからモードを読み込み
   static Future<void> loadMode() async {
-    // TODO: SharedPreferencesから読み込み
-    // final prefs = await SharedPreferences.getInstance();
-    // final modeIndex = prefs.getInt('app_mode') ?? 0;
-    // _currentMode = AppMode.values[modeIndex];
+    // UserSettingsから読み込む（main.dartのProviderScopeで初期化されるまで待つ）
+    // 実際の読み込みはapp_initialize_widget.dartで行われる
   }
 
   /// 設定ファイルにモードを保存
   static Future<void> saveMode(AppMode mode) async {
     _currentMode = mode;
-    // TODO: SharedPreferencesに保存
-    // final prefs = await SharedPreferences.getInstance();
-    // await prefs.setInt('app_mode', mode.index);
+    // UserSettingsへの保存はhome_page.dartのボタン押下時に行われる
   }
 }

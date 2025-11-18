@@ -126,22 +126,20 @@ class UserInitializationService {
             );
             await hiveRepository.saveGroup(migratedGroup);
             Log.info('✅ [INIT] default_group → $expectedDefaultGroupId に移行完了');
-
-            // レガシーグループを削除
-            try {
-              await hiveRepository.deleteGroup('default_group');
-              Log.info('🗑️ [INIT] レガシーdefault_groupを削除');
-            } catch (e) {
-              Log.warning('⚠️ [INIT] レガシーdefault_group削除エラー: $e');
-            }
           } else {
             Log.info('💡 [INIT] UIDグループが既に存在。レガシーグループは削除のみ実行');
-            try {
-              await hiveRepository.deleteGroup('default_group');
-              Log.info('🗑️ [INIT] レガシーdefault_groupを削除');
-            } catch (e) {
-              Log.warning('⚠️ [INIT] レガシーdefault_group削除エラー: $e');
-            }
+          }
+
+          // ⚠️ レガシーグループを必ず削除（移行の有無に関わらず）
+          try {
+            await hiveRepository.deleteGroup('default_group');
+            Log.info('🗑️ [INIT] レガシーdefault_groupを削除');
+
+            // AllGroupsProviderを更新して削除を反映
+            _ref.invalidate(allGroupsProvider);
+            Log.info('🔄 [INIT] AllGroupsProviderを更新（レガシーグループ削除反映）');
+          } catch (e) {
+            Log.warning('⚠️ [INIT] レガシーdefault_group削除エラー: $e');
           }
         } catch (e) {
           // レガシーグループが存在しない場合は何もしない
