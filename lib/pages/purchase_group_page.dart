@@ -51,78 +51,26 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
 
     Log.info('🏷️ [PAGE BUILD] PurchaseGroupPage表示開始');
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('グループ管理'),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
-        actions: [
-          // 設定メニュー
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.settings),
-            onSelected: (value) {
-              switch (value) {
-                case 'delete_group':
-                  // グループが選択されており、ユーザーのデフォルトグループ(uid==groupId)でない場合のみ削除可能
-                  if (selectedGroupId != null) {
-                    final currentUser = ref.read(authProvider).currentUser;
-                    final isDefaultGroup = currentUser != null &&
-                        selectedGroupId == currentUser.uid;
-                    if (!isDefaultGroup) {
-                      _showDeleteGroupDialog(context, selectedGroupId);
-                    }
-                  }
-                  break;
-                case 'cleanup_hive':
-                  _showCleanupDialog(context, ref);
-                  break;
-              }
-            },
-            itemBuilder: (context) {
-              final currentUser = ref.read(authProvider).currentUser;
-              final isDefaultGroup =
-                  currentUser != null && selectedGroupId == currentUser.uid;
-              return [
-                if (!isDefaultGroup)
-                  const PopupMenuItem(
-                    value: 'delete_group',
-                    child: Row(
-                      children: [
-                        Icon(Icons.delete, color: Colors.red),
-                        SizedBox(width: 8),
-                        Text('グループを削除'),
-                      ],
-                    ),
-                  ),
-                const PopupMenuItem(
-                  value: 'cleanup_hive',
-                  child: Row(
-                    children: [
-                      Icon(Icons.cleaning_services, color: Colors.orange),
-                      SizedBox(width: 8),
-                      Text('削除済みデータをクリーンアップ'),
-                    ],
-                  ),
-                ),
-              ];
-            },
+    return Stack(
+      children: [
+        const SafeArea(
+          child: Padding(
+            padding: EdgeInsets.all(16.0),
+            child: GroupListWidget(),
           ),
-        ],
-      ),
-      body: const SafeArea(
-        child: Padding(
-          padding: EdgeInsets.all(16.0),
-          child: GroupListWidget(),
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCreateGroupDialog(context),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.group_add),
-        label: const Text('新しいグループ'),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+        Positioned(
+          right: 16,
+          bottom: 16,
+          child: FloatingActionButton.extended(
+            onPressed: () => _showCreateGroupDialog(context),
+            backgroundColor: Colors.blue,
+            foregroundColor: Colors.white,
+            icon: const Icon(Icons.group_add),
+            label: const Text('新しいグループ'),
+          ),
+        ),
+      ],
     );
   }
 

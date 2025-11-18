@@ -6,8 +6,10 @@ import '../providers/app_mode_notifier_provider.dart';
 import '../pages/home_page.dart';
 import '../pages/purchase_group_page.dart';
 import '../pages/shopping_list_page_v2.dart';
+import '../pages/settings_page.dart';
 import '../flavors.dart';
 import '../config/app_mode_config.dart';
+import '../utils/app_logger.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -17,10 +19,13 @@ class HomeScreen extends ConsumerWidget {
     // AppMode変更を監視して自動的に再構築
     ref.watch(appModeNotifierProvider);
 
+    AppLogger.info('🔍 [HomeScreen] build() called - pageIndex: $pageIndex');
+
     final List<Widget> pages = [
       const HomePage(),
       const PurchaseGroupPage(),
-      const ShoppingListPageV2(), // 新しいバージョンを使用
+      const ShoppingListPageV2(),
+      const SettingsPage(),
     ];
 
     return Scaffold(
@@ -28,6 +33,9 @@ class HomeScreen extends ConsumerWidget {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: pageIndex,
         onTap: (index) {
+          AppLogger.info(
+              '🔍 [HomeScreen] BottomNavigationBar tapped - index: $index, current: $pageIndex');
+
           // グループページ (index == 1) の場合は認証チェック（本番環境のみ）
           if (index == 1 && F.appFlavor == Flavor.prod) {
             final authState = ref.read(authStateProvider);
@@ -37,6 +45,8 @@ class HomeScreen extends ConsumerWidget {
             );
 
             if (!isAuthenticated) {
+              AppLogger.info(
+                  '🔍 [HomeScreen] User not authenticated - showing SnackBar');
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
@@ -49,6 +59,7 @@ class HomeScreen extends ConsumerWidget {
             }
           }
 
+          AppLogger.info('🔍 [HomeScreen] Setting pageIndex to: $index');
           ref.read(pageIndexProvider.notifier).setPageIndex(index);
         },
         items: [
@@ -60,6 +71,10 @@ class HomeScreen extends ConsumerWidget {
           BottomNavigationBarItem(
             icon: const Icon(Icons.list),
             label: AppModeSettings.config.listName,
+          ),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.settings),
+            label: '設定',
           ),
         ],
       ),
