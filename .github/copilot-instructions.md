@@ -377,10 +377,44 @@ Text(AppModeSettings.config.groupName)  // 'グループ' or 'チーム'
 **Files Modified** (2025-11-18):
 - `lib/config/app_mode_config.dart` (new - 345 lines)
 - `lib/providers/app_mode_notifier_provider.dart` (new)
-- `lib/pages/home_page.dart` (mode switcher added)
+- `lib/pages/home_page.dart` (mode switcher removed - moved to settings)
+- `lib/pages/settings_page.dart` (mode switcher added)
 - `lib/screens/home_screen.dart` (BottomNavigationBar labels)
 - `lib/widgets/app_initialize_widget.dart` (mode initialization)
 - `lib/models/user_settings.dart` (appMode field added)
+
+### UI Organization (Updated: 2025-11-19)
+**Screen Separation**: Settings-related UI moved from home to dedicated settings page
+
+**home_page.dart** (Authentication & Core Features):
+- Login status display
+- Firestore sync status display
+- News & Ads panel
+- Username panel
+- Sign-in panel (when unauthenticated)
+- Sign-out button (when authenticated)
+
+**settings_page.dart** (Configuration & Development):
+- Login status display
+- Firestore sync status display
+- **App mode switcher** (Shopping List ⇄ TODO Sharing)
+- **Privacy settings** (Secret mode toggle)
+- **Developer tools** (Test scenario execution)
+
+**Critical Implementation**:
+- App mode switcher uses `Consumer` pattern to watch `appModeNotifierProvider`
+- Ensures UI updates immediately when mode changes
+```dart
+Consumer(
+  builder: (context, ref, child) {
+    final currentMode = ref.watch(appModeNotifierProvider);
+    return SegmentedButton<AppMode>(
+      selected: {currentMode},
+      // ...
+    );
+  },
+)
+```
 
 #### Access Control Integration
 **Pre-signup restrictions**:
@@ -404,5 +438,10 @@ Text(AppModeSettings.config.groupName)  // 'グループ' or 'チーム'
 - **Null reference errors**: Always null-check `members` lists and async data
 - **Property not found**: Verify `memberId` vs `memberID` consistency across codebase
 - **Default group not appearing**: Ensure `createDefaultGroup()` called after UID change data clear
+- **App mode UI not updating**: Wrap SegmentedButton in `Consumer` to watch `appModeNotifierProvider`
+- **Group/List sync delays**: Under investigation - check Firestore fetch time vs Hive save time
+
+## Known Issues (As of 2025-11-19)
+- **Group synchronization delay**: After sign-in, groups/lists may take time to appear. Investigating whether delay is from Firestore download or Hive save operation.
 
 Focus on maintaining consistency with existing patterns rather than introducing new architectural approaches.
