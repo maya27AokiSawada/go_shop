@@ -101,6 +101,21 @@ class UserPreferencesService {
         false;
   }
 
+  /// ユーザーIDをクリア（ログアウト時のUID変更検出用）
+  static Future<bool> clearUserId() async {
+    return await ErrorHandler.handleAsync(
+          operation: () async {
+            final prefs = await SharedPreferences.getInstance();
+            final success = await prefs.remove(_keyUserId);
+            Log.info('🗑️ SharedPreferences clearUserId - 成功: $success');
+            return success;
+          },
+          context: 'USER_PREFS:clearUserId',
+          defaultValue: false,
+        ) ??
+        false;
+  }
+
   /// データバージョンを取得
   static Future<int> getDataVersion() async {
     return await ErrorHandler.handleAsync(
