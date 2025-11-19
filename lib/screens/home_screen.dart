@@ -31,6 +31,7 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       body: pages[pageIndex],
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
         currentIndex: pageIndex,
         onTap: (index) {
           AppLogger.info(

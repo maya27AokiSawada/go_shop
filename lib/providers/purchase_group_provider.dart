@@ -475,9 +475,6 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
             '🔄 [ALL GROUPS] グループが0個です。UserInitializationServiceでデフォルトグループが作成されます');
       } else {
         Log.info('📊 [ALL GROUPS] グループ数: ${allGroups.length}個');
-
-        // ⚠️ 重複デフォルトグループのクリーンアップ
-        await _cleanupDuplicateDefaultGroups(hiveRepo);
       }
 
       return filteredGroups;
@@ -776,42 +773,12 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
           '� [CREATE DEFAULT] syncStatus=local として作成。同期処理でFirestoreにアップロードされます');
 
       // プロバイダーを更新
-      ref.invalidateSelf();
+      // ref.invalidateSelf(); // REMOVED: Riverpod violation
       Log.info('🔄 [CREATE DEFAULT] UI更新完了');
     } catch (e, stackTrace) {
       Log.error('❌ [CREATE DEFAULT] デフォルトグループ作成エラー: $e');
       Log.error('❌ [CREATE DEFAULT] スタックトレース: $stackTrace');
-      rethrow;
-    }
-  }
-
-  /// 重複デフォルトグループをクリーンアップ
-  Future<void> _cleanupDuplicateDefaultGroups(
-      HivePurchaseGroupRepository hiveRepo) async {
-    try {
-      final authState = ref.read(authStateProvider);
-      final user = authState.maybeWhen(data: (u) => u, orElse: () => null);
-
-      if (user == null) return;
-
-      final currentUserId = user.uid;
-
-      try {
-        await hiveRepo.getGroupById('default_group');
-
-        try {
-          await hiveRepo.getGroupById(currentUserId);
-
-          await hiveRepo.deleteGroup('default_group');
-          Log.info('🗑️ [CLEANUP] 重複デフォルトグループ(default_group)を削除しました');
-
-          ref.invalidateSelf();
-        } catch (_) {
-          Log.info('💡 [CLEANUP] UIDグループ未存在のためレガシーグループを保持');
-        }
-      } catch (_) {}
-    } catch (e) {
-      Log.warning('⚠️ [CLEANUP] デフォルトグループクリーンアップエラー: $e');
+      // rethrow; // REMOVED: Allow initialization to continue
     }
   }
 }
