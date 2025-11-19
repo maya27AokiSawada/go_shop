@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
+import '../providers/user_settings_provider.dart';
+import '../providers/app_mode_notifier_provider.dart';
 import '../services/user_preferences_service.dart';
 import '../services/user_initialization_service.dart';
+import '../services/access_control_service.dart';
+import '../datastore/user_settings_repository.dart';
+import '../widgets/test_scenario_widget.dart';
+import '../config/app_mode_config.dart';
 import '../utils/app_logger.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
@@ -14,6 +20,7 @@ class SettingsPage extends ConsumerStatefulWidget {
 
 class _SettingsPageState extends ConsumerState<SettingsPage> {
   final userNameController = TextEditingController();
+  bool _isSecretMode = false;
 
   @override
   void initState() {
@@ -31,6 +38,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           } else {
             AppLogger.warning('ユーザー名が保存されていません');
           }
+
+          // シークレットモード状態も読み込み
+          final accessControl = ref.read(accessControlServiceProvider);
+          final isSecretMode = await accessControl.isSecretModeEnabled();
+          setState(() {
+            _isSecretMode = isSecretMode;
+          });
         } catch (e) {
           AppLogger.error('UserPreferences読み込みエラー', e);
         }
@@ -169,6 +183,261 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 ],
 
                 const SizedBox(height: 20),
+
+                // アプリモード切り替えパネル（常に表示）
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.swap_horiz,
+                            color: Colors.blue.shade700,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'アプリモード',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.blue.shade800,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'アプリの表示モードを切り替えます',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue.shade600,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Consumer(
+                        builder: (context, ref, child) {
+                          // appModeNotifierProviderを監視して現在のモードを取得
+                          final currentMode =
+                              ref.watch(appModeNotifierProvider);
+
+                          return SegmentedButton<AppMode>(
+                            segments: const [
+                              ButtonSegment<AppMode>(
+                                value: AppMode.shopping,
+                                label: Text('買い物リスト'),
+                                icon: Icon(Icons.shopping_cart, size: 16),
+                              ),
+                              ButtonSegment<AppMode>(
+                                value: AppMode.todo,
+                                label: Text('TODO共有'),
+                                icon: Icon(Icons.task_alt, size: 16),
+                              ),
+                            ],
+                            selected: {currentMode},
+                            onSelectionChanged:
+                                (Set<AppMode> newSelection) async {
+                              final newMode = newSelection.first;
+
+                              // UserSettingsに保存
+                              final userSettingsAsync =
+                                  await ref.read(userSettingsProvider.future);
+                              final updatedSettings =
+                                  userSettingsAsync.copyWith(
+                                appMode: newMode.index,
+                              );
+                              final repository =
+                                  ref.read(userSettingsRepositoryProvider);
+                              await repository.saveSettings(updatedSettings);
+
+                              // AppModeSettingsに反映
+                              AppModeSettings.setMode(newMode);
+
+                              // UIを更新（appModeNotifierProviderを使用）
+                              ref.read(appModeNotifierProvider.notifier).state =
+                                  newMode;
+
+                              // SnackBar表示
+                              if (context.mounted) {
+                                final modeName = newMode == AppMode.shopping
+                                    ? '買い物リスト'
+                                    : 'TODO共有';
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('モードを「$modeName」に変更しました'),
+                                    duration: const Duration(seconds: 2),
+                                  ),
+                                );
+                              }
+                            },
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // プライバシー設定パネル（認証済み時または開発環境で表示）
+                if (isAuthenticated || true) ...[
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.purple.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.purple.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.security,
+                              color: Colors.purple.shade700,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'プライバシー設定',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.purple.shade800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'シークレットモードをオンにすると、サインインが必要になります',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.purple.shade600,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            final accessControl =
+                                ref.read(accessControlServiceProvider);
+                            await accessControl.toggleSecretMode();
+                            final newSecretMode =
+                                await accessControl.isSecretModeEnabled();
+                            setState(() {
+                              _isSecretMode = newSecretMode;
+                            });
+                          },
+                          icon: Icon(
+                            _isSecretMode
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                            size: 16,
+                          ),
+                          label: Text(
+                            _isSecretMode ? 'シークレットモード: ON' : 'シークレットモード: OFF',
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _isSecretMode
+                                ? Colors.orange.shade100
+                                : Colors.green.shade100,
+                            foregroundColor: _isSecretMode
+                                ? Colors.orange.shade800
+                                : Colors.green.shade800,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            minimumSize: const Size(0, 36),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+
+                // 開発者ツールパネル（開発環境用）
+                if (true) ...[
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.teal.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.teal.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.science,
+                              color: Colors.teal.shade700,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '開発者ツール',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.teal.shade800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Firebase認証とCRUD操作のテストシナリオを実行できます',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.teal.shade600,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const TestScenarioWidget(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.play_circle_filled, size: 16),
+                          label: const Text(
+                            'テストシナリオ実行',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.teal.shade100,
+                            foregroundColor: Colors.teal.shade800,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            minimumSize: const Size(0, 36),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
 
                 // 設定ページのコンテンツをここに追加予定
                 Center(
