@@ -738,16 +738,33 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
           Log.info('💡 [CREATE DEFAULT] このグループは次回の同期処理でFirestoreにアップロードされます');
         }
 
-        // ⚠️ デバッグ: Hive状態確認
-        final allGroups = await hiveRepository.getAllGroups();
-        Log.info('🔍 [CREATE DEFAULT] Hive内グループ数: ${allGroups.length}個');
-
-        // 既存グループがあるので何もせず終了（プロバイダー更新不要）
-        Log.info('✅ [CREATE DEFAULT] 既存グループを使用（更新なし）');
+        // デフォルトグループが既に存在するので作成不要
+        Log.info('✅ [CREATE DEFAULT] デフォルトグループは既に存在 - 作成スキップ');
         return;
       } catch (e) {
-        // グループが存在しない場合は新規作成を続行
-        Log.info('📝 [CREATE DEFAULT] 既存グループなし - 新規作成を続行');
+        // グループが存在しない場合は、全グループをチェック
+        Log.info('🔍 [CREATE DEFAULT] 特定IDでは見つからず - 全グループをチェック');
+
+        try {
+          final allGroups = await hiveRepository.getAllGroups();
+          Log.info('🔍 [CREATE DEFAULT] Hive内グループ数: ${allGroups.length}個');
+
+          // デフォルトグループが既に存在するか確認（他のグループIDで作成済みの可能性）
+          final defaultGroupExists = allGroups.any((group) {
+            // group.groupIdがdefault_group固定文字列、またはuser.uidと一致
+            return group.groupId == 'default_group' ||
+                group.groupId == user?.uid;
+          });
+
+          if (defaultGroupExists) {
+            Log.info('✅ [CREATE DEFAULT] デフォルトグループは別IDで存在 - 作成スキップ');
+            return;
+          }
+
+          Log.info('📝 [CREATE DEFAULT] デフォルトグループなし - 新規作成を続行');
+        } catch (e2) {
+          Log.info('⚠️ [CREATE DEFAULT] グループチェックエラー: $e2 - 新規作成を続行');
+        }
       }
 
       // オーナーメンバーを作成
