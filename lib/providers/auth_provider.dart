@@ -7,9 +7,11 @@ import '../services/authentication_service.dart';
 import '../services/user_info_service.dart';
 import '../services/email_management_service.dart';
 import '../services/user_preferences_service.dart';
+import '../services/firestore_group_sync_service.dart';
 import '../providers/user_name_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/purchase_group_provider.dart';
+import '../providers/hive_provider.dart';
 import '../services/group_management_service.dart';
 import '../flavors.dart';
 
@@ -78,6 +80,11 @@ class FirebaseAuthService {
       Log.warning('🔧 DEV環境: Firebase認証は利用できません');
       return;
     }
+
+    // ログアウト時はUIDを保持（次回ログイン時のUID比較のため）
+    // await UserPreferencesService.clearUserId(); ← 削除
+    Log.info('🔓 [SIGNOUT] ログアウト実行（UIDは保持）');
+
     await _auth!.signOut();
   }
 
@@ -167,17 +174,21 @@ class FirebaseAuthService {
 
       UiHelper.showSuccessMessage(context, 'ログインしました');
 
-      // サインイン成功後の処理
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // サインイン成功後の処理（同期的に実行）
+      try {
         await _performPostSignInActions(ref, userNameController);
-        onSuccess();
-      });
+      } catch (e) {
+        Log.warning('⚠️ サインイン後処理でエラー: $e');
+      }
 
       // フォームリセット（メールアドレス保存時は email はクリアしない）
       if (!rememberEmail) {
         emailController.clear();
       }
       passwordController.clear();
+
+      // 成功コールバックは最後に実行
+      onSuccess();
     } on FirebaseAuthException catch (e) {
       Log.error('🚨 Firebase認証エラー: ${e.code} - ${e.message}');
       await _handleFirebaseAuthError(e, email, password, context, ref,
@@ -362,14 +373,45 @@ class FirebaseAuthService {
   // プライベートヘルパーメソッド
   Future<void> _performPostSignInActions(
       WidgetRef ref, TextEditingController userNameController) async {
+    // TextEditingControllerが破棄されていないかチェック
+    String? currentUserName;
+
     // SharedPreferences からユーザー名を読み込んで表示を更新
     final savedUserName = await UserPreferencesService.getUserName();
     if (savedUserName != null && savedUserName.isNotEmpty) {
-      userNameController.text = savedUserName;
+      currentUserName = savedUserName;
+      try {
+        userNameController.text = savedUserName;
+      } catch (e) {
+        Log.warning('⚠️ userNameController更新失敗（既にdispose済み）: $e');
+      }
       Log.info('📱 SharedPreferences からユーザー名を読み込み: $savedUserName');
     }
 
-    await _saveUserInfo(ref, userNameController.text, '');
+    await _saveUserInfo(ref, currentUserName ?? userNameController.text, '');
+
+    // Firestoreからグループを同期してHiveに保存（本番環境のみ）
+    if (F.appFlavor == Flavor.prod) {
+      try {
+        final syncedGroups =
+            await FirestoreGroupSyncService.syncGroupsOnSignIn();
+        if (syncedGroups.isNotEmpty) {
+          final groupBox = ref.read(purchaseGroupBoxProvider);
+          for (final group in syncedGroups) {
+            try {
+              await groupBox.put(group.groupId, group);
+              Log.info('📦 [サインイン] グループ「${group.groupName}」をHiveに保存');
+            } catch (e) {
+              Log.warning('⚠️ [サインイン] グループ「${group.groupName}」のHive保存失敗: $e');
+            }
+          }
+          Log.info('✅ [サインイン] ${syncedGroups.length}件のグループをHiveに保存完了');
+        }
+      } catch (e) {
+        Log.warning('⚠️ [サインイン] Firestoreグループ同期エラー: $e');
+      }
+    }
+
     ref.invalidate(selectedGroupProvider);
     ref.invalidate(allGroupsProvider);
     await _loadUserNameFromDefaultGroup(ref, userNameController);
@@ -384,7 +426,11 @@ class FirebaseAuthService {
       if (firestoreName != null && firestoreName.isNotEmpty) {
         // Firestore の名前が優先。プリファレンスへ保存
         await UserPreferencesService.saveUserName(firestoreName);
-        userNameController.text = firestoreName;
+        try {
+          userNameController.text = firestoreName;
+        } catch (e) {
+          Log.warning('⚠️ userNameController更新失敗（既にdispose済み）: $e');
+        }
         // 表示用Providerをプリファレンスから再読み込みして更新
         await ref.read(userNameProvider.notifier).refresh();
         Log.info('🔄 サインイン時にFirestoreのユーザー名を同期しました: $firestoreName');

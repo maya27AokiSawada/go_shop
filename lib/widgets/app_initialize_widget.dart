@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import '../services/data_version_service.dart';
 import '../services/user_initialization_service.dart';
@@ -13,6 +14,7 @@ import '../helpers/user_id_change_helper.dart';
 import '../flavors.dart';
 import '../config/app_mode_config.dart';
 import '../providers/user_settings_provider.dart';
+import '../models/purchase_group.dart';
 
 /// アプリ初期化を管理するウィジェット
 ///
@@ -66,8 +68,8 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
       Log.info('🔔 [UID_WATCH] Auth state changed: ${user?.uid ?? "null"}');
 
       if (user == null) {
-        // ログアウト時
-        Log.info('🔓 [UID_WATCH] ログアウト検出');
+        // ログアウト時 - UIDは保持（次回ログイン時に比較するため）
+        Log.info('🔓 [UID_WATCH] ログアウト検出 - UIDは保持したままログアウト');
         return;
       }
 
@@ -75,54 +77,67 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
       final currentEmail = user.email ?? 'Unknown';
       Log.info('🔑 [UID_WATCH] Current UID: $currentUid, Email: $currentEmail');
 
-      // SharedPreferencesに保存されたUIDと比較（保存前にチェック）
-      try {
-        // SharedPreferencesから直接前回のUIDを取得
-        final storedUid = await UserPreferencesService.getUserId();
-        Log.info(
-            '🔍 [UID_CHECK] Stored UID: "$storedUid", New UID: "$currentUid"');
+      // 前回のUIDと比較してユーザー変更をチェック
+      final storedUid = await UserPreferencesService.getUserId();
+      Log.info(
+          '🔍 [UID_CHECK] Stored UID: "$storedUid", Current UID: "$currentUid"');
 
-        // UID変更を検出
-        bool hasChanged = false;
-        if (storedUid == null || storedUid.isEmpty) {
-          // 初回ログイン
-          Log.info('🆕 [UID_CHECK] 初回ログイン検出');
-          hasChanged = false;
-        } else if (storedUid != currentUid) {
-          // UID変更
-          Log.info('⚠️ [UID_CHECK] UID変更を検知: $storedUid → $currentUid');
-          hasChanged = true;
-        } else {
-          // 同じユーザー
-          Log.info('✅ [UID_CHECK] 同じユーザーでログイン: $currentUid');
-          hasChanged = false;
+      if (storedUid != null &&
+          storedUid.isNotEmpty &&
+          storedUid != currentUid) {
+        // UID変更検出 → 前のユーザーのHiveデータをクリア
+        Log.info('⚠️ [UID_CHANGE] ユーザー変更検出: $storedUid → $currentUid');
+        Log.info('🗑️ [UID_CHANGE] 前ユーザーのHiveデータをクリア中...');
+
+        try {
+          final box = await Hive.openBox<PurchaseGroup>('purchase_groups');
+          final groupCount = box.length;
+          await box.clear();
+          Log.info('✅ [UID_CHANGE] Hiveグループデータクリア完了 ($groupCount件削除)');
+        } catch (e) {
+          Log.error('⚠️ [UID_CHANGE] Hiveグループデータクリア失敗: $e');
         }
 
-        Log.info('🔍 [UID_WATCH] UID変更チェック結果: $hasChanged');
+        Log.info('🔄 [UID_CHANGE] 新ユーザーのデータをFirestoreから同期します');
+      } else if (storedUid == null || storedUid.isEmpty) {
+        Log.info('🆕 [UID_CHECK] 初回ログイン検出');
+      } else {
+        Log.info('✅ [UID_CHECK] 同じユーザーの再ログイン（Hiveキャッシュ利用）');
+      }
 
-        if (hasChanged && mounted) {
-          Log.info('🚨 [UID_WATCH] UID変更検出 - ダイアログ表示');
+      // UID変更を検出してダイアログ表示判定
+      bool hasChanged = false;
+      if (storedUid == null || storedUid.isEmpty) {
+        // 初回ログイン - ダイアログ不要
+        hasChanged = false;
+      } else if (storedUid != currentUid) {
+        // UID変更 - ダイアログ表示
+        Log.info('⚠️ [UID_CHECK] UID変更を検知: $storedUid → $currentUid');
+        hasChanged = true;
+      }
 
-          // UID変更ダイアログを表示してユーザーに選択させる
-          // - 初期化: Hive削除 → 新UID保存
-          // - 引継ぎ: Hiveそのまま → 新UID保存（allowedUid追加でマージ）
-          // 注: UID保存はhandleUserIdChange内で実行される
-          await UserIdChangeHelper.handleUserIdChange(
-            ref: ref,
-            context: context,
-            newUserId: currentUid,
-            userEmail: user.email ?? 'Unknown User',
-            mounted: mounted,
-          );
-        } else {
-          Log.info('✅ [UID_WATCH] UID変更なし or 初回ログイン: $currentUid');
+      Log.info('🔍 [UID_WATCH] UID変更チェック結果: $hasChanged');
 
-          // UID変更なしの場合のみ、ここでUID保存
-          await UserPreferencesService.saveUserId(currentUid);
-          Log.info('💾 [UID_WATCH] UID保存完了: $currentUid');
-        }
-      } catch (e) {
-        Log.error('❌ [UID_WATCH] UID変更チェックエラー: $e');
+      if (hasChanged && mounted) {
+        Log.info('🚨 [UID_WATCH] UID変更検出 - ダイアログ表示');
+
+        // UID変更ダイアログを表示してユーザーに選択させる
+        // - 初期化: Hive削除 → 新UID保存
+        // - 引継ぎ: Hiveそのまま → 新UID保存（allowedUid追加でマージ）
+        // 注: UID保存はhandleUserIdChange内で実行される
+        await UserIdChangeHelper.handleUserIdChange(
+          ref: ref,
+          context: context,
+          newUserId: currentUid,
+          userEmail: user.email ?? 'Unknown User',
+          mounted: mounted,
+        );
+      } else {
+        Log.info('✅ [UID_WATCH] UID変更なし or 初回ログイン: $currentUid');
+
+        // UID変更なしの場合のみ、ここでUID保存
+        await UserPreferencesService.saveUserId(currentUid);
+        Log.info('💾 [UID_WATCH] UID保存完了: $currentUid');
       }
     });
   }

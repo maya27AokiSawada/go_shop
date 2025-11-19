@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/app_logger.dart';
 
+import '../models/purchase_group.dart';
 import '../providers/user_settings_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/shopping_list_provider.dart' hide shoppingListBoxProvider;
@@ -13,6 +14,7 @@ import '../widgets/user_data_migration_dialog.dart';
 import '../services/firestore_group_sync_service.dart';
 import '../services/firestore_user_name_service.dart';
 import '../services/user_preferences_service.dart';
+import '../services/shopping_list_migration_service.dart';
 import '../flavors.dart';
 
 class UserIdChangeHelper {
@@ -34,6 +36,10 @@ class UserIdChangeHelper {
       final hiveService = ref.read(userSpecificHiveProvider);
       final hasChanged = await userSettings.hasUserIdChanged(newUserId);
       final isWindows = Platform.isWindows;
+
+      // 旧UIDを取得（マイグレーション用）
+      final currentSettings = await ref.read(userSettingsProvider.future);
+      final oldUserId = currentSettings.userId;
 
       if (hasChanged) {
         // UIDが変更された場合、ユーザーに選択を求める
@@ -60,16 +66,42 @@ class UserIdChangeHelper {
             await Future.delayed(const Duration(milliseconds: 300));
             Log.info('⏱️ Hiveクリア後の待機完了');
 
+            // 安全にプロバイダーを無効化（遅延実行で順次）
+            await _invalidateProvidersSequentially(ref);
+
+            // プロバイダー再構築を待機
+            await Future.delayed(const Duration(milliseconds: 300));
+
             // Firestoreから新ユーザーのデータをダウンロード（本番環境のみ）
+            List<PurchaseGroup> syncedGroups = [];
             if (F.appFlavor == Flavor.prod) {
               Log.info('🔄 新ユーザーのFirestoreデータをダウンロード中...');
 
               // 1. グループデータを同期
-              final groups =
+              syncedGroups =
                   await FirestoreGroupSyncService.syncGroupsOnSignIn();
-              Log.info('✅ Firestoreから${groups.length}件のグループをダウンロード');
+              Log.info('✅ Firestoreから${syncedGroups.length}件のグループをダウンロード');
 
-              // 2. ユーザー名を復帰
+              // 2. 取得したグループをHiveに保存
+              if (syncedGroups.isNotEmpty) {
+                final groupBox = ref.read(purchaseGroupBoxProvider);
+                for (final group in syncedGroups) {
+                  try {
+                    await groupBox.put(group.groupId, group);
+                    Log.info('📦 グループ「${group.groupName}」をHiveに保存');
+                  } catch (e) {
+                    Log.warning('⚠️ グループ「${group.groupName}」のHive保存失敗: $e');
+                  }
+                }
+                Log.info('✅ ${syncedGroups.length}件のグループをHiveに保存完了');
+
+                // Hive保存後に必ずプロバイダーを無効化してUI更新
+                Log.info('🔄 [UID変更] Firestore同期完了 - プロバイダーを更新');
+                ref.invalidate(allGroupsProvider);
+                await Future.delayed(const Duration(milliseconds: 300));
+              }
+
+              // 3. ユーザー名を復帰
               final firestoreName =
                   await FirestoreUserNameService.getUserName();
               if (firestoreName != null && firestoreName.isNotEmpty) {
@@ -78,16 +110,38 @@ class UserIdChangeHelper {
               }
             }
 
-            // 安全にプロバイダーを無効化（遅延実行で順次）
-            await _invalidateProvidersSequentially(ref);
-
-            // デフォルトグループを作成（Firestoreに0件の場合）
+            // デフォルトグループの存在確認（groupId == user.uid のグループ）
             final user = FirebaseAuth.instance.currentUser;
             if (user != null) {
-              Log.info('🆕 [UID変更] デフォルトグループ作成チェック...');
-              final groupNotifier = ref.read(allGroupsProvider.notifier);
-              await groupNotifier.createDefaultGroup(user);
-              Log.info('✅ [UID変更] デフォルトグループ作成完了');
+              final hasDefaultGroup = syncedGroups.any(
+                (group) => group.groupId == user.uid,
+              );
+
+              if (!hasDefaultGroup) {
+                Log.info(
+                    '🆕 [UID変更] デフォルトグループ(groupId=${user.uid})が存在しない - 作成します');
+                final groupNotifier = ref.read(allGroupsProvider.notifier);
+                await groupNotifier.createDefaultGroup(user);
+                Log.info('✅ [UID変更] デフォルトグループ作成完了');
+
+                // デフォルトグループ作成後にもう一度プロバイダーを無効化
+                Log.info('🔄 [UID変更] デフォルトグループ作成後のUI更新');
+                ref.invalidate(allGroupsProvider);
+                await Future.delayed(const Duration(milliseconds: 200));
+              } else {
+                Log.info(
+                    '💡 [UID変更] デフォルトグループ(groupId=${user.uid})は既に存在 - 作成スキップ');
+              }
+
+              // 旧デフォルトグループのリストをマイグレーション（グループが存在する場合）
+              if (oldUserId.isNotEmpty && !_isTemporaryUid(oldUserId)) {
+                Log.info('🔄 [UID変更] リストマイグレーション開始: $oldUserId → ${user.uid}');
+                await ShoppingListMigrationService.migrateDefaultGroupLists(
+                  oldGroupId: oldUserId,
+                  newGroupId: user.uid,
+                );
+                Log.info('✅ [UID変更] リストマイグレーション完了');
+              }
             }
           } else {
             // データを引き継ぐ場合

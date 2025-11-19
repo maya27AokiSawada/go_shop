@@ -164,11 +164,13 @@ class FirestoreGroupSyncService {
     final groups = <PurchaseGroup>[];
 
     try {
-      // グループコレクションから、ユーザーがメンバーになっているものを検索
+      // グループコレクションから、allowedUidにユーザーIDが含まれているものを検索
       final querySnapshot = await _firestore
           .collection('groups')
-          .where('memberIds', arrayContains: userId)
+          .where('allowedUid', arrayContains: userId)
           .get();
+
+      Log.info('🔍 [FETCH] allowedUidクエリで${querySnapshot.docs.length}件取得');
 
       for (final doc in querySnapshot.docs) {
         final groupData = doc.data();
@@ -188,45 +190,18 @@ class FirestoreGroupSyncService {
                   ))
               .toList(),
           ownerMessage: groupData['ownerMessage'],
+          allowedUid: (groupData['allowedUid'] as List<dynamic>?)
+                  ?.map((e) => e.toString())
+                  .toList() ??
+              [],
           // shoppingListIds はサブコレクションに移行したため削除
         );
         groups.add(group);
+        Log.info(
+            '📦 [FETCH] グループ追加: ${group.groupName} (ID: ${group.groupId})');
       }
 
-      // メールアドレスベースでも検索（UIDが設定される前のメンバー対応）
-      final user = _auth.currentUser;
-      if (user?.email != null) {
-        final emailQuery = await _firestore
-            .collection('groups')
-            .where('memberEmails', arrayContains: user!.email)
-            .get();
-
-        for (final doc in emailQuery.docs) {
-          // 既に追加済みでないかチェック
-          if (!groups.any((g) => g.groupId == doc.id)) {
-            final groupData = doc.data();
-            final group = PurchaseGroup(
-              groupId: doc.id,
-              groupName: groupData['groupName'] ?? '',
-              ownerName: groupData['ownerName'],
-              ownerEmail: groupData['ownerEmail'],
-              ownerUid: groupData['ownerUid'],
-              members: (groupData['members'] as List<dynamic>?)
-                  ?.map((memberData) => PurchaseGroupMember(
-                        memberId: memberData['memberId'] ?? '',
-                        name: memberData['name'] ?? '',
-                        contact: memberData['contact'] ?? '',
-                        role: PurchaseGroupRole.values[memberData['role'] ?? 0],
-                        isSignedIn: memberData['isSignedIn'] ?? false,
-                      ))
-                  .toList(),
-              ownerMessage: groupData['ownerMessage'],
-              // shoppingListIds はサブコレクションに移行したため削除
-            );
-            groups.add(group);
-          }
-        }
-      }
+      Log.info('✅ [FETCH] 合計${groups.length}件のグループを取得完了');
     } catch (e) {
       Log.error('❌ ユーザーグループ取得エラー: $e');
     }
@@ -247,7 +222,7 @@ class FirestoreGroupSyncService {
 
     return _firestore
         .collection('groups')
-        .where('memberIds', arrayContains: user.uid)
+        .where('allowedUid', arrayContains: user.uid)
         .snapshots()
         .map((snapshot) {
       return snapshot.docs.map((doc) {
@@ -268,6 +243,10 @@ class FirestoreGroupSyncService {
                   ))
               .toList(),
           ownerMessage: groupData['ownerMessage'],
+          allowedUid: (groupData['allowedUid'] as List<dynamic>?)
+                  ?.map((e) => e.toString())
+                  .toList() ??
+              [],
           // shoppingListIds はサブコレクションに移行したため削除
         );
       }).toList();

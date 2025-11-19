@@ -786,11 +786,13 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
 
       Log.info(
           '✅ [CREATE DEFAULT] グループ作成完了: $defaultGroupName (ID: $defaultGroupId)');
-      Log.info(
-          '� [CREATE DEFAULT] syncStatus=local として作成。同期処理でFirestoreにアップロードされます');
 
-      // プロバイダーを更新
-      // ref.invalidateSelf(); // REMOVED: Riverpod violation
+      // デフォルトグループは常にローカル専用として作成（Firestore同期しない）
+      // 理由: デフォルトグループはユーザー固有のプライベートグループであり、
+      //       syncStatus=localに保つことで、Firestore同期処理から除外される
+      Log.info('💡 [CREATE DEFAULT] syncStatus=local として作成（ローカル専用）');
+
+      // プロバイダーを更新（UI反映）
       Log.info('🔄 [CREATE DEFAULT] UI更新完了');
     } catch (e, stackTrace) {
       Log.error('❌ [CREATE DEFAULT] デフォルトグループ作成エラー: $e');
