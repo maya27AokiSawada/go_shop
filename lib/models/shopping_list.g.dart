@@ -81,13 +81,14 @@ class ShoppingListAdapter extends TypeAdapter<ShoppingList> {
       description: fields[6] as String,
       createdAt: fields[7] as DateTime,
       updatedAt: fields[8] as DateTime?,
+      listType: fields[9] as ListType,
     );
   }
 
   @override
   void write(BinaryWriter writer, ShoppingList obj) {
     writer
-      ..writeByte(9)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.ownerUid)
       ..writeByte(1)
@@ -105,7 +106,9 @@ class ShoppingListAdapter extends TypeAdapter<ShoppingList> {
       ..writeByte(7)
       ..write(obj.createdAt)
       ..writeByte(8)
-      ..write(obj.updatedAt);
+      ..write(obj.updatedAt)
+      ..writeByte(9)
+      ..write(obj.listType);
   }
 
   @override
@@ -115,6 +118,45 @@ class ShoppingListAdapter extends TypeAdapter<ShoppingList> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is ShoppingListAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class ListTypeAdapter extends TypeAdapter<ListType> {
+  @override
+  final int typeId = 12;
+
+  @override
+  ListType read(BinaryReader reader) {
+    switch (reader.readByte()) {
+      case 0:
+        return ListType.shopping;
+      case 1:
+        return ListType.todo;
+      default:
+        return ListType.shopping;
+    }
+  }
+
+  @override
+  void write(BinaryWriter writer, ListType obj) {
+    switch (obj) {
+      case ListType.shopping:
+        writer.writeByte(0);
+        break;
+      case ListType.todo:
+        writer.writeByte(1);
+        break;
+    }
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ListTypeAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

@@ -86,13 +86,15 @@ class UserSpecificHiveService {
       Hive.registerAdapter(ShoppingItemAdapter());
       Hive.registerAdapter(ShoppingListAdapter());
       Hive.registerAdapter(InvitationStatusAdapter()); // 継続使用
+      Hive.registerAdapter(InvitationTypeAdapter()); // InvitationType用
       Hive.registerAdapter(
           SyncStatusAdapter()); // ⚠️ 追加: PurchaseGroupのsyncStatusフィールド用
+      Hive.registerAdapter(GroupTypeAdapter()); // 🆕 GroupType用
+      Hive.registerAdapter(ListTypeAdapter()); // 🆕 ListType用
       // Hive.registerAdapter(InvitationAdapter());  // 削除済み - QRコードシステムに移行
       // Hive.registerAdapter(AcceptedInvitationAdapter());  // 削除済み - QRコードシステムに移行
       Hive.registerAdapter(UserSettingsAdapter());
-      Log.info(
-          '📝 Hive adapters registered globally (InvitationStatus継続、招待アダプターは削除)');
+      Log.info('📝 Hive adapters registered globally (GroupType, ListType追加)');
     }
   }
 
