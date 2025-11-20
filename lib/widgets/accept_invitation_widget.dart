@@ -210,8 +210,20 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
             Navigator.of(context).pop(); // スキャナー画面を閉じる
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('「$groupName」に参加しました'),
-                backgroundColor: Colors.green,
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('✅ 招待を受諾しました'),
+                    const SizedBox(height: 4),
+                    Text(
+                      '招待元（$groupName）の確認をお待ちください',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+                backgroundColor: Colors.orange,
+                duration: const Duration(seconds: 5),
               ),
             );
           } else if (mounted) {

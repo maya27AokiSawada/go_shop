@@ -21,6 +21,7 @@ _$InvitationImpl _$$InvitationImplFromJson(Map<String, dynamic> json) =>
               ?.map((e) => e as String)
               .toList() ??
           const [],
+      securityKey: json['securityKey'] as String?,
     );
 
 Map<String, dynamic> _$$InvitationImplToJson(_$InvitationImpl instance) =>
@@ -35,6 +36,7 @@ Map<String, dynamic> _$$InvitationImplToJson(_$InvitationImpl instance) =>
       'maxUses': instance.maxUses,
       'currentUses': instance.currentUses,
       'usedBy': instance.usedBy,
+      'securityKey': instance.securityKey,
     };
 
 _$InvitationQRDataImpl _$$InvitationQRDataImplFromJson(

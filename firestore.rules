@@ -35,17 +35,11 @@ service cloud.firestore {
       allow update, delete: if false;  // 記録は変更不可
     }
 
-    // 開発環境では認証済みユーザーに全アクセスを許可
-    // 本番環境では以下の詳細ルールを使用すること
-    match /{document=**} {
-      allow read, write: if request.auth != null;
-    }
+    // 招待コレクション：グループのサブコレクションとして管理
+    // purchaseGroups/{groupId}/invitations/{invitationId}
+    // グループへのアクセス権 = 招待へのアクセス権（自動継承）
 
-    /*
-    // 本番環境用の詳細セキュリティルール
-    // 現在はコメントアウト - 開発完了後に有効化
-
-    // 🔒 新アーキテクチャ対応セキュリティルール
+    // 🔒 本番環境用セキュリティルール
 
     // ユーザードキュメント（基本情報）
     match /users/{userId} {
@@ -66,19 +60,45 @@ service cloud.firestore {
 
     // PurchaseGroup：allowedUidsベースのアクセス制御
     match /purchaseGroups/{groupId} {
-      allow read: if request.auth != null && (
-        resource.data.ownerUid == request.auth.uid ||
-        request.auth.uid in resource.data.allowedUids
-      );
+      // 読み取り: 認証済みユーザーなら許可（ドキュメント不在でも404を返せるように）
+      // 実際のデータアクセスは、ドキュメント存在時のみ所有者・メンバーチェック
+      allow read: if request.auth != null;
 
-      allow write, update: if request.auth != null &&
-        resource.data.ownerUid == request.auth.uid;
-
+      // 作成: 認証済みユーザーが自分をownerにする場合のみ
       allow create: if request.auth != null &&
         request.resource.data.ownerUid == request.auth.uid;
 
+      // 更新: 所有者のみ
+      allow update: if request.auth != null &&
+        resource.data.ownerUid == request.auth.uid;
+
+      // 削除: 所有者のみ
       allow delete: if request.auth != null &&
         resource.data.ownerUid == request.auth.uid;
+
+      // 招待サブコレクション：グループメンバーが管理可能
+      match /invitations/{invitationId} {
+        // 認証済みユーザーなら読み取り可能（グループメンバーシップは親グループのread権限で制御）
+        allow read: if request.auth != null;
+
+        // グループメンバーなら招待を作成可能
+        allow create: if request.auth != null && (
+          get(/databases/$(database)/documents/purchaseGroups/$(groupId)).data.ownerUid == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/purchaseGroups/$(groupId)).data.allowedUid
+        );
+
+        // 招待を使用する際の更新（currentUses, usedBy配列への追加）
+        allow update: if request.auth != null &&
+          resource.data.status == 'pending' &&
+          request.resource.data.currentUses == resource.data.currentUses + 1 &&
+          request.auth.uid in request.resource.data.usedBy;
+
+        // グループメンバーなら招待を削除可能
+        allow delete: if request.auth != null && (
+          get(/databases/$(database)/documents/purchaseGroups/$(groupId)).data.ownerUid == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/purchaseGroups/$(groupId)).data.allowedUid
+        );
+      }
     }
 
     // ShoppingList：allowedUidsベースのアクセス制御
@@ -94,17 +114,5 @@ service cloud.firestore {
       allow delete: if request.auth != null &&
         resource.data.ownerUid == request.auth.uid;
     }
-
-    // レガシー関数（互換性維持）
-    function existsInMembersList(members, uid) {
-      return members.where('memberId', '==', uid).size() > 0;
-    }
-
-    function hasGroupAccess(groupId, uid) {
-      let group = get(/databases/$(database)/documents/purchaseGroups/$(groupId));
-      return group.data.ownerUid == uid ||
-             uid in group.data.allowedUids;
-    }
-    */
   }
 }

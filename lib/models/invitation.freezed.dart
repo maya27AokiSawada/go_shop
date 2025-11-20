@@ -50,6 +50,9 @@ mixin _$Invitation {
   /// 使用済みユーザーUIDリスト
   List<String> get usedBy => throw _privateConstructorUsedError;
 
+  /// セキュリティキー (QR検証用)
+  String? get securityKey => throw _privateConstructorUsedError;
+
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
   $InvitationCopyWith<Invitation> get copyWith =>
@@ -72,7 +75,8 @@ abstract class $InvitationCopyWith<$Res> {
       DateTime expiresAt,
       int maxUses,
       int currentUses,
-      List<String> usedBy});
+      List<String> usedBy,
+      String? securityKey});
 }
 
 /// @nodoc
@@ -98,6 +102,7 @@ class _$InvitationCopyWithImpl<$Res, $Val extends Invitation>
     Object? maxUses = null,
     Object? currentUses = null,
     Object? usedBy = null,
+    Object? securityKey = freezed,
   }) {
     return _then(_value.copyWith(
       token: null == token
@@ -140,6 +145,10 @@ class _$InvitationCopyWithImpl<$Res, $Val extends Invitation>
           ? _value.usedBy
           : usedBy // ignore: cast_nullable_to_non_nullable
               as List<String>,
+      securityKey: freezed == securityKey
+          ? _value.securityKey
+          : securityKey // ignore: cast_nullable_to_non_nullable
+              as String?,
     ) as $Val);
   }
 }
@@ -162,7 +171,8 @@ abstract class _$$InvitationImplCopyWith<$Res>
       DateTime expiresAt,
       int maxUses,
       int currentUses,
-      List<String> usedBy});
+      List<String> usedBy,
+      String? securityKey});
 }
 
 /// @nodoc
@@ -186,6 +196,7 @@ class __$$InvitationImplCopyWithImpl<$Res>
     Object? maxUses = null,
     Object? currentUses = null,
     Object? usedBy = null,
+    Object? securityKey = freezed,
   }) {
     return _then(_$InvitationImpl(
       token: null == token
@@ -228,6 +239,10 @@ class __$$InvitationImplCopyWithImpl<$Res>
           ? _value._usedBy
           : usedBy // ignore: cast_nullable_to_non_nullable
               as List<String>,
+      securityKey: freezed == securityKey
+          ? _value.securityKey
+          : securityKey // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -245,7 +260,8 @@ class _$InvitationImpl extends _Invitation {
       required this.expiresAt,
       this.maxUses = 5,
       this.currentUses = 0,
-      final List<String> usedBy = const []})
+      final List<String> usedBy = const [],
+      this.securityKey})
       : _usedBy = usedBy,
         super._();
 
@@ -302,9 +318,13 @@ class _$InvitationImpl extends _Invitation {
     return EqualUnmodifiableListView(_usedBy);
   }
 
+  /// セキュリティキー (QR検証用)
+  @override
+  final String? securityKey;
+
   @override
   String toString() {
-    return 'Invitation(token: $token, groupId: $groupId, groupName: $groupName, invitedBy: $invitedBy, inviterName: $inviterName, createdAt: $createdAt, expiresAt: $expiresAt, maxUses: $maxUses, currentUses: $currentUses, usedBy: $usedBy)';
+    return 'Invitation(token: $token, groupId: $groupId, groupName: $groupName, invitedBy: $invitedBy, inviterName: $inviterName, createdAt: $createdAt, expiresAt: $expiresAt, maxUses: $maxUses, currentUses: $currentUses, usedBy: $usedBy, securityKey: $securityKey)';
   }
 
   @override
@@ -327,7 +347,9 @@ class _$InvitationImpl extends _Invitation {
             (identical(other.maxUses, maxUses) || other.maxUses == maxUses) &&
             (identical(other.currentUses, currentUses) ||
                 other.currentUses == currentUses) &&
-            const DeepCollectionEquality().equals(other._usedBy, _usedBy));
+            const DeepCollectionEquality().equals(other._usedBy, _usedBy) &&
+            (identical(other.securityKey, securityKey) ||
+                other.securityKey == securityKey));
   }
 
   @JsonKey(ignore: true)
@@ -343,7 +365,8 @@ class _$InvitationImpl extends _Invitation {
       expiresAt,
       maxUses,
       currentUses,
-      const DeepCollectionEquality().hash(_usedBy));
+      const DeepCollectionEquality().hash(_usedBy),
+      securityKey);
 
   @JsonKey(ignore: true)
   @override
@@ -370,7 +393,8 @@ abstract class _Invitation extends Invitation {
       required final DateTime expiresAt,
       final int maxUses,
       final int currentUses,
-      final List<String> usedBy}) = _$InvitationImpl;
+      final List<String> usedBy,
+      final String? securityKey}) = _$InvitationImpl;
   const _Invitation._() : super._();
 
   factory _Invitation.fromJson(Map<String, dynamic> json) =
@@ -416,6 +440,10 @@ abstract class _Invitation extends Invitation {
 
   /// 使用済みユーザーUIDリスト
   List<String> get usedBy;
+  @override
+
+  /// セキュリティキー (QR検証用)
+  String? get securityKey;
   @override
   @JsonKey(ignore: true)
   _$$InvitationImplCopyWith<_$InvitationImpl> get copyWith =>

@@ -41,6 +41,9 @@ class Invitation with _$Invitation {
 
     /// 使用済みユーザーUIDリスト
     @Default([]) List<String> usedBy,
+
+    /// セキュリティキー (QR検証用)
+    String? securityKey,
   }) = _Invitation;
 
   /// Firestoreから取得
@@ -56,20 +59,37 @@ class Invitation with _$Invitation {
       throw Exception('Invitation data is null');
     }
 
+    // createdAt/expiresAtのnullセーフ処理
+    final createdAtData = data['createdAt'];
+    final expiresAtData = data['expiresAt'];
+
+    final createdAt = createdAtData is Timestamp
+        ? createdAtData.toDate()
+        : (createdAtData is String
+            ? DateTime.parse(createdAtData)
+            : DateTime.now());
+
+    final expiresAt = expiresAtData is Timestamp
+        ? expiresAtData.toDate()
+        : (expiresAtData is String
+            ? DateTime.parse(expiresAtData)
+            : DateTime.now().add(const Duration(hours: 24)));
+
     return Invitation(
       token: data['token'] as String,
       groupId: data['groupId'] as String,
       groupName: data['groupName'] as String,
       invitedBy: data['invitedBy'] as String,
       inviterName: data['inviterName'] as String? ?? '',
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      expiresAt: (data['expiresAt'] as Timestamp).toDate(),
+      createdAt: createdAt,
+      expiresAt: expiresAt,
       maxUses: data['maxUses'] as int? ?? 5,
       currentUses: data['currentUses'] as int? ?? 0,
       usedBy: (data['usedBy'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],
+      securityKey: data['securityKey'] as String?,
     );
   }
 
@@ -86,6 +106,7 @@ class Invitation with _$Invitation {
       'maxUses': maxUses,
       'currentUses': currentUses,
       'usedBy': usedBy,
+      'securityKey': securityKey,
     };
   }
 
