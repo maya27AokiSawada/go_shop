@@ -478,6 +478,8 @@ mixin _$PurchaseGroup {
   DateTime? get updatedAt => throw _privateConstructorUsedError;
   @HiveField(18)
   SyncStatus get syncStatus => throw _privateConstructorUsedError;
+  @HiveField(19)
+  GroupType get groupType => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
@@ -506,7 +508,8 @@ abstract class $PurchaseGroupCopyWith<$Res> {
       @HiveField(15) DateTime? lastAccessedAt,
       @HiveField(16) DateTime? createdAt,
       @HiveField(17) DateTime? updatedAt,
-      @HiveField(18) SyncStatus syncStatus});
+      @HiveField(18) SyncStatus syncStatus,
+      @HiveField(19) GroupType groupType});
 }
 
 /// @nodoc
@@ -537,6 +540,7 @@ class _$PurchaseGroupCopyWithImpl<$Res, $Val extends PurchaseGroup>
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
     Object? syncStatus = null,
+    Object? groupType = null,
   }) {
     return _then(_value.copyWith(
       groupName: null == groupName
@@ -599,6 +603,10 @@ class _$PurchaseGroupCopyWithImpl<$Res, $Val extends PurchaseGroup>
           ? _value.syncStatus
           : syncStatus // ignore: cast_nullable_to_non_nullable
               as SyncStatus,
+      groupType: null == groupType
+          ? _value.groupType
+          : groupType // ignore: cast_nullable_to_non_nullable
+              as GroupType,
     ) as $Val);
   }
 }
@@ -626,7 +634,8 @@ abstract class _$$PurchaseGroupImplCopyWith<$Res>
       @HiveField(15) DateTime? lastAccessedAt,
       @HiveField(16) DateTime? createdAt,
       @HiveField(17) DateTime? updatedAt,
-      @HiveField(18) SyncStatus syncStatus});
+      @HiveField(18) SyncStatus syncStatus,
+      @HiveField(19) GroupType groupType});
 }
 
 /// @nodoc
@@ -655,6 +664,7 @@ class __$$PurchaseGroupImplCopyWithImpl<$Res>
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
     Object? syncStatus = null,
+    Object? groupType = null,
   }) {
     return _then(_$PurchaseGroupImpl(
       groupName: null == groupName
@@ -717,6 +727,10 @@ class __$$PurchaseGroupImplCopyWithImpl<$Res>
           ? _value.syncStatus
           : syncStatus // ignore: cast_nullable_to_non_nullable
               as SyncStatus,
+      groupType: null == groupType
+          ? _value.groupType
+          : groupType // ignore: cast_nullable_to_non_nullable
+              as GroupType,
     ));
   }
 }
@@ -739,7 +753,8 @@ class _$PurchaseGroupImpl extends _PurchaseGroup {
       @HiveField(15) this.lastAccessedAt,
       @HiveField(16) this.createdAt,
       @HiveField(17) this.updatedAt,
-      @HiveField(18) this.syncStatus = SyncStatus.synced})
+      @HiveField(18) this.syncStatus = SyncStatus.synced,
+      @HiveField(19) this.groupType = GroupType.shopping})
       : _members = members,
         _allowedUid = allowedUid,
         _acceptedUid = acceptedUid,
@@ -823,10 +838,14 @@ class _$PurchaseGroupImpl extends _PurchaseGroup {
   @JsonKey()
   @HiveField(18)
   final SyncStatus syncStatus;
+  @override
+  @JsonKey()
+  @HiveField(19)
+  final GroupType groupType;
 
   @override
   String toString() {
-    return 'PurchaseGroup(groupName: $groupName, groupId: $groupId, ownerName: $ownerName, ownerEmail: $ownerEmail, ownerUid: $ownerUid, members: $members, ownerMessage: $ownerMessage, allowedUid: $allowedUid, isSecret: $isSecret, acceptedUid: $acceptedUid, isDeleted: $isDeleted, lastAccessedAt: $lastAccessedAt, createdAt: $createdAt, updatedAt: $updatedAt, syncStatus: $syncStatus)';
+    return 'PurchaseGroup(groupName: $groupName, groupId: $groupId, ownerName: $ownerName, ownerEmail: $ownerEmail, ownerUid: $ownerUid, members: $members, ownerMessage: $ownerMessage, allowedUid: $allowedUid, isSecret: $isSecret, acceptedUid: $acceptedUid, isDeleted: $isDeleted, lastAccessedAt: $lastAccessedAt, createdAt: $createdAt, updatedAt: $updatedAt, syncStatus: $syncStatus, groupType: $groupType)';
   }
 
   @override
@@ -861,7 +880,9 @@ class _$PurchaseGroupImpl extends _PurchaseGroup {
             (identical(other.updatedAt, updatedAt) ||
                 other.updatedAt == updatedAt) &&
             (identical(other.syncStatus, syncStatus) ||
-                other.syncStatus == syncStatus));
+                other.syncStatus == syncStatus) &&
+            (identical(other.groupType, groupType) ||
+                other.groupType == groupType));
   }
 
   @JsonKey(ignore: true)
@@ -882,7 +903,8 @@ class _$PurchaseGroupImpl extends _PurchaseGroup {
       lastAccessedAt,
       createdAt,
       updatedAt,
-      syncStatus);
+      syncStatus,
+      groupType);
 
   @JsonKey(ignore: true)
   @override
@@ -914,7 +936,8 @@ abstract class _PurchaseGroup extends PurchaseGroup {
       @HiveField(15) final DateTime? lastAccessedAt,
       @HiveField(16) final DateTime? createdAt,
       @HiveField(17) final DateTime? updatedAt,
-      @HiveField(18) final SyncStatus syncStatus}) = _$PurchaseGroupImpl;
+      @HiveField(18) final SyncStatus syncStatus,
+      @HiveField(19) final GroupType groupType}) = _$PurchaseGroupImpl;
   const _PurchaseGroup._() : super._();
 
   factory _PurchaseGroup.fromJson(Map<String, dynamic> json) =
@@ -965,6 +988,9 @@ abstract class _PurchaseGroup extends PurchaseGroup {
   @override
   @HiveField(18)
   SyncStatus get syncStatus;
+  @override
+  @HiveField(19)
+  GroupType get groupType;
   @override
   @JsonKey(ignore: true)
   _$$PurchaseGroupImplCopyWith<_$PurchaseGroupImpl> get copyWith =>

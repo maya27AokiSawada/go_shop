@@ -53,6 +53,15 @@ enum SyncStatus {
   local, // ローカルのみ（Firestoreに未送信）
 }
 
+// グループタイプを定義するenum
+@HiveType(typeId: 11)
+enum GroupType {
+  @HiveField(0)
+  shopping, // 買い物リストグループ（デフォルト）
+  @HiveField(1)
+  todo, // TODOタスク管理グループ
+}
+
 @HiveType(typeId: 1)
 @freezed
 class PurchaseGroupMember with _$PurchaseGroupMember {
@@ -178,6 +187,9 @@ class PurchaseGroup with _$PurchaseGroup {
     @HiveField(16) DateTime? createdAt,
     @HiveField(17) DateTime? updatedAt,
     @HiveField(18) @Default(SyncStatus.synced) SyncStatus syncStatus,
+    @HiveField(19)
+    @Default(GroupType.shopping)
+    GroupType groupType, // グループタイプ追加
   }) = _PurchaseGroup;
 
   factory PurchaseGroup.fromJson(Map<String, dynamic> json) =>

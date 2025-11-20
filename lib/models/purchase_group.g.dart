@@ -98,13 +98,14 @@ class PurchaseGroupAdapter extends TypeAdapter<PurchaseGroup> {
       createdAt: fields[16] as DateTime?,
       updatedAt: fields[17] as DateTime?,
       syncStatus: fields[18] as SyncStatus,
+      groupType: fields[19] as GroupType,
     );
   }
 
   @override
   void write(BinaryWriter writer, PurchaseGroup obj) {
     writer
-      ..writeByte(15)
+      ..writeByte(16)
       ..writeByte(0)
       ..write(obj.groupName)
       ..writeByte(1)
@@ -134,7 +135,9 @@ class PurchaseGroupAdapter extends TypeAdapter<PurchaseGroup> {
       ..writeByte(17)
       ..write(obj.updatedAt)
       ..writeByte(18)
-      ..write(obj.syncStatus);
+      ..write(obj.syncStatus)
+      ..writeByte(19)
+      ..write(obj.groupType);
   }
 
   @override
@@ -329,6 +332,45 @@ class SyncStatusAdapter extends TypeAdapter<SyncStatus> {
           typeId == other.typeId;
 }
 
+class GroupTypeAdapter extends TypeAdapter<GroupType> {
+  @override
+  final int typeId = 11;
+
+  @override
+  GroupType read(BinaryReader reader) {
+    switch (reader.readByte()) {
+      case 0:
+        return GroupType.shopping;
+      case 1:
+        return GroupType.todo;
+      default:
+        return GroupType.shopping;
+    }
+  }
+
+  @override
+  void write(BinaryWriter writer, GroupType obj) {
+    switch (obj) {
+      case GroupType.shopping:
+        writer.writeByte(0);
+        break;
+      case GroupType.todo:
+        writer.writeByte(1);
+        break;
+    }
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GroupTypeAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
 // **************************************************************************
 // JsonSerializableGenerator
 // **************************************************************************
@@ -418,6 +460,8 @@ _$PurchaseGroupImpl _$$PurchaseGroupImplFromJson(Map<String, dynamic> json) =>
       syncStatus:
           $enumDecodeNullable(_$SyncStatusEnumMap, json['syncStatus']) ??
               SyncStatus.synced,
+      groupType: $enumDecodeNullable(_$GroupTypeEnumMap, json['groupType']) ??
+          GroupType.shopping,
     );
 
 Map<String, dynamic> _$$PurchaseGroupImplToJson(_$PurchaseGroupImpl instance) =>
@@ -437,10 +481,16 @@ Map<String, dynamic> _$$PurchaseGroupImplToJson(_$PurchaseGroupImpl instance) =>
       'createdAt': instance.createdAt?.toIso8601String(),
       'updatedAt': instance.updatedAt?.toIso8601String(),
       'syncStatus': _$SyncStatusEnumMap[instance.syncStatus]!,
+      'groupType': _$GroupTypeEnumMap[instance.groupType]!,
     };
 
 const _$SyncStatusEnumMap = {
   SyncStatus.synced: 'synced',
   SyncStatus.pending: 'pending',
   SyncStatus.local: 'local',
+};
+
+const _$GroupTypeEnumMap = {
+  GroupType.shopping: 'shopping',
+  GroupType.todo: 'todo',
 };

@@ -337,7 +337,9 @@ mixin _$ShoppingList {
   @HiveField(7)
   DateTime get createdAt => throw _privateConstructorUsedError; // 追加: 作成日時
   @HiveField(8)
-  DateTime? get updatedAt => throw _privateConstructorUsedError;
+  DateTime? get updatedAt => throw _privateConstructorUsedError; // 追加: 更新日時
+  @HiveField(9)
+  ListType get listType => throw _privateConstructorUsedError;
 
   @JsonKey(ignore: true)
   $ShoppingListCopyWith<ShoppingList> get copyWith =>
@@ -359,7 +361,8 @@ abstract class $ShoppingListCopyWith<$Res> {
       @HiveField(5) String listName,
       @HiveField(6) String description,
       @HiveField(7) DateTime createdAt,
-      @HiveField(8) DateTime? updatedAt});
+      @HiveField(8) DateTime? updatedAt,
+      @HiveField(9) ListType listType});
 }
 
 /// @nodoc
@@ -384,6 +387,7 @@ class _$ShoppingListCopyWithImpl<$Res, $Val extends ShoppingList>
     Object? description = null,
     Object? createdAt = null,
     Object? updatedAt = freezed,
+    Object? listType = null,
   }) {
     return _then(_value.copyWith(
       ownerUid: null == ownerUid
@@ -422,6 +426,10 @@ class _$ShoppingListCopyWithImpl<$Res, $Val extends ShoppingList>
           ? _value.updatedAt
           : updatedAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      listType: null == listType
+          ? _value.listType
+          : listType // ignore: cast_nullable_to_non_nullable
+              as ListType,
     ) as $Val);
   }
 }
@@ -443,7 +451,8 @@ abstract class _$$ShoppingListImplCopyWith<$Res>
       @HiveField(5) String listName,
       @HiveField(6) String description,
       @HiveField(7) DateTime createdAt,
-      @HiveField(8) DateTime? updatedAt});
+      @HiveField(8) DateTime? updatedAt,
+      @HiveField(9) ListType listType});
 }
 
 /// @nodoc
@@ -466,6 +475,7 @@ class __$$ShoppingListImplCopyWithImpl<$Res>
     Object? description = null,
     Object? createdAt = null,
     Object? updatedAt = freezed,
+    Object? listType = null,
   }) {
     return _then(_$ShoppingListImpl(
       ownerUid: null == ownerUid
@@ -504,6 +514,10 @@ class __$$ShoppingListImplCopyWithImpl<$Res>
           ? _value.updatedAt
           : updatedAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      listType: null == listType
+          ? _value.listType
+          : listType // ignore: cast_nullable_to_non_nullable
+              as ListType,
     ));
   }
 }
@@ -520,7 +534,8 @@ class _$ShoppingListImpl implements _ShoppingList {
       @HiveField(5) required this.listName,
       @HiveField(6) this.description = '',
       @HiveField(7) required this.createdAt,
-      @HiveField(8) this.updatedAt})
+      @HiveField(8) this.updatedAt,
+      @HiveField(9) this.listType = ListType.shopping})
       : _items = items;
 
   @override
@@ -562,10 +577,15 @@ class _$ShoppingListImpl implements _ShoppingList {
   @override
   @HiveField(8)
   final DateTime? updatedAt;
+// 追加: 更新日時
+  @override
+  @JsonKey()
+  @HiveField(9)
+  final ListType listType;
 
   @override
   String toString() {
-    return 'ShoppingList(ownerUid: $ownerUid, groupId: $groupId, groupName: $groupName, items: $items, listId: $listId, listName: $listName, description: $description, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'ShoppingList(ownerUid: $ownerUid, groupId: $groupId, groupName: $groupName, items: $items, listId: $listId, listName: $listName, description: $description, createdAt: $createdAt, updatedAt: $updatedAt, listType: $listType)';
   }
 
   @override
@@ -587,7 +607,9 @@ class _$ShoppingListImpl implements _ShoppingList {
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
-                other.updatedAt == updatedAt));
+                other.updatedAt == updatedAt) &&
+            (identical(other.listType, listType) ||
+                other.listType == listType));
   }
 
   @override
@@ -601,7 +623,8 @@ class _$ShoppingListImpl implements _ShoppingList {
       listName,
       description,
       createdAt,
-      updatedAt);
+      updatedAt,
+      listType);
 
   @JsonKey(ignore: true)
   @override
@@ -620,7 +643,8 @@ abstract class _ShoppingList implements ShoppingList {
       @HiveField(5) required final String listName,
       @HiveField(6) final String description,
       @HiveField(7) required final DateTime createdAt,
-      @HiveField(8) final DateTime? updatedAt}) = _$ShoppingListImpl;
+      @HiveField(8) final DateTime? updatedAt,
+      @HiveField(9) final ListType listType}) = _$ShoppingListImpl;
 
   @override
   @HiveField(0)
@@ -649,6 +673,9 @@ abstract class _ShoppingList implements ShoppingList {
   @override // 追加: 作成日時
   @HiveField(8)
   DateTime? get updatedAt;
+  @override // 追加: 更新日時
+  @HiveField(9)
+  ListType get listType;
   @override
   @JsonKey(ignore: true)
   _$$ShoppingListImplCopyWith<_$ShoppingListImpl> get copyWith =>

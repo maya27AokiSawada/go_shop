@@ -7,6 +7,15 @@ part 'shopping_list.g.dart';
 
 const uuid = Uuid();
 
+// リストタイプを定義するenum
+@HiveType(typeId: 12)
+enum ListType {
+  @HiveField(0)
+  shopping, // 買い物リスト（デフォルト）
+  @HiveField(1)
+  todo, // TODOタスクリスト
+}
+
 @HiveType(typeId: 3)
 @freezed
 class ShoppingItem with _$ShoppingItem {
@@ -17,7 +26,9 @@ class ShoppingItem with _$ShoppingItem {
     @HiveField(3) required DateTime registeredDate, // 登録日
     @HiveField(4) DateTime? purchaseDate, // 購入日
     @HiveField(5) @Default(false) bool isPurchased, // true: 購入済み、 false: 未購入
-    @HiveField(6) @Default(0) int shoppingInterval, // 0:　繰り返し購入ではない　other:　繰り返し購入間隔（日数）
+    @HiveField(6)
+    @Default(0)
+    int shoppingInterval, // 0:　繰り返し購入ではない　other:　繰り返し購入間隔（日数）
     @HiveField(7) DateTime? deadline, // 購入期限
   }) = _ShoppingItem;
 
@@ -55,6 +66,7 @@ class ShoppingList with _$ShoppingList {
     @HiveField(6) @Default('') String description, // 追加: リスト説明
     @HiveField(7) required DateTime createdAt, // 追加: 作成日時
     @HiveField(8) DateTime? updatedAt, // 追加: 更新日時
+    @HiveField(9) @Default(ListType.shopping) ListType listType, // リストタイプ追加
   }) = _ShoppingList;
 
   // ファクトリーコンストラクタでIDと日時を自動生成
