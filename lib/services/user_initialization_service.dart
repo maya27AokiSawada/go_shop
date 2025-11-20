@@ -502,6 +502,14 @@ class UserInitializationService {
       int uploadedCount = 0;
       for (final hiveGroup in hiveGroups) {
         if (hiveGroup.syncStatus == models.SyncStatus.local) {
+          // デフォルトグループはスキップ（各ユーザー固有でFirestoreに同期不要）
+          final currentUser = FirebaseAuth.instance.currentUser;
+          if (currentUser != null && hiveGroup.groupId == currentUser.uid) {
+            Log.info(
+                '📱 [SYNC] デフォルトグループはアップロードスキップ: ${hiveGroup.groupName} (${hiveGroup.groupId})');
+            continue;
+          }
+
           Log.info(
               '📤 [SYNC] local状態のグループをFirestoreにアップロード: ${hiveGroup.groupName}');
           try {
@@ -599,12 +607,13 @@ class UserInitializationService {
 
           // その他のsynced状態グループはFirestoreから削除されたと判断して削除
           try {
-            await repository.deleteGroup(hiveGroup.groupId);
+            // ⚠️ CRITICAL: Hive専用削除（Firestore削除権限がない受諾者用）
+            await hiveRepository.deleteGroup(hiveGroup.groupId);
             Log.info(
                 '🗑️ [SYNC] Firestoreにないグループを削除: ${hiveGroup.groupName} (${hiveGroup.groupId})');
             skippedCount++;
           } catch (e) {
-            Log.warning('⚠️ [SYNC] グループ削除失敗: ${hiveGroup.groupId}');
+            Log.warning('⚠️ [SYNC] グループ削除失敗: ${hiveGroup.groupId}, $e');
           }
         }
       }
@@ -616,7 +625,8 @@ class UserInitializationService {
         // 削除済みグループはスキップ（Hiveにあれば削除）
         if (isDeleted) {
           try {
-            await repository.deleteGroup(doc.id);
+            // ⚠️ CRITICAL: Hive専用削除（Firestore削除権限がない受諾者用）
+            await hiveRepository.deleteGroup(doc.id);
             Log.info('🗑️ [SYNC] 削除済みグループをHiveから削除: ${doc.id}');
           } catch (e) {
             // グループが存在しない場合はスキップ

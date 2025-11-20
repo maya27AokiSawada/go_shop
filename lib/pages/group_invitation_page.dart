@@ -47,6 +47,7 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
         purchaseGroupId: widget.group.groupId,
         groupName: widget.group.groupName,
         groupOwnerUid: widget.group.ownerUid ?? '',
+        groupAllowedUids: widget.group.allowedUid,
         invitationType: _invitationType,
       );
 

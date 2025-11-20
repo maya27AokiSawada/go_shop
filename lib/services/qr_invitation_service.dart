@@ -15,6 +15,8 @@ import 'user_preferences_service.dart';
 import 'notification_service.dart';
 import '../providers/purchase_group_provider.dart';
 import '../models/purchase_group.dart' as models;
+import '../datastore/hive_purchase_group_repository.dart'
+    show hivePurchaseGroupRepositoryProvider;
 
 // QRコード招待サービスプロバイダー
 final qrInvitationServiceProvider = Provider<QRInvitationService>((ref) {
@@ -37,6 +39,7 @@ class QRInvitationService {
     required String purchaseGroupId,
     required String groupName,
     required String groupOwnerUid,
+    required List<String> groupAllowedUids, // グループメンバーのUIDリスト
     required String invitationType, // 'individual' または 'partner'
     String? customMessage,
   }) async {
@@ -80,8 +83,13 @@ class QRInvitationService {
       'version': '3.0', // セキュリティ強化版
     };
 
-    // Firestoreのinvitationsコレクションに保存
-    await _firestore.collection('invitations').doc(invitationId).set({
+    // Firestoreのサブコレクションに保存: purchaseGroups/{groupId}/invitations/{invitationId}
+    await _firestore
+        .collection('purchaseGroups')
+        .doc(purchaseGroupId)
+        .collection('invitations')
+        .doc(invitationId)
+        .set({
       ...invitationData,
       'token': invitationId, // Invitationモデルのtokenフィールド用
       'groupId': purchaseGroupId, // Invitationモデル用 (purchaseGroupIdのエイリアス)
@@ -89,6 +97,8 @@ class QRInvitationService {
       'inviterName': currentUser.displayName ??
           currentUser.email ??
           'ユーザー', // Invitationモデル用
+      'groupMemberUids':
+          {groupOwnerUid, ...groupAllowedUids}.toList(), // 重複除去してグループメンバー全員のUID
       'createdAt': FieldValue.serverTimestamp(),
       'expiresAt': DateTime.now().add(const Duration(hours: 24)),
       'status': 'pending', // pending, accepted, expired
@@ -260,49 +270,37 @@ class QRInvitationService {
 
       Log.info('💡 セキュア招待受諾: タイプ=$invitationType');
 
-      // 1. 先にHiveにプレースホルダーグループを作成（これが重要！）
-      await _createPlaceholderGroup(
-        groupId: invitationData['purchaseGroupId'],
-        groupName: invitationData['groupName'],
-        inviterUid: inviterUid,
-        acceptorUid: acceptorUid,
-      );
-      Log.info('✅ プレースホルダーグループ作成完了');
+      // ⚠️ 受諾者の処理: 通知送信のみ（Hive/Firestore更新は招待元が実施）
+      Log.info('📤 [ACCEPTOR] 招待元への通知を送信（すべての更新は招待元が実施）');
+      Log.info('📤 [ACCEPTOR] 招待元UID: $inviterUid');
+      Log.info('📤 [ACCEPTOR] 受諾者UID: $acceptorUid');
 
-      // 2. 招待タイプによって処理を分岐（Firestoreへの書き込み）
-      if (invitationType == 'partner') {
-        await _processPartnerInvitation(inviterUid, acceptorUid);
-      } else {
-        await _processIndividualInvitation(invitationData, acceptorUid);
-      }
+      // 招待元のオーナーに通知を送信
+      final notificationService = _ref.read(notificationServiceProvider);
+      final acceptorUser = _auth.currentUser;
+      final userName =
+          acceptorUser?.displayName ?? acceptorUser?.email ?? 'ユーザー';
+      final groupId = invitationData['purchaseGroupId'] as String;
+      final groupName = invitationData['groupName'] as String? ?? 'グループ';
 
-      // 招待受諾の記録
-      await _recordInvitationAcceptance(invitationData, acceptorUid);
+      Log.info(
+          '📤 [ACCEPTOR] 通知データ: groupId=$groupId, groupName=$groupName, userName=$userName');
 
-      // Firestoreのinvitationsコレクションのステータスを更新
-      final invitationId = invitationData['invitationId'] as String?;
-      if (invitationId != null) {
-        await _firestore.collection('invitations').doc(invitationId).update({
-          'status': 'accepted',
-          'acceptedAt': FieldValue.serverTimestamp(),
+      await notificationService.sendNotification(
+        targetUserId: inviterUid,
+        groupId: groupId,
+        type: NotificationType.groupMemberAdded,
+        message: '$userName さんが「$groupName」への参加を希望しています',
+        metadata: {
+          'groupName': groupName,
           'acceptorUid': acceptorUid,
-        });
-        Log.info('✅ 招待ステータスを更新: $invitationId → accepted');
-
-        // 招待トークンの使用回数をインクリメント
-        final invitationToken = invitationData['invitationToken'] as String?;
-        if (invitationToken != null) {
-          await _updateInvitationUsage(
-              invitationId, invitationToken, acceptorUid);
-        }
-      }
-
-      // 即座に成功を返す（UIをブロックしない）
-      // バックグラウンドで確認通知を待機して同期
-      _waitForConfirmationAndSync(
-        groupId: invitationData['purchaseGroupId'],
-        currentUser: currentUser,
+          'acceptorName': userName,
+          'invitationId': invitationData['invitationId'],
+          'timestamp': DateTime.now().toIso8601String(),
+        },
       );
+
+      Log.info('✅ [ACCEPTOR] 通知送信完了 - 招待元の確認待ち');
 
       Log.info('✅ 招待受諾処理完了 - バックグラウンド同期開始');
 
@@ -445,8 +443,17 @@ class QRInvitationService {
           providedKey ?? invitationData['securityKey'] as String?;
 
       // Firestoreから実際の招待データを取得
-      final invitationDoc =
-          await _firestore.collection('invitations').doc(invitationId).get();
+      final purchaseGroupId = invitationData['purchaseGroupId'] as String?;
+      if (purchaseGroupId == null) {
+        Log.info('❌ purchaseGroupIdが見つかりません');
+        return false;
+      }
+      final invitationDoc = await _firestore
+          .collection('purchaseGroups')
+          .doc(purchaseGroupId)
+          .collection('invitations')
+          .doc(invitationId)
+          .get();
 
       if (!invitationDoc.exists) {
         Log.info('❌ 招待が見つかりません: $invitationId');
@@ -823,6 +830,7 @@ class QRInvitationService {
       final updatedGroup = baseGroup.copyWith(
         allowedUid: allowedUid,
         members: members,
+        syncStatus: models.SyncStatus.pending, // ⚠️ 招待元の更新待ち状態に設定
         updatedAt: DateTime.now(),
       );
 
@@ -830,62 +838,17 @@ class QRInvitationService {
       Log.info(
           '🔍 [QR_INVITATION] 更新後 - allowedUid: ${updatedGroup.allowedUid}');
       Log.info('🔍 [QR_INVITATION] メンバー数: ${updatedGroup.members?.length}');
-
-      // Hiveに保存
-      await repository.updateGroup(groupId, updatedGroup);
-      Log.info('✅ Hiveにグループ更新完了');
-
-      // Firestoreにも直接保存（set with merge:true で確実に更新）
       Log.info(
-          '📤 [FIRESTORE] 保存開始 - allowedUid: $allowedUid (${allowedUid.length}個)');
-      Log.info('📤 [FIRESTORE] 保存データ詳細:');
-      Log.info('   - groupId: $groupId');
-      Log.info('   - allowedUid: $allowedUid');
-      Log.info('   - members: ${members.length}人');
+          '🔍 [QR_INVITATION] syncStatus: ${updatedGroup.syncStatus} (pending=招待元が更新するまで削除保護)');
 
-      // update()ではなくset(merge:true)を使用して確実にフィールドを更新
-      await _firestore.collection('purchaseGroups').doc(groupId).set({
-        'allowedUid': allowedUid,
-        'members': members
-            .map((m) => {
-                  'memberId': m.memberId,
-                  'name': m.name,
-                  'contact': m.contact,
-                  'role': m.role.name,
-                  'isSignedIn': m.isSignedIn,
-                  'invitationStatus': m.invitationStatus.name,
-                  'acceptedAt': m.acceptedAt,
-                })
-            .toList(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-      Log.info(
-          '✅ Firestoreにグループ更新完了 (merge:true) - allowedUid保存確認: $allowedUid');
+      // ⚠️ CRITICAL: Hive専用リポジトリを使用（Firestore更新を回避）
+      // HybridRepositoryを使うとFirestoreにも書き込もうとしてPermission-Deniedになる
+      final hiveRepository = _ref.read(hivePurchaseGroupRepositoryProvider);
+      await hiveRepository.saveGroup(updatedGroup);
+      Log.info('✅ Hiveのみにグループ更新完了（受諾者ローカル、Firestoreは招待元が更新）');
 
-      // 🔍 保存後の確認: Firestoreから実際に読み取って検証
-      try {
-        final verifyDoc =
-            await _firestore.collection('purchaseGroups').doc(groupId).get();
-        if (verifyDoc.exists) {
-          final verifyData = verifyDoc.data();
-          final savedAllowedUid = verifyData?['allowedUid'] as List?;
-          Log.info(
-              '🔍 [VERIFICATION] Firestore保存確認 - allowedUid: $savedAllowedUid (${savedAllowedUid?.length ?? 0}個)');
-          if (savedAllowedUid != null && savedAllowedUid.length >= 2) {
-            Log.info('✅ [VERIFICATION] allowedUid正常保存 - 両方のUIDを確認');
-          } else {
-            Log.warning(
-                '⚠️ [VERIFICATION] allowedUid異常 - 期待: 2個, 実際: ${savedAllowedUid?.length ?? 0}個');
-          }
-        }
-      } catch (e) {
-        Log.warning('⚠️ [VERIFICATION] Firestore確認読み取りエラー: $e');
-      }
-
-      Log.info('✅ 個別招待でグループに追加: $acceptorUid → $groupId');
-
-      // Firestoreの書き込みが完全に反映されるまで少し待機
-      await Future.delayed(const Duration(milliseconds: 500));
+      // Firestoreへの直接更新は行わない（招待元が通知を受け取って更新する）
+      Log.info('📤 [NOTIFICATION] 招待元への通知準備');
 
       // グループの全メンバーに通知を送信（参加者本人は除く）
       final notificationService = _ref.read(notificationServiceProvider);
@@ -902,11 +865,11 @@ class QRInvitationService {
           'groupId': groupId, // 招待元がこのグループを再同期するため
           'newMemberId': acceptorUid,
           'newMemberName': userName,
-          'acceptorUid': acceptorUid, // 確認通知送信先
+          'acceptorUid': acceptorUid,
         },
       );
 
-      Log.info('✅ 個別招待処理完了 + 通知送信完了');
+      Log.info('✅ 個別招待処理完了 + 通知送信完了（招待元が更新を実行）');
     } catch (e) {
       Log.error('❌ 個別招待処理エラー: $e');
       rethrow;
@@ -914,21 +877,7 @@ class QRInvitationService {
   }
 
   /// 招待トークンの使用回数を更新
-  Future<void> _updateInvitationUsage(
-      String invitationId, String invitationToken, String acceptorUid) async {
-    try {
-      // invitationsコレクション内のドキュメントを更新
-      final docRef = _firestore.collection('invitations').doc(invitationId);
-      await docRef.update({
-        'currentUses': FieldValue.increment(1),
-        'usedBy': FieldValue.arrayUnion([acceptorUid]),
-        'lastUsedAt': FieldValue.serverTimestamp(),
-      });
-
-      Log.info('✅ 招待使用回数を更新: $invitationId (currentUses +1, usedBy追加)');
-    } catch (e) {
-      Log.error('❌ 招待使用回数の更新エラー: $e');
-      // エラーが発生してもメイン処理は失敗させない
-    }
-  }
+  // ⚠️ [DELETED] _updateInvitationUsage()
+  // PlanBでは招待元のStreamBuilderが招待ドキュメントを監視・更新するため、
+  // 受諾者側でFirestore更新は不要（Permission-Denied回避）
 }

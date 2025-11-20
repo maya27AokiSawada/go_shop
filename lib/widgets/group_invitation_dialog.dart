@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'dart:convert';
 
 import '../models/purchase_group.dart';
 import '../models/invitation.dart';
 import '../services/qr_invitation_service.dart';
+import '../providers/purchase_group_provider.dart';
 import '../utils/app_logger.dart';
 
 /// グループ招待管理ダイアログ
@@ -27,6 +29,47 @@ class GroupInvitationDialog extends ConsumerStatefulWidget {
 
 class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
   bool _isCreating = false;
+  final Set<String> _processedAcceptances = {}; // 処理済みの受諾を追跡
+
+  @override
+  void initState() {
+    super.initState();
+    _ensureGroupExistsInFirestore();
+  }
+
+  /// グループドキュメントがFirestoreに存在することを確認
+  Future<void> _ensureGroupExistsInFirestore() async {
+    try {
+      final groupDoc = await FirebaseFirestore.instance
+          .collection('purchaseGroups')
+          .doc(widget.group.groupId)
+          .get();
+
+      if (!groupDoc.exists) {
+        Log.error('グループがFirestoreに存在しません: ${widget.group.groupId}');
+        Log.error('グループを作成します...');
+
+        // グループドキュメントを作成
+        await FirebaseFirestore.instance
+            .collection('purchaseGroups')
+            .doc(widget.group.groupId)
+            .set({
+          'groupId': widget.group.groupId,
+          'groupName': widget.group.groupName,
+          'ownerUid': widget.group.ownerUid,
+          'allowedUid': widget.group.allowedUid,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        Log.info('グループをFirestoreに作成しました: ${widget.group.groupId}');
+      } else {
+        Log.info('グループはFirestoreに存在します: ${widget.group.groupId}');
+      }
+    } catch (e) {
+      Log.error('グループ存在確認エラー: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -78,17 +121,37 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Firestoreから招待一覧を取得
+                    // Firestoreから招待一覧を取得（グループメンバー全員が閲覧可能）
                     StreamBuilder<QuerySnapshot>(
                       stream: FirebaseFirestore.instance
+                          .collection('purchaseGroups')
+                          .doc(widget.group.groupId)
                           .collection('invitations')
-                          .where('groupId', isEqualTo: widget.group.groupId)
-                          .where('status', isEqualTo: 'pending')
-                          .orderBy('createdAt', descending: true)
                           .snapshots(),
                       builder: (context, snapshot) {
                         if (snapshot.hasError) {
-                          return Text('エラー: ${snapshot.error}');
+                          final currentUser = FirebaseAuth.instance.currentUser;
+                          Log.error('招待一覧取得エラー: ${snapshot.error}');
+                          Log.error('  現在のユーザー: ${currentUser?.uid}');
+                          Log.error('  グループID: ${widget.group.groupId}');
+                          Log.error('  グループownerUid: ${widget.group.ownerUid}');
+                          Log.error(
+                              '  グループallowedUid: ${widget.group.allowedUid}');
+                          return Column(
+                            children: [
+                              Text('エラー: ${snapshot.error}'),
+                              const SizedBox(height: 8),
+                              Text('ユーザー: ${currentUser?.uid}',
+                                  style: const TextStyle(fontSize: 10)),
+                              Text('グループ: ${widget.group.groupId}',
+                                  style: const TextStyle(fontSize: 10)),
+                              Text('Owner: ${widget.group.ownerUid}',
+                                  style: const TextStyle(fontSize: 10)),
+                              Text(
+                                  'Members: ${widget.group.allowedUid.join(", ")}',
+                                  style: const TextStyle(fontSize: 10)),
+                            ],
+                          );
                         }
 
                         if (snapshot.connectionState ==
@@ -99,7 +162,33 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
 
                         final invitations = snapshot.data?.docs ?? [];
 
-                        if (invitations.isEmpty) {
+                        // クライアント側でフィルタリングとソート
+                        final filteredInvitations = invitations.where((doc) {
+                          try {
+                            final data = doc.data() as Map<String, dynamic>?;
+                            final status = data?['status'] as String?;
+                            return status == 'pending' || status == null;
+                          } catch (e) {
+                            return false;
+                          }
+                        }).toList()
+                          ..sort((a, b) {
+                            try {
+                              final aData = a.data() as Map<String, dynamic>?;
+                              final bData = b.data() as Map<String, dynamic>?;
+                              final aCreated =
+                                  aData?['createdAt'] as Timestamp?;
+                              final bCreated =
+                                  bData?['createdAt'] as Timestamp?;
+                              if (aCreated == null || bCreated == null)
+                                return 0;
+                              return bCreated.compareTo(aCreated); // 降順
+                            } catch (e) {
+                              return 0;
+                            }
+                          });
+
+                        if (filteredInvitations.isEmpty) {
                           return const Center(
                             child: Padding(
                               padding: EdgeInsets.all(32),
@@ -111,8 +200,11 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
                           );
                         }
 
+                        // 招待の usedBy 配列を監視してグループメンバーを自動追加
+                        _processInvitationAcceptances(filteredInvitations);
+
                         return Column(
-                          children: invitations.map((doc) {
+                          children: filteredInvitations.map((doc) {
                             try {
                               final invitation = Invitation.fromFirestore(doc
                                   as DocumentSnapshot<Map<String, dynamic>>);
@@ -188,6 +280,7 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
       'maxUses': invitation.maxUses,
       'invitationToken': invitation.token,
       'token': invitation.token,
+      'securityKey': invitation.securityKey, // セキュリティキー追加
       'type': 'secure_qr_invitation',
       'version': '3.0',
     });
@@ -328,6 +421,7 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
         purchaseGroupId: widget.group.groupId,
         groupName: widget.group.groupName,
         groupOwnerUid: widget.group.ownerUid ?? widget.group.groupId,
+        groupAllowedUids: widget.group.allowedUid,
         invitationType: 'individual',
       );
 
@@ -391,7 +485,10 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
 
     if (confirmed == true) {
       try {
+        // サブコレクションパスで削除: /purchaseGroups/{groupId}/invitations/{token}
         await FirebaseFirestore.instance
+            .collection('purchaseGroups')
+            .doc(widget.group.groupId)
             .collection('invitations')
             .doc(token)
             .delete();
@@ -414,6 +511,112 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
           );
         }
       }
+    }
+  }
+
+  /// 招待受諾を監視してグループメンバーを自動追加
+  void _processInvitationAcceptances(List<QueryDocumentSnapshot> invitations) {
+    for (final invitationDoc in invitations) {
+      try {
+        final data = invitationDoc.data() as Map<String, dynamic>?;
+        if (data == null) continue;
+
+        final usedBy = (data['usedBy'] as List<dynamic>?)?.cast<String>() ?? [];
+
+        // 新しく追加されたUIDを検出
+        for (final acceptorUid in usedBy) {
+          final key = '${invitationDoc.id}_$acceptorUid';
+          if (!_processedAcceptances.contains(key)) {
+            _processedAcceptances.add(key);
+
+            // グループに受諾者を追加（非同期処理）
+            _addAcceptorToGroup(acceptorUid, data);
+          }
+        }
+      } catch (e) {
+        Log.error('招待受諾処理エラー: $e');
+      }
+    }
+  }
+
+  /// グループに受諾者を追加
+  Future<void> _addAcceptorToGroup(
+      String acceptorUid, Map<String, dynamic> invitationData) async {
+    try {
+      final groupId = widget.group.groupId;
+      final currentAllowedUids = List<String>.from(widget.group.allowedUid);
+
+      // 既に追加済みの場合はスキップ
+      if (currentAllowedUids.contains(acceptorUid)) {
+        Log.info('✅ [INVITATION_MONITOR] 既にメンバー追加済み: $acceptorUid');
+        return;
+      }
+
+      // allowedUidに追加
+      currentAllowedUids.add(acceptorUid);
+
+      // 受諾者の名前を取得（招待データから、または通知から）
+      final acceptorName = invitationData['acceptorName'] as String? ?? 'ユーザー';
+
+      // メンバーリストに追加
+      final updatedMembers =
+          List<PurchaseGroupMember>.from(widget.group.members ?? []);
+      updatedMembers.add(
+        PurchaseGroupMember(
+          memberId: acceptorUid,
+          name: acceptorName,
+          contact: '', // 空文字列（後で受諾者が設定可能）
+          role: PurchaseGroupRole.member,
+          isSignedIn: true,
+          invitationStatus: InvitationStatus.accepted,
+          acceptedAt: DateTime.now(),
+        ),
+      );
+
+      Log.info(
+          '📤 [INVITATION_MONITOR] Firestoreへグループ更新: allowedUid追加 $acceptorUid');
+
+      // Firestoreに更新（ownerとして実行）
+      await FirebaseFirestore.instance
+          .collection('purchaseGroups')
+          .doc(groupId)
+          .update({
+        'allowedUid': currentAllowedUids,
+        'members': updatedMembers
+            .map((m) => {
+                  'memberId': m.memberId,
+                  'name': m.name,
+                  'contact': m.contact,
+                  'role': m.role.name,
+                  'isSignedIn': m.isSignedIn,
+                  'invitationStatus': m.invitationStatus.name,
+                  'acceptedAt': m.acceptedAt?.toIso8601String(),
+                })
+            .toList(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      Log.info('✅ [INVITATION_MONITOR] グループ更新完了: $acceptorUid を追加');
+
+      // ローカルのHiveも更新
+      final repository = ref.read(purchaseGroupRepositoryProvider);
+      final updatedGroup = widget.group.copyWith(
+        allowedUid: currentAllowedUids,
+        members: updatedMembers,
+      );
+      await repository.updateGroup(groupId, updatedGroup);
+
+      // UI通知
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$acceptorName さんがグループに参加しました'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      Log.error('❌ [INVITATION_MONITOR] グループ更新エラー: $e');
     }
   }
 }
