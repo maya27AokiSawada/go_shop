@@ -101,6 +101,10 @@ class NotificationService {
     AppLogger.info(
         '🔔 [NOTIFICATION] ユーザー名: ${currentUser.displayName ?? "未設定"}');
     AppLogger.info('🔔 [NOTIFICATION] メール: ${currentUser.email}');
+
+    // リスナー起動時刻を記録（この時刻以降の通知のみ処理）
+    final listenerStartTime = DateTime.now();
+    AppLogger.info('🔔 [NOTIFICATION] リスナー起動時刻: $listenerStartTime');
     AppLogger.info(
         '🔔 [NOTIFICATION] クエリ条件: userId == ${currentUser.uid}, read == false');
 
@@ -119,6 +123,14 @@ class NotificationService {
               '🔔 [NOTIFICATION] 変更タイプ: ${change.type}, docId: ${change.doc.id}');
           if (change.type == DocumentChangeType.added) {
             final notification = NotificationData.fromFirestore(change.doc);
+
+            // リスナー起動前の既存通知はスキップ（既読化しない）
+            if (notification.timestamp.isBefore(listenerStartTime)) {
+              AppLogger.info(
+                  '⏭️ [NOTIFICATION] 既存通知をスキップ: ${notification.id} (${notification.timestamp})');
+              continue;
+            }
+
             AppLogger.info(
                 '🔔 [NOTIFICATION] 新規通知検出: type=${notification.type}, groupId=${notification.groupId}');
             _handleNotification(notification);
@@ -161,7 +173,7 @@ class NotificationService {
         case NotificationType.groupMemberAdded:
           // 新メンバー追加通知 - 招待元が受諾者をグループに追加
           AppLogger.info('👥 [NOTIFICATION] 新メンバー追加通知を受信！');
-          final groupId = notification.metadata?['groupId'] as String?;
+          final groupId = notification.groupId; // ← トップレベルから取得
           final acceptorUid = notification.metadata?['acceptorUid'] as String?;
           final acceptorName =
               notification.metadata?['acceptorName'] as String? ?? 'ユーザー';
@@ -170,7 +182,7 @@ class NotificationService {
           AppLogger.info('👥 [NOTIFICATION] 受諾者UID: $acceptorUid');
           AppLogger.info('👥 [NOTIFICATION] 受諾者名: $acceptorName');
 
-          if (groupId != null && acceptorUid != null) {
+          if (groupId.isNotEmpty && acceptorUid != null) {
             // 受諾者をグループに追加（招待元として実行）
             await _addMemberToGroup(groupId, acceptorUid, acceptorName);
 

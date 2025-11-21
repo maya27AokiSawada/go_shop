@@ -14,6 +14,7 @@ import 'user_initialization_service.dart';
 import 'user_preferences_service.dart';
 import 'notification_service.dart';
 import '../providers/purchase_group_provider.dart';
+import '../providers/user_settings_provider.dart';
 import '../models/purchase_group.dart' as models;
 import '../datastore/hive_purchase_group_repository.dart'
     show hivePurchaseGroupRepositoryProvider;
@@ -278,8 +279,31 @@ class QRInvitationService {
       // 招待元のオーナーに通知を送信
       final notificationService = _ref.read(notificationServiceProvider);
       final acceptorUser = _auth.currentUser;
-      final userName =
-          acceptorUser?.displayName ?? acceptorUser?.email ?? 'ユーザー';
+
+      // SharedPreferencesから表示名を取得（ホーム画面で保存した名前）
+      final prefsName = await UserPreferencesService.getUserName();
+
+      // UserSettingsから表示名を取得（Hive）
+      final userSettings = await _ref.read(userSettingsProvider.future);
+      final settingsName = userSettings.userName;
+
+      // 名前の優先順位: SharedPreferences → UserSettings.userName → Auth.displayName → email → UID
+      final userName = (prefsName?.isNotEmpty == true)
+          ? prefsName!
+          : (settingsName.isNotEmpty
+              ? settingsName
+              : (acceptorUser?.displayName?.isNotEmpty == true
+                  ? acceptorUser!.displayName!
+                  : (acceptorUser?.email?.isNotEmpty == true
+                      ? acceptorUser!.email!
+                      : acceptorUid)));
+
+      Log.info('📤 [ACCEPTOR] SharedPreferences.userName: $prefsName');
+      Log.info('📤 [ACCEPTOR] UserSettings.userName: $settingsName');
+      Log.info('📤 [ACCEPTOR] Auth.displayName: ${acceptorUser?.displayName}');
+      Log.info('📤 [ACCEPTOR] Auth.email: ${acceptorUser?.email}');
+      Log.info('📤 [ACCEPTOR] 最終決定した名前: $userName');
+
       final groupId = invitationData['purchaseGroupId'] as String;
       final groupName = invitationData['groupName'] as String? ?? 'グループ';
 
