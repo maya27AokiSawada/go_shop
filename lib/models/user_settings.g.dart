@@ -23,13 +23,14 @@ class UserSettingsAdapter extends TypeAdapter<UserSettings> {
       userId: fields[3] as String,
       userEmail: fields[4] as String,
       appMode: fields[5] as int,
+      enableListNotifications: fields[6] as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserSettings obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.userName)
       ..writeByte(1)
@@ -41,7 +42,9 @@ class UserSettingsAdapter extends TypeAdapter<UserSettings> {
       ..writeByte(4)
       ..write(obj.userEmail)
       ..writeByte(5)
-      ..write(obj.appMode);
+      ..write(obj.appMode)
+      ..writeByte(6)
+      ..write(obj.enableListNotifications);
   }
 
   @override
@@ -67,6 +70,7 @@ _$UserSettingsImpl _$$UserSettingsImplFromJson(Map<String, dynamic> json) =>
       userId: json['userId'] as String? ?? '',
       userEmail: json['userEmail'] as String? ?? '',
       appMode: (json['appMode'] as num?)?.toInt() ?? 0,
+      enableListNotifications: json['enableListNotifications'] as bool? ?? true,
     );
 
 Map<String, dynamic> _$$UserSettingsImplToJson(_$UserSettingsImpl instance) =>
@@ -77,4 +81,5 @@ Map<String, dynamic> _$$UserSettingsImplToJson(_$UserSettingsImpl instance) =>
       'userId': instance.userId,
       'userEmail': instance.userEmail,
       'appMode': instance.appMode,
+      'enableListNotifications': instance.enableListNotifications,
     };

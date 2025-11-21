@@ -21,7 +21,12 @@ enum NotificationType {
   groupUpdated('group_updated'),
   invitationAccepted('invitation_accepted'),
   groupDeleted('group_deleted'),
-  syncConfirmation('sync_confirmation'); // 同期確認通知
+  syncConfirmation('sync_confirmation'), // 同期確認通知
+
+  // リスト関連通知（5分間隔でバッチ送信）
+  itemAdded('item_added'), // アイテム追加
+  itemRemoved('item_removed'), // アイテム削除
+  itemPurchased('item_purchased'); // 購入完了
 
   const NotificationType(this.value);
   final String value;
@@ -249,6 +254,17 @@ class NotificationService {
           // グループ削除通知
           AppLogger.info('🗑️ [NOTIFICATION] グループ削除通知');
           _ref.invalidate(allGroupsProvider);
+          break;
+
+        case NotificationType.itemAdded:
+        case NotificationType.itemRemoved:
+        case NotificationType.itemPurchased:
+          // リスト変更通知 - リストプロバイダーを更新
+          AppLogger.info(
+              '📝 [NOTIFICATION] リスト変更通知: ${notification.type.value}');
+          // TODO: ShoppingListProviderの無効化処理を追加
+          // _ref.invalidate(shoppingListProvider);
+          AppLogger.info('✅ [NOTIFICATION] リスト変更通知処理完了');
           break;
       }
 
