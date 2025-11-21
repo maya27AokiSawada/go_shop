@@ -42,7 +42,7 @@ class _GroupMemberManagementPageState
         foregroundColor: Colors.white,
         actions: [
           // デフォルトグループ（プライベート専用）では招待機能を非表示
-          if (widget.group.groupId != 'default_group')
+          if (!_isDefaultGroup(widget.group))
             IconButton(
               onPressed: () {
                 _showInviteOptions(context);

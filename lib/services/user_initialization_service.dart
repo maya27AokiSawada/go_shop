@@ -169,7 +169,7 @@ class UserInitializationService {
         } else {
           Log.info('✅ [INIT] デフォルトグループは既に存在: ${deletedDefaultGroup.groupName}');
 
-          // STEP2-1.5: デフォルトグループ名を現在のユーザー名に更新
+          // STEP2-1.5: デフォルトグループ名とオーナー情報を現在のユーザー情報に更新
           final prefsName = await UserPreferencesService.getUserName();
           final expectedGroupName = prefsName?.isNotEmpty == true
               ? '$prefsName'
@@ -178,15 +178,49 @@ class UserInitializationService {
                   : (user?.email?.split('@').first ?? 'ユーザー'));
           final expectedDefaultGroupName = '$expectedGroupNameグループ';
 
-          if (deletedDefaultGroup.groupName != expectedDefaultGroupName) {
+          // オーナーメンバー情報の更新が必要かチェック
+          final ownerMember = deletedDefaultGroup.members?.firstWhere(
+            (m) => m.role == models.PurchaseGroupRole.owner,
+            orElse: () => models.PurchaseGroupMember(
+              memberId: user?.uid ?? '',
+              name: '',
+              contact: '',
+              role: models.PurchaseGroupRole.owner,
+            ),
+          );
+
+          final needsGroupNameUpdate =
+              deletedDefaultGroup.groupName != expectedDefaultGroupName;
+          final needsOwnerNameUpdate = ownerMember?.name != expectedGroupName;
+          final needsOwnerContactUpdate =
+              ownerMember?.contact != (user?.email ?? '');
+
+          if (needsGroupNameUpdate ||
+              needsOwnerNameUpdate ||
+              needsOwnerContactUpdate) {
             Log.info(
-                '🔄 [INIT] デフォルトグループ名を更新: ${deletedDefaultGroup.groupName} → $expectedDefaultGroupName');
+                '🔄 [INIT] デフォルトグループ情報を更新: グループ名=${deletedDefaultGroup.groupName} → $expectedDefaultGroupName, オーナー名=${ownerMember?.name} → $expectedGroupName');
+
+            // 更新されたメンバーリストを作成
+            final updatedMembers = deletedDefaultGroup.members?.map((m) {
+              if (m.role == models.PurchaseGroupRole.owner) {
+                return m.copyWith(
+                  name: expectedGroupName,
+                  contact: user?.email ?? m.contact,
+                  memberId: user?.uid ?? m.memberId,
+                );
+              }
+              return m;
+            }).toList();
+
             final updatedGroup = deletedDefaultGroup.copyWith(
               groupName: expectedDefaultGroupName,
+              ownerName: expectedGroupName,
+              members: updatedMembers,
               updatedAt: DateTime.now(),
             );
             await hiveRepository.saveGroup(updatedGroup);
-            Log.info('✅ [INIT] デフォルトグループ名更新完了');
+            Log.info('✅ [INIT] デフォルトグループ情報更新完了（グループ名+オーナー情報）');
 
             // プロバイダーを更新して名前変更を反映
             _ref.invalidate(allGroupsProvider);
