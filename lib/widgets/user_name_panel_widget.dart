@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/user_preferences_service.dart';
 import '../services/firestore_user_name_service.dart';
+import '../providers/user_settings_provider.dart';
 import '../utils/app_logger.dart';
 import '../flavors.dart';
 
@@ -152,6 +153,14 @@ class _UserNamePanelWidgetState extends ConsumerState<UserNamePanelWidget> {
         AppLogger.success('✅ ユーザー名保存完了（SharedPreferences）');
       } else {
         throw Exception('SharedPreferencesへの保存に失敗');
+      }
+
+      // UserSettings (Hive) にも保存
+      try {
+        await ref.read(userSettingsProvider.notifier).updateUserName(userName);
+        AppLogger.success('✅ ユーザー名保存完了（UserSettings/Hive）');
+      } catch (e) {
+        AppLogger.warning('⚠️ UserSettings保存エラー: $e');
       }
 
       // Firestoreにも保存（認証済みの場合）

@@ -689,8 +689,15 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
 
       // プリファレンスからユーザー名を取得
       final prefsName = await UserPreferencesService.getUserName();
-      final displayName = prefsName ?? (user?.displayName ?? 'maya');
+      final displayName = (prefsName?.isNotEmpty == true)
+          ? prefsName!
+          : (user?.displayName?.isNotEmpty == true
+              ? user!.displayName!
+              : (user?.email?.split('@').first ?? 'ユーザー'));
       Log.info('👤 [CREATE DEFAULT] ユーザー名: $displayName');
+      Log.info('🔍 [CREATE DEFAULT] SharedPreferences.userName: $prefsName');
+      Log.info('🔍 [CREATE DEFAULT] Auth.displayName: ${user?.displayName}');
+      Log.info('🔍 [CREATE DEFAULT] Auth.email: ${user?.email}');
 
       // メールアドレスをSharedPreferencesに保存
       if (user?.email != null && user!.email!.isNotEmpty) {

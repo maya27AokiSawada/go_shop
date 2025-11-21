@@ -168,6 +168,29 @@ class UserInitializationService {
           _ref.invalidate(allGroupsProvider);
         } else {
           Log.info('✅ [INIT] デフォルトグループは既に存在: ${deletedDefaultGroup.groupName}');
+
+          // STEP2-1.5: デフォルトグループ名を現在のユーザー名に更新
+          final prefsName = await UserPreferencesService.getUserName();
+          final expectedGroupName = prefsName?.isNotEmpty == true
+              ? '$prefsName'
+              : (user?.displayName?.isNotEmpty == true
+                  ? user!.displayName!
+                  : (user?.email?.split('@').first ?? 'ユーザー'));
+          final expectedDefaultGroupName = '$expectedGroupNameグループ';
+
+          if (deletedDefaultGroup.groupName != expectedDefaultGroupName) {
+            Log.info(
+                '🔄 [INIT] デフォルトグループ名を更新: ${deletedDefaultGroup.groupName} → $expectedDefaultGroupName');
+            final updatedGroup = deletedDefaultGroup.copyWith(
+              groupName: expectedDefaultGroupName,
+              updatedAt: DateTime.now(),
+            );
+            await hiveRepository.saveGroup(updatedGroup);
+            Log.info('✅ [INIT] デフォルトグループ名更新完了');
+
+            // プロバイダーを更新して名前変更を反映
+            _ref.invalidate(allGroupsProvider);
+          }
         }
       } catch (e) {
         // グループが存在しない場合は新規作成

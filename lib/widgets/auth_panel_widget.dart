@@ -258,6 +258,18 @@ class _AuthPanelWidgetState extends ConsumerState<AuthPanelWidget> {
                       child: ElevatedButton.icon(
                         onPressed: () async {
                           if (_formKey.currentState!.validate()) {
+                            // ユーザー名が空の場合、入力を促す
+                            if (userNameController.text.trim().isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('ユーザー名を入力してください'),
+                                  backgroundColor: Colors.orange,
+                                  duration: Duration(seconds: 3),
+                                ),
+                              );
+                              return;
+                            }
+
                             await ref.read(authProvider).performSignUp(
                                   context: context,
                                   ref: ref,

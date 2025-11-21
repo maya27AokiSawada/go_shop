@@ -11,6 +11,7 @@ import '../services/firestore_group_sync_service.dart';
 import '../providers/user_name_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/purchase_group_provider.dart';
+import '../providers/user_settings_provider.dart';
 import '../providers/hive_provider.dart';
 import '../services/group_management_service.dart';
 import '../flavors.dart';
@@ -228,6 +229,14 @@ class FirebaseAuthService {
       // ユーザー名を SharedPreferences に保存（サインアップ時に同期）
       await UserPreferencesService.saveUserName(userName);
       Log.info('💾 ユーザー名を SharedPreferences に保存（サインアップ時）: $userName');
+
+      // ユーザー名を UserSettings (Hive) にも保存
+      try {
+        await ref.read(userSettingsProvider.notifier).updateUserName(userName);
+        Log.info('💾 ユーザー名を UserSettings (Hive) に保存（サインアップ時）: $userName');
+      } catch (e) {
+        Log.warning('⚠️ UserSettings保存エラー（サインアップ継続）: $e');
+      }
 
       final userCredential =
           await AuthenticationService.signUpWithEmailAndPassword(
