@@ -184,7 +184,14 @@ class UserIdChangeHelper {
 
       // 新しいUIDを保存（Hive初期化完了後に実行）
       await Future.delayed(const Duration(milliseconds: 500));
+
+      // UserSettings (Hive) に保存
       await userSettings.updateUserId(newUserId);
+      Log.info('💾 [UID_CHANGE] UserSettings (Hive)にUID保存完了: $newUserId');
+
+      // SharedPreferences にも保存（次回ログイン時のUID変更検出に必要）
+      await UserPreferencesService.saveUserId(newUserId);
+      Log.info('💾 [UID_CHANGE] SharedPreferencesにUID保存完了: $newUserId');
     } catch (e) {
       Log.info('❌ UID変更処理エラー: $e');
     }
