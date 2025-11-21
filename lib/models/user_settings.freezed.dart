@@ -32,7 +32,9 @@ mixin _$UserSettings {
   @HiveField(4)
   String get userEmail => throw _privateConstructorUsedError; // メールアドレスフィールドを追加
   @HiveField(5)
-  int get appMode => throw _privateConstructorUsedError;
+  int get appMode => throw _privateConstructorUsedError; // 0=shopping, 1=todo
+  @HiveField(6)
+  bool get enableListNotifications => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
@@ -52,7 +54,8 @@ abstract class $UserSettingsCopyWith<$Res> {
       @HiveField(2) String lastUsedShoppingListId,
       @HiveField(3) String userId,
       @HiveField(4) String userEmail,
-      @HiveField(5) int appMode});
+      @HiveField(5) int appMode,
+      @HiveField(6) bool enableListNotifications});
 }
 
 /// @nodoc
@@ -74,6 +77,7 @@ class _$UserSettingsCopyWithImpl<$Res, $Val extends UserSettings>
     Object? userId = null,
     Object? userEmail = null,
     Object? appMode = null,
+    Object? enableListNotifications = null,
   }) {
     return _then(_value.copyWith(
       userName: null == userName
@@ -100,6 +104,10 @@ class _$UserSettingsCopyWithImpl<$Res, $Val extends UserSettings>
           ? _value.appMode
           : appMode // ignore: cast_nullable_to_non_nullable
               as int,
+      enableListNotifications: null == enableListNotifications
+          ? _value.enableListNotifications
+          : enableListNotifications // ignore: cast_nullable_to_non_nullable
+              as bool,
     ) as $Val);
   }
 }
@@ -118,7 +126,8 @@ abstract class _$$UserSettingsImplCopyWith<$Res>
       @HiveField(2) String lastUsedShoppingListId,
       @HiveField(3) String userId,
       @HiveField(4) String userEmail,
-      @HiveField(5) int appMode});
+      @HiveField(5) int appMode,
+      @HiveField(6) bool enableListNotifications});
 }
 
 /// @nodoc
@@ -138,6 +147,7 @@ class __$$UserSettingsImplCopyWithImpl<$Res>
     Object? userId = null,
     Object? userEmail = null,
     Object? appMode = null,
+    Object? enableListNotifications = null,
   }) {
     return _then(_$UserSettingsImpl(
       userName: null == userName
@@ -164,6 +174,10 @@ class __$$UserSettingsImplCopyWithImpl<$Res>
           ? _value.appMode
           : appMode // ignore: cast_nullable_to_non_nullable
               as int,
+      enableListNotifications: null == enableListNotifications
+          ? _value.enableListNotifications
+          : enableListNotifications // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }
@@ -177,7 +191,8 @@ class _$UserSettingsImpl implements _UserSettings {
       @HiveField(2) this.lastUsedShoppingListId = '',
       @HiveField(3) this.userId = '',
       @HiveField(4) this.userEmail = '',
-      @HiveField(5) this.appMode = 0});
+      @HiveField(5) this.appMode = 0,
+      @HiveField(6) this.enableListNotifications = true});
 
   factory _$UserSettingsImpl.fromJson(Map<String, dynamic> json) =>
       _$$UserSettingsImplFromJson(json);
@@ -208,10 +223,15 @@ class _$UserSettingsImpl implements _UserSettings {
   @JsonKey()
   @HiveField(5)
   final int appMode;
+// 0=shopping, 1=todo
+  @override
+  @JsonKey()
+  @HiveField(6)
+  final bool enableListNotifications;
 
   @override
   String toString() {
-    return 'UserSettings(userName: $userName, lastUsedGroupId: $lastUsedGroupId, lastUsedShoppingListId: $lastUsedShoppingListId, userId: $userId, userEmail: $userEmail, appMode: $appMode)';
+    return 'UserSettings(userName: $userName, lastUsedGroupId: $lastUsedGroupId, lastUsedShoppingListId: $lastUsedShoppingListId, userId: $userId, userEmail: $userEmail, appMode: $appMode, enableListNotifications: $enableListNotifications)';
   }
 
   @override
@@ -228,13 +248,23 @@ class _$UserSettingsImpl implements _UserSettings {
             (identical(other.userId, userId) || other.userId == userId) &&
             (identical(other.userEmail, userEmail) ||
                 other.userEmail == userEmail) &&
-            (identical(other.appMode, appMode) || other.appMode == appMode));
+            (identical(other.appMode, appMode) || other.appMode == appMode) &&
+            (identical(
+                    other.enableListNotifications, enableListNotifications) ||
+                other.enableListNotifications == enableListNotifications));
   }
 
   @JsonKey(ignore: true)
   @override
-  int get hashCode => Object.hash(runtimeType, userName, lastUsedGroupId,
-      lastUsedShoppingListId, userId, userEmail, appMode);
+  int get hashCode => Object.hash(
+      runtimeType,
+      userName,
+      lastUsedGroupId,
+      lastUsedShoppingListId,
+      userId,
+      userEmail,
+      appMode,
+      enableListNotifications);
 
   @JsonKey(ignore: true)
   @override
@@ -257,7 +287,8 @@ abstract class _UserSettings implements UserSettings {
       @HiveField(2) final String lastUsedShoppingListId,
       @HiveField(3) final String userId,
       @HiveField(4) final String userEmail,
-      @HiveField(5) final int appMode}) = _$UserSettingsImpl;
+      @HiveField(5) final int appMode,
+      @HiveField(6) final bool enableListNotifications}) = _$UserSettingsImpl;
 
   factory _UserSettings.fromJson(Map<String, dynamic> json) =
       _$UserSettingsImpl.fromJson;
@@ -280,6 +311,9 @@ abstract class _UserSettings implements UserSettings {
   @override // メールアドレスフィールドを追加
   @HiveField(5)
   int get appMode;
+  @override // 0=shopping, 1=todo
+  @HiveField(6)
+  bool get enableListNotifications;
   @override
   @JsonKey(ignore: true)
   _$$UserSettingsImplCopyWith<_$UserSettingsImpl> get copyWith =>

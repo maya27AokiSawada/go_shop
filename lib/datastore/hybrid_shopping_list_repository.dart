@@ -6,6 +6,7 @@ import '../models/shopping_list.dart';
 import '../datastore/shopping_list_repository.dart';
 import '../datastore/hive_shopping_list_repository.dart';
 import '../datastore/firestore_shopping_list_repository.dart';
+import '../services/list_notification_batch_service.dart';
 import '../flavors.dart';
 
 /// Hive（ローカルキャッシュ）+ Firestore（リモート）のハイブリッドShoppingListリポジトリ
