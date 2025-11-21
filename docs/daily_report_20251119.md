@@ -1,6 +1,7 @@
 # Daily Report - 2025年11月19日
 
 ## 作業概要
+
 ホーム画面から設定画面へのUI移行作業を完了。アプリモード切り替え、プライバシー設定、開発者ツールを設定画面に集約し、ホーム画面を認証とコア機能に集中させた。
 
 ---
@@ -10,6 +11,7 @@
 ### 1. UI要素の移行（home_page → settings_page） ✅
 
 #### 削除した要素（home_page.dart）
+
 - プライバシー設定パネル（シークレットモード切り替え）
 - 開発者ツールパネル（テストシナリオ実行）
 - 未使用のimport 4つ（`user_settings_provider`, `app_mode_notifier_provider`, `user_settings_repository`, `app_mode_config`）
@@ -17,6 +19,7 @@
 - initStateのシークレットモード読み込み処理
 
 #### 追加した要素（settings_page.dart）
+
 1. **アプリモード切り替えパネル**
    - SegmentedButtonで買い物リスト ⇄ TODO共有モードを切り替え
    - UserSettings（Hive）への永続化
@@ -40,6 +43,7 @@
 **原因**: `selected: {AppModeSettings.currentMode}`が静的な値を参照していたため、Providerの変更を監視していなかった
 
 **解決策**: ConsumerでラップしてappModeNotifierProviderを監視
+
 ```dart
 Consumer(
   builder: (context, ref, child) {
@@ -57,6 +61,7 @@ Consumer(
 ## 技術的詳細
 
 ### アプリモード切り替えフロー（修正後）
+
 1. ユーザーがSegmentedButtonをタップ
 2. `userSettingsProvider`からUserSettingsを取得
 3. `copyWith(appMode: newMode.index)`で新しい設定を作成
@@ -66,6 +71,7 @@ Consumer(
 7. SnackBarで変更完了を通知
 
 ### Consumerパターンの使用理由
+
 - **問題**: `ConsumerStatefulWidget`内でも、直接`AppModeSettings.currentMode`を参照すると静的な値になる
 - **解決**: `Consumer`ウィジェットで明示的に`ref.watch()`を使用することで、Providerの変更を確実に監視
 - **効果**: モード切り替え時にSegmentedButtonの選択状態が即座に更新される
@@ -84,6 +90,7 @@ Consumer(
 ## 画面構成の変更
 
 ### Before（home_page.dart）
+
 ```
 ホーム画面:
 ├─ ログイン状態表示
@@ -98,6 +105,7 @@ Consumer(
 ```
 
 ### After（設定画面に集約）
+
 ```
 ホーム画面（home_page.dart）:
 ├─ ログイン状態表示
@@ -120,9 +128,11 @@ Consumer(
 ## 未完了タスク（次回作業）
 
 ### 1. グループ/リスト同期遅延の調査 🔜
+
 **現象**: サインイン後、グループやリストの表示に遅延が発生
 
 **調査ポイント**:
+
 1. **Firestoreダウンロード時間**
    - `FirestoreGroupSyncService._fetchUserGroups()`のログ確認
    - クエリ実行時間 vs データ取得時間の切り分け
@@ -139,12 +149,14 @@ Consumer(
    - `ref.invalidate()`の実行順序
 
 **調査対象ファイル**:
+
 - `lib/services/firestore_group_sync_service.dart` - Firestore fetch
 - `lib/datastore/hive_purchase_group_repository.dart` - Hive save
 - `lib/providers/auth_provider.dart` - post-signin actions
 - `lib/helpers/user_id_change_helper.dart` - UID change sync
 
 **測定方法**:
+
 ```dart
 final stopwatch = Stopwatch()..start();
 // 処理
@@ -156,6 +168,7 @@ Log.info('⏱️ 処理時間: ${stopwatch.elapsedMilliseconds}ms');
 ## 動作検証結果
 
 ### ✅ UI移行の検証
+
 - [x] home_pageからプライバシー設定が削除されている
 - [x] home_pageから開発者ツールが削除されている
 - [x] settings_pageにアプリモード切り替えが表示される
@@ -166,6 +179,7 @@ Log.info('⏱️ 処理時間: ${stopwatch.elapsedMilliseconds}ms');
 - [x] テストシナリオ実行ボタンが正常に動作する
 
 ### ✅ コンパイルエラー確認
+
 - [x] home_page.dartにlintエラーなし
 - [x] settings_page.dartにlintエラーなし
 - [x] 未使用importが削除されている
@@ -175,9 +189,11 @@ Log.info('⏱️ 処理時間: ${stopwatch.elapsedMilliseconds}ms');
 ## 技術メモ
 
 ### ConsumerStatefulWidget内でのConsumer使用
+
 **誤解しやすいポイント**: ConsumerStatefulWidgetを使用していても、build内で直接`AppModeSettings.currentMode`を参照すると、それは静的な値になる。
 
 **正しいパターン**:
+
 ```dart
 class _SettingsPageState extends ConsumerState<SettingsPage> {
   @override
@@ -197,6 +213,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 ```
 
 ### SegmentedButtonの選択状態管理
+
 - `selected`プロパティは`Set<T>`型を要求
 - 単一選択の場合も`{value}`のようにSetで渡す
 - `onSelectionChanged`で`Set<T>`が渡されるので`.first`で取得
@@ -212,6 +229,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 ---
 
 ## コミットメッセージ
+
 ```
 refactor: Move settings UI from home page to dedicated settings page
 
@@ -233,5 +251,6 @@ Fixes: App mode SegmentedButton selection state not updating
 ---
 
 ## 残存課題
+
 - グループ/リスト同期の遅延調査（次回作業）
 - 同期中のローディングUI改善（将来検討）
