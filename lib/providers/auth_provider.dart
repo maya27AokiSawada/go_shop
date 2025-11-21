@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/app_logger.dart';
 import '../helpers/ui_helper.dart';
 import '../services/authentication_service.dart';
@@ -99,8 +100,56 @@ class FirebaseAuthService {
       Log.debug(
           '🔥 FirebaseAuthService: sendPasswordResetEmail開始 - email: $email');
 
-      await _auth!.sendPasswordResetEmail(email: email);
+      // レート制限チェック（1日5通まで）
+      final rateLimitDoc = await FirebaseFirestore.instance
+          .collection('mail_rate_limit')
+          .doc(email)
+          .get();
 
+      if (rateLimitDoc.exists) {
+        final data = rateLimitDoc.data()!;
+        final count = data['count'] as int? ?? 0;
+        final lastReset = (data['lastReset'] as Timestamp?)?.toDate();
+        final now = DateTime.now();
+
+        // 24時間以内に5通送信済みの場合は拒否
+        if (lastReset != null &&
+            now.difference(lastReset).inHours < 24 &&
+            count >= 5) {
+          throw Exception('送信制限に達しました。24時間後に再度お試しください。');
+        }
+      }
+
+      // Firestore Trigger Email用のドキュメントを作成
+      await FirebaseFirestore.instance.collection('mail').add({
+        'to': [email],
+        'template': {
+          'name': 'password-reset',
+          'data': {
+            'email': email,
+            'resetLink': 'https://go-shop-app.firebaseapp.com/__/auth/action',
+          },
+        },
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // レート制限カウンターを更新
+      final now = DateTime.now();
+      final docData = rateLimitDoc.exists ? rateLimitDoc.data()! : {};
+      final lastReset = (docData['lastReset'] as Timestamp?)?.toDate();
+      final shouldReset =
+          lastReset == null || now.difference(lastReset).inHours >= 24;
+
+      await FirebaseFirestore.instance
+          .collection('mail_rate_limit')
+          .doc(email)
+          .set({
+        'count': shouldReset ? 1 : FieldValue.increment(1),
+        'lastReset': shouldReset ? FieldValue.serverTimestamp() : lastReset,
+        'lastSent': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      Log.info('📧 Firestore Triggerメールドキュメント作成: $email');
       Log.debug('🔥 FirebaseAuthService: sendPasswordResetEmail成功');
     } catch (e) {
       Log.error('🔥 FirebaseAuthService: sendPasswordResetEmailでエラー発生');
@@ -541,11 +590,11 @@ class FirebaseAuthService {
         offerSignUp = true;
         break;
       case 'invalid-credential':
-        errorMessage = 'ログイン情報が正しくありません。アカウントが存在しない可能性があります';
+        errorMessage = 'メールアドレスまたはパスワードが正しくありません';
         offerSignUp = true;
         break;
       case 'wrong-password':
-        errorMessage = 'パスワードが間違っています';
+        errorMessage = 'メールアドレスまたはパスワードが正しくありません';
         break;
       case 'invalid-email':
         errorMessage = 'メールアドレスの形式が正しくありません';

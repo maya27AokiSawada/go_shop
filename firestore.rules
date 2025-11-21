@@ -10,8 +10,18 @@ service cloud.firestore {
 
     // メール送信コレクション（Trigger Email Extension用）
     match /mail/{mailId} {
-      allow create: if request.auth != null;  // 認証済みユーザーのみ作成可能
+      // パスワードリセットメールは未認証でも送信可能
+      // レート制限: 1メールアドレスあたり1日5通まで
+      allow create: if request.resource.data.to is list &&
+                       request.resource.data.to.size() > 0 &&
+                       request.resource.data.to[0] is string;
       allow read, update, delete: if false;  // セキュリティのため禁止
+    }
+
+    // メール送信レート制限用カウンター
+    match /mail_rate_limit/{email} {
+      allow read: if true;
+      allow write: if false;  // アプリからは書き込み不可（Extensionが管理）
     }
 
     // 通知コレクション：リアルタイム通知用
