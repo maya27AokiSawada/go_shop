@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/app_logger.dart';
 import '../helpers/ui_helper.dart';
+import '../helpers/user_id_change_helper.dart';
 import '../services/authentication_service.dart';
 import '../services/user_info_service.dart';
 import '../services/email_management_service.dart';
@@ -214,6 +215,35 @@ class FirebaseAuthService {
       if (userCredential == null) {
         UiHelper.showErrorMessage(context, 'ログインに失敗しました');
         return;
+      }
+
+      // 🔍 UID変更チェック: サインイン成功直後に実行
+      final newUid = userCredential.user?.uid;
+      final storedUid = await UserPreferencesService.getUserId();
+
+      if (newUid != null &&
+          storedUid != null &&
+          storedUid.isNotEmpty &&
+          storedUid != newUid) {
+        Log.info('⚠️ [SIGNIN] UID変更検出: $storedUid → $newUid');
+
+        // UID変更ダイアログを表示
+        await UserIdChangeHelper.handleUserIdChange(
+          ref: ref,
+          context: context,
+          newUserId: newUid,
+          userEmail: email,
+          mounted: true,
+        );
+
+        // ダイアログ処理後にUID保存は完了しているので、ここでは保存不要
+        Log.info('✅ [SIGNIN] UID変更処理完了');
+      } else {
+        // UID変更なし or 初回ログイン
+        if (newUid != null) {
+          await UserPreferencesService.saveUserId(newUid);
+          Log.info('💾 [SIGNIN] UID保存完了: $newUid');
+        }
       }
 
       // メールアドレスの保存処理
