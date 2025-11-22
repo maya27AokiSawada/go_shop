@@ -281,4 +281,36 @@ class FirestoreShoppingListRepository implements ShoppingListRepository {
     // getOrCreateListと同じ実装（後方互換性のため）
     return getOrCreateList(groupId, groupName);
   }
+
+  // === Realtime Sync Methods ===
+  @override
+  Stream<ShoppingList?> watchShoppingList(String groupId, String listId) {
+    developer.log('🔴 [REALTIME] Stream開始: groupId=$groupId, listId=$listId');
+
+    return _collection(groupId).doc(listId).snapshots().map((snapshot) {
+      if (!snapshot.exists) {
+        developer.log('⚠️ [REALTIME] リストが存在しません: listId=$listId');
+        return null;
+      }
+
+      final data = snapshot.data() as Map<String, dynamic>?;
+      if (data == null) {
+        developer.log('⚠️ [REALTIME] データがnull: listId=$listId');
+        return null;
+      }
+
+      try {
+        final list = _shoppingListFromFirestore(snapshot);
+        developer.log(
+            '✅ [REALTIME] リスト更新: ${list.listName} (${list.items.length}件)');
+        return list;
+      } catch (e) {
+        developer.log('❌ [REALTIME] パースエラー: $e');
+        return null;
+      }
+    }).handleError((error) {
+      developer.log('❌ [REALTIME] Streamエラー: $error');
+      return null;
+    });
+  }
 }
