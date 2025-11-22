@@ -45,6 +45,16 @@ class UserSettingsNotifier extends AsyncNotifier<UserSettings> {
     ref.invalidateSelf();
   }
 
+  Future<void> updateListNotifications(bool enabled) async {
+    final repository = ref.read(userSettingsRepositoryProvider);
+    final currentSettings = await future;
+    final updatedSettings = currentSettings.copyWith(
+      enableListNotifications: enabled,
+    );
+    await repository.saveSettings(updatedSettings);
+    ref.invalidateSelf();
+  }
+
   Future<bool> hasUserIdChanged(String newUserId) async {
     final repository = ref.read(userSettingsRepositoryProvider);
     return await repository.hasUserIdChanged(newUserId);

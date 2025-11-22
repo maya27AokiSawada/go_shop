@@ -472,11 +472,22 @@ class HybridShoppingListRepository implements ShoppingListRepository {
       // 1. Hiveに追加
       await _hiveRepo.addItemToList(listId, item);
 
+      // 2. 通知記録（groupIdを取得するためにリストを取得）
+      final list = await _hiveRepo.getShoppingListById(listId);
+      if (list != null) {
+        final notifyService = _ref.read(listNotificationBatchServiceProvider);
+        await notifyService.recordItemAdded(
+          listId: listId,
+          groupId: list.groupId,
+          itemName: item.name,
+        );
+      }
+
       if (F.appFlavor == Flavor.dev || !_isOnline) {
         return;
       }
 
-      // 2. 同期処理でFirestoreに追加
+      // 3. 同期処理でFirestoreに追加
       await _syncItemToFirestoreWithFallback(
           listId, item, _ShoppingListSyncOperationType.createItem);
     } catch (e) {
@@ -491,11 +502,22 @@ class HybridShoppingListRepository implements ShoppingListRepository {
       // 1. Hiveから削除
       await _hiveRepo.removeItemFromList(listId, item);
 
+      // 2. 通知記録（groupIdを取得するためにリストを取得）
+      final list = await _hiveRepo.getShoppingListById(listId);
+      if (list != null) {
+        final notifyService = _ref.read(listNotificationBatchServiceProvider);
+        await notifyService.recordItemRemoved(
+          listId: listId,
+          groupId: list.groupId,
+          itemName: item.name,
+        );
+      }
+
       if (F.appFlavor == Flavor.dev || !_isOnline) {
         return;
       }
 
-      // 2. 同期処理でFirestoreからも削除
+      // 3. 同期処理でFirestoreからも削除
       await _syncItemToFirestoreWithFallback(
           listId, item, _ShoppingListSyncOperationType.deleteItem);
     } catch (e) {
@@ -512,11 +534,24 @@ class HybridShoppingListRepository implements ShoppingListRepository {
       await _hiveRepo.updateItemStatusInList(listId, item,
           isPurchased: isPurchased);
 
+      // 2. 通知記録（購入完了時のみ）
+      if (isPurchased) {
+        final list = await _hiveRepo.getShoppingListById(listId);
+        if (list != null) {
+          final notifyService = _ref.read(listNotificationBatchServiceProvider);
+          await notifyService.recordItemPurchased(
+            listId: listId,
+            groupId: list.groupId,
+            itemName: item.name,
+          );
+        }
+      }
+
       if (F.appFlavor == Flavor.dev || !_isOnline) {
         return;
       }
 
-      // 2. 同期処理でFirestoreの状態も更新
+      // 3. 同期処理でFirestoreの状態も更新
       final updatedItem = item.copyWith(isPurchased: isPurchased);
       await _syncItemToFirestoreWithFallback(
           listId, updatedItem, _ShoppingListSyncOperationType.updateItem);
