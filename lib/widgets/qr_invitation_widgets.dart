@@ -14,6 +14,7 @@ class QRInviteButton extends ConsumerWidget {
   final String purchaseGroupId;
   final String groupName;
   final String groupOwnerUid;
+  final List<String> groupAllowedUids;
   final String? customMessage;
 
   const QRInviteButton({
@@ -22,6 +23,7 @@ class QRInviteButton extends ConsumerWidget {
     required this.purchaseGroupId,
     required this.groupName,
     required this.groupOwnerUid,
+    required this.groupAllowedUids,
     this.customMessage,
   });
 
@@ -47,6 +49,7 @@ class QRInviteButton extends ConsumerWidget {
           purchaseGroupId: purchaseGroupId,
           groupName: groupName,
           groupOwnerUid: groupOwnerUid,
+          groupAllowedUids: groupAllowedUids,
           customMessage: customMessage,
           invitationType: 'individual',
         );

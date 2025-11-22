@@ -519,6 +519,17 @@ class HiveShoppingListRepository implements ShoppingListRepository {
       rethrow;
     }
   }
+
+  // === Realtime Sync Methods ===
+  @override
+  Stream<ShoppingList?> watchShoppingList(String groupId, String listId) {
+    // Hive doesn't support native streams, so we'll return a periodic polling stream
+    developer.log('🔴 [HIVE_REALTIME] ポーリング開始: listId=$listId');
+
+    return Stream.periodic(const Duration(seconds: 30), (_) async {
+      return await getShoppingListById(listId);
+    }).asyncMap((future) => future);
+  }
 }
 
 // Repository Provider

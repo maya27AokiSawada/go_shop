@@ -496,4 +496,11 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
     // 現在はHiveリポジトリに委譲
     await _hiveRepo.deleteShoppingListsByGroupId(groupId);
   }
+
+  // === Realtime Sync Methods ===
+  @override
+  Stream<ShoppingList?> watchShoppingList(String groupId, String listId) {
+    // Firebase版はHiveのポーリング方式にフォールバック
+    return _hiveRepo.watchShoppingList(groupId, listId);
+  }
 }
