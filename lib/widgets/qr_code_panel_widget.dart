@@ -71,6 +71,7 @@ class _QRCodePanelWidgetState extends ConsumerState<QRCodePanelWidget> {
                         purchaseGroupId: 'sample_group_id',
                         groupName: 'サンプルグループ',
                         groupOwnerUid: user.uid,
+                        groupAllowedUids: [user.uid],
                         customMessage: 'Go Shopグループへようこそ！',
                       ),
 

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shopping_list.dart';
 import '../providers/current_list_provider.dart';
-import '../providers/group_shopping_lists_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/shopping_list_provider.dart';
 import '../widgets/shopping_list_header_widget.dart';
@@ -223,16 +222,9 @@ class _ShoppingListPageV2State extends ConsumerState<ShoppingListPageV2> {
                 final repository = ref.read(shoppingListRepositoryProvider);
                 await repository.updateShoppingList(updatedList);
 
-                // プロバイダーを更新
-                await ref
-                    .read(currentListProvider.notifier)
-                    .updateList(updatedList);
+                // StreamBuilderが自動的に更新を検知するため、invalidateは不要
 
-                // 即時反映: プロバイダーを無効化して最新データを取得
-                ref.invalidate(groupShoppingListsProvider);
-                ref.invalidate(currentListProvider);
-
-                Log.info('✅ アイテム追加成功: $name x $quantity (即時反映)');
+                Log.info('✅ アイテム追加成功: $name x $quantity (リアルタイム同期)');
 
                 Navigator.of(context).pop();
 
@@ -437,14 +429,9 @@ class _ShoppingItemTile extends ConsumerWidget {
       updatedAt: DateTime.now(),
     );
 
-    // プロバイダーを更新
-    ref.read(currentListProvider.notifier).updateList(updatedList);
+    // StreamBuilderが自動的に更新を検知するため、invalidateは不要
 
-    // 即時反映: プロバイダーを無効化
-    ref.invalidate(groupShoppingListsProvider);
-    ref.invalidate(currentListProvider);
-
-    Log.info('✅ アイテム購入状態更新: ${item.name} -> $isPurchased (即時反映)');
+    Log.info('✅ アイテム購入状態更新: ${item.name} -> $isPurchased (リアルタイム同期)');
 
     // リポジトリに保存（バックグラウンドで実行）
     final repository = ref.read(shoppingListRepositoryProvider);
@@ -477,14 +464,9 @@ class _ShoppingItemTile extends ConsumerWidget {
                 updatedAt: DateTime.now(),
               );
 
-              // プロバイダーを更新
-              ref.read(currentListProvider.notifier).updateList(updatedList);
+              // StreamBuilderが自動的に更新を検知するため、invalidateは不要
 
-              // 即時反映: プロバイダーを無効化
-              ref.invalidate(groupShoppingListsProvider);
-              ref.invalidate(currentListProvider);
-
-              Log.info('🗑️ アイテム削除: ${item.name} (即時反映)');
+              Log.info('🗑️ アイテム削除: ${item.name} (リアルタイム同期)');
 
               // リポジトリに保存（バックグラウンドで実行）
               final repository = ref.read(shoppingListRepositoryProvider);
