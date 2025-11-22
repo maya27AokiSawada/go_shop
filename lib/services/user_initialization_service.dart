@@ -13,6 +13,7 @@ import '../datastore/hive_purchase_group_repository.dart'
 import '../datastore/firestore_purchase_group_repository.dart'; // Repository型チェック用
 import '../flavors.dart';
 import 'notification_service.dart';
+import 'list_notification_batch_service.dart';
 import 'sync_service.dart';
 import 'user_preferences_service.dart';
 import '../utils/error_handler.dart';
@@ -57,7 +58,11 @@ class UserInitializationService {
       if (_auth != null && _auth!.currentUser != null) {
         final notificationService = _ref.read(notificationServiceProvider);
         notificationService.startListening();
-        Log.info('🔔 [INIT] アプリ起動時 - 既存ユーザーで通知リスナー起動');
+
+        final batchService = _ref.read(listNotificationBatchServiceProvider);
+        batchService.start();
+
+        Log.info('🔔 [INIT] アプリ起動時 - 既存ユーザーで通知サービス起動');
       }
     });
 
@@ -74,12 +79,20 @@ class UserInitializationService {
           // 通知リスナーを起動
           final notificationService = _ref.read(notificationServiceProvider);
           notificationService.startListening();
-          Log.info('🔔 [INIT] 認証状態変更 - 通知リスナー起動');
+
+          final batchService = _ref.read(listNotificationBatchServiceProvider);
+          batchService.start();
+
+          Log.info('🔔 [INIT] 認証状態変更 - 通知サービス起動');
         } else {
           // ログアウト時は通知リスナーを停止
           final notificationService = _ref.read(notificationServiceProvider);
           notificationService.stopListening();
-          Log.info('🔕 [INIT] ログアウト - 通知リスナー停止');
+
+          final batchService = _ref.read(listNotificationBatchServiceProvider);
+          batchService.stop();
+
+          Log.info('🔕 [INIT] ログアウト - 通知サービス停止');
         }
       });
     }
