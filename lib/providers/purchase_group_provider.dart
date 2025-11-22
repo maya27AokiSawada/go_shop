@@ -740,9 +740,49 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
           }
         }
 
-        // syncStatus=localの場合、同期処理でFirestoreにアップロードされることを通知
-        if (existingGroup.syncStatus == models.SyncStatus.local) {
-          Log.info('💡 [CREATE DEFAULT] このグループは次回の同期処理でFirestoreにアップロードされます');
+        // 🔥 CHANGED: syncStatus=localの場合、Firestoreに同期
+        if (existingGroup.syncStatus == models.SyncStatus.local &&
+            user != null &&
+            F.appFlavor == Flavor.prod) {
+          Log.info('🔄 [CREATE DEFAULT] 既存ローカルグループをFirestoreに同期開始');
+
+          try {
+            // syncStatusをsyncedに変更
+            final syncedGroup = existingGroup.copyWith(
+              syncStatus: models.SyncStatus.synced,
+            );
+            await hiveRepository.saveGroup(syncedGroup);
+
+            // Firestoreに保存
+            final firestore = FirebaseFirestore.instance;
+            await firestore
+                .collection('purchaseGroups')
+                .doc(defaultGroupId)
+                .set({
+              'groupId': syncedGroup.groupId,
+              'groupName': syncedGroup.groupName,
+              'ownerUid': user.uid,
+              'allowedUid': [user.uid],
+              'members': syncedGroup.members
+                      ?.map((m) => {
+                            'memberId': m.memberId,
+                            'name': m.name,
+                            'contact': m.contact,
+                            'role': m.role.toString().split('.').last,
+                            'isSignedIn': m.isSignedIn,
+                            'isInvited': m.isInvited,
+                            'isInvitationAccepted': m.isInvitationAccepted,
+                          })
+                      .toList() ??
+                  [],
+              'createdAt': FieldValue.serverTimestamp(),
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+
+            Log.info('✅ [CREATE DEFAULT] 既存グループのFirestore同期完了');
+          } catch (e) {
+            Log.error('❌ [CREATE DEFAULT] 既存グループの同期エラー: $e');
+          }
         }
 
         // デフォルトグループが既に存在するので作成不要
@@ -794,10 +834,50 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
       Log.info(
           '✅ [CREATE DEFAULT] グループ作成完了: $defaultGroupName (ID: $defaultGroupId)');
 
-      // デフォルトグループは常にローカル専用として作成（Firestore同期しない）
-      // 理由: デフォルトグループはユーザー固有のプライベートグループであり、
-      //       syncStatus=localに保つことで、Firestore同期処理から除外される
-      Log.info('💡 [CREATE DEFAULT] syncStatus=local として作成（ローカル専用）');
+      // 🔥 CHANGED: デフォルトグループもFirestoreに同期する
+      // 理由: 複数端末で同じユーザーがログインした場合、デフォルトグループも共有されるべき
+      //       groupId = user.uidなので、Firestoreでも衝突しない（ユーザーごとに一意）
+      if (user != null && F.appFlavor == Flavor.prod) {
+        try {
+          final createdGroup =
+              await hiveRepository.getGroupById(defaultGroupId);
+          // syncStatusをsyncedに変更してFirestoreに同期
+          final syncedGroup = createdGroup.copyWith(
+            syncStatus: models.SyncStatus.synced,
+          );
+          await hiveRepository.saveGroup(syncedGroup);
+
+          // Firestoreにも保存
+          final firestore = FirebaseFirestore.instance;
+          await firestore.collection('purchaseGroups').doc(defaultGroupId).set({
+            'groupId': syncedGroup.groupId,
+            'groupName': syncedGroup.groupName,
+            'ownerUid': user.uid,
+            'allowedUid': [user.uid],
+            'members': syncedGroup.members
+                    ?.map((m) => {
+                          'memberId': m.memberId,
+                          'name': m.name,
+                          'contact': m.contact,
+                          'role': m.role.toString().split('.').last,
+                          'isSignedIn': m.isSignedIn,
+                          'isInvited': m.isInvited,
+                          'isInvitationAccepted': m.isInvitationAccepted,
+                        })
+                    .toList() ??
+                [],
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+
+          Log.info('🌐 [CREATE DEFAULT] デフォルトグループをFirestoreに同期完了');
+        } catch (e) {
+          Log.error('❌ [CREATE DEFAULT] Firestore同期エラー: $e');
+          // エラーでもローカルには作成済みなので続行
+        }
+      } else {
+        Log.info('💡 [CREATE DEFAULT] syncStatus=local として作成（開発環境またはオフライン）');
+      }
 
       // プロバイダーを更新（UI反映）
       Log.info('🔄 [CREATE DEFAULT] UI更新完了');
