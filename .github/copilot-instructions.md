@@ -441,7 +441,183 @@ Consumer(
 - **App mode UI not updating**: Wrap SegmentedButton in `Consumer` to watch `appModeNotifierProvider`
 - **Group/List sync delays**: Under investigation - check Firestore fetch time vs Hive save time
 
-## Known Issues (As of 2025-11-19)
-- **Group synchronization delay**: After sign-in, groups/lists may take time to appear. Investigating whether delay is from Firestore download or Hive save operation.
+## Known Issues (As of 2025-11-22)
+- None currently
+
+## Recent Implementations (2025-11-22)
+
+### Realtime Sync Feature (Phase 1 - Completed)
+**Implementation**: Shopping list items sync instantly across devices without screen transitions.
+
+#### Architecture
+- **Firestore `snapshots()`**: Real-time Stream API for live updates
+- **StreamBuilder**: Flutter widget for automatic UI rebuilds on data changes
+- **HybridRepository**: Auto-switches between Firestore Stream (online) and 30-second polling (offline/dev)
+
+#### Key Files
+**Repository Layer**:
+- `lib/datastore/shopping_list_repository.dart`: Added `watchShoppingList()` abstract method
+- `lib/datastore/firestore_shopping_list_repository.dart`: Firestore `snapshots()` implementation
+- `lib/datastore/hybrid_shopping_list_repository.dart`: Online/offline auto-switching
+- `lib/datastore/hive_shopping_list_repository.dart`: 30-second polling fallback
+- `lib/datastore/firebase_shopping_list_repository.dart`: Delegates to Hive polling
+
+**UI Layer**:
+- `lib/pages/shopping_list_page_v2.dart`: StreamBuilder integration
+  - Removed `invalidate()` calls (causes current list to clear)
+  - Added latest data fetch before item addition (`repository.getShoppingListById()`)
+  - Fixed sync timing issue that caused item count limits
+
+**QR System**:
+- `lib/widgets/qr_invitation_widgets.dart`: Added `groupAllowedUids` parameter
+- `lib/widgets/qr_code_panel_widget.dart`: Updated QRInviteButton usage
+
+#### Critical Patterns
+1. **StreamBuilder Usage**:
+```dart
+StreamBuilder<ShoppingList?>(
+  stream: repository.watchShoppingList(groupId, listId),
+  initialData: currentList,  // Prevents flicker
+  builder: (context, snapshot) {
+    final liveList = snapshot.data ?? currentList;
+    // Auto-updates on Firestore changes
+  },
+)
+```
+
+2. **Item Addition (Latest Data Fetch)**:
+```dart
+// ❌ Wrong: Uses stale currentListProvider data
+final updatedList = currentList.copyWith(items: [...currentList.items, newItem]);
+
+// ✅ Correct: Fetch latest from Repository
+final latestList = await repository.getShoppingListById(currentList.listId);
+final updatedList = latestList.copyWith(items: [...latestList.items, newItem]);
+await repository.updateShoppingList(updatedList);
+// StreamBuilder auto-detects update, no invalidate needed
+```
+
+3. **Hybrid Cache Update**:
+```dart
+// watchShoppingList caches Firestore data to Hive
+return _firestoreRepo!.watchShoppingList(groupId, listId).map((firestoreList) {
+  if (firestoreList != null) {
+    _hiveRepo.updateShoppingList(firestoreList);  // Not addItem!
+  }
+  return firestoreList;
+});
+```
+
+#### Problems Solved
+1. **Build errors**: Missing `watchShoppingList()` implementations in all Repository classes
+2. **Current list clears**: Removed `ref.invalidate()` that cleared StreamBuilder's initialData
+3. **Item count limit**: Fixed by fetching latest data before addition (sync timing issue)
+4. **Cache corruption**: Fixed `addItem` → `updateShoppingList` in HybridRepository
+
+#### Performance
+- **Windows → Android**: Instant reflection (< 1 second)
+- **Self-device**: Current list maintained, no screen transitions
+- **9+ items**: Successfully tested, no limits
+
+#### Design Document
+`docs/shopping_list_realtime_sync_design.md` (361 lines)
+- Phase 1: Basic realtime sync (✅ Completed 2025-11-22)
+- Phase 2: Optimization (pending)
+- Phase 3: Performance tuning (pending)
+
+## Next Implementation (Planned for 2025-11-25+)
+
+### Shopping Item UI Enhancements
+**Goal**: Enable currently disabled features in `ShoppingItem` model
+
+#### 1. Deadline (Shopping Deadline) Feature
+**Model Field**: `DateTime? deadline`
+
+**Planned Implementation**:
+- Deadline picker dialog (date + time)
+- Visual indicators:
+  - Red badge for overdue items
+  - Yellow badge for items due soon (< 3 days)
+  - Countdown display ("2日後" / "期限切れ")
+- Sort by deadline option
+- Deadline notification (optional)
+
+**UI Components**:
+- Deadline icon in item card
+- Swipe action for quick deadline setting
+- Filter/sort dropdown
+
+#### 2. Periodic Purchase (Shopping Interval) Feature
+**Model Field**: `int? shoppingInterval` (days between purchases)
+
+**Planned Implementation**:
+- Interval setting dialog:
+  - Weekly (7 days)
+  - Bi-weekly (14 days)
+  - Monthly (30 days)
+  - Custom days
+- Next purchase date calculation:
+  - Based on `purchaseDate` + `shoppingInterval`
+  - Display "次回購入予定: 11/30"
+- Periodic item badge (🔄 icon)
+- Auto-reminder when next purchase date approaches
+- Statistics: "前回購入から○日経過"
+
+**UI Components**:
+- Periodic purchase toggle in add/edit dialog
+- Badge display on item cards
+- "Repurchase now" quick action
+
+#### 3. Enhanced Item Card UI
+**Planned Layout**:
+```
+┌─────────────────────────────────────┐
+│ [✓] 牛乳 x2          🔄 [期限:2日後] │  ← Checkbox, Name, Badges
+│     前回購入: 11/20   次回: 11/27    │  ← Purchase info
+│     登録者: maya                     │  ← Member info
+└─────────────────────────────────────┘
+```
+
+**Interaction Enhancements**:
+- Swipe left: Delete
+- Swipe right: Edit
+- Long press: Detailed view with history
+- Tap: Toggle purchase status
+
+#### 4. Optional Enhancements
+- Category tags (食品、日用品、etc.)
+- Priority levels (high/medium/low)
+- Notes field for additional details
+- Photo attachment
+- Price tracking
+
+#### Implementation Strategy
+1. **Start with Deadline**: Simpler feature, no calculations
+2. **Add Periodic Purchase**: Requires date calculations
+3. **Enhanced UI**: Integrate both features with rich card design
+4. **Testing**: Ensure Firestore sync works with new fields
+
+#### Files to Modify
+- `lib/pages/shopping_list_page_v2.dart`: Enhanced item cards
+- `lib/widgets/shopping_item_tile.dart` (new): Separate widget for item display
+- `lib/widgets/item_edit_dialog.dart`: Add deadline/interval pickers
+- `lib/models/shopping_item.dart`: Already has fields, no changes needed
+- `lib/datastore/*_shopping_list_repository.dart`: No changes (fields already synced)
+
+#### Design Considerations
+- Maintain realtime sync (Phase 1 implementation)
+- Ensure deadline/interval data syncs to Firestore
+- Keep UI responsive with StreamBuilder pattern
+- Add proper validation (deadline must be future date, interval > 0)
+
+## Common Issues & Solutions
+- **Build failures**: Check for Riverpod Generator imports, remove them
+- **Missing variables**: Ensure controllers and providers are properly defined before use
+- **Null reference errors**: Always null-check `members` lists and async data
+- **Property not found**: Verify `memberId` vs `memberID` consistency across codebase
+- **Default group not appearing**: Ensure `createDefaultGroup()` called after UID change data clear
+- **App mode UI not updating**: Wrap SegmentedButton in `Consumer` to watch `appModeNotifierProvider`
+- **Item count limits**: Always fetch latest data with `repository.getShoppingListById()` before updates
+- **Current list clears on update**: Never use `ref.invalidate()` with StreamBuilder, it clears initialData
 
 Focus on maintaining consistency with existing patterns rather than introducing new architectural approaches.
