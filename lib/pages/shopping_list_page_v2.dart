@@ -213,18 +213,28 @@ class _ShoppingListPageV2State extends ConsumerState<ShoppingListPageV2> {
                   quantity: quantity,
                 );
 
-                // リストに追加
-                final updatedList = currentList.copyWith(
-                  items: [...currentList.items, newItem],
+                // リポジトリから最新データを取得してから追加
+                final repository = ref.read(shoppingListRepositoryProvider);
+                final latestList =
+                    await repository.getShoppingListById(currentList.listId);
+
+                if (latestList == null) {
+                  throw Exception('リストが見つかりません');
+                }
+
+                // 最新リストに追加
+                final updatedList = latestList.copyWith(
+                  items: [...latestList.items, newItem],
+                  updatedAt: DateTime.now(),
                 );
 
                 // リポジトリに保存
-                final repository = ref.read(shoppingListRepositoryProvider);
                 await repository.updateShoppingList(updatedList);
 
                 // StreamBuilderが自動的に更新を検知するため、invalidateは不要
 
-                Log.info('✅ アイテム追加成功: $name x $quantity (リアルタイム同期)');
+                Log.info(
+                    '✅ アイテム追加成功: $name x $quantity (最新: ${latestList.items.length}件 → ${updatedList.items.length}件)');
 
                 Navigator.of(context).pop();
 

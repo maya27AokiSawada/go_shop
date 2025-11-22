@@ -723,11 +723,11 @@ class HybridShoppingListRepository implements ShoppingListRepository {
       (firestoreList) {
         // Firestoreから取得したデータをHiveにキャッシュ（バックグラウンド）
         if (firestoreList != null) {
-          _hiveRepo.addItem(firestoreList).catchError((e) {
+          _hiveRepo.updateShoppingList(firestoreList).catchError((e) {
             developer.log('⚠️ [HYBRID_REALTIME] Hiveキャッシュ保存エラー: $e');
           });
-          developer
-              .log('✅ [HYBRID_REALTIME] Hiveにキャッシュ: ${firestoreList.listName}');
+          developer.log(
+              '✅ [HYBRID_REALTIME] Hiveにキャッシュ: ${firestoreList.listName} (${firestoreList.items.length}件)');
         }
         return firestoreList;
       },
