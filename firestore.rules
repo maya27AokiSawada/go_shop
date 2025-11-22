@@ -109,6 +109,21 @@ service cloud.firestore {
           request.auth.uid in get(/databases/$(database)/documents/purchaseGroups/$(groupId)).data.allowedUid
         );
       }
+
+      // リストサブコレクション：グループメンバーがアクセス可能
+      match /shoppingLists/{listId} {
+        // 親グループのメンバー確認用関数
+        function isGroupMember() {
+          let group = get(/databases/$(database)/documents/purchaseGroups/$(groupId)).data;
+          return request.auth != null && (
+            group.ownerUid == request.auth.uid ||
+            request.auth.uid in group.allowedUid
+          );
+        }
+
+        // 読み取り・作成・更新・削除: すべてグループメンバーなら許可
+        allow read, create, update, delete: if isGroupMember();
+      }
     }
 
     // ShoppingList：allowedUidsベースのアクセス制御

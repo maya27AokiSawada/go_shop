@@ -15,6 +15,7 @@ import '../services/user_preferences_service.dart';
 import '../services/user_initialization_service.dart';
 import 'user_specific_hive_provider.dart';
 import 'auth_provider.dart';
+import 'current_list_provider.dart';
 
 // Logger instance
 
@@ -635,6 +636,12 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
             .selectGroup(newGroup.groupId);
         Log.info(
             '✅ [CREATE GROUP] selectedGroupIdProvider更新完了: ${newGroup.groupId}');
+
+        // ⚠️ 重要: 新規グループの最終使用リストをクリア
+        await ref
+            .read(currentListProvider.notifier)
+            .clearListForGroup(newGroup.groupId);
+        Log.info('✅ [CREATE GROUP] 新規グループの最終使用リストクリア完了: ${newGroup.groupId}');
       } catch (e) {
         Log.warning('⚠️ [CREATE GROUP] グループ選択エラー（続行）: $e');
       }

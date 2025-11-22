@@ -19,6 +19,8 @@ class ShoppingListPageV2 extends ConsumerStatefulWidget {
 }
 
 class _ShoppingListPageV2State extends ConsumerState<ShoppingListPageV2> {
+  String? _previousGroupId; // 前回のグループIDを保存
+
   @override
   void initState() {
     super.initState();
@@ -26,6 +28,23 @@ class _ShoppingListPageV2State extends ConsumerState<ShoppingListPageV2> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeCurrentGroup();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _initializeCurrentGroup();
+
+    // グループ変更を検出
+    final currentGroupId = ref.watch(selectedGroupIdProvider);
+    if (_previousGroupId != null &&
+        currentGroupId != null &&
+        _previousGroupId != currentGroupId) {
+      Log.info('🔄 グループ変更検出: $_previousGroupId → $currentGroupId');
+      Log.info('🗑️ currentListProviderをクリア');
+      ref.read(currentListProvider.notifier).clearSelection();
+    }
+    _previousGroupId = currentGroupId;
   }
 
   /// カレントグループの初期化
@@ -209,10 +228,11 @@ class _ShoppingListPageV2State extends ConsumerState<ShoppingListPageV2> {
                     .read(currentListProvider.notifier)
                     .updateList(updatedList);
 
-                // グループリストプロバイダーを無効化して再読み込みを促す
+                // 即時反映: プロバイダーを無効化して最新データを取得
                 ref.invalidate(groupShoppingListsProvider);
+                ref.invalidate(currentListProvider);
 
-                Log.info('✅ アイテム追加成功: $name x $quantity');
+                Log.info('✅ アイテム追加成功: $name x $quantity (即時反映)');
 
                 Navigator.of(context).pop();
 
@@ -384,7 +404,12 @@ class _ShoppingItemTile extends ConsumerWidget {
 
     // プロバイダーを更新
     ref.read(currentListProvider.notifier).updateList(updatedList);
-    Log.info('✅ アイテム購入状態更新: ${item.name} -> $isPurchased');
+
+    // 即時反映: プロバイダーを無効化
+    ref.invalidate(groupShoppingListsProvider);
+    ref.invalidate(currentListProvider);
+
+    Log.info('✅ アイテム購入状態更新: ${item.name} -> $isPurchased (即時反映)');
 
     // リポジトリに保存（バックグラウンドで実行）
     final repository = ref.read(shoppingListRepositoryProvider);
@@ -419,7 +444,12 @@ class _ShoppingItemTile extends ConsumerWidget {
 
               // プロバイダーを更新
               ref.read(currentListProvider.notifier).updateList(updatedList);
-              Log.info('🗑️ アイテム削除: ${item.name}');
+
+              // 即時反映: プロバイダーを無効化
+              ref.invalidate(groupShoppingListsProvider);
+              ref.invalidate(currentListProvider);
+
+              Log.info('🗑️ アイテム削除: ${item.name} (即時反映)');
 
               // リポジトリに保存（バックグラウンドで実行）
               final repository = ref.read(shoppingListRepositoryProvider);

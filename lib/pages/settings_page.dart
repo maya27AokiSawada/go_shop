@@ -8,6 +8,7 @@ import '../services/user_initialization_service.dart';
 import '../services/access_control_service.dart';
 import '../datastore/user_settings_repository.dart';
 import '../widgets/test_scenario_widget.dart';
+import '../debug/fix_maya_group.dart';
 import '../config/app_mode_config.dart';
 import '../utils/app_logger.dart';
 
@@ -514,28 +515,63 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const TestScenarioWidget(),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const TestScenarioWidget(),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.play_circle_filled,
+                                    size: 16),
+                                label: const Text(
+                                  'テストシナリオ',
+                                  style: TextStyle(fontSize: 14),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.teal.shade100,
+                                  foregroundColor: Colors.teal.shade800,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 8),
+                                  minimumSize: const Size(0, 36),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
                               ),
-                            );
-                          },
-                          icon: const Icon(Icons.play_circle_filled, size: 16),
-                          label: const Text(
-                            'テストシナリオ実行',
-                            style: TextStyle(fontSize: 14),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.teal.shade100,
-                            foregroundColor: Colors.teal.shade800,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 8),
-                            minimumSize: const Size(0, 36),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const FixMayaGroupScreen(),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.build, size: 16),
+                                label: const Text(
+                                  'グループ修正',
+                                  style: TextStyle(fontSize: 14),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.orange.shade100,
+                                  foregroundColor: Colors.orange.shade800,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 8),
+                                  minimumSize: const Size(0, 36),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

@@ -106,6 +106,38 @@ class CurrentListNotifier extends StateNotifier<ShoppingList?> {
     state = null;
   }
 
+  /// 特定グループの最終使用リストをクリア（新規グループ作成時用）
+  Future<void> clearListForGroup(String groupId) async {
+    try {
+      Log.info('🔄 [CLEAR] グループ[$groupId]の最終使用リストをクリア開始');
+      final prefs = await SharedPreferences.getInstance();
+
+      // 既存のマップを取得
+      final mapJson = prefs.getString(_groupListMapKey);
+      if (mapJson != null) {
+        final Map<String, String> groupListMap =
+            Map<String, String>.from(json.decode(mapJson));
+
+        // 該当グループのエントリを削除
+        groupListMap.remove(groupId);
+
+        // 更新したマップを保存
+        await prefs.setString(_groupListMapKey, json.encode(groupListMap));
+        Log.info('✅ [CLEAR] グループ[$groupId]の最終使用リストをクリア完了');
+      } else {
+        Log.info('💡 [CLEAR] マップが存在しないため、クリア不要');
+      }
+
+      // stateもクリア
+      if (state != null) {
+        Log.info('🔄 [CLEAR] state = null に設定');
+        state = null;
+      }
+    } catch (e) {
+      Log.error('❌ [CLEAR] グループリストマップクリアエラー: $e');
+    }
+  }
+
   /// リスト内容を更新（SharedPreferencesにも保存）
   Future<void> updateList(ShoppingList updatedList, {String? groupId}) async {
     Log.info('🔄 カレントリストを更新: ${updatedList.listName}');

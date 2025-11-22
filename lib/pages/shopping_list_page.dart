@@ -9,6 +9,7 @@ import '../providers/current_list_provider.dart';
 import '../services/access_control_service.dart';
 import '../helpers/validation_service.dart';
 import '../widgets/shopping_list_header_widget.dart';
+import '../utils/app_logger.dart';
 
 // NOTE: selectedGroupIdProviderはpurchase_group_provider.dartで定義済み
 
@@ -109,6 +110,15 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
   }
 
   Widget _buildNormalShoppingListUI(BuildContext context) {
+    // グループ変更を監視し、currentListをクリア
+    ref.listen<String?>(selectedGroupIdProvider, (previous, next) {
+      if (previous != null && next != null && previous != next) {
+        Log.info('🔄 グループ変更検出: $previous → $next');
+        Log.info('🗑️ currentListProviderをクリア');
+        ref.read(currentListProvider.notifier).clearSelection();
+      }
+    });
+
     // セキュリティチェック（既存の仕組み）
     final canViewData = ref.watch(dataVisibilityProvider);
     final authRequired = ref.watch(authRequiredProvider);
