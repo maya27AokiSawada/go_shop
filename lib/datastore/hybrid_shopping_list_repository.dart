@@ -699,6 +699,46 @@ class HybridShoppingListRepository implements ShoppingListRepository {
       }
     }
   }
+
+  // === Realtime Sync Methods ===
+  @override
+  Stream<ShoppingList?> watchShoppingList(String groupId, String listId) {
+    developer
+        .log('🔴 [HYBRID_REALTIME] Stream開始: groupId=$groupId, listId=$listId');
+
+    // Dev環境またはオフライン時はポーリング方式にフォールバック
+    if (F.appFlavor == Flavor.dev || !_isOnline || _firestoreRepo == null) {
+      developer.log('⚠️ [HYBRID_REALTIME] ポーリングモード（30秒間隔）');
+
+      // 初回データ取得
+      return Stream.periodic(const Duration(seconds: 30), (_) async {
+        return await _hiveRepo.getShoppingListById(listId);
+      }).asyncMap((future) => future);
+    }
+
+    // オンライン時はFirestoreのStreamを使用
+    developer.log('🌐 [HYBRID_REALTIME] Firestoreストリームモード');
+
+    return _firestoreRepo!.watchShoppingList(groupId, listId).map(
+      (firestoreList) {
+        // Firestoreから取得したデータをHiveにキャッシュ（バックグラウンド）
+        if (firestoreList != null) {
+          _hiveRepo.addItem(firestoreList).catchError((e) {
+            developer.log('⚠️ [HYBRID_REALTIME] Hiveキャッシュ保存エラー: $e');
+          });
+          developer
+              .log('✅ [HYBRID_REALTIME] Hiveにキャッシュ: ${firestoreList.listName}');
+        }
+        return firestoreList;
+      },
+    ).handleError((error) {
+      developer.log('❌ [HYBRID_REALTIME] Streamエラー: $error');
+      _isOnline = false; // オフラインマークを設定
+
+      // エラー時はHiveキャッシュにフォールバック
+      return _hiveRepo.getShoppingListById(listId);
+    });
+  }
 }
 
 // 同期操作の種類を定義

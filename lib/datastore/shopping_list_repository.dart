@@ -55,4 +55,10 @@ abstract class ShoppingListRepository {
 
   /// Get or create default list for a group (backward compatibility)
   Future<ShoppingList> getOrCreateDefaultList(String groupId, String groupName);
+
+  // === Realtime Sync Methods ===
+  /// Watch a specific shopping list for realtime updates
+  /// Returns a Stream that emits the latest ShoppingList data whenever it changes
+  /// Returns null if the list doesn't exist
+  Stream<ShoppingList?> watchShoppingList(String groupId, String listId);
 }

@@ -259,8 +259,9 @@ class _ShoppingItemsListWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentList = ref.watch(currentListProvider);
+    final selectedGroupId = ref.watch(selectedGroupIdProvider);
 
-    if (currentList == null) {
+    if (currentList == null || selectedGroupId == null) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -286,33 +287,67 @@ class _ShoppingItemsListWidget extends ConsumerWidget {
       );
     }
 
-    if (currentList.items.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.add_shopping_cart,
-                size: 64, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
-            Text(
-              '買い物アイテムがありません',
-              style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '右下の + ボタンから追加してください',
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
-            ),
-          ],
-        ),
-      );
-    }
+    // リアルタイム同期用のStreamBuilder
+    final repository = ref.read(shoppingListRepositoryProvider);
 
-    return ListView.builder(
-      itemCount: currentList.items.length,
-      itemBuilder: (context, index) {
-        final item = currentList.items[index];
-        return _ShoppingItemTile(item: item, index: index);
+    return StreamBuilder<ShoppingList?>(
+      stream: repository.watchShoppingList(selectedGroupId, currentList.listId),
+      initialData: currentList, // 初期データは既存のcurrentListを使用
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          Log.error('❌ [STREAM] エラー: ${snapshot.error}');
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                const SizedBox(height: 16),
+                Text(
+                  'データ取得エラー',
+                  style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${snapshot.error}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        }
+
+        final liveList = snapshot.data ?? currentList;
+
+        if (liveList.items.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add_shopping_cart,
+                    size: 64, color: Colors.grey.shade400),
+                const SizedBox(height: 16),
+                Text(
+                  '買い物アイテムがありません',
+                  style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '右下の + ボタンから追加してください',
+                  style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          itemCount: liveList.items.length,
+          itemBuilder: (context, index) {
+            final item = liveList.items[index];
+            return _ShoppingItemTile(item: item, index: index);
+          },
+        );
       },
     );
   }
