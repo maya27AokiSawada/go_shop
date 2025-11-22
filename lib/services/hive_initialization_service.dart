@@ -107,7 +107,7 @@ class HiveInitializationService {
 
       AppLogger.info('Hiveアダプター登録完了');
     } catch (e) {
-      AppLogger.error('Hiveアダプター登録エラー: -Forcee');
+      AppLogger.error('Hiveアダプター登録エラー: $e');
       rethrow;
     }
   }

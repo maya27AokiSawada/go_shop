@@ -22,22 +22,24 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
   // Boxへのアクセスをプロバイダ経由で取得（再試行機能付き安全性チェック）
   Future<Box<PurchaseGroup>> get _boxAsync async {
     // 最大5回、500ms間隔で再試行
-    for (int attempt = 1; attempt <= 5; attempt++) {
+    for (int attempt = 1; attempt <= 10; attempt++) {
       try {
-        developer.log('🔍 [HIVE_REPO] _box アクセス開始 (試行 $attempt/5)');
+        developer.log('🔍 [HIVE_REPO] _box アクセス開始 (試行 $attempt/10)');
 
         // Hive初期化が完了しているかチェック
         final isInitialized = _ref.read(hiveInitializationStatusProvider);
         developer.log('🔍 [HIVE_REPO] 初期化状態: $isInitialized');
 
         if (!isInitialized) {
-          if (attempt < 5) {
-            developer.log('🔄 [HIVE_REPO] 初期化待機中... ${attempt * 500}ms後に再試行');
-            await Future.delayed(const Duration(milliseconds: 500));
+          if (attempt < 10) {
+            // 待機時間を段階的に増加: 500ms → 1000ms → 1500ms...
+            final waitMs = attempt * 500;
+            developer.log('🔄 [HIVE_REPO] 初期化待機中... ${waitMs}ms後に再試行');
+            await Future.delayed(Duration(milliseconds: waitMs));
             continue;
           }
           throw Exception(
-              'Hive is not initialized yet after $attempt attempts. Please wait for initialization to complete.');
+              'Hive is not initialized yet after $attempt attempts (waited ${attempt * 500}ms). Please wait for initialization to complete.');
         }
 
         // Boxが利用可能かチェック
@@ -45,13 +47,14 @@ class HivePurchaseGroupRepository implements PurchaseGroupRepository {
         developer.log('🔍 [HIVE_REPO] Box開いているか: $isBoxOpen');
 
         if (!isBoxOpen) {
-          if (attempt < 5) {
-            developer.log('🔄 [HIVE_REPO] Box開封待機中... ${attempt * 500}ms後に再試行');
-            await Future.delayed(const Duration(milliseconds: 500));
+          if (attempt < 10) {
+            final waitMs = attempt * 500;
+            developer.log('🔄 [HIVE_REPO] Box開封待機中... ${waitMs}ms後に再試行');
+            await Future.delayed(Duration(milliseconds: waitMs));
             continue;
           }
           throw StateError(
-              'PurchaseGroup box is not open after $attempt attempts. This may occur during app restart.');
+              'PurchaseGroup box is not open after $attempt attempts (waited ${attempt * 500}ms). This may occur during app restart.');
         }
 
         final box = _ref.read(purchaseGroupBoxProvider);

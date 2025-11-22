@@ -12,6 +12,12 @@ class UserPreferencesService {
   static const String _keySavedEmailForSignIn =
       'saved_email_for_signin'; // ホーム画面ログイン用
 
+  // UserSettings相当のキー（Hive Boxから移行）
+  static const String _keyLastUsedGroupId = 'last_used_group_id';
+  static const String _keyLastUsedShoppingListId = 'last_used_shopping_list_id';
+  static const String _keyAppMode = 'app_mode'; // 0=shopping, 1=todo
+  static const String _keyEnableListNotifications = 'enable_list_notifications';
+
   /// ユーザー名を取得
   static Future<String?> getUserName() async {
     return ErrorHandler.handleAsync<String>(
@@ -270,5 +276,129 @@ class UserPreferencesService {
     } else {
       return await clearSavedEmailForSignIn();
     }
+  }
+
+  // ==================== UserSettings機能（Hive Boxから移行） ====================
+
+  /// 最後に使用したグループIDを取得
+  static Future<String> getLastUsedGroupId() async {
+    return await ErrorHandler.handleAsync(
+          operation: () async {
+            final prefs = await SharedPreferences.getInstance();
+            final groupId = prefs.getString(_keyLastUsedGroupId) ?? '';
+            Log.info('📱 最後に使用したグループID: $groupId');
+            return groupId;
+          },
+          context: 'USER_PREFS:getLastUsedGroupId',
+          defaultValue: '',
+        ) ??
+        '';
+  }
+
+  /// 最後に使用したグループIDを保存
+  static Future<bool> saveLastUsedGroupId(String groupId) async {
+    return await ErrorHandler.handleAsync(
+          operation: () async {
+            final prefs = await SharedPreferences.getInstance();
+            final success = await prefs.setString(_keyLastUsedGroupId, groupId);
+            Log.info('💾 最後に使用したグループID保存: $groupId - 成功: $success');
+            return success;
+          },
+          context: 'USER_PREFS:saveLastUsedGroupId',
+          defaultValue: false,
+        ) ??
+        false;
+  }
+
+  /// 最後に使用したリストIDを取得
+  static Future<String> getLastUsedShoppingListId() async {
+    return await ErrorHandler.handleAsync(
+          operation: () async {
+            final prefs = await SharedPreferences.getInstance();
+            final listId = prefs.getString(_keyLastUsedShoppingListId) ?? '';
+            Log.info('📱 最後に使用したリストID: $listId');
+            return listId;
+          },
+          context: 'USER_PREFS:getLastUsedShoppingListId',
+          defaultValue: '',
+        ) ??
+        '';
+  }
+
+  /// 最後に使用したリストIDを保存
+  static Future<bool> saveLastUsedShoppingListId(String listId) async {
+    return await ErrorHandler.handleAsync(
+          operation: () async {
+            final prefs = await SharedPreferences.getInstance();
+            final success =
+                await prefs.setString(_keyLastUsedShoppingListId, listId);
+            Log.info('💾 最後に使用したリストID保存: $listId - 成功: $success');
+            return success;
+          },
+          context: 'USER_PREFS:saveLastUsedShoppingListId',
+          defaultValue: false,
+        ) ??
+        false;
+  }
+
+  /// アプリモードを取得（0=shopping, 1=todo）
+  static Future<int> getAppMode() async {
+    return await ErrorHandler.handleAsync(
+          operation: () async {
+            final prefs = await SharedPreferences.getInstance();
+            final mode = prefs.getInt(_keyAppMode) ?? 0;
+            Log.info('📱 アプリモード: $mode (0=shopping, 1=todo)');
+            return mode;
+          },
+          context: 'USER_PREFS:getAppMode',
+          defaultValue: 0,
+        ) ??
+        0;
+  }
+
+  /// アプリモードを保存（0=shopping, 1=todo）
+  static Future<bool> saveAppMode(int mode) async {
+    return await ErrorHandler.handleAsync(
+          operation: () async {
+            final prefs = await SharedPreferences.getInstance();
+            final success = await prefs.setInt(_keyAppMode, mode);
+            Log.info('💾 アプリモード保存: $mode (0=shopping, 1=todo) - 成功: $success');
+            return success;
+          },
+          context: 'USER_PREFS:saveAppMode',
+          defaultValue: false,
+        ) ??
+        false;
+  }
+
+  /// リスト通知設定を取得
+  static Future<bool> getEnableListNotifications() async {
+    return await ErrorHandler.handleAsync(
+          operation: () async {
+            final prefs = await SharedPreferences.getInstance();
+            final enabled = prefs.getBool(_keyEnableListNotifications) ?? true;
+            Log.info('📱 リスト通知設定: $enabled');
+            return enabled;
+          },
+          context: 'USER_PREFS:getEnableListNotifications',
+          defaultValue: true,
+        ) ??
+        true;
+  }
+
+  /// リスト通知設定を保存
+  static Future<bool> saveEnableListNotifications(bool enabled) async {
+    return await ErrorHandler.handleAsync(
+          operation: () async {
+            final prefs = await SharedPreferences.getInstance();
+            final success =
+                await prefs.setBool(_keyEnableListNotifications, enabled);
+            Log.info('💾 リスト通知設定保存: $enabled - 成功: $success');
+            return success;
+          },
+          context: 'USER_PREFS:saveEnableListNotifications',
+          defaultValue: false,
+        ) ??
+        false;
   }
 }
