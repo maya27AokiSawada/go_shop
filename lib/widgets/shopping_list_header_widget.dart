@@ -177,7 +177,7 @@ class ShoppingListHeaderWidget extends ConsumerWidget {
         const SizedBox(width: 8),
         Expanded(
           child: DropdownButtonFormField<String>(
-            initialValue: validInitialValue, // initialValueではなくvalueを使用
+            initialValue: validInitialValue, // valueを使用してリアクティブに更新
             decoration: InputDecoration(
               filled: true,
               fillColor: Colors.white,

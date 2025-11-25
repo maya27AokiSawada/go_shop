@@ -293,6 +293,7 @@ class _ShoppingItemsListWidget extends ConsumerWidget {
     final repository = ref.read(shoppingListRepositoryProvider);
 
     return StreamBuilder<ShoppingList?>(
+      key: ValueKey(currentList.listId), // リストIDが変わったら再構築
       stream: repository.watchShoppingList(selectedGroupId, currentList.listId),
       initialData: currentList, // 初期データは既存のcurrentListを使用
       builder: (context, snapshot) {
@@ -424,30 +425,41 @@ class _ShoppingItemTile extends ConsumerWidget {
     return Colors.green;
   }
 
-  void _toggleItemPurchased(WidgetRef ref, bool isPurchased) {
+  void _toggleItemPurchased(WidgetRef ref, bool isPurchased) async {
     final currentList = ref.read(currentListProvider);
     if (currentList == null) return;
 
-    final updatedItems = List<ShoppingItem>.from(currentList.items);
-    updatedItems[index] = updatedItems[index].copyWith(
-      isPurchased: isPurchased,
-      purchaseDate: isPurchased ? DateTime.now() : null,
-    );
+    try {
+      // リポジトリから最新データを取得
+      final repository = ref.read(shoppingListRepositoryProvider);
+      final latestList =
+          await repository.getShoppingListById(currentList.listId);
 
-    final updatedList = currentList.copyWith(
-      items: updatedItems,
-      updatedAt: DateTime.now(),
-    );
+      if (latestList == null) {
+        throw Exception('リストが見つかりません');
+      }
 
-    // StreamBuilderが自動的に更新を検知するため、invalidateは不要
+      final updatedItems = List<ShoppingItem>.from(latestList.items);
+      updatedItems[index] = updatedItems[index].copyWith(
+        isPurchased: isPurchased,
+        purchaseDate: isPurchased ? DateTime.now() : null,
+      );
 
-    Log.info('✅ アイテム購入状態更新: ${item.name} -> $isPurchased (リアルタイム同期)');
+      final updatedList = latestList.copyWith(
+        items: updatedItems,
+        updatedAt: DateTime.now(),
+      );
 
-    // リポジトリに保存（バックグラウンドで実行）
-    final repository = ref.read(shoppingListRepositoryProvider);
-    repository.updateShoppingList(updatedList).catchError((e, stackTrace) {
+      // リポジトリに保存
+      await repository.updateShoppingList(updatedList);
+
+      // StreamBuilderが自動的に更新を検知するため、invalidateは不要
+
+      Log.info(
+          '✅ アイテム購入状態更新: ${item.name} -> $isPurchased (最新: ${latestList.items.length}件)');
+    } catch (e, stackTrace) {
       Log.error('❌ 購入状態保存エラー: $e', stackTrace);
-    });
+    }
   }
 
   void _deleteItem(BuildContext context, WidgetRef ref) {
@@ -462,35 +474,48 @@ class _ShoppingItemTile extends ConsumerWidget {
             child: const Text('キャンセル'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               final currentList = ref.read(currentListProvider);
               if (currentList == null) return;
 
-              final updatedItems = List<ShoppingItem>.from(currentList.items);
-              updatedItems.removeAt(index);
+              try {
+                // リポジトリから最新データを取得
+                final repository = ref.read(shoppingListRepositoryProvider);
+                final latestList =
+                    await repository.getShoppingListById(currentList.listId);
 
-              final updatedList = currentList.copyWith(
-                items: updatedItems,
-                updatedAt: DateTime.now(),
-              );
+                if (latestList == null) {
+                  throw Exception('リストが見つかりません');
+                }
 
-              // StreamBuilderが自動的に更新を検知するため、invalidateは不要
+                final updatedItems = List<ShoppingItem>.from(latestList.items);
+                updatedItems.removeAt(index);
 
-              Log.info('🗑️ アイテム削除: ${item.name} (リアルタイム同期)');
+                final updatedList = latestList.copyWith(
+                  items: updatedItems,
+                  updatedAt: DateTime.now(),
+                );
 
-              // リポジトリに保存（バックグラウンドで実行）
-              final repository = ref.read(shoppingListRepositoryProvider);
-              repository
-                  .updateShoppingList(updatedList)
-                  .catchError((e, stackTrace) {
-                Log.error('❌ アイテム削除保存エラー: $e', stackTrace);
-              });
+                // リポジトリに保存
+                await repository.updateShoppingList(updatedList);
 
-              Navigator.of(context).pop();
+                // StreamBuilderが自動的に更新を検知するため、invalidateは不要
 
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('「${item.name}」を削除しました')),
-              );
+                Log.info(
+                    '🗑️ アイテム削除: ${item.name} (最新: ${latestList.items.length}件 → ${updatedList.items.length}件)');
+
+                Navigator.of(context).pop();
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('「${item.name}」を削除しました')),
+                );
+              } catch (e, stackTrace) {
+                Log.error('❌ アイテム削除エラー: $e', stackTrace);
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('削除に失敗しました: $e')),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
