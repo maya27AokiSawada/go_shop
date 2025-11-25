@@ -227,7 +227,8 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
       );
     }
 
-    if (currentList.items.isEmpty) {
+    if (currentList.activeItems.isEmpty) {
+      // 🆕 activeItems使用
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -249,10 +250,11 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
       );
     }
 
+    final activeItems = currentList.activeItems; // 🆕 activeItems取得
     return ListView.builder(
-      itemCount: currentList.items.length,
+      itemCount: activeItems.length, // 🆕 activeItems使用
       itemBuilder: (context, index) {
-        final item = currentList.items[index];
+        final item = activeItems[index]; // 🆕 activeItems使用
         return _buildShoppingItemTile(context, item, index);
       },
     );
@@ -310,8 +312,12 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
     final currentList = ref.read(currentListProvider);
     if (currentList == null) return;
 
-    final updatedItems = List<ShoppingItem>.from(currentList.items);
-    updatedItems[index] = updatedItems[index].copyWith(
+    // 🆕 activeItemsからitem取得、Map形式で更新
+    final activeItems = currentList.activeItems;
+    final item = activeItems[index];
+
+    final updatedItems = Map<String, ShoppingItem>.from(currentList.items);
+    updatedItems[item.itemId] = item.copyWith(
       isPurchased: isPurchased,
       purchaseDate: isPurchased ? DateTime.now() : null,
     );
@@ -332,8 +338,12 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
     final currentList = ref.read(currentListProvider);
     if (currentList == null) return;
 
-    final updatedItems = List<ShoppingItem>.from(currentList.items);
-    updatedItems.removeAt(index);
+    // 🆕 activeItemsからitem取得、Map形式で削除
+    final activeItems = currentList.activeItems;
+    final item = activeItems[index];
+
+    final updatedItems = Map<String, ShoppingItem>.from(currentList.items);
+    updatedItems.remove(item.itemId);
 
     final updatedList = currentList.copyWith(
       items: updatedItems,
@@ -744,9 +754,9 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
 
       await currentListAsync.when(
         data: (currentList) async {
-          // バリデーション実行
+          // バリデーション実行 (🆕 activeItems使用)
           final validation = ValidationService.validateItemName(
-              name, currentList.items, 'defaultUser');
+              name, currentList.activeItems, 'defaultUser');
 
           if (validation.hasWarning) {
             // 警告の場合は確認ダイアログを表示
@@ -980,6 +990,7 @@ class _ShoppingListPageState extends ConsumerState<ShoppingListPage> {
             ? _calculateInterval(_selectedRepeatDate!)
             : 0,
         deadline: _selectedDeadline,
+        itemId: oldItem.itemId, // 🆕 必須フィールド
       );
 
       await ref

@@ -206,35 +206,22 @@ class _ShoppingListPageV2State extends ConsumerState<ShoppingListPageV2> {
               if (currentList == null) return;
 
               try {
-                // 新しいアイテムを作成
+                // 新しいアイテムを作成（itemIdは自動生成）
                 final newItem = ShoppingItem.createNow(
                   memberId: 'dev_user',
                   name: name,
                   quantity: quantity,
+                  // itemId: 自動生成される
                 );
 
-                // リポジトリから最新データを取得してから追加
+                // 🆕 差分同期: 単一アイテムのみ追加
                 final repository = ref.read(shoppingListRepositoryProvider);
-                final latestList =
-                    await repository.getShoppingListById(currentList.listId);
-
-                if (latestList == null) {
-                  throw Exception('リストが見つかりません');
-                }
-
-                // 最新リストに追加
-                final updatedList = latestList.copyWith(
-                  items: [...latestList.items, newItem],
-                  updatedAt: DateTime.now(),
-                );
-
-                // リポジトリに保存
-                await repository.updateShoppingList(updatedList);
+                await repository.addSingleItem(currentList.listId, newItem);
 
                 // StreamBuilderが自動的に更新を検知するため、invalidateは不要
 
                 Log.info(
-                    '✅ アイテム追加成功: $name x $quantity (最新: ${latestList.items.length}件 → ${updatedList.items.length}件)');
+                    '✅ アイテム追加成功: $name x $quantity (itemId: ${newItem.itemId})');
 
                 Navigator.of(context).pop();
 
@@ -322,7 +309,8 @@ class _ShoppingItemsListWidget extends ConsumerWidget {
 
         final liveList = snapshot.data ?? currentList;
 
-        if (liveList.items.isEmpty) {
+        // 🆕 アクティブアイテムのみ表示（isDeleted=falseのみ）
+        if (liveList.activeItems.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -344,11 +332,13 @@ class _ShoppingItemsListWidget extends ConsumerWidget {
           );
         }
 
+        // 🆕 アクティブアイテムのみ表示
+        final activeItems = liveList.activeItems;
         return ListView.builder(
-          itemCount: liveList.items.length,
+          itemCount: activeItems.length,
           itemBuilder: (context, index) {
-            final item = liveList.items[index];
-            return _ShoppingItemTile(item: item, index: index);
+            final item = activeItems[index];
+            return _ShoppingItemTile(item: item);
           },
         );
       },
@@ -359,11 +349,9 @@ class _ShoppingItemsListWidget extends ConsumerWidget {
 /// アイテム1件を表示するウィジェット
 class _ShoppingItemTile extends ConsumerWidget {
   final ShoppingItem item;
-  final int index;
 
   const _ShoppingItemTile({
     required this.item,
-    required this.index,
   });
 
   @override
@@ -430,33 +418,19 @@ class _ShoppingItemTile extends ConsumerWidget {
     if (currentList == null) return;
 
     try {
-      // リポジトリから最新データを取得
-      final repository = ref.read(shoppingListRepositoryProvider);
-      final latestList =
-          await repository.getShoppingListById(currentList.listId);
-
-      if (latestList == null) {
-        throw Exception('リストが見つかりません');
-      }
-
-      final updatedItems = List<ShoppingItem>.from(latestList.items);
-      updatedItems[index] = updatedItems[index].copyWith(
+      // 🆕 差分同期: 単一アイテムのみ更新
+      final updatedItem = item.copyWith(
         isPurchased: isPurchased,
         purchaseDate: isPurchased ? DateTime.now() : null,
       );
 
-      final updatedList = latestList.copyWith(
-        items: updatedItems,
-        updatedAt: DateTime.now(),
-      );
-
-      // リポジトリに保存
-      await repository.updateShoppingList(updatedList);
+      final repository = ref.read(shoppingListRepositoryProvider);
+      await repository.updateSingleItem(currentList.listId, updatedItem);
 
       // StreamBuilderが自動的に更新を検知するため、invalidateは不要
 
       Log.info(
-          '✅ アイテム購入状態更新: ${item.name} -> $isPurchased (最新: ${latestList.items.length}件)');
+          '✅ アイテム購入状態更新: ${item.name} -> $isPurchased (itemId: ${item.itemId})');
     } catch (e, stackTrace) {
       Log.error('❌ 購入状態保存エラー: $e', stackTrace);
     }
@@ -479,30 +453,14 @@ class _ShoppingItemTile extends ConsumerWidget {
               if (currentList == null) return;
 
               try {
-                // リポジトリから最新データを取得
+                // 🆕 論理削除: isDeleted=trueに設定
                 final repository = ref.read(shoppingListRepositoryProvider);
-                final latestList =
-                    await repository.getShoppingListById(currentList.listId);
-
-                if (latestList == null) {
-                  throw Exception('リストが見つかりません');
-                }
-
-                final updatedItems = List<ShoppingItem>.from(latestList.items);
-                updatedItems.removeAt(index);
-
-                final updatedList = latestList.copyWith(
-                  items: updatedItems,
-                  updatedAt: DateTime.now(),
-                );
-
-                // リポジトリに保存
-                await repository.updateShoppingList(updatedList);
+                await repository.removeSingleItem(
+                    currentList.listId, item.itemId);
 
                 // StreamBuilderが自動的に更新を検知するため、invalidateは不要
 
-                Log.info(
-                    '🗑️ アイテム削除: ${item.name} (最新: ${latestList.items.length}件 → ${updatedList.items.length}件)');
+                Log.info('🗑️ アイテム論理削除: ${item.name} (itemId: ${item.itemId})');
 
                 Navigator.of(context).pop();
 

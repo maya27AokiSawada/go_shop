@@ -83,7 +83,8 @@ class UserSpecificHiveService {
       Hive.registerAdapter(SharedGroupRoleAdapter());
       Hive.registerAdapter(SharedGroupMemberAdapter());
       Hive.registerAdapter(SharedGroupAdapter());
-      Hive.registerAdapter(ShoppingItemAdapter());
+      // 🔥 後方互換性のためカスタムアダプターを使用
+      // Hive.registerAdapter(ShoppingItemAdapter()); // デフォルトアダプターは使用しない
       Hive.registerAdapter(ShoppingListAdapter());
       Hive.registerAdapter(InvitationStatusAdapter()); // 継続使用
       Hive.registerAdapter(InvitationTypeAdapter()); // InvitationType用

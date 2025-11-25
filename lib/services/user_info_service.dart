@@ -251,18 +251,18 @@ class UserInfoService {
       Log.info('📝 ShoppingListが存在しないため新規作成');
 
       // 存在しない場合のみ作成
+      final sampleItem = ShoppingItem.createNow(
+        memberId: 'defaultUser',
+        name: 'サンプル商品',
+        quantity: 1,
+      );
+
       final defaultShoppingList = ShoppingList.create(
         ownerUid: 'defaultUser',
         groupId: groupId,
         groupName: 'あなたのグループ',
         listName: 'メインリスト',
-        items: [
-          ShoppingItem.createNow(
-            memberId: 'defaultUser',
-            name: 'サンプル商品',
-            quantity: 1,
-          ),
-        ],
+        items: {sampleItem.itemId: sampleItem},
       );
 
       await _ref

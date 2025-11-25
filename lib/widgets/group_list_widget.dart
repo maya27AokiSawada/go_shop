@@ -155,8 +155,8 @@ class GroupListWidget extends ConsumerWidget {
     );
   }
 
-  Widget _buildGroupTile(BuildContext context, WidgetRef ref,
-      SharedGroup group, String selectedGroupId) {
+  Widget _buildGroupTile(BuildContext context, WidgetRef ref, SharedGroup group,
+      String selectedGroupId) {
     final currentUser = FirebaseAuth.instance.currentUser;
     final isDefGroup = isDefaultGroup(group, currentUser);
     final memberCount = group.members?.length ?? 0;
@@ -284,10 +284,17 @@ class GroupListWidget extends ConsumerWidget {
             .read(currentListProvider.notifier)
             .getSavedListIdForGroup(groupId);
 
-        if (listId != null) {
-          // グループのリスト一覧を取得
-          final listsAsync = await ref.read(groupShoppingListsProvider.future);
+        // グループのリスト一覧を取得
+        final listsAsync = await ref.read(groupShoppingListsProvider.future);
 
+        // 🆕 リストが空の場合（新規グループなど）は何もしない
+        if (listsAsync.isEmpty) {
+          AppLogger.info('💡 [LIST_RESTORE] グループ[$groupId]にリストがありません');
+          ref.read(currentListProvider.notifier).clearSelection();
+          return;
+        }
+
+        if (listId != null) {
           // リストIDに一致するリストを検索
           final list = listsAsync.where((l) => l.listId == listId).firstOrNull;
 
@@ -304,13 +311,25 @@ class GroupListWidget extends ConsumerWidget {
             ref.read(currentListProvider.notifier).clearSelection();
           }
         } else {
-          AppLogger.info('💡 [LIST_RESTORE] グループ[$groupId]の最終使用リスト情報なし');
-          ref.read(currentListProvider.notifier).clearSelection();
+          // 🆕 保存情報がない場合：リストが1つだけなら自動選択
+          if (listsAsync.length == 1) {
+            final onlyList = listsAsync.first;
+            ref.read(currentListProvider.notifier).selectList(
+                  onlyList,
+                  groupId: groupId,
+                );
+            AppLogger.info(
+                '✅ [LIST_RESTORE] リストが1つのみ - 自動選択: ${onlyList.listName}');
+          } else {
+            AppLogger.info('💡 [LIST_RESTORE] グループ[$groupId]の最終使用リスト情報なし');
+            ref.read(currentListProvider.notifier).clearSelection();
+          }
         }
       },
       context: 'GROUP_LIST:restoreLastUsedList',
       defaultValue: null,
       onError: (error, stackTrace) {
+        AppLogger.info('❌ [LIST_RESTORE] エラー発生: $error');
         ref.read(currentListProvider.notifier).clearSelection();
       },
     );

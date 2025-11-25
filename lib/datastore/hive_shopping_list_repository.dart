@@ -58,13 +58,14 @@ class HiveShoppingListRepository implements ShoppingListRepository {
       // listIdをキーとして保存（updateShoppingListと統一）
       await box.put(list.listId, list);
       developer.log(
-          '💾 HiveShoppingListRepository: データを保存 - Key: ${list.listId}, Items: ${list.items.length}個');
+          '💾 HiveShoppingListRepository: データを保存 - Key: ${list.listId}, Items: ${list.activeItems.length}個'); // 🆕 activeItems使用
       developer.log('📦 Box contents after save: ${box.length} lists total');
 
       // 保存確認
       final saved = box.get(list.listId);
       if (saved != null) {
-        developer.log('✅ 保存確認成功: ${saved.items.length}個のアイテム');
+        developer.log(
+            '✅ 保存確認成功: ${saved.activeItems.length}個のアイテム'); // 🆕 activeItems使用
       } else {
         developer.log('❌ 保存確認失敗: データが見つかりません');
       }
@@ -79,7 +80,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
     // listIdで直接取得
     final list = box.get(listId);
     if (list != null) {
-      final clearedList = list.copyWith(items: []);
+      final clearedList = list.copyWith(items: {});
       await box.put(listId, clearedList);
     }
   }
@@ -91,12 +92,12 @@ class HiveShoppingListRepository implements ShoppingListRepository {
     if (list != null) {
       // アイテム名の重複チェック
       final validation = ValidationService.validateItemName(
-          item.name, list.items, item.memberId);
+          item.name, list.items.values.toList(), item.memberId);
       if (validation.hasError) {
         throw Exception(validation.errorMessage);
       }
 
-      final updatedItems = [...list.items, item];
+      final updatedItems = {...list.items, item.itemId: item};
       final updatedList = list.copyWith(items: updatedItems);
       await box.put(userKey, updatedList);
     } else {
@@ -110,7 +111,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
         groupName: SharedGroup?.groupName ?? 'Shopping List',
         listName: SharedGroup?.groupName ?? 'Shopping List',
         description: '',
-        items: [item],
+        items: {item.itemId: item},
       );
       await box.put(userKey, newList);
     }
@@ -121,12 +122,9 @@ class HiveShoppingListRepository implements ShoppingListRepository {
     final userKey = _getUserSpecificKey(groupId);
     final list = box.get(userKey);
     if (list != null) {
-      // より厳密な比較でアイテムを特定（登録日時も考慮）
-      final updatedItems = list.items
-          .where((existingItem) => !(existingItem.name == item.name &&
-              existingItem.memberId == item.memberId &&
-              existingItem.registeredDate == item.registeredDate))
-          .toList();
+      // MapからitemIdで直接削除
+      final updatedItems = Map<String, ShoppingItem>.from(list.items)
+        ..remove(item.itemId);
       final updatedList = list.copyWith(items: updatedItems);
       await box.put(userKey, updatedList);
       developer.log('🗑️ アイテム削除: ${item.name} (${updatedItems.length}個残存)');
@@ -139,17 +137,14 @@ class HiveShoppingListRepository implements ShoppingListRepository {
     final userKey = _getUserSpecificKey(groupId);
     final list = box.get(userKey);
     if (list != null) {
-      final updatedItems = list.items.map((existingItem) {
-        if (existingItem.name == item.name &&
-            existingItem.memberId == item.memberId &&
-            existingItem.registeredDate == item.registeredDate) {
-          return existingItem.copyWith(
-            isPurchased: isPurchased,
-            purchaseDate: isPurchased ? DateTime.now() : null,
-          );
-        }
-        return existingItem;
-      }).toList();
+      // 🆕 Map形式対応: itemIdで直接アクセス
+      final updatedItems = Map<String, ShoppingItem>.from(list.items);
+      if (updatedItems.containsKey(item.itemId)) {
+        updatedItems[item.itemId] = updatedItems[item.itemId]!.copyWith(
+          isPurchased: isPurchased,
+          purchaseDate: isPurchased ? DateTime.now() : null,
+        );
+      }
 
       final updatedList = list.copyWith(items: updatedItems);
       await box.put(userKey, updatedList);
@@ -203,7 +198,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
       groupName: SharedGroup?.groupName ?? groupName,
       listName: SharedGroup?.groupName ?? groupName,
       description: 'デフォルトリスト',
-      items: [],
+      items: {}, // 🆕 Map形式
     );
     await box.put(userKey, defaultList);
     return defaultList;
@@ -236,8 +231,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
 
     if (SharedGroup == null) return false;
 
-    return SharedGroup.members
-            ?.any((member) => member.memberId == memberId) ??
+    return SharedGroup.members?.any((member) => member.memberId == memberId) ??
         false;
   }
 
@@ -259,7 +253,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
             listName, // Note: groupName is required, use listName for now
         listName: listName,
         description: description ?? '',
-        items: [],
+        items: {}, // 🆕 Map形式
       );
 
       // Save to Hive using listId as key
@@ -368,18 +362,15 @@ class HiveShoppingListRepository implements ShoppingListRepository {
         throw Exception('リストが見つかりません (ID: $listId)');
       }
 
-      // Validation
+      // 🆕 ValidationはactiveItemsで行う
       final validation = ValidationService.validateItemName(
-          item.name, list.items, item.memberId);
+          item.name, list.activeItems, item.memberId);
       if (validation.hasError) {
         throw Exception(validation.errorMessage);
       }
 
-      final updatedList = list.copyWith(
-        items: [...list.items, item],
-        updatedAt: DateTime.now(),
-      );
-      await box.put(listId, updatedList);
+      // 🆕 差分同期メソッドを使用
+      await addSingleItem(listId, item);
       developer.log('➕ アイテム追加: ${item.name} → リスト「${list.listName}」');
     } catch (e) {
       developer.log('❌ アイテム追加エラー (ListID: $listId): $e');
@@ -395,17 +386,8 @@ class HiveShoppingListRepository implements ShoppingListRepository {
         throw Exception('リストが見つかりません (ID: $listId)');
       }
 
-      final updatedItems = list.items
-          .where((existingItem) => !(existingItem.name == item.name &&
-              existingItem.memberId == item.memberId &&
-              existingItem.registeredDate == item.registeredDate))
-          .toList();
-
-      final updatedList = list.copyWith(
-        items: updatedItems,
-        updatedAt: DateTime.now(),
-      );
-      await box.put(listId, updatedList);
+      // 🆕 差分同期（論理削除）を使用
+      await removeSingleItem(listId, item.itemId);
       developer.log('➖ アイテム削除: ${item.name} ← リスト「${list.listName}」');
     } catch (e) {
       developer.log('❌ アイテム削除エラー (ListID: $listId): $e');
@@ -422,23 +404,13 @@ class HiveShoppingListRepository implements ShoppingListRepository {
         throw Exception('リストが見つかりません (ID: $listId)');
       }
 
-      final updatedItems = list.items.map((existingItem) {
-        if (existingItem.name == item.name &&
-            existingItem.memberId == item.memberId &&
-            existingItem.registeredDate == item.registeredDate) {
-          return existingItem.copyWith(
-            isPurchased: isPurchased,
-            purchaseDate: isPurchased ? DateTime.now() : null,
-          );
-        }
-        return existingItem;
-      }).toList();
-
-      final updatedList = list.copyWith(
-        items: updatedItems,
-        updatedAt: DateTime.now(),
+      // 🆕 差分同期メソッドを使用
+      final updatedItem = item.copyWith(
+        isPurchased: isPurchased,
+        purchaseDate: isPurchased ? DateTime.now() : null,
       );
-      await box.put(listId, updatedList);
+      await updateSingleItem(listId, updatedItem);
+
       developer.log(
           '✅ アイテムステータス更新: ${item.name} → ${isPurchased ? "購入済み" : "未購入"} (リスト: ${list.listName})');
     } catch (e) {
@@ -455,15 +427,19 @@ class HiveShoppingListRepository implements ShoppingListRepository {
         throw Exception('リストが見つかりません (ID: $listId)');
       }
 
-      final unpurchasedItems =
-          list.items.where((item) => !item.isPurchased).toList();
+      // 🆕 activeItemsから未購入のみ残す（Map形式）
+      final remainingItems = <String, ShoppingItem>{};
+      list.activeItems.where((item) => !item.isPurchased).forEach((item) {
+        remainingItems[item.itemId] = item;
+      });
+
       final updatedList = list.copyWith(
-        items: unpurchasedItems,
+        items: remainingItems,
         updatedAt: DateTime.now(),
       );
       await box.put(listId, updatedList);
       developer.log(
-          '🧹 購入済みアイテムクリア: リスト「${list.listName}」 (残り: ${unpurchasedItems.length}個)');
+          '🧹 購入済みアイテムクリア: リスト「${list.listName}」 (残り: ${remainingItems.length}個)');
     } catch (e) {
       developer.log('❌ 購入済みアイテムクリアエラー (ListID: $listId): $e');
       rethrow;
@@ -529,6 +505,109 @@ class HiveShoppingListRepository implements ShoppingListRepository {
     return Stream.periodic(const Duration(seconds: 30), (_) async {
       return await getShoppingListById(listId);
     }).asyncMap((future) => future);
+  }
+
+  // 🆕 Map-based Differential Sync Methods
+  @override
+  Future<void> addSingleItem(String listId, ShoppingItem item) async {
+    developer.log('🔄 [HIVE_DIFF] Adding single item: ${item.name}');
+
+    final list = await getShoppingListById(listId);
+    if (list == null) throw Exception('List not found: $listId');
+
+    final updatedItems = Map<String, ShoppingItem>.from(list.items);
+    updatedItems[item.itemId] = item;
+
+    final updatedList = list.copyWith(
+      items: updatedItems,
+      updatedAt: DateTime.now(),
+    );
+
+    await updateShoppingList(updatedList);
+    developer.log('✅ [HIVE_DIFF] Item added to Hive');
+  }
+
+  @override
+  Future<void> removeSingleItem(String listId, String itemId) async {
+    developer.log('🔄 [HIVE_DIFF] Logically deleting item: $itemId');
+
+    final list = await getShoppingListById(listId);
+    if (list == null) return;
+
+    final item = list.items[itemId];
+    if (item == null) {
+      developer.log('⚠️ [HIVE_DIFF] Item not found: $itemId');
+      return;
+    }
+
+    final deletedItem = item.copyWith(
+      isDeleted: true,
+      deletedAt: DateTime.now(),
+    );
+
+    final updatedItems = Map<String, ShoppingItem>.from(list.items);
+    updatedItems[itemId] = deletedItem;
+
+    final updatedList = list.copyWith(
+      items: updatedItems,
+      updatedAt: DateTime.now(),
+    );
+
+    await updateShoppingList(updatedList);
+    developer.log('✅ [HIVE_DIFF] Item logically deleted in Hive');
+  }
+
+  @override
+  Future<void> updateSingleItem(String listId, ShoppingItem item) async {
+    developer.log('🔄 [HIVE_DIFF] Updating single item: ${item.name}');
+
+    final list = await getShoppingListById(listId);
+    if (list == null) return;
+
+    final updatedItems = Map<String, ShoppingItem>.from(list.items);
+    updatedItems[item.itemId] = item;
+
+    final updatedList = list.copyWith(
+      items: updatedItems,
+      updatedAt: DateTime.now(),
+    );
+
+    await updateShoppingList(updatedList);
+    developer.log('✅ [HIVE_DIFF] Item updated in Hive');
+  }
+
+  @override
+  Future<void> cleanupDeletedItems(String listId,
+      {int olderThanDays = 30}) async {
+    developer.log('🧹 [HIVE_CLEANUP] Starting cleanup for list: $listId');
+
+    final list = await getShoppingListById(listId);
+    if (list == null) return;
+
+    final cutoffDate = DateTime.now().subtract(Duration(days: olderThanDays));
+
+    final cleanedItems = Map<String, ShoppingItem>.fromEntries(
+      list.items.entries.where((entry) {
+        final item = entry.value;
+        if (!item.isDeleted) return true;
+        if (item.deletedAt == null) return true;
+        return item.deletedAt!.isAfter(cutoffDate);
+      }),
+    );
+
+    final removedCount = list.items.length - cleanedItems.length;
+    if (removedCount == 0) {
+      developer.log('🧹 [HIVE_CLEANUP] No items to cleanup');
+      return;
+    }
+
+    final cleanedList = list.copyWith(
+      items: cleanedItems,
+      updatedAt: DateTime.now(),
+    );
+
+    await updateShoppingList(cleanedList);
+    developer.log('🧹 [HIVE_CLEANUP] Removed $removedCount items from Hive');
   }
 }
 

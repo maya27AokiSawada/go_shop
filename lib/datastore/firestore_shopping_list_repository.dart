@@ -30,7 +30,7 @@ class FirestoreShoppingListRepository implements ShoppingListRepository {
       groupName: listName, // groupNameはlistNameと同じで初期化
       listName: listName,
       description: description ?? '',
-      items: [],
+      items: {},
     );
 
     await _collection(groupId)
@@ -131,17 +131,18 @@ class FirestoreShoppingListRepository implements ShoppingListRepository {
     // Firestoreでの配列内要素の更新は複雑なため、リスト全体を読み書きする
     final list = await getShoppingListById(listId);
     if (list != null) {
-      final updatedItems = list.items.map((existingItem) {
-        if (existingItem.name == item.name &&
-            existingItem.memberId == item.memberId &&
-            existingItem.registeredDate == item.registeredDate) {
-          return existingItem.copyWith(
-            isPurchased: isPurchased,
-            purchaseDate: isPurchased ? DateTime.now() : null,
+      final updatedItems = list.items.map((itemId, existingItem) {
+        if (existingItem.itemId == item.itemId) {
+          return MapEntry(
+            itemId,
+            existingItem.copyWith(
+              isPurchased: isPurchased,
+              purchaseDate: isPurchased ? DateTime.now() : null,
+            ),
           );
         }
-        return existingItem;
-      }).toList();
+        return MapEntry(itemId, existingItem);
+      });
       await updateShoppingList(list.copyWith(items: updatedItems));
       developer.log(
           '✅ Firestoreでアイテムステータス更新: ${item.name} → ${isPurchased ? "購入済み" : "未購入"}');
@@ -150,6 +151,12 @@ class FirestoreShoppingListRepository implements ShoppingListRepository {
 
   // --- Helper ---
   Map<String, dynamic> _shoppingListToFirestore(ShoppingList list) {
+    // 🆕 Map形式をFirestoreのMapとして保存
+    final itemsMap = <String, Map<String, dynamic>>{};
+    list.items.forEach((itemId, item) {
+      itemsMap[itemId] = _shoppingItemToFirestore(item);
+    });
+
     return {
       'listId': list.listId,
       'ownerUid': list.ownerUid,
@@ -157,8 +164,7 @@ class FirestoreShoppingListRepository implements ShoppingListRepository {
       'groupName': list.groupName,
       'listName': list.listName,
       'description': list.description,
-      'items':
-          list.items.map((item) => _shoppingItemToFirestore(item)).toList(),
+      'items': itemsMap, // 🆕 Map形式
       'createdAt': Timestamp.fromDate(list.createdAt),
       'updatedAt': Timestamp.fromDate(list.updatedAt ?? DateTime.now()),
     };
@@ -166,6 +172,16 @@ class FirestoreShoppingListRepository implements ShoppingListRepository {
 
   ShoppingList _shoppingListFromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+
+    // 🆕 Firestoreの items を Map<String, ShoppingItem> に変換
+    final itemsData = data['items'] as Map<String, dynamic>? ?? {};
+    final items = <String, ShoppingItem>{};
+
+    itemsData.forEach((itemId, itemData) {
+      items[itemId] =
+          _shoppingItemFromFirestore(itemData as Map<String, dynamic>);
+    });
+
     return ShoppingList(
       listId: data['listId'],
       ownerUid: data['ownerUid'],
@@ -173,10 +189,7 @@ class FirestoreShoppingListRepository implements ShoppingListRepository {
       groupName: data['groupName'],
       listName: data['listName'],
       description: data['description'],
-      items: (data['items'] as List<dynamic>)
-          .map((itemData) =>
-              _shoppingItemFromFirestore(itemData as Map<String, dynamic>))
-          .toList(),
+      items: items, // 🆕 Map形式
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
     );
@@ -195,6 +208,11 @@ class FirestoreShoppingListRepository implements ShoppingListRepository {
       'shoppingInterval': item.shoppingInterval,
       'deadline':
           item.deadline != null ? Timestamp.fromDate(item.deadline!) : null,
+      'itemId': item.itemId, // 🆕 追加
+      'isDeleted': item.isDeleted, // 🆕 追加
+      'deletedAt': item.deletedAt != null
+          ? Timestamp.fromDate(item.deletedAt!)
+          : null, // 🆕 追加
     };
   }
 
@@ -208,6 +226,9 @@ class FirestoreShoppingListRepository implements ShoppingListRepository {
       isPurchased: data['isPurchased'],
       shoppingInterval: data['shoppingInterval'],
       deadline: (data['deadline'] as Timestamp?)?.toDate(),
+      itemId: data['itemId'] ?? '', // 🆕 必須フィールド
+      isDeleted: data['isDeleted'] ?? false, // 🆕
+      deletedAt: (data['deletedAt'] as Timestamp?)?.toDate(), // 🆕
     );
   }
 
@@ -256,9 +277,13 @@ class FirestoreShoppingListRepository implements ShoppingListRepository {
   Future<void> clearPurchasedItemsFromList(String listId) async {
     final list = await getShoppingListById(listId);
     if (list != null) {
-      final updatedItems =
-          list.items.where((item) => !item.isPurchased).toList();
-      await updateShoppingList(list.copyWith(items: updatedItems));
+      // 🆕 activeItemsから未購入のみ残す（Map形式）
+      final remainingItems = <String, ShoppingItem>{};
+      list.activeItems.where((item) => !item.isPurchased).forEach((item) {
+        remainingItems[item.itemId] = item;
+      });
+
+      await updateShoppingList(list.copyWith(items: remainingItems));
       developer.log('🧹 Firestoreから購入済みアイテムクリア: リスト「${list.listName}」');
     }
   }
@@ -302,7 +327,7 @@ class FirestoreShoppingListRepository implements ShoppingListRepository {
       try {
         final list = _shoppingListFromFirestore(snapshot);
         developer.log(
-            '✅ [REALTIME] リスト更新: ${list.listName} (${list.items.length}件)');
+            '✅ [REALTIME] リスト更新: ${list.listName} (${list.activeItemCount}件)');
         return list;
       } catch (e) {
         developer.log('❌ [REALTIME] パースエラー: $e');
@@ -312,5 +337,96 @@ class FirestoreShoppingListRepository implements ShoppingListRepository {
       developer.log('❌ [REALTIME] Streamエラー: $error');
       return null;
     });
+  }
+
+  // 🆕 Map-based Differential Sync Methods
+  @override
+  Future<void> addSingleItem(String listId, ShoppingItem item) async {
+    developer.log('🔄 [FIRESTORE_DIFF] Adding single item: ${item.name}');
+
+    // Firestoreでは部分更新としてMapのキーを追加
+    // items.{itemId} = item.toJson()
+    final list = await getShoppingListById(listId);
+    if (list == null) throw Exception('List not found: $listId');
+
+    await _collection(list.groupId).doc(listId).update({
+      'items.${item.itemId}': _itemToFirestore(item),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    developer.log('✅ [FIRESTORE_DIFF] Item added to Firestore');
+  }
+
+  @override
+  Future<void> removeSingleItem(String listId, String itemId) async {
+    developer.log('🔄 [FIRESTORE_DIFF] Logically deleting item: $itemId');
+
+    final list = await getShoppingListById(listId);
+    if (list == null) return;
+
+    final item = list.items[itemId];
+    if (item == null) {
+      developer.log('⚠️ [FIRESTORE_DIFF] Item not found: $itemId');
+      return;
+    }
+
+    // 論理削除: isDeleted = true に更新
+    await _collection(list.groupId).doc(listId).update({
+      'items.$itemId.isDeleted': true,
+      'items.$itemId.deletedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    developer.log('✅ [FIRESTORE_DIFF] Item logically deleted');
+  }
+
+  @override
+  Future<void> updateSingleItem(String listId, ShoppingItem item) async {
+    developer.log('🔄 [FIRESTORE_DIFF] Updating single item: ${item.name}');
+
+    final list = await getShoppingListById(listId);
+    if (list == null) return;
+
+    await _collection(list.groupId).doc(listId).update({
+      'items.${item.itemId}': _itemToFirestore(item),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    developer.log('✅ [FIRESTORE_DIFF] Item updated in Firestore');
+  }
+
+  @override
+  Future<void> cleanupDeletedItems(String listId,
+      {int olderThanDays = 30}) async {
+    developer.log('🧹 [FIRESTORE_CLEANUP] Starting cleanup for list: $listId');
+
+    final list = await getShoppingListById(listId);
+    if (list == null) return;
+
+    // 削除済みアイテムを物理削除（全体を保存し直す）
+    await updateShoppingList(list);
+
+    developer.log('✅ [FIRESTORE_CLEANUP] Cleanup completed');
+  }
+
+  /// ShoppingItemをFirestore形式に変換
+  Map<String, dynamic> _itemToFirestore(ShoppingItem item) {
+    return {
+      'memberId': item.memberId,
+      'name': item.name,
+      'quantity': item.quantity,
+      'registeredDate': Timestamp.fromDate(item.registeredDate),
+      'purchaseDate': item.purchaseDate != null
+          ? Timestamp.fromDate(item.purchaseDate!)
+          : null,
+      'isPurchased': item.isPurchased,
+      'shoppingInterval': item.shoppingInterval,
+      'deadline':
+          item.deadline != null ? Timestamp.fromDate(item.deadline!) : null,
+      'itemId': item.itemId,
+      'isDeleted': item.isDeleted,
+      'deletedAt':
+          item.deletedAt != null ? Timestamp.fromDate(item.deletedAt!) : null,
+    };
   }
 }

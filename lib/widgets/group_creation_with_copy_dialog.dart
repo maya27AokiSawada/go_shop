@@ -71,8 +71,7 @@ class _GroupCreationWithCopyDialogState
     );
   }
 
-  Widget _buildDialog(
-      BuildContext context, List<SharedGroup> existingGroups) {
+  Widget _buildDialog(BuildContext context, List<SharedGroup> existingGroups) {
     return Dialog(
       child: Container(
         width: MediaQuery.of(context).size.width * 0.9,
@@ -344,8 +343,7 @@ class _GroupCreationWithCopyDialogState
                 },
                 items: SharedGroupRole.values
                     .where((role) =>
-                        role !=
-                        SharedGroupRole.owner) // Don't allow owner role
+                        role != SharedGroupRole.owner) // Don't allow owner role
                     .map((role) => DropdownMenuItem(
                           value: role,
                           child: Text(_getRoleDisplayName(role)),
@@ -431,22 +429,24 @@ class _GroupCreationWithCopyDialogState
         AppLogger.info('✅ [CREATE GROUP DIALOG] ローディング解除完了');
       }
 
-      // 短い遅延の後にダイアログを閉じる（ユーザーが完了を認識できるように）
-      // awaitではなくunawaited callにすることで、mounted状態を保持
-      Future.delayed(const Duration(milliseconds: 200), () {
-        if (mounted) {
-          AppLogger.info('🔄 [CREATE GROUP DIALOG] Navigator.pop(true)を呼び出します');
-          try {
-            Navigator.of(context).pop(true);
-            AppLogger.info('✅ [CREATE GROUP DIALOG] Navigator.pop()完了');
-          } catch (e, stackTrace) {
-            AppLogger.error('❌ [CREATE GROUP DIALOG] Navigator.pop()でエラー: $e');
-            AppLogger.error('❌ [CREATE GROUP DIALOG] スタックトレース: $stackTrace');
-          }
-        } else {
-          AppLogger.warning('⚠️ [CREATE GROUP DIALOG] mounted=false, popをスキップ');
+      // 🆕 Firestoreの非同期処理が完全に完了するまで十分な時間待機
+      // Windowsプラグインのスレッド問題を回避するため、長めの遅延を設定
+      AppLogger.info('⏳ [CREATE GROUP DIALOG] Firestore処理の完全な完了を待機中...');
+      await Future.delayed(const Duration(milliseconds: 1500));
+      AppLogger.info('✅ [CREATE GROUP DIALOG] 待機完了');
+
+      if (mounted) {
+        AppLogger.info('🔄 [CREATE GROUP DIALOG] Navigator.pop(true)を呼び出します');
+        try {
+          Navigator.of(context).pop(true);
+          AppLogger.info('✅ [CREATE GROUP DIALOG] Navigator.pop()完了');
+        } catch (e, stackTrace) {
+          AppLogger.error('❌ [CREATE GROUP DIALOG] Navigator.pop()でエラー: $e');
+          AppLogger.error('❌ [CREATE GROUP DIALOG] スタックトレース: $stackTrace');
         }
-      });
+      } else {
+        AppLogger.warning('⚠️ [CREATE GROUP DIALOG] mounted=false, popをスキップ');
+      }
     } catch (e, stackTrace) {
       AppLogger.error('❌ [CREATE GROUP DIALOG] グループ作成エラー: $e');
       AppLogger.error('❌ [CREATE GROUP DIALOG] スタックトレース: $stackTrace');

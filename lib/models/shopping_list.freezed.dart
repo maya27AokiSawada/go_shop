@@ -33,7 +33,13 @@ mixin _$ShoppingItem {
   int get shoppingInterval =>
       throw _privateConstructorUsedError; // 0:　繰り返し購入ではない　other:　繰り返し購入間隔（日数）
   @HiveField(7)
-  DateTime? get deadline => throw _privateConstructorUsedError;
+  DateTime? get deadline => throw _privateConstructorUsedError; // 購入期限
+  @HiveField(8)
+  String get itemId => throw _privateConstructorUsedError; // 🆕 アイテム固有ID
+  @HiveField(9)
+  bool get isDeleted => throw _privateConstructorUsedError; // 🆕 論理削除フラグ
+  @HiveField(10)
+  DateTime? get deletedAt => throw _privateConstructorUsedError;
 
   @JsonKey(ignore: true)
   $ShoppingItemCopyWith<ShoppingItem> get copyWith =>
@@ -54,7 +60,10 @@ abstract class $ShoppingItemCopyWith<$Res> {
       @HiveField(4) DateTime? purchaseDate,
       @HiveField(5) bool isPurchased,
       @HiveField(6) int shoppingInterval,
-      @HiveField(7) DateTime? deadline});
+      @HiveField(7) DateTime? deadline,
+      @HiveField(8) String itemId,
+      @HiveField(9) bool isDeleted,
+      @HiveField(10) DateTime? deletedAt});
 }
 
 /// @nodoc
@@ -78,6 +87,9 @@ class _$ShoppingItemCopyWithImpl<$Res, $Val extends ShoppingItem>
     Object? isPurchased = null,
     Object? shoppingInterval = null,
     Object? deadline = freezed,
+    Object? itemId = null,
+    Object? isDeleted = null,
+    Object? deletedAt = freezed,
   }) {
     return _then(_value.copyWith(
       memberId: null == memberId
@@ -112,6 +124,18 @@ class _$ShoppingItemCopyWithImpl<$Res, $Val extends ShoppingItem>
           ? _value.deadline
           : deadline // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      itemId: null == itemId
+          ? _value.itemId
+          : itemId // ignore: cast_nullable_to_non_nullable
+              as String,
+      isDeleted: null == isDeleted
+          ? _value.isDeleted
+          : isDeleted // ignore: cast_nullable_to_non_nullable
+              as bool,
+      deletedAt: freezed == deletedAt
+          ? _value.deletedAt
+          : deletedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
     ) as $Val);
   }
 }
@@ -132,7 +156,10 @@ abstract class _$$ShoppingItemImplCopyWith<$Res>
       @HiveField(4) DateTime? purchaseDate,
       @HiveField(5) bool isPurchased,
       @HiveField(6) int shoppingInterval,
-      @HiveField(7) DateTime? deadline});
+      @HiveField(7) DateTime? deadline,
+      @HiveField(8) String itemId,
+      @HiveField(9) bool isDeleted,
+      @HiveField(10) DateTime? deletedAt});
 }
 
 /// @nodoc
@@ -154,6 +181,9 @@ class __$$ShoppingItemImplCopyWithImpl<$Res>
     Object? isPurchased = null,
     Object? shoppingInterval = null,
     Object? deadline = freezed,
+    Object? itemId = null,
+    Object? isDeleted = null,
+    Object? deletedAt = freezed,
   }) {
     return _then(_$ShoppingItemImpl(
       memberId: null == memberId
@@ -188,6 +218,18 @@ class __$$ShoppingItemImplCopyWithImpl<$Res>
           ? _value.deadline
           : deadline // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      itemId: null == itemId
+          ? _value.itemId
+          : itemId // ignore: cast_nullable_to_non_nullable
+              as String,
+      isDeleted: null == isDeleted
+          ? _value.isDeleted
+          : isDeleted // ignore: cast_nullable_to_non_nullable
+              as bool,
+      deletedAt: freezed == deletedAt
+          ? _value.deletedAt
+          : deletedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
     ));
   }
 }
@@ -203,7 +245,10 @@ class _$ShoppingItemImpl implements _ShoppingItem {
       @HiveField(4) this.purchaseDate,
       @HiveField(5) this.isPurchased = false,
       @HiveField(6) this.shoppingInterval = 0,
-      @HiveField(7) this.deadline});
+      @HiveField(7) this.deadline,
+      @HiveField(8) required this.itemId,
+      @HiveField(9) this.isDeleted = false,
+      @HiveField(10) this.deletedAt});
 
   @override
   @HiveField(0)
@@ -238,10 +283,23 @@ class _$ShoppingItemImpl implements _ShoppingItem {
   @override
   @HiveField(7)
   final DateTime? deadline;
+// 購入期限
+  @override
+  @HiveField(8)
+  final String itemId;
+// 🆕 アイテム固有ID
+  @override
+  @JsonKey()
+  @HiveField(9)
+  final bool isDeleted;
+// 🆕 論理削除フラグ
+  @override
+  @HiveField(10)
+  final DateTime? deletedAt;
 
   @override
   String toString() {
-    return 'ShoppingItem(memberId: $memberId, name: $name, quantity: $quantity, registeredDate: $registeredDate, purchaseDate: $purchaseDate, isPurchased: $isPurchased, shoppingInterval: $shoppingInterval, deadline: $deadline)';
+    return 'ShoppingItem(memberId: $memberId, name: $name, quantity: $quantity, registeredDate: $registeredDate, purchaseDate: $purchaseDate, isPurchased: $isPurchased, shoppingInterval: $shoppingInterval, deadline: $deadline, itemId: $itemId, isDeleted: $isDeleted, deletedAt: $deletedAt)';
   }
 
   @override
@@ -263,12 +321,28 @@ class _$ShoppingItemImpl implements _ShoppingItem {
             (identical(other.shoppingInterval, shoppingInterval) ||
                 other.shoppingInterval == shoppingInterval) &&
             (identical(other.deadline, deadline) ||
-                other.deadline == deadline));
+                other.deadline == deadline) &&
+            (identical(other.itemId, itemId) || other.itemId == itemId) &&
+            (identical(other.isDeleted, isDeleted) ||
+                other.isDeleted == isDeleted) &&
+            (identical(other.deletedAt, deletedAt) ||
+                other.deletedAt == deletedAt));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, memberId, name, quantity,
-      registeredDate, purchaseDate, isPurchased, shoppingInterval, deadline);
+  int get hashCode => Object.hash(
+      runtimeType,
+      memberId,
+      name,
+      quantity,
+      registeredDate,
+      purchaseDate,
+      isPurchased,
+      shoppingInterval,
+      deadline,
+      itemId,
+      isDeleted,
+      deletedAt);
 
   @JsonKey(ignore: true)
   @override
@@ -286,7 +360,10 @@ abstract class _ShoppingItem implements ShoppingItem {
       @HiveField(4) final DateTime? purchaseDate,
       @HiveField(5) final bool isPurchased,
       @HiveField(6) final int shoppingInterval,
-      @HiveField(7) final DateTime? deadline}) = _$ShoppingItemImpl;
+      @HiveField(7) final DateTime? deadline,
+      @HiveField(8) required final String itemId,
+      @HiveField(9) final bool isDeleted,
+      @HiveField(10) final DateTime? deletedAt}) = _$ShoppingItemImpl;
 
   @override
   @HiveField(0)
@@ -312,6 +389,15 @@ abstract class _ShoppingItem implements ShoppingItem {
   @override // 0:　繰り返し購入ではない　other:　繰り返し購入間隔（日数）
   @HiveField(7)
   DateTime? get deadline;
+  @override // 購入期限
+  @HiveField(8)
+  String get itemId;
+  @override // 🆕 アイテム固有ID
+  @HiveField(9)
+  bool get isDeleted;
+  @override // 🆕 論理削除フラグ
+  @HiveField(10)
+  DateTime? get deletedAt;
   @override
   @JsonKey(ignore: true)
   _$$ShoppingItemImplCopyWith<_$ShoppingItemImpl> get copyWith =>
@@ -327,7 +413,8 @@ mixin _$ShoppingList {
   @HiveField(2)
   String get groupName => throw _privateConstructorUsedError;
   @HiveField(3)
-  List<ShoppingItem> get items => throw _privateConstructorUsedError;
+  Map<String, ShoppingItem> get items =>
+      throw _privateConstructorUsedError; // 🆕 Map形式に変更
   @HiveField(4)
   String get listId => throw _privateConstructorUsedError; // 追加: リストID
   @HiveField(5)
@@ -356,7 +443,7 @@ abstract class $ShoppingListCopyWith<$Res> {
       {@HiveField(0) String ownerUid,
       @HiveField(1) String groupId,
       @HiveField(2) String groupName,
-      @HiveField(3) List<ShoppingItem> items,
+      @HiveField(3) Map<String, ShoppingItem> items,
       @HiveField(4) String listId,
       @HiveField(5) String listName,
       @HiveField(6) String description,
@@ -405,7 +492,7 @@ class _$ShoppingListCopyWithImpl<$Res, $Val extends ShoppingList>
       items: null == items
           ? _value.items
           : items // ignore: cast_nullable_to_non_nullable
-              as List<ShoppingItem>,
+              as Map<String, ShoppingItem>,
       listId: null == listId
           ? _value.listId
           : listId // ignore: cast_nullable_to_non_nullable
@@ -446,7 +533,7 @@ abstract class _$$ShoppingListImplCopyWith<$Res>
       {@HiveField(0) String ownerUid,
       @HiveField(1) String groupId,
       @HiveField(2) String groupName,
-      @HiveField(3) List<ShoppingItem> items,
+      @HiveField(3) Map<String, ShoppingItem> items,
       @HiveField(4) String listId,
       @HiveField(5) String listName,
       @HiveField(6) String description,
@@ -493,7 +580,7 @@ class __$$ShoppingListImplCopyWithImpl<$Res>
       items: null == items
           ? _value._items
           : items // ignore: cast_nullable_to_non_nullable
-              as List<ShoppingItem>,
+              as Map<String, ShoppingItem>,
       listId: null == listId
           ? _value.listId
           : listId // ignore: cast_nullable_to_non_nullable
@@ -524,19 +611,20 @@ class __$$ShoppingListImplCopyWithImpl<$Res>
 
 /// @nodoc
 
-class _$ShoppingListImpl implements _ShoppingList {
+class _$ShoppingListImpl extends _ShoppingList {
   const _$ShoppingListImpl(
       {@HiveField(0) required this.ownerUid,
       @HiveField(1) required this.groupId,
       @HiveField(2) required this.groupName,
-      @HiveField(3) final List<ShoppingItem> items = const [],
+      @HiveField(3) final Map<String, ShoppingItem> items = const {},
       @HiveField(4) required this.listId,
       @HiveField(5) required this.listName,
       @HiveField(6) this.description = '',
       @HiveField(7) required this.createdAt,
       @HiveField(8) this.updatedAt,
       @HiveField(9) this.listType = ListType.shopping})
-      : _items = items;
+      : _items = items,
+        super._();
 
   @override
   @HiveField(0)
@@ -547,16 +635,17 @@ class _$ShoppingListImpl implements _ShoppingList {
   @override
   @HiveField(2)
   final String groupName;
-  final List<ShoppingItem> _items;
+  final Map<String, ShoppingItem> _items;
   @override
   @JsonKey()
   @HiveField(3)
-  List<ShoppingItem> get items {
-    if (_items is EqualUnmodifiableListView) return _items;
+  Map<String, ShoppingItem> get items {
+    if (_items is EqualUnmodifiableMapView) return _items;
     // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_items);
+    return EqualUnmodifiableMapView(_items);
   }
 
+// 🆕 Map形式に変更
   @override
   @HiveField(4)
   final String listId;
@@ -633,18 +722,19 @@ class _$ShoppingListImpl implements _ShoppingList {
       __$$ShoppingListImplCopyWithImpl<_$ShoppingListImpl>(this, _$identity);
 }
 
-abstract class _ShoppingList implements ShoppingList {
+abstract class _ShoppingList extends ShoppingList {
   const factory _ShoppingList(
       {@HiveField(0) required final String ownerUid,
       @HiveField(1) required final String groupId,
       @HiveField(2) required final String groupName,
-      @HiveField(3) final List<ShoppingItem> items,
+      @HiveField(3) final Map<String, ShoppingItem> items,
       @HiveField(4) required final String listId,
       @HiveField(5) required final String listName,
       @HiveField(6) final String description,
       @HiveField(7) required final DateTime createdAt,
       @HiveField(8) final DateTime? updatedAt,
       @HiveField(9) final ListType listType}) = _$ShoppingListImpl;
+  const _ShoppingList._() : super._();
 
   @override
   @HiveField(0)
@@ -657,8 +747,8 @@ abstract class _ShoppingList implements ShoppingList {
   String get groupName;
   @override
   @HiveField(3)
-  List<ShoppingItem> get items;
-  @override
+  Map<String, ShoppingItem> get items;
+  @override // 🆕 Map形式に変更
   @HiveField(4)
   String get listId;
   @override // 追加: リストID

@@ -50,6 +50,19 @@ abstract class ShoppingListRepository {
   Future<void> updateItemStatusInList(String listId, ShoppingItem item,
       {required bool isPurchased});
 
+  // 🆕 Map-based differential sync methods
+  /// Add single item to list (Map differential sync)
+  Future<void> addSingleItem(String listId, ShoppingItem item);
+
+  /// Remove single item from list (Map differential sync - logical delete)
+  Future<void> removeSingleItem(String listId, String itemId);
+
+  /// Update single item in list (Map differential sync)
+  Future<void> updateSingleItem(String listId, ShoppingItem item);
+
+  /// Physically delete items marked as deleted (cleanup)
+  Future<void> cleanupDeletedItems(String listId, {int olderThanDays = 30});
+
   /// Clear all purchased items from a specific shopping list
   Future<void> clearPurchasedItemsFromList(String listId);
 
