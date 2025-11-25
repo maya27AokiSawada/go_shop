@@ -1,29 +1,29 @@
 // lib/datastore/repository/purchase_group_repository.dart
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 
-abstract class PurchaseGroupRepository {
+abstract class SharedGroupRepository {
 // firestore対応するまでgroupIdはdefaultGroupで固定
-  Future<PurchaseGroup> addMember(String groupId, PurchaseGroupMember member);
-  Future<PurchaseGroup> removeMember(
-      String groupId, PurchaseGroupMember member);
-  Future<List<PurchaseGroup>> getAllGroups();
-  Future<PurchaseGroup> createGroup(
-      String groupId, String groupName, PurchaseGroupMember member);
-  Future<PurchaseGroup> deleteGroup(String groupId);
+  Future<SharedGroup> addMember(String groupId, SharedGroupMember member);
+  Future<SharedGroup> removeMember(
+      String groupId, SharedGroupMember member);
+  Future<List<SharedGroup>> getAllGroups();
+  Future<SharedGroup> createGroup(
+      String groupId, String groupName, SharedGroupMember member);
+  Future<SharedGroup> deleteGroup(String groupId);
 // setMemberIdはユーザーがログインした際に確定したuidを仮のuuidから置き換えるために使用
-//　purchaseGroup全体のcontactもしくは仮uuidが一致するメンバーを更新
+//　SharedGroup全体のcontactもしくは仮uuidが一致するメンバーを更新
 // defaultGroupのみの当面は実装しない。
 // ToDo　firestore対応時に実装
-  Future<PurchaseGroup> setMemberId(
+  Future<SharedGroup> setMemberId(
       String oldId, String newId, String? contact);
-  Future<PurchaseGroup> getGroupById(String groupId);
-  Future<PurchaseGroup> updateGroup(String groupId, PurchaseGroup group);
+  Future<SharedGroup> getGroupById(String groupId);
+  Future<SharedGroup> updateGroup(String groupId, SharedGroup group);
 
   // メンバープール関連
-  Future<PurchaseGroup> getOrCreateMemberPool();
+  Future<SharedGroup> getOrCreateMemberPool();
   Future<void> syncMemberPool();
-  Future<List<PurchaseGroupMember>> searchMembersInPool(String query);
-  Future<PurchaseGroupMember?> findMemberByEmail(String email);
+  Future<List<SharedGroupMember>> searchMembersInPool(String query);
+  Future<SharedGroupMember?> findMemberByEmail(String email);
 
   // データベースクリーンアップ
   Future<int> cleanupDeletedGroups();

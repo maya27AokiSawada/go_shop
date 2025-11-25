@@ -42,12 +42,12 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
   @override
   Future<ShoppingList> build() async {
     final repository = ref.read(shoppingListRepositoryProvider);
-    final purchaseGroupAsync = ref.watch(selectedGroupProvider);
+    final SharedGroupAsync = ref.watch(selectedGroupProvider);
 
-    return await purchaseGroupAsync.when(
-      data: (purchaseGroup) async {
-        // purchaseGroup が null の場合はデフォルトリストを返す
-        if (purchaseGroup == null) {
+    return await SharedGroupAsync.when(
+      data: (SharedGroup) async {
+        // SharedGroup が null の場合はデフォルトリストを返す
+        if (SharedGroup == null) {
           final defaultList = ShoppingList.create(
             ownerUid: '',
             groupId: 'default',
@@ -65,9 +65,9 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
               '🛒 ShoppingListNotifier: Hiveから既存リストを読み込み (${savedList.items.length}アイテム)');
           // 既存リストのグループ情報を更新
           final updatedList = savedList.copyWith(
-            ownerUid: purchaseGroup.ownerUid ?? savedList.ownerUid,
-            groupId: purchaseGroup.groupId,
-            groupName: purchaseGroup.groupName,
+            ownerUid: SharedGroup.ownerUid ?? savedList.ownerUid,
+            groupId: SharedGroup.groupId,
+            groupName: SharedGroup.groupName,
             items: savedList.items,
           );
           // 更新された情報をHiveに保存
@@ -77,10 +77,10 @@ class ShoppingListNotifier extends AsyncNotifier<ShoppingList> {
           Log.info('🛒 ShoppingListNotifier: 新しいリストを作成');
           // 新しいリストを作成してHiveに保存
           final newList = ShoppingList.create(
-            ownerUid: purchaseGroup.ownerUid ?? '',
-            groupId: purchaseGroup.groupId,
-            groupName: purchaseGroup.groupName,
-            listName: purchaseGroup.groupName,
+            ownerUid: SharedGroup.ownerUid ?? '',
+            groupId: SharedGroup.groupId,
+            groupName: SharedGroup.groupName,
+            listName: SharedGroup.groupName,
             description: '',
             items: [],
           );

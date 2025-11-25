@@ -8,7 +8,7 @@ class ShoppingListMigrationService {
 
   /// 旧デフォルトグループのリストを新デフォルトグループに移行
   ///
-  /// Firestoreデータ構造: /purchaseGroups/{groupId}/shoppingLists/{listId}
+  /// Firestoreデータ構造: /SharedGroups/{groupId}/shoppingLists/{listId}
   ///
   /// 処理:
   /// 1. 旧グループID配下の全リストを取得
@@ -26,7 +26,7 @@ class ShoppingListMigrationService {
 
       // 1. 旧グループの全リストを取得
       final oldCollectionRef = _firestore
-          .collection('purchaseGroups')
+          .collection('SharedGroups')
           .doc(oldGroupId)
           .collection('shoppingLists');
 
@@ -41,7 +41,7 @@ class ShoppingListMigrationService {
 
       // 2. 新グループのコレクション参照
       final newCollectionRef = _firestore
-          .collection('purchaseGroups')
+          .collection('SharedGroups')
           .doc(newGroupId)
           .collection('shoppingLists');
 

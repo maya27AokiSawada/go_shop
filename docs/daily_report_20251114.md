@@ -18,7 +18,7 @@
     - `maxUses: 5` (最大5人)
     - `currentUses: 0` (初期値)
     - `usedBy: []` (空配列)
-    - `groupId: purchaseGroupId` (Invitationモデル互換性)
+    - `groupId: SharedGroupId` (Invitationモデル互換性)
     - `token: invitationId` (ドキュメントID)
 
 - **セキュリティ検証の修正**
@@ -114,7 +114,7 @@ lib/providers/invitation_provider.dart
 ```dart
 'invitationId': invitationId,  // QRシステム用
 'token': invitationId,         // Invitationモデル用
-'groupId': purchaseGroupId,    // Invitationモデル用
+'groupId': SharedGroupId,    // Invitationモデル用
 ```
 
 ## テスト結果

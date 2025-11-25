@@ -13,7 +13,7 @@ class FirestoreShoppingListRepository implements ShoppingListRepository {
 
   // サブコレクションへの参照を返すメソッド
   CollectionReference _collection(String groupId) => _firestore
-      .collection('purchaseGroups')
+      .collection('SharedGroups')
       .doc(groupId)
       .collection('shoppingLists');
 

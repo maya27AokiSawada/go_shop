@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../services/invite_code_service.dart';
 
 /// QRコード中心の招待ウィジェット（AutoInviteButtonの置き換え）
@@ -13,7 +13,7 @@ import '../services/invite_code_service.dart';
 /// - 招待文の手動共有（ユーザー選択）
 /// - クリップボードコピー機能
 class InviteWidget extends ConsumerWidget {
-  final PurchaseGroup group;
+  final SharedGroup group;
 
   const InviteWidget({super.key, required this.group});
 

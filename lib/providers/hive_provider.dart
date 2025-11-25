@@ -2,24 +2,24 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import '../utils/app_logger.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../models/shopping_list.dart';
 import '../models/user_settings.dart';
 
 // 安全なBoxアクセス用のプロバイダー（エラーハンドリング強化）
-final purchaseGroupBoxProvider = Provider<Box<PurchaseGroup>>((ref) {
+final SharedGroupBoxProvider = Provider<Box<SharedGroup>>((ref) {
   try {
-    if (Hive.isBoxOpen('purchaseGroups')) {
-      return Hive.box<PurchaseGroup>('purchaseGroups');
+    if (Hive.isBoxOpen('SharedGroups')) {
+      return Hive.box<SharedGroup>('SharedGroups');
     } else {
       // Boxが閉じている場合のメッセージ
       Log.warning(
-          '⚠️ PurchaseGroup box is not open. This may be normal during app restart.');
+          '⚠️ SharedGroup box is not open. This may be normal during app restart.');
       throw StateError(
-          'PurchaseGroup box is not open. Please initialize Hive first.');
+          'SharedGroup box is not open. Please initialize Hive first.');
     }
   } catch (e) {
-    Log.error('❌ Failed to access PurchaseGroup box: $e');
+    Log.error('❌ Failed to access SharedGroup box: $e');
     rethrow;
   }
 });

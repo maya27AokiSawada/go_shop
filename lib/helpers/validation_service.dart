@@ -1,5 +1,5 @@
 // lib/helpers/validation_service.dart
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../models/shopping_list.dart';
 
 /// アプリ全体で使用される重複チェックとバリデーション機能を提供するサービス
@@ -13,7 +13,7 @@ class ValidationService {
   /// [excludeGroupId] 除外するグループID（編集時に自分自身を除外）
   static ValidationResult validateGroupName(
     String groupName, 
-    List<PurchaseGroup> existingGroups, 
+    List<SharedGroup> existingGroups, 
     {String? excludeGroupId}
   ) {
     // 空文字チェック
@@ -31,7 +31,7 @@ class ValidationService {
     final duplicateGroup = existingGroups.firstWhere(
       (group) => group.groupName.toLowerCase() == trimmedName.toLowerCase() &&
                   group.groupId != excludeGroupId,
-      orElse: () => const PurchaseGroup(groupName: '', groupId: ''),
+      orElse: () => const SharedGroup(groupName: '', groupId: ''),
     );
     
     if (duplicateGroup.groupName.isNotEmpty) {
@@ -49,7 +49,7 @@ class ValidationService {
   /// [excludeMemberId] 除外するメンバーID（編集時に自分自身を除外）
   static ValidationResult validateMemberEmail(
     String email, 
-    List<PurchaseGroupMember> existingMembers,
+    List<SharedGroupMember> existingMembers,
     {String? excludeMemberId}
   ) {
     // 空文字チェック
@@ -68,7 +68,7 @@ class ValidationService {
     final duplicateMember = existingMembers.firstWhere(
       (member) => member.contact.toLowerCase() == trimmedEmail &&
                    member.memberId != excludeMemberId,
-      orElse: () => PurchaseGroupMember.create(name: '', contact: '', role: PurchaseGroupRole.member),
+      orElse: () => SharedGroupMember.create(name: '', contact: '', role: SharedGroupRole.member),
     );
     
     if (duplicateMember.contact.isNotEmpty) {
@@ -84,7 +84,7 @@ class ValidationService {
   /// [excludeMemberId] 除外するメンバーID（編集時に自分自身を除外）
   static ValidationResult validateMemberName(
     String name, 
-    List<PurchaseGroupMember> existingMembers,
+    List<SharedGroupMember> existingMembers,
     {String? excludeMemberId}
   ) {
     // 空文字チェック
@@ -102,7 +102,7 @@ class ValidationService {
     final duplicateMember = existingMembers.firstWhere(
       (member) => member.name == trimmedName &&
                    member.memberId != excludeMemberId,
-      orElse: () => PurchaseGroupMember.create(name: '', contact: '', role: PurchaseGroupRole.member),
+      orElse: () => SharedGroupMember.create(name: '', contact: '', role: SharedGroupRole.member),
     );
     
     if (duplicateMember.name.isNotEmpty) {
@@ -237,7 +237,7 @@ class ValidationService {
 class ValidationResult {
   final bool isValid;
   final String? errorMessage;
-  final PurchaseGroupMember? duplicateMember;
+  final SharedGroupMember? duplicateMember;
   final ValidationResultType type;
   
   const ValidationResult._({
@@ -274,7 +274,7 @@ class ValidationResult {
   }
   
   /// 重複検出結果
-  factory ValidationResult.duplicate(PurchaseGroupMember member) {
+  factory ValidationResult.duplicate(SharedGroupMember member) {
     return ValidationResult._(
       isValid: false,
       duplicateMember: member,

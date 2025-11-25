@@ -6,7 +6,7 @@ Firestore同期の診断とHive優先アーキテクチャの確認を実施し�
 ## 実施内容
 
 ### 1. Firestore構造の確認
-- **発見事項**: Firebase Consoleで確認したところ、`/purchaseGroups` と `/shoppingLists` のコレクションが存在しない
+- **発見事項**: Firebase Consoleで確認したところ、`/SharedGroups` と `/shoppingLists` のコレクションが存在しない
 - **原因調査**: Firestore書き込みが実行されていない可能性を調査
 
 ### 2. Firestore同期診断のためのデバッグログ追加
@@ -54,9 +54,9 @@ Firestore同期の診断とHive優先アーキテクチャの確認を実施し�
 ## 判明した課題
 
 ### 1. Firestore書き込みが実行されていない
-- **症状**: Firebase Consoleに `/purchaseGroups` コレクションが存在しない
+- **症状**: Firebase Consoleに `/SharedGroups` コレクションが存在しない
 - **考えられる原因**:
-  1. `HybridPurchaseGroupRepository.createGroup()` が呼ばれていない
+  1. `HybridSharedGroupRepository.createGroup()` が呼ばれていない
   2. Flavorが `Flavor.dev` になっている
   3. `_firestoreRepo` が `null` のまま
   4. `_isOnline` が `false` になっている
@@ -79,11 +79,11 @@ Firestore同期の診断とHive優先アーキテクチャの確認を実施し�
 
 2. **Firestore書き込み修正**
    - 根本原因特定後、適切な修正を実施
-   - `/purchaseGroups/{groupId}` への書き込み確認
+   - `/SharedGroups/{groupId}` への書き込み確認
    - Firebase Consoleでデータ確認
 
 3. **Firestore構造の最終確認**
-   - 現在の実装: `/purchaseGroups/{groupId}` (centralized)
+   - 現在の実装: `/SharedGroups/{groupId}` (centralized)
    - コード上の実装と実際の挙動の整合性確認
 
 ### 優先度: 中
@@ -101,7 +101,7 @@ Firestore同期の診断とHive優先アーキテクチャの確認を実施し�
 - **理由2**: グループ管理はリアルタイム性が低いため、定期同期で十分
 - **理由3**: UI応答性を優先（Hiveは同期的に即座にデータを返す）
 
-### HybridPurchaseGroupRepository の同期条件
+### HybridSharedGroupRepository の同期条件
 ```dart
 if (F.appFlavor == Flavor.dev || !_isOnline || _firestoreRepo == null) {
   // Firestore同期スキップ

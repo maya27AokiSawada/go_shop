@@ -7,18 +7,18 @@
 **問題:** TestScenarioWidget の「1️⃣ グループ作成テスト」フェーズで「Lost connection to device」クラッシュが発生
 
 **調査プロセス:**
-1. HivePurchaseGroupRepository の Box アクセスパターンを全面的に _boxAsync に変換
+1. HiveSharedGroupRepository の Box アクセスパターンを全面的に _boxAsync に変換
 2. 詳細なデバッグログを追加して createGroup() メソッドの実行フローを追跡
 3. Flavor.dev と Flavor.prod の動作比較テストを実施
 
 **根本原因の特定:**
-- **Flavor.prod** → HybridPurchaseGroupRepository 使用 → **クラッシュ発生**
-- **Flavor.dev** → HivePurchaseGroupRepository 使用 → **完全に正常動作**
+- **Flavor.prod** → HybridSharedGroupRepository 使用 → **クラッシュ発生**
+- **Flavor.dev** → HiveSharedGroupRepository 使用 → **完全に正常動作**
 
 **技術的詳細:**
 ```
-HybridPurchaseGroupRepository のコンストラクタ
-→ FirestorePurchaseGroupRepository(_ref) 初期化
+HybridSharedGroupRepository のコンストラクタ
+→ FirestoreSharedGroupRepository(_ref) 初期化
 → _firestore = _ref.read(firestoreProvider) 実行
 → FirebaseFirestore.instance アクセス
 → Windowsプラットフォーム固有の問題でクラッシュ
@@ -26,7 +26,7 @@ HybridPurchaseGroupRepository のコンストラクタ
 
 ### ✅ 作業完了項目
 
-1. **HivePurchaseGroupRepository の完全な非同期化**
+1. **HiveSharedGroupRepository の完全な非同期化**
    - 全 CRUD メソッドを _boxAsync パターンに変換
    - 5回リトライ機能付きの安全な Box アクセス実装
    - 13以上のメソッドで _box → _boxAsync 移行完了
@@ -37,8 +37,8 @@ HybridPurchaseGroupRepository のコンストラクタ
    - Box アクセス、オブジェクト作成、put 操作の個別監視
 
 3. **Flavor ベースの動作検証**
-   - Flavor.dev: HivePurchaseGroupRepository のみ → **全テスト成功**
-   - Flavor.prod: HybridPurchaseGroupRepository → **Firestore 初期化クラッシュ**
+   - Flavor.dev: HiveSharedGroupRepository のみ → **全テスト成功**
+   - Flavor.prod: HybridSharedGroupRepository → **Firestore 初期化クラッシュ**
 
 ### 🔧 テスト結果
 
@@ -52,13 +52,13 @@ HybridPurchaseGroupRepository のコンストラクタ
 **Flavor.prod での問題:**
 ```
 ❌ createGroup() 呼び出し開始直後に「Lost connection to device」
-❌ HybridPurchaseGroupRepository の初期化段階でクラッシュ
+❌ HybridSharedGroupRepository の初期化段階でクラッシュ
 ❌ Firestore 関連の初期化エラー
 ```
 
 ### 🎯 明日の重点課題
 
-1. **HybridPurchaseGroupRepository の安全な初期化実装**
+1. **HybridSharedGroupRepository の安全な初期化実装**
    - Firestore 初期化の遅延実行 (lazy initialization)
    - エラーハンドリングの強化
    - Fallback to Hive-only mode の改善
@@ -68,20 +68,20 @@ HybridPurchaseGroupRepository のコンストラクタ
    - 段階的初期化戦略の実装
 
 3. **TestScenarioWidget でのハイブリッド同期テスト**
-   - 修正後の HybridPurchaseGroupRepository での完全テスト実行
+   - 修正後の HybridSharedGroupRepository での完全テスト実行
    - Firestore 同期機能の検証
 
 ## 技術的知見
 
 ### Hive Box アクセスの安全パターン
 ```dart
-Future<Box<PurchaseGroup>> get _boxAsync async {
+Future<Box<SharedGroup>> get _boxAsync async {
   for (int attempt = 1; attempt <= 5; attempt++) {
     try {
-      if (Hive.isBoxOpen('purchaseGroups')) {
-        return Hive.box<PurchaseGroup>('purchaseGroups');
+      if (Hive.isBoxOpen('SharedGroups')) {
+        return Hive.box<SharedGroup>('SharedGroups');
       }
-      return await Hive.openBox<PurchaseGroup>('purchaseGroups');
+      return await Hive.openBox<SharedGroup>('SharedGroups');
     } catch (e) {
       if (attempt == 5) rethrow;
       await Future.delayed(const Duration(milliseconds: 500));
@@ -93,11 +93,11 @@ Future<Box<PurchaseGroup>> get _boxAsync async {
 
 ### Repository Pattern の Flavor 分岐
 ```dart
-final purchaseGroupRepositoryProvider = Provider<PurchaseGroupRepository>((ref) {
+final SharedGroupRepositoryProvider = Provider<SharedGroupRepository>((ref) {
   if (F.appFlavor == Flavor.prod) {
-    return HybridPurchaseGroupRepository(ref);  // ← ここでクラッシュ
+    return HybridSharedGroupRepository(ref);  // ← ここでクラッシュ
   } else {
-    return HivePurchaseGroupRepository(ref);    // ← 完全に正常動作
+    return HiveSharedGroupRepository(ref);    // ← 完全に正常動作
   }
 });
 ```
@@ -107,12 +107,12 @@ final purchaseGroupRepositoryProvider = Provider<PurchaseGroupRepository>((ref) 
 - [x] Box アクセス競合状態の解決
 - [x] 詳細デバッグログシステム構築
 - [x] 根本原因の特定（Firestore 初期化問題）
-- [ ] HybridPurchaseGroupRepository の安全な初期化実装
+- [ ] HybridSharedGroupRepository の安全な初期化実装
 - [ ] プロダクション環境での TestScenarioWidget 完全成功
 
 ## 明日の作業予定
 
-1. **9:00-10:30** HybridPurchaseGroupRepository の遅延初期化実装
+1. **9:00-10:30** HybridSharedGroupRepository の遅延初期化実装
 2. **10:30-12:00** Firestore 初期化エラーハンドリング強化
 3. **13:00-15:00** TestScenarioWidget でのハイブリッド同期テスト
 4. **15:00-17:00** プロダクション環境での安定性確認とドキュメント更新

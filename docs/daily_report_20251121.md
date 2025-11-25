@@ -50,7 +50,7 @@
 
 #### データ構造
 ```
-/purchaseGroups/{groupId}/shoppingLists/{listId}
+/SharedGroups/{groupId}/shoppingLists/{listId}
   - listId, ownerUid, groupId, groupName, listName
   - items: Array<ShoppingItem>
   - createdAt, updatedAt

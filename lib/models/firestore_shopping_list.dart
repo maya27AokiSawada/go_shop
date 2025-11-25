@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class FirestoreShoppingList {
   final String id;                              // ドキュメントID
   final String ownerUid;                        // オーナーUID
-  final String groupId;                         // 所属グループID（アクセス権限はPurchaseGroupから取得）
+  final String groupId;                         // 所属グループID（アクセス権限はSharedGroupから取得）
   final String listName;                        // リスト名
   final List<Map<String, dynamic>> items;      // 買い物アイテム
   final Map<String, dynamic> metadata;         // その他のメタデータ
@@ -61,7 +61,7 @@ class FirestoreShoppingList {
     };
   }
 
-  // ユーザーがアクセス権限を持つかチェック（PurchaseGroupで確認が必要）
+  // ユーザーがアクセス権限を持つかチェック（SharedGroupで確認が必要）
   bool hasOwnerAccess(String uid) {
     return ownerUid == uid;
   }

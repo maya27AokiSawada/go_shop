@@ -1,6 +1,6 @@
 // lib/services/enhanced_invitation_service.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../datastore/firestore_architecture.dart';
 import '../providers/auth_provider.dart';
 import 'dart:developer' as developer;
@@ -21,24 +21,24 @@ class EnhancedInvitationService {
       }
 
       final userGroups =
-          await FirestoreCollections.getUserPurchaseGroups(currentUser.uid)
+          await FirestoreCollections.getUserSharedGroups(currentUser.uid)
               .get();
       final invitableGroups = <GroupInvitationOption>[];
 
       for (final doc in userGroups.docs) {
         final firestoreGroup =
-            FirestorePurchaseGroup.fromFirestoreData(doc.data());
+            FirestoreSharedGroup.fromFirestoreData(doc.data());
 
         // Check if current user can invite to this group
         if (firestoreGroup.canInviteUsers(currentUser.uid)) {
           // Check if target email already exists in group
           final existingMember = firestoreGroup.members?.firstWhere(
             (m) => m.contact.toLowerCase() == targetEmail.toLowerCase(),
-            orElse: () => const PurchaseGroupMember(
+            orElse: () => const SharedGroupMember(
                 memberId: '',
                 name: '',
                 contact: '',
-                role: PurchaseGroupRole.member),
+                role: SharedGroupRole.member),
           );
 
           final isAlreadyMember = existingMember?.contact.isNotEmpty == true;
@@ -116,18 +116,18 @@ class EnhancedInvitationService {
     required String ownerUid,
     required String groupId,
     required String targetEmail,
-    required PurchaseGroupRole targetRole,
+    required SharedGroupRole targetRole,
     String? customMessage,
   }) async {
     // Get group document
     final groupDoc =
-        await FirestoreCollections.getPurchaseGroupDoc(ownerUid, groupId).get();
+        await FirestoreCollections.getSharedGroupDoc(ownerUid, groupId).get();
     if (!groupDoc.exists) {
       throw Exception('グループが見つかりません');
     }
 
     final firestoreGroup =
-        FirestorePurchaseGroup.fromFirestoreData(groupDoc.data()!);
+        FirestoreSharedGroup.fromFirestoreData(groupDoc.data()!);
 
     // Verify current user can invite
     if (!firestoreGroup.canInviteUsers(ownerUid)) {
@@ -141,14 +141,14 @@ class EnhancedInvitationService {
     }
 
     // Create new member entry (will be activated when invitation is accepted)
-    final newMember = PurchaseGroupMember.create(
+    final newMember = SharedGroupMember.create(
       name: targetEmail, // Will be updated when user accepts
       contact: targetEmail,
       role: targetRole,
       isSignedIn: false,
     );
 
-    final updatedMembers = <PurchaseGroupMember>[
+    final updatedMembers = <SharedGroupMember>[
       ...(firestoreGroup.members ?? [])
     ];
     // Remove any existing member with same email and add new one
@@ -156,7 +156,7 @@ class EnhancedInvitationService {
         (m) => m.contact.toLowerCase() == targetEmail.toLowerCase());
     updatedMembers.add(newMember);
 
-    final baseGroup = PurchaseGroup(
+    final baseGroup = SharedGroup(
       groupName: firestoreGroup.groupName,
       groupId: firestoreGroup.groupId,
       ownerName: firestoreGroup.ownerName,
@@ -166,7 +166,7 @@ class EnhancedInvitationService {
       // shoppingListIds はサブコレクションに移行したため削除
     );
 
-    final updatedGroup = FirestorePurchaseGroup(
+    final updatedGroup = FirestoreSharedGroup(
       baseGroup: baseGroup,
       acceptedUids: firestoreGroup.acceptedUids,
       pendingInvitations: updatedPendingInvitations,
@@ -193,14 +193,14 @@ class EnhancedInvitationService {
   }) async {
     try {
       final groupDoc =
-          await FirestoreCollections.getPurchaseGroupDoc(ownerUid, groupId)
+          await FirestoreCollections.getSharedGroupDoc(ownerUid, groupId)
               .get();
       if (!groupDoc.exists) {
         throw Exception('グループが見つかりません');
       }
 
       final firestoreGroup =
-          FirestorePurchaseGroup.fromFirestoreData(groupDoc.data()!);
+          FirestoreSharedGroup.fromFirestoreData(groupDoc.data()!);
 
       // Accept invitation
       final updatedGroup = firestoreGroup.acceptInvitation(userUid);
@@ -221,7 +221,7 @@ class EnhancedInvitationService {
           return member;
         }).toList();
 
-        final finalBaseGroup = PurchaseGroup(
+        final finalBaseGroup = SharedGroup(
           groupName: updatedGroup.groupName,
           groupId: updatedGroup.groupId,
           ownerName: updatedGroup.ownerName,
@@ -231,7 +231,7 @@ class EnhancedInvitationService {
           // shoppingListIds はサブコレクションに移行したため削除
         );
 
-        final finalGroup = FirestorePurchaseGroup(
+        final finalGroup = FirestoreSharedGroup(
           baseGroup: finalBaseGroup,
           acceptedUids: updatedGroup.acceptedUids,
           pendingInvitations: updatedGroup.pendingInvitations,
@@ -273,7 +273,7 @@ class EnhancedInvitationService {
 
 /// Group invitation option for selection UI
 class GroupInvitationOption {
-  final FirestorePurchaseGroup group;
+  final FirestoreSharedGroup group;
   final bool canInvite;
   final String? reason;
 
@@ -288,7 +288,7 @@ class GroupInvitationOption {
 class GroupInvitationData {
   final String groupId;
   final String groupName;
-  final PurchaseGroupRole targetRole;
+  final SharedGroupRole targetRole;
 
   const GroupInvitationData({
     required this.groupId,
@@ -320,7 +320,7 @@ class PendingInvitation {
   final String groupId;
   final String groupName;
   final String ownerName;
-  final PurchaseGroupRole targetRole;
+  final SharedGroupRole targetRole;
   final DateTime invitedAt;
 
   const PendingInvitation({

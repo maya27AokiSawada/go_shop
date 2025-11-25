@@ -3,7 +3,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/app_logger.dart';
 import 'dart:io';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../models/shopping_list.dart';
 import '../models/user_settings.dart';
 // import '../models/invitation.dart';  // 削除済み - QRコードシステムに移行
@@ -26,7 +26,7 @@ class UserSpecificHiveService {
   // スキーマバージョンの管理
   static const String _schemaVersionKey = 'hive_schema_version';
   static const int _currentSchemaVersion =
-      2; // Version 2: PurchaseGroup.shoppingListIds 削除
+      2; // Version 2: SharedGroup.shoppingListIds 削除
 
   /// 前回使用したUIDを保存
   Future<void> saveLastUsedUid(String uid) async {
@@ -80,15 +80,15 @@ class UserSpecificHiveService {
   /// グローバルなHive初期化（アダプター登録のみ）
   static Future<void> initializeAdapters() async {
     if (!Hive.isAdapterRegistered(0)) {
-      Hive.registerAdapter(PurchaseGroupRoleAdapter());
-      Hive.registerAdapter(PurchaseGroupMemberAdapter());
-      Hive.registerAdapter(PurchaseGroupAdapter());
+      Hive.registerAdapter(SharedGroupRoleAdapter());
+      Hive.registerAdapter(SharedGroupMemberAdapter());
+      Hive.registerAdapter(SharedGroupAdapter());
       Hive.registerAdapter(ShoppingItemAdapter());
       Hive.registerAdapter(ShoppingListAdapter());
       Hive.registerAdapter(InvitationStatusAdapter()); // 継続使用
       Hive.registerAdapter(InvitationTypeAdapter()); // InvitationType用
       Hive.registerAdapter(
-          SyncStatusAdapter()); // ⚠️ 追加: PurchaseGroupのsyncStatusフィールド用
+          SyncStatusAdapter()); // ⚠️ 追加: SharedGroupのsyncStatusフィールド用
       Hive.registerAdapter(GroupTypeAdapter()); // 🆕 GroupType用
       Hive.registerAdapter(ListTypeAdapter()); // 🆕 ListType用
       // Hive.registerAdapter(InvitationAdapter());  // 削除済み - QRコードシステムに移行
@@ -215,7 +215,7 @@ class UserSpecificHiveService {
 
       // 個別のBoxを順次閉じる（Hive.close()は使わない）
       final boxesToClose = [
-        'purchaseGroups',
+        'SharedGroups',
         'shoppingLists',
         'userSettings',
         'subscriptions'
@@ -283,8 +283,8 @@ class UserSpecificHiveService {
     try {
       Log.info('📦 Opening user boxes with safety checks...');
 
-      // PurchaseGroupBox
-      await _safeOpenBox<PurchaseGroup>('purchaseGroups', '📁 PurchaseGroup');
+      // SharedGroupBox
+      await _safeOpenBox<SharedGroup>('SharedGroups', '📁 SharedGroup');
 
       // ShoppingListBox
       await _safeOpenBox<ShoppingList>('shoppingLists', '🛒 ShoppingList');
@@ -360,10 +360,10 @@ class UserSpecificHiveService {
   }
 
   /// スキーマバージョン2へのマイグレーション
-  /// PurchaseGroupのスキーマ変更に伴い、関連するBoxのデータファイルを削除
+  /// SharedGroupのスキーマ変更に伴い、関連するBoxのデータファイルを削除
   Future<void> _migrateToV2() async {
     Log.info(
-        '🚀 Running migration to v2: Deleting old purchaseGroups and shoppingLists data files...');
+        '🚀 Running migration to v2: Deleting old SharedGroups and shoppingLists data files...');
     try {
       // 現在のHiveパスを取得（デフォルトまたはユーザー固有のパス）
       final appDocDir = await getApplicationDocumentsDirectory();
@@ -371,20 +371,20 @@ class UserSpecificHiveService {
 
       Log.info('🔍 Hive data path: $hivePath');
 
-      // purchaseGroups のデータファイルを削除
-      final purchaseGroupsFile = File('$hivePath/purchaseGroups.hive');
-      if (await purchaseGroupsFile.exists()) {
-        await purchaseGroupsFile.delete();
-        Log.info('✅ Deleted purchaseGroups.hive file.');
+      // SharedGroups のデータファイルを削除
+      final SharedGroupsFile = File('$hivePath/SharedGroups.hive');
+      if (await SharedGroupsFile.exists()) {
+        await SharedGroupsFile.delete();
+        Log.info('✅ Deleted SharedGroups.hive file.');
       } else {
         Log.info(
-            'ℹ️  purchaseGroups.hive file not found (already deleted or never existed).');
+            'ℹ️  SharedGroups.hive file not found (already deleted or never existed).');
       }
 
-      final purchaseGroupsLockFile = File('$hivePath/purchaseGroups.lock');
-      if (await purchaseGroupsLockFile.exists()) {
-        await purchaseGroupsLockFile.delete();
-        Log.info('✅ Deleted purchaseGroups.lock file.');
+      final SharedGroupsLockFile = File('$hivePath/SharedGroups.lock');
+      if (await SharedGroupsLockFile.exists()) {
+        await SharedGroupsLockFile.delete();
+        Log.info('✅ Deleted SharedGroups.lock file.');
       }
 
       // shoppingLists のデータファイルを削除

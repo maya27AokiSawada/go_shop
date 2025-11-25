@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../providers/purchase_group_provider.dart';
 import '../utils/app_logger.dart';
 
@@ -82,7 +82,7 @@ class GroupSelectorWidget extends ConsumerWidget {
   }
 
   Widget _buildGroupDropdown(BuildContext context, WidgetRef ref,
-      List<PurchaseGroup> groups, String? selectedGroupId) {
+      List<SharedGroup> groups, String? selectedGroupId) {
     AppLogger.info('📋 [GROUP_SELECTOR] グループ数: ${groups.length}');
 
     // デバッグ: 各グループの詳細をログ出力
@@ -178,7 +178,7 @@ class GroupSelectorWidget extends ConsumerWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     items: groups
-                        .map<DropdownMenuItem<String>>((PurchaseGroup group) {
+                        .map<DropdownMenuItem<String>>((SharedGroup group) {
                       return DropdownMenuItem<String>(
                         value: group.groupId,
                         child: Row(

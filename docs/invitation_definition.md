@@ -603,7 +603,7 @@ Future<void> initializeFromConfig(String configPath) async {
 
 // メンバー招待処理
 Future<void> inviteMemberFromConfig(
-  PurchaseGroup group,
+  SharedGroup group,
   Map<String, dynamic> memberConfig
 ) async {
   // メールアドレスベースの招待

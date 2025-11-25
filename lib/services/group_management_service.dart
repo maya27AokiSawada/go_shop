@@ -1,7 +1,7 @@
 // lib/services/group_management_service.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../utils/app_logger.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/user_name_provider.dart';
@@ -27,12 +27,12 @@ class GroupManagementService {
     Log.info('🔍 loadUserNameFromDefaultGroup 開始');
 
     try {
-      final purchaseGroupAsync = _ref.read(selectedGroupProvider);
+      final SharedGroupAsync = _ref.read(selectedGroupProvider);
       final currentUserName = await UserPreferencesService.getUserName();
 
       Log.info('📊 現在のSharedPreferences userName: $currentUserName');
 
-      return await purchaseGroupAsync.when(
+      return await SharedGroupAsync.when(
         data: (group) async {
           if (group == null) {
             Log.info('⚠️ グループが見つかりません');
@@ -70,7 +70,7 @@ class GroupManagementService {
 
           // ownerを優先して探す
           var currentMember = group.members!.firstWhere(
-            (member) => member.role == PurchaseGroupRole.owner,
+            (member) => member.role == SharedGroupRole.owner,
             orElse: () {
               Log.info('⚠️ ownerが見つからないので最初のメンバーを使用');
               return group.members!.first;
@@ -149,7 +149,7 @@ class GroupManagementService {
       Log.info('🔐 現在のユーザーID: $currentUserId');
 
       // 全グループを取得
-      final repository = _ref.read(purchaseGroupRepositoryProvider);
+      final repository = _ref.read(SharedGroupRepositoryProvider);
       final allGroups = await repository.getAllGroups();
       Log.info('🌍 全グループ取得完了: ${allGroups.length}個のグループ');
 
@@ -158,7 +158,7 @@ class GroupManagementService {
             '🔍 グループ "${group.groupName}" (ID: ${group.groupId}) をチェック中...');
 
         bool groupUpdated = false;
-        final updatedMembers = <PurchaseGroupMember>[];
+        final updatedMembers = <SharedGroupMember>[];
 
         // 各メンバーをチェック
         for (final member in group.members ?? []) {
@@ -238,7 +238,7 @@ class GroupManagementService {
       Log.info(
           '🔍 getUserNameFromGroup開始: groupId=$groupId, email=$userEmail, uid=$userId');
 
-      final repository = _ref.read(purchaseGroupRepositoryProvider);
+      final repository = _ref.read(SharedGroupRepositoryProvider);
       final group = await repository.getGroupById(groupId);
 
       if (group.members == null || group.members!.isEmpty) {
@@ -250,11 +250,11 @@ class GroupManagementService {
       if (userEmail != null && userEmail.isNotEmpty) {
         final memberByEmail = group.members!.firstWhere(
           (member) => member.contact == userEmail,
-          orElse: () => PurchaseGroupMember.create(
+          orElse: () => SharedGroupMember.create(
             memberId: '',
             name: '',
             contact: '',
-            role: PurchaseGroupRole.member,
+            role: SharedGroupRole.member,
           ),
         );
 
@@ -268,11 +268,11 @@ class GroupManagementService {
       if (userId != null && userId.isNotEmpty) {
         final memberByUid = group.members!.firstWhere(
           (member) => member.memberId == userId,
-          orElse: () => PurchaseGroupMember.create(
+          orElse: () => SharedGroupMember.create(
             memberId: '',
             name: '',
             contact: '',
-            role: PurchaseGroupRole.member,
+            role: SharedGroupRole.member,
           ),
         );
 
@@ -291,9 +291,9 @@ class GroupManagementService {
   }
 
   /// グループの全メンバーを取得
-  Future<List<PurchaseGroupMember>> getGroupMembers(String groupId) async {
+  Future<List<SharedGroupMember>> getGroupMembers(String groupId) async {
     try {
-      final repository = _ref.read(purchaseGroupRepositoryProvider);
+      final repository = _ref.read(SharedGroupRepositoryProvider);
       final group = await repository.getGroupById(groupId);
       return group.members ?? [];
     } catch (e) {
@@ -303,7 +303,7 @@ class GroupManagementService {
   }
 
   /// 現在選択中のグループを取得
-  Future<PurchaseGroup?> getCurrentGroup() async {
+  Future<SharedGroup?> getCurrentGroup() async {
     final groupAsync = _ref.read(selectedGroupProvider);
     return await groupAsync.when(
       data: (group) async => group,

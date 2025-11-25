@@ -3,7 +3,7 @@
 // ignore_for_file: type=lint
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
-part of 'purchase_group.dart';
+part of 'shared_group.dart';
 
 // **************************************************************************
 // FreezedGenerator
@@ -14,12 +14,12 @@ T _$identity<T>(T value) => value;
 final _privateConstructorUsedError = UnsupportedError(
     'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
 
-PurchaseGroupMember _$PurchaseGroupMemberFromJson(Map<String, dynamic> json) {
-  return _PurchaseGroupMember.fromJson(json);
+SharedGroupMember _$SharedGroupMemberFromJson(Map<String, dynamic> json) {
+  return _SharedGroupMember.fromJson(json);
 }
 
 /// @nodoc
-mixin _$PurchaseGroupMember {
+mixin _$SharedGroupMember {
   @HiveField(0)
   String get memberId => throw _privateConstructorUsedError;
   @HiveField(1)
@@ -27,7 +27,7 @@ mixin _$PurchaseGroupMember {
   @HiveField(2)
   String get contact => throw _privateConstructorUsedError; // email または phone
   @HiveField(3)
-  PurchaseGroupRole get role => throw _privateConstructorUsedError;
+  SharedGroupRole get role => throw _privateConstructorUsedError;
   @HiveField(4)
   bool get isSignedIn => throw _privateConstructorUsedError; // 新しい招待管理フィールド
   @HiveField(9)
@@ -48,21 +48,21 @@ mixin _$PurchaseGroupMember {
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
-  $PurchaseGroupMemberCopyWith<PurchaseGroupMember> get copyWith =>
+  $SharedGroupMemberCopyWith<SharedGroupMember> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
 /// @nodoc
-abstract class $PurchaseGroupMemberCopyWith<$Res> {
-  factory $PurchaseGroupMemberCopyWith(
-          PurchaseGroupMember value, $Res Function(PurchaseGroupMember) then) =
-      _$PurchaseGroupMemberCopyWithImpl<$Res, PurchaseGroupMember>;
+abstract class $SharedGroupMemberCopyWith<$Res> {
+  factory $SharedGroupMemberCopyWith(
+          SharedGroupMember value, $Res Function(SharedGroupMember) then) =
+      _$SharedGroupMemberCopyWithImpl<$Res, SharedGroupMember>;
   @useResult
   $Res call(
       {@HiveField(0) String memberId,
       @HiveField(1) String name,
       @HiveField(2) String contact,
-      @HiveField(3) PurchaseGroupRole role,
+      @HiveField(3) SharedGroupRole role,
       @HiveField(4) bool isSignedIn,
       @HiveField(9) InvitationStatus invitationStatus,
       @HiveField(10) String? securityKey,
@@ -75,9 +75,9 @@ abstract class $PurchaseGroupMemberCopyWith<$Res> {
 }
 
 /// @nodoc
-class _$PurchaseGroupMemberCopyWithImpl<$Res, $Val extends PurchaseGroupMember>
-    implements $PurchaseGroupMemberCopyWith<$Res> {
-  _$PurchaseGroupMemberCopyWithImpl(this._value, this._then);
+class _$SharedGroupMemberCopyWithImpl<$Res, $Val extends SharedGroupMember>
+    implements $SharedGroupMemberCopyWith<$Res> {
+  _$SharedGroupMemberCopyWithImpl(this._value, this._then);
 
   // ignore: unused_field
   final $Val _value;
@@ -115,7 +115,7 @@ class _$PurchaseGroupMemberCopyWithImpl<$Res, $Val extends PurchaseGroupMember>
       role: null == role
           ? _value.role
           : role // ignore: cast_nullable_to_non_nullable
-              as PurchaseGroupRole,
+              as SharedGroupRole,
       isSignedIn: null == isSignedIn
           ? _value.isSignedIn
           : isSignedIn // ignore: cast_nullable_to_non_nullable
@@ -149,18 +149,18 @@ class _$PurchaseGroupMemberCopyWithImpl<$Res, $Val extends PurchaseGroupMember>
 }
 
 /// @nodoc
-abstract class _$$PurchaseGroupMemberImplCopyWith<$Res>
-    implements $PurchaseGroupMemberCopyWith<$Res> {
-  factory _$$PurchaseGroupMemberImplCopyWith(_$PurchaseGroupMemberImpl value,
-          $Res Function(_$PurchaseGroupMemberImpl) then) =
-      __$$PurchaseGroupMemberImplCopyWithImpl<$Res>;
+abstract class _$$SharedGroupMemberImplCopyWith<$Res>
+    implements $SharedGroupMemberCopyWith<$Res> {
+  factory _$$SharedGroupMemberImplCopyWith(_$SharedGroupMemberImpl value,
+          $Res Function(_$SharedGroupMemberImpl) then) =
+      __$$SharedGroupMemberImplCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
       {@HiveField(0) String memberId,
       @HiveField(1) String name,
       @HiveField(2) String contact,
-      @HiveField(3) PurchaseGroupRole role,
+      @HiveField(3) SharedGroupRole role,
       @HiveField(4) bool isSignedIn,
       @HiveField(9) InvitationStatus invitationStatus,
       @HiveField(10) String? securityKey,
@@ -173,11 +173,11 @@ abstract class _$$PurchaseGroupMemberImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$PurchaseGroupMemberImplCopyWithImpl<$Res>
-    extends _$PurchaseGroupMemberCopyWithImpl<$Res, _$PurchaseGroupMemberImpl>
-    implements _$$PurchaseGroupMemberImplCopyWith<$Res> {
-  __$$PurchaseGroupMemberImplCopyWithImpl(_$PurchaseGroupMemberImpl _value,
-      $Res Function(_$PurchaseGroupMemberImpl) _then)
+class __$$SharedGroupMemberImplCopyWithImpl<$Res>
+    extends _$SharedGroupMemberCopyWithImpl<$Res, _$SharedGroupMemberImpl>
+    implements _$$SharedGroupMemberImplCopyWith<$Res> {
+  __$$SharedGroupMemberImplCopyWithImpl(_$SharedGroupMemberImpl _value,
+      $Res Function(_$SharedGroupMemberImpl) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -195,7 +195,7 @@ class __$$PurchaseGroupMemberImplCopyWithImpl<$Res>
     Object? isInvited = null,
     Object? isInvitationAccepted = null,
   }) {
-    return _then(_$PurchaseGroupMemberImpl(
+    return _then(_$SharedGroupMemberImpl(
       memberId: null == memberId
           ? _value.memberId
           : memberId // ignore: cast_nullable_to_non_nullable
@@ -211,7 +211,7 @@ class __$$PurchaseGroupMemberImplCopyWithImpl<$Res>
       role: null == role
           ? _value.role
           : role // ignore: cast_nullable_to_non_nullable
-              as PurchaseGroupRole,
+              as SharedGroupRole,
       isSignedIn: null == isSignedIn
           ? _value.isSignedIn
           : isSignedIn // ignore: cast_nullable_to_non_nullable
@@ -246,8 +246,8 @@ class __$$PurchaseGroupMemberImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$PurchaseGroupMemberImpl implements _PurchaseGroupMember {
-  const _$PurchaseGroupMemberImpl(
+class _$SharedGroupMemberImpl implements _SharedGroupMember {
+  const _$SharedGroupMemberImpl(
       {@HiveField(0) this.memberId = '',
       @HiveField(1) required this.name,
       @HiveField(2) required this.contact,
@@ -264,8 +264,8 @@ class _$PurchaseGroupMemberImpl implements _PurchaseGroupMember {
       @Deprecated('Use invitationStatus instead')
       this.isInvitationAccepted = false});
 
-  factory _$PurchaseGroupMemberImpl.fromJson(Map<String, dynamic> json) =>
-      _$$PurchaseGroupMemberImplFromJson(json);
+  factory _$SharedGroupMemberImpl.fromJson(Map<String, dynamic> json) =>
+      _$$SharedGroupMemberImplFromJson(json);
 
   @override
   @JsonKey()
@@ -280,7 +280,7 @@ class _$PurchaseGroupMemberImpl implements _PurchaseGroupMember {
 // email または phone
   @override
   @HiveField(3)
-  final PurchaseGroupRole role;
+  final SharedGroupRole role;
   @override
   @JsonKey()
   @HiveField(4)
@@ -316,14 +316,14 @@ class _$PurchaseGroupMemberImpl implements _PurchaseGroupMember {
 
   @override
   String toString() {
-    return 'PurchaseGroupMember(memberId: $memberId, name: $name, contact: $contact, role: $role, isSignedIn: $isSignedIn, invitationStatus: $invitationStatus, securityKey: $securityKey, invitedAt: $invitedAt, acceptedAt: $acceptedAt, isInvited: $isInvited, isInvitationAccepted: $isInvitationAccepted)';
+    return 'SharedGroupMember(memberId: $memberId, name: $name, contact: $contact, role: $role, isSignedIn: $isSignedIn, invitationStatus: $invitationStatus, securityKey: $securityKey, invitedAt: $invitedAt, acceptedAt: $acceptedAt, isInvited: $isInvited, isInvitationAccepted: $isInvitationAccepted)';
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$PurchaseGroupMemberImpl &&
+            other is _$SharedGroupMemberImpl &&
             (identical(other.memberId, memberId) ||
                 other.memberId == memberId) &&
             (identical(other.name, name) || other.name == name) &&
@@ -364,24 +364,24 @@ class _$PurchaseGroupMemberImpl implements _PurchaseGroupMember {
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$PurchaseGroupMemberImplCopyWith<_$PurchaseGroupMemberImpl> get copyWith =>
-      __$$PurchaseGroupMemberImplCopyWithImpl<_$PurchaseGroupMemberImpl>(
+  _$$SharedGroupMemberImplCopyWith<_$SharedGroupMemberImpl> get copyWith =>
+      __$$SharedGroupMemberImplCopyWithImpl<_$SharedGroupMemberImpl>(
           this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$PurchaseGroupMemberImplToJson(
+    return _$$SharedGroupMemberImplToJson(
       this,
     );
   }
 }
 
-abstract class _PurchaseGroupMember implements PurchaseGroupMember {
-  const factory _PurchaseGroupMember(
+abstract class _SharedGroupMember implements SharedGroupMember {
+  const factory _SharedGroupMember(
       {@HiveField(0) final String memberId,
       @HiveField(1) required final String name,
       @HiveField(2) required final String contact,
-      @HiveField(3) required final PurchaseGroupRole role,
+      @HiveField(3) required final SharedGroupRole role,
       @HiveField(4) final bool isSignedIn,
       @HiveField(9) final InvitationStatus invitationStatus,
       @HiveField(10) final String? securityKey,
@@ -392,10 +392,10 @@ abstract class _PurchaseGroupMember implements PurchaseGroupMember {
       final bool isInvited,
       @HiveField(6)
       @Deprecated('Use invitationStatus instead')
-      final bool isInvitationAccepted}) = _$PurchaseGroupMemberImpl;
+      final bool isInvitationAccepted}) = _$SharedGroupMemberImpl;
 
-  factory _PurchaseGroupMember.fromJson(Map<String, dynamic> json) =
-      _$PurchaseGroupMemberImpl.fromJson;
+  factory _SharedGroupMember.fromJson(Map<String, dynamic> json) =
+      _$SharedGroupMemberImpl.fromJson;
 
   @override
   @HiveField(0)
@@ -408,7 +408,7 @@ abstract class _PurchaseGroupMember implements PurchaseGroupMember {
   String get contact;
   @override // email または phone
   @HiveField(3)
-  PurchaseGroupRole get role;
+  SharedGroupRole get role;
   @override
   @HiveField(4)
   bool get isSignedIn;
@@ -435,16 +435,16 @@ abstract class _PurchaseGroupMember implements PurchaseGroupMember {
   bool get isInvitationAccepted;
   @override
   @JsonKey(ignore: true)
-  _$$PurchaseGroupMemberImplCopyWith<_$PurchaseGroupMemberImpl> get copyWith =>
+  _$$SharedGroupMemberImplCopyWith<_$SharedGroupMemberImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
-PurchaseGroup _$PurchaseGroupFromJson(Map<String, dynamic> json) {
-  return _PurchaseGroup.fromJson(json);
+SharedGroup _$SharedGroupFromJson(Map<String, dynamic> json) {
+  return _SharedGroup.fromJson(json);
 }
 
 /// @nodoc
-mixin _$PurchaseGroup {
+mixin _$SharedGroup {
   @HiveField(0)
   String get groupName => throw _privateConstructorUsedError;
   @HiveField(1)
@@ -456,7 +456,7 @@ mixin _$PurchaseGroup {
   @HiveField(4)
   String? get ownerUid => throw _privateConstructorUsedError;
   @HiveField(5)
-  List<PurchaseGroupMember>? get members => throw _privateConstructorUsedError;
+  List<SharedGroupMember>? get members => throw _privateConstructorUsedError;
   @HiveField(6)
   String? get ownerMessage =>
       throw _privateConstructorUsedError; // @HiveField(7) @Default([]) List<String> shoppingListIds, // サブコレクション化のため不要に
@@ -483,15 +483,15 @@ mixin _$PurchaseGroup {
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
-  $PurchaseGroupCopyWith<PurchaseGroup> get copyWith =>
+  $SharedGroupCopyWith<SharedGroup> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
 /// @nodoc
-abstract class $PurchaseGroupCopyWith<$Res> {
-  factory $PurchaseGroupCopyWith(
-          PurchaseGroup value, $Res Function(PurchaseGroup) then) =
-      _$PurchaseGroupCopyWithImpl<$Res, PurchaseGroup>;
+abstract class $SharedGroupCopyWith<$Res> {
+  factory $SharedGroupCopyWith(
+          SharedGroup value, $Res Function(SharedGroup) then) =
+      _$SharedGroupCopyWithImpl<$Res, SharedGroup>;
   @useResult
   $Res call(
       {@HiveField(0) String groupName,
@@ -499,7 +499,7 @@ abstract class $PurchaseGroupCopyWith<$Res> {
       @HiveField(2) String? ownerName,
       @HiveField(3) String? ownerEmail,
       @HiveField(4) String? ownerUid,
-      @HiveField(5) List<PurchaseGroupMember>? members,
+      @HiveField(5) List<SharedGroupMember>? members,
       @HiveField(6) String? ownerMessage,
       @HiveField(11) List<String> allowedUid,
       @HiveField(12) bool isSecret,
@@ -513,9 +513,9 @@ abstract class $PurchaseGroupCopyWith<$Res> {
 }
 
 /// @nodoc
-class _$PurchaseGroupCopyWithImpl<$Res, $Val extends PurchaseGroup>
-    implements $PurchaseGroupCopyWith<$Res> {
-  _$PurchaseGroupCopyWithImpl(this._value, this._then);
+class _$SharedGroupCopyWithImpl<$Res, $Val extends SharedGroup>
+    implements $SharedGroupCopyWith<$Res> {
+  _$SharedGroupCopyWithImpl(this._value, this._then);
 
   // ignore: unused_field
   final $Val _value;
@@ -566,7 +566,7 @@ class _$PurchaseGroupCopyWithImpl<$Res, $Val extends PurchaseGroup>
       members: freezed == members
           ? _value.members
           : members // ignore: cast_nullable_to_non_nullable
-              as List<PurchaseGroupMember>?,
+              as List<SharedGroupMember>?,
       ownerMessage: freezed == ownerMessage
           ? _value.ownerMessage
           : ownerMessage // ignore: cast_nullable_to_non_nullable
@@ -612,11 +612,11 @@ class _$PurchaseGroupCopyWithImpl<$Res, $Val extends PurchaseGroup>
 }
 
 /// @nodoc
-abstract class _$$PurchaseGroupImplCopyWith<$Res>
-    implements $PurchaseGroupCopyWith<$Res> {
-  factory _$$PurchaseGroupImplCopyWith(
-          _$PurchaseGroupImpl value, $Res Function(_$PurchaseGroupImpl) then) =
-      __$$PurchaseGroupImplCopyWithImpl<$Res>;
+abstract class _$$SharedGroupImplCopyWith<$Res>
+    implements $SharedGroupCopyWith<$Res> {
+  factory _$$SharedGroupImplCopyWith(
+          _$SharedGroupImpl value, $Res Function(_$SharedGroupImpl) then) =
+      __$$SharedGroupImplCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
@@ -625,7 +625,7 @@ abstract class _$$PurchaseGroupImplCopyWith<$Res>
       @HiveField(2) String? ownerName,
       @HiveField(3) String? ownerEmail,
       @HiveField(4) String? ownerUid,
-      @HiveField(5) List<PurchaseGroupMember>? members,
+      @HiveField(5) List<SharedGroupMember>? members,
       @HiveField(6) String? ownerMessage,
       @HiveField(11) List<String> allowedUid,
       @HiveField(12) bool isSecret,
@@ -639,11 +639,11 @@ abstract class _$$PurchaseGroupImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$PurchaseGroupImplCopyWithImpl<$Res>
-    extends _$PurchaseGroupCopyWithImpl<$Res, _$PurchaseGroupImpl>
-    implements _$$PurchaseGroupImplCopyWith<$Res> {
-  __$$PurchaseGroupImplCopyWithImpl(
-      _$PurchaseGroupImpl _value, $Res Function(_$PurchaseGroupImpl) _then)
+class __$$SharedGroupImplCopyWithImpl<$Res>
+    extends _$SharedGroupCopyWithImpl<$Res, _$SharedGroupImpl>
+    implements _$$SharedGroupImplCopyWith<$Res> {
+  __$$SharedGroupImplCopyWithImpl(
+      _$SharedGroupImpl _value, $Res Function(_$SharedGroupImpl) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -666,7 +666,7 @@ class __$$PurchaseGroupImplCopyWithImpl<$Res>
     Object? syncStatus = null,
     Object? groupType = null,
   }) {
-    return _then(_$PurchaseGroupImpl(
+    return _then(_$SharedGroupImpl(
       groupName: null == groupName
           ? _value.groupName
           : groupName // ignore: cast_nullable_to_non_nullable
@@ -690,7 +690,7 @@ class __$$PurchaseGroupImplCopyWithImpl<$Res>
       members: freezed == members
           ? _value._members
           : members // ignore: cast_nullable_to_non_nullable
-              as List<PurchaseGroupMember>?,
+              as List<SharedGroupMember>?,
       ownerMessage: freezed == ownerMessage
           ? _value.ownerMessage
           : ownerMessage // ignore: cast_nullable_to_non_nullable
@@ -737,14 +737,14 @@ class __$$PurchaseGroupImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$PurchaseGroupImpl extends _PurchaseGroup {
-  const _$PurchaseGroupImpl(
+class _$SharedGroupImpl extends _SharedGroup {
+  const _$SharedGroupImpl(
       {@HiveField(0) required this.groupName,
       @HiveField(1) required this.groupId,
       @HiveField(2) this.ownerName,
       @HiveField(3) this.ownerEmail,
       @HiveField(4) this.ownerUid,
-      @HiveField(5) final List<PurchaseGroupMember>? members,
+      @HiveField(5) final List<SharedGroupMember>? members,
       @HiveField(6) this.ownerMessage,
       @HiveField(11) final List<String> allowedUid = const [],
       @HiveField(12) this.isSecret = false,
@@ -760,8 +760,8 @@ class _$PurchaseGroupImpl extends _PurchaseGroup {
         _acceptedUid = acceptedUid,
         super._();
 
-  factory _$PurchaseGroupImpl.fromJson(Map<String, dynamic> json) =>
-      _$$PurchaseGroupImplFromJson(json);
+  factory _$SharedGroupImpl.fromJson(Map<String, dynamic> json) =>
+      _$$SharedGroupImplFromJson(json);
 
   @override
   @HiveField(0)
@@ -778,10 +778,10 @@ class _$PurchaseGroupImpl extends _PurchaseGroup {
   @override
   @HiveField(4)
   final String? ownerUid;
-  final List<PurchaseGroupMember>? _members;
+  final List<SharedGroupMember>? _members;
   @override
   @HiveField(5)
-  List<PurchaseGroupMember>? get members {
+  List<SharedGroupMember>? get members {
     final value = _members;
     if (value == null) return null;
     if (_members is EqualUnmodifiableListView) return _members;
@@ -845,14 +845,14 @@ class _$PurchaseGroupImpl extends _PurchaseGroup {
 
   @override
   String toString() {
-    return 'PurchaseGroup(groupName: $groupName, groupId: $groupId, ownerName: $ownerName, ownerEmail: $ownerEmail, ownerUid: $ownerUid, members: $members, ownerMessage: $ownerMessage, allowedUid: $allowedUid, isSecret: $isSecret, acceptedUid: $acceptedUid, isDeleted: $isDeleted, lastAccessedAt: $lastAccessedAt, createdAt: $createdAt, updatedAt: $updatedAt, syncStatus: $syncStatus, groupType: $groupType)';
+    return 'SharedGroup(groupName: $groupName, groupId: $groupId, ownerName: $ownerName, ownerEmail: $ownerEmail, ownerUid: $ownerUid, members: $members, ownerMessage: $ownerMessage, allowedUid: $allowedUid, isSecret: $isSecret, acceptedUid: $acceptedUid, isDeleted: $isDeleted, lastAccessedAt: $lastAccessedAt, createdAt: $createdAt, updatedAt: $updatedAt, syncStatus: $syncStatus, groupType: $groupType)';
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$PurchaseGroupImpl &&
+            other is _$SharedGroupImpl &&
             (identical(other.groupName, groupName) ||
                 other.groupName == groupName) &&
             (identical(other.groupId, groupId) || other.groupId == groupId) &&
@@ -909,25 +909,25 @@ class _$PurchaseGroupImpl extends _PurchaseGroup {
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$PurchaseGroupImplCopyWith<_$PurchaseGroupImpl> get copyWith =>
-      __$$PurchaseGroupImplCopyWithImpl<_$PurchaseGroupImpl>(this, _$identity);
+  _$$SharedGroupImplCopyWith<_$SharedGroupImpl> get copyWith =>
+      __$$SharedGroupImplCopyWithImpl<_$SharedGroupImpl>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$PurchaseGroupImplToJson(
+    return _$$SharedGroupImplToJson(
       this,
     );
   }
 }
 
-abstract class _PurchaseGroup extends PurchaseGroup {
-  const factory _PurchaseGroup(
+abstract class _SharedGroup extends SharedGroup {
+  const factory _SharedGroup(
       {@HiveField(0) required final String groupName,
       @HiveField(1) required final String groupId,
       @HiveField(2) final String? ownerName,
       @HiveField(3) final String? ownerEmail,
       @HiveField(4) final String? ownerUid,
-      @HiveField(5) final List<PurchaseGroupMember>? members,
+      @HiveField(5) final List<SharedGroupMember>? members,
       @HiveField(6) final String? ownerMessage,
       @HiveField(11) final List<String> allowedUid,
       @HiveField(12) final bool isSecret,
@@ -937,11 +937,11 @@ abstract class _PurchaseGroup extends PurchaseGroup {
       @HiveField(16) final DateTime? createdAt,
       @HiveField(17) final DateTime? updatedAt,
       @HiveField(18) final SyncStatus syncStatus,
-      @HiveField(19) final GroupType groupType}) = _$PurchaseGroupImpl;
-  const _PurchaseGroup._() : super._();
+      @HiveField(19) final GroupType groupType}) = _$SharedGroupImpl;
+  const _SharedGroup._() : super._();
 
-  factory _PurchaseGroup.fromJson(Map<String, dynamic> json) =
-      _$PurchaseGroupImpl.fromJson;
+  factory _SharedGroup.fromJson(Map<String, dynamic> json) =
+      _$SharedGroupImpl.fromJson;
 
   @override
   @HiveField(0)
@@ -960,7 +960,7 @@ abstract class _PurchaseGroup extends PurchaseGroup {
   String? get ownerUid;
   @override
   @HiveField(5)
-  List<PurchaseGroupMember>? get members;
+  List<SharedGroupMember>? get members;
   @override
   @HiveField(6)
   String? get ownerMessage;
@@ -993,6 +993,6 @@ abstract class _PurchaseGroup extends PurchaseGroup {
   GroupType get groupType;
   @override
   @JsonKey(ignore: true)
-  _$$PurchaseGroupImplCopyWith<_$PurchaseGroupImpl> get copyWith =>
+  _$$SharedGroupImplCopyWith<_$SharedGroupImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }

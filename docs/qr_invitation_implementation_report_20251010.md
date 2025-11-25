@@ -9,7 +9,7 @@
 メール送信による招待機能をコメントアウトし、QRコードによる招待機能を新規実装しました。
 
 ### 🎯 実装目標
-1. **招待元**: 自分のUID、ShoppingListID、PurchaseGroupIDをQRコード化
+1. **招待元**: 自分のUID、ShoppingListID、SharedGroupIDをQRコード化
 2. **招待先**: QRコード読み取り後、自分のUIDを招待元に通知
 3. **メール機能**: 既存のメール招待機能をコメントアウトして保持
 
@@ -40,7 +40,7 @@ qr_code_scanner: ^1.0.1  # QRコード読み取り
   "inviterUid": "MP32WXhWHed9YViRbigjwkZk3tr1",
   "inviterEmail": "fatima.sumomo@gmail.com",
   "shoppingListId": "sample_list_id",
-  "purchaseGroupId": "sample_group_id", 
+  "SharedGroupId": "sample_group_id", 
   "message": "Go Shopグループへの招待です",
   "createdAt": "2025-10-10T10:00:00.000Z",
   "type": "qr_invitation",
@@ -67,10 +67,10 @@ qr_code_scanner: ^1.0.1  # QRコード読み取り
   - サンプル用QRInviteButton
   - QRScanButton
 
-#### **PurchaseGroupPage（グループ管理画面）**
+#### **SharedGroupPage（グループ管理画面）**
 - 📧 **AutoInviteButton**: コメントアウト
 - 🔗 **QRInviteButton & QRScanButton**: 実装
-  - 実際のPurchaseGroupID使用
+  - 実際のSharedGroupID使用
   - 動的メッセージ設定
 
 ### 5. **Android権限設定**
@@ -87,7 +87,7 @@ qr_code_scanner: ^1.0.1  # QRコード読み取り
 
 ### **招待する側（QRコード生成）**
 
-1. **PurchaseGroupPage** または **HomePage** で **「QRコード招待」** ボタンをクリック
+1. **SharedGroupPage** または **HomePage** で **「QRコード招待」** ボタンをクリック
 2. **QRInviteDialog** が表示される
 3. **QRコード** が自動生成される（招待データ含む）
 4. 相手に **QRコード** を見せる or **共有** する
@@ -111,7 +111,7 @@ qr_code_scanner: ^1.0.1  # QRコード読み取り
   acceptorUid: "受諾者UID", 
   acceptorEmail: "受諾者メール",
   shoppingListId: "ショッピングリストID",
-  purchaseGroupId: "グループID",
+  SharedGroupId: "グループID",
   acceptedAt: Timestamp,
   type: "qr_invitation_accepted",
   originalInvitation: { /* 元の招待データ */ }
@@ -125,7 +125,7 @@ qr_code_scanner: ^1.0.1  # QRコード読み取り
   type: "invitation_accepted", 
   message: "fatima.sumomo@gmail.com さんがあなたの招待を受諾しました",
   shoppingListId: "ショッピングリストID",
-  purchaseGroupId: "グループID",
+  SharedGroupId: "グループID",
   acceptorEmail: "受諾者メール",
   createdAt: Timestamp,
   read: false
@@ -155,9 +155,9 @@ const EmailTestButton(),
 const EmailDiagnosticsWidget(), 
 */
 
-// PurchaseGroupPageで  
+// SharedGroupPageで  
 /*
-AutoInviteButton(group: purchaseGroup),
+AutoInviteButton(group: SharedGroup),
 */
 ```
 
@@ -169,7 +169,7 @@ AutoInviteButton(group: purchaseGroup),
 ## 📱 使用方法
 
 ### **招待を送る**
-1. **PurchaseGroupPage** を開く
+1. **SharedGroupPage** を開く
 2. **「QRコード招待」** ボタンをクリック
 3. 表示された **QRコード** を相手に見せる
 

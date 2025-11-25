@@ -6,7 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'dart:convert';
 
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../models/invitation.dart';
 import '../services/qr_invitation_service.dart';
 import '../providers/purchase_group_provider.dart';
@@ -15,7 +15,7 @@ import '../utils/app_logger.dart';
 /// グループ招待管理ダイアログ
 /// Firestoreから招待一覧を取得して表示
 class GroupInvitationDialog extends ConsumerStatefulWidget {
-  final PurchaseGroup group;
+  final SharedGroup group;
 
   const GroupInvitationDialog({
     super.key,
@@ -41,7 +41,7 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
   Future<void> _ensureGroupExistsInFirestore() async {
     try {
       final groupDoc = await FirebaseFirestore.instance
-          .collection('purchaseGroups')
+          .collection('SharedGroups')
           .doc(widget.group.groupId)
           .get();
 
@@ -51,7 +51,7 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
 
         // グループドキュメントを作成
         await FirebaseFirestore.instance
-            .collection('purchaseGroups')
+            .collection('SharedGroups')
             .doc(widget.group.groupId)
             .set({
           'groupId': widget.group.groupId,
@@ -124,7 +124,7 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
                     // Firestoreから招待一覧を取得（グループメンバー全員が閲覧可能）
                     StreamBuilder<QuerySnapshot>(
                       stream: FirebaseFirestore.instance
-                          .collection('purchaseGroups')
+                          .collection('SharedGroups')
                           .doc(widget.group.groupId)
                           .collection('invitations')
                           .snapshots(),
@@ -272,7 +272,7 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
     // QRコード用のJSONデータを生成
     final qrData = jsonEncode({
       'invitationId': invitation.token,
-      'purchaseGroupId': widget.group.groupId,
+      'SharedGroupId': widget.group.groupId,
       'groupName': widget.group.groupName,
       'inviterUid': invitation.invitedBy,
       'inviterName': invitation.inviterName,
@@ -418,7 +418,7 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
       final qrService = ref.read(qrInvitationServiceProvider);
       await qrService.createQRInvitationData(
         shoppingListId: '',
-        purchaseGroupId: widget.group.groupId,
+        SharedGroupId: widget.group.groupId,
         groupName: widget.group.groupName,
         groupOwnerUid: widget.group.ownerUid ?? widget.group.groupId,
         groupAllowedUids: widget.group.allowedUid,
@@ -485,9 +485,9 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
 
     if (confirmed == true) {
       try {
-        // サブコレクションパスで削除: /purchaseGroups/{groupId}/invitations/{token}
+        // サブコレクションパスで削除: /SharedGroups/{groupId}/invitations/{token}
         await FirebaseFirestore.instance
-            .collection('purchaseGroups')
+            .collection('SharedGroups')
             .doc(widget.group.groupId)
             .collection('invitations')
             .doc(token)
@@ -560,13 +560,13 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
 
       // メンバーリストに追加
       final updatedMembers =
-          List<PurchaseGroupMember>.from(widget.group.members ?? []);
+          List<SharedGroupMember>.from(widget.group.members ?? []);
       updatedMembers.add(
-        PurchaseGroupMember(
+        SharedGroupMember(
           memberId: acceptorUid,
           name: acceptorName,
           contact: '', // 空文字列（後で受諾者が設定可能）
-          role: PurchaseGroupRole.member,
+          role: SharedGroupRole.member,
           isSignedIn: true,
           invitationStatus: InvitationStatus.accepted,
           acceptedAt: DateTime.now(),
@@ -578,7 +578,7 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
 
       // Firestoreに更新（ownerとして実行）
       await FirebaseFirestore.instance
-          .collection('purchaseGroups')
+          .collection('SharedGroups')
           .doc(groupId)
           .update({
         'allowedUid': currentAllowedUids,
@@ -599,7 +599,7 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
       Log.info('✅ [INVITATION_MONITOR] グループ更新完了: $acceptorUid を追加');
 
       // ローカルのHiveも更新
-      final repository = ref.read(purchaseGroupRepositoryProvider);
+      final repository = ref.read(SharedGroupRepositoryProvider);
       final updatedGroup = widget.group.copyWith(
         allowedUid: currentAllowedUids,
         members: updatedMembers,

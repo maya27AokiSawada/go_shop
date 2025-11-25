@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/app_logger.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../flavors.dart';
 import 'user_preferences_service.dart';
 
@@ -13,7 +13,7 @@ class FirestoreGroupSyncService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
 
   /// サインイン時にFirestoreからグループデータを読み込み、ローカルに同期
-  static Future<List<PurchaseGroup>> syncGroupsOnSignIn() async {
+  static Future<List<SharedGroup>> syncGroupsOnSignIn() async {
     try {
       Log.info('🔄 サインイン時グループ同期開始');
 
@@ -50,7 +50,7 @@ class FirestoreGroupSyncService {
   }
 
   /// 特定のグループをFirestoreから取得してHiveに同期
-  static Future<PurchaseGroup?> syncSpecificGroup(String groupId) async {
+  static Future<SharedGroup?> syncSpecificGroup(String groupId) async {
     try {
       Log.info('🔄 グループ[$groupId]の個別同期開始');
 
@@ -74,19 +74,19 @@ class FirestoreGroupSyncService {
       }
 
       final groupData = groupDoc.data()!;
-      // Firestoreデータから直接PurchaseGroupを構築
-      final group = PurchaseGroup(
+      // Firestoreデータから直接SharedGroupを構築
+      final group = SharedGroup(
         groupId: groupDoc.id,
         groupName: groupData['groupName'] ?? '',
         ownerName: groupData['ownerName'],
         ownerEmail: groupData['ownerEmail'],
         ownerUid: groupData['ownerUid'],
         members: (groupData['members'] as List<dynamic>?)
-            ?.map((memberData) => PurchaseGroupMember(
+            ?.map((memberData) => SharedGroupMember(
                   memberId: memberData['memberId'] ?? '',
                   name: memberData['name'] ?? '',
                   contact: memberData['contact'] ?? '',
-                  role: PurchaseGroupRole.values[memberData['role'] ?? 0],
+                  role: SharedGroupRole.values[memberData['role'] ?? 0],
                   isSignedIn: memberData['isSignedIn'] ?? false,
                 ))
             .toList(),
@@ -114,7 +114,7 @@ class FirestoreGroupSyncService {
   }
 
   /// グループデータをFirestoreに保存
-  static Future<bool> saveGroupToFirestore(PurchaseGroup group) async {
+  static Future<bool> saveGroupToFirestore(SharedGroup group) async {
     try {
       Log.info('💾 グループ[${group.groupName}]をFirestoreに保存開始');
 
@@ -129,7 +129,7 @@ class FirestoreGroupSyncService {
         return false;
       }
 
-      // PurchaseGroupからFirestore用のMapを手動で構築
+      // SharedGroupからFirestore用のMapを手動で構築
       final groupData = <String, dynamic>{
         'groupName': group.groupName,
         'ownerName': group.ownerName,
@@ -160,8 +160,8 @@ class FirestoreGroupSyncService {
   }
 
   /// ユーザーが参加しているグループ一覧をFirestoreから取得
-  static Future<List<PurchaseGroup>> _fetchUserGroups(String userId) async {
-    final groups = <PurchaseGroup>[];
+  static Future<List<SharedGroup>> _fetchUserGroups(String userId) async {
+    final groups = <SharedGroup>[];
 
     try {
       // グループコレクションから、allowedUidにユーザーIDが含まれているものを検索
@@ -174,18 +174,18 @@ class FirestoreGroupSyncService {
 
       for (final doc in querySnapshot.docs) {
         final groupData = doc.data();
-        final group = PurchaseGroup(
+        final group = SharedGroup(
           groupId: doc.id,
           groupName: groupData['groupName'] ?? '',
           ownerName: groupData['ownerName'],
           ownerEmail: groupData['ownerEmail'],
           ownerUid: groupData['ownerUid'],
           members: (groupData['members'] as List<dynamic>?)
-              ?.map((memberData) => PurchaseGroupMember(
+              ?.map((memberData) => SharedGroupMember(
                     memberId: memberData['memberId'] ?? '',
                     name: memberData['name'] ?? '',
                     contact: memberData['contact'] ?? '',
-                    role: PurchaseGroupRole.values[memberData['role'] ?? 0],
+                    role: SharedGroupRole.values[memberData['role'] ?? 0],
                     isSignedIn: memberData['isSignedIn'] ?? false,
                   ))
               .toList(),
@@ -210,7 +210,7 @@ class FirestoreGroupSyncService {
   }
 
   /// グループの変更をリアルタイムで監視（ストリーム）
-  static Stream<List<PurchaseGroup>> watchUserGroups() {
+  static Stream<List<SharedGroup>> watchUserGroups() {
     if (F.appFlavor != Flavor.prod) {
       return Stream.value([]);
     }
@@ -227,18 +227,18 @@ class FirestoreGroupSyncService {
         .map((snapshot) {
       return snapshot.docs.map((doc) {
         final groupData = doc.data();
-        return PurchaseGroup(
+        return SharedGroup(
           groupId: doc.id,
           groupName: groupData['groupName'] ?? '',
           ownerName: groupData['ownerName'],
           ownerEmail: groupData['ownerEmail'],
           ownerUid: groupData['ownerUid'],
           members: (groupData['members'] as List<dynamic>?)
-              ?.map((memberData) => PurchaseGroupMember(
+              ?.map((memberData) => SharedGroupMember(
                     memberId: memberData['memberId'] ?? '',
                     name: memberData['name'] ?? '',
                     contact: memberData['contact'] ?? '',
-                    role: PurchaseGroupRole.values[memberData['role'] ?? 0],
+                    role: SharedGroupRole.values[memberData['role'] ?? 0],
                     isSignedIn: memberData['isSignedIn'] ?? false,
                   ))
               .toList(),

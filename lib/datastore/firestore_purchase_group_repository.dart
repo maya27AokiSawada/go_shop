@@ -1,21 +1,21 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../datastore/purchase_group_repository.dart';
 import 'dart:developer' as developer;
 
-class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
+class FirestoreSharedGroupRepository implements SharedGroupRepository {
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final Uuid _uuid = const Uuid();
 
   // FirebaseFirestoreインスタンスを直接受け取る
-  FirestorePurchaseGroupRepository(this._firestore);
+  FirestoreSharedGroupRepository(this._firestore);
 
   /// 購入グループコレクション（ルート直下 - QR招待のため）
   CollectionReference get _groupsCollection {
-    return _firestore.collection('purchaseGroups');
+    return _firestore.collection('SharedGroups');
   }
 
   /// ショッピングリストID生成（groupId + UUID）
@@ -30,8 +30,8 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
   }
 
   @override
-  Future<PurchaseGroup> createGroup(
-      String groupId, String groupName, PurchaseGroupMember member) async {
+  Future<SharedGroup> createGroup(
+      String groupId, String groupName, SharedGroupMember member) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -43,14 +43,14 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
       developer.log('🔍 [FIRESTORE] Owner member.memberId: ${member.memberId}');
       developer.log('🔍 [FIRESTORE] Owner member.name: ${member.name}');
 
-      // PurchaseGroup.createファクトリを使用
-      final newGroup = PurchaseGroup.create(
+      // SharedGroup.createファクトリを使用
+      final newGroup = SharedGroup.create(
         groupId: groupId,
         groupName: groupName,
         members: [member],
       );
 
-      // 新しいアーキテクチャ: ルートの'purchaseGroups'にドキュメントを作成
+      // 新しいアーキテクチャ: ルートの'SharedGroups'にドキュメントを作成
       final groupDocRef = _groupsCollection.doc(groupId);
       final groupData = {
         ..._groupToFirestore(newGroup),
@@ -93,7 +93,7 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
   }
 
   @override
-  Future<List<PurchaseGroup>> getAllGroups() async {
+  Future<List<SharedGroup>> getAllGroups() async {
     try {
       final currentUser = _auth.currentUser;
       if (currentUser == null) {
@@ -104,7 +104,7 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
       final currentUserId = currentUser.uid;
       developer.log('🔥 [FIRESTORE] Fetching groups for user: $currentUserId');
 
-      // 新しいアーキテクチャ: ルートの'purchaseGroups'をクエリ
+      // 新しいアーキテクチャ: ルートの'SharedGroups'をクエリ
       final groupsSnapshot = await _groupsCollection
           .where('allowedUid', arrayContains: currentUserId)
           .get();
@@ -128,7 +128,7 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
   }
 
   @override
-  Future<PurchaseGroup> getGroupById(String groupId) async {
+  Future<SharedGroup> getGroupById(String groupId) async {
     try {
       final doc = await _groupsCollection.doc(groupId).get();
       if (!doc.exists) {
@@ -143,7 +143,7 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
   }
 
   @override
-  Future<PurchaseGroup> updateGroup(String groupId, PurchaseGroup group) async {
+  Future<SharedGroup> updateGroup(String groupId, SharedGroup group) async {
     try {
       final updateData = _groupToFirestore(group);
       developer.log('🔍 [FIRESTORE UPDATE] groupId: $groupId');
@@ -168,7 +168,7 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
   }
 
   @override
-  Future<PurchaseGroup> deleteGroup(String groupId) async {
+  Future<SharedGroup> deleteGroup(String groupId) async {
     try {
       final user = _auth.currentUser;
       developer
@@ -202,8 +202,8 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
   }
 
   @override
-  Future<PurchaseGroup> addMember(
-      String groupId, PurchaseGroupMember member) async {
+  Future<SharedGroup> addMember(
+      String groupId, SharedGroupMember member) async {
     try {
       final group = await getGroupById(groupId);
       final updatedGroup = group.addMember(member);
@@ -223,8 +223,8 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
   }
 
   @override
-  Future<PurchaseGroup> removeMember(
-      String groupId, PurchaseGroupMember member) async {
+  Future<SharedGroup> removeMember(
+      String groupId, SharedGroupMember member) async {
     try {
       final group = await getGroupById(groupId);
       final updatedGroup = group.removeMember(member);
@@ -244,7 +244,7 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
   }
 
   @override
-  Future<PurchaseGroup> setMemberId(
+  Future<SharedGroup> setMemberId(
       String oldId, String newId, String? contact) async {
     try {
       // TODO: Firestore実装 - 複数グループでのUID更新
@@ -257,7 +257,7 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
 
   // 🔒 メンバープール関連（個人情報保護のため Firestore では実装しない）
   @override
-  Future<PurchaseGroup> getOrCreateMemberPool() async {
+  Future<SharedGroup> getOrCreateMemberPool() async {
     throw UnimplementedError(
         '🔒 Member pool is local-only for privacy protection');
   }
@@ -268,13 +268,13 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
   }
 
   @override
-  Future<List<PurchaseGroupMember>> searchMembersInPool(String query) async {
+  Future<List<SharedGroupMember>> searchMembersInPool(String query) async {
     // 🔒 個人情報保護: メンバープールはローカルのみ
     return [];
   }
 
   @override
-  Future<PurchaseGroupMember?> findMemberByEmail(String email) async {
+  Future<SharedGroupMember?> findMemberByEmail(String email) async {
     // 🔒 個人情報保護: メンバープールはローカルのみ
     return null;
   }
@@ -283,7 +283,7 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
   // Firestore変換ヘルパー
   // =================================================================
 
-  Map<String, dynamic> _groupToFirestore(PurchaseGroup group) {
+  Map<String, dynamic> _groupToFirestore(SharedGroup group) {
     return {
       'groupName': group.groupName,
       'groupId': group.groupId,
@@ -300,7 +300,7 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
     };
   }
 
-  Map<String, dynamic> _memberToFirestore(PurchaseGroupMember m) {
+  Map<String, dynamic> _memberToFirestore(SharedGroupMember m) {
     return {
       'memberId': m.memberId,
       'name': m.name,
@@ -313,7 +313,7 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
     };
   }
 
-  PurchaseGroup _groupFromFirestore(DocumentSnapshot doc) {
+  SharedGroup _groupFromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
 
     final membersList = (data['members'] as List<dynamic>?)
@@ -322,7 +322,7 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
             .toList() ??
         [];
 
-    return PurchaseGroup(
+    return SharedGroup(
       groupName: data['groupName'] ?? '',
       groupId: data['groupId'] ?? doc.id,
       ownerUid: data['ownerUid'] ?? '',
@@ -337,13 +337,13 @@ class FirestorePurchaseGroupRepository implements PurchaseGroupRepository {
     );
   }
 
-  PurchaseGroupMember _memberFromFirestore(Map<String, dynamic> data) {
-    return PurchaseGroupMember(
+  SharedGroupMember _memberFromFirestore(Map<String, dynamic> data) {
+    return SharedGroupMember(
       memberId: data['uid'] ?? data['memberId'] ?? '',
       name: data['displayName'] ?? data['name'] ?? '',
       contact: data['contact'] ?? '',
-      role: PurchaseGroupRole.values.firstWhere((e) => e.name == data['role'],
-          orElse: () => PurchaseGroupRole.member),
+      role: SharedGroupRole.values.firstWhere((e) => e.name == data['role'],
+          orElse: () => SharedGroupRole.member),
       invitedAt: (data['invitedAt'] as Timestamp?)?.toDate() ??
           (data['joinedAt'] as Timestamp?)?.toDate() ??
           DateTime.now(),

@@ -68,9 +68,9 @@ class InvitationMonitorService {
         '🔄 招待処理中: ${invitation.acceptorName} (${invitation.acceptorUid})');
 
     try {
-      // 1. PurchaseGroupのallowedUidsに追加
-      await _updatePurchaseGroupAllowedUids(
-        groupId: invitation.purchaseGroupId,
+      // 1. SharedGroupのallowedUidsに追加
+      await _updateSharedGroupAllowedUids(
+        groupId: invitation.SharedGroupId,
         newUid: invitation.acceptorUid,
       );
 
@@ -82,7 +82,7 @@ class InvitationMonitorService {
 
       // 3. グループに属する既存のショッピングリストをダウンロード
       await _downloadExistingShoppingLists(
-        groupId: invitation.purchaseGroupId,
+        groupId: invitation.SharedGroupId,
         acceptorUid: invitation.acceptorUid,
       );
 
@@ -101,21 +101,21 @@ class InvitationMonitorService {
     }
   }
 
-  /// PurchaseGroupのallowedUidsを更新
-  Future<void> _updatePurchaseGroupAllowedUids({
+  /// SharedGroupのallowedUidsを更新
+  Future<void> _updateSharedGroupAllowedUids({
     required String groupId,
     required String newUid,
   }) async {
     try {
-      // Firestoreの PurchaseGroup ドキュメントを直接更新
-      await _firestore.collection('purchaseGroups').doc(groupId).update({
+      // Firestoreの SharedGroup ドキュメントを直接更新
+      await _firestore.collection('SharedGroups').doc(groupId).update({
         'allowedUids': FieldValue.arrayUnion([newUid]),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      Log.info('✅ PurchaseGroup allowedUids更新: $groupId + $newUid');
+      Log.info('✅ SharedGroup allowedUids更新: $groupId + $newUid');
     } catch (e) {
-      Log.error('❌ PurchaseGroup更新エラー: $e');
+      Log.error('❌ SharedGroup更新エラー: $e');
       rethrow;
     }
   }
@@ -173,8 +173,8 @@ class InvitationMonitorService {
     required String revokeUid,
   }) async {
     try {
-      // PurchaseGroupから削除
-      await _firestore.collection('purchaseGroups').doc(groupId).update({
+      // SharedGroupから削除
+      await _firestore.collection('SharedGroups').doc(groupId).update({
         'allowedUids': FieldValue.arrayRemove([revokeUid]),
         'updatedAt': FieldValue.serverTimestamp(),
       });

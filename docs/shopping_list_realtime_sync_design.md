@@ -16,7 +16,7 @@
 // lib/widgets/group_invitation_dialog.dart (line 123-130)
 StreamBuilder<QuerySnapshot>(
   stream: FirebaseFirestore.instance
-      .collection('purchaseGroups')
+      .collection('SharedGroups')
       .doc(widget.group.groupId)
       .collection('invitations')
       .snapshots(),
@@ -31,7 +31,7 @@ StreamBuilder<QuerySnapshot>(
 ### 1. Firestore構造（変更なし）
 
 ```
-/purchaseGroups/{groupId}/shoppingLists/{listId}
+/SharedGroups/{groupId}/shoppingLists/{listId}
   ├─ listId: String
   ├─ listName: String
   ├─ items: List<ShoppingItem>
@@ -49,7 +49,7 @@ StreamBuilder<QuerySnapshot>(
 // 新規メソッド
 Stream<ShoppingList?> watchShoppingList(String groupId, String listId) {
   return _firestore
-      .collection('purchaseGroups')
+      .collection('SharedGroups')
       .doc(groupId)
       .collection('shoppingLists')
       .doc(listId)

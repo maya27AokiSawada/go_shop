@@ -15,9 +15,9 @@ import 'user_preferences_service.dart';
 import 'notification_service.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/user_settings_provider.dart';
-import '../models/purchase_group.dart' as models;
+import '../models/shared_group.dart' as models;
 import '../datastore/hive_purchase_group_repository.dart'
-    show hivePurchaseGroupRepositoryProvider;
+    show hiveSharedGroupRepositoryProvider;
 
 // QRコード招待サービスプロバイダー
 final qrInvitationServiceProvider = Provider<QRInvitationService>((ref) {
@@ -37,7 +37,7 @@ class QRInvitationService {
   /// セキュアなQRコード用の招待データを作成
   Future<Map<String, dynamic>> createQRInvitationData({
     required String shoppingListId,
-    required String purchaseGroupId,
+    required String SharedGroupId,
     required String groupName,
     required String groupOwnerUid,
     required List<String> groupAllowedUids, // グループメンバーのUIDリスト
@@ -51,11 +51,11 @@ class QRInvitationService {
 
     // セキュリティキーを生成
     final securityKey = _securityService.generateSecurityKey();
-    final invitationId = _securityService.generateInvitationId(purchaseGroupId);
+    final invitationId = _securityService.generateInvitationId(SharedGroupId);
 
     // セキュアな招待トークンを生成
     final invitationToken = _securityService.generateInvitationToken(
-      groupId: purchaseGroupId,
+      groupId: SharedGroupId,
       invitationType: invitationType,
       securityKey: securityKey,
       inviterUid: currentUser.uid,
@@ -69,7 +69,7 @@ class QRInvitationService {
       'inviterDisplayName':
           currentUser.displayName ?? currentUser.email ?? 'ユーザー',
       'shoppingListId': shoppingListId,
-      'purchaseGroupId': purchaseGroupId,
+      'SharedGroupId': SharedGroupId,
       'groupName': groupName,
       'groupOwnerUid': groupOwnerUid,
       'invitationType': invitationType,
@@ -84,16 +84,16 @@ class QRInvitationService {
       'version': '3.0', // セキュリティ強化版
     };
 
-    // Firestoreのサブコレクションに保存: purchaseGroups/{groupId}/invitations/{invitationId}
+    // Firestoreのサブコレクションに保存: SharedGroups/{groupId}/invitations/{invitationId}
     await _firestore
-        .collection('purchaseGroups')
-        .doc(purchaseGroupId)
+        .collection('SharedGroups')
+        .doc(SharedGroupId)
         .collection('invitations')
         .doc(invitationId)
         .set({
       ...invitationData,
       'token': invitationId, // Invitationモデルのtokenフィールド用
-      'groupId': purchaseGroupId, // Invitationモデル用 (purchaseGroupIdのエイリアス)
+      'groupId': SharedGroupId, // Invitationモデル用 (SharedGroupIdのエイリアス)
       'invitedBy': currentUser.uid, // Invitationモデル用
       'inviterName': currentUser.displayName ??
           currentUser.email ??
@@ -143,7 +143,7 @@ class QRInvitationService {
     if (decoded['type'] != 'secure_qr_invitation' ||
         decoded['invitationId'] == null ||
         decoded['inviterUid'] == null ||
-        decoded['purchaseGroupId'] == null ||
+        decoded['SharedGroupId'] == null ||
         decoded['securityKey'] == null ||
         decoded['invitationToken'] == null ||
         decoded['expiresAt'] == null) {
@@ -167,7 +167,7 @@ class QRInvitationService {
     }
 
     // トークンの整合性チェック
-    if (tokenData.groupId != decoded['purchaseGroupId'] ||
+    if (tokenData.groupId != decoded['SharedGroupId'] ||
         tokenData.securityKey != decoded['securityKey'] ||
         _securityService.isTokenExpired(tokenData.timestamp)) {
       Log.info('招待トークンの整合性チェック失敗');
@@ -184,7 +184,7 @@ class QRInvitationService {
         decoded['inviterUid'] != null &&
         decoded['inviterDisplayName'] != null &&
         decoded['shoppingListId'] != null &&
-        decoded['purchaseGroupId'] != null &&
+        decoded['SharedGroupId'] != null &&
         decoded['groupName'] != null &&
         decoded['groupOwnerUid'] != null &&
         decoded['inviteRole'] != null) {
@@ -304,7 +304,7 @@ class QRInvitationService {
       Log.info('📤 [ACCEPTOR] Auth.email: ${acceptorUser?.email}');
       Log.info('📤 [ACCEPTOR] 最終決定した名前: $userName');
 
-      final groupId = invitationData['purchaseGroupId'] as String;
+      final groupId = invitationData['SharedGroupId'] as String;
       final groupName = invitationData['groupName'] as String? ?? 'グループ';
 
       Log.info(
@@ -392,7 +392,7 @@ class QRInvitationService {
       Log.info('🔧 [PLACEHOLDER] プレースホルダーグループ作成開始');
 
       // リポジトリ取得
-      final repository = _ref.read(purchaseGroupRepositoryProvider);
+      final repository = _ref.read(SharedGroupRepositoryProvider);
 
       // 既に存在する場合はスキップ
       try {
@@ -406,7 +406,7 @@ class QRInvitationService {
       }
 
       // プレースホルダーグループ作成
-      final placeholderGroup = models.PurchaseGroup(
+      final placeholderGroup = models.SharedGroup(
         groupId: groupId,
         groupName: groupName,
         ownerUid: inviterUid,
@@ -414,19 +414,19 @@ class QRInvitationService {
         ownerEmail: '',
         allowedUid: [inviterUid, acceptorUid], // 両方のUIDを設定
         members: [
-          models.PurchaseGroupMember(
+          models.SharedGroupMember(
             memberId: inviterUid,
             name: '招待元ユーザー',
             contact: '',
-            role: models.PurchaseGroupRole.owner,
+            role: models.SharedGroupRole.owner,
             isSignedIn: true,
             invitationStatus: models.InvitationStatus.self,
           ),
-          models.PurchaseGroupMember(
+          models.SharedGroupMember(
             memberId: acceptorUid,
             name: '招待されたユーザー',
             contact: '',
-            role: models.PurchaseGroupRole.member,
+            role: models.SharedGroupRole.member,
             isSignedIn: true,
             invitationStatus: models.InvitationStatus.pending,
           ),
@@ -467,14 +467,14 @@ class QRInvitationService {
           providedKey ?? invitationData['securityKey'] as String?;
 
       // Firestoreから実際の招待データを取得
-      final purchaseGroupId = invitationData['purchaseGroupId'] as String?;
-      if (purchaseGroupId == null) {
-        Log.info('❌ purchaseGroupIdが見つかりません');
+      final SharedGroupId = invitationData['SharedGroupId'] as String?;
+      if (SharedGroupId == null) {
+        Log.info('❌ SharedGroupIdが見つかりません');
         return false;
       }
       final invitationDoc = await _firestore
-          .collection('purchaseGroups')
-          .doc(purchaseGroupId)
+          .collection('SharedGroups')
+          .doc(SharedGroupId)
           .collection('invitations')
           .doc(invitationId)
           .get();
@@ -528,7 +528,7 @@ class QRInvitationService {
         'invitationId': invitationId,
         'acceptorUid': acceptorUid,
         'acceptedAt': FieldValue.serverTimestamp(),
-        'groupId': invitationData['purchaseGroupId'],
+        'groupId': invitationData['SharedGroupId'],
         'invitationType': invitationData['invitationType'],
       });
     }
@@ -565,7 +565,7 @@ class QRInvitationService {
 
       // 招待者がオーナーのグループを取得
       final ownerGroupsQuery = await _firestore
-          .collection('purchaseGroups')
+          .collection('SharedGroups')
           .where('ownerUid', isEqualTo: inviterUid)
           .get();
 
@@ -697,26 +697,26 @@ class QRInvitationService {
     try {
       Log.info('👤 個別招待を処理中...');
 
-      final groupId = invitationData['purchaseGroupId'] as String;
+      final groupId = invitationData['SharedGroupId'] as String;
       final groupName = invitationData['groupName'] as String;
 
       Log.info('🔍 [QR_INVITATION] グループID: $groupId');
       Log.info('🔍 [QR_INVITATION] グループ名: $groupName');
 
       // ⚠️ 重要: FirestoreとHiveの両方からallowedUidを取得してマージ
-      final repository = _ref.read(purchaseGroupRepositoryProvider);
+      final repository = _ref.read(SharedGroupRepositoryProvider);
 
       // 1. Firestoreから最新データを取得（招待元のallowedUidを保持するため）
-      models.PurchaseGroup? firestoreGroup;
+      models.SharedGroup? firestoreGroup;
       List<String> firestoreAllowedUid = [];
-      List<models.PurchaseGroupMember> firestoreMembers = [];
+      List<models.SharedGroupMember> firestoreMembers = [];
 
       // 🔥 共通ユーティリティでFirestoreから取得
       firestoreGroup = await FirestoreHelper.fetchGroup(groupId);
       if (firestoreGroup != null) {
         firestoreAllowedUid = List<String>.from(firestoreGroup.allowedUid);
         firestoreMembers =
-            List<models.PurchaseGroupMember>.from(firestoreGroup.members ?? []);
+            List<models.SharedGroupMember>.from(firestoreGroup.members ?? []);
         Log.info(
             '✅ [QR_INVITATION] Firestoreから取得: ${firestoreGroup.groupName}');
         Log.info(
@@ -727,14 +727,14 @@ class QRInvitationService {
 
       // 2. Hiveからプレースホルダーを取得
       List<String> hiveAllowedUid = [];
-      List<models.PurchaseGroupMember> hiveMembers = [];
-      models.PurchaseGroup? hiveGroup;
+      List<models.SharedGroupMember> hiveMembers = [];
+      models.SharedGroup? hiveGroup;
 
       try {
         hiveGroup = await repository.getGroupById(groupId);
         hiveAllowedUid = List<String>.from(hiveGroup.allowedUid);
         hiveMembers =
-            List<models.PurchaseGroupMember>.from(hiveGroup.members ?? []);
+            List<models.SharedGroupMember>.from(hiveGroup.members ?? []);
         Log.info('✅ [QR_INVITATION] Hiveから取得: ${hiveGroup.groupName}');
         Log.info('🔍 [QR_INVITATION] Hive allowedUid: $hiveAllowedUid');
       } catch (e) {
@@ -758,7 +758,7 @@ class QRInvitationService {
 
       // allowedUidを準備（マージ済みリストのコピー + acceptorUid追加）
       final allowedUid = List<String>.from(mergedAllowedUid);
-      final members = List<models.PurchaseGroupMember>.from(
+      final members = List<models.SharedGroupMember>.from(
         firestoreMembers.isNotEmpty ? firestoreMembers : hiveMembers,
       );
 
@@ -837,11 +837,11 @@ class QRInvitationService {
         Log.info('✅ [QR_INVITATION] 最終ユーザー名: "$userName"');
 
         // 新しいメンバーを追加
-        final newMember = models.PurchaseGroupMember(
+        final newMember = models.SharedGroupMember(
           memberId: acceptorUid,
           name: userName,
           contact: userEmail,
-          role: models.PurchaseGroupRole.member, // デフォルトは一般メンバー
+          role: models.SharedGroupRole.member, // デフォルトは一般メンバー
           isSignedIn: true,
           invitationStatus: models.InvitationStatus.accepted,
           acceptedAt: DateTime.now(),
@@ -867,7 +867,7 @@ class QRInvitationService {
 
       // ⚠️ CRITICAL: Hive専用リポジトリを使用（Firestore更新を回避）
       // HybridRepositoryを使うとFirestoreにも書き込もうとしてPermission-Deniedになる
-      final hiveRepository = _ref.read(hivePurchaseGroupRepositoryProvider);
+      final hiveRepository = _ref.read(hiveSharedGroupRepositoryProvider);
       await hiveRepository.saveGroup(updatedGroup);
       Log.info('✅ Hiveのみにグループ更新完了（受諾者ローカル、Firestoreは招待元が更新）');
 

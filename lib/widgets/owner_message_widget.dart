@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../providers/purchase_group_provider.dart';
 
 /// オーナー専用のメッセージ編集・表示ウィジェット
 class OwnerMessageWidget extends ConsumerStatefulWidget {
-  final PurchaseGroup purchaseGroup;
+  final SharedGroup SharedGroup;
   final bool isOwner;
 
   const OwnerMessageWidget({
     super.key,
-    required this.purchaseGroup,
+    required this.SharedGroup,
     required this.isOwner,
   });
 
@@ -27,7 +27,7 @@ class _OwnerMessageWidgetState extends ConsumerState<OwnerMessageWidget> {
   void initState() {
     super.initState();
     _messageController = TextEditingController(
-      text: widget.purchaseGroup.ownerMessage ?? '',
+      text: widget.SharedGroup.ownerMessage ?? '',
     );
   }
 
@@ -47,7 +47,7 @@ class _OwnerMessageWidgetState extends ConsumerState<OwnerMessageWidget> {
     try {
       final notifier = ref.read(selectedGroupNotifierProvider.notifier);
       await notifier.updateOwnerMessage(
-        widget.purchaseGroup.groupId,
+        widget.SharedGroup.groupId,
         _messageController.text.trim(),
       );
 
@@ -81,14 +81,14 @@ class _OwnerMessageWidgetState extends ConsumerState<OwnerMessageWidget> {
 
   void _cancelEdit() {
     setState(() {
-      _messageController.text = widget.purchaseGroup.ownerMessage ?? '';
+      _messageController.text = widget.SharedGroup.ownerMessage ?? '';
       _isEditing = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final hasMessage = widget.purchaseGroup.ownerMessage?.isNotEmpty == true;
+    final hasMessage = widget.SharedGroup.ownerMessage?.isNotEmpty == true;
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
@@ -189,7 +189,7 @@ class _OwnerMessageWidgetState extends ConsumerState<OwnerMessageWidget> {
                       border: Border.all(color: Colors.orange[100]!),
                     ),
                     child: Text(
-                      widget.purchaseGroup.ownerMessage!,
+                      widget.SharedGroup.ownerMessage!,
                       style: const TextStyle(
                         fontSize: 14,
                         height: 1.4,

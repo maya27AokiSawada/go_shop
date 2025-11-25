@@ -484,7 +484,7 @@ class FirebaseAuthService {
         final syncedGroups =
             await FirestoreGroupSyncService.syncGroupsOnSignIn();
         if (syncedGroups.isNotEmpty) {
-          final groupBox = ref.read(purchaseGroupBoxProvider);
+          final groupBox = ref.read(SharedGroupBoxProvider);
           for (final group in syncedGroups) {
             try {
               await groupBox.put(group.groupId, group);

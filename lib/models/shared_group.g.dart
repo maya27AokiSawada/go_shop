@@ -1,26 +1,26 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'purchase_group.dart';
+part of 'shared_group.dart';
 
 // **************************************************************************
 // TypeAdapterGenerator
 // **************************************************************************
 
-class PurchaseGroupMemberAdapter extends TypeAdapter<PurchaseGroupMember> {
+class SharedGroupMemberAdapter extends TypeAdapter<SharedGroupMember> {
   @override
   final int typeId = 1;
 
   @override
-  PurchaseGroupMember read(BinaryReader reader) {
+  SharedGroupMember read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return PurchaseGroupMember(
+    return SharedGroupMember(
       memberId: fields[0] as String,
       name: fields[1] as String,
       contact: fields[2] as String,
-      role: fields[3] as PurchaseGroupRole,
+      role: fields[3] as SharedGroupRole,
       isSignedIn: fields[4] as bool,
       invitationStatus: fields[9] as InvitationStatus,
       securityKey: fields[10] as String?,
@@ -32,7 +32,7 @@ class PurchaseGroupMemberAdapter extends TypeAdapter<PurchaseGroupMember> {
   }
 
   @override
-  void write(BinaryWriter writer, PurchaseGroupMember obj) {
+  void write(BinaryWriter writer, SharedGroupMember obj) {
     writer
       ..writeByte(11)
       ..writeByte(0)
@@ -65,28 +65,28 @@ class PurchaseGroupMemberAdapter extends TypeAdapter<PurchaseGroupMember> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is PurchaseGroupMemberAdapter &&
+      other is SharedGroupMemberAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
 
-class PurchaseGroupAdapter extends TypeAdapter<PurchaseGroup> {
+class SharedGroupAdapter extends TypeAdapter<SharedGroup> {
   @override
   final int typeId = 2;
 
   @override
-  PurchaseGroup read(BinaryReader reader) {
+  SharedGroup read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return PurchaseGroup(
+    return SharedGroup(
       groupName: fields[0] as String,
       groupId: fields[1] as String,
       ownerName: fields[2] as String?,
       ownerEmail: fields[3] as String?,
       ownerUid: fields[4] as String?,
-      members: (fields[5] as List?)?.cast<PurchaseGroupMember>(),
+      members: (fields[5] as List?)?.cast<SharedGroupMember>(),
       ownerMessage: fields[6] as String?,
       allowedUid: (fields[11] as List).cast<String>(),
       isSecret: fields[12] as bool,
@@ -103,7 +103,7 @@ class PurchaseGroupAdapter extends TypeAdapter<PurchaseGroup> {
   }
 
   @override
-  void write(BinaryWriter writer, PurchaseGroup obj) {
+  void write(BinaryWriter writer, SharedGroup obj) {
     writer
       ..writeByte(16)
       ..writeByte(0)
@@ -146,44 +146,44 @@ class PurchaseGroupAdapter extends TypeAdapter<PurchaseGroup> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is PurchaseGroupAdapter &&
+      other is SharedGroupAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
 
-class PurchaseGroupRoleAdapter extends TypeAdapter<PurchaseGroupRole> {
+class SharedGroupRoleAdapter extends TypeAdapter<SharedGroupRole> {
   @override
   final int typeId = 0;
 
   @override
-  PurchaseGroupRole read(BinaryReader reader) {
+  SharedGroupRole read(BinaryReader reader) {
     switch (reader.readByte()) {
       case 0:
-        return PurchaseGroupRole.owner;
+        return SharedGroupRole.owner;
       case 1:
-        return PurchaseGroupRole.member;
+        return SharedGroupRole.member;
       case 2:
-        return PurchaseGroupRole.manager;
+        return SharedGroupRole.manager;
       case 3:
-        return PurchaseGroupRole.partner;
+        return SharedGroupRole.partner;
       default:
-        return PurchaseGroupRole.owner;
+        return SharedGroupRole.owner;
     }
   }
 
   @override
-  void write(BinaryWriter writer, PurchaseGroupRole obj) {
+  void write(BinaryWriter writer, SharedGroupRole obj) {
     switch (obj) {
-      case PurchaseGroupRole.owner:
+      case SharedGroupRole.owner:
         writer.writeByte(0);
         break;
-      case PurchaseGroupRole.member:
+      case SharedGroupRole.member:
         writer.writeByte(1);
         break;
-      case PurchaseGroupRole.manager:
+      case SharedGroupRole.manager:
         writer.writeByte(2);
         break;
-      case PurchaseGroupRole.partner:
+      case SharedGroupRole.partner:
         writer.writeByte(3);
         break;
     }
@@ -195,7 +195,7 @@ class PurchaseGroupRoleAdapter extends TypeAdapter<PurchaseGroupRole> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is PurchaseGroupRoleAdapter &&
+      other is SharedGroupRoleAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
@@ -375,13 +375,13 @@ class GroupTypeAdapter extends TypeAdapter<GroupType> {
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$PurchaseGroupMemberImpl _$$PurchaseGroupMemberImplFromJson(
+_$SharedGroupMemberImpl _$$SharedGroupMemberImplFromJson(
         Map<String, dynamic> json) =>
-    _$PurchaseGroupMemberImpl(
+    _$SharedGroupMemberImpl(
       memberId: json['memberId'] as String? ?? '',
       name: json['name'] as String,
       contact: json['contact'] as String,
-      role: $enumDecode(_$PurchaseGroupRoleEnumMap, json['role']),
+      role: $enumDecode(_$SharedGroupRoleEnumMap, json['role']),
       isSignedIn: json['isSignedIn'] as bool? ?? false,
       invitationStatus: $enumDecodeNullable(
               _$InvitationStatusEnumMap, json['invitationStatus']) ??
@@ -397,13 +397,13 @@ _$PurchaseGroupMemberImpl _$$PurchaseGroupMemberImplFromJson(
       isInvitationAccepted: json['isInvitationAccepted'] as bool? ?? false,
     );
 
-Map<String, dynamic> _$$PurchaseGroupMemberImplToJson(
-        _$PurchaseGroupMemberImpl instance) =>
+Map<String, dynamic> _$$SharedGroupMemberImplToJson(
+        _$SharedGroupMemberImpl instance) =>
     <String, dynamic>{
       'memberId': instance.memberId,
       'name': instance.name,
       'contact': instance.contact,
-      'role': _$PurchaseGroupRoleEnumMap[instance.role]!,
+      'role': _$SharedGroupRoleEnumMap[instance.role]!,
       'isSignedIn': instance.isSignedIn,
       'invitationStatus': _$InvitationStatusEnumMap[instance.invitationStatus]!,
       'securityKey': instance.securityKey,
@@ -413,11 +413,11 @@ Map<String, dynamic> _$$PurchaseGroupMemberImplToJson(
       'isInvitationAccepted': instance.isInvitationAccepted,
     };
 
-const _$PurchaseGroupRoleEnumMap = {
-  PurchaseGroupRole.owner: 'owner',
-  PurchaseGroupRole.member: 'member',
-  PurchaseGroupRole.manager: 'manager',
-  PurchaseGroupRole.partner: 'partner',
+const _$SharedGroupRoleEnumMap = {
+  SharedGroupRole.owner: 'owner',
+  SharedGroupRole.member: 'member',
+  SharedGroupRole.manager: 'manager',
+  SharedGroupRole.partner: 'partner',
 };
 
 const _$InvitationStatusEnumMap = {
@@ -427,15 +427,15 @@ const _$InvitationStatusEnumMap = {
   InvitationStatus.deleted: 'deleted',
 };
 
-_$PurchaseGroupImpl _$$PurchaseGroupImplFromJson(Map<String, dynamic> json) =>
-    _$PurchaseGroupImpl(
+_$SharedGroupImpl _$$SharedGroupImplFromJson(Map<String, dynamic> json) =>
+    _$SharedGroupImpl(
       groupName: json['groupName'] as String,
       groupId: json['groupId'] as String,
       ownerName: json['ownerName'] as String?,
       ownerEmail: json['ownerEmail'] as String?,
       ownerUid: json['ownerUid'] as String?,
       members: (json['members'] as List<dynamic>?)
-          ?.map((e) => PurchaseGroupMember.fromJson(e as Map<String, dynamic>))
+          ?.map((e) => SharedGroupMember.fromJson(e as Map<String, dynamic>))
           .toList(),
       ownerMessage: json['ownerMessage'] as String?,
       allowedUid: (json['allowedUid'] as List<dynamic>?)
@@ -464,7 +464,7 @@ _$PurchaseGroupImpl _$$PurchaseGroupImplFromJson(Map<String, dynamic> json) =>
           GroupType.shopping,
     );
 
-Map<String, dynamic> _$$PurchaseGroupImplToJson(_$PurchaseGroupImpl instance) =>
+Map<String, dynamic> _$$SharedGroupImplToJson(_$SharedGroupImpl instance) =>
     <String, dynamic>{
       'groupName': instance.groupName,
       'groupId': instance.groupId,

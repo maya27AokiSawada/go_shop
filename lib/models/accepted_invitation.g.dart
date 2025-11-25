@@ -20,7 +20,7 @@ class AcceptedInvitationAdapter extends TypeAdapter<AcceptedInvitation> {
       acceptorUid: fields[0] as String,
       acceptorEmail: fields[1] as String,
       acceptorName: fields[2] as String,
-      purchaseGroupId: fields[3] as String,
+      SharedGroupId: fields[3] as String,
       shoppingListId: fields[4] as String,
       inviteRole: fields[5] as String,
       acceptedAt: fields[6] as DateTime,
@@ -41,7 +41,7 @@ class AcceptedInvitationAdapter extends TypeAdapter<AcceptedInvitation> {
       ..writeByte(2)
       ..write(obj.acceptorName)
       ..writeByte(3)
-      ..write(obj.purchaseGroupId)
+      ..write(obj.SharedGroupId)
       ..writeByte(4)
       ..write(obj.shoppingListId)
       ..writeByte(5)
@@ -77,7 +77,7 @@ _$AcceptedInvitationImpl _$$AcceptedInvitationImplFromJson(
       acceptorUid: json['acceptorUid'] as String,
       acceptorEmail: json['acceptorEmail'] as String,
       acceptorName: json['acceptorName'] as String,
-      purchaseGroupId: json['purchaseGroupId'] as String,
+      SharedGroupId: json['SharedGroupId'] as String,
       shoppingListId: json['shoppingListId'] as String,
       inviteRole: json['inviteRole'] as String,
       acceptedAt: DateTime.parse(json['acceptedAt'] as String),
@@ -94,7 +94,7 @@ Map<String, dynamic> _$$AcceptedInvitationImplToJson(
       'acceptorUid': instance.acceptorUid,
       'acceptorEmail': instance.acceptorEmail,
       'acceptorName': instance.acceptorName,
-      'purchaseGroupId': instance.purchaseGroupId,
+      'SharedGroupId': instance.SharedGroupId,
       'shoppingListId': instance.shoppingListId,
       'inviteRole': instance.inviteRole,
       'acceptedAt': instance.acceptedAt.toIso8601String(),

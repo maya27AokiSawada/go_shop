@@ -1,7 +1,7 @@
 // lib/widgets/multi_group_invitation_dialog.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../services/enhanced_invitation_service.dart';
 
 /// Dialog for selecting multiple groups to invite a user to
@@ -23,7 +23,7 @@ class MultiGroupInvitationDialog extends ConsumerStatefulWidget {
 class _MultiGroupInvitationDialogState
     extends ConsumerState<MultiGroupInvitationDialog> {
   final Map<String, bool> _selectedGroups = {};
-  final Map<String, PurchaseGroupRole> _selectedRoles = {};
+  final Map<String, SharedGroupRole> _selectedRoles = {};
   final TextEditingController _messageController = TextEditingController();
   bool _isLoading = false;
 
@@ -36,7 +36,7 @@ class _MultiGroupInvitationDialogState
       if (option.canInvite) {
         _selectedGroups[option.group.groupId] = false;
         _selectedRoles[option.group.groupId] =
-            PurchaseGroupRole.member; // Default role
+            SharedGroupRole.member; // Default role
       }
     }
   }
@@ -195,7 +195,7 @@ class _MultiGroupInvitationDialogState
           ],
         ),
         trailing: isSelectable && isSelected
-            ? DropdownButton<PurchaseGroupRole>(
+            ? DropdownButton<SharedGroupRole>(
                 value: _selectedRoles[groupId],
                 onChanged: (role) {
                   if (role != null) {
@@ -204,10 +204,10 @@ class _MultiGroupInvitationDialogState
                     });
                   }
                 },
-                items: PurchaseGroupRole.values
+                items: SharedGroupRole.values
                     .where((role) =>
                         role !=
-                        PurchaseGroupRole
+                        SharedGroupRole
                             .owner) // Don't allow owner role in invitations
                     .map((role) => DropdownMenuItem(
                           value: role,
@@ -220,15 +220,15 @@ class _MultiGroupInvitationDialogState
     );
   }
 
-  String _getRoleDisplayName(PurchaseGroupRole role) {
+  String _getRoleDisplayName(SharedGroupRole role) {
     switch (role) {
-      case PurchaseGroupRole.owner:
+      case SharedGroupRole.owner:
         return 'オーナー';
-      case PurchaseGroupRole.manager:
+      case SharedGroupRole.manager:
         return '管理者';
-      case PurchaseGroupRole.member:
+      case SharedGroupRole.member:
         return 'メンバー';
-      case PurchaseGroupRole.partner:
+      case SharedGroupRole.partner:
         return 'パートナー';
     }
   }
@@ -260,7 +260,7 @@ class _MultiGroupInvitationDialogState
           selectedGroups.add(GroupInvitationData(
             groupId: groupId,
             groupName: group.groupName,
-            targetRole: _selectedRoles[groupId] ?? PurchaseGroupRole.member,
+            targetRole: _selectedRoles[groupId] ?? SharedGroupRole.member,
           ));
         }
       }

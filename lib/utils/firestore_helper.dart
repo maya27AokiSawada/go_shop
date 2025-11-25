@@ -1,7 +1,7 @@
 // lib/utils/firestore_helper.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import 'firestore_converter.dart';
 import 'app_logger.dart';
 
@@ -14,11 +14,11 @@ class FirestoreHelper {
   ///
   /// [groupId] グループID
   ///
-  /// 戻り値: PurchaseGroup または null (グループが存在しない場合)
-  static Future<PurchaseGroup?> fetchGroup(String groupId) async {
+  /// 戻り値: SharedGroup または null (グループが存在しない場合)
+  static Future<SharedGroup?> fetchGroup(String groupId) async {
     try {
       final doc =
-          await _firestore.collection('purchaseGroups').doc(groupId).get();
+          await _firestore.collection('SharedGroups').doc(groupId).get();
 
       if (!doc.exists) {
         AppLogger.warning('⚠️ [FIRESTORE] グループが存在しません: $groupId');
@@ -31,9 +31,9 @@ class FirestoreHelper {
         return null;
       }
 
-      // Timestamp変換してPurchaseGroupに変換
+      // Timestamp変換してSharedGroupに変換
       final convertedData = FirestoreConverter.convertTimestamps(data);
-      final group = PurchaseGroup.fromJson(convertedData);
+      final group = SharedGroup.fromJson(convertedData);
 
       AppLogger.info(
           '✅ [FIRESTORE] グループ取得: ${group.groupName}, allowedUid: ${group.allowedUid}');
@@ -50,14 +50,14 @@ class FirestoreHelper {
   /// [userId] ユーザーID
   /// [includeDeleted] 削除済みグループを含めるか (デフォルト: false)
   ///
-  /// 戻り値: PurchaseGroup のリスト
-  static Future<List<PurchaseGroup>> fetchUserGroups(
+  /// 戻り値: SharedGroup のリスト
+  static Future<List<SharedGroup>> fetchUserGroups(
     String userId, {
     bool includeDeleted = false,
   }) async {
     try {
       var query = _firestore
-          .collection('purchaseGroups')
+          .collection('SharedGroups')
           .where('allowedUid', arrayContains: userId);
 
       if (!includeDeleted) {
@@ -66,12 +66,12 @@ class FirestoreHelper {
 
       final snapshot = await query.get();
 
-      final groups = <PurchaseGroup>[];
+      final groups = <SharedGroup>[];
       for (final doc in snapshot.docs) {
         try {
           final data = doc.data();
           final convertedData = FirestoreConverter.convertTimestamps(data);
-          final group = PurchaseGroup.fromJson(convertedData).copyWith(
+          final group = SharedGroup.fromJson(convertedData).copyWith(
             groupId: doc.id, // ドキュメントIDを確実に設定
           );
           groups.add(group);
@@ -94,7 +94,7 @@ class FirestoreHelper {
   static Future<bool> groupExists(String groupId) async {
     try {
       final doc =
-          await _firestore.collection('purchaseGroups').doc(groupId).get();
+          await _firestore.collection('SharedGroups').doc(groupId).get();
       return doc.exists;
     } catch (e) {
       AppLogger.error('❌ [FIRESTORE] グループ存在確認エラー: $e');

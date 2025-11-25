@@ -22,7 +22,7 @@ Go Shopは**Firestoreベースのリアルタイム通知システム**を採用
          ↓                                      │
 ┌─────────────────┐                            │
 │ 1. Firestore更新 │                            │
-│ purchaseGroups/  │                            │
+│ SharedGroups/  │                            │
 │   allowedUid: [] │                            │
 │   members: []    │                            │
 └─────────────────┘                            │
@@ -65,7 +65,7 @@ Device B (Android - すもも)
 QR招待を受諾
     ↓
 Firestoreを更新
-  purchaseGroups/{groupId}:
+  SharedGroups/{groupId}:
     allowedUid: ["mayaUID", "sumomoUID"]
     members: [maya, sumomo]
     ↓
@@ -278,7 +278,7 @@ case NotificationType.invitationAccepted:
 ```dart
 case NotificationType.groupDeleted:
   // ローカルからグループを削除
-  final repository = _ref.read(purchaseGroupRepositoryProvider);
+  final repository = _ref.read(SharedGroupRepositoryProvider);
   await repository.deleteGroup(notification.groupId);
   ref.invalidate(allGroupsProvider);
 ```
@@ -466,7 +466,7 @@ await notificationService.sendNotificationToGroup(
 ```
 1. グループ情報を取得
    final groupDoc = await _firestore
-     .collection('purchaseGroups')
+     .collection('SharedGroups')
      .doc(groupId)
      .get();
 
@@ -536,7 +536,7 @@ Future<void> _handleNotification(NotificationData notification) async {
 
     case NotificationType.groupDeleted:
       // ローカル削除
-      final repository = _ref.read(purchaseGroupRepositoryProvider);
+      final repository = _ref.read(SharedGroupRepositoryProvider);
       await repository.deleteGroup(notification.groupId);
       ref.invalidate(allGroupsProvider);
       break;
@@ -567,7 +567,7 @@ Future<void> _syncSpecificGroupFromFirestore(String groupId) async {
 
     // 1. Firestoreから特定グループを取得
     final groupDoc = await _firestore
-        .collection('purchaseGroups')
+        .collection('SharedGroups')
         .doc(groupId)
         .get();
 
@@ -576,12 +576,12 @@ Future<void> _syncSpecificGroupFromFirestore(String groupId) async {
       return;
     }
 
-    // 2. PurchaseGroupオブジェクトに変換
+    // 2. SharedGroupオブジェクトに変換
     final groupData = groupDoc.data()!;
-    final group = PurchaseGroup.fromJson(groupData);
+    final group = SharedGroup.fromJson(groupData);
 
     // 3. Hiveに保存
-    final repository = _ref.read(purchaseGroupRepositoryProvider);
+    final repository = _ref.read(SharedGroupRepositoryProvider);
     await repository.updateGroup(groupId, group);
 
     AppLogger.info('✅ [NOTIFICATION] グループ同期完了: ${group.groupName}');
@@ -701,7 +701,7 @@ Windows (maya)                     Firestore                    Android (すも�
     │                                  │                              │
     │  1. グループ作成                  │                              │
     ├──────────────────────────────►  │                              │
-    │  purchaseGroups/1762...         │                              │
+    │  SharedGroups/1762...         │                              │
     │  allowedUid: ["mayaUID"]        │                              │
     │                                  │                              │
     │  2. QR招待データ作成              │                              │
@@ -731,7 +731,7 @@ Windows (maya)                     Firestore                    Android (すも�
     │                                  │                              │
     │  9. 特定グループ同期              │                              │
     ├──────────────────────────────►  │                              │
-    │  purchaseGroups/1762... 取得     │                              │
+    │  SharedGroups/1762... 取得     │                              │
     │  ◄──────────────────────────────┤                              │
     │                                  │                              │
     │  10. Hive更新                    │                              │
@@ -990,7 +990,7 @@ service cloud.firestore {
    → AppLogger で確認
 
 2. Hiveは更新されているか？
-   → デバッガーで purchaseGroupBox を確認
+   → デバッガーで SharedGroupBox を確認
 
 3. Provider は正しく設定されているか？
    → allGroupsProvider の状態を確認

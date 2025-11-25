@@ -1,10 +1,10 @@
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../models/firestore_shopping_list.dart';
 
 /// アクセス権限を管理するヘルパークラス
 class AccessControlHelper {
-  /// ユーザーがPurchaseGroupのメンバーかどうかをチェック
-  static bool isGroupMember(PurchaseGroup group, String uid) {
+  /// ユーザーがSharedGroupのメンバーかどうかをチェック
+  static bool isGroupMember(SharedGroup group, String uid) {
     if (group.ownerUid == uid) return true;
     
     final activeMembers = group.activeMembers;
@@ -15,7 +15,7 @@ class AccessControlHelper {
   static bool canAccessShoppingList(
     FirestoreShoppingList shoppingList, 
     String uid, 
-    PurchaseGroup? group
+    SharedGroup? group
   ) {
     // オーナーは常にアクセス可能
     if (shoppingList.hasOwnerAccess(uid)) return true;
@@ -32,31 +32,31 @@ class AccessControlHelper {
   static bool canEditShoppingList(
     FirestoreShoppingList shoppingList, 
     String uid, 
-    PurchaseGroup? group
+    SharedGroup? group
   ) {
     // 基本的にはアクセス権限と同じ
     // 将来的にはより細かい権限制御を追加可能
     return canAccessShoppingList(shoppingList, uid, group);
   }
 
-  /// ユーザーがPurchaseGroupを管理する権限を持つかどうかをチェック
-  static bool canManageGroup(PurchaseGroup group, String uid) {
+  /// ユーザーがSharedGroupを管理する権限を持つかどうかをチェック
+  static bool canManageGroup(SharedGroup group, String uid) {
     return group.ownerUid == uid;
   }
 
   /// ユーザーがグループに招待を送る権限を持つかどうかをチェック
-  static bool canInviteToGroup(PurchaseGroup group, String uid) {
+  static bool canInviteToGroup(SharedGroup group, String uid) {
     // オーナーと親役割のメンバーが招待可能
     if (group.ownerUid == uid) return true;
     
     final activeMembers = group.activeMembers;
     final userMember = activeMembers.where((member) => member.memberId == uid).firstOrNull;
     
-    return userMember?.role == PurchaseGroupRole.owner;
+    return userMember?.role == SharedGroupRole.owner;
   }
 
   /// グループの管理者権限（オーナーまたは管理者）を持つかチェック（将来の招待機能用）
-  static bool hasManagerPermission(PurchaseGroup? group, String? uid) {
+  static bool hasManagerPermission(SharedGroup? group, String? uid) {
     if (group == null || uid == null || uid.isEmpty) return false;
     
     // グループオーナーなら管理者権限あり
@@ -65,12 +65,12 @@ class AccessControlHelper {
     final activeMembers = group.activeMembers;
     final userMember = activeMembers.where((member) => member.memberId == uid).firstOrNull;
     
-    return userMember?.role == PurchaseGroupRole.owner || 
-           userMember?.role == PurchaseGroupRole.manager;
+    return userMember?.role == SharedGroupRole.owner || 
+           userMember?.role == SharedGroupRole.manager;
   }
 
-  /// Firestore用：PurchaseGroupからアクセス権限のあるUIDs（memberIds）を抽出
-  static List<String> extractAuthorizedUids(PurchaseGroup group) {
+  /// Firestore用：SharedGroupからアクセス権限のあるUIDs（memberIds）を抽出
+  static List<String> extractAuthorizedUids(SharedGroup group) {
     final List<String> uids = [group.ownerUid ?? ''];
     
     // アクティブなメンバーのIDを追加
@@ -94,10 +94,10 @@ class AccessControlHelper {
   /// 統合アクセスチェック（開発環境考慮）
   static bool checkAccess({
     required String operation, // 'read', 'write', 'create', 'delete'
-    required String resourceType, // 'shoppingList', 'purchaseGroup'
+    required String resourceType, // 'shoppingList', 'SharedGroup'
     required String uid,
     FirestoreShoppingList? shoppingList,
-    PurchaseGroup? group,
+    SharedGroup? group,
   }) {
     // 開発環境では全てのアクセスを許可
     if (allowAccessInDevelopment()) {
@@ -118,7 +118,7 @@ class AccessControlHelper {
           default:
             return false;
         }
-      case 'purchaseGroup':
+      case 'SharedGroup':
         if (group == null) return false;
         switch (operation) {
           case 'read':

@@ -17,11 +17,11 @@ void main() async {
 
   final firestore = FirebaseFirestore.instance;
 
-  print('\n📊 全purchaseGroupsを確認:');
+  print('\n📊 全SharedGroupsを確認:');
   print('=' * 80);
 
   try {
-    final groupsSnapshot = await firestore.collection('purchaseGroups').get();
+    final groupsSnapshot = await firestore.collection('SharedGroups').get();
 
     if (groupsSnapshot.docs.isEmpty) {
       print('⚠️ グループが存在しません');

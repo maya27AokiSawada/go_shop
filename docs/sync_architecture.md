@@ -11,7 +11,7 @@ Firestoreを真実の情報源（Source of Truth）とし、Hiveをローカル�
 ### 1.1 Firestore（クラウドDB）
 **コレクション構造:**
 ```
-purchaseGroups/
+SharedGroups/
   {groupId}/
     - groupName: string
     - ownerUid: string
@@ -26,7 +26,7 @@ purchaseGroups/
 invitations/
   {invitationId}/
     - inviterUid: string
-    - purchaseGroupId: string
+    - SharedGroupId: string
     - securityKey: string ← セキュリティ検証用
     - status: string (pending/accepted/expired)
     - expiresAt: timestamp
@@ -45,13 +45,13 @@ users/
 
 **重要な設計原則:**
 - `allowedUid`配列に含まれるユーザーのみがグループにアクセス可能
-- クエリ: `purchaseGroups.where('allowedUid', arrayContains: currentUserUid)`
-- すべてのユーザーは同じ`purchaseGroups`コレクションを共有（ユーザー別サブコレクションではない）
+- クエリ: `SharedGroups.where('allowedUid', arrayContains: currentUserUid)`
+- すべてのユーザーは同じ`SharedGroups`コレクションを共有（ユーザー別サブコレクションではない）
 
 ### 1.2 Hive（ローカルDB）
 **Box構造:**
 ```dart
-Box<PurchaseGroup> purchaseGroupBox  // TypeID: 2
+Box<SharedGroup> SharedGroupBox  // TypeID: 2
 Box<ShoppingList> shoppingListBox    // TypeID: 4
 Box<ShoppingItem> itemBox            // TypeID: 3
 ```
@@ -72,8 +72,8 @@ Box<ShoppingItem> itemBox            // TypeID: 3
 | **アプリ起動時** | `authStateChanges()`コールバック | Firestore → Hive（全グループ） | `UserInitializationService` |
 | **QR招待受諾後** | `acceptQRInvitation()`完了時 | Firestore → Hive（全グループ） | `QRInvitationService` |
 | **通知受信時** | `groupMemberAdded`イベント | Firestore → Hive（特定グループのみ） | `NotificationService` |
-| **グループ作成時** | `createGroup()`実行時 | Hive → Firestore | `HivePurchaseGroupRepository` |
-| **グループ更新時** | `updateGroup()`実行時 | Hive → Firestore | `HivePurchaseGroupRepository` |
+| **グループ作成時** | `createGroup()`実行時 | Hive → Firestore | `HiveSharedGroupRepository` |
+| **グループ更新時** | `updateGroup()`実行時 | Hive → Firestore | `HiveSharedGroupRepository` |
 
 ### 2.2 全グループ同期（Full Sync）
 
@@ -83,7 +83,7 @@ Box<ShoppingItem> itemBox            // TypeID: 3
 // 処理フロー
 1. Firestoreクエリ実行
    final snapshot = await firestore
-     .collection('purchaseGroups')
+     .collection('SharedGroups')
      .where('allowedUid', arrayContains: user.uid)
      .get();
 
@@ -111,7 +111,7 @@ Box<ShoppingItem> itemBox            // TypeID: 3
 // 処理フロー
 1. 特定グループをFirestoreから取得
    final groupDoc = await firestore
-     .collection('purchaseGroups')
+     .collection('SharedGroups')
      .doc(groupId)
      .get();
 
@@ -192,7 +192,7 @@ Box<ShoppingItem> itemBox            // TypeID: 3
 
 3. グループ参加処理
    ├─ Firestore更新
-   │   purchaseGroups/{groupId}:
+   │   SharedGroups/{groupId}:
    │     allowedUid: [..., "sumomoUID"] ← 追加
    │     members: [..., sumomo] ← 追加
    │
@@ -335,8 +335,8 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // purchaseGroupsへのアクセス
-    match /purchaseGroups/{groupId} {
+    // SharedGroupsへのアクセス
+    match /SharedGroups/{groupId} {
       allow read: if request.auth != null
         && request.auth.uid in resource.data.allowedUid;
 

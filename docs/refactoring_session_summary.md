@@ -29,7 +29,7 @@
 
 4. **技術的改善**:
    - 廃止API更新: `primarySwatch` → `ColorScheme.fromSeed()`
-   - 型安全性向上: `List<dynamic>` → `List<PurchaseGroupMember>`
+   - 型安全性向上: `List<dynamic>` → `List<SharedGroupMember>`
    - インポート整理とサービス統合
 
 ## 📞 作業コールツリー

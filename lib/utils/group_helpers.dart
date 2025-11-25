@@ -1,13 +1,13 @@
 // lib/utils/group_helpers.dart
 import 'package:firebase_auth/firebase_auth.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 
 /// デフォルトグループかどうかを判定
 ///
 /// デフォルトグループの条件:
 /// 1. groupId == 'default_group' (固定文字列、レガシー対応)
 /// 2. groupId == user.uid (ユーザー専用グループ)
-bool isDefaultGroup(PurchaseGroup group, User? currentUser) {
+bool isDefaultGroup(SharedGroup group, User? currentUser) {
   // 固定文字列チェック（レガシー対応）
   if (group.groupId == 'default_group') {
     return true;

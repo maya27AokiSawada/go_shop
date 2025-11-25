@@ -41,41 +41,41 @@
 
 ## データモデル
 
-### 1. PurchaseGroup（購入グループ）
+### 1. SharedGroup（購入グループ）
 ```dart
 @HiveType(typeId: 2)
 @freezed
-class PurchaseGroup with _$PurchaseGroup {
-  const factory PurchaseGroup({
+class SharedGroup with _$SharedGroup {
+  const factory SharedGroup({
     @HiveField(0) required String groupName,     // グループ名
     @HiveField(1) required String groupId,      // グループID
     @HiveField(2) String? ownerName,            // オーナー名
     @HiveField(3) String? ownerEmail,           // オーナーメール
     @HiveField(4) String? ownerUid,             // FirebaseUID
-    @HiveField(5) List<PurchaseGroupMember>? members,  // メンバーリスト
-  }) = _PurchaseGroup;
+    @HiveField(5) List<SharedGroupMember>? members,  // メンバーリスト
+  }) = _SharedGroup;
 }
 ```
 
-### 2. PurchaseGroupMember（グループメンバー）
+### 2. SharedGroupMember（グループメンバー）
 ```dart
 @HiveType(typeId: 1)
 @freezed
-class PurchaseGroupMember with _$PurchaseGroupMember {
-  const factory PurchaseGroupMember({
+class SharedGroupMember with _$SharedGroupMember {
+  const factory SharedGroupMember({
     @HiveField(0) @Default('') String memberId,    // メンバーID
     @HiveField(1) required String name,            // 名前
     @HiveField(2) required String contact,         // 連絡先
-    @HiveField(3) required PurchaseGroupRole role, // 役割
+    @HiveField(3) required SharedGroupRole role, // 役割
     @HiveField(4) @Default(false) bool isSignedIn, // サインイン状態
-  }) = _PurchaseGroupMember;
+  }) = _SharedGroupMember;
 }
 ```
 
-### 3. PurchaseGroupRole（役割）
+### 3. SharedGroupRole（役割）
 ```dart
 @HiveType(typeId: 0)
-enum PurchaseGroupRole {
+enum SharedGroupRole {
   @HiveField(0) leader,   // リーダー
   @HiveField(1) parent,   // 親
   @HiveField(2) child,    // 子供
@@ -136,16 +136,16 @@ final authStateProvider = StreamProvider<User?>((ref) {
 - サインイン/サインアウト機能
 - ユーザー情報の取得
 
-### 2. PurchaseGroupProvider
+### 2. SharedGroupProvider
 **ファイル**: `lib/providers/purchase_group_provider.dart`
 
 ```dart
 // リポジトリプロバイダー
-final purchaseGroupRepositoryProvider = Provider<PurchaseGroupRepository>((ref) {
+final SharedGroupRepositoryProvider = Provider<SharedGroupRepository>((ref) {
   if (F.appFlavor == Flavor.prod) {
-    throw UnimplementedError('FirestorePurchaseGroupRepository is not implemented yet');
+    throw UnimplementedError('FirestoreSharedGroupRepository is not implemented yet');
   } else {
-    return HivePurchaseGroupRepository(ref);  
+    return HiveSharedGroupRepository(ref);  
   }
 });
 
@@ -153,22 +153,22 @@ final purchaseGroupRepositoryProvider = Provider<PurchaseGroupRepository>((ref) 
 final currentGroupIdProvider = Provider<String>((ref) => 'currentGroup');
 
 // メインのグループ管理プロバイダー
-final purchaseGroupProvider = AsyncNotifierProvider<PurchaseGroupNotifier, PurchaseGroup>(
-  () => PurchaseGroupNotifier(),
+final SharedGroupProvider = AsyncNotifierProvider<SharedGroupNotifier, SharedGroup>(
+  () => SharedGroupNotifier(),
 );
 
 // すべてのグループ取得プロバイダー
-final allGroupsProvider = FutureProvider<List<PurchaseGroup>>((ref) async {
-  final repository = ref.read(purchaseGroupRepositoryProvider);
+final allGroupsProvider = FutureProvider<List<SharedGroup>>((ref) async {
+  final repository = ref.read(SharedGroupRepositoryProvider);
   return await repository.getAllGroups();
 });
 ```
 
-**PurchaseGroupNotifierメソッド**:
-- `updateGroup(PurchaseGroup group)`: グループ更新
-- `addMember(PurchaseGroupMember member)`: メンバー追加
-- `removeMember(PurchaseGroupMember member)`: メンバー削除
-- `updateMembers(List<PurchaseGroupMember> members)`: メンバーリスト更新
+**SharedGroupNotifierメソッド**:
+- `updateGroup(SharedGroup group)`: グループ更新
+- `addMember(SharedGroupMember member)`: メンバー追加
+- `removeMember(SharedGroupMember member)`: メンバー削除
+- `updateMembers(List<SharedGroupMember> members)`: メンバーリスト更新
 - `setMyId(String myId)`: 自分のID設定
 - `createGroup()`: グループ作成
 - `deleteGroup(String groupId)`: グループ削除
@@ -197,26 +197,26 @@ final memberItemsProvider = Provider.family<List<ShoppingItem>, String>((ref, me
 
 ## Repository パターン
 
-### 1. PurchaseGroupRepository (抽象クラス)
+### 1. SharedGroupRepository (抽象クラス)
 **ファイル**: `lib/datastore/purchase_group_repository.dart`
 
 ```dart
-abstract class PurchaseGroupRepository {
-  Future<PurchaseGroup> initializeGroup();
-  Future<PurchaseGroup> addMember(PurchaseGroupMember member);
-  Future<PurchaseGroup> removeMember(PurchaseGroupMember member);
-  Future<PurchaseGroup> setMemberId(PurchaseGroupMember member, String newId);
-  Future<PurchaseGroup> updateMembers(List<PurchaseGroupMember> members);
-  Future<List<PurchaseGroup>> getAllGroups();
-  Future<PurchaseGroup> createGroup(String groupId, String groupName, PurchaseGroupMember member);
-  Future<PurchaseGroup> deleteGroup(String groupId);
-  Future<PurchaseGroup> setMyId(String myId);
-  Future<PurchaseGroup> getGroup(String groupId);
-  Future<PurchaseGroup> updateGroup(PurchaseGroup group);
+abstract class SharedGroupRepository {
+  Future<SharedGroup> initializeGroup();
+  Future<SharedGroup> addMember(SharedGroupMember member);
+  Future<SharedGroup> removeMember(SharedGroupMember member);
+  Future<SharedGroup> setMemberId(SharedGroupMember member, String newId);
+  Future<SharedGroup> updateMembers(List<SharedGroupMember> members);
+  Future<List<SharedGroup>> getAllGroups();
+  Future<SharedGroup> createGroup(String groupId, String groupName, SharedGroupMember member);
+  Future<SharedGroup> deleteGroup(String groupId);
+  Future<SharedGroup> setMyId(String myId);
+  Future<SharedGroup> getGroup(String groupId);
+  Future<SharedGroup> updateGroup(SharedGroup group);
 }
 ```
 
-### 2. HivePurchaseGroupRepository (実装クラス)
+### 2. HiveSharedGroupRepository (実装クラス)
 **ファイル**: `lib/datastore/hive_purchase_group_repository.dart`
 
 **特徴**:
@@ -224,7 +224,7 @@ abstract class PurchaseGroupRepository {
 - 開発環境用データストレージ
 - オフライン対応
 
-### 3. 今後の拡張: FirestorePurchaseGroupRepository
+### 3. 今後の拡張: FirestoreSharedGroupRepository
 - Firestore Cloud Database使用
 - 本番環境用データストレージ
 - リアルタイム同期対応
@@ -239,7 +239,7 @@ abstract class PurchaseGroupRepository {
    - ユーザー情報保存
    - ナビゲーション
 
-2. **PurchaseGroupPage** (`lib/pages/purchase_group_page.dart`)
+2. **SharedGroupPage** (`lib/pages/purchase_group_page.dart`)
    - グループ管理
    - メンバーの追加・編集・削除
    - グループ名・リスト名編集
@@ -297,7 +297,7 @@ class AuthService {
    - `FutureProviderRef` 未定義エラー
    - Generatorバージョン競合
 
-2. **PurchaseGroupPage**
+2. **SharedGroupPage**
    - `memberID` vs `memberId` プロパティ名不一致
    - null安全性チェック不足
    - `updatedGroup` 変数未定義
@@ -363,9 +363,9 @@ class F {
 ## 技術的備考
 
 ### Hiveデータベース構造
-- TypeID 0: PurchaseGroupRole (enum)
-- TypeID 1: PurchaseGroupMember
-- TypeID 2: PurchaseGroup  
+- TypeID 0: SharedGroupRole (enum)
+- TypeID 1: SharedGroupMember
+- TypeID 2: SharedGroup  
 - TypeID 10: ShoppingList
 - TypeID 11: ShoppingItem
 

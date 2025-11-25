@@ -4,7 +4,7 @@ import '../utils/app_logger.dart';
 import '../utils/error_handler.dart';
 import 'user_preferences_service.dart';
 import 'firestore_user_name_service.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../providers/user_name_provider.dart';
 import '../flavors.dart';
 
@@ -65,7 +65,7 @@ class UserNameManagementService {
 
   /// グループデータからユーザー名を取得
   static String? getUserNameFromGroup({
-    required PurchaseGroup group,
+    required SharedGroup group,
     String? userId,
     String? userEmail,
   }) {
@@ -78,7 +78,7 @@ class UserNameManagementService {
 
         // ownerを優先して探す
         var currentMember = group.members!.firstWhere(
-          (member) => member.role == PurchaseGroupRole.owner,
+          (member) => member.role == SharedGroupRole.owner,
           orElse: () {
             Log.info('⚠️ ownerが見つからないので最初のメンバーを使用');
             return group.members!.first;
@@ -115,7 +115,7 @@ class UserNameManagementService {
   static Future<void> updateUserNameInAllGroups({
     required String newUserName,
     required String userEmail,
-    required List<PurchaseGroup> groups,
+    required List<SharedGroup> groups,
   }) async {
     await ErrorHandler.handleAsync(
       operation: () async {

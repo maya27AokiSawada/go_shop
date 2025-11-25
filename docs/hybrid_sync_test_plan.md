@@ -6,7 +6,7 @@
 - **環境**: Flavor.prod （ハイブリッドモード有効）
 - **プラットフォーム**: Windows デスクトップ
 - **データストア**: Hive（ローカル） + Firestore（クラウド）
-- **リポジトリ**: HybridPurchaseGroupRepository
+- **リポジトリ**: HybridSharedGroupRepository
 
 ### テストシナリオ
 

@@ -23,7 +23,7 @@ class HomeScreen extends ConsumerWidget {
 
     final List<Widget> pages = [
       const HomePage(),
-      const PurchaseGroupPage(),
+      const SharedGroupPage(),
       const ShoppingListPageV2(),
       const SettingsPage(),
     ];

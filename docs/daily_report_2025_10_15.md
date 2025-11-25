@@ -92,7 +92,7 @@ logger.d('📊 配送状態: SUCCESS');
   - `updateOwnerMessage()` - UI即座更新→DB保存
 
 #### 詳細なデバッグログ追加
-- `PurchaseGroupNotifier.build()`に全処理フローログ追加
+- `SharedGroupNotifier.build()`に全処理フローログ追加
 - UserSettings読み込みを`.value`から`.future`に修正
 
 ### 8. スクリプトファイルの修正

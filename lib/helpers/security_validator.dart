@@ -1,7 +1,7 @@
 // lib/helper/security_validator.dart
 import 'package:firebase_auth/firebase_auth.dart';
 
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../flavors.dart';
 import '../utils/app_logger.dart';
 
@@ -9,7 +9,7 @@ import '../utils/app_logger.dart';
 class SecurityValidator {
   /// Firebase Auth UIDと memberIdの整合性チェック
   static bool validateMemberIdConsistency(
-      PurchaseGroup group, String currentUid) {
+      SharedGroup group, String currentUid) {
     // 開発環境ではスキップ
     if (F.appFlavor == Flavor.dev) return true;
 
@@ -27,7 +27,7 @@ class SecurityValidator {
   }
 
   /// オーナー権限の厳密チェック
-  static bool validateOwnerAccess(PurchaseGroup group, String currentUid) {
+  static bool validateOwnerAccess(SharedGroup group, String currentUid) {
     // 開発環境ではスキップ
     if (F.appFlavor == Flavor.dev) return true;
 
@@ -36,7 +36,7 @@ class SecurityValidator {
   }
 
   /// メンバー権限の厳密チェック
-  static bool validateMemberAccess(PurchaseGroup group, String currentUid) {
+  static bool validateMemberAccess(SharedGroup group, String currentUid) {
     // 開発環境ではスキップ
     if (F.appFlavor == Flavor.dev) return true;
 
@@ -50,7 +50,7 @@ class SecurityValidator {
   }
 
   /// 招待権限の厳密チェック
-  static bool validateInvitePermission(PurchaseGroup group, String currentUid) {
+  static bool validateInvitePermission(SharedGroup group, String currentUid) {
     // 開発環境ではスキップ
     if (F.appFlavor == Flavor.dev) return true;
 
@@ -67,15 +67,15 @@ class SecurityValidator {
       throw SecurityException('User not found in group members');
     }
 
-    return member.role == PurchaseGroupRole.manager &&
+    return member.role == SharedGroupRole.manager &&
         member.acceptedAt != null;
   }
 
   /// Firestoreセキュリティルール準拠チェック
   static void validateFirestoreRuleCompliance({
     required String operation, // 'read', 'write', 'create', 'delete'
-    required String resourceType, // 'purchaseGroup', 'shoppingList'
-    required PurchaseGroup group,
+    required String resourceType, // 'SharedGroup', 'shoppingList'
+    required SharedGroup group,
     required String currentUid,
   }) {
     // 本番環境のみチェック
@@ -104,7 +104,7 @@ class SecurityValidator {
   }
 
   /// メンバーID修復（Firebase UIDとの整合性確保）
-  static Future<PurchaseGroup> repairMemberIds(PurchaseGroup group) async {
+  static Future<SharedGroup> repairMemberIds(SharedGroup group) async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) return group;
 

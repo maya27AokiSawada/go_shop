@@ -3,32 +3,32 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../utils/app_logger.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../providers/purchase_group_provider.dart';
 
 /// メンバーのRole管理ウィジェット（オーナー専用）
 class MemberRoleManagementWidget extends ConsumerWidget {
-  final PurchaseGroup purchaseGroup;
+  final SharedGroup SharedGroup;
   final String currentUserUid;
 
   const MemberRoleManagementWidget({
     Key? key,
-    required this.purchaseGroup,
+    required this.SharedGroup,
     required this.currentUserUid,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // 現在のユーザーがオーナーかどうかチェック
-    final isOwner = purchaseGroup.ownerUid == currentUserUid;
+    final isOwner = SharedGroup.ownerUid == currentUserUid;
 
     if (!isOwner) {
       return const SizedBox.shrink(); // オーナー以外には表示しない
     }
 
-    final members = purchaseGroup.members ?? [];
+    final members = SharedGroup.members ?? [];
     final nonOwnerMembers = members
-        .where((member) => member.role != PurchaseGroupRole.owner)
+        .where((member) => member.role != SharedGroupRole.owner)
         .toList();
 
     if (nonOwnerMembers.isEmpty) {
@@ -81,7 +81,7 @@ class MemberRoleManagementWidget extends ConsumerWidget {
   Widget _buildMemberTile(
     BuildContext context,
     WidgetRef ref,
-    PurchaseGroupMember member,
+    SharedGroupMember member,
   ) {
     return ListTile(
       leading: CircleAvatar(
@@ -114,9 +114,9 @@ class MemberRoleManagementWidget extends ConsumerWidget {
   Widget? _buildRoleChangeButton(
     BuildContext context,
     WidgetRef ref,
-    PurchaseGroupMember member,
+    SharedGroupMember member,
   ) {
-    if (member.role == PurchaseGroupRole.member) {
+    if (member.role == SharedGroupRole.member) {
       // メンバーを管理者に昇格
       return IconButton(
         onPressed: () => _showPromoteDialog(context, ref, member),
@@ -126,7 +126,7 @@ class MemberRoleManagementWidget extends ConsumerWidget {
         ),
         tooltip: '管理者に昇格',
       );
-    } else if (member.role == PurchaseGroupRole.manager) {
+    } else if (member.role == SharedGroupRole.manager) {
       // 管理者をメンバーに降格
       return IconButton(
         onPressed: () => _showDemoteDialog(context, ref, member),
@@ -143,7 +143,7 @@ class MemberRoleManagementWidget extends ConsumerWidget {
   Future<void> _showPromoteDialog(
     BuildContext context,
     WidgetRef ref,
-    PurchaseGroupMember member,
+    SharedGroupMember member,
   ) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -171,7 +171,7 @@ class MemberRoleManagementWidget extends ConsumerWidget {
     );
 
     if (confirmed == true && context.mounted) {
-      await _updateMemberRole(ref, member, PurchaseGroupRole.manager);
+      await _updateMemberRole(ref, member, SharedGroupRole.manager);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -185,7 +185,7 @@ class MemberRoleManagementWidget extends ConsumerWidget {
   Future<void> _showDemoteDialog(
     BuildContext context,
     WidgetRef ref,
-    PurchaseGroupMember member,
+    SharedGroupMember member,
   ) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -213,7 +213,7 @@ class MemberRoleManagementWidget extends ConsumerWidget {
     );
 
     if (confirmed == true && context.mounted) {
-      await _updateMemberRole(ref, member, PurchaseGroupRole.member);
+      await _updateMemberRole(ref, member, SharedGroupRole.member);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -226,23 +226,23 @@ class MemberRoleManagementWidget extends ConsumerWidget {
 
   Future<void> _updateMemberRole(
     WidgetRef ref,
-    PurchaseGroupMember member,
-    PurchaseGroupRole newRole,
+    SharedGroupMember member,
+    SharedGroupRole newRole,
   ) async {
     try {
-      final repository = ref.read(purchaseGroupRepositoryProvider);
+      final repository = ref.read(SharedGroupRepositoryProvider);
 
       // メンバーのロールを更新
-      final updatedMembers = purchaseGroup.members?.map((m) {
+      final updatedMembers = SharedGroup.members?.map((m) {
         if (m.memberId == member.memberId) {
           return m.copyWith(role: newRole);
         }
         return m;
       }).toList();
 
-      final updatedGroup = purchaseGroup.copyWith(members: updatedMembers);
+      final updatedGroup = SharedGroup.copyWith(members: updatedMembers);
 
-      await repository.updateGroup(purchaseGroup.groupId, updatedGroup);
+      await repository.updateGroup(SharedGroup.groupId, updatedGroup);
 
       // プロバイダーを更新
       ref.invalidate(selectedGroupNotifierProvider);
@@ -251,41 +251,41 @@ class MemberRoleManagementWidget extends ConsumerWidget {
     }
   }
 
-  Color _getRoleColor(PurchaseGroupRole role) {
+  Color _getRoleColor(SharedGroupRole role) {
     switch (role) {
-      case PurchaseGroupRole.owner:
+      case SharedGroupRole.owner:
         return Colors.red;
-      case PurchaseGroupRole.manager:
+      case SharedGroupRole.manager:
         return Colors.orange;
-      case PurchaseGroupRole.member:
+      case SharedGroupRole.member:
         return Colors.blue;
-      case PurchaseGroupRole.partner:
+      case SharedGroupRole.partner:
         return Colors.purple;
     }
   }
 
-  IconData _getRoleIcon(PurchaseGroupRole role) {
+  IconData _getRoleIcon(SharedGroupRole role) {
     switch (role) {
-      case PurchaseGroupRole.owner:
+      case SharedGroupRole.owner:
         return Icons.star;
-      case PurchaseGroupRole.manager:
+      case SharedGroupRole.manager:
         return Icons.admin_panel_settings;
-      case PurchaseGroupRole.member:
+      case SharedGroupRole.member:
         return Icons.person;
-      case PurchaseGroupRole.partner:
+      case SharedGroupRole.partner:
         return Icons.handshake;
     }
   }
 
-  String _getRoleDisplayName(PurchaseGroupRole role) {
+  String _getRoleDisplayName(SharedGroupRole role) {
     switch (role) {
-      case PurchaseGroupRole.owner:
+      case SharedGroupRole.owner:
         return 'オーナー';
-      case PurchaseGroupRole.manager:
+      case SharedGroupRole.manager:
         return '管理者';
-      case PurchaseGroupRole.member:
+      case SharedGroupRole.member:
         return 'メンバー';
-      case PurchaseGroupRole.partner:
+      case SharedGroupRole.partner:
         return 'パートナー';
     }
   }

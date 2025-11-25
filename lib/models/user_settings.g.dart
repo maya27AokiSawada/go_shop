@@ -17,13 +17,13 @@ class UserSettingsAdapter extends TypeAdapter<UserSettings> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return UserSettings(
-      userName: (fields[0] as String?) ?? '',
-      lastUsedGroupId: (fields[1] as String?) ?? '',
-      lastUsedShoppingListId: (fields[2] as String?) ?? '',
-      userId: (fields[3] as String?) ?? '',
-      userEmail: (fields[4] as String?) ?? '',
-      appMode: (fields[5] as int?) ?? 0,
-      enableListNotifications: (fields[6] as bool?) ?? true,
+      userName: fields[0] as String,
+      lastUsedGroupId: fields[1] as String,
+      lastUsedShoppingListId: fields[2] as String,
+      userId: fields[3] as String,
+      userEmail: fields[4] as String,
+      appMode: fields[5] as int,
+      enableListNotifications: fields[6] as bool,
     );
   }
 

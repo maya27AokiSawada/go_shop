@@ -139,7 +139,7 @@ Consumer(
    - ネットワーク遅延の測定
 
 2. **Hive保存処理時間**
-   - `HivePurchaseGroupRepository.saveGroup()`の処理時間
+   - `HiveSharedGroupRepository.saveGroup()`の処理時間
    - Box書き込みのパフォーマンス
    - 複数グループの一括保存 vs 個別保存
 

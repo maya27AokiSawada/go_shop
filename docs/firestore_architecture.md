@@ -5,8 +5,8 @@
 
 ## データ構造
 
-### 1. PurchaseGroup（購入グループ）
-**コレクション**: `/purchaseGroups/{groupId}`
+### 1. SharedGroup（購入グループ）
+**コレクション**: `/SharedGroups/{groupId}`
 
 ```typescript
 {
@@ -38,7 +38,7 @@
 ```typescript
 {
   ownerUid: string;            // リスト作成者のUID
-  groupId: string;             // 所属PurchaseGroupのID
+  groupId: string;             // 所属SharedGroupのID
   listName: string;            // リスト名
   items: {                     // 買い物アイテム
     memberId: string;
@@ -71,19 +71,19 @@ sequenceDiagram
     participant F as Firestore
     participant B as 招待ユーザー
     
-    A->>F: PurchaseGroup.addInvitation(email)
+    A->>F: SharedGroup.addInvitation(email)
     Note over F: invitedUsers配列にemail追加
     
     B->>F: Firebase Auth でログイン
     Note over B: UIDが確定
     
-    B->>F: PurchaseGroup.confirmInvitation(email, uid)
+    B->>F: SharedGroup.confirmInvitation(email, uid)
     Note over F: invitedUsers内のemailをuidに変換
     Note over F: memberUidsにuid追加
     
     F->>F: 全ShoppingListのauthorizedUidsを同期更新
     
-    A->>F: PurchaseGroup.cleanupConfirmedInvitations()
+    A->>F: SharedGroup.cleanupConfirmedInvitations()
     Note over F: 確定済みinvitedUsersエントリを削除
 ```
 
@@ -95,21 +95,21 @@ sequenceDiagram
     participant F as Firestore
     
     U->>F: createShoppingListForGroup(groupId, listName)
-    F->>F: PurchaseGroupからallAuthorizedUidsを取得
+    F->>F: SharedGroupからallAuthorizedUidsを取得
     F->>F: ShoppingList作成（authorizedUids設定）
-    F->>F: PurchaseGroup.shoppingListIdsに追加
+    F->>F: SharedGroup.shoppingListIdsに追加
 ```
 
 ### 3. 権限同期プロセス
 
 ```mermaid
 sequenceDiagram
-    participant G as PurchaseGroup
+    participant G as SharedGroup
     participant F as Firestore
     participant S as ShoppingList
     
     Note over G: メンバー変更（招待確定等）
-    G->>F: updatePurchaseGroup()
+    G->>F: updateSharedGroup()
     F->>F: _syncShoppingListPermissions()
     loop グループの各ShoppingList
         F->>S: syncAuthorizedUids(group.allAuthorizedUids)
@@ -119,9 +119,9 @@ sequenceDiagram
 
 ## セキュリティルール
 
-### PurchaseGroup
+### SharedGroup
 ```javascript
-match /purchaseGroups/{groupId} {
+match /SharedGroups/{groupId} {
   allow read, write: if request.auth != null && (
     // オーナーまたはメンバー
     resource.data.ownerUid == request.auth.uid ||
@@ -146,12 +146,12 @@ match /shoppingLists/{listId} {
 ## 実装クラス
 
 ### 1. モデルクラス
-- `FirestorePurchaseGroup`: 招待管理とメンバー管理
+- `FirestoreSharedGroup`: 招待管理とメンバー管理
 - `GroupInvitedUser`: 招待ユーザー情報
 - `FirestoreShoppingList`: シンプルな買い物リスト
 
 ### 2. リポジトリクラス
-- `FirestorePurchaseGroupRepository`: 
+- `FirestoreSharedGroupRepository`: 
   - グループCRUD操作
   - 招待管理機能
   - ShoppingList作成と権限同期
@@ -160,14 +160,14 @@ match /shoppingLists/{listId} {
   - アイテム管理
 
 ### 3. プロバイダー
-- `watchPurchaseGroupProvider`: グループのリアルタイム監視
-- `watchUserPurchaseGroupsProvider`: ユーザーのグループ一覧監視
+- `watchSharedGroupProvider`: グループのリアルタイム監視
+- `watchUserSharedGroupsProvider`: ユーザーのグループ一覧監視
 - `watchGroupShoppingListsProvider`: グループのリスト一覧監視
 
 ## メリット
 
 ### 1. 責務の分離
-- **PurchaseGroup**: 招待管理とメンバーシップ
+- **SharedGroup**: 招待管理とメンバーシップ
 - **ShoppingList**: 買い物データとシンプルな権限
 
 ### 2. 効率的な権限管理
@@ -188,7 +188,7 @@ match /shoppingLists/{listId} {
 ## 運用フロー
 
 ### グループ作成
-1. `createPurchaseGroup()` でグループ作成
+1. `createSharedGroup()` でグループ作成
 2. `createShoppingListForGroup()` でデフォルトリスト作成
 
 ### メンバー招待

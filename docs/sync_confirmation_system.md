@@ -125,7 +125,7 @@ case NotificationType.groupMemberAdded:
 // 即座に成功を返す（UIをブロックしない）
 // バックグラウンドで確認通知を待機して同期
 _waitForConfirmationAndSync(
-  groupId: invitationData['purchaseGroupId'],
+  groupId: invitationData['SharedGroupId'],
   currentUser: currentUser,
 );
 

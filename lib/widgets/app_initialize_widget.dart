@@ -14,7 +14,7 @@ import '../helpers/user_id_change_helper.dart';
 import '../flavors.dart';
 import '../config/app_mode_config.dart';
 import '../providers/user_settings_provider.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 
 /// アプリ初期化を管理するウィジェット
 ///
@@ -90,7 +90,7 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
         Log.info('🗑️ [UID_CHANGE] 前ユーザーのHiveデータをクリア中...');
 
         try {
-          final box = await Hive.openBox<PurchaseGroup>('purchase_groups');
+          final box = await Hive.openBox<SharedGroup>('purchase_groups');
           final groupCount = box.length;
           await box.clear();
           Log.info('✅ [UID_CHANGE] Hiveグループデータクリア完了 ($groupCount件削除)');

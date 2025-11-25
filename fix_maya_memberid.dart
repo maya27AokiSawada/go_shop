@@ -1,17 +1,17 @@
 import 'package:hive_flutter/hive_flutter.dart';
-import 'lib/models/purchase_group.dart';
+import 'lib/models/shared_group.dart';
 
 /// mayaのデフォルトグループを正しいFirebase UIDに修正
 Future<void> main() async {
   await Hive.initFlutter();
 
   // Hiveアダプター登録
-  Hive.registerAdapter(PurchaseGroupAdapter());
-  Hive.registerAdapter(PurchaseGroupMemberAdapter());
-  Hive.registerAdapter(PurchaseGroupRoleAdapter());
+  Hive.registerAdapter(SharedGroupAdapter());
+  Hive.registerAdapter(SharedGroupMemberAdapter());
+  Hive.registerAdapter(SharedGroupRoleAdapter());
 
   // Boxを開く
-  final box = await Hive.openBox<PurchaseGroup>('purchase_groups');
+  final box = await Hive.openBox<SharedGroup>('purchase_groups');
 
   print('===== グループ一覧 =====');
   for (var i = 0; i < box.length; i++) {

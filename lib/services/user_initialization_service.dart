@@ -5,11 +5,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/app_logger.dart';
 import '../utils/firestore_converter.dart'; // Firestore変換ユーティリティ
-import '../models/purchase_group.dart' as models;
+import '../models/shared_group.dart' as models;
 import '../providers/purchase_group_provider.dart';
 import '../providers/hive_provider.dart'; // Hive Box プロバイダー
 import '../datastore/hive_purchase_group_repository.dart'
-    show hivePurchaseGroupRepositoryProvider;
+    show hiveSharedGroupRepositoryProvider;
 import '../datastore/firestore_purchase_group_repository.dart'; // Repository型チェック用
 import '../flavors.dart';
 import 'notification_service.dart';
@@ -112,7 +112,7 @@ class UserInitializationService {
       final expectedDefaultGroupId = user?.uid ?? 'local_default';
       Log.info('🔍 [INIT] デフォルトグループID確認: $expectedDefaultGroupId');
 
-      final hiveRepository = _ref.read(hivePurchaseGroupRepositoryProvider);
+      final hiveRepository = _ref.read(hiveSharedGroupRepositoryProvider);
 
       // STEP2-0: レガシー'default_group'をuidに移行
       if (user != null && expectedDefaultGroupId != 'local_default') {
@@ -193,12 +193,12 @@ class UserInitializationService {
 
           // オーナーメンバー情報の更新が必要かチェック
           final ownerMember = deletedDefaultGroup.members?.firstWhere(
-            (m) => m.role == models.PurchaseGroupRole.owner,
-            orElse: () => models.PurchaseGroupMember(
+            (m) => m.role == models.SharedGroupRole.owner,
+            orElse: () => models.SharedGroupMember(
               memberId: user?.uid ?? '',
               name: '',
               contact: '',
-              role: models.PurchaseGroupRole.owner,
+              role: models.SharedGroupRole.owner,
             ),
           );
 
@@ -216,7 +216,7 @@ class UserInitializationService {
 
             // 更新されたメンバーリストを作成
             final updatedMembers = deletedDefaultGroup.members?.map((m) {
-              if (m.role == models.PurchaseGroupRole.owner) {
+              if (m.role == models.SharedGroupRole.owner) {
                 return m.copyWith(
                   name: expectedGroupName,
                   contact: user?.email ?? m.contact,
@@ -440,9 +440,9 @@ class UserInitializationService {
     try {
       Log.info('⬆️ [SYNC] Hive→Firestore同期開始');
       final firestore = FirebaseFirestore.instance;
-      // 新パス構造: purchaseGroupsルートコレクションを使用
-      final purchaseGroupsRef = firestore.collection('purchaseGroups');
-      final repository = _ref.read(purchaseGroupRepositoryProvider);
+      // 新パス構造: SharedGroupsルートコレクションを使用
+      final SharedGroupsRef = firestore.collection('SharedGroups');
+      final repository = _ref.read(SharedGroupRepositoryProvider);
 
       final allHiveGroups = await repository.getAllGroups();
       int syncedCount = 0;
@@ -454,7 +454,7 @@ class UserInitializationService {
           continue;
         }
 
-        final docRef = purchaseGroupsRef.doc(group.groupId);
+        final docRef = SharedGroupsRef.doc(group.groupId);
 
         // 🔥 CRITICAL FIX: Firestoreの既存allowedUidをマージ（上書き防止）
         List<String> finalAllowedUid = List<String>.from(group.allowedUid);
@@ -530,15 +530,15 @@ class UserInitializationService {
       Log.info('⬇️ [SYNC] Firestore→Hive同期開始');
       final firestore = FirebaseFirestore.instance;
 
-      // purchaseGroupsルートコレクションからallowedUidでフィルタ
-      final purchaseGroupsRef = firestore.collection('purchaseGroups');
-      final snapshot = await purchaseGroupsRef
+      // SharedGroupsルートコレクションからallowedUidでフィルタ
+      final SharedGroupsRef = firestore.collection('SharedGroups');
+      final snapshot = await SharedGroupsRef
           .where('allowedUid', arrayContains: user.uid)
           .get();
 
       Log.info('📊 [SYNC] Firestoreクエリ完了: ${snapshot.docs.length}個のグループ');
 
-      final repository = _ref.read(purchaseGroupRepositoryProvider);
+      final repository = _ref.read(SharedGroupRepositoryProvider);
 
       int syncedCount = 0;
       int skippedCount = 0;
@@ -560,7 +560,7 @@ class UserInitializationService {
       }
 
       // ⚠️ 重要: 直接Hiveリポジトリを使用（Hybridの初期化待機を回避）
-      final hiveRepository = _ref.read(hivePurchaseGroupRepositoryProvider);
+      final hiveRepository = _ref.read(hiveSharedGroupRepositoryProvider);
       final hiveGroups = await hiveRepository.getAllGroups();
       Log.info('📊 [SYNC] Hiveに存在するグループ: ${hiveGroups.length}個');
       for (final hiveGroup in hiveGroups) {
@@ -583,7 +583,7 @@ class UserInitializationService {
           Log.info(
               '📤 [SYNC] local状態のグループをFirestoreにアップロード: ${hiveGroup.groupName}');
           try {
-            await purchaseGroupsRef.doc(hiveGroup.groupId).set({
+            await SharedGroupsRef.doc(hiveGroup.groupId).set({
               'groupId': hiveGroup.groupId,
               'groupName': hiveGroup.groupName,
               'ownerUid': hiveGroup.ownerUid,
@@ -710,8 +710,8 @@ class UserInitializationService {
           // Firestoreの Timestamp を DateTime に変換してから fromJson を使用
           final convertedData = FirestoreConverter.convertTimestamps(data);
 
-          // PurchaseGroup.fromJson()を使用してallowedUidを含む全フィールドを正しく復元
-          final group = models.PurchaseGroup.fromJson(convertedData).copyWith(
+          // SharedGroup.fromJson()を使用してallowedUidを含む全フィールドを正しく復元
+          final group = models.SharedGroup.fromJson(convertedData).copyWith(
             groupId: doc.id, // ドキュメントIDを確実に設定
             updatedAt: DateTime.now(),
           );
@@ -720,10 +720,10 @@ class UserInitializationService {
               '🔍 [SYNC] グループ同期: ${group.groupName}, allowedUid: ${group.allowedUid}');
 
           // 🔥 CRITICAL FIX: Hiveにのみ保存（Firestoreへの逆書き込みを防ぐ）
-          if (repository is FirestorePurchaseGroupRepository) {
+          if (repository is FirestoreSharedGroupRepository) {
             // Hive Boxに直接書き込む
-            final purchaseGroupBox = _ref.read(purchaseGroupBoxProvider);
-            await purchaseGroupBox.put(group.groupId, group);
+            final SharedGroupBox = _ref.read(SharedGroupBoxProvider);
+            await SharedGroupBox.put(group.groupId, group);
             Log.info('✅ [SYNC] HiveのみにGroup保存（Firestore書き戻し回避）');
           } else {
             // HiveRepositoryの場合は通常のupdateを使用

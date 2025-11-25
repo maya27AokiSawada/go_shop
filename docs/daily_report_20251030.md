@@ -96,13 +96,13 @@ AppLogger.info('🗑️ [GROUP_SELECT] カレントリストをクリアしま�
 ### 1. リポジトリ単体テストの実施（最優先）
 - **目的**: CRUD処理が正しく実装されているか確認
 - **対象リポジトリ**:
-  - `HivePurchaseGroupRepository` (グループCRUD)
+  - `HiveSharedGroupRepository` (グループCRUD)
   - `HiveShoppingListRepository` (リストCRUD)
-  - `FirestorePurchaseGroupRepository` (未実装部分の確認)
+  - `FirestoreSharedGroupRepository` (未実装部分の確認)
 
 **テスト項目**:
 ```
-PurchaseGroupRepository:
+SharedGroupRepository:
 - [ ] createGroup() - グループ作成
 - [ ] getAllGroups() - 全グループ取得
 - [ ] getGroupById() - ID指定取得

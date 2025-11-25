@@ -1,7 +1,7 @@
 // デバッグ用スクリプト - グループデータを確認
 
 import 'package:hive_flutter/hive_flutter.dart';
-import 'lib/models/purchase_group.dart';
+import 'lib/models/shared_group.dart';
 import 'lib/models/shopping_list.dart';
 import 'lib/models/user_settings.dart';
 // import 'lib/models/invitation.dart';  // 削除済み - QRコードシステムに移行
@@ -17,9 +17,9 @@ void main() async {
 
     // アダプター登録
     if (!Hive.isAdapterRegistered(0)) {
-      Hive.registerAdapter(PurchaseGroupRoleAdapter());
-      Hive.registerAdapter(PurchaseGroupMemberAdapter());
-      Hive.registerAdapter(PurchaseGroupAdapter());
+      Hive.registerAdapter(SharedGroupRoleAdapter());
+      Hive.registerAdapter(SharedGroupMemberAdapter());
+      Hive.registerAdapter(SharedGroupAdapter());
       Hive.registerAdapter(ShoppingItemAdapter());
       Hive.registerAdapter(ShoppingListAdapter());
       // Hive.registerAdapter(InvitationAdapter());  // 削除済み - QRコードシステムに移行
@@ -27,8 +27,8 @@ void main() async {
       Hive.registerAdapter(UserSettingsAdapter());
     }
 
-    // PurchaseGroup Boxを開く
-    final box = await Hive.openBox<PurchaseGroup>('purchaseGroups');
+    // SharedGroup Boxを開く
+    final box = await Hive.openBox<SharedGroup>('SharedGroups');
 
     Log.info('📦 Box状態: ${box.isOpen ? "開いている" : "閉じている"}');
     Log.info('📊 保存されているキー数: ${box.keys.length}');
@@ -48,7 +48,7 @@ void main() async {
                 '   - ${member.name} (${member.role.name}, ID: ${member.memberId})');
           }
         }
-        // 作成日はPurchaseGroupモデルに存在しない場合があります
+        // 作成日はSharedGroupモデルに存在しない場合があります
         // Log.info('📅 作成日: ${group.createdAt}');
       }
     }

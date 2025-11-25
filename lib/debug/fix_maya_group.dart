@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../utils/app_logger.dart';
 
 /// mayaのデフォルトグループを修正するデバッグ画面
@@ -33,7 +33,7 @@ class _FixMayaGroupScreenState extends ConsumerState<FixMayaGroupScreen> {
       _addLog('===== mayaグループ修正開始 =====');
 
       // Hive Boxを開く
-      final box = await Hive.openBox<PurchaseGroup>('purchase_groups');
+      final box = await Hive.openBox<SharedGroup>('purchase_groups');
       _addLog('Hive Box opened: ${box.length} groups');
 
       // 全グループをチェック

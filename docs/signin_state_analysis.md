@@ -90,7 +90,7 @@ await ref.read(allGroupsProvider.future);
 ### Option 2: AllGroupsNotifier で Auth状態を監視
 ```dart
 @override
-Future<List<PurchaseGroup>> build() async {
+Future<List<SharedGroup>> build() async {
   // Auth状態を先に確認
   final authState = ref.watch(authStateProvider);
   return authState.when(

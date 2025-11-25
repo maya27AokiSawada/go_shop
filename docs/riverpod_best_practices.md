@@ -11,9 +11,9 @@
 #### ❌ 危険なパターン
 ```dart
 @override
-Future<List<PurchaseGroup>> build() async {
+Future<List<SharedGroup>> build() async {
   final authState = ref.watch(authStateProvider);
-  final repository = ref.read(purchaseGroupRepositoryProvider);
+  final repository = ref.read(SharedGroupRepositoryProvider);
 
   // 非同期処理中...
   final allGroups = await repository.getAllGroups();
@@ -27,11 +27,11 @@ Future<List<PurchaseGroup>> build() async {
 #### ✅ 正しいパターン
 ```dart
 @override
-Future<List<PurchaseGroup>> build() async {
+Future<List<SharedGroup>> build() async {
   // ✅ 最初に全ての依存性を確定する
   final authState = ref.watch(authStateProvider);
   final hiveReady = ref.watch(hiveInitializationStatusProvider);
-  final repository = ref.read(purchaseGroupRepositoryProvider);
+  final repository = ref.read(SharedGroupRepositoryProvider);
   final accessControl = ref.read(accessControlServiceProvider);
 
   try {
@@ -64,7 +64,7 @@ Future<List<PurchaseGroup>> build() async {
 // ✅ 正しい使用法
 final authState = ref.watch(authStateProvider);           // StreamProvider
 final hiveReady = ref.watch(hiveInitializationStatusProvider); // FutureProvider
-final repository = ref.read(purchaseGroupRepositoryProvider);   // Provider<T>
+final repository = ref.read(SharedGroupRepositoryProvider);   // Provider<T>
 final accessControl = ref.read(accessControlServiceProvider);   // Provider<T>
 ```
 
@@ -72,18 +72,18 @@ final accessControl = ref.read(accessControlServiceProvider);   // Provider<T>
 
 #### ❌ 危険なパターン
 ```dart
-Future<PurchaseGroup> _fixLegacyMemberRoles(PurchaseGroup group) async {
+Future<SharedGroup> _fixLegacyMemberRoles(SharedGroup group) async {
   // ❌ プライベートメソッド内でのref操作
-  final repository = ref.read(purchaseGroupRepositoryProvider);
+  final repository = ref.read(SharedGroupRepositoryProvider);
   // ...
 }
 ```
 
 #### ✅ 正しいパターン
 ```dart
-Future<PurchaseGroup> _fixLegacyMemberRoles(
-  PurchaseGroup group,
-  PurchaseGroupRepository repository
+Future<SharedGroup> _fixLegacyMemberRoles(
+  SharedGroup group,
+  SharedGroupRepository repository
 ) async {
   // ✅ 引数として依存性を受け取る
   // ...
@@ -91,8 +91,8 @@ Future<PurchaseGroup> _fixLegacyMemberRoles(
 
 // 呼び出し側
 @override
-Future<PurchaseGroup?> build() async {
-  final repository = ref.read(purchaseGroupRepositoryProvider);
+Future<SharedGroup?> build() async {
+  final repository = ref.read(SharedGroupRepositoryProvider);
   // ...
   final fixedGroup = await _fixLegacyMemberRoles(group, repository);
 }
@@ -103,9 +103,9 @@ Future<PurchaseGroup?> build() async {
 ### Go Shopでの標準的なAsyncNotifierパターン
 
 ```dart
-class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
+class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
   @override
-  Future<List<PurchaseGroup>> build() async {
+  Future<List<SharedGroup>> build() async {
     Log.info('🔄 [ALL GROUPS] AllGroupsNotifier.build() 開始');
 
     // ✅ 最初に全ての依存性を確定する
@@ -113,7 +113,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
     // Provider<T>は ref.read() で十分（同期的なサービス）
     final authState = ref.watch(authStateProvider);
     final hiveReady = ref.watch(hiveInitializationStatusProvider);
-    final repository = ref.read(purchaseGroupRepositoryProvider);
+    final repository = ref.read(SharedGroupRepositoryProvider);
     final accessControl = ref.read(accessControlServiceProvider);
 
     try {
@@ -130,7 +130,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
           if (user != null) {
             Log.info('🔄 [ALL GROUPS] ✅ サインイン状態でグループ取得');
             // バックグラウンド同期の実行
-            if (repository is HybridPurchaseGroupRepository) {
+            if (repository is HybridSharedGroupRepository) {
               repository.syncFromFirestore().catchError((e) {
                 Log.warning('⚠️ [ALL GROUPS] バックグラウンド同期エラー: $e');
               });
@@ -144,7 +144,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
       final visibilityMode = await accessControl.getGroupVisibilityMode();
 
       // フィルタリングとソート
-      List<PurchaseGroup> filteredGroups;
+      List<SharedGroup> filteredGroups;
       switch (visibilityMode) {
         case GroupVisibilityMode.all:
           filteredGroups = allGroups;

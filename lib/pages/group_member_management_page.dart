@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../providers/purchase_group_provider.dart';
 import '../utils/app_logger.dart';
 import '../utils/group_helpers.dart';
@@ -11,7 +11,7 @@ import '../pages/group_invitation_page.dart';
 /// グループのメンバー管理画面
 /// 招待→ユーザー情報セットの流れに対応
 class GroupMemberManagementPage extends ConsumerStatefulWidget {
-  final PurchaseGroup group;
+  final SharedGroup group;
 
   const GroupMemberManagementPage({
     super.key,
@@ -25,7 +25,7 @@ class GroupMemberManagementPage extends ConsumerStatefulWidget {
 
 class _GroupMemberManagementPageState
     extends ConsumerState<GroupMemberManagementPage> {
-  bool _isDefaultGroup(PurchaseGroup group) {
+  bool _isDefaultGroup(SharedGroup group) {
     final currentUser = FirebaseAuth.instance.currentUser;
     return isDefaultGroup(group, currentUser);
   }
@@ -85,7 +85,7 @@ class _GroupMemberManagementPageState
     );
   }
 
-  Widget _buildMemberList(PurchaseGroup group) {
+  Widget _buildMemberList(SharedGroup group) {
     final members = group.members ?? [];
 
     return Column(
@@ -150,8 +150,8 @@ class _GroupMemberManagementPageState
     );
   }
 
-  Widget _buildMemberTile(PurchaseGroupMember member, PurchaseGroup group) {
-    final isOwner = member.role == PurchaseGroupRole.owner;
+  Widget _buildMemberTile(SharedGroupMember member, SharedGroup group) {
+    final isOwner = member.role == SharedGroupRole.owner;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -242,15 +242,15 @@ class _GroupMemberManagementPageState
     );
   }
 
-  String _getRoleDisplayName(PurchaseGroupRole role) {
+  String _getRoleDisplayName(SharedGroupRole role) {
     switch (role) {
-      case PurchaseGroupRole.owner:
+      case SharedGroupRole.owner:
         return 'オーナー';
-      case PurchaseGroupRole.manager:
+      case SharedGroupRole.manager:
         return '管理者';
-      case PurchaseGroupRole.member:
+      case SharedGroupRole.member:
         return 'メンバー';
-      case PurchaseGroupRole.partner:
+      case SharedGroupRole.partner:
         return 'パートナー';
     }
   }
@@ -353,15 +353,15 @@ class _GroupMemberManagementPageState
       context: context,
       builder: (context) => const MemberSelectionDialog(),
     ).then((member) {
-      if (member != null && member is PurchaseGroupMember) {
+      if (member != null && member is SharedGroupMember) {
         _addMember(member);
       }
     });
   }
 
-  void _addMember(PurchaseGroupMember member) async {
+  void _addMember(SharedGroupMember member) async {
     try {
-      await ref.read(purchaseGroupRepositoryProvider).addMember(
+      await ref.read(SharedGroupRepositoryProvider).addMember(
             widget.group.groupId,
             member,
           );
@@ -392,7 +392,7 @@ class _GroupMemberManagementPageState
   }
 
   void _handleMemberAction(
-      String action, PurchaseGroupMember member, PurchaseGroup group) {
+      String action, SharedGroupMember member, SharedGroup group) {
     switch (action) {
       case 'edit_role':
         _showRoleEditDialog(member, group);
@@ -403,7 +403,7 @@ class _GroupMemberManagementPageState
     }
   }
 
-  void _showRoleEditDialog(PurchaseGroupMember member, PurchaseGroup group) {
+  void _showRoleEditDialog(SharedGroupMember member, SharedGroup group) {
     // 権限変更機能は将来実装予定
     AppLogger.info('⚙️ [MEMBER_MGMT] 権限変更（未実装）: ${member.name}');
     ScaffoldMessenger.of(context).showSnackBar(
@@ -415,7 +415,7 @@ class _GroupMemberManagementPageState
   }
 
   void _showRemoveMemberDialog(
-      PurchaseGroupMember member, PurchaseGroup group) {
+      SharedGroupMember member, SharedGroup group) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -439,9 +439,9 @@ class _GroupMemberManagementPageState
     );
   }
 
-  void _removeMember(PurchaseGroupMember member, PurchaseGroup group) async {
+  void _removeMember(SharedGroupMember member, SharedGroup group) async {
     try {
-      await ref.read(purchaseGroupRepositoryProvider).removeMember(
+      await ref.read(SharedGroupRepositoryProvider).removeMember(
             group.groupId,
             member,
           );

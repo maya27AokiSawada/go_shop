@@ -3,8 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/app_logger.dart';
-import '../models/purchase_group.dart' hide SyncStatus;
-import '../models/purchase_group.dart' as models show SyncStatus;
+import '../models/shared_group.dart' hide SyncStatus;
+import '../models/shared_group.dart' as models show SyncStatus;
 import '../datastore/purchase_group_repository.dart';
 import '../datastore/hive_purchase_group_repository.dart';
 import '../datastore/hybrid_purchase_group_repository.dart';
@@ -20,24 +20,24 @@ import 'current_list_provider.dart';
 // Logger instance
 
 // Repository provider - ハイブリッドリポジトリを使用
-final purchaseGroupRepositoryProvider = Provider<PurchaseGroupRepository>((
+final SharedGroupRepositoryProvider = Provider<SharedGroupRepository>((
   ref,
 ) {
   // � 一時的にdevではHiveのみに戻す（クラッシュ原因調査のため）
   if (F.appFlavor == Flavor.prod) {
-    return HybridPurchaseGroupRepository(ref);
+    return HybridSharedGroupRepository(ref);
   } else {
-    return HivePurchaseGroupRepository(ref);
+    return HiveSharedGroupRepository(ref);
   }
 });
 
 // Selected Group Management - 選択されたグループの詳細操作用
-class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
+class SelectedGroupNotifier extends AsyncNotifier<SharedGroup?> {
   @override
-  Future<PurchaseGroup?> build() async {
+  Future<SharedGroup?> build() async {
     // ✅ 最初に全ての依存性を確定する
     final selectedGroupId = ref.watch(selectedGroupIdProvider);
-    final repository = ref.read(purchaseGroupRepositoryProvider);
+    final repository = ref.read(SharedGroupRepositoryProvider);
 
     if (selectedGroupId == null || selectedGroupId.isEmpty) return null;
 
@@ -57,8 +57,8 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
   }
 
   /// Fix legacy member roles and ensure proper group structure
-  Future<PurchaseGroup> _fixLegacyMemberRoles(
-      PurchaseGroup group, PurchaseGroupRepository repository) async {
+  Future<SharedGroup> _fixLegacyMemberRoles(
+      SharedGroup group, SharedGroupRepository repository) async {
     final originalMembers = group.members ?? [];
     bool needsUpdate = false;
 
@@ -85,11 +85,11 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
     // 現在のユーザーがメンバーリストにいない場合は、オーナーのmemberIdを更新
     if (!hasCurrentUser && currentUserId.isNotEmpty) {
       // オーナーメンバーを見つけて、そのmemberIdを現在のユーザーIDに変更
-      final List<PurchaseGroupMember> updatedMembers = [];
+      final List<SharedGroupMember> updatedMembers = [];
       bool ownerUpdated = false;
 
       for (final member in originalMembers) {
-        if (member.role == PurchaseGroupRole.owner && !ownerUpdated) {
+        if (member.role == SharedGroupRole.owner && !ownerUpdated) {
           // オーナーのmemberIdを現在のFirebaseユーザーIDに更新
           final updatedOwner = member.copyWith(memberId: currentUserId);
           updatedMembers.add(updatedOwner);
@@ -112,23 +112,23 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
     }
 
     // Find the first owner or the first member to be the owner
-    PurchaseGroupMember? owner;
-    final List<PurchaseGroupMember> nonOwners = [];
+    SharedGroupMember? owner;
+    final List<SharedGroupMember> nonOwners = [];
 
     // First pass: separate owners and non-owners
     for (final member in originalMembers) {
-      if (member.role == PurchaseGroupRole.owner) {
+      if (member.role == SharedGroupRole.owner) {
         if (owner == null) {
           owner = member; // Keep the first owner
         } else {
           // Convert additional owners to members
-          nonOwners.add(member.copyWith(role: PurchaseGroupRole.member));
+          nonOwners.add(member.copyWith(role: SharedGroupRole.member));
           needsUpdate = true;
         }
       } else {
         // Convert any legacy roles (parent, child) to member
-        if (member.role != PurchaseGroupRole.member) {
-          nonOwners.add(member.copyWith(role: PurchaseGroupRole.member));
+        if (member.role != SharedGroupRole.member) {
+          nonOwners.add(member.copyWith(role: SharedGroupRole.member));
           needsUpdate = true;
         } else {
           nonOwners.add(member);
@@ -139,7 +139,7 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
     // If no owner found, make the first member an owner
     if (owner == null && nonOwners.isNotEmpty) {
       final firstMember = nonOwners.removeAt(0);
-      owner = firstMember.copyWith(role: PurchaseGroupRole.owner);
+      owner = firstMember.copyWith(role: SharedGroupRole.owner);
       needsUpdate = true;
     }
 
@@ -153,9 +153,9 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
     return group;
   }
 
-  Future<void> saveGroup(PurchaseGroup group) async {
+  Future<void> saveGroup(SharedGroup group) async {
     Log.info('💾 [SAVE GROUP] グループ保存開始: ${group.groupName}');
-    final repository = ref.read(purchaseGroupRepositoryProvider);
+    final repository = ref.read(SharedGroupRepositoryProvider);
 
     try {
       // 楽観的更新: 先にUIを更新
@@ -174,7 +174,7 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
 
   /// Load specific group by ID
   Future<void> loadGroup(String groupId) async {
-    final repository = ref.read(purchaseGroupRepositoryProvider);
+    final repository = ref.read(SharedGroupRepositoryProvider);
 
     try {
       final group = await repository.getGroupById(groupId);
@@ -193,12 +193,12 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
     }
   }
 
-  Future<void> updateGroup(PurchaseGroup group) async {
+  Future<void> updateGroup(SharedGroup group) async {
     await saveGroup(group);
   }
 
   /// Add a new member to the current group
-  Future<void> addMember(PurchaseGroupMember newMember) async {
+  Future<void> addMember(SharedGroupMember newMember) async {
     Log.info('👥 [ADD MEMBER] メンバー追加開始: ${newMember.name}');
     final currentGroup = state.value;
     if (currentGroup == null) {
@@ -206,7 +206,7 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
       return;
     }
 
-    final repository = ref.read(purchaseGroupRepositoryProvider);
+    final repository = ref.read(SharedGroupRepositoryProvider);
 
     try {
       Log.info(
@@ -256,7 +256,7 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
       return;
     }
 
-    final repository = ref.read(purchaseGroupRepositoryProvider);
+    final repository = ref.read(SharedGroupRepositoryProvider);
 
     try {
       Log.info(
@@ -305,7 +305,7 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
       throw Exception('デフォルトグループ（MyLists）は削除できません');
     }
 
-    final repository = ref.read(purchaseGroupRepositoryProvider);
+    final repository = ref.read(SharedGroupRepositoryProvider);
 
     try {
       // ステップ1: Firestoreで削除フラグを立てる（本番環境のみ）
@@ -347,7 +347,7 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
 
   /// Update owner message for the current group
   Future<void> updateOwnerMessage(String groupId, String message) async {
-    final repository = ref.read(purchaseGroupRepositoryProvider);
+    final repository = ref.read(SharedGroupRepositoryProvider);
 
     try {
       final currentGroup = await repository.getGroupById(groupId);
@@ -365,7 +365,7 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
       if (currentUser != null && F.appFlavor == Flavor.prod) {
         SecurityValidator.validateFirestoreRuleCompliance(
           operation: 'write',
-          resourceType: 'purchaseGroup',
+          resourceType: 'SharedGroup',
           group: currentGroup,
           currentUid: currentUser.uid,
         );
@@ -386,9 +386,9 @@ class SelectedGroupNotifier extends AsyncNotifier<PurchaseGroup?> {
 }
 
 // All groups provider
-class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
+class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
   @override
-  Future<List<PurchaseGroup>> build() async {
+  Future<List<SharedGroup>> build() async {
     Log.info('🔄 [ALL GROUPS] AllGroupsNotifier.build() 開始');
 
     // ✅ 最初に全ての依存性を確定する
@@ -397,7 +397,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
     final hiveReady = ref.watch(hiveInitializationStatusProvider);
     // 初期化状態も監視（初期化完了時に自動的に再構築される）
     ref.watch(userInitializationStatusProvider);
-    final repository = ref.read(purchaseGroupRepositoryProvider);
+    final repository = ref.read(SharedGroupRepositoryProvider);
     final accessControl =
         ref.read(accessControlServiceProvider); // ← Provider<T>なので read()
 
@@ -428,7 +428,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
       Log.info('🔄 [ALL GROUPS] Hiveから直接取得開始');
 
       // Hiveから直接データ取得（初期化待機なし）
-      final hiveRepo = ref.read(hivePurchaseGroupRepositoryProvider);
+      final hiveRepo = ref.read(hiveSharedGroupRepositoryProvider);
       final allGroupsRaw = await hiveRepo.getAllGroups();
 
       Log.info(
@@ -446,7 +446,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
       // 🔒 アクセス制御によるフィルタリング
       final visibilityMode = await accessControl.getGroupVisibilityMode();
 
-      List<PurchaseGroup> filteredGroups;
+      List<SharedGroup> filteredGroups;
       switch (visibilityMode) {
         case GroupVisibilityMode.all:
           filteredGroups = allGroups;
@@ -517,7 +517,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
       currentUser = null;
     }
 
-    final repository = ref.read(purchaseGroupRepositoryProvider);
+    final repository = ref.read(SharedGroupRepositoryProvider);
     Log.info('🔍 [CREATE GROUP] Repository type: ${repository.runtimeType}');
     Log.info('🔍 [CREATE GROUP] Flavor: ${F.appFlavor}');
     final currentUserId = currentUser?.uid ?? '';
@@ -596,12 +596,12 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
       }
 
       // オーナーメンバーを作成
-      final ownerMember = PurchaseGroupMember.create(
+      final ownerMember = SharedGroupMember.create(
         memberId:
             currentUserId.isNotEmpty ? currentUserId : 'local_user_$timestamp',
         name: userName,
         contact: userEmail,
-        role: PurchaseGroupRole.owner,
+        role: SharedGroupRole.owner,
         isSignedIn: currentUser != null,
       );
 
@@ -619,7 +619,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
       if (F.appFlavor == Flavor.prod && currentUser != null) {
         try {
           Log.info('🔄 [CREATE GROUP] Firestoreへグループを同期中...');
-          final repository = ref.read(purchaseGroupRepositoryProvider);
+          final repository = ref.read(SharedGroupRepositoryProvider);
           await repository.updateGroup(newGroup.groupId, newGroup);
           Log.info('✅ [CREATE GROUP] Firestore同期完了');
         } catch (e) {
@@ -651,7 +651,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
       // 既存のstateに新しいグループを追加することで、build()の再トリガーを回避
       try {
         final currentState = state;
-        if (currentState is AsyncData<List<PurchaseGroup>>) {
+        if (currentState is AsyncData<List<SharedGroup>>) {
           final currentGroups = currentState.value;
           final updatedGroups = [...currentGroups, newGroup];
           state = AsyncData(updatedGroups);
@@ -685,7 +685,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
     // ⚠️ CRITICAL: ref.read()を全てメソッド開始時に取得（async処理前）
     final hiveReady = ref.read(hiveInitializationStatusProvider);
     final hiveInitFuture = ref.read(hiveUserInitializationProvider.future);
-    final hiveRepository = ref.read(hivePurchaseGroupRepositoryProvider);
+    final hiveRepository = ref.read(hiveSharedGroupRepositoryProvider);
 
     try {
       Log.info('🆕 [CREATE DEFAULT] デフォルトグループ作成開始（AllGroupsNotifier）');
@@ -763,7 +763,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
             // Firestoreに保存
             final firestore = FirebaseFirestore.instance;
             await firestore
-                .collection('purchaseGroups')
+                .collection('SharedGroups')
                 .doc(defaultGroupId)
                 .set({
               'groupId': syncedGroup.groupId,
@@ -822,10 +822,10 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
       }
 
       // オーナーメンバーを作成
-      final ownerMember = PurchaseGroupMember.create(
+      final ownerMember = SharedGroupMember.create(
         name: displayName,
         contact: user?.email ?? '',
-        role: PurchaseGroupRole.owner,
+        role: SharedGroupRole.owner,
         isSignedIn: user != null,
         isInvited: false,
         isInvitationAccepted: false,
@@ -856,7 +856,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
 
           // Firestoreにも保存
           final firestore = FirebaseFirestore.instance;
-          await firestore.collection('purchaseGroups').doc(defaultGroupId).set({
+          await firestore.collection('SharedGroups').doc(defaultGroupId).set({
             'groupId': syncedGroup.groupId,
             'groupName': syncedGroup.groupName,
             'ownerUid': user.uid,
@@ -898,7 +898,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
 
 // Selected Group Provider - 選択されたグループの詳細操作用
 final selectedGroupNotifierProvider =
-    AsyncNotifierProvider<SelectedGroupNotifier, PurchaseGroup?>(
+    AsyncNotifierProvider<SelectedGroupNotifier, SharedGroup?>(
   () => SelectedGroupNotifier(),
 );
 
@@ -942,7 +942,7 @@ class SelectedGroupIdNotifier extends StateNotifier<String?> {
   }
 
   /// 選択されたグループIDが有効なグループリストに存在するか検証し、無効な場合は最初のグループを設定
-  void validateSelection(List<PurchaseGroup> availableGroups) {
+  void validateSelection(List<SharedGroup> availableGroups) {
     if (state == null) {
       return; // 未選択状態はvalidateAndRestoreSelectionで処理される
     }
@@ -963,7 +963,7 @@ class SelectedGroupIdNotifier extends StateNotifier<String?> {
   }
 
   /// グループリストが更新されたときに、選択状態を検証・復元
-  void validateAndRestoreSelection(List<PurchaseGroup> availableGroups) {
+  void validateAndRestoreSelection(List<SharedGroup> availableGroups) {
     if (state == null) {
       // 未選択の場合、利用可能なグループがあれば最初のものを選択
       if (availableGroups.isNotEmpty) {
@@ -1036,10 +1036,10 @@ final selectedGroupIdProvider =
 });
 
 // Member Pool Management - メンバープール管理用
-class MemberPoolNotifier extends AsyncNotifier<PurchaseGroup> {
+class MemberPoolNotifier extends AsyncNotifier<SharedGroup> {
   @override
-  Future<PurchaseGroup> build() async {
-    final repository = ref.read(purchaseGroupRepositoryProvider);
+  Future<SharedGroup> build() async {
+    final repository = ref.read(SharedGroupRepositoryProvider);
 
     try {
       Log.info('🔄 [MEMBER POOL] MemberPoolNotifier.build() 開始');
@@ -1058,7 +1058,7 @@ class MemberPoolNotifier extends AsyncNotifier<PurchaseGroup> {
   /// メンバープールを最新の状態に同期
   Future<void> syncPool() async {
     Log.info('🔄 [MEMBER POOL] syncPool() 開始');
-    final repository = ref.read(purchaseGroupRepositoryProvider);
+    final repository = ref.read(SharedGroupRepositoryProvider);
 
     try {
       // プールを同期
@@ -1079,9 +1079,9 @@ class MemberPoolNotifier extends AsyncNotifier<PurchaseGroup> {
   }
 
   /// メンバープール内でメンバーを検索
-  Future<List<PurchaseGroupMember>> searchMembers(String query) async {
+  Future<List<SharedGroupMember>> searchMembers(String query) async {
     Log.info('🔍 [MEMBER POOL] searchMembers() 開始: "$query"');
-    final repository = ref.read(purchaseGroupRepositoryProvider);
+    final repository = ref.read(SharedGroupRepositoryProvider);
 
     try {
       final members = await repository.searchMembersInPool(query);
@@ -1094,9 +1094,9 @@ class MemberPoolNotifier extends AsyncNotifier<PurchaseGroup> {
   }
 
   /// メールアドレスでメンバーを検索
-  Future<PurchaseGroupMember?> findMemberByEmail(String email) async {
+  Future<SharedGroupMember?> findMemberByEmail(String email) async {
     Log.info('📧 [MEMBER POOL] findMemberByEmail() 開始: $email');
-    final repository = ref.read(purchaseGroupRepositoryProvider);
+    final repository = ref.read(SharedGroupRepositoryProvider);
 
     try {
       final member = await repository.findMemberByEmail(email);
@@ -1125,17 +1125,17 @@ class MemberPoolNotifier extends AsyncNotifier<PurchaseGroup> {
 }
 
 final memberPoolProvider =
-    AsyncNotifierProvider<MemberPoolNotifier, PurchaseGroup>(
+    AsyncNotifierProvider<MemberPoolNotifier, SharedGroup>(
   () => MemberPoolNotifier(),
 );
 
 final allGroupsProvider =
-    AsyncNotifierProvider<AllGroupsNotifier, List<PurchaseGroup>>(
+    AsyncNotifierProvider<AllGroupsNotifier, List<SharedGroup>>(
   () => AllGroupsNotifier(),
 );
 
 // 選択されたグループを取得するプロバイダー（後方互換性のために Provider として提供）
-final selectedGroupProvider = Provider<AsyncValue<PurchaseGroup?>>((ref) {
+final selectedGroupProvider = Provider<AsyncValue<SharedGroup?>>((ref) {
   return ref.watch(selectedGroupNotifierProvider);
 });
 
@@ -1144,11 +1144,11 @@ final selectedGroupProvider = Provider<AsyncValue<PurchaseGroup?>>((ref) {
 // =================================================================
 
 /// ハイブリッドリポジトリへのアクセス（本番環境のみ）
-final hybridRepositoryProvider = Provider<HybridPurchaseGroupRepository?>((
+final hybridRepositoryProvider = Provider<HybridSharedGroupRepository?>((
   ref,
 ) {
-  final repo = ref.read(purchaseGroupRepositoryProvider);
-  if (repo is HybridPurchaseGroupRepository) {
+  final repo = ref.read(SharedGroupRepositoryProvider);
+  if (repo is HybridSharedGroupRepository) {
     return repo;
   }
   return null;

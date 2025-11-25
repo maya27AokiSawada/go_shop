@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// 招待ユーザー情報を管理するクラス（PurchaseGroup用）
+// 招待ユーザー情報を管理するクラス（SharedGroup用）
 class GroupInvitedUser {
   final String email;          // 招待されたメールアドレス
   final String? uid;           // 確定したUID（ログイン後）
@@ -53,8 +53,8 @@ class GroupInvitedUser {
   }
 }
 
-// Firestore用PurchaseGroupクラス
-class FirestorePurchaseGroup {
+// Firestore用SharedGroupクラス
+class FirestoreSharedGroup {
   final String id;                                  // ドキュメントID
   final String groupName;                           // グループ名
   final String ownerUid;                            // オーナーUID
@@ -64,7 +64,7 @@ class FirestorePurchaseGroup {
   final List<String> shoppingListIds;              // このグループが持つShoppingListのID一覧
   final Map<String, dynamic> metadata;             // その他のメタデータ
 
-  const FirestorePurchaseGroup({
+  const FirestoreSharedGroup({
     required this.id,
     required this.groupName,
     required this.ownerUid,
@@ -75,7 +75,7 @@ class FirestorePurchaseGroup {
     this.metadata = const {},
   });
 
-  FirestorePurchaseGroup copyWith({
+  FirestoreSharedGroup copyWith({
     String? id,
     String? groupName,
     String? ownerUid,
@@ -85,7 +85,7 @@ class FirestorePurchaseGroup {
     List<String>? shoppingListIds,
     Map<String, dynamic>? metadata,
   }) {
-    return FirestorePurchaseGroup(
+    return FirestoreSharedGroup(
       id: id ?? this.id,
       groupName: groupName ?? this.groupName,
       ownerUid: ownerUid ?? this.ownerUid,
@@ -98,9 +98,9 @@ class FirestorePurchaseGroup {
   }
 
   // Firestore用のMap変換メソッド
-  factory FirestorePurchaseGroup.fromFirestore(DocumentSnapshot doc) {
+  factory FirestoreSharedGroup.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-    return FirestorePurchaseGroup(
+    return FirestoreSharedGroup(
       id: doc.id,
       groupName: data['groupName'] ?? '',
       ownerUid: data['ownerUid'] ?? '',
@@ -129,7 +129,7 @@ class FirestorePurchaseGroup {
   }
 
   // 新しい招待ユーザーを追加
-  FirestorePurchaseGroup addInvitation({
+  FirestoreSharedGroup addInvitation({
     required String email,
     String role = 'member',
   }) {
@@ -153,7 +153,7 @@ class FirestorePurchaseGroup {
   }
 
   // 招待ユーザーをUIDに変換し、メールアドレスを削除するメソッド
-  FirestorePurchaseGroup confirmInvitation({
+  FirestoreSharedGroup confirmInvitation({
     required String email,
     required String uid,
   }) {
@@ -180,7 +180,7 @@ class FirestorePurchaseGroup {
   }
   
   // 確定済み招待を削除（メールアドレス情報を削除）
-  FirestorePurchaseGroup cleanupConfirmedInvitations() {
+  FirestoreSharedGroup cleanupConfirmedInvitations() {
     final cleanedInvitedUsers = invitedUsers
         .where((invitedUser) => !invitedUser.isConfirmed)
         .toList();
@@ -189,7 +189,7 @@ class FirestorePurchaseGroup {
   }
 
   // ShoppingListをグループに追加
-  FirestorePurchaseGroup addShoppingList(String shoppingListId) {
+  FirestoreSharedGroup addShoppingList(String shoppingListId) {
     if (shoppingListIds.contains(shoppingListId)) {
       return this;
     }
@@ -200,7 +200,7 @@ class FirestorePurchaseGroup {
   }
 
   // ShoppingListをグループから削除
-  FirestorePurchaseGroup removeShoppingList(String shoppingListId) {
+  FirestoreSharedGroup removeShoppingList(String shoppingListId) {
     return copyWith(
       shoppingListIds: shoppingListIds.where((id) => id != shoppingListId).toList(),
     );

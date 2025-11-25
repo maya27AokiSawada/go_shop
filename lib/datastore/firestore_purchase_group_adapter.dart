@@ -1,5 +1,5 @@
 // lib/datastore/firestore_purchase_group_adapter.dart
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../datastore/purchase_group_repository.dart';
 import '../helpers/validation_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -7,18 +7,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:developer' as developer;
 
 /// FirestoreをHive互換インターフェースで使用するためのアダプター
-class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
+class FirestoreSharedGroupAdapter implements SharedGroupRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  FirestorePurchaseGroupAdapter();
+  FirestoreSharedGroupAdapter();
 
   CollectionReference get _groupsCollection =>
-      _firestore.collection('purchaseGroups');
+      _firestore.collection('SharedGroups');
 
   @override
-  Future<PurchaseGroup> addMember(
-      String groupId, PurchaseGroupMember member) async {
+  Future<SharedGroup> addMember(
+      String groupId, SharedGroupMember member) async {
     try {
       final groupDoc = await _groupsCollection.doc(groupId).get();
       if (!groupDoc.exists) {
@@ -57,8 +57,8 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
   }
 
   @override
-  Future<PurchaseGroup> removeMember(
-      String groupId, PurchaseGroupMember member) async {
+  Future<SharedGroup> removeMember(
+      String groupId, SharedGroupMember member) async {
     try {
       final groupDoc = await _groupsCollection.doc(groupId).get();
       if (!groupDoc.exists) {
@@ -85,7 +85,7 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
   }
 
   @override
-  Future<List<PurchaseGroup>> getAllGroups() async {
+  Future<List<SharedGroup>> getAllGroups() async {
     try {
       final currentUser = _auth.currentUser;
       if (currentUser == null) {
@@ -115,8 +115,8 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
   }
 
   @override
-  Future<PurchaseGroup> createGroup(
-      String groupId, String groupName, PurchaseGroupMember member) async {
+  Future<SharedGroup> createGroup(
+      String groupId, String groupName, SharedGroupMember member) async {
     try {
       final currentUser = _auth.currentUser;
 
@@ -128,7 +128,7 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
         throw Exception(validation.errorMessage);
       }
 
-      final newGroup = PurchaseGroup(
+      final newGroup = SharedGroup(
         groupId: groupId,
         groupName: groupName,
         ownerUid: currentUser?.uid ?? member.memberId,
@@ -157,13 +157,13 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
   }
 
   @override
-  Future<PurchaseGroup> deleteGroup(String groupId) async {
+  Future<SharedGroup> deleteGroup(String groupId) async {
     try {
       await _groupsCollection.doc(groupId).delete();
       developer.log('🗑️ Firestore: グループ削除: $groupId');
 
       // 削除したグループを返す（削除されたことを示すため）
-      return PurchaseGroup(
+      return SharedGroup(
         groupId: groupId,
         groupName: 'Deleted Group',
         ownerUid: '',
@@ -178,14 +178,14 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
   }
 
   @override
-  Future<PurchaseGroup> setMemberId(
+  Future<SharedGroup> setMemberId(
       String oldId, String newId, String? contact) async {
     // TODO: Firestore実装
     throw UnimplementedError('setMemberId not implemented for Firestore yet');
   }
 
   @override
-  Future<PurchaseGroup> getGroupById(String groupId) async {
+  Future<SharedGroup> getGroupById(String groupId) async {
     try {
       final doc = await _groupsCollection.doc(groupId).get();
       if (doc.exists) {
@@ -199,7 +199,7 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
   }
 
   @override
-  Future<PurchaseGroup> updateGroup(String groupId, PurchaseGroup group) async {
+  Future<SharedGroup> updateGroup(String groupId, SharedGroup group) async {
     try {
       await _groupsCollection.doc(groupId).update({
         'groupName': group.groupName,
@@ -218,9 +218,9 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
   }
 
   @override
-  Future<PurchaseGroup> getOrCreateMemberPool() async {
+  Future<SharedGroup> getOrCreateMemberPool() async {
     // TODO: Firestore対応
-    return PurchaseGroup(
+    return SharedGroup(
       groupId: 'memberPool',
       groupName: 'Member Pool',
       ownerUid: '',
@@ -237,32 +237,32 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
   }
 
   @override
-  Future<List<PurchaseGroupMember>> searchMembersInPool(String query) async {
+  Future<List<SharedGroupMember>> searchMembersInPool(String query) async {
     // TODO: Firestore対応
     return [];
   }
 
   @override
-  Future<PurchaseGroupMember?> findMemberByEmail(String email) async {
+  Future<SharedGroupMember?> findMemberByEmail(String email) async {
     // TODO: Firestore対応
     return null;
   }
 
   // ヘルパーメソッド
-  Future<PurchaseGroup> _createDefaultGroup() async {
+  Future<SharedGroup> _createDefaultGroup() async {
     final currentUser = _auth.currentUser;
     const groupId = 'default_group';
 
-    final defaultMember = PurchaseGroupMember(
+    final defaultMember = SharedGroupMember(
       memberId: currentUser?.uid ?? 'defaultUser',
       name: currentUser?.displayName ?? 'ユーザー',
       contact: currentUser?.email ?? '',
-      role: PurchaseGroupRole.owner,
+      role: SharedGroupRole.owner,
       invitedAt: DateTime.now(),
       acceptedAt: DateTime.now(),
     );
 
-    return PurchaseGroup(
+    return SharedGroup(
       groupId: groupId,
       groupName: 'あなたのグループ',
       ownerUid: currentUser?.uid ?? 'defaultUser',
@@ -272,13 +272,13 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
     );
   }
 
-  PurchaseGroup _docToGroup(DocumentSnapshot doc) {
+  SharedGroup _docToGroup(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return _mapToGroup(data).copyWith(groupId: doc.id);
   }
 
-  PurchaseGroup _mapToGroup(Map<String, dynamic> data) {
-    return PurchaseGroup(
+  SharedGroup _mapToGroup(Map<String, dynamic> data) {
+    return SharedGroup(
       groupId: data['groupId'] ?? '',
       groupName: data['groupName'] ?? '',
       ownerUid: data['ownerUid'] ?? '',
@@ -292,10 +292,10 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
     );
   }
 
-  List<PurchaseGroupMember> _parseMembers(List<dynamic> membersData) {
+  List<SharedGroupMember> _parseMembers(List<dynamic> membersData) {
     return membersData.map((memberData) {
       if (memberData is Map<String, dynamic>) {
-        return PurchaseGroupMember(
+        return SharedGroupMember(
           memberId: memberData['uid'] ?? memberData['memberId'] ?? '',
           name: memberData['displayName'] ?? memberData['name'] ?? '',
           contact: memberData['contact'] ?? '',
@@ -312,17 +312,17 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
                   : null),
         );
       }
-      return PurchaseGroupMember(
+      return SharedGroupMember(
         memberId: 'unknown_${DateTime.now().millisecondsSinceEpoch}',
         name: 'Unknown',
         contact: '',
-        role: PurchaseGroupRole.member,
+        role: SharedGroupRole.member,
         invitedAt: DateTime.now(),
       );
     }).toList();
   }
 
-  Map<String, dynamic> _memberToMap(PurchaseGroupMember member) {
+  Map<String, dynamic> _memberToMap(SharedGroupMember member) {
     final map = <String, dynamic>{
       'memberId': member.memberId,
       'name': member.name,
@@ -338,17 +338,17 @@ class FirestorePurchaseGroupAdapter implements PurchaseGroupRepository {
     return map;
   }
 
-  PurchaseGroupRole _parseRole(dynamic roleData) {
+  SharedGroupRole _parseRole(dynamic roleData) {
     if (roleData is String) {
       switch (roleData.toLowerCase()) {
         case 'owner':
-          return PurchaseGroupRole.owner;
+          return SharedGroupRole.owner;
         case 'member':
         default:
-          return PurchaseGroupRole.member;
+          return SharedGroupRole.member;
       }
     }
-    return PurchaseGroupRole.member;
+    return SharedGroupRole.member;
   }
 
   @override

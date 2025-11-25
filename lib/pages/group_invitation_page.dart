@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../services/qr_invitation_service.dart';
 
 class GroupInvitationPage extends ConsumerStatefulWidget {
-  final PurchaseGroup group;
+  final SharedGroup group;
 
   const GroupInvitationPage({
     super.key,
@@ -44,7 +44,7 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
       // とりあえず空文字を渡してビルドエラーを回避する。
       final invitationData = await qrService.createQRInvitationData(
         shoppingListId: '', // widget.group.shoppingListIds?.first ?? '',
-        purchaseGroupId: widget.group.groupId,
+        SharedGroupId: widget.group.groupId,
         groupName: widget.group.groupName,
         groupOwnerUid: widget.group.ownerUid ?? '',
         groupAllowedUids: widget.group.allowedUid,

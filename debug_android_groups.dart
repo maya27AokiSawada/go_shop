@@ -1,14 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'lib/models/purchase_group.dart';
+import 'lib/models/shared_group.dart';
 
 /// Androidでグループが表示されない問題を調査するスクリプト
 Future<void> main() async {
   await Hive.initFlutter();
-  Hive.registerAdapter(PurchaseGroupAdapter());
-  Hive.registerAdapter(PurchaseGroupMemberAdapter());
-  Hive.registerAdapter(PurchaseGroupRoleAdapter());
+  Hive.registerAdapter(SharedGroupAdapter());
+  Hive.registerAdapter(SharedGroupMemberAdapter());
+  Hive.registerAdapter(SharedGroupRoleAdapter());
 
   final auth = FirebaseAuth.instance;
   final firestore = FirebaseFirestore.instance;
@@ -20,7 +20,7 @@ Future<void> main() async {
 
   // 1. Hiveの内容確認
   print('--- Hive (ローカル) ---');
-  final hiveBox = await Hive.openBox<PurchaseGroup>('purchaseGroupBox');
+  final hiveBox = await Hive.openBox<SharedGroup>('SharedGroupBox');
   print('Hiveのグループ数: ${hiveBox.length}');
   for (var i = 0; i < hiveBox.length; i++) {
     final group = hiveBox.getAt(i);
@@ -35,7 +35,7 @@ Future<void> main() async {
   // 2. Firestoreの内容確認
   print('--- Firestore (リモート) ---');
   try {
-    final snapshot = await firestore.collection('purchaseGroups').get();
+    final snapshot = await firestore.collection('SharedGroups').get();
     print('Firestoreのグループ数: ${snapshot.docs.length}');
 
     for (var doc in snapshot.docs) {
@@ -58,7 +58,7 @@ Future<void> main() async {
     print('--- mayaのUIDでグループ検索 ---');
     try {
       final myGroups = await firestore
-          .collection('purchaseGroups')
+          .collection('SharedGroups')
           .where('allowedUid', arrayContains: currentUser.uid)
           .get();
 

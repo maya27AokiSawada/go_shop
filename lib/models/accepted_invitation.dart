@@ -15,7 +15,7 @@ class AcceptedInvitation with _$AcceptedInvitation {
     @HiveField(0) required String acceptorUid,        // 受諾者のUID
     @HiveField(1) required String acceptorEmail,      // 受諾者のメール
     @HiveField(2) required String acceptorName,       // 受諾者の表示名
-    @HiveField(3) required String purchaseGroupId,    // 対象PurchaseGroupのID
+    @HiveField(3) required String SharedGroupId,    // 対象SharedGroupのID
     @HiveField(4) required String shoppingListId,     // 対象ShoppingListのID
     @HiveField(5) required String inviteRole,         // 招待時のロール（member/manager）
     @HiveField(6) required DateTime acceptedAt,       // 受諾日時
@@ -34,7 +34,7 @@ class FirestoreAcceptedInvitation {
   final String acceptorUid;
   final String acceptorEmail;
   final String acceptorName;
-  final String purchaseGroupId;
+  final String SharedGroupId;
   final String shoppingListId;
   final String inviteRole;
   final DateTime acceptedAt;
@@ -47,7 +47,7 @@ class FirestoreAcceptedInvitation {
     required this.acceptorUid,
     required this.acceptorEmail,
     required this.acceptorName,
-    required this.purchaseGroupId,
+    required this.SharedGroupId,
     required this.shoppingListId,
     required this.inviteRole,
     required this.acceptedAt,
@@ -66,7 +66,7 @@ class FirestoreAcceptedInvitation {
       acceptorUid: data['acceptorUid'] as String,
       acceptorEmail: data['acceptorEmail'] as String,
       acceptorName: data['acceptorName'] as String,
-      purchaseGroupId: data['purchaseGroupId'] as String,
+      SharedGroupId: data['SharedGroupId'] as String,
       shoppingListId: data['shoppingListId'] as String,
       inviteRole: data['inviteRole'] as String,
       acceptedAt: (data['acceptedAt'] as Timestamp).toDate(),
@@ -84,7 +84,7 @@ class FirestoreAcceptedInvitation {
       'acceptorUid': acceptorUid,
       'acceptorEmail': acceptorEmail,
       'acceptorName': acceptorName,
-      'purchaseGroupId': purchaseGroupId,
+      'SharedGroupId': SharedGroupId,
       'shoppingListId': shoppingListId,
       'inviteRole': inviteRole,
       'acceptedAt': Timestamp.fromDate(acceptedAt),
@@ -101,7 +101,7 @@ class FirestoreAcceptedInvitation {
       acceptorUid: acceptorUid,
       acceptorEmail: acceptorEmail,
       acceptorName: acceptorName,
-      purchaseGroupId: purchaseGroupId,
+      SharedGroupId: SharedGroupId,
       shoppingListId: shoppingListId,
       inviteRole: inviteRole,
       acceptedAt: acceptedAt,

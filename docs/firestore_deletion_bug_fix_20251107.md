@@ -24,9 +24,9 @@ Firestore環境でグループ削除を実行した際、Hive（ローカルDB�
 **Firestoreコレクションパスの不整合**
 
 - **同期処理（正しいパス）**: `users/{uid}/groups/{groupId}`
-- **削除処理（誤ったパス）**: `purchaseGroups/{groupId}` ← ルートレベルコレクション
+- **削除処理（誤ったパス）**: `SharedGroups/{groupId}` ← ルートレベルコレクション
 
-`firestore_purchase_group_repository.dart` の `_groupsCollection` が固定でルートレベルの `purchaseGroups` コレクションを参照していたため、実際にデータが存在する `users/{uid}/groups` とは異なる場所を参照していた。
+`firestore_purchase_group_repository.dart` の `_groupsCollection` が固定でルートレベルの `SharedGroups` コレクションを参照していたため、実際にデータが存在する `users/{uid}/groups` とは異なる場所を参照していた。
 
 ### 現象からの推理プロセス
 
@@ -43,7 +43,7 @@ Firestore環境でグループ削除を実行した際、Hive（ローカルDB�
 ### 修正前
 ```dart
 CollectionReference get _groupsCollection =>
-    _firestore.collection('purchaseGroups');
+    _firestore.collection('SharedGroups');
 ```
 
 ### 修正後

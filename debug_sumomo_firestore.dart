@@ -31,7 +31,7 @@ void main() async {
   print('\n=== 2. allowedUidでグループ検索 ===');
   try {
     final groupsSnapshot = await firestore
-        .collection('purchaseGroups')
+        .collection('SharedGroups')
         .where('allowedUid', arrayContains: sumomoUid)
         .get();
 
@@ -52,7 +52,7 @@ void main() async {
   print('\n=== 3. デフォルトグループ(groupId=UID)確認 ===');
   try {
     final defaultGroupDoc =
-        await firestore.collection('purchaseGroups').doc(sumomoUid).get();
+        await firestore.collection('SharedGroups').doc(sumomoUid).get();
 
     if (defaultGroupDoc.exists) {
       print('✅ デフォルトグループ存在');
@@ -61,7 +61,7 @@ void main() async {
       // ShoppingListsも確認
       print('\n=== 4. ShoppingLists確認 ===');
       final listsSnapshot = await firestore
-          .collection('purchaseGroups')
+          .collection('SharedGroups')
           .doc(sumomoUid)
           .collection('shoppingLists')
           .get();

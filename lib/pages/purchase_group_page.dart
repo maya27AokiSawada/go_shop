@@ -8,14 +8,14 @@ import '../providers/auth_provider.dart';
 import '../widgets/group_list_widget.dart';
 import '../widgets/group_creation_with_copy_dialog.dart';
 
-class PurchaseGroupPage extends ConsumerStatefulWidget {
-  const PurchaseGroupPage({super.key});
+class SharedGroupPage extends ConsumerStatefulWidget {
+  const SharedGroupPage({super.key});
 
   @override
-  ConsumerState<PurchaseGroupPage> createState() => _PurchaseGroupPageState();
+  ConsumerState<SharedGroupPage> createState() => _SharedGroupPageState();
 }
 
-class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
+class _SharedGroupPageState extends ConsumerState<SharedGroupPage> {
   @override
   Widget build(BuildContext context) {
     final selectedGroupId = ref.watch(selectedGroupIdProvider);
@@ -49,7 +49,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
       );
     }
 
-    Log.info('🏷️ [PAGE BUILD] PurchaseGroupPage表示開始');
+    Log.info('🏷️ [PAGE BUILD] SharedGroupPage表示開始');
 
     return Stack(
       children: [
@@ -123,7 +123,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
             onPressed: () async {
               try {
                 await ref
-                    .read(purchaseGroupRepositoryProvider)
+                    .read(SharedGroupRepositoryProvider)
                     .deleteGroup(groupId);
                 ref.invalidate(allGroupsProvider);
 
@@ -164,7 +164,7 @@ class _PurchaseGroupPageState extends ConsumerState<PurchaseGroupPage> {
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
             onPressed: () async {
               try {
-                final repository = ref.read(purchaseGroupRepositoryProvider);
+                final repository = ref.read(SharedGroupRepositoryProvider);
                 final deletedCount = await repository.cleanupDeletedGroups();
 
                 Navigator.pop(context);

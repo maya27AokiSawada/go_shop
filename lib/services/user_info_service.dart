@@ -1,7 +1,7 @@
 // lib/services/user_info_service.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../utils/app_logger.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../models/shopping_list.dart';
 import '../providers/auth_provider.dart';
 import '../providers/purchase_group_provider.dart';
@@ -171,35 +171,35 @@ class UserInfoService {
     final groupId = currentUser?.uid ?? 'local_default';
 
     // 既存のデフォルトグループを取得
-    PurchaseGroup? existingGroup;
+    SharedGroup? existingGroup;
     try {
       existingGroup = _ref.read(selectedGroupProvider).value;
     } catch (e) {
       existingGroup = null;
     }
 
-    PurchaseGroup defaultGroup;
+    SharedGroup defaultGroup;
 
     if (existingGroup != null) {
       Log.info('📋 既存グループを更新: $userName');
 
       // 新しいサインインユーザーを必ずオーナーにする
-      final updatedMembers = <PurchaseGroupMember>[];
+      final updatedMembers = <SharedGroupMember>[];
 
       // 既存のメンバーから非オーナーのみを保持
       for (var member in (existingGroup.members ?? [])) {
-        if (member.role != PurchaseGroupRole.owner) {
+        if (member.role != SharedGroupRole.owner) {
           updatedMembers.add(member);
           Log.info('  - 非オーナーメンバーを保持: ${member.name} (${member.role})');
         }
       }
 
       // 新しいオーナーを追加
-      updatedMembers.add(PurchaseGroupMember(
+      updatedMembers.add(SharedGroupMember(
         memberId: 'defaultUser',
         name: userName,
         contact: userEmail,
-        role: PurchaseGroupRole.owner,
+        role: SharedGroupRole.owner,
         invitationStatus: InvitationStatus.self,
         isSignedIn: true,
       ));
@@ -215,15 +215,15 @@ class UserInfoService {
       Log.info('📋 新しいデフォルトグループを作成');
 
       // 新しいデフォルトグループを作成
-      defaultGroup = PurchaseGroup(
+      defaultGroup = SharedGroup(
         groupId: groupId,
         groupName: 'あなたのグループ',
         members: [
-          PurchaseGroupMember(
+          SharedGroupMember(
             memberId: 'defaultUser',
             name: userName,
             contact: userEmail,
-            role: PurchaseGroupRole.owner,
+            role: SharedGroupRole.owner,
             invitationStatus: InvitationStatus.self,
             isSignedIn: true,
           )

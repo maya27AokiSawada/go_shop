@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../utils/app_logger.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../providers/purchase_group_provider.dart';
 
 import '../providers/user_name_provider.dart';
@@ -174,14 +174,14 @@ class _SignupProcessingWidgetState extends ConsumerState<SignupProcessingWidget>
   }
 
   /// STEP2: ローカルデフォルトグループの検出
-  Future<PurchaseGroup?> _detectLocalDefaultGroup() async {
+  Future<SharedGroup?> _detectLocalDefaultGroup() async {
     setState(() {
       _currentStep = 'ローカルデータを確認中...';
     });
 
     try {
-      final repository = ref.read(purchaseGroupRepositoryProvider);
-      if (repository is HybridPurchaseGroupRepository) {
+      final repository = ref.read(SharedGroupRepositoryProvider);
+      if (repository is HybridSharedGroupRepository) {
         final allGroups = await repository.getLocalGroups();
         final localDefaultGroup =
             allGroups.where((g) => g.groupId == 'default_group').firstOrNull;
@@ -213,7 +213,7 @@ class _SignupProcessingWidgetState extends ConsumerState<SignupProcessingWidget>
     });
 
     final user = widget.user;
-    final repository = ref.read(purchaseGroupRepositoryProvider);
+    final repository = ref.read(SharedGroupRepositoryProvider);
     final newGroupId = 'default_${user.uid}';
 
     // 既存チェック
@@ -228,11 +228,11 @@ class _SignupProcessingWidgetState extends ConsumerState<SignupProcessingWidget>
     }
 
     // オーナーメンバーを作成
-    final ownerMember = PurchaseGroupMember.create(
+    final ownerMember = SharedGroupMember.create(
       memberId: user.uid,
       name: user.displayName ?? 'ユーザー',
       contact: user.email ?? '',
-      role: PurchaseGroupRole.owner,
+      role: SharedGroupRole.owner,
     );
 
     // デフォルトグループを作成
@@ -244,7 +244,7 @@ class _SignupProcessingWidgetState extends ConsumerState<SignupProcessingWidget>
 
   /// STEP4: ローカルデータの移行
   Future<void> _migrateLocalData(
-    PurchaseGroup localDefaultGroup,
+    SharedGroup localDefaultGroup,
     String newGroupId,
   ) async {
     setState(() {
@@ -252,12 +252,12 @@ class _SignupProcessingWidgetState extends ConsumerState<SignupProcessingWidget>
     });
 
     final user = widget.user;
-    final repository = ref.read(purchaseGroupRepositoryProvider);
+    final repository = ref.read(SharedGroupRepositoryProvider);
 
     // メンバーの移行（オーナーのuidをFirebase UIDに変更）
-    final migratedMembers = <PurchaseGroupMember>[];
+    final migratedMembers = <SharedGroupMember>[];
     for (final member in localDefaultGroup.members ?? []) {
-      if (member.role == PurchaseGroupRole.owner) {
+      if (member.role == SharedGroupRole.owner) {
         // オーナーのmemberIdをFirebase UIDに変更
         final updatedOwner = member.copyWith(
           memberId: user.uid,
@@ -287,7 +287,7 @@ class _SignupProcessingWidgetState extends ConsumerState<SignupProcessingWidget>
     try {
       final defaultGroup = await repository.getGroupById('default_group');
       final updatedMembers = (defaultGroup.members ?? []).map((member) {
-        if (member.role == PurchaseGroupRole.owner) {
+        if (member.role == SharedGroupRole.owner) {
           return member.copyWith(memberId: user.uid);
         }
         return member;

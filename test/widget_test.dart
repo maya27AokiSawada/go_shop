@@ -6,7 +6,7 @@
 // tree, read text, and verify that the values of widget properties are correct.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_shop/models/purchase_group.dart';
+import 'package:go_shop/models/shared_group.dart';
 
 void main() {
   group('Go Shop Data Structure Tests', () {
@@ -18,12 +18,12 @@ void main() {
       expect(InvitationStatus.values, contains(InvitationStatus.deleted));
     });
 
-    test('PurchaseGroupMember can be created with new fields', () {
-      final member = PurchaseGroupMember(
+    test('SharedGroupMember can be created with new fields', () {
+      final member = SharedGroupMember(
         memberId: 'test-id',
         name: 'Test User',
         contact: 'test@example.com',
-        role: PurchaseGroupRole.member,
+        role: SharedGroupRole.member,
         invitationStatus: InvitationStatus.pending,
         securityKey: 'test-security-key',
         invitedAt: DateTime.now(),
@@ -32,18 +32,18 @@ void main() {
       expect(member.memberId, 'test-id');
       expect(member.name, 'Test User');
       expect(member.contact, 'test@example.com');
-      expect(member.role, PurchaseGroupRole.member);
+      expect(member.role, SharedGroupRole.member);
       expect(member.invitationStatus, InvitationStatus.pending);
       expect(member.securityKey, 'test-security-key');
       expect(member.invitedAt, isNotNull);
     });
 
-    test('PurchaseGroupMember maintains backward compatibility', () {
-      const member = PurchaseGroupMember(
+    test('SharedGroupMember maintains backward compatibility', () {
+      const member = SharedGroupMember(
         memberId: 'test-id',
         name: 'Test User',
         contact: 'test@example.com',
-        role: PurchaseGroupRole.member,
+        role: SharedGroupRole.member,
         invitationStatus: InvitationStatus.accepted,
       );
 
@@ -56,19 +56,19 @@ void main() {
     });
 
     test('InvitationStatus helper methods work correctly', () {
-      const pendingMember = PurchaseGroupMember(
+      const pendingMember = SharedGroupMember(
         memberId: 'pending-id',
         name: 'Pending User',
         contact: 'pending@example.com',
-        role: PurchaseGroupRole.member,
+        role: SharedGroupRole.member,
         invitationStatus: InvitationStatus.pending,
       );
 
-      const selfMember = PurchaseGroupMember(
+      const selfMember = SharedGroupMember(
         memberId: 'self-id',
         name: 'Self User',
         contact: 'self@example.com',
-        role: PurchaseGroupRole.owner,
+        role: SharedGroupRole.owner,
         invitationStatus: InvitationStatus.self,
       );
 
@@ -83,16 +83,16 @@ void main() {
       expect(selfMember.isSelf, true);
     });
 
-    test('PurchaseGroup can be created with security features', () {
-      const member = PurchaseGroupMember(
+    test('SharedGroup can be created with security features', () {
+      const member = SharedGroupMember(
         memberId: 'owner-id',
         name: 'Owner',
         contact: 'owner@example.com',
-        role: PurchaseGroupRole.owner,
+        role: SharedGroupRole.owner,
         invitationStatus: InvitationStatus.self,
       );
 
-      const group = PurchaseGroup(
+      const group = SharedGroup(
         groupName: 'Test Group',
         groupId: 'test-group-123',
         ownerName: 'Owner Name',
