@@ -25,13 +25,16 @@ class ShoppingItemAdapter extends TypeAdapter<ShoppingItem> {
       isPurchased: fields[5] as bool,
       shoppingInterval: fields[6] as int,
       deadline: fields[7] as DateTime?,
+      itemId: fields[8] as String,
+      isDeleted: fields[9] as bool,
+      deletedAt: fields[10] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, ShoppingItem obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.memberId)
       ..writeByte(1)
@@ -47,7 +50,13 @@ class ShoppingItemAdapter extends TypeAdapter<ShoppingItem> {
       ..writeByte(6)
       ..write(obj.shoppingInterval)
       ..writeByte(7)
-      ..write(obj.deadline);
+      ..write(obj.deadline)
+      ..writeByte(8)
+      ..write(obj.itemId)
+      ..writeByte(9)
+      ..write(obj.isDeleted)
+      ..writeByte(10)
+      ..write(obj.deletedAt);
   }
 
   @override
@@ -75,7 +84,7 @@ class ShoppingListAdapter extends TypeAdapter<ShoppingList> {
       ownerUid: fields[0] as String,
       groupId: fields[1] as String,
       groupName: fields[2] as String,
-      items: (fields[3] as List).cast<ShoppingItem>(),
+      items: (fields[3] as Map).cast<String, ShoppingItem>(),
       listId: fields[4] as String,
       listName: fields[5] as String,
       description: fields[6] as String,

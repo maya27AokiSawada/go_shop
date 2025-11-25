@@ -622,6 +622,11 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
           final repository = ref.read(SharedGroupRepositoryProvider);
           await repository.updateGroup(newGroup.groupId, newGroup);
           Log.info('✅ [CREATE GROUP] Firestore同期完了');
+
+          // 🆕 Firestoreプラグインの内部処理が完全に完了するまで追加待機
+          // Windowsプラグインのスレッド問題対策
+          await Future.delayed(const Duration(milliseconds: 300));
+          Log.info('✅ [CREATE GROUP] Firestore内部処理完了待機完了');
         } catch (e) {
           Log.error('❌ [CREATE GROUP] Firestore同期エラー: $e');
           // エラーでも続行（ローカルには保存済み）
@@ -762,10 +767,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
 
             // Firestoreに保存
             final firestore = FirebaseFirestore.instance;
-            await firestore
-                .collection('SharedGroups')
-                .doc(defaultGroupId)
-                .set({
+            await firestore.collection('SharedGroups').doc(defaultGroupId).set({
               'groupId': syncedGroup.groupId,
               'groupName': syncedGroup.groupName,
               'ownerUid': user.uid,

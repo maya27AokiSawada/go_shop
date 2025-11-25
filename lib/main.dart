@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:hive/hive.dart';
 import 'firebase_options.dart';
 import 'screens/home_screen.dart';
 // QRコード招待機能
@@ -13,6 +14,8 @@ import 'services/hive_lock_cleaner.dart';
 import 'services/user_specific_hive_service.dart';
 import 'widgets/app_initialize_widget.dart';
 import 'flavors.dart';
+// 🔥 後方互換性のためカスタムアダプター
+import 'adapters/shopping_item_adapter_override.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -62,6 +65,12 @@ void main() async {
 
   // ホットリスタート対応：既存のHiveロックファイルをクリア
   await HiveLockCleaner.clearOneDriveLocks();
+
+  // 🔥 後方互換性のためカスタムアダプター登録
+  if (!Hive.isAdapterRegistered(3)) {
+    Hive.registerAdapter(ShoppingItemAdapterOverride());
+    print('✅ ShoppingItemAdapterOverride registered (backward compatible)');
+  }
 
   // グローバルHiveアダプター登録のみ実行（Box開封はUserSpecificHiveServiceに委任）
   await UserSpecificHiveService.initializeAdapters();

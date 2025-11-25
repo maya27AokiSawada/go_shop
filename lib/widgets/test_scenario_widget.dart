@@ -352,7 +352,7 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
       var currentList = testList;
       for (final item in testItems) {
         currentList = currentList.copyWith(
-          items: [...currentList.items, item],
+          items: {...currentList.items, item.itemId: item},
         );
       }
 
@@ -364,7 +364,8 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
       final savedList = await repository.getShoppingListById(testList.listId);
       if (savedList != null) {
         _log('✅ リスト再取得成功: ${savedList.items.length}件のアイテム');
-        for (final item in savedList.items) {
+        for (final entry in savedList.items.entries) {
+          final item = entry.value;
           _log('   - ${item.name} x${item.quantity} (登録者: ${item.memberId})');
         }
         currentList = savedList; // 最新の状態に更新
@@ -374,15 +375,18 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
 
       // 5. アイテム購入状態更新テスト
       _log('5️⃣ アイテム購入状態更新テスト');
-      final updatedItems = currentList.items.map((item) {
+      final updatedItems = currentList.items.map((itemId, item) {
         if (item.name == 'テスト商品2') {
-          return item.copyWith(
-            isPurchased: true,
-            purchaseDate: DateTime.now(),
+          return MapEntry(
+            itemId,
+            item.copyWith(
+              isPurchased: true,
+              purchaseDate: DateTime.now(),
+            ),
           );
         }
-        return item;
-      }).toList();
+        return MapEntry(itemId, item);
+      });
 
       currentList = currentList.copyWith(items: updatedItems);
       await repository.updateShoppingList(currentList);
@@ -390,8 +394,10 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
 
       // 6. アイテム削除テスト
       _log('6️⃣ アイテム削除テスト');
-      final filteredItems =
-          currentList.items.where((item) => item.name != 'テスト商品1').toList();
+      final filteredItems = Map.fromEntries(
+        currentList.items.entries
+            .where((entry) => entry.value.name != 'テスト商品1'),
+      );
 
       currentList = currentList.copyWith(items: filteredItems);
       await repository.updateShoppingList(currentList);

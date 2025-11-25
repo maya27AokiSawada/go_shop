@@ -6,6 +6,8 @@ import '../providers/app_mode_notifier_provider.dart';
 import '../services/user_preferences_service.dart';
 import '../services/user_initialization_service.dart';
 import '../services/access_control_service.dart';
+import '../services/list_cleanup_service.dart';
+import '../services/shopping_list_data_migration_service.dart';
 import '../datastore/user_settings_repository.dart';
 import '../widgets/test_scenario_widget.dart';
 import '../debug/fix_maya_group.dart';
@@ -577,6 +579,123 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     ),
                   ),
                   const SizedBox(height: 20),
+
+                  // 🆕 データメンテナンス
+                  Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.cleaning_services,
+                                  color: Colors.blue.shade700),
+                              const SizedBox(width: 8),
+                              Text(
+                                'データメンテナンス',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue.shade700,
+                                    ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            '削除済みアイテムのクリーンアップ',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '30日以上経過した削除済みアイテムを完全削除します',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: Colors.grey.shade600),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () async {
+                                await _performCleanup();
+                              },
+                              icon: const Icon(Icons.delete_sweep, size: 18),
+                              label: const Text('クリーンアップ実行'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue.shade100,
+                                foregroundColor: Colors.blue.shade800,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 12),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          const Divider(),
+                          const SizedBox(height: 20),
+                          // 🆕 データ移行
+                          Text(
+                            'データ形式移行（開発者向け）',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '配列形式 → Map形式への移行（通常は自動実行）',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: Colors.grey.shade600),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: () async {
+                                    await _checkMigrationStatus();
+                                  },
+                                  icon:
+                                      const Icon(Icons.info_outline, size: 16),
+                                  label: const Text('状況確認'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.grey.shade200,
+                                    foregroundColor: Colors.grey.shade800,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 10),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: () async {
+                                    await _performMigration();
+                                  },
+                                  icon: const Icon(Icons.sync, size: 16),
+                                  label: const Text('移行実行'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.orange.shade100,
+                                    foregroundColor: Colors.orange.shade800,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 10),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
                 ],
 
                 // 設定ページのコンテンツをここに追加予定
@@ -649,5 +768,362 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         ),
       ), // authState.when閉じ
     ); // SafeArea閉じ
+  }
+
+  /// クリーンアップ実行メソッド
+  Future<void> _performCleanup() async {
+    try {
+      // 確認ダイアログ表示
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.cleaning_services, color: Colors.blue),
+              SizedBox(width: 8),
+              Text('クリーンアップ確認'),
+            ],
+          ),
+          content: const Text(
+            '30日以上経過した削除済みアイテムを完全削除します。\nこの操作は取り消せません。\n\n実行しますか？',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('キャンセル'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('実行'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirm != true) return;
+
+      // ローディング表示
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('クリーンアップ中...'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // クリーンアップ実行
+      final cleanupService = ref.read(listCleanupServiceProvider);
+      final cleanedCount = await cleanupService.cleanupAllLists(
+        olderThanDays: 30,
+        forceCleanup: false, // needsCleanup判定あり
+      );
+
+      // ローディング閉じる
+      if (!mounted) return;
+      Navigator.of(context).pop();
+
+      // 結果表示
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(
+                cleanedCount > 0 ? Icons.check_circle : Icons.info,
+                color: cleanedCount > 0 ? Colors.green : Colors.blue,
+              ),
+              const SizedBox(width: 8),
+              const Text('クリーンアップ完了'),
+            ],
+          ),
+          content: Text(
+            cleanedCount > 0
+                ? '$cleanedCount個のアイテムを削除しました'
+                : 'クリーンアップ対象のアイテムはありませんでした',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      AppLogger.error('クリーンアップエラー', e);
+
+      // エラー時もローディングを閉じる
+      if (mounted) Navigator.of(context).pop();
+
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.error, color: Colors.red),
+              SizedBox(width: 8),
+              Text('エラー'),
+            ],
+          ),
+          content: Text('クリーンアップ中にエラーが発生しました\n\n$e'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  /// 移行状況確認メソッド
+  Future<void> _checkMigrationStatus() async {
+    try {
+      // ローディング表示
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('確認中...'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final migrationService =
+          ref.read(shoppingListDataMigrationServiceProvider);
+      final status = await migrationService.checkMigrationStatus();
+
+      // ローディング閉じる
+      if (!mounted) return;
+      Navigator.of(context).pop();
+
+      // 結果表示
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.info, color: Colors.blue),
+              SizedBox(width: 8),
+              Text('移行状況'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('総リスト数: ${status['total']}'),
+              const SizedBox(height: 8),
+              Text('移行済み: ${status['migrated']}',
+                  style: const TextStyle(color: Colors.green)),
+              Text('未移行: ${status['remaining']}',
+                  style: TextStyle(
+                      color: status['remaining']! > 0
+                          ? Colors.orange
+                          : Colors.grey)),
+              const SizedBox(height: 12),
+              Text(
+                status['remaining']! > 0
+                    ? '「移行実行」ボタンで移行してください'
+                    : '全てのリストが移行済みです',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      AppLogger.error('移行状況確認エラー', e);
+
+      if (mounted) Navigator.of(context).pop();
+
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.error, color: Colors.red),
+              SizedBox(width: 8),
+              Text('エラー'),
+            ],
+          ),
+          content: Text('移行状況確認中にエラーが発生しました\n\n$e'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  /// データ移行実行メソッド
+  Future<void> _performMigration() async {
+    try {
+      // 確認ダイアログ表示
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.warning, color: Colors.orange),
+              SizedBox(width: 8),
+              Text('データ移行確認'),
+            ],
+          ),
+          content: const Text(
+            'データ形式を配列からMapに移行します。\n\nFirestoreにバックアップを作成してから実行しますが、念のためデータのエクスポートをお勧めします。\n\n実行しますか？',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('キャンセル'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('実行'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirm != true) return;
+
+      // ローディング表示
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('移行中...'),
+                  SizedBox(height: 8),
+                  Text(
+                    'バックアップ作成 → データ変換 → 保存',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // 移行実行
+      final migrationService =
+          ref.read(shoppingListDataMigrationServiceProvider);
+      final migratedCount = await migrationService.migrateAllData();
+
+      // ローディング閉じる
+      if (!mounted) return;
+      Navigator.of(context).pop();
+
+      // 結果表示
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(
+                migratedCount > 0 ? Icons.check_circle : Icons.info,
+                color: migratedCount > 0 ? Colors.green : Colors.blue,
+              ),
+              const SizedBox(width: 8),
+              const Text('移行完了'),
+            ],
+          ),
+          content: Text(
+            migratedCount > 0
+                ? '$migratedCount個のリストを移行しました\n\nバックアップはFirestoreの\nusers/[uid]/backups に保存されています'
+                : '移行対象のリストはありませんでした',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      AppLogger.error('データ移行エラー', e);
+
+      if (mounted) Navigator.of(context).pop();
+
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.error, color: Colors.red),
+              SizedBox(width: 8),
+              Text('エラー'),
+            ],
+          ),
+          content: Text('データ移行中にエラーが発生しました\n\n$e'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 }

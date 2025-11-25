@@ -14,6 +14,7 @@ import '../datastore/firestore_purchase_group_repository.dart'; // Repository型
 import '../flavors.dart';
 import 'notification_service.dart';
 import 'list_notification_batch_service.dart';
+import 'list_cleanup_service.dart';
 import 'sync_service.dart';
 import 'user_preferences_service.dart';
 import '../utils/error_handler.dart';
@@ -265,6 +266,9 @@ class UserInitializationService {
       // STEP4: プロバイダーを更新（userNameProviderはホーム画面表示時まで遅延）
       _ref.invalidate(allGroupsProvider);
       Log.info('✅ [INIT] ユーザー状態初期化完了');
+
+      // STEP5: 🆕 バックグラウンドでクリーンアップ実行
+      _performBackgroundCleanup();
     } catch (e) {
       Log.error('❌ [INIT] ユーザー状態初期化エラー: $e');
       // エラーが発生した場合はAllGroupsProviderに委ねる（自動でデフォルトグループが作成される）
@@ -532,9 +536,9 @@ class UserInitializationService {
 
       // SharedGroupsルートコレクションからallowedUidでフィルタ
       final SharedGroupsRef = firestore.collection('SharedGroups');
-      final snapshot = await SharedGroupsRef
-          .where('allowedUid', arrayContains: user.uid)
-          .get();
+      final snapshot =
+          await SharedGroupsRef.where('allowedUid', arrayContains: user.uid)
+              .get();
 
       Log.info('📊 [SYNC] Firestoreクエリ完了: ${snapshot.docs.length}個のグループ');
 
@@ -740,5 +744,30 @@ class UserInitializationService {
     } catch (e) {
       Log.error('❌ [SYNC] Firestore→Hive同期エラー: $e');
     }
+  }
+
+  /// 🆕 バックグラウンドでクリーンアップを実行
+  /// アプリ起動時に1回だけ実行し、古い削除済みアイテムを物理削除
+  void _performBackgroundCleanup() {
+    // バックグラウンドで非同期実行（アプリ起動をブロックしない）
+    Future.delayed(const Duration(seconds: 5), () async {
+      try {
+        Log.info('🧹 [CLEANUP] バックグラウンドクリーンアップ開始');
+        final cleanupService = _ref.read(listCleanupServiceProvider);
+        final cleanedCount = await cleanupService.cleanupAllLists(
+          olderThanDays: 30,
+          forceCleanup: false, // needsCleanup判定あり（10個以上のみ）
+        );
+
+        if (cleanedCount > 0) {
+          Log.info('✅ [CLEANUP] バックグラウンドクリーンアップ完了: $cleanedCount個削除');
+        } else {
+          Log.info('ℹ️ [CLEANUP] クリーンアップ対象なし');
+        }
+      } catch (e) {
+        Log.warning('⚠️ [CLEANUP] バックグラウンドクリーンアップエラー: $e');
+        // エラーでもアプリ動作には影響しない
+      }
+    });
   }
 }

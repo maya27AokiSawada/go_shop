@@ -701,8 +701,201 @@ class HybridShoppingListRepository implements ShoppingListRepository {
   }
 
   // === Realtime Sync Methods ===
+  // =================================================================
+  // 🆕 Map-based Differential Sync Methods
+  // =================================================================
+
   @override
-  Stream<ShoppingList?> watchShoppingList(String groupId, String listId) {
+  Future<void> addSingleItem(String listId, ShoppingItem item) async {
+    try {
+      // 1. Hive: まずローカルに追加（楽観的更新）
+      final hiveList = await _hiveRepo.getShoppingListById(listId);
+      if (hiveList == null) {
+        throw Exception('List not found: $listId');
+      }
+
+      // Map形式に対応: itemId をキーとして追加
+      final updatedItems = Map<String, ShoppingItem>.from(hiveList.items);
+      updatedItems[item.itemId] = item;
+
+      final updatedList = hiveList.copyWith(
+        items: updatedItems,
+        updatedAt: DateTime.now(),
+      );
+
+      await _hiveRepo.updateShoppingList(updatedList);
+      developer.log('✅ [HYBRID_DIFF] Hive: Item added (${item.name})');
+
+      // 2. Firestore: バックグラウンドで差分同期
+      if (F.appFlavor == Flavor.dev || !_isOnline) return;
+
+      _syncSingleItemToFirestore(
+          listId, item, _ShoppingListSyncOperationType.createItem);
+    } catch (e, stackTrace) {
+      developer.log('❌ [HYBRID_DIFF] addSingleItem error: $e');
+      developer.log('📄 StackTrace: $stackTrace');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> removeSingleItem(String listId, String itemId) async {
+    try {
+      // 論理削除: isDeleted = true に設定
+      final hiveList = await _hiveRepo.getShoppingListById(listId);
+      if (hiveList == null) return;
+
+      final item = hiveList.items[itemId];
+      if (item == null) {
+        developer.log('⚠️ [HYBRID_DIFF] Item not found: $itemId');
+        return;
+      }
+
+      // isDeleted = true, deletedAt = now
+      final deletedItem = item.copyWith(
+        isDeleted: true,
+        deletedAt: DateTime.now(),
+      );
+
+      final updatedItems = Map<String, ShoppingItem>.from(hiveList.items);
+      updatedItems[itemId] = deletedItem;
+
+      final updatedList = hiveList.copyWith(
+        items: updatedItems,
+        updatedAt: DateTime.now(),
+      );
+
+      await _hiveRepo.updateShoppingList(updatedList);
+      developer
+          .log('✅ [HYBRID_DIFF] Hive: Item logically deleted (${item.name})');
+
+      // Firestore同期
+      if (F.appFlavor == Flavor.dev || !_isOnline) return;
+
+      _syncSingleItemToFirestore(
+        listId,
+        deletedItem,
+        _ShoppingListSyncOperationType.deleteItem,
+      );
+    } catch (e) {
+      developer.log('❌ [HYBRID_DIFF] removeSingleItem error: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> updateSingleItem(String listId, ShoppingItem item) async {
+    try {
+      final hiveList = await _hiveRepo.getShoppingListById(listId);
+      if (hiveList == null) return;
+
+      final updatedItems = Map<String, ShoppingItem>.from(hiveList.items);
+      updatedItems[item.itemId] = item;
+
+      final updatedList = hiveList.copyWith(
+        items: updatedItems,
+        updatedAt: DateTime.now(),
+      );
+
+      await _hiveRepo.updateShoppingList(updatedList);
+      developer.log('✅ [HYBRID_DIFF] Hive: Item updated (${item.name})');
+
+      if (F.appFlavor == Flavor.dev || !_isOnline) return;
+
+      _syncSingleItemToFirestore(
+        listId,
+        item,
+        _ShoppingListSyncOperationType.updateItem,
+      );
+    } catch (e) {
+      developer.log('❌ [HYBRID_DIFF] updateSingleItem error: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> cleanupDeletedItems(String listId,
+      {int olderThanDays = 30}) async {
+    try {
+      final list = await _hiveRepo.getShoppingListById(listId);
+      if (list == null) return;
+
+      final cutoffDate = DateTime.now().subtract(Duration(days: olderThanDays));
+
+      // 削除から指定日数以上経過したアイテムを物理削除
+      final cleanedItems = Map<String, ShoppingItem>.fromEntries(
+        list.items.entries.where((entry) {
+          final item = entry.value;
+          if (!item.isDeleted) return true; // アクティブアイテムは残す
+          if (item.deletedAt == null) return true; // 削除日不明は念のため残す
+          return item.deletedAt!.isAfter(cutoffDate); // カットオフ日より新しいものは残す
+        }),
+      );
+
+      final removedCount = list.items.length - cleanedItems.length;
+      if (removedCount == 0) {
+        developer.log('🧹 [HYBRID_CLEANUP] No items to cleanup');
+        return;
+      }
+
+      final cleanedList = list.copyWith(
+        items: cleanedItems,
+        updatedAt: DateTime.now(),
+      );
+
+      await _hiveRepo.updateShoppingList(cleanedList);
+      developer
+          .log('🧹 [HYBRID_CLEANUP] Removed $removedCount items from Hive');
+
+      // Firestore同期
+      if (F.appFlavor == Flavor.dev || !_isOnline) return;
+
+      // バックグラウンド同期（エラーは無視）
+      _firestoreRepo?.updateShoppingList(cleanedList).then((_) {
+        developer.log('🧹 [HYBRID_CLEANUP] Firestore synced');
+      }).catchError((e) {
+        developer.log('⚠️ [HYBRID_CLEANUP] Firestore sync failed: $e');
+      });
+    } catch (e) {
+      developer.log('❌ [HYBRID_CLEANUP] cleanupDeletedItems error: $e');
+      rethrow;
+    }
+  }
+
+  /// 単一アイテムをFirestoreに同期（バックグラウンド）
+  void _syncSingleItemToFirestore(
+    String listId,
+    ShoppingItem item,
+    _ShoppingListSyncOperationType operationType,
+  ) {
+    // バックグラウンドで非同期処理
+    _hiveRepo.getShoppingListById(listId).then((list) {
+      if (list != null && _firestoreRepo != null) {
+        _firestoreRepo!.updateShoppingList(list).then((_) {
+          developer.log('🔄 [HYBRID_DIFF] Firestore synced: $operationType');
+        }).catchError((e) {
+          developer.log('⚠️ [HYBRID_DIFF] Firestore sync failed: $e');
+          // 失敗時は同期キューに追加
+          _addToSyncQueue(_ShoppingListSyncOperation(
+            type: operationType,
+            listId: listId,
+            data: item,
+            timestamp: DateTime.now(),
+          ));
+        });
+      }
+    }).catchError((e) {
+      developer.log('❌ [HYBRID_DIFF] Failed to get list from Hive: $e');
+    });
+  }
+
+  // =================================================================
+  // Realtime Sync Methods
+  // =================================================================
+
+  @override
+  Stream<ShoppingList?> watchShoppingList(
+      String groupId, String listId) async* {
     developer
         .log('🔴 [HYBRID_REALTIME] Stream開始: groupId=$groupId, listId=$listId');
 
@@ -710,16 +903,17 @@ class HybridShoppingListRepository implements ShoppingListRepository {
     if (F.appFlavor == Flavor.dev || !_isOnline || _firestoreRepo == null) {
       developer.log('⚠️ [HYBRID_REALTIME] ポーリングモード（30秒間隔）');
 
-      // 初回データ取得
-      return Stream.periodic(const Duration(seconds: 30), (_) async {
+      // 初回データ取得してからポーリング
+      yield* Stream.periodic(const Duration(seconds: 30), (_) async {
         return await _hiveRepo.getShoppingListById(listId);
       }).asyncMap((future) => future);
+      return;
     }
 
     // オンライン時はFirestoreのStreamを使用
     developer.log('🌐 [HYBRID_REALTIME] Firestoreストリームモード');
 
-    return _firestoreRepo!.watchShoppingList(groupId, listId).map(
+    yield* _firestoreRepo!.watchShoppingList(groupId, listId).map(
       (firestoreList) {
         // Firestoreから取得したデータをHiveにキャッシュ（バックグラウンド）
         if (firestoreList != null) {
@@ -727,7 +921,7 @@ class HybridShoppingListRepository implements ShoppingListRepository {
             developer.log('⚠️ [HYBRID_REALTIME] Hiveキャッシュ保存エラー: $e');
           });
           developer.log(
-              '✅ [HYBRID_REALTIME] Hiveにキャッシュ: ${firestoreList.listName} (${firestoreList.items.length}件)');
+              '✅ [HYBRID_REALTIME] Hiveにキャッシュ: ${firestoreList.listName} (${firestoreList.activeItemCount}件)');
         }
         return firestoreList;
       },
