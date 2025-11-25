@@ -25,7 +25,7 @@ ref.read(currentGroupProvider.notifier).selectGroup(newGroup);  // 追加
 
 #### 背景
 バグ修正で明らかになった根本的な問題：
-- `currentGroupProvider` (PurchaseGroup) と `selectedGroupIdProvider` (String) が同じ概念を二重管理
+- `currentGroupProvider` (SharedGroup) と `selectedGroupIdProvider` (String) が同じ概念を二重管理
 - 常に両方を更新する必要があり、同期漏れがバグの温床に
 
 #### 検討プロセス

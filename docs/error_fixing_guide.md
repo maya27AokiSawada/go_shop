@@ -10,10 +10,10 @@
 = editedMember.copyWith(memberID: member.memberID);
 
 // エラー: updatedGroup 変数が未定義
-await ref.read(purchaseGroupProvider.notifier).updateMembers(updatedGroup.members);
+await ref.read(SharedGroupProvider.notifier).updateMembers(updatedGroup.members);
 
 // エラー: null安全性違反
-itemCount: purchaseGroup.members.length,  // members が null の可能性
+itemCount: SharedGroup.members.length,  // members が null の可能性
 ```
 
 #### 修正方法
@@ -22,11 +22,11 @@ itemCount: purchaseGroup.members.length,  // members が null の可能性
 = editedMember.copyWith(memberId: member.memberId);
 
 // 2. updatedGroup の定義修正
-final updatedGroup = purchaseGroup; // 現在のグループを使用
+final updatedGroup = SharedGroup; // 現在のグループを使用
 
 // 3. null安全性対応
-itemCount: purchaseGroup.members?.length ?? 0,
-final member = purchaseGroup.members![index];
+itemCount: SharedGroup.members?.length ?? 0,
+final member = SharedGroup.members![index];
 ```
 
 ### 2. home_page.dart のエラー
@@ -46,8 +46,8 @@ await ref.read(saveDefaultGroupProvider(defaultGroup).future);
 final email = emailController.text;
 
 // 2. saveDefaultGroupProvider の実装
-final saveDefaultGroupProvider = FutureProvider.family<void, PurchaseGroup>((ref, group) async {
-  final repository = ref.read(purchaseGroupRepositoryProvider);
+final saveDefaultGroupProvider = FutureProvider.family<void, SharedGroup>((ref, group) async {
+  final repository = ref.read(SharedGroupRepositoryProvider);
   await repository.updateGroup(group);
 });
 ```
@@ -57,14 +57,14 @@ final saveDefaultGroupProvider = FutureProvider.family<void, PurchaseGroup>((ref
 #### エラー内容
 ```dart
 // エラー: FutureProviderRef が未定義
-Future<Box<PurchaseGroup>> purchaseGroupBox(PurchaseGroupBoxRef ref) async {
+Future<Box<SharedGroup>> SharedGroupBox(SharedGroupBoxRef ref) async {
 ```
 
 #### 修正方法
 ```dart
 // Generator を使わない従来の方法
-final purchaseGroupBoxProvider = FutureProvider<Box<PurchaseGroup>>((ref) async {
-  return Hive.openBox<PurchaseGroup>('purchaseGroups');
+final SharedGroupBoxProvider = FutureProvider<Box<SharedGroup>>((ref) async {
+  return Hive.openBox<SharedGroup>('SharedGroups');
 });
 ```
 

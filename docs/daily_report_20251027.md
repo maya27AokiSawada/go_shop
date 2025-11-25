@@ -50,10 +50,10 @@ final accessControl = ref.read(accessControlServiceProvider);
 **修正前の問題コード:**
 ```dart
 @override
-Future<List<PurchaseGroup>> build() async {
+Future<List<SharedGroup>> build() async {
   final authState = ref.watch(authStateProvider);           // ✅ OK
   final hiveReady = ref.watch(hiveInitializationStatusProvider);  // ✅ OK
-  final repository = ref.read(purchaseGroupRepositoryProvider);   // ✅ OK
+  final repository = ref.read(SharedGroupRepositoryProvider);   // ✅ OK
   
   // ... 非同期処理 ...
   
@@ -65,11 +65,11 @@ Future<List<PurchaseGroup>> build() async {
 **修正後:**
 ```dart
 @override
-Future<List<PurchaseGroup>> build() async {
+Future<List<SharedGroup>> build() async {
   // ✅ 1. 最初に全依存性を確定
   final authState = ref.watch(authStateProvider);                    // Stream
   final hiveReady = ref.watch(hiveInitializationStatusProvider);     // Future
-  final repository = ref.read(purchaseGroupRepositoryProvider);      // Service
+  final repository = ref.read(SharedGroupRepositoryProvider);      // Service
   final accessControl = ref.read(accessControlServiceProvider);      // Service
 
   try {
@@ -104,7 +104,7 @@ Future<List<PurchaseGroup>> build() async {
 - Firestore/Hive同期テスト
 
 ### 📝 既知の未解決項目
-- Firestore構造が `/users/{uid}/groups` だが、コード上は `/purchaseGroups` を使用
+- Firestore構造が `/users/{uid}/groups` だが、コード上は `/SharedGroups` を使用
   - 該当ファイル: `lib/datastore/firestore_purchase_group_repository.dart`
   - 対応予定: 複数の CRUD メソッド修正が必要
 

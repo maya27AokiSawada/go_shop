@@ -231,7 +231,7 @@ await _firestore.collection('invitations').doc(invitationId).update({
 90de9dd - Fix security key validation using Firestore invitations collection
 23fac26 - Add specific group sync on member added notification
 06ca141 - Fix notification listener lifecycle (auth state dependent)
-675d586 - Fix Firestore sync query to use purchaseGroups collection
+675d586 - Fix Firestore sync query to use SharedGroups collection
 ```
 
 ---
@@ -245,7 +245,7 @@ await _firestore.collection('invitations').doc(invitationId).update({
 │                    Firestore                         │
 │  (Source of Truth - クラウド)                        │
 │                                                      │
-│  - purchaseGroups/                                   │
+│  - SharedGroups/                                   │
 │  - invitations/                                      │
 │  - notifications/                                    │
 └──────────────────────────────────────────────────────┘
@@ -254,7 +254,7 @@ await _firestore.collection('invitations').doc(invitationId).update({
 │                     Hive                             │
 │  (Local Cache - ローカル)                            │
 │                                                      │
-│  - purchaseGroupBox                                  │
+│  - SharedGroupBox                                  │
 │  - shoppingListBox                                   │
 │  - itemBox                                           │
 └──────────────────────────────────────────────────────┘
@@ -542,9 +542,9 @@ testWidgets('QR招待の完全フロー', (tester) async {
 ```dart
 // メモリキャッシュの導入
 class CachedRepository {
-  final Map<String, PurchaseGroup> _cache = {};
+  final Map<String, SharedGroup> _cache = {};
 
-  Future<PurchaseGroup?> getGroup(String id) async {
+  Future<SharedGroup?> getGroup(String id) async {
     if (_cache.containsKey(id)) {
       return _cache[id];
     }

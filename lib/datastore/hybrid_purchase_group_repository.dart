@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:developer' as developer;
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../datastore/purchase_group_repository.dart';
 import '../datastore/hive_purchase_group_repository.dart';
 import '../datastore/firestore_purchase_group_repository.dart';
@@ -30,10 +30,10 @@ enum InitializationStatus {
 /// - 書き込み: HiveとFirestore両方に保存（楽観的更新）
 /// - 同期: バックグラウンドでFirestore→Hiveの差分同期
 /// - オフライン: Hiveのみで動作、オンライン復帰時に自動同期
-class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
+class HybridSharedGroupRepository implements SharedGroupRepository {
   final Ref _ref;
-  late final HivePurchaseGroupRepository _hiveRepo;
-  FirestorePurchaseGroupRepository? _firestoreRepo;
+  late final HiveSharedGroupRepository _hiveRepo;
+  FirestoreSharedGroupRepository? _firestoreRepo;
 
   // 接続状態管理
   bool _isOnline = true;
@@ -56,16 +56,16 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
   // 初期化進捗コールバック（UI表示用）
   Function(InitializationStatus, String?)? _onInitializationProgress;
 
-  HybridPurchaseGroupRepository(this._ref) {
-    developer.log('🆕 [HYBRID_REPO] HybridPurchaseGroupRepository安全初期化開始');
+  HybridSharedGroupRepository(this._ref) {
+    developer.log('🆕 [HYBRID_REPO] HybridSharedGroupRepository安全初期化開始');
     developer.log('🔍 [HYBRID_REPO] 現在のFlavor: ${F.appFlavor}');
     developer.log('🔍 [HYBRID_REPO] Ref状態: ${_ref.runtimeType}');
 
     // コンストラクタでは絶対にクラッシュしない - Hiveのみ確実に初期化
     try {
-      developer.log('🔄 [HYBRID_REPO] HivePurchaseGroupRepository作成開始...');
-      _hiveRepo = HivePurchaseGroupRepository(_ref);
-      developer.log('✅ [HYBRID_REPO] HivePurchaseGroupRepository初期化成功');
+      developer.log('🔄 [HYBRID_REPO] HiveSharedGroupRepository作成開始...');
+      _hiveRepo = HiveSharedGroupRepository(_ref);
+      developer.log('✅ [HYBRID_REPO] HiveSharedGroupRepository初期化成功');
       developer.log('🛡️ [HYBRID_REPO] 最低限の安全な動作環境確保完了 - Hiveで動作可能');
     } catch (e, stackTrace) {
       developer.log('❌ [HYBRID_REPO] 致命的エラー: Hive初期化失敗 - システム継続不可');
@@ -112,9 +112,9 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
       // 複数層の安全網でFirestore初期化
       await Future.delayed(const Duration(milliseconds: 500)); // 安定化待機
 
-      developer.log('🔥 [HYBRID_REPO] FirestorePurchaseGroupRepository作成試行...');
+      developer.log('🔥 [HYBRID_REPO] FirestoreSharedGroupRepository作成試行...');
       final firestore = _ref.read(firestoreProvider);
-      _firestoreRepo = FirestorePurchaseGroupRepository(firestore);
+      _firestoreRepo = FirestoreSharedGroupRepository(firestore);
 
       // 初期化後のヘルスチェック
       await Future.delayed(const Duration(milliseconds: 100));
@@ -214,7 +214,7 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
   }
 
   /// ローカル（Hive）のみからグループを取得（Firestore同期なし）
-  Future<List<PurchaseGroup>> getLocalGroups() async {
+  Future<List<SharedGroup>> getLocalGroups() async {
     try {
       return await _hiveRepo.getAllGroups();
     } catch (e) {
@@ -228,7 +228,7 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
   // =================================================================
 
   @override
-  Future<List<PurchaseGroup>> getAllGroups() async {
+  Future<List<SharedGroup>> getAllGroups() async {
     // 🛡️ 安全な初期化完了を待機（ローディングスピナー表示推奨）
     await waitForSafeInitialization();
     developer.log('✅ [HYBRID_REPO] 安全な初期化確認完了 - 全グループ取得続行');
@@ -237,7 +237,7 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
   }
 
   /// 内部用：初期化待機なしでグループを取得
-  Future<List<PurchaseGroup>> _getAllGroupsInternal() async {
+  Future<List<SharedGroup>> _getAllGroupsInternal() async {
     try {
       // 1. まずHiveから取得（高速）
       final cachedGroups = await _hiveRepo.getAllGroups();
@@ -297,7 +297,7 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
 
   /// UI使用専用：初期化を待たずに即座にHiveからグループを取得
   /// 通常のUI表示で使用する（長時間待機を避ける）
-  Future<List<PurchaseGroup>> getAllGroupsForUI() async {
+  Future<List<SharedGroup>> getAllGroupsForUI() async {
     developer.log('🚀 [HYBRID_REPO] UI用グループ取得開始（初期化待機なし）');
 
     try {
@@ -310,7 +310,7 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
   }
 
   @override
-  Future<PurchaseGroup> getGroupById(String groupId) async {
+  Future<SharedGroup> getGroupById(String groupId) async {
     try {
       // 1. Hiveから取得を試行
       final cachedGroup = await _hiveRepo.getGroupById(groupId);
@@ -348,8 +348,8 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
   // =================================================================
 
   @override
-  Future<PurchaseGroup> createGroup(
-      String groupId, String groupName, PurchaseGroupMember member) async {
+  Future<SharedGroup> createGroup(
+      String groupId, String groupName, SharedGroupMember member) async {
     developer.log('🆕 [HYBRID_REPO] グループ作成開始: $groupName');
 
     // 🛡️ 安全な初期化完了を待機（ローディングスピナー表示推奨）
@@ -460,7 +460,7 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
 
     switch (operation.type) {
       case 'create':
-        final ownerMember = PurchaseGroupMember(
+        final ownerMember = SharedGroupMember(
           memberId: operation.data['ownerMember']['uid'] ??
               operation.data['ownerMember']['memberId'] ??
               '',
@@ -468,7 +468,7 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
               operation.data['ownerMember']['name'] ??
               '',
           contact: operation.data['ownerMember']['contact'] ?? '',
-          role: PurchaseGroupRole.values.firstWhere(
+          role: SharedGroupRole.values.firstWhere(
             (role) => role.name == operation.data['ownerMember']['role'],
           ),
           invitedAt: DateTime.now(),
@@ -488,7 +488,7 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
 
   /// Firestoreへのグループ作成同期（フォールバック付き同期的書き込み）
   Future<void> _syncCreateGroupToFirestoreWithFallback(
-      PurchaseGroup group) async {
+      SharedGroup group) async {
     developer.log('🔍 [HYBRID_REPO] Firestore同期的書き込み開始: ${group.groupName}');
 
     if (F.appFlavor == Flavor.dev || _firestoreRepo == null) {
@@ -506,7 +506,7 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
 
       // 同期的書き込み（ユーザーを待たせてもOK）
       final ownerMember = group.members!
-          .firstWhere((m) => m.role == PurchaseGroupRole.owner, orElse: () {
+          .firstWhere((m) => m.role == SharedGroupRole.owner, orElse: () {
         developer.log('⚠️ [HYBRID_REPO] No owner found, using first member');
         return group.members!.first;
       });
@@ -564,7 +564,7 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
   }
 
   @override
-  Future<PurchaseGroup> updateGroup(String groupId, PurchaseGroup group) async {
+  Future<SharedGroup> updateGroup(String groupId, SharedGroup group) async {
     try {
       developer.log(
           '🔍 [HYBRID UPDATE] groupId: $groupId, allowedUid: ${group.allowedUid}');
@@ -603,7 +603,7 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
   }
 
   @override
-  Future<PurchaseGroup> deleteGroup(String groupId) async {
+  Future<SharedGroup> deleteGroup(String groupId) async {
     try {
       Log.info('🗑️ [DELETE] グループ削除開始: $groupId');
 
@@ -652,8 +652,8 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
   // =================================================================
 
   @override
-  Future<PurchaseGroup> addMember(
-      String groupId, PurchaseGroupMember member) async {
+  Future<SharedGroup> addMember(
+      String groupId, SharedGroupMember member) async {
     try {
       final updatedGroup = await _hiveRepo.addMember(groupId, member);
 
@@ -672,8 +672,8 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
   }
 
   @override
-  Future<PurchaseGroup> removeMember(
-      String groupId, PurchaseGroupMember member) async {
+  Future<SharedGroup> removeMember(
+      String groupId, SharedGroupMember member) async {
     try {
       final updatedGroup = await _hiveRepo.removeMember(groupId, member);
 
@@ -698,7 +698,7 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
   /// メンバープールは個人情報保護の観点からHiveローカルDBにのみ保存
   /// Firestoreには一切同期しない
   @override
-  Future<PurchaseGroup> getOrCreateMemberPool() async {
+  Future<SharedGroup> getOrCreateMemberPool() async {
     // 🔒 個人情報保護: メンバープールはローカルのみ
     return await _hiveRepo.getOrCreateMemberPool();
   }
@@ -710,13 +710,13 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
   }
 
   @override
-  Future<List<PurchaseGroupMember>> searchMembersInPool(String query) async {
+  Future<List<SharedGroupMember>> searchMembersInPool(String query) async {
     // 🔒 個人情報保護: メンバープールはローカルのみ
     return await _hiveRepo.searchMembersInPool(query);
   }
 
   @override
-  Future<PurchaseGroupMember?> findMemberByEmail(String email) async {
+  Future<SharedGroupMember?> findMemberByEmail(String email) async {
     // 🔒 個人情報保護: メンバープールはローカルのみ
     return await _hiveRepo.findMemberByEmail(email);
   }
@@ -729,7 +729,7 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
   }
 
   @override
-  Future<PurchaseGroup> setMemberId(
+  Future<SharedGroup> setMemberId(
       String oldId, String newId, String? contact) async {
     try {
       final updatedGroup = await _hiveRepo.setMemberId(oldId, newId, contact);
@@ -868,7 +868,7 @@ class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
   /// キャッシュクリア
   Future<void> clearCache() async {
     try {
-      final box = _ref.read(purchaseGroupBoxProvider);
+      final box = _ref.read(SharedGroupBoxProvider);
       await box.clear();
       developer.log('🗑️ Cache cleared');
     } catch (e) {

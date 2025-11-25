@@ -8,7 +8,7 @@
    - 未サインイン: Hiveのみでデフォルトグループ作成 ✅
 
 2. **基本的なデータ管理**
-   - HybridPurchaseGroupRepository で Hive + Firestore ✅
+   - HybridSharedGroupRepository で Hive + Firestore ✅
    - AllGroupsNotifier でグループ管理 ✅
 
 ### ❌ 未実装・要改善

@@ -1,5 +1,5 @@
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:go_shop/models/purchase_group.dart';
+import 'package:go_shop/models/shared_group.dart';
 
 /// 削除済みHiveデータをクリーンアップするスクリプト
 ///
@@ -16,13 +16,13 @@ Future<void> main() async {
   // Hive初期化
   await Hive.initFlutter();
 
-  // PurchaseGroupアダプタを登録
+  // SharedGroupアダプタを登録
   if (!Hive.isAdapterRegistered(2)) {
-    Hive.registerAdapter(PurchaseGroupAdapter());
+    Hive.registerAdapter(SharedGroupAdapter());
   }
 
   // Boxを開く
-  final box = await Hive.openBox<PurchaseGroup>('purchase_groups');
+  final box = await Hive.openBox<SharedGroup>('purchase_groups');
 
   print('📦 Box情報:');
   print('   - 総ドキュメント数: ${box.length}');

@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/app_logger.dart';
 
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../providers/user_settings_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/shopping_list_provider.dart' hide shoppingListBoxProvider;
@@ -73,7 +73,7 @@ class UserIdChangeHelper {
             await Future.delayed(const Duration(milliseconds: 300));
 
             // Firestoreから新ユーザーのデータをダウンロード（本番環境のみ）
-            List<PurchaseGroup> syncedGroups = [];
+            List<SharedGroup> syncedGroups = [];
             if (F.appFlavor == Flavor.prod) {
               Log.info('🔄 新ユーザーのFirestoreデータをダウンロード中...');
 
@@ -84,7 +84,7 @@ class UserIdChangeHelper {
 
               // 2. 取得したグループをHiveに保存
               if (syncedGroups.isNotEmpty) {
-                final groupBox = ref.read(purchaseGroupBoxProvider);
+                final groupBox = ref.read(SharedGroupBoxProvider);
                 for (final group in syncedGroups) {
                   try {
                     await groupBox.put(group.groupId, group);
@@ -235,11 +235,11 @@ class UserIdChangeHelper {
       Log.info('🗑️ Hiveボックスのクリア開始');
 
       // 各Hiveボックスを取得してクリア
-      final purchaseGroupBox = ref.read(purchaseGroupBoxProvider);
+      final SharedGroupBox = ref.read(SharedGroupBoxProvider);
       final shoppingListBox = ref.read(shoppingListBoxProvider);
 
-      await purchaseGroupBox.clear();
-      Log.info('✅ PurchaseGroupボックスをクリア');
+      await SharedGroupBox.clear();
+      Log.info('✅ SharedGroupボックスをクリア');
 
       await shoppingListBox.clear();
       Log.info('✅ ShoppingListボックスをクリア');

@@ -8,18 +8,18 @@ Go Shopは家族・グループ向けの買い物リスト共有Flutterアプリ
 ### State Management - Riverpod Patterns
 ```dart
 // AsyncNotifierProvider pattern (primary)
-final purchaseGroupProvider = AsyncNotifierProvider<PurchaseGroupNotifier, PurchaseGroup>(
-  () => PurchaseGroupNotifier(),
+final SharedGroupProvider = AsyncNotifierProvider<SharedGroupNotifier, SharedGroup>(
+  () => SharedGroupNotifier(),
 );
 
 // Repository abstraction via Provider
-final purchaseGroupRepositoryProvider = Provider<PurchaseGroupRepository>((ref) {
+final SharedGroupRepositoryProvider = Provider<SharedGroupRepository>((ref) {
   if (F.appFlavor == Flavor.prod) {
     // Production: Use Firestore with Hive cache (hybrid mode)
-    return FirestorePurchaseGroupRepository(ref);
+    return FirestoreSharedGroupRepository(ref);
   } else {
     // Development: Use Hive only for faster local testing
-    return HivePurchaseGroupRepository(ref);
+    return HiveSharedGroupRepository(ref);
   }
 });
 ```
@@ -34,11 +34,11 @@ final purchaseGroupRepositoryProvider = Provider<PurchaseGroupRepository>((ref) 
 
 Repository constructors must accept `Ref` for Riverpod integration:
 ```dart
-class HivePurchaseGroupRepository implements PurchaseGroupRepository {
+class HiveSharedGroupRepository implements SharedGroupRepository {
   final Ref _ref;
-  HivePurchaseGroupRepository(this._ref);
+  HiveSharedGroupRepository(this._ref);
 
-  Box<PurchaseGroup> get _box => _ref.read(purchaseGroupBoxProvider);
+  Box<SharedGroup> get _box => _ref.read(SharedGroupBoxProvider);
 }
 ```
 
@@ -47,16 +47,16 @@ Models use both `@freezed` and `@HiveType` annotations:
 ```dart
 @HiveType(typeId: 1)
 @freezed
-class PurchaseGroupMember with _$PurchaseGroupMember {
-  const factory PurchaseGroupMember({
+class SharedGroupMember with _$SharedGroupMember {
+  const factory SharedGroupMember({
     @HiveField(0) @Default('') String memberId,  // Note: memberId not memberID
     @HiveField(1) required String name,
     // ...
-  }) = _PurchaseGroupMember;
+  }) = _SharedGroupMember;
 }
 ```
 
-**Hive TypeIDs**: 0=PurchaseGroupRole, 1=PurchaseGroupMember, 2=PurchaseGroup, 3=ShoppingItem, 4=ShoppingList
+**Hive TypeIDs**: 0=SharedGroupRole, 1=SharedGroupMember, 2=SharedGroup, 3=ShoppingItem, 4=ShoppingList
 
 ### Environment Configuration
 Use `lib/flavors.dart` for environment switching:
@@ -81,7 +81,7 @@ void main() async {
 
 ### Error-Prone Areas to Avoid
 1. **Property Naming**: Always use `memberId`, never `memberID`
-2. **Null Safety**: Guard against `purchaseGroup.members` being null
+2. **Null Safety**: Guard against `SharedGroup.members` being null
 3. **Hive Box Access**: Ensure Boxes are opened in `_initializeHive()` before use
 4. **Riverpod Generator**: DO NOT use - causes build failures
 
@@ -128,7 +128,7 @@ Firestore: `/invitations/{invitationId}`
 {
   'invitationId': String,  // Generated ID
   'token': String,         // Same as invitationId (for Invitation model)
-  'groupId': String,       // purchaseGroupId
+  'groupId': String,       // SharedGroupId
   'groupName': String,
   'invitedBy': String,     // inviter UID
   'inviterName': String,
@@ -218,7 +218,7 @@ Firestore: `/invitations/{invitationId}`
 #### Identification Rules
 **統一ヘルパー使用必須**: `lib/utils/group_helpers.dart`
 ```dart
-bool isDefaultGroup(PurchaseGroup group, User? currentUser) {
+bool isDefaultGroup(SharedGroup group, User? currentUser) {
   // Legacy support
   if (group.groupId == 'default_group') return true;
 
@@ -292,7 +292,7 @@ if (legacyGroupExists && !uidGroupExists) {
 1. Detect UID change in `app_initialize_widget.dart`
 2. Show `UserDataMigrationDialog` (初期化 / 引継ぎ)
 3. If "初期化" selected:
-   - Clear Hive boxes (PurchaseGroup + ShoppingList)
+   - Clear Hive boxes (SharedGroup + ShoppingList)
    - Call `SelectedGroupIdNotifier.clearSelection()`
    - Sync from Firestore (download new user's data)
    - **Create default group** (explicit call)

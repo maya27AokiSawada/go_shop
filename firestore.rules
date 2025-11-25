@@ -46,7 +46,7 @@ service cloud.firestore {
     }
 
     // 招待コレクション：グループのサブコレクションとして管理
-    // purchaseGroups/{groupId}/invitations/{invitationId}
+    // SharedGroups/{groupId}/invitations/{invitationId}
     // グループへのアクセス権 = 招待へのアクセス権（自動継承）
 
     // 🔒 本番環境用セキュリティルール
@@ -68,8 +68,8 @@ service cloud.firestore {
       }
     }
 
-    // PurchaseGroup：allowedUidsベースのアクセス制御
-    match /purchaseGroups/{groupId} {
+    // SharedGroup：allowedUidsベースのアクセス制御
+    match /SharedGroups/{groupId} {
       // 読み取り: 認証済みユーザーなら許可（ドキュメント不在でも404を返せるように）
       // 実際のデータアクセスは、ドキュメント存在時のみ所有者・メンバーチェック
       allow read: if request.auth != null;
@@ -93,8 +93,8 @@ service cloud.firestore {
 
         // グループメンバーなら招待を作成可能
         allow create: if request.auth != null && (
-          get(/databases/$(database)/documents/purchaseGroups/$(groupId)).data.ownerUid == request.auth.uid ||
-          request.auth.uid in get(/databases/$(database)/documents/purchaseGroups/$(groupId)).data.allowedUid
+          get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.allowedUid
         );
 
         // 招待を使用する際の更新（currentUses, usedBy配列への追加）
@@ -105,8 +105,8 @@ service cloud.firestore {
 
         // グループメンバーなら招待を削除可能
         allow delete: if request.auth != null && (
-          get(/databases/$(database)/documents/purchaseGroups/$(groupId)).data.ownerUid == request.auth.uid ||
-          request.auth.uid in get(/databases/$(database)/documents/purchaseGroups/$(groupId)).data.allowedUid
+          get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.allowedUid
         );
       }
 
@@ -114,7 +114,7 @@ service cloud.firestore {
       match /shoppingLists/{listId} {
         // 親グループのメンバー確認用関数
         function isGroupMember() {
-          let group = get(/databases/$(database)/documents/purchaseGroups/$(groupId)).data;
+          let group = get(/databases/$(database)/documents/SharedGroups/$(groupId)).data;
           return request.auth != null && (
             group.ownerUid == request.auth.uid ||
             request.auth.uid in group.allowedUid

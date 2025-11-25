@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import '../utils/app_logger.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../models/shopping_list.dart';
 import '../models/user_settings.dart';
 import 'data_version_service.dart';
@@ -61,18 +61,18 @@ class HiveInitializationService {
       AppLogger.info('Hiveアダプター登録開始');
 
       if (!Hive.isAdapterRegistered(0)) {
-        Hive.registerAdapter(PurchaseGroupRoleAdapter());
-        AppLogger.info('PurchaseGroupRoleAdapter (typeId: 0) 登録');
+        Hive.registerAdapter(SharedGroupRoleAdapter());
+        AppLogger.info('SharedGroupRoleAdapter (typeId: 0) 登録');
       }
 
       if (!Hive.isAdapterRegistered(1)) {
-        Hive.registerAdapter(PurchaseGroupMemberAdapter());
-        AppLogger.info('PurchaseGroupMemberAdapter (typeId: 1) 登録');
+        Hive.registerAdapter(SharedGroupMemberAdapter());
+        AppLogger.info('SharedGroupMemberAdapter (typeId: 1) 登録');
       }
 
       if (!Hive.isAdapterRegistered(2)) {
-        Hive.registerAdapter(PurchaseGroupAdapter());
-        AppLogger.info('PurchaseGroupAdapter (typeId: 2) 登録');
+        Hive.registerAdapter(SharedGroupAdapter());
+        AppLogger.info('SharedGroupAdapter (typeId: 2) 登録');
       }
 
       if (!Hive.isAdapterRegistered(3)) {
@@ -117,10 +117,10 @@ class HiveInitializationService {
     try {
       AppLogger.info('デフォルトBox開封開始');
 
-      // PurchaseGroupBox
-      if (!Hive.isBoxOpen('purchaseGroupBox')) {
-        await Hive.openBox<PurchaseGroup>('purchaseGroupBox');
-        AppLogger.info('purchaseGroupBox 開封完了');
+      // SharedGroupBox
+      if (!Hive.isBoxOpen('SharedGroupBox')) {
+        await Hive.openBox<SharedGroup>('SharedGroupBox');
+        AppLogger.info('SharedGroupBox 開封完了');
       }
 
       // ShoppingListBox

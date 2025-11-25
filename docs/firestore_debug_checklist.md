@@ -9,7 +9,7 @@
 ### 1. Firestoreコレクション確認
 
 1. Firebase Console > Firestore Database
-2. `purchaseGroups` コレクションを開く
+2. `SharedGroups` コレクションを開く
 3. 以下のグループIDを検索：
 
 #### グループ `1113-1431` (1763011892363)
@@ -65,7 +65,7 @@
 ```
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /purchaseGroups/{groupId} {
+    match /SharedGroups/{groupId} {
       // 読み取り: allowedUid配列に自分のUIDが含まれている
       allow read: if request.auth != null &&
                      resource.data.allowedUid.hasAny([request.auth.uid]);

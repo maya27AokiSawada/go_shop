@@ -56,7 +56,7 @@ void main() {
 
       // Assert: 初期状態(pageIndex=0)でHomePageが表示される
       expect(find.byType(HomePage), findsOneWidget);
-      expect(find.byType(PurchaseGroupPage), findsNothing);
+      expect(find.byType(SharedGroupPage), findsNothing);
       expect(find.byType(ShoppingListPageV2), findsNothing);
       expect(find.byType(SettingsPage), findsNothing);
     });

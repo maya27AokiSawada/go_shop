@@ -2,14 +2,13 @@ import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
-part 'purchase_group.g.dart';
-part 'purchase_group.freezed.dart';
-
+part 'shared_group.g.dart';
+part 'shared_group.freezed.dart';
 const uuid = Uuid();
 
 // グループの役割を定義するenum
 @HiveType(typeId: 0)
-enum PurchaseGroupRole {
+enum SharedGroupRole {
   @HiveField(0)
   owner,
   @HiveField(1)
@@ -64,12 +63,12 @@ enum GroupType {
 
 @HiveType(typeId: 1)
 @freezed
-class PurchaseGroupMember with _$PurchaseGroupMember {
-  const factory PurchaseGroupMember({
+class SharedGroupMember with _$SharedGroupMember {
+  const factory SharedGroupMember({
     @HiveField(0) @Default('') String memberId,
     @HiveField(1) required String name,
     @HiveField(2) required String contact, // email または phone
-    @HiveField(3) required PurchaseGroupRole role,
+    @HiveField(3) required SharedGroupRole role,
     @HiveField(4) @Default(false) bool isSignedIn,
     // 新しい招待管理フィールド
     @HiveField(9)
@@ -87,17 +86,17 @@ class PurchaseGroupMember with _$PurchaseGroupMember {
     @Default(false)
     @Deprecated('Use invitationStatus instead')
     bool isInvitationAccepted,
-  }) = _PurchaseGroupMember;
+  }) = _SharedGroupMember;
 
-  factory PurchaseGroupMember.fromJson(Map<String, dynamic> json) =>
-      _$PurchaseGroupMemberFromJson(json);
+  factory SharedGroupMember.fromJson(Map<String, dynamic> json) =>
+      _$SharedGroupMemberFromJson(json);
 
   // カスタムコンストラクタでmemberIdを自動生成
-  factory PurchaseGroupMember.create({
+  factory SharedGroupMember.create({
     String? memberId,
     required String name,
     required String contact,
-    required PurchaseGroupRole role,
+    required SharedGroupRole role,
     bool isSignedIn = false,
     InvitationStatus invitationStatus = InvitationStatus.self,
     String? securityKey,
@@ -107,7 +106,7 @@ class PurchaseGroupMember with _$PurchaseGroupMember {
     bool isInvited = false,
     bool isInvitationAccepted = false,
   }) {
-    return PurchaseGroupMember(
+    return SharedGroupMember(
       memberId: memberId?.isNotEmpty == true ? memberId! : uuid.v4(),
       name: name,
       contact: contact,
@@ -124,13 +123,13 @@ class PurchaseGroupMember with _$PurchaseGroupMember {
 }
 
 // 拡張メソッドでcopyWithをHive用に追加
-extension PurchaseGroupMemberExtension on PurchaseGroupMember {
+extension SharedGroupMemberExtension on SharedGroupMember {
   // Hive のアダプターに対応するためのメソッド
-  PurchaseGroupMember copyWithExtra({
+  SharedGroupMember copyWithExtra({
     String? name,
     String? memberId,
     String? contact,
-    PurchaseGroupRole? role,
+    SharedGroupRole? role,
     bool? isSignedIn,
     InvitationStatus? invitationStatus,
     String? securityKey,
@@ -140,7 +139,7 @@ extension PurchaseGroupMemberExtension on PurchaseGroupMember {
     bool? isInvited,
     bool? isInvitationAccepted,
   }) {
-    return PurchaseGroupMember(
+    return SharedGroupMember(
       name: name ?? this.name,
       memberId: memberId ?? this.memberId,
       contact: contact ?? this.contact,
@@ -165,16 +164,16 @@ extension PurchaseGroupMemberExtension on PurchaseGroupMember {
 /// グループのデータを管理するクラス
 @HiveType(typeId: 2)
 @freezed
-class PurchaseGroup with _$PurchaseGroup {
-  const PurchaseGroup._(); // Freezedでカスタムメソッドを使うためプライベートコンストラクタを追加
+class SharedGroup with _$SharedGroup {
+  const SharedGroup._(); // Freezedでカスタムメソッドを使うためプライベートコンストラクタを追加
 
-  const factory PurchaseGroup({
+  const factory SharedGroup({
     @HiveField(0) required String groupName,
     @HiveField(1) required String groupId,
     @HiveField(2) String? ownerName,
     @HiveField(3) String? ownerEmail,
     @HiveField(4) String? ownerUid,
-    @HiveField(5) List<PurchaseGroupMember>? members,
+    @HiveField(5) List<SharedGroupMember>? members,
     @HiveField(6) String? ownerMessage,
     // @HiveField(7) @Default([]) List<String> shoppingListIds, // サブコレクション化のため不要に
     @HiveField(11) @Default([]) List<String> allowedUid,
@@ -190,27 +189,27 @@ class PurchaseGroup with _$PurchaseGroup {
     @HiveField(19)
     @Default(GroupType.shopping)
     GroupType groupType, // グループタイプ追加
-  }) = _PurchaseGroup;
+  }) = _SharedGroup;
 
-  factory PurchaseGroup.fromJson(Map<String, dynamic> json) =>
-      _$PurchaseGroupFromJson(json);
+  factory SharedGroup.fromJson(Map<String, dynamic> json) =>
+      _$SharedGroupFromJson(json);
 
   // カスタムコンストラクタでIDを自動生成
-  factory PurchaseGroup.create({
+  factory SharedGroup.create({
     required String groupName,
-    required List<PurchaseGroupMember> members,
+    required List<SharedGroupMember> members,
     String? groupId,
     String? ownerMessage,
     // List<String>? shoppingListIds, // サブコレクション化のため不要に
     bool isSecret = false,
   }) {
     final owner = members.firstWhere(
-      (m) => m.role == PurchaseGroupRole.owner,
+      (m) => m.role == SharedGroupRole.owner,
       orElse: () => throw Exception('Owner not found in members list'),
     );
 
     final now = DateTime.now();
-    return PurchaseGroup(
+    return SharedGroup(
       groupName: groupName,
       groupId: groupId ?? uuid.v4(),
       ownerName: owner.name,
@@ -230,7 +229,7 @@ class PurchaseGroup with _$PurchaseGroup {
   }
 
   // 新しいメンバーを追加するメソッド
-  PurchaseGroup addMember(PurchaseGroupMember member) {
+  SharedGroup addMember(SharedGroupMember member) {
     final newMembers = (members ?? [])
         .where((m) => m.memberId != member.memberId)
         .toList()
@@ -248,7 +247,7 @@ class PurchaseGroup with _$PurchaseGroup {
     );
   }
 
-  PurchaseGroup removeMember(PurchaseGroupMember member) {
+  SharedGroup removeMember(SharedGroupMember member) {
     final newMembers =
         (members ?? []).where((m) => m.memberId != member.memberId).toList();
     final newAllowedUids =
@@ -261,14 +260,14 @@ class PurchaseGroup with _$PurchaseGroup {
   }
 
   // 招待機能メソッド
-  PurchaseGroup inviteMember({
+  SharedGroup inviteMember({
     required String name,
     required String contact,
-    required PurchaseGroupRole role,
+    required SharedGroupRole role,
     required String securityKey,
   }) {
     final tempMemberId = 'temp_${uuid.v4()}';
-    final newMember = PurchaseGroupMember.create(
+    final newMember = SharedGroupMember.create(
       memberId: tempMemberId,
       name: name,
       contact: contact,
@@ -288,7 +287,7 @@ class PurchaseGroup with _$PurchaseGroup {
   }
 
   // 招待を受諾
-  PurchaseGroup acceptInvitation(String tempMemberId, String newUid) {
+  SharedGroup acceptInvitation(String tempMemberId, String newUid) {
     final updatedMembers = (members ?? []).map((member) {
       if (member.memberId == tempMemberId &&
           member.invitationStatus == InvitationStatus.pending) {
@@ -316,7 +315,7 @@ class PurchaseGroup with _$PurchaseGroup {
   }
 
   // 招待をキャンセル
-  PurchaseGroup cancelInvitation(String memberId) {
+  SharedGroup cancelInvitation(String memberId) {
     final newMembers =
         (members ?? []).where((m) => m.memberId != memberId).toList();
     final newAcceptedUids = List<Map<String, String>>.from(acceptedUid)
@@ -329,14 +328,14 @@ class PurchaseGroup with _$PurchaseGroup {
   }
 
   // 招待待ちメンバーのリストを取得
-  List<PurchaseGroupMember> get pendingInvitations {
+  List<SharedGroupMember> get pendingInvitations {
     return (members ?? [])
         .where((m) => m.invitationStatus == InvitationStatus.pending)
         .toList();
   }
 
   // アクティブなメンバー（招待受諾済みまたは自己）のリストを取得
-  List<PurchaseGroupMember> get activeMembers {
+  List<SharedGroupMember> get activeMembers {
     return (members ?? [])
         .where((m) =>
             m.invitationStatus == InvitationStatus.accepted ||
@@ -345,7 +344,7 @@ class PurchaseGroup with _$PurchaseGroup {
   }
 
   // 最終アクセス日時を更新
-  PurchaseGroup markAsAccessed() {
+  SharedGroup markAsAccessed() {
     return copyWith(
       lastAccessedAt: DateTime.now(),
       updatedAt: DateTime.now(),
@@ -353,7 +352,7 @@ class PurchaseGroup with _$PurchaseGroup {
   }
 
   // グループを削除済みとしてマーク
-  PurchaseGroup markAsDeleted() {
+  SharedGroup markAsDeleted() {
     return copyWith(
       isDeleted: true,
       updatedAt: DateTime.now(),

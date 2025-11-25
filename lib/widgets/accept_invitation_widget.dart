@@ -157,7 +157,7 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
           invitationData = jsonDecode(qrData) as Map<String, dynamic>;
           Log.info('🔍 [QR_SCAN] 受信したQRデータ: $qrData');
           Log.info(
-              '🔍 [QR_SCAN] purchaseGroupId: ${invitationData['purchaseGroupId']}');
+              '🔍 [QR_SCAN] SharedGroupId: ${invitationData['SharedGroupId']}');
           Log.info('🔍 [QR_SCAN] groupName: ${invitationData['groupName']}');
         } catch (e) {
           throw Exception('無効なQRコード形式です');

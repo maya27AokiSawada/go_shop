@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../providers/purchase_group_provider.dart';
 import '../helpers/validation_service.dart';
 
@@ -19,17 +19,17 @@ class MemberSelectionDialog extends ConsumerStatefulWidget {
 
 class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
   MemberSelectionType selectedType = MemberSelectionType.fromPool;
-  PurchaseGroupMember? selectedPoolMember;
-  List<PurchaseGroupMember> poolMembers = [];
+  SharedGroupMember? selectedPoolMember;
+  List<SharedGroupMember> poolMembers = [];
   bool isLoadingPool = false;
 
   // 新規メンバー用
   final nameController = TextEditingController();
   final contactController = TextEditingController();
-  PurchaseGroupRole selectedRole = PurchaseGroupRole.member; // オーナー以外を初期値に設定
+  SharedGroupRole selectedRole = SharedGroupRole.member; // オーナー以外を初期値に設定
 
   // 重複確認用
-  PurchaseGroupMember? duplicateMember;
+  SharedGroupMember? duplicateMember;
   bool showDuplicateConfirmation = false;
   String? emailValidationError;
   String? nameValidationError;
@@ -84,7 +84,7 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
     if (email.isEmpty) return;
 
     try {
-      final repository = ref.read(purchaseGroupRepositoryProvider);
+      final repository = ref.read(SharedGroupRepositoryProvider);
       final existing = await repository.findMemberByEmail(email);
 
       if (existing != null) {
@@ -340,25 +340,25 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
           },
         ),
         const SizedBox(height: 16),
-        DropdownButtonFormField<PurchaseGroupRole>(
+        DropdownButtonFormField<SharedGroupRole>(
           initialValue: selectedRole,
           decoration: const InputDecoration(
             labelText: '役割',
             border: OutlineInputBorder(),
             helperText: 'オーナーは作成者が自動的に設定されます',
           ),
-          items: PurchaseGroupRole.values
-              .where((role) => role != PurchaseGroupRole.owner) // オーナーロールを除外
+          items: SharedGroupRole.values
+              .where((role) => role != SharedGroupRole.owner) // オーナーロールを除外
               .map((role) {
             String roleName;
             switch (role) {
-              case PurchaseGroupRole.owner:
+              case SharedGroupRole.owner:
                 roleName = 'オーナー'; // この場合は表示されない
                 break;
-              case PurchaseGroupRole.manager:
+              case SharedGroupRole.manager:
                 roleName = '管理者';
                 break;
-              case PurchaseGroupRole.member:
+              case SharedGroupRole.member:
                 roleName = 'メンバー';
                 break;
               default:
@@ -453,14 +453,14 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
   }
 
   void _confirmSelection() {
-    PurchaseGroupMember memberToAdd;
+    SharedGroupMember memberToAdd;
 
     if (selectedType == MemberSelectionType.fromPool) {
       // プールからの選択：既存メンバーをそのまま使用
       memberToAdd = selectedPoolMember!;
     } else {
       // 新規メンバー
-      memberToAdd = PurchaseGroupMember.create(
+      memberToAdd = SharedGroupMember.create(
         memberId: 'member_${DateTime.now().millisecondsSinceEpoch}',
         name: nameController.text,
         contact: contactController.text,
@@ -472,13 +472,13 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
   }
 
   // ロール名を日本語で表示するヘルパーメソッド
-  String _getRoleDisplayName(PurchaseGroupRole role) {
+  String _getRoleDisplayName(SharedGroupRole role) {
     switch (role) {
-      case PurchaseGroupRole.owner:
+      case SharedGroupRole.owner:
         return 'オーナー';
-      case PurchaseGroupRole.manager:
+      case SharedGroupRole.manager:
         return '管理者';
-      case PurchaseGroupRole.member:
+      case SharedGroupRole.member:
         return 'メンバー';
       default:
         return '不明';

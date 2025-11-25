@@ -1,6 +1,6 @@
 // テスト用のグループデータを作成するスクリプト
 import '../services/hive_initialization_service.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../datastore/hive_purchase_group_repository.dart';
 import '../utils/app_logger.dart';
 import '../flavors.dart';
@@ -16,52 +16,52 @@ void main() async {
   final container = ProviderContainer();
 
   try {
-    final groupRepo = HivePurchaseGroupRepository(container as Ref);
+    final groupRepo = HiveSharedGroupRepository(container as Ref);
 
     // テスト用グループを作成
     final testGroups = [
-      PurchaseGroup.create(
+      SharedGroup.create(
         groupName: '家族グループ',
         members: [
-          const PurchaseGroupMember(
+          const SharedGroupMember(
             memberId: 'test_user',
             name: 'テストユーザー',
             contact: '',
-            role: PurchaseGroupRole.owner,
+            role: SharedGroupRole.owner,
           ),
-          const PurchaseGroupMember(
+          const SharedGroupMember(
             memberId: 'family_member',
             name: '家族メンバー',
             contact: '',
-            role: PurchaseGroupRole.member,
+            role: SharedGroupRole.member,
           ),
         ],
       ),
-      PurchaseGroup.create(
+      SharedGroup.create(
         groupName: '友達グループ',
         members: [
-          const PurchaseGroupMember(
+          const SharedGroupMember(
             memberId: 'test_user',
             name: 'テストユーザー',
             contact: '',
-            role: PurchaseGroupRole.owner,
+            role: SharedGroupRole.owner,
           ),
-          const PurchaseGroupMember(
+          const SharedGroupMember(
             memberId: 'friend1',
             name: '友達1',
             contact: '',
-            role: PurchaseGroupRole.member,
+            role: SharedGroupRole.member,
           ),
         ],
       ),
-      PurchaseGroup.create(
+      SharedGroup.create(
         groupName: '職場グループ',
         members: [
-          const PurchaseGroupMember(
+          const SharedGroupMember(
             memberId: 'test_user',
             name: 'テストユーザー',
             contact: '',
-            role: PurchaseGroupRole.owner,
+            role: SharedGroupRole.owner,
           ),
         ],
       ),

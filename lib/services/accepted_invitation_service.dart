@@ -21,7 +21,7 @@ class AcceptedInvitationService {
   /// 誰でも認証済みユーザーなら書き込み可能
   Future<void> recordAcceptedInvitation({
     required String inviterUid,
-    required String purchaseGroupId,
+    required String SharedGroupId,
     required String shoppingListId,
     required String inviteRole,
     String? notes,
@@ -42,7 +42,7 @@ class AcceptedInvitationService {
       acceptorUid: acceptorUid,
       acceptorEmail: acceptorEmail,
       acceptorName: acceptorName,
-      purchaseGroupId: purchaseGroupId,
+      SharedGroupId: SharedGroupId,
       shoppingListId: shoppingListId,
       inviteRole: inviteRole,
       acceptedAt: DateTime.now(),

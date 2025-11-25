@@ -6,7 +6,7 @@ Go Shopは家族・グループ向けの買い物リスト共有Flutterアプリ
 ## Architecture & Key Components
 
 ### 🛡️ Crash-Proof Repository System
-HybridPurchaseGroupRepositoryは安定性最優先の初期化システムを実装：
+HybridSharedGroupRepositoryは安定性最優先の初期化システムを実装：
 
 ```dart
 // InitializationStatus enum による詳細状態管理
@@ -29,12 +29,12 @@ void setInitializationProgressCallback(Function(InitializationStatus, String?) c
 ### UI応答性アーキテクチャ (2024-11-01 重要修正)
 ```dart
 // AllGroupsNotifier - UI専用の高速データアクセス
-class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
+class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
   @override
-  Future<List<PurchaseGroup>> build() async {
+  Future<List<SharedGroup>> build() async {
     // ❌ 旧実装: waitForSafeInitialization()でUIブロッキング
     // ✅ 新実装: 直接Hiveアクセスで即座に表示
-    final hiveRepo = ref.read(hivePurchaseGroupRepositoryProvider);
+    final hiveRepo = ref.read(hiveSharedGroupRepositoryProvider);
     final allGroups = await hiveRepo.getAllGroups();
     return allGroups; // 即座にデータ返却、UI応答性確保
   }
@@ -58,16 +58,16 @@ class AllGroupsNotifier extends AsyncNotifier<List<PurchaseGroup>> {
 ## State Management - Riverpod Patterns
 ```dart
 // AsyncNotifierProvider pattern (primary)
-final purchaseGroupProvider = AsyncNotifierProvider<PurchaseGroupNotifier, PurchaseGroup>(
-  () => PurchaseGroupNotifier(),
+final SharedGroupProvider = AsyncNotifierProvider<SharedGroupNotifier, SharedGroup>(
+  () => SharedGroupNotifier(),
 );
 
 // Repository abstraction via Provider
-final purchaseGroupRepositoryProvider = Provider<PurchaseGroupRepository>((ref) {
+final SharedGroupRepositoryProvider = Provider<SharedGroupRepository>((ref) {
   if (F.appFlavor == Flavor.prod) {
-    return HybridPurchaseGroupRepository(ref); // Crash-proof implementation
+    return HybridSharedGroupRepository(ref); // Crash-proof implementation
   } else {
-    return HivePurchaseGroupRepository(ref);
+    return HiveSharedGroupRepository(ref);
   }
 });
 ```
@@ -82,14 +82,14 @@ final purchaseGroupRepositoryProvider = Provider<PurchaseGroupRepository>((ref) 
 
 Repository constructors must accept `Ref` for Riverpod integration:
 ```dart
-class HybridPurchaseGroupRepository implements PurchaseGroupRepository {
+class HybridSharedGroupRepository implements SharedGroupRepository {
   final Ref _ref;
-  HybridPurchaseGroupRepository(this._ref);
+  HybridSharedGroupRepository(this._ref);
 
-  Box<PurchaseGroup> get _box => _ref.read(purchaseGroupBoxProvider);
+  Box<SharedGroup> get _box => _ref.read(SharedGroupBoxProvider);
 
   // UI応答性のための非ブロッキングメソッド
-  Future<List<PurchaseGroup>> getAllGroupsForUI() async {
+  Future<List<SharedGroup>> getAllGroupsForUI() async {
     return await _getAllGroupsInternal(); // 初期化待機をスキップ
   }
 }
@@ -100,16 +100,16 @@ Models use both `@freezed` and `@HiveType` annotations:
 ```dart
 @HiveType(typeId: 1)
 @freezed
-class PurchaseGroupMember with _$PurchaseGroupMember {
-  const factory PurchaseGroupMember({
+class SharedGroupMember with _$SharedGroupMember {
+  const factory SharedGroupMember({
     @HiveField(0) @Default('') String memberId,  // Note: memberId not memberID
     @HiveField(1) required String name,
     // ...
-  }) = _PurchaseGroupMember;
+  }) = _SharedGroupMember;
 }
 ```
 
-**Hive TypeIDs**: 0=PurchaseGroupRole, 1=PurchaseGroupMember, 2=PurchaseGroup, 3=ShoppingItem, 4=ShoppingList
+**Hive TypeIDs**: 0=SharedGroupRole, 1=SharedGroupMember, 2=SharedGroup, 3=ShoppingItem, 4=ShoppingList
 
 ## Firestore Structure
 
@@ -117,11 +117,11 @@ class PurchaseGroupMember with _$PurchaseGroupMember {
 ユーザー個人情報を格納するトップレベルコレクション
 
 - **userProfile**: ユーザープロフィール情報（表示名、アバター等）
-- **purchaseGroups**: `string[]` - ユーザーが参加しているグループIDのリスト
+- **SharedGroups**: `string[]` - ユーザーが参加しているグループIDのリスト
   - 例: `["1762322612481", "VqNEozvTyXXw55Q46mNiGNMNngw2"]`
-  - グループデータ本体は `/purchaseGroups/{groupId}` に存在
+  - グループデータ本体は `/SharedGroups/{groupId}` に存在
 
-### `/purchaseGroups/{groupId}/` (allowedUidsに含まれるUIDのみアクセス可能)
+### `/SharedGroups/{groupId}/` (allowedUidsに含まれるUIDのみアクセス可能)
 グループ共有データを格納するトップレベルコレクション
 
 **フィールド構造**:
@@ -132,7 +132,7 @@ class PurchaseGroupMember with _$PurchaseGroupMember {
   ownerUid: string;             // オーナーUID
   ownerName: string;            // オーナー表示名
   ownerEmail: string;           // オーナーメールアドレス
-  members: PurchaseGroupMember[]; // メンバー配列
+  members: SharedGroupMember[]; // メンバー配列
   allowedUids: string[];        // アクセス権限を持つUIDリスト
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -199,7 +199,7 @@ void main() async {
 ### Crash-Proof Implementation
 ```dart
 // TestScenarioWidgetでのcrash-proofテスト
-final hybridRepo = repository as HybridPurchaseGroupRepository;
+final hybridRepo = repository as HybridSharedGroupRepository;
 hybridRepo.setInitializationProgressCallback((status, message) {
   // UI更新: ローディングスピナー、プログレス表示
 });
@@ -295,7 +295,7 @@ await hybridRepo.waitForSafeInitialization(); // 15秒タイムアウト付き
 #### 🚫 Other Critical Anti-Patterns
 
 6. **Property Naming**: Always use `memberId`, never `memberID` - 過去に複数回のタイポ修正
-7. **Null Safety**: Guard against `purchaseGroup.members` being null - NullPointerException頻発
+7. **Null Safety**: Guard against `SharedGroup.members` being null - NullPointerException頻発
 8. **Hive Box Access**: Ensure Boxes are opened in `_initializeHive()` before use - 初期化順序エラー
 9. **Firebase初期化順序**: WidgetsFlutterBinding.ensureInitialized()より先は危険
 10. **Async/Await Chain**: 過度なネストでデッドロック発生経験あり

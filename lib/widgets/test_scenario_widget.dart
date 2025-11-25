@@ -7,7 +7,7 @@ import '../utils/app_logger.dart';
 import '../providers/auth_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/shopping_list_provider.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../models/shopping_list.dart';
 import '../datastore/hybrid_purchase_group_repository.dart';
 import '../datastore/hybrid_shopping_list_repository.dart';
@@ -155,14 +155,14 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
     _log('📁 グループCRUDテスト開始...');
 
     try {
-      final repository = ref.read(purchaseGroupRepositoryProvider);
+      final repository = ref.read(SharedGroupRepositoryProvider);
       final testUserId = _currentUser?.uid ?? 'test_user_123';
 
       // 🛡️ 安全な初期化完了を待機（クラッシュ防止）
       // リポジトリの型をチェックして安全にキャスト
-      if (repository is HybridPurchaseGroupRepository) {
+      if (repository is HybridSharedGroupRepository) {
         final hybridRepo = repository;
-        _log('⏳ HybridPurchaseGroupRepository 安全な初期化を待機中...');
+        _log('⏳ HybridSharedGroupRepository 安全な初期化を待機中...');
 
         // 初期化開始状態を設定
         setState(() {
@@ -197,11 +197,11 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
           _initializationMessage = '初期化完了';
         });
 
-        _log('✅ HybridPurchaseGroupRepository 初期化完了');
+        _log('✅ HybridSharedGroupRepository 初期化完了');
         _log('🎯 最終ステータス: ${hybridRepo.initializationStatus.name}');
       } else {
-        // HivePurchaseGroupRepositoryの場合は初期化不要
-        _log('ℹ️ HivePurchaseGroupRepository使用中 - 初期化スキップ');
+        // HiveSharedGroupRepositoryの場合は初期化不要
+        _log('ℹ️ HiveSharedGroupRepository使用中 - 初期化スキップ');
         setState(() {
           _isInitializing = false;
           _initializationStatus = 'ready';
@@ -215,15 +215,15 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
       _log('🔍 TEST: リポジトリ取得: ${repository.runtimeType}');
       _log('🔍 TEST: testUserId: $testUserId');
 
-      final testMember = PurchaseGroupMember(
+      final testMember = SharedGroupMember(
         memberId: testUserId,
         name: 'テストユーザー',
         contact: '',
-        role: PurchaseGroupRole.owner,
+        role: SharedGroupRole.owner,
         invitedAt: DateTime.now(),
         acceptedAt: DateTime.now(),
       );
-      _log('✅ TEST: PurchaseGroupMember作成完了');
+      _log('✅ TEST: SharedGroupMember作成完了');
 
       final testGroupId = 'test_group_${DateTime.now().millisecondsSinceEpoch}';
       _log('🔍 TEST: createGroup()呼び出し開始 - GroupID: $testGroupId');
@@ -258,11 +258,11 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
 
       // 4. メンバー追加テスト
       _log('4️⃣ メンバー追加テスト');
-      final newMember = PurchaseGroupMember(
+      final newMember = SharedGroupMember(
         memberId: 'test_member_${DateTime.now().millisecondsSinceEpoch}',
         name: 'テストメンバー2',
         contact: '',
-        role: PurchaseGroupRole.member,
+        role: SharedGroupRole.member,
         invitedAt: DateTime.now(),
         acceptedAt: DateTime.now(),
       );
@@ -424,7 +424,7 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
 
     try {
       // Hybridリポジトリのインスタンスを取得
-      final groupRepo = ref.read(purchaseGroupRepositoryProvider);
+      final groupRepo = ref.read(SharedGroupRepositoryProvider);
       final listRepo = ref.read(shoppingListRepositoryProvider);
 
       // リポジトリの型を確認
@@ -432,15 +432,15 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
       _log('📍 ListRepository Type: ${listRepo.runtimeType}');
 
       // 🛡️ 安全な初期化完了を待機（クラッシュ防止）
-      if (groupRepo is HybridPurchaseGroupRepository) {
-        _log('⏳ HybridPurchaseGroupRepository 安全な初期化を待機中...');
+      if (groupRepo is HybridSharedGroupRepository) {
+        _log('⏳ HybridSharedGroupRepository 安全な初期化を待機中...');
         await groupRepo.waitForSafeInitialization();
         _log('✅ 安全な初期化完了確認 - テスト続行可能');
       }
 
       // 1. ローカル（Hive）データ確認
       _log('1️⃣ ローカルデータ確認');
-      if (groupRepo is HybridPurchaseGroupRepository) {
+      if (groupRepo is HybridSharedGroupRepository) {
         final localGroups = await groupRepo.getLocalGroups();
         _log('📱 Hive内グループ数: ${localGroups.length}');
         for (final group in localGroups) {
@@ -450,14 +450,14 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
 
       // 2. オンライン同期状態確認
       _log('2️⃣ オンライン同期状態確認');
-      if (groupRepo is HybridPurchaseGroupRepository) {
+      if (groupRepo is HybridSharedGroupRepository) {
         _log('🌐 Online Status: ${groupRepo.isOnline}');
         _log('🔄 Sync Status: ${groupRepo.isSyncing}');
       }
 
       // 3. 強制同期テスト
       _log('3️⃣ 強制同期テスト');
-      if (groupRepo is HybridPurchaseGroupRepository) {
+      if (groupRepo is HybridSharedGroupRepository) {
         _log('🔄 Firestore→Hive同期を開始...');
         await groupRepo.syncFromFirestore();
         _log('✅ 同期完了');
@@ -470,7 +470,7 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
 
       // 5. オフライン動作テスト
       _log('5️⃣ オフライン動作シミュレーション');
-      if (groupRepo is HybridPurchaseGroupRepository) {
+      if (groupRepo is HybridSharedGroupRepository) {
         // オフライン状態をシミュレート
         _log('📱 オフラインモードに切り替え...');
         // オフライン状態での書き込みテスト
@@ -482,11 +482,11 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
         const testGroupName = 'オフラインテストグループ';
 
         // テスト用オーナーメンバーを作成
-        final ownerMember = PurchaseGroupMember(
+        final ownerMember = SharedGroupMember(
           memberId: userId,
           name: 'テストユーザー',
           contact: '',
-          role: PurchaseGroupRole.owner,
+          role: SharedGroupRole.owner,
           invitedAt: DateTime.now(),
           acceptedAt: DateTime.now(),
         );
@@ -576,7 +576,7 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
 
       _log('2️⃣ Repository層エラーシミュレーション');
 
-      final repository = ref.read(purchaseGroupRepositoryProvider);
+      final repository = ref.read(SharedGroupRepositoryProvider);
       _log('Repository type: ${repository.runtimeType}');
 
       try {
@@ -693,7 +693,7 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
       );
 
       _log('2️⃣ Repository直接アクセス確認');
-      final repository = ref.read(purchaseGroupRepositoryProvider);
+      final repository = ref.read(SharedGroupRepositoryProvider);
       _log('Repository type: ${repository.runtimeType}');
 
       try {
@@ -754,11 +754,11 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
 
       _log('5️⃣ Hybridリポジトリ初期化状態確認');
       try {
-        final repository = ref.read(purchaseGroupRepositoryProvider);
+        final repository = ref.read(SharedGroupRepositoryProvider);
         _log('🏪 Repository type: ${repository.runtimeType}');
 
-        // HybridPurchaseGroupRepositoryの場合、初期化状態を確認
-        if (repository is HybridPurchaseGroupRepository) {
+        // HybridSharedGroupRepositoryの場合、初期化状態を確認
+        if (repository is HybridSharedGroupRepository) {
           _log('🔧 Hybrid初期化状態詳細調査:');
           _log('   � 初期化ステータス: ${repository.initializationStatus}');
           _log('   🌐 オンライン状態: ${repository.isOnline}');
@@ -795,7 +795,7 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
     _log('🔧 デフォルトグループ再作成開始...');
 
     try {
-      final repository = ref.read(purchaseGroupRepositoryProvider);
+      final repository = ref.read(SharedGroupRepositoryProvider);
 
       _log('1️⃣ 既存デフォルトグループ削除試行');
       try {
@@ -813,11 +813,11 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
       final userName = currentUser?.displayName ?? 'maya';
       final userUid = currentUser?.uid ?? 'defaultUser';
 
-      final ownerMember = PurchaseGroupMember(
+      final ownerMember = SharedGroupMember(
         memberId: userUid,
         name: userName,
         contact: '',
-        role: PurchaseGroupRole.owner,
+        role: SharedGroupRole.owner,
         invitedAt: DateTime.now(),
         acceptedAt: DateTime.now(),
       );
@@ -883,23 +883,23 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
 
   /// 実際のHybrid初期化処理
   Future<void> _performHybridInitialization() async {
-    final repository = ref.read(purchaseGroupRepositoryProvider);
+    final repository = ref.read(SharedGroupRepositoryProvider);
 
-    if (repository is HybridPurchaseGroupRepository) {
-      _log('🎯 HybridPurchaseGroupRepository検出');
+    if (repository is HybridSharedGroupRepository) {
+      _log('🎯 HybridSharedGroupRepository検出');
       _log('   現在のステータス: ${repository.initializationStatus}');
       _log('   オンライン状態: ${repository.isOnline}');
 
       // Providerを再読み込みして初期化を強制
       _log('🔄 Providerリセット実行...');
-      ref.invalidate(purchaseGroupRepositoryProvider);
+      ref.invalidate(SharedGroupRepositoryProvider);
 
       // 待機時間を短縮
       await Future.delayed(const Duration(milliseconds: 200));
 
       // 新しいインスタンスを取得（タイムアウト付き）
-      final newRepository = ref.read(purchaseGroupRepositoryProvider);
-      if (newRepository is HybridPurchaseGroupRepository) {
+      final newRepository = ref.read(SharedGroupRepositoryProvider);
+      if (newRepository is HybridSharedGroupRepository) {
         _log('✅ 新しいHybridインスタンス生成');
         _log('   新しいステータス: ${newRepository.initializationStatus}');
         _log('   新しいオンライン状態: ${newRepository.isOnline}');
@@ -910,7 +910,7 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
         _log('✅ 初期化後動作確認: ${groups.length}グループ取得成功');
       }
     } else {
-      _log('ℹ️ HybridPurchaseGroupRepository以外: ${repository.runtimeType}');
+      _log('ℹ️ HybridSharedGroupRepository以外: ${repository.runtimeType}');
     }
   }
 
@@ -921,7 +921,7 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
     try {
       // 1. 全Providerをリセット
       _log('🔄 全Provider強制リセット...');
-      ref.invalidate(purchaseGroupRepositoryProvider);
+      ref.invalidate(SharedGroupRepositoryProvider);
       ref.invalidate(allGroupsProvider);
 
       // 2. 短時間待機
@@ -929,7 +929,7 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
 
       // 3. 基本動作確認
       _log('🧪 基本動作確認...');
-      final testRepo = ref.read(purchaseGroupRepositoryProvider);
+      final testRepo = ref.read(SharedGroupRepositoryProvider);
       _log('✅ 緊急回復後のRepository: ${testRepo.runtimeType}');
     } catch (e) {
       _log('❌ 緊急回復エラー: $e');
@@ -944,13 +944,13 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
     _log('🐛 Hybridリポジトリ詳細デバッグ開始...');
 
     try {
-      final repository = ref.read(purchaseGroupRepositoryProvider);
+      final repository = ref.read(SharedGroupRepositoryProvider);
 
       _log('📊 基本情報:');
       _log('   Repository Type: ${repository.runtimeType}');
       _log('   App Flavor: ${F.appFlavor}');
 
-      if (repository is HybridPurchaseGroupRepository) {
+      if (repository is HybridSharedGroupRepository) {
         _log('🔍 Hybrid詳細状態:');
         _log('   📈 初期化ステータス: ${repository.initializationStatus}');
         _log('   🌐 オンライン状態: ${repository.isOnline}');
@@ -974,7 +974,7 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
               '     [$i] ${group.groupName} (${group.members?.length ?? 0}メンバー)');
         }
       } else {
-        _log('ℹ️ HybridPurchaseGroupRepository以外の実装');
+        _log('ℹ️ HybridSharedGroupRepository以外の実装');
       }
     } catch (e) {
       _log('❌ Hybridデバッグエラー: $e');
@@ -1002,10 +1002,10 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
       _log('🧹 全Provider完全クリア開始...');
 
       try {
-        ref.invalidate(purchaseGroupRepositoryProvider);
-        _log('   ✅ PurchaseGroupRepository リセット完了');
+        ref.invalidate(SharedGroupRepositoryProvider);
+        _log('   ✅ SharedGroupRepository リセット完了');
       } catch (e) {
-        _log('   ⚠️ PurchaseGroupRepository リセットエラー: $e');
+        _log('   ⚠️ SharedGroupRepository リセットエラー: $e');
       }
 
       try {
@@ -1019,10 +1019,10 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
       // システム状態確認
       _log('🧪 システム状態確認...');
       try {
-        final testRepo = ref.read(purchaseGroupRepositoryProvider);
+        final testRepo = ref.read(SharedGroupRepositoryProvider);
         _log('   ✅ Repository復旧: ${testRepo.runtimeType}');
 
-        if (testRepo is HybridPurchaseGroupRepository) {
+        if (testRepo is HybridSharedGroupRepository) {
           _log('   📊 初期化ステータス: ${testRepo.initializationStatus}');
         }
       } catch (e) {

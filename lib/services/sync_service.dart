@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../datastore/purchase_group_repository.dart';
 import '../providers/purchase_group_provider.dart';
 import '../utils/app_logger.dart';
@@ -19,8 +19,8 @@ class SyncService {
 
   SyncService(this._ref);
 
-  PurchaseGroupRepository get _repository =>
-      _ref.read(purchaseGroupRepositoryProvider);
+  SharedGroupRepository get _repository =>
+      _ref.read(SharedGroupRepositoryProvider);
 
   /// 全グループを同期（Firestore → Hive）
   /// アプリ起動時などに使用
@@ -34,7 +34,7 @@ class SyncService {
       AppLogger.info('⬇️ [SYNC] Firestore→Hive全グループ同期開始');
 
       final snapshot = await _firestore
-          .collection('purchaseGroups')
+          .collection('SharedGroups')
           .where('allowedUid', arrayContains: user.uid)
           .get();
 
@@ -54,7 +54,7 @@ class SyncService {
         }
 
         try {
-          final group = PurchaseGroup.fromJson(data);
+          final group = SharedGroup.fromJson(data);
           await _repository.updateGroup(doc.id, group);
           syncedCount++;
         } catch (e) {
@@ -78,7 +78,7 @@ class SyncService {
       AppLogger.info('🔄 [SYNC] グループ同期開始: $groupId');
 
       final groupDoc =
-          await _firestore.collection('purchaseGroups').doc(groupId).get();
+          await _firestore.collection('SharedGroups').doc(groupId).get();
 
       if (!groupDoc.exists) {
         AppLogger.warning('⚠️ [SYNC] グループが存在しません: $groupId');
@@ -94,7 +94,7 @@ class SyncService {
         return true;
       }
 
-      final group = PurchaseGroup.fromJson(groupData);
+      final group = SharedGroup.fromJson(groupData);
       await _repository.updateGroup(groupId, group);
 
       AppLogger.info('✅ [SYNC] グループ同期完了: ${group.groupName}');
@@ -107,7 +107,7 @@ class SyncService {
 
   /// Hive → Firestore へのアップロード
   /// グループ作成時などに使用
-  Future<bool> uploadGroupToFirestore(PurchaseGroup group) async {
+  Future<bool> uploadGroupToFirestore(SharedGroup group) async {
     if (F.appFlavor != Flavor.prod) {
       AppLogger.info('💡 [SYNC] Dev環境のため、Firestoreアップロードはスキップ');
       return false;
@@ -116,7 +116,7 @@ class SyncService {
     try {
       AppLogger.info('⬆️ [SYNC] グループをFirestoreにアップロード: ${group.groupName}');
 
-      await _firestore.collection('purchaseGroups').doc(group.groupId).set({
+      await _firestore.collection('SharedGroups').doc(group.groupId).set({
         'groupId': group.groupId,
         'groupName': group.groupName,
         'ownerUid': group.ownerUid,
@@ -153,7 +153,7 @@ class SyncService {
     }
 
     try {
-      await _firestore.collection('purchaseGroups').doc(groupId).update({
+      await _firestore.collection('SharedGroups').doc(groupId).update({
         'isDeleted': true,
         'updatedAt': FieldValue.serverTimestamp(),
       });

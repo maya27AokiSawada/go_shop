@@ -2,7 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'lib/firebase_options.dart';
-import 'lib/models/purchase_group.dart';
+import 'lib/models/shared_group.dart';
 
 void main() async {
   print('🔧 デフォルトグループ名修正スクリプト開始');
@@ -14,13 +14,13 @@ void main() async {
 
   // Hive初期化
   await Hive.initFlutter();
-  Hive.registerAdapter(PurchaseGroupAdapter());
-  Hive.registerAdapter(PurchaseGroupMemberAdapter());
-  Hive.registerAdapter(PurchaseGroupRoleAdapter());
+  Hive.registerAdapter(SharedGroupAdapter());
+  Hive.registerAdapter(SharedGroupMemberAdapter());
+  Hive.registerAdapter(SharedGroupRoleAdapter());
   Hive.registerAdapter(SyncStatusAdapter());
   Hive.registerAdapter(InvitationStatusAdapter());
 
-  final purchaseGroupBox = await Hive.openBox<PurchaseGroup>('purchaseGroups');
+  final SharedGroupBox = await Hive.openBox<SharedGroup>('SharedGroups');
 
   final currentUser = FirebaseAuth.instance.currentUser;
   if (currentUser == null) {
@@ -35,8 +35,8 @@ void main() async {
   print('');
 
   // デフォルトグループを検索
-  PurchaseGroup? defaultGroup;
-  for (var group in purchaseGroupBox.values) {
+  SharedGroup? defaultGroup;
+  for (var group in SharedGroupBox.values) {
     if (group.groupId == currentUser.uid) {
       defaultGroup = group;
       break;
@@ -69,7 +69,7 @@ void main() async {
     ownerName: userName,
   );
 
-  await purchaseGroupBox.put(currentUser.uid, updatedGroup);
+  await SharedGroupBox.put(currentUser.uid, updatedGroup);
 
   print('✅ デフォルトグループ名を更新しました！');
   print('');

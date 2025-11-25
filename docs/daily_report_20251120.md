@@ -65,17 +65,17 @@ Future<void> _addMemberToGroup(String groupId, String? acceptorUid, String accep
   }
 
   // members追加
-  final updatedMembers = List<PurchaseGroupMember>.from(currentGroup.members ?? []);
-  final newMember = PurchaseGroupMember(
+  final updatedMembers = List<SharedGroupMember>.from(currentGroup.members ?? []);
+  final newMember = SharedGroupMember(
     memberId: acceptorUid!,
     name: acceptorName,
-    role: PurchaseGroupRole.member,
+    role: SharedGroupRole.member,
     // ...
   );
   updatedMembers.add(newMember);
 
   // Firestore更新
-  await FirebaseFirestore.instance.collection('purchaseGroups').doc(groupId).update({
+  await FirebaseFirestore.instance.collection('SharedGroups').doc(groupId).update({
     'allowedUid': updatedAllowedUid,
     'members': updatedMembers.map((m) => m.toJson()).toList(),
   });

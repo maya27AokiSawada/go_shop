@@ -14,21 +14,21 @@ Go Shopアプリでは、個人情報保護を最優先に考え、メンバー�
 
 ### 🛡️ 実装上の保護措置
 
-#### HybridPurchaseGroupRepository
+#### HybridSharedGroupRepository
 
 ```dart
 /// メンバープールは個人情報保護の観点からHiveローカルDBにのみ保存
 /// Firestoreには一切同期しない
-Future<PurchaseGroup> getOrCreateMemberPool() async {
+Future<SharedGroup> getOrCreateMemberPool() async {
   // 🔒 個人情報保護: メンバープールはローカルのみ
   return await _hiveRepo.getOrCreateMemberPool();
 }
 ```
 
-#### FirestorePurchaseGroupRepository
+#### FirestoreSharedGroupRepository
 
 ```dart
-Future<PurchaseGroup> getOrCreateMemberPool() async {
+Future<SharedGroup> getOrCreateMemberPool() async {
   throw UnimplementedError('🔒 Member pool is local-only for privacy protection');
 }
 ```

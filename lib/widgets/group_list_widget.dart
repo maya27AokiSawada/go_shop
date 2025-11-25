@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/current_list_provider.dart';
 import '../providers/group_shopping_lists_provider.dart';
@@ -138,7 +138,7 @@ class GroupListWidget extends ConsumerWidget {
   }
 
   Widget _buildGroupList(BuildContext context, WidgetRef ref,
-      List<PurchaseGroup> groups, String selectedGroupId) {
+      List<SharedGroup> groups, String selectedGroupId) {
     AppLogger.info('📋 [GROUP_LIST] グループ数: ${groups.length}');
 
     if (groups.isEmpty) {
@@ -156,7 +156,7 @@ class GroupListWidget extends ConsumerWidget {
   }
 
   Widget _buildGroupTile(BuildContext context, WidgetRef ref,
-      PurchaseGroup group, String selectedGroupId) {
+      SharedGroup group, String selectedGroupId) {
     final currentUser = FirebaseAuth.instance.currentUser;
     final isDefGroup = isDefaultGroup(group, currentUser);
     final memberCount = group.members?.length ?? 0;
@@ -317,7 +317,7 @@ class GroupListWidget extends ConsumerWidget {
   }
 
   Future<void> _selectCurrentGroup(
-      BuildContext context, WidgetRef ref, PurchaseGroup group) async {
+      BuildContext context, WidgetRef ref, SharedGroup group) async {
     final selectedGroupId = ref.read(selectedGroupIdProvider);
 
     if (selectedGroupId == group.groupId) {
@@ -361,7 +361,7 @@ class GroupListWidget extends ConsumerWidget {
   }
 
   void _navigateToMemberManagement(
-      BuildContext context, WidgetRef ref, PurchaseGroup group) {
+      BuildContext context, WidgetRef ref, SharedGroup group) {
     // メンバー管理画面に遷移（カレントグループ設定は行わない）
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -371,7 +371,7 @@ class GroupListWidget extends ConsumerWidget {
   }
 
   Widget _buildCurrentGroupInfo(WidgetRef ref, String selectedGroupId,
-      AsyncValue<List<PurchaseGroup>> allGroupsAsync) {
+      AsyncValue<List<SharedGroup>> allGroupsAsync) {
     return allGroupsAsync.when(
       data: (groups) {
         final currentGroup =
@@ -519,7 +519,7 @@ class GroupListWidget extends ConsumerWidget {
   }
 
   static Future<void> _showGroupOptions(
-      BuildContext context, WidgetRef ref, PurchaseGroup group) async {
+      BuildContext context, WidgetRef ref, SharedGroup group) async {
     // 現在のユーザー情報を安全に取得
     final currentUser = ErrorHandler.handleSync<User?>(
       operation: () {
@@ -556,21 +556,21 @@ class GroupListWidget extends ConsumerWidget {
     final members = group.members;
     final currentMember = members?.firstWhere(
           (member) => member.memberId == currentUserId,
-          orElse: () => const PurchaseGroupMember(
+          orElse: () => const SharedGroupMember(
             memberId: '',
             name: '',
             contact: '',
-            role: PurchaseGroupRole.member,
+            role: SharedGroupRole.member,
           ),
         ) ??
-        const PurchaseGroupMember(
+        const SharedGroupMember(
           memberId: '',
           name: '',
           contact: '',
-          role: PurchaseGroupRole.member,
+          role: SharedGroupRole.member,
         );
 
-    final isOwner = currentMember.role == PurchaseGroupRole.owner;
+    final isOwner = currentMember.role == SharedGroupRole.owner;
 
     if (!isOwner) {
       AppLogger.info('📋 [GROUP_OPTIONS] オーナーではないため削除権限なし: $currentUserId');
@@ -588,7 +588,7 @@ class GroupListWidget extends ConsumerWidget {
   }
 
   static void _showDeleteConfirmationDialog(
-      BuildContext context, WidgetRef ref, PurchaseGroup group) {
+      BuildContext context, WidgetRef ref, SharedGroup group) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -629,7 +629,7 @@ class GroupListWidget extends ConsumerWidget {
   }
 
   static void _deleteGroup(
-      BuildContext context, WidgetRef ref, PurchaseGroup group) async {
+      BuildContext context, WidgetRef ref, SharedGroup group) async {
     AppLogger.info('🗑️ [GROUP_DELETE] グループ削除開始: ${group.groupId}');
 
     try {
@@ -652,7 +652,7 @@ class GroupListWidget extends ConsumerWidget {
       );
 
       // リポジトリから削除実行
-      final repository = ref.read(purchaseGroupRepositoryProvider);
+      final repository = ref.read(SharedGroupRepositoryProvider);
       await repository.deleteGroup(group.groupId);
 
       // 削除されたグループが選択中のグループの場合はクリア
@@ -695,7 +695,7 @@ class GroupListWidget extends ConsumerWidget {
 
   /// QR招待ダイアログを表示
   Future<void> _showInvitationDialog(
-      BuildContext context, WidgetRef ref, PurchaseGroup group) async {
+      BuildContext context, WidgetRef ref, SharedGroup group) async {
     showDialog(
       context: context,
       builder: (context) => GroupInvitationDialog(group: group),

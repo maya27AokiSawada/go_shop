@@ -7,7 +7,7 @@ import '../utils/firestore_helper.dart'; // Firestore操作ヘルパー
 import 'user_initialization_service.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/hive_provider.dart'; // Hive Box プロバイダー
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../datastore/firestore_purchase_group_repository.dart'; // Repository型チェック用
 
 /// 通知サービスプロバイダー
@@ -282,7 +282,7 @@ class NotificationService {
       AppLogger.info('📤 [OWNER] グループ更新開始: $groupId に $acceptorName を追加');
 
       // 現在のグループ情報を取得
-      final repository = _ref.read(purchaseGroupRepositoryProvider);
+      final repository = _ref.read(SharedGroupRepositoryProvider);
       final currentGroup = await repository.getGroupById(groupId);
 
       // allowedUidに追加
@@ -293,14 +293,14 @@ class NotificationService {
 
       // メンバーリストに追加
       final updatedMembers =
-          List<PurchaseGroupMember>.from(currentGroup.members ?? []);
+          List<SharedGroupMember>.from(currentGroup.members ?? []);
       if (!updatedMembers.any((m) => m.memberId == acceptorUid)) {
         updatedMembers.add(
-          PurchaseGroupMember(
+          SharedGroupMember(
             memberId: acceptorUid,
             name: acceptorName,
             contact: '',
-            role: PurchaseGroupRole.member,
+            role: SharedGroupRole.member,
             isSignedIn: true,
             invitationStatus: InvitationStatus.accepted,
             acceptedAt: DateTime.now(),
@@ -310,7 +310,7 @@ class NotificationService {
 
       // Firestoreに更新
       await FirebaseFirestore.instance
-          .collection('purchaseGroups')
+          .collection('SharedGroups')
           .doc(groupId)
           .update({
         'allowedUid': updatedAllowedUid,
@@ -360,12 +360,12 @@ class NotificationService {
       AppLogger.info('🔍 [NOTIFICATION] 同期グループallowedUid: ${group.allowedUid}');
 
       // 🔥 CRITICAL FIX: Hiveにのみ保存（Firestoreへの逆書き込みを防ぐ）
-      final repository = _ref.read(purchaseGroupRepositoryProvider);
+      final repository = _ref.read(SharedGroupRepositoryProvider);
 
       // FirestoreRepositoryの場合は、Hive Boxに直接書き込む
-      if (repository is FirestorePurchaseGroupRepository) {
-        final purchaseGroupBox = _ref.read(purchaseGroupBoxProvider);
-        await purchaseGroupBox.put(groupId, group);
+      if (repository is FirestoreSharedGroupRepository) {
+        final SharedGroupBox = _ref.read(SharedGroupBoxProvider);
+        await SharedGroupBox.put(groupId, group);
         AppLogger.info(
             '✅ [NOTIFICATION] HiveのみにGroup保存（Firestore書き戻し回避）: ${group.groupName}');
       } else {
@@ -436,7 +436,7 @@ class NotificationService {
 
       // グループ情報を取得
       final groupDoc =
-          await _firestore.collection('purchaseGroups').doc(groupId).get();
+          await _firestore.collection('SharedGroups').doc(groupId).get();
       if (!groupDoc.exists) {
         AppLogger.error('❌ [NOTIFICATION] グループが見つかりません: $groupId');
         return;

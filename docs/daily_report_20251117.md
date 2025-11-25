@@ -58,7 +58,7 @@ if (user != null) {
 /// デフォルトグループの条件:
 /// 1. groupId == 'default_group' (固定文字列、レガシー対応)
 /// 2. groupId == user.uid (ユーザー専用グループ)
-bool isDefaultGroup(PurchaseGroup group, User? currentUser) {
+bool isDefaultGroup(SharedGroup group, User? currentUser) {
   if (group.groupId == 'default_group') {
     return true;
   }
@@ -170,7 +170,7 @@ if (user != null && expectedDefaultGroupId != 'local_default') {
 
 1. UID変更検出 → `UserDataMigrationDialog`表示
 2. 「初期化」選択:
-   - Hiveデータクリア（PurchaseGroup + ShoppingList）
+   - Hiveデータクリア（SharedGroup + ShoppingList）
    - プロバイダー無効化
    - `SelectedGroupIdNotifier.clearSelection()`実行
    - Firestore同期（新ユーザーのデータをダウンロード）
@@ -269,7 +269,7 @@ await provider.someMethod();
    - 提案: ユーザーが名前を変更可能に
 
 3. **レガシーコードの完全削除**（移行期間後）:
-   - `HivePurchaseGroupRepository._createDefaultGroup()`
+   - `HiveSharedGroupRepository._createDefaultGroup()`
    - `'default_group'`固定文字列の全削除
 
 ---

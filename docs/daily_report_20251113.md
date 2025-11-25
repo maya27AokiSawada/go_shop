@@ -12,7 +12,7 @@
 **修正内容**:
 ```dart
 // 修正前: allowedUidを読み込んでいない
-return PurchaseGroup(
+return SharedGroup(
   groupName: data['groupName'] ?? '',
   groupId: data['groupId'] ?? doc.id,
   ownerUid: data['ownerUid'] ?? '',
@@ -21,7 +21,7 @@ return PurchaseGroup(
 );
 
 // 修正後: allowedUidを読み込む
-return PurchaseGroup(
+return SharedGroup(
   groupName: data['groupName'] ?? '',
   groupId: data['groupId'] ?? doc.id,
   ownerUid: data['ownerUid'] ?? '',
@@ -52,7 +52,7 @@ return PurchaseGroup(
 // qr_invitation_service.dart の _processIndividualInvitation()
 // 1. Firestoreから最新データを取得
 List<String> firestoreAllowedUid = [];
-final firestoreDoc = await _firestore.collection('purchaseGroups').doc(groupId).get();
+final firestoreDoc = await _firestore.collection('SharedGroups').doc(groupId).get();
 if (firestoreDoc.exists) {
   firestoreAllowedUid = List<String>.from(data['allowedUid'] ?? []);
 }

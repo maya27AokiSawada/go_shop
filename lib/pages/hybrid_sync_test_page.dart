@@ -6,7 +6,7 @@ import '../utils/app_logger.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/shopping_list_provider.dart';
 import '../widgets/sync_status_widget.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../models/shopping_list.dart';
 import '../flavors.dart';
 
@@ -224,7 +224,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
     );
   }
 
-  Widget _buildGroupsList(AsyncValue<List<PurchaseGroup>> allGroupsAsync) {
+  Widget _buildGroupsList(AsyncValue<List<SharedGroup>> allGroupsAsync) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -482,8 +482,8 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
     try {
       final firestore = FirebaseFirestore.instance;
 
-      // PurchaseGroupsコレクションの確認
-      final groupsSnapshot = await firestore.collection('purchaseGroups').get();
+      // SharedGroupsコレクションの確認
+      final groupsSnapshot = await firestore.collection('SharedGroups').get();
 
       if (groupsSnapshot.docs.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -536,7 +536,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
       final localGroups = await ref.read(allGroupsProvider.future);
 
       // Firestoreデータの確認
-      final groupsSnapshot = await firestore.collection('purchaseGroups').get();
+      final groupsSnapshot = await firestore.collection('SharedGroups').get();
 
       // 比較結果
       final localCount = localGroups.length;
@@ -619,11 +619,11 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
     }
 
     final group = testGroups.first;
-    final testMember = PurchaseGroupMember.create(
+    final testMember = SharedGroupMember.create(
       memberId: 'test_uid_${DateTime.now().millisecondsSinceEpoch % 1000}',
       name: 'テストメンバー${DateTime.now().millisecondsSinceEpoch % 1000}',
       contact: '',
-      role: PurchaseGroupRole.member,
+      role: SharedGroupRole.member,
     );
 
     try {
@@ -644,7 +644,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
     }
   }
 
-  void _deleteTestGroup(PurchaseGroup group) async {
+  void _deleteTestGroup(SharedGroup group) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -667,7 +667,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
     if (confirmed == true) {
       try {
         final notifier = ref.read(allGroupsProvider.notifier);
-        final repository = ref.read(purchaseGroupRepositoryProvider);
+        final repository = ref.read(SharedGroupRepositoryProvider);
         await repository.deleteGroup(group.groupId);
         await notifier.refresh(); // リストを更新
 
@@ -686,7 +686,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
     }
   }
 
-  void _showGroupDetails(PurchaseGroup group) {
+  void _showGroupDetails(SharedGroup group) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(

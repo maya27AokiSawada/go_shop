@@ -20,7 +20,7 @@ void main() async {
   Hive.init(documentsDir.path);
 
   try {
-    final box = await Hive.openBox('purchaseGroups');
+    final box = await Hive.openBox('sharedGroups');
     print('\nBox opened successfully!');
     print('Number of groups: ${box.length}');
     print('\nAll keys:');

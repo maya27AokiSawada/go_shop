@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../utils/app_logger.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/user_name_provider.dart';
 import '../datastore/hybrid_purchase_group_repository.dart';
@@ -88,10 +88,10 @@ class SignupService {
   }
 
   /// ローカルデフォルトグループの検出
-  Future<PurchaseGroup?> _detectLocalDefaultGroup() async {
+  Future<SharedGroup?> _detectLocalDefaultGroup() async {
     try {
-      final repository = _ref.read(purchaseGroupRepositoryProvider);
-      if (repository is HybridPurchaseGroupRepository) {
+      final repository = _ref.read(SharedGroupRepositoryProvider);
+      if (repository is HybridSharedGroupRepository) {
         final allGroups = await repository.getLocalGroups();
         return allGroups.where((g) => g.groupId == 'default_group').firstOrNull;
       }
@@ -103,7 +103,7 @@ class SignupService {
 
   /// Firebase形式のデフォルトグループ作成
   Future<String> _createFirebaseDefaultGroup(User user) async {
-    final repository = _ref.read(purchaseGroupRepositoryProvider);
+    final repository = _ref.read(SharedGroupRepositoryProvider);
     final newGroupId = 'default_${user.uid}';
 
     // 既存チェック
@@ -115,11 +115,11 @@ class SignupService {
     }
 
     // オーナーメンバーを作成
-    final ownerMember = PurchaseGroupMember.create(
+    final ownerMember = SharedGroupMember.create(
       memberId: user.uid,
       name: user.displayName ?? 'ユーザー',
       contact: user.email ?? '',
-      role: PurchaseGroupRole.owner,
+      role: SharedGroupRole.owner,
       isSignedIn: true,
     );
 
@@ -132,16 +132,16 @@ class SignupService {
 
   /// ローカルデータの移行
   Future<void> _migrateLocalData(
-    PurchaseGroup localDefaultGroup,
+    SharedGroup localDefaultGroup,
     String newGroupId,
     User user,
   ) async {
-    final repository = _ref.read(purchaseGroupRepositoryProvider);
+    final repository = _ref.read(SharedGroupRepositoryProvider);
 
     // メンバーの移行（オーナーのmemberIdをFirebase UIDに変更）
-    final migratedMembers = <PurchaseGroupMember>[];
+    final migratedMembers = <SharedGroupMember>[];
     for (final member in localDefaultGroup.members ?? []) {
-      if (member.role == PurchaseGroupRole.owner) {
+      if (member.role == SharedGroupRole.owner) {
         final updatedOwner = member.copyWith(
           memberId: user.uid,
           name: user.displayName ?? member.name,
@@ -168,7 +168,7 @@ class SignupService {
     try {
       final defaultGroup = await repository.getGroupById('default_group');
       final updatedMembers = defaultGroup.members?.map((member) {
-            if (member.role == PurchaseGroupRole.owner) {
+            if (member.role == SharedGroupRole.owner) {
               return member.copyWith(memberId: user.uid);
             }
             return member;

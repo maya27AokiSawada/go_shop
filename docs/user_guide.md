@@ -253,7 +253,7 @@ Go Shopは自動的にデータを同期します：
    - ホーム画面右上のテストボタンをタップ
 
 2. **各種テストを実行**
-   - PurchaseGroup同期テスト
+   - SharedGroup同期テスト
    - ShoppingList同期テスト
    - データ整合性チェック
 

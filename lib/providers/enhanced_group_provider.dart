@@ -1,6 +1,6 @@
 // lib/providers/enhanced_group_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../services/enhanced_invitation_service.dart';
 
 import '../providers/purchase_group_provider.dart';
@@ -47,7 +47,7 @@ class EnhancedGroupNotifier extends AsyncNotifier<EnhancedGroupState> {
             GroupInvitationData(
               groupId: group.groupId,
               groupName: group.groupName,
-              targetRole: PurchaseGroupRole.member,
+              targetRole: SharedGroupRole.member,
             ),
           ],
         );
@@ -124,9 +124,9 @@ class EnhancedGroupNotifier extends AsyncNotifier<EnhancedGroupState> {
   /// Create new group with optional member copy
   Future<bool> createGroupWithCopy({
     required String groupName,
-    PurchaseGroup? sourceGroup,
+    SharedGroup? sourceGroup,
     List<String>? selectedMemberIds,
-    Map<String, PurchaseGroupRole>? memberRoles,
+    Map<String, SharedGroupRole>? memberRoles,
   }) async {
     try {
       state = state.whenData((data) => data.copyWith(isLoading: true));
@@ -158,19 +158,19 @@ class EnhancedGroupNotifier extends AsyncNotifier<EnhancedGroupState> {
   }
 
   Future<void> _copySelectedMembers({
-    required PurchaseGroup sourceGroup,
+    required SharedGroup sourceGroup,
     required List<String> selectedMemberIds,
-    required Map<String, PurchaseGroupRole> memberRoles,
+    required Map<String, SharedGroupRole> memberRoles,
   }) async {
     final selectedGroupNotifier =
         ref.read(selectedGroupNotifierProvider.notifier);
 
-    for (final member in sourceGroup.members ?? <PurchaseGroupMember>[]) {
+    for (final member in sourceGroup.members ?? <SharedGroupMember>[]) {
       if (selectedMemberIds.contains(member.memberId) &&
-          member.role != PurchaseGroupRole.owner) {
+          member.role != SharedGroupRole.owner) {
         final newRole = memberRoles[member.memberId] ?? member.role;
 
-        final newMember = PurchaseGroupMember.create(
+        final newMember = SharedGroupMember.create(
           name: member.name,
           contact: member.contact,
           role: newRole,
@@ -187,19 +187,19 @@ class EnhancedGroupNotifier extends AsyncNotifier<EnhancedGroupState> {
   }
 
   /// Check if current user can invite others to a group
-  bool canInviteToGroup(PurchaseGroup group, String currentUserId) {
+  bool canInviteToGroup(SharedGroup group, String currentUserId) {
     final member = group.members?.firstWhere(
       (m) => m.memberId == currentUserId,
-      orElse: () => const PurchaseGroupMember(
+      orElse: () => const SharedGroupMember(
         memberId: '',
         name: '',
         contact: '',
-        role: PurchaseGroupRole.member,
+        role: SharedGroupRole.member,
       ),
     );
 
-    return member?.role == PurchaseGroupRole.owner ||
-        member?.role == PurchaseGroupRole.manager;
+    return member?.role == SharedGroupRole.owner ||
+        member?.role == SharedGroupRole.manager;
   }
 
   /// Clear pending invitation state
@@ -213,8 +213,8 @@ class EnhancedGroupNotifier extends AsyncNotifier<EnhancedGroupState> {
 
 /// Enhanced group state with invitation features
 class EnhancedGroupState {
-  final List<PurchaseGroup> allGroups;
-  final PurchaseGroup? currentGroup;
+  final List<SharedGroup> allGroups;
+  final SharedGroup? currentGroup;
   final bool isLoading;
   final List<GroupInvitationOption> availableInvitationGroups;
   final String? pendingInvitationEmail;
@@ -228,8 +228,8 @@ class EnhancedGroupState {
   });
 
   EnhancedGroupState copyWith({
-    List<PurchaseGroup>? allGroups,
-    PurchaseGroup? currentGroup,
+    List<SharedGroup>? allGroups,
+    SharedGroup? currentGroup,
     bool? isLoading,
     List<GroupInvitationOption>? availableInvitationGroups,
     String? pendingInvitationEmail,

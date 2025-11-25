@@ -6,7 +6,7 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../utils/app_logger.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 
 // プロバイダー
 final invitationSecurityServiceProvider = Provider<InvitationSecurityService>(
@@ -110,11 +110,11 @@ class InvitationSecurityService {
     return DateTime.now().isAfter(expiryDate);
   }
 
-  /// PurchaseGroupMemberの招待状態を更新
+  /// SharedGroupMemberの招待状態を更新
   /// NOTE: v4データモデルではInvitationStatus, securityKey, invitedAt, acceptedAtが削除されたため無効化
   // ignore: unused_element
-  PurchaseGroupMember updateInvitationStatus(
-    PurchaseGroupMember member,
+  SharedGroupMember updateInvitationStatus(
+    SharedGroupMember member,
     dynamic newStatus, {
     // InvitationStatus削除のためdynamic
     String? securityKey,

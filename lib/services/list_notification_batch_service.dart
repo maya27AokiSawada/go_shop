@@ -201,7 +201,7 @@ class ListNotificationBatchService {
     try {
       // グループ情報を取得してメンバーのUIDリストを取得
       final groupDoc =
-          await _firestore.collection('purchaseGroups').doc(groupId).get();
+          await _firestore.collection('SharedGroups').doc(groupId).get();
 
       if (!groupDoc.exists) {
         AppLogger.warning('⚠️ [LIST_NOTIFY] グループが見つかりません: $groupId');

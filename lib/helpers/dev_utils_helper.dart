@@ -80,11 +80,11 @@ class DevUtilsHelper {
     await ref.read(userSettingsProvider.notifier).clearAllSettings();
     
     // Hiveボックスをクリア
-    final purchaseGroupBox = ref.read(hive_provider.purchaseGroupBoxProvider);
+    final SharedGroupBox = ref.read(hive_provider.SharedGroupBoxProvider);
     final shoppingListBox = ref.read(hive_provider.shoppingListBoxProvider);
     final userSettingsBox = ref.read(hive_provider.userSettingsBoxProvider);
     
-    await purchaseGroupBox.clear();
+    await SharedGroupBox.clear();
     await shoppingListBox.clear();
     await userSettingsBox.clear();
     

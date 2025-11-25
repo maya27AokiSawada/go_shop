@@ -109,7 +109,7 @@ Hive操作:
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../datastore/purchase_group_repository.dart';
 
 final syncServiceProvider = Provider<SyncService>((ref) {
@@ -124,8 +124,8 @@ class SyncService {
 
   SyncService(this._ref);
 
-  PurchaseGroupRepository get _repository =>
-      _ref.read(purchaseGroupRepositoryProvider);
+  SharedGroupRepository get _repository =>
+      _ref.read(SharedGroupRepositoryProvider);
 
   /// 全グループを同期
   Future<void> syncAllGroups(User user) async {
@@ -151,12 +151,12 @@ class SyncService {
   }
 
   /// Firestoreから全グループを取得
-  Future<List<PurchaseGroup>> _fetchGroupsFromFirestore(
+  Future<List<SharedGroup>> _fetchGroupsFromFirestore(
     User user, {
     Query<Map<String, dynamic>> Function(Query<Map<String, dynamic>>)? where,
   }) async {
     var query = _firestore
-        .collection('purchaseGroups')
+        .collection('SharedGroups')
         .where('allowedUid', arrayContains: user.uid);
 
     if (where != null) {
@@ -165,23 +165,23 @@ class SyncService {
 
     final snapshot = await query.get();
     return snapshot.docs
-        .map((doc) => PurchaseGroup.fromJson(doc.data()))
+        .map((doc) => SharedGroup.fromJson(doc.data()))
         .toList();
   }
 
   /// Firestoreから特定グループを取得
-  Future<PurchaseGroup?> _fetchGroupFromFirestore(String groupId) async {
+  Future<SharedGroup?> _fetchGroupFromFirestore(String groupId) async {
     final doc = await _firestore
-        .collection('purchaseGroups')
+        .collection('SharedGroups')
         .doc(groupId)
         .get();
 
     if (!doc.exists) return null;
-    return PurchaseGroup.fromJson(doc.data()!);
+    return SharedGroup.fromJson(doc.data()!);
   }
 
   /// ローカルグループを更新
-  Future<void> _updateLocalGroups(List<PurchaseGroup> groups) async {
+  Future<void> _updateLocalGroups(List<SharedGroup> groups) async {
     for (final group in groups) {
       await _repository.updateGroup(group.id, group);
     }
@@ -274,20 +274,20 @@ import '../flavors.dart';
 /// リポジトリのファクトリー
 /// フレーバーに応じて適切なリポジトリを返す
 class RepositoryFactory {
-  static PurchaseGroupRepository createPurchaseGroupRepository(Ref ref) {
+  static SharedGroupRepository createSharedGroupRepository(Ref ref) {
     if (F.appFlavor == Flavor.prod) {
       // 本番環境: Firestore（未実装）
-      throw UnimplementedError('FirestorePurchaseGroupRepository');
+      throw UnimplementedError('FirestoreSharedGroupRepository');
     } else {
       // 開発環境: Hive
-      return HivePurchaseGroupRepository(ref);
+      return HiveSharedGroupRepository(ref);
     }
   }
 }
 
 // Provider の更新
-final purchaseGroupRepositoryProvider = Provider<PurchaseGroupRepository>((ref) {
-  return RepositoryFactory.createPurchaseGroupRepository(ref);
+final SharedGroupRepositoryProvider = Provider<SharedGroupRepository>((ref) {
+  return RepositoryFactory.createSharedGroupRepository(ref);
 });
 ```
 
@@ -360,7 +360,7 @@ class InvitationData with _$InvitationData {
   const factory InvitationData({
     @HiveField(0) required String invitationId,
     @HiveField(1) required String inviterUid,
-    @HiveField(2) required String purchaseGroupId,
+    @HiveField(2) required String SharedGroupId,
     @HiveField(3) required String groupName,
     @HiveField(4) required String securityKey,
     @HiveField(5) required InvitationStatus status,
@@ -597,7 +597,7 @@ widgets/: 50%
       ]
     },
     {
-      "collectionGroup": "purchaseGroups",
+      "collectionGroup": "SharedGroups",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "allowedUid", "order": "ASCENDING" },
@@ -620,7 +620,7 @@ firebase deploy --only firestore:indexes
 
 ```dart
 import 'dart:collection';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 
 /// メモリキャッシュサービス
 class CacheService {

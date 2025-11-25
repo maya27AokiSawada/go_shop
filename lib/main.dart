@@ -84,7 +84,7 @@ class MyApp extends ConsumerWidget {
       home: const AppInitializeWidget(child: HomeScreen()),
       routes: {
         '/qr_scan': (context) => const QrScanScreen(),
-        '/group_simple': (context) => const PurchaseGroupPageSimple(),
+        '/group_simple': (context) => const SharedGroupPageSimple(),
       },
     );
   }

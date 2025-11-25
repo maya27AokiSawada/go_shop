@@ -100,15 +100,15 @@ class HiveShoppingListRepository implements ShoppingListRepository {
       final updatedList = list.copyWith(items: updatedItems);
       await box.put(userKey, updatedList);
     } else {
-      // PurchaseGroupから情報を取得して新規リストを作成
-      final purchaseGroupBox = ref.read(purchaseGroupBoxProvider);
-      final purchaseGroup = purchaseGroupBox.get(groupId);
+      // SharedGroupから情報を取得して新規リストを作成
+      final SharedGroupBox = ref.read(SharedGroupBoxProvider);
+      final SharedGroup = SharedGroupBox.get(groupId);
 
       final newList = ShoppingList.create(
-        ownerUid: purchaseGroup?.ownerUid ?? 'defaultUser',
+        ownerUid: SharedGroup?.ownerUid ?? 'defaultUser',
         groupId: groupId,
-        groupName: purchaseGroup?.groupName ?? 'Shopping List',
-        listName: purchaseGroup?.groupName ?? 'Shopping List',
+        groupName: SharedGroup?.groupName ?? 'Shopping List',
+        listName: SharedGroup?.groupName ?? 'Shopping List',
         description: '',
         items: [item],
       );
@@ -176,16 +176,16 @@ class HiveShoppingListRepository implements ShoppingListRepository {
     final userKey = _getUserSpecificKey(groupId);
     final existingList = box.get(userKey);
     if (existingList != null) {
-      // 既存のリストがある場合、PurchaseGroupと同期して更新するかチェック
-      final purchaseGroupBox = ref.read(purchaseGroupBoxProvider);
-      final purchaseGroup = purchaseGroupBox.get(groupId);
+      // 既存のリストがある場合、SharedGroupと同期して更新するかチェック
+      final SharedGroupBox = ref.read(SharedGroupBoxProvider);
+      final SharedGroup = SharedGroupBox.get(groupId);
 
-      if (purchaseGroup != null &&
-          existingList.groupName != purchaseGroup.groupName) {
+      if (SharedGroup != null &&
+          existingList.groupName != SharedGroup.groupName) {
         // グループ名が変更されている場合は更新
         final updatedList = existingList.copyWith(
-          groupName: purchaseGroup.groupName,
-          ownerUid: purchaseGroup.ownerUid ?? existingList.ownerUid,
+          groupName: SharedGroup.groupName,
+          ownerUid: SharedGroup.ownerUid ?? existingList.ownerUid,
         );
         await box.put(userKey, updatedList);
         return updatedList;
@@ -193,15 +193,15 @@ class HiveShoppingListRepository implements ShoppingListRepository {
       return existingList;
     }
 
-    // 新規作成時はPurchaseGroupから情報を取得
-    final purchaseGroupBox = ref.read(purchaseGroupBoxProvider);
-    final purchaseGroup = purchaseGroupBox.get(groupId);
+    // 新規作成時はSharedGroupから情報を取得
+    final SharedGroupBox = ref.read(SharedGroupBoxProvider);
+    final SharedGroup = SharedGroupBox.get(groupId);
 
     final defaultList = ShoppingList.create(
-      ownerUid: purchaseGroup?.ownerUid ?? 'defaultUser',
+      ownerUid: SharedGroup?.ownerUid ?? 'defaultUser',
       groupId: groupId,
-      groupName: purchaseGroup?.groupName ?? groupName,
-      listName: purchaseGroup?.groupName ?? groupName,
+      groupName: SharedGroup?.groupName ?? groupName,
+      listName: SharedGroup?.groupName ?? groupName,
       description: 'デフォルトリスト',
       items: [],
     );
@@ -209,20 +209,20 @@ class HiveShoppingListRepository implements ShoppingListRepository {
     return defaultList;
   }
 
-  // PurchaseGroupとの同期メソッド
-  Future<void> syncWithPurchaseGroup(String groupId) async {
+  // SharedGroupとの同期メソッド
+  Future<void> syncWithSharedGroup(String groupId) async {
     final userKey = _getUserSpecificKey(groupId);
     final list = box.get(userKey);
-    final purchaseGroupBox = ref.read(purchaseGroupBoxProvider);
-    final purchaseGroup = purchaseGroupBox.get(groupId);
+    final SharedGroupBox = ref.read(SharedGroupBoxProvider);
+    final SharedGroup = SharedGroupBox.get(groupId);
 
-    if (list != null && purchaseGroup != null) {
+    if (list != null && SharedGroup != null) {
       // groupNameやownerUidが異なる場合は同期
-      if (list.groupName != purchaseGroup.groupName ||
-          list.ownerUid != purchaseGroup.ownerUid) {
+      if (list.groupName != SharedGroup.groupName ||
+          list.ownerUid != SharedGroup.ownerUid) {
         final syncedList = list.copyWith(
-          groupName: purchaseGroup.groupName,
-          ownerUid: purchaseGroup.ownerUid ?? list.ownerUid,
+          groupName: SharedGroup.groupName,
+          ownerUid: SharedGroup.ownerUid ?? list.ownerUid,
         );
         await box.put(userKey, syncedList);
       }
@@ -231,12 +231,12 @@ class HiveShoppingListRepository implements ShoppingListRepository {
 
   // ShoppingItemのmemberIdが有効かチェック
   bool isValidMemberId(String groupId, String memberId) {
-    final purchaseGroupBox = ref.read(purchaseGroupBoxProvider);
-    final purchaseGroup = purchaseGroupBox.get(groupId);
+    final SharedGroupBox = ref.read(SharedGroupBoxProvider);
+    final SharedGroup = SharedGroupBox.get(groupId);
 
-    if (purchaseGroup == null) return false;
+    if (SharedGroup == null) return false;
 
-    return purchaseGroup.members
+    return SharedGroup.members
             ?.any((member) => member.memberId == memberId) ??
         false;
   }
@@ -266,19 +266,19 @@ class HiveShoppingListRepository implements ShoppingListRepository {
       await box.put(newList.listId, newList);
       developer.log('🆕 新規リスト作成: ${newList.listName} (ID: ${newList.listId})');
 
-      // `PurchaseGroup`から`shoppingListIds`が削除されたため、この処理は不要
-      // final purchaseGroupBox = ref.read(purchaseGroupBoxProvider);
-      // final purchaseGroup = purchaseGroupBox.get(groupId);
-      // if (purchaseGroup != null) {
+      // `SharedGroup`から`shoppingListIds`が削除されたため、この処理は不要
+      // final SharedGroupBox = ref.read(SharedGroupBoxProvider);
+      // final SharedGroup = SharedGroupBox.get(groupId);
+      // if (SharedGroup != null) {
       //   final updatedShoppingListIds = <String>[
-      //     ...(purchaseGroup.shoppingListIds ?? []),
+      //     ...(SharedGroup.shoppingListIds ?? []),
       //     newList.listId
       //   ];
       //   final updatedGroup =
-      //       purchaseGroup.copyWith(shoppingListIds: updatedShoppingListIds);
-      //   await purchaseGroupBox.put(groupId, updatedGroup);
+      //       SharedGroup.copyWith(shoppingListIds: updatedShoppingListIds);
+      //   await SharedGroupBox.put(groupId, updatedGroup);
       //   developer.log(
-      //       '📝 グループ「${purchaseGroup.groupName}」にリストID追加: ${newList.listId}');
+      //       '📝 グループ「${SharedGroup.groupName}」にリストID追加: ${newList.listId}');
       // }
 
       return newList;
@@ -335,19 +335,19 @@ class HiveShoppingListRepository implements ShoppingListRepository {
         // Remove from Hive
         await box.delete(listId);
 
-        // `PurchaseGroup`から`shoppingListIds`が削除されたため、この処理は不要
-        // final purchaseGroupBox = ref.read(purchaseGroupBoxProvider);
-        // final purchaseGroup = purchaseGroupBox.get(list.groupId);
-        // if (purchaseGroup != null) {
-        //   final updatedShoppingListIds = (purchaseGroup.shoppingListIds ?? [])
+        // `SharedGroup`から`shoppingListIds`が削除されたため、この処理は不要
+        // final SharedGroupBox = ref.read(SharedGroupBoxProvider);
+        // final SharedGroup = SharedGroupBox.get(list.groupId);
+        // if (SharedGroup != null) {
+        //   final updatedShoppingListIds = (SharedGroup.shoppingListIds ?? [])
         //       .where((id) => id != listId)
         //       .toList()
         //       .cast<String>();
         //   final updatedGroup =
-        //       purchaseGroup.copyWith(shoppingListIds: updatedShoppingListIds);
-        //   await purchaseGroupBox.put(list.groupId, updatedGroup);
+        //       SharedGroup.copyWith(shoppingListIds: updatedShoppingListIds);
+        //   await SharedGroupBox.put(list.groupId, updatedGroup);
         //   developer
-        //       .log('📝 グループ「${purchaseGroup.groupName}」からリストID削除: $listId');
+        //       .log('📝 グループ「${SharedGroup.groupName}」からリストID削除: $listId');
         // }
 
         developer.log('🗑️ リスト削除: ${list.listName} (ID: $listId)');
@@ -483,11 +483,11 @@ class HiveShoppingListRepository implements ShoppingListRepository {
       }
 
       // Create new default list
-      final purchaseGroupBox = ref.read(purchaseGroupBoxProvider);
-      final purchaseGroup = purchaseGroupBox.get(groupId);
+      final SharedGroupBox = ref.read(SharedGroupBoxProvider);
+      final SharedGroup = SharedGroupBox.get(groupId);
 
       final defaultList = await createShoppingList(
-        ownerUid: purchaseGroup?.ownerUid ?? 'defaultUser',
+        ownerUid: SharedGroup?.ownerUid ?? 'defaultUser',
         groupId: groupId,
         listName: '$groupNameのリスト',
         description: 'デフォルトの買い物リスト',

@@ -102,7 +102,7 @@ class DataVersionService {
 
       // 各Boxを削除
       final boxNames = [
-        'purchaseGroupBox',
+        'SharedGroupBox',
         'shoppingListBox',
         'shoppingItemBox',
         'memberPoolBox',
@@ -179,7 +179,7 @@ class DataVersionService {
   
   /// v1→v2マイグレーション: InvitationStatus追加
   Future<void> _migrateFromV1ToV2() async {
-    // 既存のPurchaseGroupMemberにInvitationStatusを追加
+    // 既存のSharedGroupMemberにInvitationStatusを追加
     // role基準で適切な値を設定:
     // - owner → InvitationStatus.self
     // - member → InvitationStatus.accepted

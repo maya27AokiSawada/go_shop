@@ -1,7 +1,7 @@
 // lib/widgets/group_creation_with_copy_dialog.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../providers/purchase_group_provider.dart';
 import '../utils/app_logger.dart';
 import 'dart:developer' as developer;
@@ -22,9 +22,9 @@ class _GroupCreationWithCopyDialogState
   final _formKey = GlobalKey<FormState>();
   final _groupNameController = TextEditingController();
 
-  PurchaseGroup? _selectedSourceGroup;
+  SharedGroup? _selectedSourceGroup;
   final Map<String, bool> _selectedMembers = {};
-  final Map<String, PurchaseGroupRole> _memberRoles = {};
+  final Map<String, SharedGroupRole> _memberRoles = {};
   bool _isLoading = false;
 
   @override
@@ -72,7 +72,7 @@ class _GroupCreationWithCopyDialogState
   }
 
   Widget _buildDialog(
-      BuildContext context, List<PurchaseGroup> existingGroups) {
+      BuildContext context, List<SharedGroup> existingGroups) {
     return Dialog(
       child: Container(
         width: MediaQuery.of(context).size.width * 0.9,
@@ -148,19 +148,19 @@ class _GroupCreationWithCopyDialogState
                               fontSize: 16, fontWeight: FontWeight.w500),
                         ),
                         const SizedBox(height: 8),
-                        DropdownButtonFormField<PurchaseGroup>(
+                        DropdownButtonFormField<SharedGroup>(
                           initialValue: _selectedSourceGroup,
                           decoration: const InputDecoration(
                             hintText: 'グループを選択...',
                             border: OutlineInputBorder(),
                           ),
                           items: [
-                            const DropdownMenuItem<PurchaseGroup>(
+                            const DropdownMenuItem<SharedGroup>(
                               value: null,
                               child: Text('新しいグループ (メンバーなし)'),
                             ),
                             ...existingGroups.map(
-                              (group) => DropdownMenuItem<PurchaseGroup>(
+                              (group) => DropdownMenuItem<SharedGroup>(
                                 value: group,
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -294,12 +294,12 @@ class _GroupCreationWithCopyDialogState
     );
   }
 
-  Widget _buildMemberSelectionTile(PurchaseGroupMember member) {
+  Widget _buildMemberSelectionTile(SharedGroupMember member) {
     final memberId = member.memberId;
     final isSelected = _selectedMembers[memberId] ?? false;
 
     // Don't show owner in the copy list (they can't be copied with owner role)
-    if (member.role == PurchaseGroupRole.owner) {
+    if (member.role == SharedGroupRole.owner) {
       return const SizedBox.shrink();
     }
 
@@ -333,7 +333,7 @@ class _GroupCreationWithCopyDialogState
           ],
         ),
         trailing: isSelected
-            ? DropdownButton<PurchaseGroupRole>(
+            ? DropdownButton<SharedGroupRole>(
                 value: _memberRoles[memberId],
                 onChanged: (role) {
                   if (role != null) {
@@ -342,10 +342,10 @@ class _GroupCreationWithCopyDialogState
                     });
                   }
                 },
-                items: PurchaseGroupRole.values
+                items: SharedGroupRole.values
                     .where((role) =>
                         role !=
-                        PurchaseGroupRole.owner) // Don't allow owner role
+                        SharedGroupRole.owner) // Don't allow owner role
                     .map((role) => DropdownMenuItem(
                           value: role,
                           child: Text(_getRoleDisplayName(role)),
@@ -357,15 +357,15 @@ class _GroupCreationWithCopyDialogState
     );
   }
 
-  String _getRoleDisplayName(PurchaseGroupRole role) {
+  String _getRoleDisplayName(SharedGroupRole role) {
     switch (role) {
-      case PurchaseGroupRole.owner:
+      case SharedGroupRole.owner:
         return 'オーナー';
-      case PurchaseGroupRole.manager:
+      case SharedGroupRole.manager:
         return '管理者';
-      case PurchaseGroupRole.member:
+      case SharedGroupRole.member:
         return 'メンバー';
-      case PurchaseGroupRole.partner:
+      case SharedGroupRole.partner:
         return 'パートナー';
     }
   }
@@ -377,7 +377,7 @@ class _GroupCreationWithCopyDialogState
     final members = _selectedSourceGroup!.members;
     if (members != null) {
       for (final member in members) {
-        if (member.role != PurchaseGroupRole.owner) {
+        if (member.role != SharedGroupRole.owner) {
           // Auto-select non-owner members by default
           _selectedMembers[member.memberId] = true;
           _memberRoles[member.memberId] = member.role;
@@ -462,7 +462,7 @@ class _GroupCreationWithCopyDialogState
     }
   }
 
-  Future<void> _addSelectedMembers(PurchaseGroup newGroup) async {
+  Future<void> _addSelectedMembers(SharedGroup newGroup) async {
     try {
       if (_selectedSourceGroup?.members == null) {
         AppLogger.info('⚠️ [ADD MEMBERS] ソースグループにメンバーがいません');
@@ -478,10 +478,10 @@ class _GroupCreationWithCopyDialogState
           final memberId = member.memberId;
           final isSelected = _selectedMembers[memberId] ?? false;
 
-          if (isSelected && member.role != PurchaseGroupRole.owner) {
+          if (isSelected && member.role != SharedGroupRole.owner) {
             final newRole = _memberRoles[memberId] ?? member.role;
 
-            final newMember = PurchaseGroupMember.create(
+            final newMember = SharedGroupMember.create(
               memberId: member.memberId,
               name: member.name,
               contact: member.contact,

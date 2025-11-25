@@ -8,7 +8,7 @@ class FirestoreConverter {
   /// Firestore Timestamp を ISO8601 文字列に再帰的に変換
   ///
   /// Firestore から取得した Map に含まれる Timestamp を、
-  /// PurchaseGroup.fromJson() などで扱える ISO8601 文字列に変換します。
+  /// SharedGroup.fromJson() などで扱える ISO8601 文字列に変換します。
   ///
   /// - Map 内の Timestamp フィールド → ISO8601 文字列
   /// - ネストされた Map も再帰的に処理

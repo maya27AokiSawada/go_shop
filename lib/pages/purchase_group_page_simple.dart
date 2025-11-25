@@ -4,8 +4,8 @@ import '../utils/app_logger.dart';
 import '../providers/purchase_group_provider.dart';
 import '../widgets/group_selector_widget.dart';
 
-class PurchaseGroupPageSimple extends ConsumerWidget {
-  const PurchaseGroupPageSimple({super.key});
+class SharedGroupPageSimple extends ConsumerWidget {
+  const SharedGroupPageSimple({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -55,9 +55,9 @@ class PurchaseGroupPageSimple extends ConsumerWidget {
       );
     }
 
-    final purchaseGroupAsync = ref.watch(selectedGroupProvider);
+    final SharedGroupAsync = ref.watch(selectedGroupProvider);
 
-    return purchaseGroupAsync.when(
+    return SharedGroupAsync.when(
       data: (group) {
         if (group == null) {
           Log.info('📋 [SIMPLE CONTENT] グループデータがnullです');

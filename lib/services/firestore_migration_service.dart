@@ -1,12 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 import '../utils/app_logger.dart';
 
 /// Firestoreデータマイグレーションサービス
 ///
 /// 旧構造: /users/{uid}/groups/{groupId}
-/// 新構造: /purchaseGroups/{groupId} + /userMemberships/{userId}/groups/{groupId}
+/// 新構造: /SharedGroups/{groupId} + /userMemberships/{userId}/groups/{groupId}
 class FirestoreDataMigrationService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -59,16 +59,16 @@ class FirestoreDataMigrationService {
 
         AppLogger.info('🔄 [MIGRATION] グループマイグレーション: $groupId');
 
-        // 旧データから新構造のPurchaseGroupを復元
+        // 旧データから新構造のSharedGroupを復元
         final group = _convertOldGroupData(groupData, groupId);
 
-        // 新構造: /purchaseGroups/{groupId} にグループデータを保存
+        // 新構造: /SharedGroups/{groupId} にグループデータを保存
         final newGroupRef =
-            _firestore.collection('purchaseGroups').doc(groupId);
+            _firestore.collection('SharedGroups').doc(groupId);
         batch.set(newGroupRef, _groupToFirestore(group));
 
         // 新構造: 全メンバーのメンバーシップを作成
-        for (final member in group.members ?? <PurchaseGroupMember>[]) {
+        for (final member in group.members ?? <SharedGroupMember>[]) {
           final membershipRef = _firestore
               .collection('userMemberships')
               .doc(member.memberId)
@@ -99,8 +99,8 @@ class FirestoreDataMigrationService {
     }
   }
 
-  /// 旧構造のデータをPurchaseGroupに変換
-  PurchaseGroup _convertOldGroupData(
+  /// 旧構造のデータをSharedGroupに変換
+  SharedGroup _convertOldGroupData(
       Map<String, dynamic> data, String groupId) {
     try {
       // 旧データから必要な情報を抽出
@@ -112,7 +112,7 @@ class FirestoreDataMigrationService {
       final membersList = data['members'] as List<dynamic>? ?? [];
       final members = membersList.map((memberData) {
         final memberMap = memberData as Map<String, dynamic>;
-        return PurchaseGroupMember(
+        return SharedGroupMember(
           memberId: memberMap['memberId'] as String? ?? '',
           name: memberMap['name'] as String? ?? '',
           contact: memberMap['contact'] as String? ?? '',
@@ -122,7 +122,7 @@ class FirestoreDataMigrationService {
         );
       }).toList();
 
-      return PurchaseGroup(
+      return SharedGroup(
         groupId: groupId,
         groupName: groupName,
         ownerUid: ownerUid,
@@ -157,22 +157,22 @@ class FirestoreDataMigrationService {
   }
 
   /// 役割の文字列をenumに変換
-  PurchaseGroupRole _parseRole(dynamic roleData) {
-    if (roleData == null) return PurchaseGroupRole.member;
+  SharedGroupRole _parseRole(dynamic roleData) {
+    if (roleData == null) return SharedGroupRole.member;
 
     final roleString = roleData.toString();
     switch (roleString) {
       case 'owner':
-      case 'PurchaseGroupRole.owner':
-        return PurchaseGroupRole.owner;
+      case 'SharedGroupRole.owner':
+        return SharedGroupRole.owner;
       case 'manager':
-      case 'PurchaseGroupRole.manager':
-        return PurchaseGroupRole.manager;
+      case 'SharedGroupRole.manager':
+        return SharedGroupRole.manager;
       case 'partner':
-      case 'PurchaseGroupRole.partner':
-        return PurchaseGroupRole.partner;
+      case 'SharedGroupRole.partner':
+        return SharedGroupRole.partner;
       default:
-        return PurchaseGroupRole.member;
+        return SharedGroupRole.member;
     }
   }
 
@@ -196,8 +196,8 @@ class FirestoreDataMigrationService {
     }
   }
 
-  /// PurchaseGroupをFirestoreデータに変換
-  Map<String, dynamic> _groupToFirestore(PurchaseGroup group) {
+  /// SharedGroupをFirestoreデータに変換
+  Map<String, dynamic> _groupToFirestore(SharedGroup group) {
     return {
       'groupId': group.groupId,
       'groupName': group.groupName,

@@ -15,7 +15,7 @@
 **ファイル**: `test/services/data_migration_v3_v4_test.dart`
 
 **問題**:
-- `PurchaseGroupMember`のコンストラクタが変更されている
+- `SharedGroupMember`のコンストラクタが変更されている
 - 旧: `uid`, `displayName`, `joinedAt`
 - 新: `memberId`, `name`, `contact`, `role`
 

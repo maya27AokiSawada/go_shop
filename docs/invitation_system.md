@@ -98,7 +98,7 @@ QRコード画像生成（qr_flutter）
   "inviterEmail": "maya@example.com",
   "inviterDisplayName": "Maya",
   "shoppingListId": "list_123",
-  "purchaseGroupId": "1762...",
+  "SharedGroupId": "1762...",
   "groupName": "家族の買い物",
   "groupOwnerUid": "VqNEozvTyXXw55Q46mNiGNMNngw2",
   "invitationType": "individual",
@@ -126,7 +126,7 @@ QRコード画像生成（qr_flutter）
   inviterDisplayName: "Maya",
 
   // グループ情報
-  purchaseGroupId: "1762...",
+  SharedGroupId: "1762...",
   groupName: "家族の買い物",
   groupOwnerUid: "VqNEozvTyXXw55Q46mNiGNMNngw2",
 
@@ -225,7 +225,7 @@ JSON解析
 ┌─────────────────────────────────────┐
 │ Firestore更新                        │
 │                                      │
-│ purchaseGroups/{groupId}:            │
+│ SharedGroups/{groupId}:            │
 │   - allowedUid: [..., acceptorUid]   │
 │   - members: [..., acceptor]         │
 └─────────────────────────────────────┘
@@ -265,11 +265,11 @@ UI更新
 
 ```dart
 1. グループIDを取得
-   final groupId = invitationData['purchaseGroupId'];
+   final groupId = invitationData['SharedGroupId'];
 
 2. Firestoreのグループドキュメントを取得
    final groupDoc = await _firestore
-     .collection('purchaseGroups')
+     .collection('SharedGroups')
      .doc(groupId)
      .get();
 
@@ -311,7 +311,7 @@ UI更新
 
 2. 招待者がオーナーのグループを検索
    final ownerGroupsQuery = await _firestore
-     .collection('purchaseGroups')
+     .collection('SharedGroups')
      .where('ownerUid', isEqualTo: inviterUid)
      .get();
 
@@ -582,7 +582,7 @@ UI自動更新
 ### 8.1 招待者側の画面遷移
 
 ```
-PurchaseGroupPage（グループ詳細画面）
+SharedGroupPage（グループ詳細画面）
     ↓
 「QR招待」ボタンをタップ
     ↓

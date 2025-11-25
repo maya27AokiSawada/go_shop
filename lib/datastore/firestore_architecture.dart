@@ -3,7 +3,7 @@
 ///
 /// Owner UID Collection Structure:
 ///
-/// /users/{ownerUid}/purchaseGroups/{groupId} - Purchase Group Document
+/// /users/{ownerUid}/SharedGroups/{groupId} - Purchase Group Document
 /// /users/{ownerUid}/shoppingLists/{listId} - Shopping List Document
 ///
 /// Each Purchase Group contains:
@@ -29,20 +29,20 @@
 /// - Multiple invitation selection for same email addresses
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/purchase_group.dart';
+import '../models/shared_group.dart';
 
 class FirestoreCollections {
   static const String users = 'users';
-  static const String purchaseGroups = 'purchaseGroups';
+  static const String SharedGroups = 'SharedGroups';
   static const String shoppingLists = 'shoppingLists';
 
   /// Get user's purchase groups collection reference
-  static CollectionReference<Map<String, dynamic>> getUserPurchaseGroups(
+  static CollectionReference<Map<String, dynamic>> getUserSharedGroups(
       String ownerUid) {
     return FirebaseFirestore.instance
         .collection(users)
         .doc(ownerUid)
-        .collection(purchaseGroups);
+        .collection(SharedGroups);
   }
 
   /// Get user's shopping lists collection reference
@@ -55,9 +55,9 @@ class FirestoreCollections {
   }
 
   /// Get specific purchase group document reference
-  static DocumentReference<Map<String, dynamic>> getPurchaseGroupDoc(
+  static DocumentReference<Map<String, dynamic>> getSharedGroupDoc(
       String ownerUid, String groupId) {
-    return getUserPurchaseGroups(ownerUid).doc(groupId);
+    return getUserSharedGroups(ownerUid).doc(groupId);
   }
 
   /// Get specific shopping list document reference
@@ -68,14 +68,14 @@ class FirestoreCollections {
 }
 
 /// Extended Purchase Group for Firestore with invitation management
-class FirestorePurchaseGroup {
-  final PurchaseGroup baseGroup;
+class FirestoreSharedGroup {
+  final SharedGroup baseGroup;
   final List<String> acceptedUids;
   final List<String> pendingInvitations;
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  const FirestorePurchaseGroup({
+  const FirestoreSharedGroup({
     required this.baseGroup,
     this.acceptedUids = const [],
     this.pendingInvitations = const [],
@@ -89,19 +89,19 @@ class FirestorePurchaseGroup {
   String? get ownerName => baseGroup.ownerName;
   String? get ownerEmail => baseGroup.ownerEmail;
   String? get ownerUid => baseGroup.ownerUid;
-  List<PurchaseGroupMember>? get members => baseGroup.members;
+  List<SharedGroupMember>? get members => baseGroup.members;
   // shoppingListIds はサブコレクションに移行したため削除
 
-  /// Create from base PurchaseGroup
-  factory FirestorePurchaseGroup.fromPurchaseGroup(
-    PurchaseGroup group, {
+  /// Create from base SharedGroup
+  factory FirestoreSharedGroup.fromSharedGroup(
+    SharedGroup group, {
     List<String> acceptedUids = const [],
     List<String> pendingInvitations = const [],
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
     final now = DateTime.now();
-    return FirestorePurchaseGroup(
+    return FirestoreSharedGroup(
       baseGroup: group,
       acceptedUids: acceptedUids,
       pendingInvitations: pendingInvitations,
@@ -137,21 +137,21 @@ class FirestorePurchaseGroup {
   }
 
   /// Create from Firestore document data
-  factory FirestorePurchaseGroup.fromFirestoreData(Map<String, dynamic> data) {
-    final baseGroup = PurchaseGroup(
+  factory FirestoreSharedGroup.fromFirestoreData(Map<String, dynamic> data) {
+    final baseGroup = SharedGroup(
       groupName: data['groupName'] ?? '',
       groupId: data['groupId'] ?? '',
       ownerName: data['ownerName'],
       ownerEmail: data['ownerEmail'],
       ownerUid: data['ownerUid'],
       members: (data['members'] as List<dynamic>?)
-          ?.map((m) => PurchaseGroupMember(
+          ?.map((m) => SharedGroupMember(
                 memberId: m['memberId'] ?? '',
                 name: m['name'] ?? '',
                 contact: m['contact'] ?? '',
-                role: PurchaseGroupRole.values.firstWhere(
+                role: SharedGroupRole.values.firstWhere(
                   (r) => r.name == m['role'],
-                  orElse: () => PurchaseGroupRole.member,
+                  orElse: () => SharedGroupRole.member,
                 ),
                 isSignedIn: m['isSignedIn'] ?? false,
               ))
@@ -159,7 +159,7 @@ class FirestorePurchaseGroup {
       // shoppingListIds はサブコレクションに移行したため削除
     );
 
-    return FirestorePurchaseGroup(
+    return FirestoreSharedGroup(
       baseGroup: baseGroup,
       acceptedUids: List<String>.from(data['acceptedUids'] ?? []),
       pendingInvitations: List<String>.from(data['pendingInvitations'] ?? []),
@@ -174,19 +174,19 @@ class FirestorePurchaseGroup {
   bool canInviteUsers(String userId) {
     final member = members?.firstWhere(
       (m) => m.memberId == userId,
-      orElse: () => const PurchaseGroupMember(
-          memberId: '', name: '', contact: '', role: PurchaseGroupRole.member),
+      orElse: () => const SharedGroupMember(
+          memberId: '', name: '', contact: '', role: SharedGroupRole.member),
     );
 
-    return member?.role == PurchaseGroupRole.owner ||
-        member?.role == PurchaseGroupRole.manager;
+    return member?.role == SharedGroupRole.owner ||
+        member?.role == SharedGroupRole.manager;
   }
 
   /// Add accepted UID to the list
-  FirestorePurchaseGroup acceptInvitation(String uid) {
+  FirestoreSharedGroup acceptInvitation(String uid) {
     if (acceptedUids.contains(uid)) return this;
 
-    return FirestorePurchaseGroup(
+    return FirestoreSharedGroup(
       baseGroup: baseGroup,
       acceptedUids: [...acceptedUids, uid],
       pendingInvitations:
@@ -196,9 +196,9 @@ class FirestorePurchaseGroup {
     );
   }
 
-  /// Convert to base PurchaseGroup
-  PurchaseGroup toPurchaseGroup() {
-    return PurchaseGroup(
+  /// Convert to base SharedGroup
+  SharedGroup toSharedGroup() {
+    return SharedGroup(
       groupName: groupName,
       groupId: groupId,
       ownerName: ownerName,
@@ -217,7 +217,7 @@ class GroupInvitation {
   final String ownerName;
   final String ownerEmail;
   final String invitedEmail;
-  final PurchaseGroupRole targetRole;
+  final SharedGroupRole targetRole;
   final DateTime createdAt;
 
   const GroupInvitation({
@@ -249,9 +249,9 @@ class GroupInvitation {
       ownerName: map['ownerName'] ?? '',
       ownerEmail: map['ownerEmail'] ?? '',
       invitedEmail: map['invitedEmail'] ?? '',
-      targetRole: PurchaseGroupRole.values.firstWhere(
+      targetRole: SharedGroupRole.values.firstWhere(
         (r) => r.name == map['targetRole'],
-        orElse: () => PurchaseGroupRole.member,
+        orElse: () => SharedGroupRole.member,
       ),
       createdAt:
           DateTime.parse(map['createdAt'] ?? DateTime.now().toIso8601String()),
