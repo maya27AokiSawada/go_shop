@@ -572,102 +572,80 @@ class QRInvitationService {
       // 各グループにパートナーとして追加
       for (final doc in ownerGroupsQuery.docs) {
         final groupData = doc.data();
-        final allowedUid =
-            List<String>.from(groupData['allowedUid'] ?? []); // 単数形に統一
-        final members =
-            List<Map<String, dynamic>>.from(groupData['members'] ?? []);
 
-        // allowedUidに追加
-        if (!allowedUid.contains(acceptorUid)) {
-          allowedUid.add(acceptorUid);
-          Log.info('✅ allowedUidに追加: $acceptorUid → ${doc.id}');
+        // ユーザー情報を取得（優先順位: SharedPreferences > Firestore profile > Firebase Auth）
+        final acceptorUser = _auth.currentUser;
+        String userName = '';
+
+        // 1. SharedPreferencesから取得を試みる
+        try {
+          final prefs = await UserPreferencesService.getUserName();
+          if (prefs != null && prefs.isNotEmpty) {
+            userName = prefs;
+            Log.info('✅ [PARTNER] SharedPreferencesからユーザー名取得: "$userName"');
+          }
+        } catch (e) {
+          Log.warning('⚠️ [PARTNER] SharedPreferences取得エラー: $e');
         }
 
-        // membersリストにも追加
-        final memberExists = members.any((m) => m['memberId'] == acceptorUid);
-        if (!memberExists) {
-          // ユーザー情報を取得（優先順位: SharedPreferences > Firestore profile > Firebase Auth）
-          final acceptorUser = _auth.currentUser;
-          String userName = '';
-
-          // 1. SharedPreferencesから取得を試みる
+        // 2. Firestore /users/{uid}/profile/userName から取得を試みる
+        if (userName.isEmpty) {
           try {
-            final prefs = await UserPreferencesService.getUserName();
-            if (prefs != null && prefs.isNotEmpty) {
-              userName = prefs;
-              Log.info('✅ [PARTNER] SharedPreferencesからユーザー名取得: "$userName"');
+            final profileDoc = await _firestore
+                .collection('users')
+                .doc(acceptorUid)
+                .collection('profile')
+                .doc('userName')
+                .get();
+
+            if (profileDoc.exists) {
+              final profileData = profileDoc.data();
+              userName = profileData?['userName'] ?? '';
+              if (userName.isNotEmpty) {
+                Log.info('✅ [PARTNER] Firestore profileからユーザー名取得: "$userName"');
+              }
             }
           } catch (e) {
-            Log.warning('⚠️ [PARTNER] SharedPreferences取得エラー: $e');
+            Log.error('⚠️ [PARTNER] Firestore profile取得エラー: $e');
           }
-
-          // 2. Firestore /users/{uid}/profile/userName から取得を試みる
-          if (userName.isEmpty) {
-            try {
-              final profileDoc = await _firestore
-                  .collection('users')
-                  .doc(acceptorUid)
-                  .collection('profile')
-                  .doc('userName')
-                  .get();
-
-              if (profileDoc.exists) {
-                final profileData = profileDoc.data();
-                userName = profileData?['userName'] ?? '';
-                if (userName.isNotEmpty) {
-                  Log.info(
-                      '✅ [PARTNER] Firestore profileからユーザー名取得: "$userName"');
-                }
-              }
-            } catch (e) {
-              Log.error('⚠️ [PARTNER] Firestore profile取得エラー: $e');
-            }
-          }
-
-          // 3. Firebase Auth displayNameから取得を試みる
-          if (userName.isEmpty) {
-            userName = acceptorUser?.displayName ?? '';
-            if (userName.isNotEmpty) {
-              Log.info(
-                  '✅ [PARTNER] Firebase Auth displayNameから取得: "$userName"');
-            }
-          }
-
-          // 4. 最終フォールバック
-          if (userName.isEmpty) {
-            final userEmail = acceptorUser?.email ?? '';
-            userName = userEmail.isNotEmpty
-                ? userEmail.split('@').first
-                : 'Unknown User';
-            Log.warning('⚠️ [PARTNER] すべての取得失敗 - フォールバック: "$userName"');
-          }
-
-          // 新しいメンバーを追加（パートナーロール）
-          final newMember = {
-            'memberId': acceptorUid,
-            'name': userName,
-            'role': 'partner', // パートナーロール
-            'joinedAt': FieldValue.serverTimestamp(),
-          };
-          members.add(newMember);
-          Log.info('✅ membersリストに追加: $userName ($acceptorUid) → ${doc.id}');
         }
 
-        // Firestoreを更新
+        // 3. Firebase Auth displayNameから取得を試みる
+        if (userName.isEmpty) {
+          userName = acceptorUser?.displayName ?? '';
+          if (userName.isNotEmpty) {
+            Log.info('✅ [PARTNER] Firebase Auth displayNameから取得: "$userName"');
+          }
+        }
+
+        // 4. 最終フォールバック
+        if (userName.isEmpty) {
+          final userEmail = acceptorUser?.email ?? '';
+          userName = userEmail.isNotEmpty
+              ? userEmail.split('@').first
+              : 'Unknown User';
+          Log.warning('⚠️ [PARTNER] すべての取得失敗 - フォールバック: "$userName"');
+        }
+
+        // 新しいメンバー情報
+        final newMember = {
+          'memberId': acceptorUid,
+          'name': userName,
+          'role': 'partner', // パートナーロール
+          'joinedAt': FieldValue.serverTimestamp(),
+        };
+
+        // Firestoreを更新（FieldValue.arrayUnionでマージ）
         await doc.reference.update({
-          'allowedUid': allowedUid, // 正しいフィールド名 & 変数名に修正
-          'members': members,
-          'updatedAt':
-              FieldValue.serverTimestamp(), // lastUpdated → updatedAt に統一
+          'allowedUid': FieldValue.arrayUnion([acceptorUid]), // 🔥 マージ処理
+          'members': FieldValue.arrayUnion([newMember]), // 🔥 マージ処理
+          'updatedAt': FieldValue.serverTimestamp(),
         });
 
         Log.info('✅ パートナーとして ${doc.id} グループに追加: $acceptorUid');
 
         // グループの全メンバーに通知を送信（参加者本人は除く）
         final notificationService = _ref.read(notificationServiceProvider);
-        final acceptorUser = _auth.currentUser;
-        final userName =
-            acceptorUser?.displayName ?? acceptorUser?.email ?? 'ユーザー';
 
         await notificationService.sendNotificationToGroup(
           groupId: doc.id,
