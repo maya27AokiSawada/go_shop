@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../providers/user_settings_provider.dart';
 import '../providers/app_mode_notifier_provider.dart';
+import '../providers/purchase_group_provider.dart';
 import '../services/user_preferences_service.dart';
 import '../services/user_initialization_service.dart';
 import '../services/access_control_service.dart';
@@ -641,6 +642,39 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           const SizedBox(height: 20),
                           const Divider(),
                           const SizedBox(height: 20),
+                          // 🆕 Firestore同期
+                          Text(
+                            'デフォルトグループのFirestore同期',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'ローカルのみのデフォルトグループをクラウドに同期します',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: Colors.grey.shade600),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () async {
+                                await _syncDefaultGroup();
+                              },
+                              icon: const Icon(Icons.cloud_upload, size: 18),
+                              label: const Text('Firestore同期'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green.shade100,
+                                foregroundColor: Colors.green.shade800,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 12),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          const Divider(),
+                          const SizedBox(height: 20),
                           // 🆕 データ移行
                           Text(
                             'データ形式移行（開発者向け）',
@@ -885,6 +919,155 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             ],
           ),
           content: Text('クリーンアップ中にエラーが発生しました\n\n$e'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  /// 🆕 デフォルトグループFirestore同期メソッド
+  Future<void> _syncDefaultGroup() async {
+    try {
+      // 認証状態確認
+      final user = ref.read(authStateProvider).value;
+      if (user == null) {
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.warning, color: Colors.orange),
+                SizedBox(width: 8),
+                Text('認証が必要です'),
+              ],
+            ),
+            content: const Text('Firestore同期にはサインインが必要です。'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+
+      // 確認ダイアログ表示
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.cloud_upload, color: Colors.green),
+              SizedBox(width: 8),
+              Text('Firestore同期確認'),
+            ],
+          ),
+          content: const Text(
+            'ローカルのみのデフォルトグループをFirestoreに同期します。\n同期後、他のデバイスからもアクセスできるようになります。\n\n実行しますか？',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('キャンセル'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('実行'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirm != true) return;
+
+      // ローディング表示
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Firestore同期中...'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // 同期実行
+      final allGroupsNotifier = ref.read(allGroupsProvider.notifier);
+      final success = await allGroupsNotifier.syncDefaultGroupToFirestore(user);
+
+      // ローディング閉じる
+      if (!mounted) return;
+      Navigator.of(context).pop();
+
+      // 結果表示
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(
+                success ? Icons.check_circle : Icons.error,
+                color: success ? Colors.green : Colors.red,
+              ),
+              const SizedBox(width: 8),
+              Text(success ? '同期完了' : '同期失敗'),
+            ],
+          ),
+          content: Text(
+            success
+                ? 'デフォルトグループをFirestoreに同期しました。\n\nアプリを再起動すると、買い物リストもクラウドに保存されるようになります。'
+                : '同期に失敗しました。ネットワーク接続を確認してください。',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      AppLogger.error('Firestore同期エラー', e);
+
+      // エラー時もローディングを閉じる
+      if (mounted) Navigator.of(context).pop();
+
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.error, color: Colors.red),
+              SizedBox(width: 8),
+              Text('同期エラー'),
+            ],
+          ),
+          content: Text('エラーが発生しました:\n$e'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),

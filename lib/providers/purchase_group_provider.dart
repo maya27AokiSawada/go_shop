@@ -14,7 +14,6 @@ import '../services/access_control_service.dart';
 import '../services/user_preferences_service.dart';
 import '../services/user_initialization_service.dart';
 import 'user_specific_hive_provider.dart';
-import 'auth_provider.dart';
 import 'current_list_provider.dart';
 
 // Logger instance
@@ -823,8 +822,9 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
         }
       }
 
-      // オーナーメンバーを作成
+      // オーナーメンバーを作成（memberIdにFirebase UIDを使用）
       final ownerMember = SharedGroupMember.create(
+        memberId: user?.uid, // 🔥 CRITICAL: Firebase UIDを明示的に指定
         name: displayName,
         contact: user?.email ?? '',
         role: SharedGroupRole.owner,
@@ -894,6 +894,93 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
       Log.error('❌ [CREATE DEFAULT] デフォルトグループ作成エラー: $e');
       Log.error('❌ [CREATE DEFAULT] スタックトレース: $stackTrace');
       // rethrow; // REMOVED: Allow initialization to continue
+    }
+  }
+
+  /// 🆕 デフォルトグループを手動でFirestoreに同期
+  /// 設定画面から呼び出される（syncStatus=localの場合のみ実行）
+  Future<bool> syncDefaultGroupToFirestore(User? user) async {
+    if (user == null || F.appFlavor != Flavor.prod) {
+      Log.warning('⚠️ [SYNC DEFAULT] 認証なしまたは開発環境 - 同期スキップ');
+      return false;
+    }
+
+    final hiveRepository = ref.read(hiveSharedGroupRepositoryProvider);
+
+    try {
+      Log.info('🔄 [SYNC DEFAULT] デフォルトグループFirestore同期開始');
+
+      // デフォルトグループを取得
+      final defaultGroupId = user.uid;
+      final existingGroup = await hiveRepository.getGroupById(defaultGroupId);
+
+      // 🔥 CHANGED: 常に強制同期（syncStatusに関わらず）
+      Log.info(
+          '🔄 [SYNC DEFAULT] 既存グループ同期 (syncStatus: ${existingGroup.syncStatus})');
+
+      // 🔧 CRITICAL FIX: Hiveのallowedとmemberをユーザー現在UIDに強制修正
+      Log.info('🔧 [SYNC] allowedUid修正前: ${existingGroup.allowedUid}');
+
+      // オーナーメンバーのmemberIdを修正
+      final correctedMembers = existingGroup.members?.map((member) {
+            if (member.role == SharedGroupRole.owner &&
+                member.memberId != user.uid) {
+              Log.info(
+                  '🔧 [SYNC] memberId修正: ${member.memberId} → ${user.uid}');
+              return member.copyWith(memberId: user.uid);
+            }
+            return member;
+          }).toList() ??
+          [];
+
+      // syncStatusをsyncedに変更 + allowedとmemberを修正
+      final syncedGroup = existingGroup.copyWith(
+        syncStatus: models.SyncStatus.synced,
+        allowedUid: [user.uid], // 🔥 CRITICAL: 現在のFirebase UIDに更新
+        members: correctedMembers, // memberIdも修正
+      );
+
+      Log.info('✅ [SYNC] allowedUid修正後: ${syncedGroup.allowedUid}');
+
+      // まずHiveに保存（キャッシュを正しい値に更新）
+      await hiveRepository.saveGroup(syncedGroup);
+      Log.info('✅ [SYNC] Hiveキャッシュ更新完了');
+
+      // Firestoreに保存（allowedUidを現在のユーザーUIDに更新）
+      // 🔥 CRITICAL: merge: true を使って既存ドキュメントをマージ更新
+      final firestore = FirebaseFirestore.instance;
+      await firestore.collection('SharedGroups').doc(defaultGroupId).set(
+        {
+          'groupId': syncedGroup.groupId,
+          'groupName': syncedGroup.groupName,
+          'ownerUid': user.uid,
+          'allowedUid': [user.uid], // 🔥 修正済みの値を使用
+          'members': syncedGroup.members
+                  ?.map((m) => {
+                        'memberId': m.memberId, // 🔥 修正済みの値を使用
+                        'name': m.name,
+                        'contact': m.contact,
+                        'role': m.role.toString().split('.').last,
+                        'isSignedIn': m.isSignedIn,
+                        'isInvited': m.isInvited,
+                        'isInvitationAccepted': m.isInvitationAccepted,
+                      })
+                  .toList() ??
+              [],
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true), // 🔥 既存ドキュメントとマージ
+      );
+
+      Log.info('✅ [SYNC DEFAULT] デフォルトグループFirestore同期完了');
+
+      // プロバイダーを更新してUI反映
+      ref.invalidateSelf();
+
+      return true;
+    } catch (e) {
+      Log.error('❌ [SYNC DEFAULT] 同期エラー: $e');
+      return false;
     }
   }
 }

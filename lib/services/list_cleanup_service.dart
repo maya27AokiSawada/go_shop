@@ -29,13 +29,13 @@ class ListCleanupService {
     bool forceCleanup = false,
   }) async {
     try {
-      developer.log('🧹 クリーンアップサービス開始 (${olderThanDays}日以上経過)');
+      developer.log('🧹 クリーンアップサービス開始 ($olderThanDays日以上経過)');
 
       final repository = _ref.read(shoppingListRepositoryProvider);
 
       // 全グループから全リストを取得
       final allGroupsAsync = _ref.read(allGroupsProvider);
-      final allGroups = await allGroupsAsync.when(
+      final allGroups = allGroupsAsync.when(
         data: (groups) => groups,
         loading: () => [],
         error: (_, __) => [],
@@ -74,13 +74,12 @@ class ListCleanupService {
 
         if (cleanedCount > 0) {
           totalCleaned += cleanedCount.toInt(); // 🆕 int型にキャスト
-          developer
-              .log('✅ リスト「${list.listName}」: ${cleanedCount}個のアイテムをクリーンアップ');
+          developer.log('✅ リスト「${list.listName}」: $cleanedCount個のアイテムをクリーンアップ');
         }
       }
 
       if (totalCleaned > 0) {
-        developer.log('🎉 クリーンアップ完了: 合計${totalCleaned}個のアイテムを削除');
+        developer.log('🎉 クリーンアップ完了: 合計$totalCleaned個のアイテムを削除');
         // グループProviderを無効化してUIを更新
         _ref.invalidate(allGroupsProvider);
       } else {
@@ -122,7 +121,7 @@ class ListCleanupService {
       final cleanedCount = beforeCount - afterCount;
 
       if (cleanedCount > 0) {
-        developer.log('✅ リスト「${list.listName}」: ${cleanedCount}個のアイテムをクリーンアップ');
+        developer.log('✅ リスト「${list.listName}」: $cleanedCount個のアイテムをクリーンアップ');
         _ref.invalidate(allGroupsProvider);
       } else {
         developer.log('ℹ️ クリーンアップ対象のアイテムがありませんでした');
@@ -143,7 +142,7 @@ class ListCleanupService {
     try {
       final repository = _ref.read(shoppingListRepositoryProvider);
       final allGroupsAsync = _ref.read(allGroupsProvider);
-      final allGroups = await allGroupsAsync.when(
+      final allGroups = allGroupsAsync.when(
         data: (groups) => groups,
         loading: () => [],
         error: (_, __) => [],
@@ -175,7 +174,7 @@ class ListCleanupService {
     try {
       final repository = _ref.read(shoppingListRepositoryProvider);
       final allGroupsAsync = _ref.read(allGroupsProvider);
-      final allGroups = await allGroupsAsync.when(
+      final allGroups = allGroupsAsync.when(
         data: (groups) => groups,
         loading: () => [],
         error: (_, __) => [],

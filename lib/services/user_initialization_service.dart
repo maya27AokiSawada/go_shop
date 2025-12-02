@@ -15,10 +15,7 @@ import '../flavors.dart';
 import 'notification_service.dart';
 import 'list_notification_batch_service.dart';
 import 'list_cleanup_service.dart';
-import 'sync_service.dart';
 import 'user_preferences_service.dart';
-import '../utils/error_handler.dart';
-import '../helpers/user_id_change_helper.dart';
 
 final userInitializationServiceProvider = Provider<UserInitializationService>((
   ref,
