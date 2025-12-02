@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../utils/app_logger.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/security_provider.dart';
-import '../providers/auth_provider.dart';
 import '../widgets/group_list_widget.dart';
 import '../widgets/group_creation_with_copy_dialog.dart';
 

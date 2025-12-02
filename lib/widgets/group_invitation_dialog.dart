@@ -180,8 +180,9 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
                                   aData?['createdAt'] as Timestamp?;
                               final bCreated =
                                   bData?['createdAt'] as Timestamp?;
-                              if (aCreated == null || bCreated == null)
+                              if (aCreated == null || bCreated == null) {
                                 return 0;
+                              }
                               return bCreated.compareTo(aCreated); // 降順
                             } catch (e) {
                               return 0;

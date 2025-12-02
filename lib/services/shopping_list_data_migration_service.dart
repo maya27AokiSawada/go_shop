@@ -4,7 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../models/shopping_list.dart';
-import '../datastore/shopping_list_repository.dart';
 import '../providers/shopping_list_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../flavors.dart';

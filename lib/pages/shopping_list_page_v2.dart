@@ -19,6 +19,8 @@ class ShoppingListPageV2 extends ConsumerStatefulWidget {
 
 class _ShoppingListPageV2State extends ConsumerState<ShoppingListPageV2> {
   String? _previousGroupId; // 前回のグループIDを保存
+  DateTime? _selectedDeadline; // 選択された期限
+  DateTime? _selectedRepeatDate; // 繰り返し購入日
 
   @override
   void initState() {
@@ -183,6 +185,79 @@ class _ShoppingListPageV2State extends ConsumerState<ShoppingListPageV2> {
               ),
               keyboardType: TextInputType.number,
             ),
+            const SizedBox(height: 16),
+            InkWell(
+              onTap: () => _selectDeadline(context),
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    const Icon(Icons.calendar_today),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _selectedDeadline == null
+                            ? '購入期限を選択（任意）'
+                            : '期限: ${_formatDate(_selectedDeadline!)}',
+                        style: TextStyle(
+                          color: _selectedDeadline == null ? Colors.grey : null,
+                        ),
+                      ),
+                    ),
+                    if (_selectedDeadline != null)
+                      IconButton(
+                        icon: const Icon(Icons.clear, size: 16),
+                        onPressed: () {
+                          setState(() {
+                            _selectedDeadline = null;
+                          });
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            InkWell(
+              onTap: () => _selectRepeatDate(context),
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    const Icon(Icons.repeat),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _selectedRepeatDate == null
+                            ? '次回購入予定日（任意）'
+                            : '次回: ${_formatDate(_selectedRepeatDate!)} (${_calculateInterval(_selectedRepeatDate!)}日間隔)',
+                        style: TextStyle(
+                          color:
+                              _selectedRepeatDate == null ? Colors.grey : null,
+                        ),
+                      ),
+                    ),
+                    if (_selectedRepeatDate != null)
+                      IconButton(
+                        icon: const Icon(Icons.clear, size: 16),
+                        onPressed: () {
+                          setState(() {
+                            _selectedRepeatDate = null;
+                          });
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
         actions: [
@@ -211,6 +286,10 @@ class _ShoppingListPageV2State extends ConsumerState<ShoppingListPageV2> {
                   memberId: 'dev_user',
                   name: name,
                   quantity: quantity,
+                  deadline: _selectedDeadline, // 期限を追加
+                  shoppingInterval: _selectedRepeatDate != null
+                      ? _calculateInterval(_selectedRepeatDate!)
+                      : 0,
                   // itemId: 自動生成される
                 );
 
@@ -222,6 +301,12 @@ class _ShoppingListPageV2State extends ConsumerState<ShoppingListPageV2> {
 
                 Log.info(
                     '✅ アイテム追加成功: $name x $quantity (itemId: ${newItem.itemId})');
+
+                // 期限と定期購入をリセット
+                setState(() {
+                  _selectedDeadline = null;
+                  _selectedRepeatDate = null;
+                });
 
                 Navigator.of(context).pop();
 
@@ -240,6 +325,77 @@ class _ShoppingListPageV2State extends ConsumerState<ShoppingListPageV2> {
         ],
       ),
     );
+  }
+
+  /// 期限選択ダイアログを表示
+  Future<void> _selectDeadline(BuildContext context) async {
+    try {
+      final now = DateTime.now();
+      final tomorrow = DateTime(now.year, now.month, now.day + 1);
+      final oneYearLater = DateTime(now.year + 1, now.month, now.day);
+
+      final DateTime? picked = await showDatePicker(
+        context: context,
+        initialDate: _selectedDeadline ?? tomorrow,
+        firstDate: tomorrow,
+        lastDate: oneYearLater,
+      );
+
+      if (picked != null) {
+        setState(() {
+          _selectedDeadline = picked;
+        });
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('日付選択エラー: $e')),
+        );
+      }
+    }
+  }
+
+  /// 日付をフォーマット
+  String _formatDate(DateTime date) {
+    return '${date.year}/${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}';
+  }
+
+  /// 定期購入日選択ダイアログを表示
+  Future<void> _selectRepeatDate(BuildContext context) async {
+    try {
+      final now = DateTime.now();
+      final tomorrow = DateTime(now.year, now.month, now.day + 1);
+      final oneYearLater = DateTime(now.year + 1, now.month, now.day);
+
+      final DateTime? picked = await showDatePicker(
+        context: context,
+        initialDate: _selectedRepeatDate ?? tomorrow,
+        firstDate: tomorrow,
+        lastDate: oneYearLater,
+        helpText: '次回購入予定日を選択',
+      );
+
+      if (picked != null) {
+        setState(() {
+          _selectedRepeatDate = picked;
+        });
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('日付選択エラー: $e')),
+        );
+      }
+    }
+  }
+
+  /// 次回購入日から購入間隔（日数）を計算
+  int _calculateInterval(DateTime nextPurchaseDate) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final targetDate = DateTime(
+        nextPurchaseDate.year, nextPurchaseDate.month, nextPurchaseDate.day);
+    return targetDate.difference(today).inDays;
   }
 }
 
