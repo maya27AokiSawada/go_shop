@@ -70,17 +70,25 @@ service cloud.firestore {
 
     // SharedGroup：allowedUidsベースのアクセス制御
     match /SharedGroups/{groupId} {
-      // 読み取り: 認証済みユーザーなら許可（ドキュメント不在でも404を返せるように）
-      // 実際のデータアクセスは、ドキュメント存在時のみ所有者・メンバーチェック
-      allow read: if request.auth != null;
+      // ヘルパー関数: グループメンバーかどうかチェック
+      function isGroupMember() {
+        return request.auth != null && (
+          resource.data.ownerUid == request.auth.uid ||
+          request.auth.uid in resource.data.allowedUid
+        );
+      }
 
-      // 作成: 認証済みユーザーが自分をownerにする場合のみ
+      // 読み取り: allowedUidに含まれるグループのみ
+      allow read: if request.auth != null &&
+                     request.auth.uid in resource.data.allowedUid;
+
+      // 作成: 認証済みユーザーが自分をownerにし、allowedUidに自分を含める
       allow create: if request.auth != null &&
-        request.resource.data.ownerUid == request.auth.uid;
+        request.resource.data.ownerUid == request.auth.uid &&
+        request.auth.uid in request.resource.data.allowedUid;
 
-      // 更新: 所有者のみ
-      allow update: if request.auth != null &&
-        resource.data.ownerUid == request.auth.uid;
+      // 更新: allowedUidメンバーのみ
+      allow update: if isGroupMember();
 
       // 削除: 所有者のみ
       allow delete: if request.auth != null &&
@@ -124,20 +132,6 @@ service cloud.firestore {
         // 読み取り・作成・更新・削除: すべてグループメンバーなら許可
         allow read, create, update, delete: if isGroupMember();
       }
-    }
-
-    // ShoppingList：allowedUidsベースのアクセス制御
-    match /shoppingLists/{listId} {
-      allow read, write: if request.auth != null && (
-        resource.data.ownerUid == request.auth.uid ||
-        request.auth.uid in resource.data.allowedUids
-      );
-
-      allow create: if request.auth != null &&
-        request.resource.data.ownerUid == request.auth.uid;
-
-      allow delete: if request.auth != null &&
-        resource.data.ownerUid == request.auth.uid;
     }
   }
 }
