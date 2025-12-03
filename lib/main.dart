@@ -16,6 +16,7 @@ import 'widgets/app_initialize_widget.dart';
 import 'flavors.dart';
 // 🔥 後方互換性のためカスタムアダプター
 import 'adapters/shopping_item_adapter_override.dart';
+import 'adapters/user_settings_adapter_override.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -70,6 +71,10 @@ void main() async {
   if (!Hive.isAdapterRegistered(3)) {
     Hive.registerAdapter(ShoppingItemAdapterOverride());
     print('✅ ShoppingItemAdapterOverride registered (backward compatible)');
+  }
+  if (!Hive.isAdapterRegistered(6)) {
+    Hive.registerAdapter(UserSettingsAdapterOverride());
+    print('✅ UserSettingsAdapterOverride registered (backward compatible)');
   }
 
   // グローバルHiveアダプター登録のみ実行（Box開封はUserSpecificHiveServiceに委任）

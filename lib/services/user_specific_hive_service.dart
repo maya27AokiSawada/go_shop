@@ -84,7 +84,7 @@ class UserSpecificHiveService {
       Hive.registerAdapter(SharedGroupMemberAdapter());
       Hive.registerAdapter(SharedGroupAdapter());
       // 🔥 後方互換性のためカスタムアダプターを使用
-      // Hive.registerAdapter(ShoppingItemAdapter()); // デフォルトアダプターは使用しない
+      // Hive.registerAdapter(ShoppingItemAdapter()); // デフォルトアダプターは使用しない (typeId=3)
       Hive.registerAdapter(ShoppingListAdapter());
       Hive.registerAdapter(InvitationStatusAdapter()); // 継続使用
       Hive.registerAdapter(InvitationTypeAdapter()); // InvitationType用
@@ -94,7 +94,8 @@ class UserSpecificHiveService {
       Hive.registerAdapter(ListTypeAdapter()); // 🆕 ListType用
       // Hive.registerAdapter(InvitationAdapter());  // 削除済み - QRコードシステムに移行
       // Hive.registerAdapter(AcceptedInvitationAdapter());  // 削除済み - QRコードシステムに移行
-      Hive.registerAdapter(UserSettingsAdapter());
+      // 🔥 UserSettingsAdapter登録をスキップ（main.dartでUserSettingsAdapterOverride使用）
+      // Hive.registerAdapter(UserSettingsAdapter()); // デフォルトアダプターは使用しない (typeId=6)
       Log.info('📝 Hive adapters registered globally (GroupType, ListType追加)');
     }
   }
