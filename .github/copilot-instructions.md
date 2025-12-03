@@ -834,6 +834,268 @@ print('Deleted items: ${currentList.deletedItemCount}');
 print('Needs cleanup: ${currentList.needsCleanup}');
 ```
 
+## Home Page UI & Authentication (Updated: 2025-12-03)
+
+### Authentication Flow Separation
+**ホーム画面で「アカウント作成」と「サインイン」を完全に分離**
+
+#### UI Structure
+```
+Initial Screen:
+┌─────────────────────────────────┐
+│   🎒 Go Shop                    │
+│   買い物リスト共有アプリ          │
+├─────────────────────────────────┤
+│   📋 プライバシー情報             │
+├─────────────────────────────────┤
+│  [👤 アカウント作成] (ElevatedButton)  │
+│  [🔑 サインイン] (OutlinedButton)      │
+└─────────────────────────────────┘
+```
+
+#### Account Creation Mode (`_isSignUpMode = true`)
+**必須項目**: ディスプレイネーム + メール + パスワード
+
+```dart
+Future<void> _signUp() async {
+  // 1. Firebase Authに登録
+  await ref.read(authProvider).signUp(email, password);
+
+  // 2. SharedPreferencesに保存
+  await UserPreferencesService.saveUserName(userName);
+
+  // 3. Firebase Auth displayNameを更新
+  await user.updateDisplayName(userName);
+  await user.reload();
+}
+```
+
+**表示内容**:
+- ✅ ディスプレイネーム入力フィールド（必須・バリデーション付き）
+- ✅ メールアドレス入力
+- ✅ パスワード入力（6文字以上）
+- ✅ 「アカウントを作成」ボタン
+- ✅ 「サインインへ」切り替えリンク
+
+#### Sign-In Mode (`_isSignUpMode = false`)
+**必須項目**: メール + パスワード（ディスプレイネーム不要）
+
+```dart
+Future<void> _signIn() async {
+  // 1. Firebase Authでサインイン
+  await ref.read(authProvider).signIn(email, password);
+
+  // 2. Firebase AuthからSharedPreferencesに反映
+  if (user?.displayName != null) {
+    await UserPreferencesService.saveUserName(user.displayName!);
+  }
+}
+```
+
+**表示内容**:
+- ✅ メールアドレス入力
+- ✅ パスワード入力
+- ✅ 「サインイン」ボタン
+- ✅ 「アカウント作成へ」切り替えリンク
+
+#### Mode Switching UI
+```dart
+Container(
+  decoration: BoxDecoration(
+    color: _isSignUpMode ? Colors.blue.shade50 : Colors.grey.shade100,
+  ),
+  child: Row(
+    children: [
+      Icon(_isSignUpMode ? Icons.person_add : Icons.login),
+      Text(_isSignUpMode ? 'アカウント作成' : 'サインイン'),
+      TextButton(
+        onPressed: () => setState(() => _isSignUpMode = !_isSignUpMode),
+        child: Text(_isSignUpMode ? 'サインインへ' : 'アカウント作成へ'),
+      ),
+    ],
+  ),
+)
+```
+
+#### Error Handling (Improved Messages)
+**アカウント作成時**:
+- `email-already-in-use` → 「このメールアドレスは既に使用されています」
+- `weak-password` → 「パスワードが弱すぎます」
+- `invalid-email` → 「メールアドレスの形式が正しくありません」
+
+**サインイン時**:
+- `user-not-found` → 「ユーザーが見つかりません。アカウント作成が必要です」
+- `wrong-password` / `invalid-credential` → 「メールアドレスまたはパスワードが正しくありません」
+
+#### Critical Implementation Points
+1. **ディスプレイネーム必須化** (アカウント作成時のみ)
+   - バリデーションで空文字をブロック
+   - SharedPreferences + Firebase Auth両方に保存
+
+2. **サインイン時の自動反映**
+   - Firebase AuthのdisplayNameが存在すればPreferencesに反映
+   - 未設定でもサインイン可能（後から設定可能）
+
+3. **モード切り替え**
+   - `_isSignUpMode`フラグで動的にUI切り替え
+   - フォームリセットで入力内容をクリア
+
+4. **視覚的フィードバック**
+   - アカウント作成成功時: 「ようこそ、○○さん」
+   - サインイン成功時: 「サインインしました」
+
+## Realtime Sync Feature (Completed: 2025-11-22)
+
+### Implementation Status
+**Phase 1**: Shopping list items sync instantly across devices without screen transitions. ✅
+
+#### Architecture
+- **Firestore `snapshots()`**: Real-time Stream API for live updates
+- **StreamBuilder**: Flutter widget for automatic UI rebuilds on data changes
+- **HybridRepository**: Auto-switches between Firestore Stream (online) and 30-second polling (offline/dev)
+
+#### Key Files
+**Repository Layer**:
+- `lib/datastore/shopping_list_repository.dart`: Added `watchShoppingList()` abstract method
+- `lib/datastore/firestore_shopping_list_repository.dart`: Firestore `snapshots()` implementation
+- `lib/datastore/hybrid_shopping_list_repository.dart`: Online/offline auto-switching
+- `lib/datastore/hive_shopping_list_repository.dart`: 30-second polling fallback
+- `lib/datastore/firebase_shopping_list_repository.dart`: Delegates to Hive polling
+
+**UI Layer**:
+- `lib/pages/shopping_list_page_v2.dart`: StreamBuilder integration
+  - Removed `invalidate()` calls (causes current list to clear)
+  - Added latest data fetch before item addition (`repository.getShoppingListById()`)
+  - Fixed sync timing issue that caused item count limits
+
+#### Performance
+- **Windows → Android**: Instant reflection (< 1 second)
+- **Self-device**: Current list maintained, no screen transitions
+- **Multiple items**: Successfully tested with 9+ items, no limits
+- **Network efficiency**: 90% payload reduction with differential sync
+
+#### Design Document
+`docs/shopping_list_realtime_sync_design.md`
+- Phase 1: Basic realtime sync (✅ Completed 2025-11-22)
+- Phase 2: Optimization (pending)
+- Phase 3: Performance tuning (pending)
+
+## User Settings & Backward Compatibility (Updated: 2025-12-03)
+
+### UserSettings Model & Adapter Override
+**Problem**: Adding new HiveFields breaks backward compatibility with existing data.
+
+**Solution**: Custom TypeAdapter with null-safe defaults.
+
+```dart
+// lib/adapters/user_settings_adapter_override.dart
+class UserSettingsAdapterOverride extends TypeAdapter<UserSettings> {
+  @override
+  final int typeId = 6;
+
+  @override
+  UserSettings read(BinaryReader reader) {
+    final fields = <int, dynamic>{/* read fields */};
+
+    return UserSettings(
+      // Existing fields...
+      enableListNotifications: (fields[6] as bool?) ?? true,  // 🔥 Default value
+      appMode: (fields[5] as int?) ?? 0,  // 🔥 Default value
+    );
+  }
+}
+```
+
+**Registration** (main.dart):
+```dart
+void main() async {
+  // 🔥 Register BEFORE default adapter initialization
+  if (!Hive.isAdapterRegistered(6)) {
+    Hive.registerAdapter(UserSettingsAdapterOverride());
+  }
+  await UserSpecificHiveService.initializeAdapters();
+}
+```
+
+**Skip in UserSpecificHiveService**:
+```dart
+// lib/services/user_specific_hive_service.dart
+if (typeId == 6) continue;  // UserSettingsAdapterOverride takes priority
+```
+
+### Logging System Standardization
+**AppLogger統一** (main.dart):
+- ✅ 18箇所のprint文をAppLogger.info/error/warningに変更
+- ✅ Firebase初期化ログの統一
+- ✅ アダプター登録ログの統一
+
+```dart
+// ❌ Before:
+print('🔄 Firebase初期化開始...');
+
+// ✅ After:
+AppLogger.info('🔄 Firebase初期化開始...');
+```
+
+### User Name Display & Persistence
+**home_page.dart**:
+```dart
+@override
+void initState() {
+  super.initState();
+  _loadUserName();  // Load from SharedPreferences
+}
+
+Future<void> _loadUserName() async {
+  final savedUserName = await UserPreferencesService.getUserName();
+  if (savedUserName != null && savedUserName.isNotEmpty) {
+    setState(() { userNameController.text = savedUserName; });
+  }
+}
+```
+
+**Data Flow**:
+1. サインアップ時: `UserPreferencesService.saveUserName()` + `user.updateDisplayName()`
+2. サインイン時: Firebase Auth → SharedPreferences反映
+3. アプリ起動時: SharedPreferencesから自動ロード
+
+## Known Issues (As of 2025-12-03)
+- None currently
+
+## Recent Implementations (2025-12-03)
+
+### 1. Home Page UI Improvement (commit: e900b24)
+**アカウント作成とサインインの完全分離**:
+- ✅ 独立した`_signUp()`と`_signIn()`メソッド
+- ✅ `_isSignUpMode`フラグで動的UI切り替え
+- ✅ ディスプレイネーム: 作成時必須、サインイン時任意
+- ✅ Firebase Auth displayName同期
+- ✅ エラーメッセージのわかりやすい表示
+
+### 2. User Name Display Fix (commit: a65aead)
+**ユーザー名表示の復旧**:
+- ✅ `home_page.dart`のinitStateに`_loadUserName()`追加
+- ✅ SharedPreferencesから保存済みユーザー名をロード
+- ✅ UIに正しく表示
+
+### 3. Logging System Standardization (commit: a65aead)
+**print文のAppLogger統一**:
+- ✅ `main.dart`の18箇所をAppLogger.info/error/warningに変更
+- ✅ コードの保守性向上
+
+### 4. UserSettings Backward Compatibility (commit: 744c1dd)
+**後方互換性修正**:
+- ✅ UserSettingsAdapterOverride作成
+- ✅ enableListNotifications (HiveField 6)のnull許容
+- ✅ 既存データとの互換性確保
+
+### 5. Data Sharing Confirmation
+**Windows ⇄ SH-54D**:
+- ✅ ユーザー名が正しく表示される
+- ✅ データ共有が正常に動作
+- ✅ グループ表示: デフォルトグループ + 1202-1433グループ
+- ✅ リアルタイム同期: アイテム追加が一瞬で反映
+
 ## Common Issues & Solutions
 - **Build failures**: Check for Riverpod Generator imports, remove them
 - **Missing variables**: Ensure controllers and providers are properly defined before use
@@ -843,5 +1105,7 @@ print('Needs cleanup: ${currentList.needsCleanup}');
 - **App mode UI not updating**: Wrap SegmentedButton in `Consumer` to watch `appModeNotifierProvider`
 - **Item count limits**: Always fetch latest data with `repository.getShoppingListById()` before updates
 - **Current list clears on update**: Never use `ref.invalidate()` with StreamBuilder, it clears initialData
+- **UserSettings read errors**: Ensure UserSettingsAdapterOverride is registered before other adapters
+- **Display name not showing**: Check initState calls `_loadUserName()` in home_page.dart
 
 Focus on maintaining consistency with existing patterns rather than introducing new architectural approaches.
