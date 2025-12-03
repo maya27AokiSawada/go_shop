@@ -319,6 +319,25 @@ class UserSpecificHiveService {
       await Future.delayed(const Duration(milliseconds: 100));
     } catch (e) {
       Log.error('❌ Failed to open $displayName box ($boxName): $e');
+
+      // 🔥 ShoppingList Boxのエラーは特別処理（データフォーマット破損の可能性）
+      if (boxName == 'shoppingLists') {
+        Log.warning(
+            '⚠️ ShoppingList box corrupted. Deleting and recreating...');
+        try {
+          // 破損したBoxを削除
+          await Hive.deleteBoxFromDisk(boxName);
+          Log.info('🗑️ Deleted corrupted ShoppingList box');
+
+          // 再作成
+          await Hive.openBox<T>(boxName);
+          Log.info('✅ Recreated ShoppingList box successfully');
+          return;
+        } catch (deleteError) {
+          Log.error('❌ Failed to recreate ShoppingList box: $deleteError');
+        }
+      }
+
       rethrow;
     }
   }

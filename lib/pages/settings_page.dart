@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../providers/auth_provider.dart';
 import '../providers/user_settings_provider.dart';
 import '../providers/app_mode_notifier_provider.dart';
 import '../providers/purchase_group_provider.dart';
+import '../providers/user_specific_hive_provider.dart';
 import '../services/user_preferences_service.dart';
 import '../services/user_initialization_service.dart';
 import '../services/access_control_service.dart';
@@ -576,6 +580,292 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                             ),
                           ],
                         ),
+                        const SizedBox(height: 12),
+                        // Firestoreデータ確認ボタン
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            if (user == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('ログインが必要です')),
+                              );
+                              return;
+                            }
+
+                            try {
+                              final firestore = FirebaseFirestore.instance;
+                              final snapshot = await firestore
+                                  .collection('SharedGroups')
+                                  .where('allowedUid', arrayContains: user.uid)
+                                  .get();
+
+                              if (context.mounted) {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('Firestoreデータ'),
+                                    content: SingleChildScrollView(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text('現在のUID: ${user.uid}'),
+                                          const SizedBox(height: 8),
+                                          Text('メール: ${user.email}'),
+                                          const Divider(height: 16),
+                                          Text(
+                                            'Firestoreグループ数: ${snapshot.docs.length}',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          ...snapshot.docs.map((doc) {
+                                            final data = doc.data();
+                                            return Card(
+                                              margin: const EdgeInsets.only(
+                                                  bottom: 8),
+                                              child: Padding(
+                                                padding:
+                                                    const EdgeInsets.all(8.0),
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      'グループ名: ${data['groupName'] ?? 'N/A'}',
+                                                      style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                    Text('ID: ${doc.id}'),
+                                                    Text(
+                                                        'ownerUid: ${data['ownerUid'] ?? 'N/A'}'),
+                                                    Text(
+                                                        'allowedUid: ${data['allowedUid']?.toString() ?? 'N/A'}'),
+                                                  ],
+                                                ),
+                                              ),
+                                            );
+                                          }),
+                                        ],
+                                      ),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('閉じる'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('エラー'),
+                                    content: Text('Firestore確認エラー:\n$e'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('閉じる'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                          icon: const Icon(Icons.cloud, size: 16),
+                          label: const Text(
+                            'Firestoreデータ確認',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.purple.shade100,
+                            foregroundColor: Colors.purple.shade800,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            minimumSize: const Size(double.infinity, 36),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        // Firestoreから同期ボタン
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            if (user == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('ログインが必要です')),
+                              );
+                              return;
+                            }
+
+                            try {
+                              // 同期開始メッセージ
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Firestoreから同期中...'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+
+                              // UserInitializationServiceを使って同期
+                              final initService =
+                                  ref.read(userInitializationServiceProvider);
+                              await initService.syncFromFirestoreToHive(user);
+
+                              // グループプロバイダーを更新
+                              ref.invalidate(allGroupsProvider);
+
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('✅ 同期完了しました'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('同期エラー: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                          icon: const Icon(Icons.sync, size: 16),
+                          label: const Text(
+                            'Firestoreから同期',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green.shade100,
+                            foregroundColor: Colors.green.shade800,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            minimumSize: const Size(double.infinity, 36),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        // グループ状態確認ボタン（Hive）
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            try {
+                              final groupsAsync = ref.read(allGroupsProvider);
+                              await groupsAsync.when(
+                                data: (groups) {
+                                  final message = groups.isEmpty
+                                      ? '❌ グループが見つかりません\n\n'
+                                          '現在のユーザー: ${user?.uid ?? "未ログイン"}\n'
+                                          '現在のメール: ${user?.email ?? "N/A"}'
+                                      : '✅ グループ数: ${groups.length}\n\n'
+                                          '${groups.map((g) => '・${g.groupName} (ID: ${g.groupId})').join('\n')}\n\n'
+                                          '現在のユーザー: ${user?.uid ?? "未ログイン"}';
+
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: const Text('グループ状態'),
+                                      content: SingleChildScrollView(
+                                        child: Text(message),
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context),
+                                          child: const Text('閉じる'),
+                                        ),
+                                        if (groups.isEmpty && user != null)
+                                          TextButton(
+                                            onPressed: () async {
+                                              Navigator.pop(context);
+                                              // デフォルトグループを作成
+                                              try {
+                                                final groupNotifier = ref.read(
+                                                    allGroupsProvider.notifier);
+                                                await groupNotifier
+                                                    .createDefaultGroup(user);
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                        'デフォルトグループを作成しました'),
+                                                    backgroundColor:
+                                                        Colors.green,
+                                                  ),
+                                                );
+                                                // グループ一覧を更新
+                                                ref.invalidate(
+                                                    allGroupsProvider);
+                                              } catch (e) {
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  SnackBar(
+                                                    content: Text('エラー: $e'),
+                                                    backgroundColor: Colors.red,
+                                                  ),
+                                                );
+                                              }
+                                            },
+                                            child: const Text('デフォルトグループ作成'),
+                                          ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                                loading: () {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('読み込み中...')),
+                                  );
+                                },
+                                error: (error, stack) {
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: const Text('エラー'),
+                                      content: Text('グループ読み込みエラー:\n$error'),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context),
+                                          child: const Text('閉じる'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              );
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('確認エラー: $e'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.info_outline, size: 16),
+                          label: const Text(
+                            'グループ状態確認',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue.shade100,
+                            foregroundColor: Colors.blue.shade800,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            minimumSize: const Size(double.infinity, 36),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -634,6 +924,47 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.blue.shade100,
                                 foregroundColor: Colors.blue.shade800,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 12),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          const Divider(),
+                          const SizedBox(height: 20),
+                          // 🆕 Hiveデータクリア（緊急用）
+                          Text(
+                            'Hiveデータを完全削除',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: Colors.red.shade700,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '⚠️ ローカルの全データを削除します。Firestoreから再同期されます。',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: Colors.red.shade600),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: user == null
+                                  ? null
+                                  : () async {
+                                      await _clearAllHiveData(user);
+                                    },
+                              icon: const Icon(Icons.delete_forever, size: 18),
+                              label: const Text('Hiveデータをクリア'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red.shade100,
+                                foregroundColor: Colors.red.shade800,
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 16, vertical: 12),
                               ),
@@ -1299,6 +1630,160 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             ],
           ),
           content: Text('データ移行中にエラーが発生しました\n\n$e'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  /// Hiveデータを完全削除（緊急用）
+  Future<void> _clearAllHiveData(User user) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning, color: Colors.red),
+            SizedBox(width: 8),
+            Text('確認'),
+          ],
+        ),
+        content: const Text(
+          '⚠️ ローカルの全データを削除しますか？\n\n'
+          '・全グループ\n'
+          '・全買い物リスト\n'
+          '・全アイテム\n\n'
+          'Firestoreから再同期されますが、ローカルのみのデータは失われます。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('キャンセル'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('削除する'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      // ローディング表示
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Hiveデータ削除中...'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      AppLogger.info('🗑️ [HIVE_CLEAR] Hiveデータ削除開始');
+
+      // ユーザー固有のBox名を構築
+      final boxSuffix = user.uid;
+      final sharedGroupBoxName = 'SharedGroups_$boxSuffix';
+      final shoppingListBoxName = 'ShoppingLists_$boxSuffix';
+
+      // SharedGroups Boxを削除
+      if (Hive.isBoxOpen(sharedGroupBoxName)) {
+        await Hive.box(sharedGroupBoxName).close();
+      }
+      await Hive.deleteBoxFromDisk(sharedGroupBoxName);
+      AppLogger.info('✅ [HIVE_CLEAR] SharedGroups削除完了');
+
+      // ShoppingLists Boxを削除
+      if (Hive.isBoxOpen(shoppingListBoxName)) {
+        await Hive.box(shoppingListBoxName).close();
+      }
+      await Hive.deleteBoxFromDisk(shoppingListBoxName);
+      AppLogger.info('✅ [HIVE_CLEAR] ShoppingLists削除完了');
+
+      // Boxを再オープン
+      final hiveService = ref.read(userSpecificHiveProvider);
+      await hiveService.initializeForUser(user.uid);
+      AppLogger.info('✅ [HIVE_CLEAR] Hive再初期化完了');
+
+      // Providerをリセット
+      ref.invalidate(allGroupsProvider);
+      ref.invalidate(selectedGroupIdProvider);
+      AppLogger.info('✅ [HIVE_CLEAR] Provider無効化完了');
+
+      // Firestoreから再同期
+      final initService = ref.read(userInitializationServiceProvider);
+      await initService.syncFromFirestoreToHive(user);
+      AppLogger.info('✅ [HIVE_CLEAR] Firestore同期完了');
+
+      // ローディング閉じる
+      if (!mounted) return;
+      Navigator.of(context).pop();
+
+      // 成功メッセージ
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.green),
+              SizedBox(width: 8),
+              Text('完了'),
+            ],
+          ),
+          content: const Text(
+            'Hiveデータを削除し、Firestoreから再同期しました。\n\n'
+            'アプリを再起動してください。',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } catch (e, stack) {
+      AppLogger.error('❌ [HIVE_CLEAR] エラー', e);
+      AppLogger.error('Stack trace:', stack);
+
+      if (mounted) Navigator.of(context).pop();
+
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.error, color: Colors.red),
+              SizedBox(width: 8),
+              Text('エラー'),
+            ],
+          ),
+          content: Text('Hiveデータ削除中にエラーが発生しました\n\n$e'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),

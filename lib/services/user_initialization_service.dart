@@ -529,15 +529,40 @@ class UserInitializationService {
 
     try {
       Log.info('⬇️ [SYNC] Firestore→Hive同期開始');
+      Log.info('🔑 [SYNC] ユーザーUID: ${user.uid}');
+      Log.info('📧 [SYNC] ユーザーEmail: ${user.email}');
+
       final firestore = FirebaseFirestore.instance;
 
       // SharedGroupsルートコレクションからallowedUidでフィルタ
       final SharedGroupsRef = firestore.collection('SharedGroups');
+
+      Log.info('🔍 [SYNC] Firestoreクエリ実行中...');
+      Log.info('   collection: SharedGroups');
+      Log.info('   where: allowedUid arrayContains ${user.uid}');
+
       final snapshot =
           await SharedGroupsRef.where('allowedUid', arrayContains: user.uid)
               .get();
 
       Log.info('📊 [SYNC] Firestoreクエリ完了: ${snapshot.docs.length}個のグループ');
+
+      // クエリ結果がない場合、全SharedGroupsを確認
+      if (snapshot.docs.isEmpty) {
+        Log.warning('⚠️ [SYNC] allowedUid=${user.uid} のグループが見つかりません');
+        Log.info('🔍 [SYNC] 全SharedGroupsをチェック...');
+
+        final allSnapshot = await SharedGroupsRef.get();
+        Log.info('📊 [SYNC] SharedGroups全体: ${allSnapshot.docs.length}個');
+
+        for (final doc in allSnapshot.docs) {
+          final data = doc.data();
+          Log.info('  - ID: ${doc.id}');
+          Log.info('    groupName: ${data['groupName']}');
+          Log.info('    allowedUid: ${data['allowedUid']}');
+          Log.info('    ownerUid: ${data['ownerUid']}');
+        }
+      }
 
       final repository = _ref.read(SharedGroupRepositoryProvider);
 
@@ -708,6 +733,8 @@ class UserInitializationService {
 
         // グループをHiveに保存/更新
         try {
+          Log.info('📥 [SYNC] グループ処理開始: ${doc.id}');
+
           // Firestoreの Timestamp を DateTime に変換してから fromJson を使用
           final convertedData = FirestoreConverter.convertTimestamps(data);
 
@@ -717,22 +744,28 @@ class UserInitializationService {
             updatedAt: DateTime.now(),
           );
 
-          Log.info(
-              '🔍 [SYNC] グループ同期: ${group.groupName}, allowedUid: ${group.allowedUid}');
+          Log.info('🔍 [SYNC] グループ同期: ${group.groupName}');
+          Log.info('   groupId: ${group.groupId}');
+          Log.info('   allowedUid: ${group.allowedUid}');
+          Log.info('   ownerUid: ${group.ownerUid}');
 
           // 🔥 CRITICAL FIX: Hiveにのみ保存（Firestoreへの逆書き込みを防ぐ）
           if (repository is FirestoreSharedGroupRepository) {
             // Hive Boxに直接書き込む
             final SharedGroupBox = _ref.read(SharedGroupBoxProvider);
+            Log.info('💾 [SYNC] Hive Box に直接保存: ${group.groupId}');
             await SharedGroupBox.put(group.groupId, group);
             Log.info('✅ [SYNC] HiveのみにGroup保存（Firestore書き戻し回避）');
           } else {
             // HiveRepositoryの場合は通常のupdateを使用
+            Log.info('💾 [SYNC] HiveRepository経由で保存: ${group.groupId}');
             await repository.updateGroup(group.groupId, group);
+            Log.info('✅ [SYNC] HiveRepository経由で保存完了');
           }
           syncedCount++;
-        } catch (e) {
-          Log.warning('⚠️ [SYNC] グループ同期エラー（${doc.id}）: $e');
+        } catch (e, stack) {
+          Log.error('❌ [SYNC] グループ同期エラー（${doc.id}）: $e');
+          Log.error('Stack trace: $stack');
         }
       }
 
