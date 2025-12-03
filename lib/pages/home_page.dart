@@ -23,6 +23,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   bool _isPasswordVisible = false;
   bool _isLoading = false;
   bool _showEmailSignIn = false;
+  bool _isSignUpMode = true; // true: アカウント作成, false: サインイン
 
   @override
   void initState() {
@@ -54,7 +55,8 @@ class _HomePageState extends ConsumerState<HomePage> {
     super.dispose();
   }
 
-  Future<void> _signInWithEmail() async {
+  /// アカウント作成処理（ディスプレイネーム必須）
+  Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
@@ -63,42 +65,101 @@ class _HomePageState extends ConsumerState<HomePage> {
       final password = passwordController.text;
       final userName = userNameController.text.trim();
 
-      // まずサインイン試行
-      try {
-        await ref.read(authProvider).signIn(email, password);
-        AppLogger.info('既存ユーザーでサインイン成功');
-      } catch (e) {
-        // サインイン失敗 → 新規登録を試行
-        if (e.toString().contains('user-not-found') ||
-            e.toString().contains('wrong-password') ||
-            e.toString().contains('invalid-credential')) {
-          AppLogger.info('ユーザーが存在しないため新規登録を試行');
-          await ref.read(authProvider).signUp(email, password);
-          AppLogger.info('新規ユーザー登録成功');
-        } else {
-          rethrow;
-        }
-      }
+      // 新規登録
+      await ref.read(authProvider).signUp(email, password);
+      AppLogger.info('✅ [SIGNUP] 新規ユーザー登録成功');
 
-      // ユーザー名を保存
-      if (userName.isNotEmpty) {
-        await UserPreferencesService.saveUserName(userName);
+      // ディスプレイネームをPreferencesに保存
+      await UserPreferencesService.saveUserName(userName);
+      AppLogger.info('✅ [SIGNUP] ディスプレイネームを保存: $userName');
+
+      // Firebase Authのディスプレイネームも更新
+      final user = ref.read(authProvider).currentUser;
+      if (user != null) {
+        await user.updateDisplayName(userName);
+        await user.reload();
+        AppLogger.info('✅ [SIGNUP] Firebase Authのディスプレイネームを更新: $userName');
       }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('ログインしました'),
+          SnackBar(
+            content: Text('アカウントを作成しました！ようこそ、$userNameさん'),
             backgroundColor: Colors.green,
           ),
         );
       }
     } catch (e) {
-      AppLogger.error('ログインエラー', e);
+      AppLogger.error('❌ [SIGNUP] アカウント作成エラー', e);
       if (mounted) {
+        String errorMessage = 'アカウント作成に失敗しました';
+        if (e.toString().contains('email-already-in-use')) {
+          errorMessage = 'このメールアドレスは既に使用されています';
+        } else if (e.toString().contains('weak-password')) {
+          errorMessage = 'パスワードが弱すぎます';
+        } else if (e.toString().contains('invalid-email')) {
+          errorMessage = 'メールアドレスの形式が正しくありません';
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('ログインに失敗しました: ${e.toString()}'),
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  /// サインイン処理（ディスプレイネーム任意）
+  Future<void> _signIn() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final email = emailController.text.trim();
+      final password = passwordController.text;
+
+      // サインイン
+      await ref.read(authProvider).signIn(email, password);
+      AppLogger.info('✅ [SIGNIN] サインイン成功');
+
+      // Firebase AuthからディスプレイネームをPreferencesに反映
+      final user = ref.read(authProvider).currentUser;
+      if (user != null &&
+          user.displayName != null &&
+          user.displayName!.isNotEmpty) {
+        await UserPreferencesService.saveUserName(user.displayName!);
+        AppLogger.info(
+            '✅ [SIGNIN] AuthからPreferencesにディスプレイネームを反映: ${user.displayName}');
+      } else {
+        AppLogger.info('💡 [SIGNIN] Authにディスプレイネームが未設定');
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('サインインしました'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      AppLogger.error('❌ [SIGNIN] サインインエラー', e);
+      if (mounted) {
+        String errorMessage = 'サインインに失敗しました';
+        if (e.toString().contains('user-not-found')) {
+          errorMessage = 'ユーザーが見つかりません。アカウント作成が必要です';
+        } else if (e.toString().contains('wrong-password') ||
+            e.toString().contains('invalid-credential')) {
+          errorMessage = 'メールアドレスまたはパスワードが正しくありません';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
             backgroundColor: Colors.red,
           ),
         );
@@ -183,15 +244,34 @@ class _HomePageState extends ConsumerState<HomePage> {
 
               const SizedBox(height: 32),
 
-              // サインインボタン
+              // モード選択ボタン
               if (!_showEmailSignIn) ...[
                 ElevatedButton.icon(
                   onPressed: () {
-                    setState(() => _showEmailSignIn = true);
+                    setState(() {
+                      _showEmailSignIn = true;
+                      _isSignUpMode = true; // デフォルトはアカウント作成
+                    });
                   },
-                  icon: const Icon(Icons.email, size: 20),
-                  label: const Text('メールアドレスでログイン / 新規登録'),
+                  icon: const Icon(Icons.person_add, size: 20),
+                  label: const Text('アカウント作成'),
                   style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    textStyle: const TextStyle(fontSize: 16),
+                    backgroundColor: Colors.blue,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _showEmailSignIn = true;
+                      _isSignUpMode = false; // サインインモード
+                    });
+                  },
+                  icon: const Icon(Icons.login, size: 20),
+                  label: const Text('サインイン'),
+                  style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     textStyle: const TextStyle(fontSize: 16),
                   ),
@@ -200,30 +280,79 @@ class _HomePageState extends ConsumerState<HomePage> {
 
               // メール/パスワードフォーム
               if (_showEmailSignIn) ...[
+                // モード表示
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: _isSignUpMode
+                        ? Colors.blue.shade50
+                        : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _isSignUpMode ? Icons.person_add : Icons.login,
+                        color:
+                            _isSignUpMode ? Colors.blue : Colors.grey.shade700,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _isSignUpMode ? 'アカウント作成' : 'サインイン',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: _isSignUpMode
+                              ? Colors.blue.shade900
+                              : Colors.grey.shade700,
+                        ),
+                      ),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _isSignUpMode = !_isSignUpMode;
+                            _formKey.currentState?.reset();
+                          });
+                        },
+                        child: Text(_isSignUpMode ? 'サインインへ' : 'アカウント作成へ'),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
                 Form(
                   key: _formKey,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // ユーザー名
-                      TextFormField(
-                        controller: userNameController,
-                        decoration: InputDecoration(
-                          labelText: '表示名（ニックネーム）',
-                          hintText: '例: 太郎',
-                          prefixIcon: const Icon(Icons.person),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
+                      // ディスプレイネーム（アカウント作成時のみ必須）
+                      if (_isSignUpMode)
+                        Column(
+                          children: [
+                            TextFormField(
+                              controller: userNameController,
+                              decoration: InputDecoration(
+                                labelText: 'ディスプレイネーム（必須）',
+                                hintText: '例: 太郎',
+                                prefixIcon: const Icon(Icons.person),
+                                helperText: 'グループメンバーに表示される名前です',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              validator: (value) {
+                                if (_isSignUpMode &&
+                                    (value == null || value.trim().isEmpty)) {
+                                  return 'ディスプレイネームを入力してください';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                          ],
                         ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return '表示名を入力してください';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
 
                       // メールアドレス
                       TextFormField(
@@ -285,12 +414,15 @@ class _HomePageState extends ConsumerState<HomePage> {
                       ),
                       const SizedBox(height: 24),
 
-                      // ログインボタン
+                      // 実行ボタン
                       ElevatedButton(
-                        onPressed: _isLoading ? null : _signInWithEmail,
+                        onPressed: _isLoading
+                            ? null
+                            : (_isSignUpMode ? _signUp : _signIn),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           textStyle: const TextStyle(fontSize: 16),
+                          backgroundColor: _isSignUpMode ? Colors.blue : null,
                         ),
                         child: _isLoading
                             ? const SizedBox(
@@ -299,9 +431,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                                 child:
                                     CircularProgressIndicator(strokeWidth: 2),
                               )
-                            : const Text('ログイン / 新規登録'),
+                            : Text(_isSignUpMode ? 'アカウントを作成' : 'サインイン'),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
 
                       // 戻るボタン
                       TextButton(
