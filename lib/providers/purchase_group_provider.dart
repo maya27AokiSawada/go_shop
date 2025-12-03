@@ -884,8 +884,6 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
           Log.error('❌ [CREATE DEFAULT] Firestore同期エラー: $e');
           // エラーでもローカルには作成済みなので続行
         }
-      } else {
-        Log.info('💡 [CREATE DEFAULT] syncStatus=local として作成（開発環境またはオフライン）');
       }
 
       // プロバイダーを更新（UI反映）
