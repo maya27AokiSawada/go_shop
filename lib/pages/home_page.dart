@@ -28,6 +28,22 @@ class _HomePageState extends ConsumerState<HomePage> {
   void initState() {
     super.initState();
     AppLogger.info('HomePage初期化開始');
+    _loadUserName();
+  }
+
+  /// ユーザー名をSharedPreferencesからロード
+  Future<void> _loadUserName() async {
+    try {
+      final savedUserName = await UserPreferencesService.getUserName();
+      if (savedUserName != null && savedUserName.isNotEmpty) {
+        setState(() {
+          userNameController.text = savedUserName;
+        });
+        AppLogger.info('✅ [HOME] ユーザー名をロード: $savedUserName');
+      }
+    } catch (e) {
+      AppLogger.error('❌ [HOME] ユーザー名ロードエラー: $e');
+    }
   }
 
   @override

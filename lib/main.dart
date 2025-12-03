@@ -17,6 +17,7 @@ import 'flavors.dart';
 // 🔥 後方互換性のためカスタムアダプター
 import 'adapters/shopping_item_adapter_override.dart';
 import 'adapters/user_settings_adapter_override.dart';
+import 'utils/app_logger.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,41 +28,44 @@ void main() async {
   // Firebase初期化（詳細なエラー情報を表示）
   if (F.appFlavor == Flavor.prod) {
     try {
-      print('🔄 Firebase初期化開始...');
-      print('🎯 現在のプラットフォーム: $defaultTargetPlatform');
-      print('📋 プロジェクトID: ${DefaultFirebaseOptions.currentPlatform.projectId}');
-      print('📋 アプリID: ${DefaultFirebaseOptions.currentPlatform.appId}');
-      print('📋 API Key: ${DefaultFirebaseOptions.currentPlatform.apiKey}');
-      print(
+      AppLogger.info('🔄 Firebase初期化開始...');
+      AppLogger.info('🎯 現在のプラットフォーム: $defaultTargetPlatform');
+      AppLogger.info(
+          '📋 プロジェクトID: ${DefaultFirebaseOptions.currentPlatform.projectId}');
+      AppLogger.info(
+          '📋 アプリID: ${DefaultFirebaseOptions.currentPlatform.appId}');
+      AppLogger.info(
+          '📋 API Key: ${DefaultFirebaseOptions.currentPlatform.apiKey}');
+      AppLogger.info(
           '📋 Auth Domain: ${DefaultFirebaseOptions.currentPlatform.authDomain}');
 
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
-      print('✅ Firebase初期化成功');
+      AppLogger.info('✅ Firebase初期化成功');
 
       // Firebase Auth の状態確認
-      print('🔐 Firebase Auth インスタンス: ${FirebaseAuth.instance}');
-      print('🔐 現在のユーザー: ${FirebaseAuth.instance.currentUser}');
+      AppLogger.info('🔐 Firebase Auth インスタンス: ${FirebaseAuth.instance}');
+      AppLogger.info('🔐 現在のユーザー: ${FirebaseAuth.instance.currentUser}');
 
       // Firestore の状態確認
-      print('🗃️ Firestore インスタンス: ${FirebaseFirestore.instance}');
+      AppLogger.info('🗃️ Firestore インスタンス: ${FirebaseFirestore.instance}');
     } catch (e, stackTrace) {
-      print('❌ Firebase初期化エラー詳細: $e');
-      print('📚 エラータイプ: ${e.runtimeType}');
-      print('📚 スタックトレース: $stackTrace');
+      AppLogger.error('❌ Firebase初期化エラー詳細: $e');
+      AppLogger.error('📚 エラータイプ: ${e.runtimeType}');
+      AppLogger.error('📚 スタックトレース: $stackTrace');
 
       // duplicate-appエラーは既に初期化済みなので無視
       if (e.toString().contains('duplicate-app')) {
-        print('ℹ️ Firebase既に初期化済み - 続行します');
+        AppLogger.info('ℹ️ Firebase既に初期化済み - 続行します');
       } else {
         // その他のエラーは再スロー
-        print('⚠️ 重大なFirebaseエラー - アプリ起動を中止');
+        AppLogger.warning('⚠️ 重大なFirebaseエラー - アプリ起動を中止');
         rethrow;
       }
     }
   } else {
-    print('💡 開発環境：Firebaseをスキップ（Hiveのみ使用）');
+    AppLogger.info('💡 開発環境：Firebaseをスキップ（Hiveのみ使用）');
   }
 
   // ホットリスタート対応：既存のHiveロックファイルをクリア
@@ -70,11 +74,13 @@ void main() async {
   // 🔥 後方互換性のためカスタムアダプター登録
   if (!Hive.isAdapterRegistered(3)) {
     Hive.registerAdapter(ShoppingItemAdapterOverride());
-    print('✅ ShoppingItemAdapterOverride registered (backward compatible)');
+    AppLogger.info(
+        '✅ ShoppingItemAdapterOverride registered (backward compatible)');
   }
   if (!Hive.isAdapterRegistered(6)) {
     Hive.registerAdapter(UserSettingsAdapterOverride());
-    print('✅ UserSettingsAdapterOverride registered (backward compatible)');
+    AppLogger.info(
+        '✅ UserSettingsAdapterOverride registered (backward compatible)');
   }
 
   // グローバルHiveアダプター登録のみ実行（Box開封はUserSpecificHiveServiceに委任）
