@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../services/user_preferences_service.dart';
 import '../services/user_initialization_service.dart';
+import '../services/firestore_user_name_service.dart';
 import '../widgets/user_name_panel_widget.dart';
 import '../widgets/news_and_ads_panel_widget.dart';
 import '../utils/app_logger.dart';
@@ -69,17 +70,22 @@ class _HomePageState extends ConsumerState<HomePage> {
       await ref.read(authProvider).signUp(email, password);
       AppLogger.info('✅ [SIGNUP] 新規ユーザー登録成功');
 
-      // ディスプレイネームをPreferencesに保存
-      await UserPreferencesService.saveUserName(userName);
-      AppLogger.info('✅ [SIGNUP] ディスプレイネームを保存: $userName');
-
-      // Firebase Authのディスプレイネームも更新
+      // Firebase Authのディスプレイネームを更新
       final user = ref.read(authProvider).currentUser;
       if (user != null) {
         await user.updateDisplayName(userName);
         await user.reload();
         AppLogger.info('✅ [SIGNUP] Firebase Authのディスプレイネームを更新: $userName');
       }
+
+      // Firestoreにユーザープロファイルを作成
+      await FirestoreUserNameService.ensureUserProfileExists(
+          userName: userName);
+      AppLogger.info('✅ [SIGNUP] Firestoreにユーザープロファイル作成: $userName');
+
+      // ディスプレイネームをPreferencesに保存
+      await UserPreferencesService.saveUserName(userName);
+      AppLogger.info('✅ [SIGNUP] ディスプレイネームをPreferencesに保存: $userName');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -127,16 +133,35 @@ class _HomePageState extends ConsumerState<HomePage> {
       await ref.read(authProvider).signIn(email, password);
       AppLogger.info('✅ [SIGNIN] サインイン成功');
 
-      // Firebase AuthからディスプレイネームをPreferencesに反映
-      final user = ref.read(authProvider).currentUser;
-      if (user != null &&
-          user.displayName != null &&
-          user.displayName!.isNotEmpty) {
-        await UserPreferencesService.saveUserName(user.displayName!);
-        AppLogger.info(
-            '✅ [SIGNIN] AuthからPreferencesにディスプレイネームを反映: ${user.displayName}');
+      // Firestoreにユーザープロファイルが存在することを確認（なければ作成）
+      await FirestoreUserNameService.ensureUserProfileExists();
+      AppLogger.info('✅ [SIGNIN] ユーザープロファイル確認完了');
+
+      // Firestore users/{userId}/profile からユーザー名を取得
+      final firestoreUserName = await FirestoreUserNameService.getUserName();
+
+      if (firestoreUserName != null && firestoreUserName.isNotEmpty) {
+        // Firestoreからユーザー名を取得できた場合
+        await UserPreferencesService.saveUserName(firestoreUserName);
+        setState(() {
+          userNameController.text = firestoreUserName;
+        });
+        AppLogger.info('✅ [SIGNIN] Firestoreからユーザー名を取得・反映: $firestoreUserName');
       } else {
-        AppLogger.info('💡 [SIGNIN] Authにディスプレイネームが未設定');
+        // Firestoreに未設定の場合、Firebase Authから取得を試みる
+        final user = ref.read(authProvider).currentUser;
+        if (user != null &&
+            user.displayName != null &&
+            user.displayName!.isNotEmpty) {
+          await UserPreferencesService.saveUserName(user.displayName!);
+          setState(() {
+            userNameController.text = user.displayName!;
+          });
+          AppLogger.info(
+              '✅ [SIGNIN] Firebase Authからユーザー名を反映: ${user.displayName}');
+        } else {
+          AppLogger.info('💡 [SIGNIN] ユーザー名が未設定（Firestore・Auth両方）');
+        }
       }
 
       if (mounted) {

@@ -55,6 +55,11 @@ service cloud.firestore {
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
 
+      // ユーザープロファイル：自分のプロファイルのみ読み書き可能
+      match /profile/{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
       // 受諾招待コレクション：誰でも書き込み可能（招待受諾用）
       match /acceptedInvitations/{acceptorUid} {
         // 📝 重要: 認証済みユーザーなら誰でも作成可能（招待受諾記録用）

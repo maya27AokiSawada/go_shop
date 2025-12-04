@@ -13,6 +13,7 @@ import '../helpers/security_validator.dart';
 import '../services/access_control_service.dart';
 import '../services/user_preferences_service.dart';
 import '../services/user_initialization_service.dart';
+import '../services/firestore_user_name_service.dart';
 import 'user_specific_hive_provider.dart';
 import 'current_list_provider.dart';
 
@@ -699,16 +700,42 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
       Log.info('🆔 [CREATE DEFAULT] グループID: $defaultGroupId');
 
       // プリファレンスからユーザー名を取得
-      final prefsName = await UserPreferencesService.getUserName();
-      final displayName = (prefsName?.isNotEmpty == true)
-          ? prefsName!
-          : (user?.displayName?.isNotEmpty == true
-              ? user!.displayName!
-              : (user?.email?.split('@').first ?? 'ユーザー'));
-      Log.info('👤 [CREATE DEFAULT] ユーザー名: $displayName');
-      Log.info('🔍 [CREATE DEFAULT] SharedPreferences.userName: $prefsName');
-      Log.info('🔍 [CREATE DEFAULT] Auth.displayName: ${user?.displayName}');
-      Log.info('🔍 [CREATE DEFAULT] Auth.email: ${user?.email}');
+      String displayName = 'ユーザー';
+
+      // 1. まずFirestore users/{uid}/profile から取得を試みる
+      try {
+        final firestoreName = await FirestoreUserNameService.getUserName();
+        if (firestoreName != null && firestoreName.isNotEmpty) {
+          displayName = firestoreName;
+          // Preferencesにも反映
+          await UserPreferencesService.saveUserName(firestoreName);
+          Log.info('✅ [CREATE DEFAULT] Firestoreからユーザー名取得: $displayName');
+        }
+      } catch (e) {
+        Log.warning('⚠️ [CREATE DEFAULT] Firestoreユーザー名取得エラー: $e');
+      }
+
+      // 2. Firestoreで取得できなかった場合、Preferencesから取得
+      if (displayName == 'ユーザー') {
+        final prefsName = await UserPreferencesService.getUserName();
+        if (prefsName != null && prefsName.isNotEmpty) {
+          displayName = prefsName;
+          Log.info('✅ [CREATE DEFAULT] Preferencesからユーザー名取得: $displayName');
+        }
+      }
+
+      // 3. Preferencesでも取得できなかった場合、Firebase Authから取得
+      if (displayName == 'ユーザー') {
+        if (user?.displayName?.isNotEmpty == true) {
+          displayName = user!.displayName!;
+          Log.info('✅ [CREATE DEFAULT] Firebase Authからユーザー名取得: $displayName');
+        } else if (user?.email != null) {
+          displayName = user!.email!.split('@').first;
+          Log.info('✅ [CREATE DEFAULT] メールアドレスからユーザー名生成: $displayName');
+        }
+      }
+
+      Log.info('👤 [CREATE DEFAULT] 最終決定ユーザー名: $displayName');
 
       // メールアドレスをSharedPreferencesに保存
       if (user?.email != null && user!.email!.isNotEmpty) {
