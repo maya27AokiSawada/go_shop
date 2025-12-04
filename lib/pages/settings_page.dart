@@ -13,6 +13,7 @@ import '../services/user_initialization_service.dart';
 import '../services/access_control_service.dart';
 import '../services/list_cleanup_service.dart';
 import '../services/shopping_list_data_migration_service.dart';
+import '../services/periodic_purchase_service.dart';
 import '../datastore/user_settings_repository.dart';
 import '../widgets/test_scenario_widget.dart';
 import '../debug/fix_maya_group.dart';
@@ -932,6 +933,39 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           const SizedBox(height: 20),
                           const Divider(),
                           const SizedBox(height: 20),
+                          // 🆕 定期購入アイテムのリセット
+                          Text(
+                            '定期購入アイテムの自動リセット',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '購入済み + 定期購入間隔経過のアイテムを未購入に戻します',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: Colors.grey.shade600),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () async {
+                                await _resetPeriodicPurchaseItems();
+                              },
+                              icon: const Icon(Icons.refresh, size: 18),
+                              label: const Text('定期購入リセット実行'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.purple.shade100,
+                                foregroundColor: Colors.purple.shade800,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 12),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          const Divider(),
+                          const SizedBox(height: 20),
                           // 🆕 Hiveデータクリア（緊急用）
                           Text(
                             'Hiveデータを完全削除',
@@ -1396,6 +1430,93 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               Icon(Icons.error, color: Colors.red),
               SizedBox(width: 8),
               Text('同期エラー'),
+            ],
+          ),
+          content: Text('エラーが発生しました:\n$e'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  /// 定期購入アイテムのリセットメソッド
+  Future<void> _resetPeriodicPurchaseItems() async {
+    try {
+      // ローディング表示
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('定期購入アイテムをリセット中...'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final periodicService = ref.read(periodicPurchaseServiceProvider);
+      final resetCount = await periodicService.resetPeriodicPurchaseItems();
+
+      // ローディング閉じる
+      if (!mounted) return;
+      Navigator.of(context).pop();
+
+      // 結果表示
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(resetCount > 0 ? Icons.check_circle : Icons.info,
+                  color: resetCount > 0 ? Colors.green : Colors.blue),
+              const SizedBox(width: 8),
+              const Text('定期購入リセット完了'),
+            ],
+          ),
+          content: Text(
+            resetCount > 0
+                ? '$resetCount 件のアイテムを未購入状態にリセットしました。\n\n購入間隔が経過した定期購入アイテムが自動的に未購入に戻されました。'
+                : 'リセット対象のアイテムはありませんでした。\n\n定期購入間隔が経過したアイテムがない場合、リセットは実行されません。',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      AppLogger.error('定期購入リセットエラー', e);
+
+      // エラー時もローディングを閉じる
+      if (mounted) Navigator.of(context).pop();
+
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.error, color: Colors.red),
+              SizedBox(width: 8),
+              Text('リセットエラー'),
             ],
           ),
           content: Text('エラーが発生しました:\n$e'),

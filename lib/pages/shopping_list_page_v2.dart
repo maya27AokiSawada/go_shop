@@ -5,6 +5,7 @@ import '../models/shopping_list.dart';
 import '../providers/current_list_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/shopping_list_provider.dart';
+import '../providers/auth_provider.dart';
 import '../widgets/shopping_list_header_widget.dart';
 import '../utils/app_logger.dart';
 
@@ -297,10 +298,14 @@ class _ShoppingListPageV2State extends ConsumerState<ShoppingListPageV2> {
                 final currentList = ref.read(currentListProvider);
                 if (currentList == null) return;
 
+                // 現在のユーザーIDを取得
+                final currentUser = ref.read(authStateProvider).value;
+                final currentMemberId = currentUser?.uid ?? 'anonymous';
+
                 try {
                   // 新しいアイテムを作成（itemIdは自動生成）
                   final newItem = ShoppingItem.createNow(
-                    memberId: 'dev_user',
+                    memberId: currentMemberId,
                     name: name,
                     quantity: quantity,
                     deadline: _selectedDeadline, // 期限を追加

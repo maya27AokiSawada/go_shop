@@ -8,6 +8,8 @@ import '../services/user_initialization_service.dart';
 import '../services/notification_service.dart';
 import '../services/user_preferences_service.dart';
 import '../services/user_specific_hive_service.dart';
+import '../services/periodic_purchase_service.dart'; // 🆕 定期購入サービス
+import '../services/list_cleanup_service.dart';
 import '../widgets/data_migration_widget.dart';
 import '../utils/app_logger.dart';
 import '../helpers/user_id_change_helper.dart';
@@ -256,10 +258,47 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
       final notificationService = ref.read(notificationServiceProvider);
       notificationService.startListening();
 
+      // 🆕 定期購入アイテムの自動リセット（アプリ起動時）
+      _resetPeriodicPurchaseItems();
+
+      // 論理削除アイテムのクリーンアップ（30日以上経過したもの）
+      _cleanupDeletedItems();
+
       Log.info('✅ 基本初期化完了 - 各ページで必要な初期化を実行します');
     } catch (e) {
       Log.error('❌ 基本初期化エラー: $e');
       // エラーでも続行
+    }
+  }
+
+  /// 定期購入アイテムの自動リセット（バックグラウンド処理）
+  Future<void> _resetPeriodicPurchaseItems() async {
+    try {
+      // 5秒待機してからバックグラウンドで実行
+      Future.delayed(const Duration(seconds: 5), () async {
+        final periodicService = ref.read(periodicPurchaseServiceProvider);
+        final resetCount = await periodicService.resetPeriodicPurchaseItems();
+        Log.info('🔄 定期購入アイテムリセット完了: $resetCount 件');
+      });
+    } catch (e) {
+      Log.error('❌ 定期購入リセットエラー: $e');
+    }
+  }
+
+  /// 論理削除アイテムのクリーンアップ（バックグラウンド処理）
+  Future<void> _cleanupDeletedItems() async {
+    try {
+      // 10秒待機してからバックグラウンドで実行
+      Future.delayed(const Duration(seconds: 10), () async {
+        final cleanupService = ref.read(listCleanupServiceProvider);
+        final deletedCount = await cleanupService.cleanupAllLists(
+          olderThanDays: 30,
+          forceCleanup: false,
+        );
+        Log.info('🧹 論理削除アイテムクリーンアップ完了: $deletedCount 件');
+      });
+    } catch (e) {
+      Log.error('❌ クリーンアップエラー: $e');
     }
   }
 

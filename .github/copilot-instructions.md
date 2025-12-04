@@ -1059,42 +1059,94 @@ Future<void> _loadUserName() async {
 2. サインイン時: Firebase Auth → SharedPreferences反映
 3. アプリ起動時: SharedPreferencesから自動ロード
 
-## Known Issues (As of 2025-12-03)
+## Known Issues (As of 2025-12-04)
 - None currently
 
-## Recent Implementations (2025-12-03)
+## Recent Implementations (2025-12-04)
 
-### 1. Home Page UI Improvement (commit: e900b24)
-**アカウント作成とサインインの完全分離**:
-- ✅ 独立した`_signUp()`と`_signIn()`メソッド
-- ✅ `_isSignUpMode`フラグで動的UI切り替え
-- ✅ ディスプレイネーム: 作成時必須、サインイン時任意
-- ✅ Firebase Auth displayName同期
-- ✅ エラーメッセージのわかりやすい表示
+### 1. Periodic Purchase Auto-Reset Feature ✅
+**Purpose**: Automatically reset purchased items with periodic purchase intervals back to unpurchased state after the specified days.
 
-### 2. User Name Display Fix (commit: a65aead)
-**ユーザー名表示の復旧**:
-- ✅ `home_page.dart`のinitStateに`_loadUserName()`追加
-- ✅ SharedPreferencesから保存済みユーザー名をロード
-- ✅ UIに正しく表示
+#### Implementation Files
+- **New Service**: `lib/services/periodic_purchase_service.dart` (209 lines)
+  - `resetPeriodicPurchaseItems()`: Reset all lists
+  - `resetPeriodicPurchaseItemsForList()`: Reset specific list
+  - `_shouldResetItem()`: Reset judgment logic
+  - `getPeriodicPurchaseInfo()`: Debug statistics
 
-### 3. Logging System Standardization (commit: a65aead)
-**print文のAppLogger統一**:
-- ✅ `main.dart`の18箇所をAppLogger.info/error/warningに変更
-- ✅ コードの保守性向上
+#### Automatic Execution
+- **File**: `lib/widgets/app_initialize_widget.dart`
+- **Timing**: 5 seconds after app startup (background)
+- **Target**: All groups, all lists
 
-### 4. UserSettings Backward Compatibility (commit: 744c1dd)
-**後方互換性修正**:
-- ✅ UserSettingsAdapterOverride作成
-- ✅ enableListNotifications (HiveField 6)のnull許容
-- ✅ 既存データとの互換性確保
+#### Manual Execution
+- **File**: `lib/pages/settings_page.dart`
+- **Location**: Data maintenance section
+- **Button**: "定期購入リセット実行" with result dialog
 
-### 5. Data Sharing Confirmation
-**Windows ⇄ SH-54D**:
-- ✅ ユーザー名が正しく表示される
-- ✅ データ共有が正常に動作
-- ✅ グループ表示: デフォルトグループ + 1202-1433グループ
-- ✅ リアルタイム同期: アイテム追加が一瞬で反映
+#### Reset Conditions
+1. `isPurchased = true`
+2. `shoppingInterval > 0`
+3. `purchaseDate + shoppingInterval days <= now`
+
+#### Reset Actions
+- `isPurchased` → `false`
+- `purchaseDate` → `null`
+- Sync to both Firestore + Hive
+
+### 2. Shopping Item User ID Fix ✅
+**Problem**: Fixed `memberId` was hardcoded as `'dev_user'` when adding items.
+
+**Solution**:
+- **File**: `lib/pages/shopping_list_page_v2.dart`
+- **Fix**: Get current Firebase Auth user from `authStateProvider`
+- **Implementation**:
+  ```dart
+  final currentUser = ref.read(authStateProvider).value;
+  final currentMemberId = currentUser?.uid ?? 'anonymous';
+
+  final newItem = ShoppingItem.createNow(
+    memberId: currentMemberId, // ✅ Actual user UID
+    name: name,
+    quantity: quantity,
+    // ...
+  );
+  ```
+
+### 3. SharedGroup Member Name Verification ✅
+**Verification**: Confirmed that the past issue of hardcoded "ユーザー" string has been fixed.
+
+**Result**: ✅ All implementations are correct
+- Default group creation: Firestore → SharedPreferences → Firebase Auth → Email priority
+- New group creation: SharedPreferences → Firestore → Firebase Auth
+- Invitation acceptance: SharedPreferences → Firestore → Firebase Auth → Email
+
+**Conclusion**: Current implementation correctly sets actual user names. The "ユーザー" fallback is only used when all retrieval methods fail.
+
+### 4. AdMob Integration ✅
+**Purpose**: Implement production AdMob advertising.
+
+#### AdMob App ID Configuration
+- **App ID**: `ca-app-pub-9340455460401063~5345905994`
+- **Android**: Configured in `AndroidManifest.xml`
+- **iOS**: Configured in `Info.plist` with `GADApplicationIdentifier` key
+
+#### Banner Ad Unit ID Configuration
+- **Ad Unit ID**: `ca-app-pub-9340455460401063/8145020229`
+- **File**: `lib/services/ad_service.dart` (`_bannerAdUnitId`)
+
+#### Home Page Banner Ad Implementation
+- **New Widget**: `HomeBannerAdWidget`
+  - Hidden until ad loaded
+  - White background with light gray border
+  - "広告" label display
+  - Automatic memory management (dispose)
+
+- **Placement**: `lib/pages/home_page.dart`
+  - Position: Between news panel and username panel
+  - Display: Authenticated users only
+
+---
 
 ## Common Issues & Solutions
 - **Build failures**: Check for Riverpod Generator imports, remove them
@@ -1107,5 +1159,7 @@ Future<void> _loadUserName() async {
 - **Current list clears on update**: Never use `ref.invalidate()` with StreamBuilder, it clears initialData
 - **UserSettings read errors**: Ensure UserSettingsAdapterOverride is registered before other adapters
 - **Display name not showing**: Check initState calls `_loadUserName()` in home_page.dart
+- **AdMob not showing**: Verify App ID in AndroidManifest.xml/Info.plist, rebuild app completely
 
 Focus on maintaining consistency with existing patterns rather than introducing new architectural approaches.
+

@@ -4,6 +4,7 @@ import '../providers/auth_provider.dart';
 import '../services/user_preferences_service.dart';
 import '../services/user_initialization_service.dart';
 import '../services/firestore_user_name_service.dart';
+import '../services/ad_service.dart';
 import '../widgets/user_name_panel_widget.dart';
 import '../widgets/news_and_ads_panel_widget.dart';
 import '../utils/app_logger.dart';
@@ -666,6 +667,11 @@ class _HomePageState extends ConsumerState<HomePage> {
 
                 // ニュース＆広告パネル
                 const NewsAndAdsPanelWidget(),
+
+                const SizedBox(height: 16),
+
+                // バナー広告
+                const HomeBannerAdWidget(),
 
                 const SizedBox(height: 20),
 

@@ -26,8 +26,8 @@ class AdService {
   /// 広告IDを環境別に取得
   String get _bannerAdUnitId {
     if (F.appFlavor == Flavor.prod) {
-      // 本番環境では実際の広告IDを使用
-      return 'ca-app-pub-YOUR_ACTUAL_ID/banner';
+      // 本番環境: ホーム画面用バナー広告ID
+      return 'ca-app-pub-9340455460401063/8145020229';
     } else {
       // 開発環境ではテスト用IDを使用
       return 'ca-app-pub-3940256099942544/6300978111';
@@ -262,6 +262,92 @@ class _LocalNewsAdWidgetState extends ConsumerState<LocalNewsAdWidget> {
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _bannerAd?.dispose();
+    super.dispose();
+  }
+}
+
+/// ホーム画面用のバナー広告ウィジェット
+class HomeBannerAdWidget extends ConsumerStatefulWidget {
+  const HomeBannerAdWidget({super.key});
+
+  @override
+  ConsumerState<HomeBannerAdWidget> createState() => _HomeBannerAdWidgetState();
+}
+
+class _HomeBannerAdWidgetState extends ConsumerState<HomeBannerAdWidget> {
+  BannerAd? _bannerAd;
+  bool _isAdLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBannerAd();
+  }
+
+  void _loadBannerAd() {
+    final adService = ref.read(adServiceProvider);
+    _bannerAd = adService.createBannerAd(
+      size: AdSize.banner,
+      onAdLoaded: () {
+        if (mounted) {
+          setState(() {
+            _isAdLoaded = true;
+          });
+        }
+      },
+      onAdFailedToLoad: () {
+        if (mounted) {
+          setState(() {
+            _isAdLoaded = false;
+          });
+        }
+      },
+    );
+    _bannerAd!.load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_isAdLoaded || _bannerAd == null) {
+      return const SizedBox.shrink(); // 広告が読み込まれるまで非表示
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8.0),
+        color: Colors.white,
+      ),
+      child: Column(
+        children: [
+          // 広告ラベル
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+            child: const Text(
+              '広告',
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          // 広告バナー
+          SizedBox(
+            height: _bannerAd!.size.height.toDouble(),
+            width: _bannerAd!.size.width.toDouble(),
+            child: AdWidget(ad: _bannerAd!),
+          ),
         ],
       ),
     );
