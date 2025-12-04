@@ -326,6 +326,13 @@ class QRInvitationService {
 
       Log.info('✅ [ACCEPTOR] 通知送信完了 - 招待元の確認待ち');
 
+      // 招待の使用回数を更新（currentUses + 1, usedBy配列に追加）
+      await _updateInvitationUsage(
+        groupId: groupId,
+        invitationId: invitationData['invitationId'] as String,
+        acceptorUid: acceptorUid,
+      );
+
       Log.info('✅ 招待受諾処理完了 - バックグラウンド同期開始');
 
       return true;
@@ -879,7 +886,32 @@ class QRInvitationService {
   }
 
   /// 招待トークンの使用回数を更新
-  // ⚠️ [DELETED] _updateInvitationUsage()
-  // PlanBでは招待元のStreamBuilderが招待ドキュメントを監視・更新するため、
-  // 受諾者側でFirestore更新は不要（Permission-Denied回避）
+  Future<void> _updateInvitationUsage({
+    required String groupId,
+    required String invitationId,
+    required String acceptorUid,
+  }) async {
+    try {
+      Log.info(
+          '📊 [INVITATION] 招待使用回数を更新: invitationId=$invitationId, acceptorUid=$acceptorUid');
+
+      final invitationRef = _firestore
+          .collection('SharedGroups')
+          .doc(groupId)
+          .collection('invitations')
+          .doc(invitationId);
+
+      // Atomic update: currentUsesをインクリメント、usedBy配列に追加
+      await invitationRef.update({
+        'currentUses': FieldValue.increment(1),
+        'usedBy': FieldValue.arrayUnion([acceptorUid]),
+        'lastUsedAt': FieldValue.serverTimestamp(),
+      });
+
+      Log.info('✅ [INVITATION] 招待使用回数の更新完了');
+    } catch (e) {
+      Log.error('❌ [INVITATION] 招待使用回数の更新エラー: $e');
+      // エラーが発生してもメイン処理は継続（カウント更新は副次的な処理）
+    }
+  }
 }
