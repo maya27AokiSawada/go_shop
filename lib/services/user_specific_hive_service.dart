@@ -84,7 +84,7 @@ class UserSpecificHiveService {
       Hive.registerAdapter(SharedGroupMemberAdapter());
       Hive.registerAdapter(SharedGroupAdapter());
       // 🔥 後方互換性のためカスタムアダプターを使用
-      // Hive.registerAdapter(ShoppingItemAdapter()); // デフォルトアダプターは使用しない
+      // Hive.registerAdapter(ShoppingItemAdapter()); // デフォルトアダプターは使用しない (typeId=3)
       Hive.registerAdapter(ShoppingListAdapter());
       Hive.registerAdapter(InvitationStatusAdapter()); // 継続使用
       Hive.registerAdapter(InvitationTypeAdapter()); // InvitationType用
@@ -94,7 +94,8 @@ class UserSpecificHiveService {
       Hive.registerAdapter(ListTypeAdapter()); // 🆕 ListType用
       // Hive.registerAdapter(InvitationAdapter());  // 削除済み - QRコードシステムに移行
       // Hive.registerAdapter(AcceptedInvitationAdapter());  // 削除済み - QRコードシステムに移行
-      Hive.registerAdapter(UserSettingsAdapter());
+      // 🔥 UserSettingsAdapter登録をスキップ（main.dartでUserSettingsAdapterOverride使用）
+      // Hive.registerAdapter(UserSettingsAdapter()); // デフォルトアダプターは使用しない (typeId=6)
       Log.info('📝 Hive adapters registered globally (GroupType, ListType追加)');
     }
   }
@@ -319,6 +320,25 @@ class UserSpecificHiveService {
       await Future.delayed(const Duration(milliseconds: 100));
     } catch (e) {
       Log.error('❌ Failed to open $displayName box ($boxName): $e');
+
+      // 🔥 ShoppingList Boxのエラーは特別処理（データフォーマット破損の可能性）
+      if (boxName == 'shoppingLists') {
+        Log.warning(
+            '⚠️ ShoppingList box corrupted. Deleting and recreating...');
+        try {
+          // 破損したBoxを削除
+          await Hive.deleteBoxFromDisk(boxName);
+          Log.info('🗑️ Deleted corrupted ShoppingList box');
+
+          // 再作成
+          await Hive.openBox<T>(boxName);
+          Log.info('✅ Recreated ShoppingList box successfully');
+          return;
+        } catch (deleteError) {
+          Log.error('❌ Failed to recreate ShoppingList box: $deleteError');
+        }
+      }
+
       rethrow;
     }
   }

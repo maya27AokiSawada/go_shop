@@ -55,6 +55,11 @@ service cloud.firestore {
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
 
+      // ユーザープロファイル：自分のプロファイルのみ読み書き可能
+      match /profile/{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
       // 受諾招待コレクション：誰でも書き込み可能（招待受諾用）
       match /acceptedInvitations/{acceptorUid} {
         // 📝 重要: 認証済みユーザーなら誰でも作成可能（招待受諾記録用）
@@ -106,10 +111,14 @@ service cloud.firestore {
         );
 
         // 招待を使用する際の更新（currentUses, usedBy配列への追加）
-        allow update: if request.auth != null &&
-          resource.data.status == 'pending' &&
-          request.resource.data.currentUses == resource.data.currentUses + 1 &&
-          request.auth.uid in request.resource.data.usedBy;
+        allow update: if request.auth != null && (
+          // 条件1: 招待使用時の更新（受諾者による更新）
+          (request.resource.data.currentUses == resource.data.currentUses + 1 &&
+           request.auth.uid in request.resource.data.usedBy) ||
+          // 条件2: グループメンバーによる管理更新（ステータス変更など）
+          (get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid ||
+           request.auth.uid in get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.allowedUid)
+        );
 
         // グループメンバーなら招待を削除可能
         allow delete: if request.auth != null && (

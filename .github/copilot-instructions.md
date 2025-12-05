@@ -834,6 +834,320 @@ print('Deleted items: ${currentList.deletedItemCount}');
 print('Needs cleanup: ${currentList.needsCleanup}');
 ```
 
+## Home Page UI & Authentication (Updated: 2025-12-03)
+
+### Authentication Flow Separation
+**ホーム画面で「アカウント作成」と「サインイン」を完全に分離**
+
+#### UI Structure
+```
+Initial Screen:
+┌─────────────────────────────────┐
+│   🎒 Go Shop                    │
+│   買い物リスト共有アプリ          │
+├─────────────────────────────────┤
+│   📋 プライバシー情報             │
+├─────────────────────────────────┤
+│  [👤 アカウント作成] (ElevatedButton)  │
+│  [🔑 サインイン] (OutlinedButton)      │
+└─────────────────────────────────┘
+```
+
+#### Account Creation Mode (`_isSignUpMode = true`)
+**必須項目**: ディスプレイネーム + メール + パスワード
+
+```dart
+Future<void> _signUp() async {
+  // 1. Firebase Authに登録
+  await ref.read(authProvider).signUp(email, password);
+
+  // 2. SharedPreferencesに保存
+  await UserPreferencesService.saveUserName(userName);
+
+  // 3. Firebase Auth displayNameを更新
+  await user.updateDisplayName(userName);
+  await user.reload();
+}
+```
+
+**表示内容**:
+- ✅ ディスプレイネーム入力フィールド（必須・バリデーション付き）
+- ✅ メールアドレス入力
+- ✅ パスワード入力（6文字以上）
+- ✅ 「アカウントを作成」ボタン
+- ✅ 「サインインへ」切り替えリンク
+
+#### Sign-In Mode (`_isSignUpMode = false`)
+**必須項目**: メール + パスワード（ディスプレイネーム不要）
+
+```dart
+Future<void> _signIn() async {
+  // 1. Firebase Authでサインイン
+  await ref.read(authProvider).signIn(email, password);
+
+  // 2. Firebase AuthからSharedPreferencesに反映
+  if (user?.displayName != null) {
+    await UserPreferencesService.saveUserName(user.displayName!);
+  }
+}
+```
+
+**表示内容**:
+- ✅ メールアドレス入力
+- ✅ パスワード入力
+- ✅ 「サインイン」ボタン
+- ✅ 「アカウント作成へ」切り替えリンク
+
+#### Mode Switching UI
+```dart
+Container(
+  decoration: BoxDecoration(
+    color: _isSignUpMode ? Colors.blue.shade50 : Colors.grey.shade100,
+  ),
+  child: Row(
+    children: [
+      Icon(_isSignUpMode ? Icons.person_add : Icons.login),
+      Text(_isSignUpMode ? 'アカウント作成' : 'サインイン'),
+      TextButton(
+        onPressed: () => setState(() => _isSignUpMode = !_isSignUpMode),
+        child: Text(_isSignUpMode ? 'サインインへ' : 'アカウント作成へ'),
+      ),
+    ],
+  ),
+)
+```
+
+#### Error Handling (Improved Messages)
+**アカウント作成時**:
+- `email-already-in-use` → 「このメールアドレスは既に使用されています」
+- `weak-password` → 「パスワードが弱すぎます」
+- `invalid-email` → 「メールアドレスの形式が正しくありません」
+
+**サインイン時**:
+- `user-not-found` → 「ユーザーが見つかりません。アカウント作成が必要です」
+- `wrong-password` / `invalid-credential` → 「メールアドレスまたはパスワードが正しくありません」
+
+#### Critical Implementation Points
+1. **ディスプレイネーム必須化** (アカウント作成時のみ)
+   - バリデーションで空文字をブロック
+   - SharedPreferences + Firebase Auth両方に保存
+
+2. **サインイン時の自動反映**
+   - Firebase AuthのdisplayNameが存在すればPreferencesに反映
+   - 未設定でもサインイン可能（後から設定可能）
+
+3. **モード切り替え**
+   - `_isSignUpMode`フラグで動的にUI切り替え
+   - フォームリセットで入力内容をクリア
+
+4. **視覚的フィードバック**
+   - アカウント作成成功時: 「ようこそ、○○さん」
+   - サインイン成功時: 「サインインしました」
+
+## Realtime Sync Feature (Completed: 2025-11-22)
+
+### Implementation Status
+**Phase 1**: Shopping list items sync instantly across devices without screen transitions. ✅
+
+#### Architecture
+- **Firestore `snapshots()`**: Real-time Stream API for live updates
+- **StreamBuilder**: Flutter widget for automatic UI rebuilds on data changes
+- **HybridRepository**: Auto-switches between Firestore Stream (online) and 30-second polling (offline/dev)
+
+#### Key Files
+**Repository Layer**:
+- `lib/datastore/shopping_list_repository.dart`: Added `watchShoppingList()` abstract method
+- `lib/datastore/firestore_shopping_list_repository.dart`: Firestore `snapshots()` implementation
+- `lib/datastore/hybrid_shopping_list_repository.dart`: Online/offline auto-switching
+- `lib/datastore/hive_shopping_list_repository.dart`: 30-second polling fallback
+- `lib/datastore/firebase_shopping_list_repository.dart`: Delegates to Hive polling
+
+**UI Layer**:
+- `lib/pages/shopping_list_page_v2.dart`: StreamBuilder integration
+  - Removed `invalidate()` calls (causes current list to clear)
+  - Added latest data fetch before item addition (`repository.getShoppingListById()`)
+  - Fixed sync timing issue that caused item count limits
+
+#### Performance
+- **Windows → Android**: Instant reflection (< 1 second)
+- **Self-device**: Current list maintained, no screen transitions
+- **Multiple items**: Successfully tested with 9+ items, no limits
+- **Network efficiency**: 90% payload reduction with differential sync
+
+#### Design Document
+`docs/shopping_list_realtime_sync_design.md`
+- Phase 1: Basic realtime sync (✅ Completed 2025-11-22)
+- Phase 2: Optimization (pending)
+- Phase 3: Performance tuning (pending)
+
+## User Settings & Backward Compatibility (Updated: 2025-12-03)
+
+### UserSettings Model & Adapter Override
+**Problem**: Adding new HiveFields breaks backward compatibility with existing data.
+
+**Solution**: Custom TypeAdapter with null-safe defaults.
+
+```dart
+// lib/adapters/user_settings_adapter_override.dart
+class UserSettingsAdapterOverride extends TypeAdapter<UserSettings> {
+  @override
+  final int typeId = 6;
+
+  @override
+  UserSettings read(BinaryReader reader) {
+    final fields = <int, dynamic>{/* read fields */};
+
+    return UserSettings(
+      // Existing fields...
+      enableListNotifications: (fields[6] as bool?) ?? true,  // 🔥 Default value
+      appMode: (fields[5] as int?) ?? 0,  // 🔥 Default value
+    );
+  }
+}
+```
+
+**Registration** (main.dart):
+```dart
+void main() async {
+  // 🔥 Register BEFORE default adapter initialization
+  if (!Hive.isAdapterRegistered(6)) {
+    Hive.registerAdapter(UserSettingsAdapterOverride());
+  }
+  await UserSpecificHiveService.initializeAdapters();
+}
+```
+
+**Skip in UserSpecificHiveService**:
+```dart
+// lib/services/user_specific_hive_service.dart
+if (typeId == 6) continue;  // UserSettingsAdapterOverride takes priority
+```
+
+### Logging System Standardization
+**AppLogger統一** (main.dart):
+- ✅ 18箇所のprint文をAppLogger.info/error/warningに変更
+- ✅ Firebase初期化ログの統一
+- ✅ アダプター登録ログの統一
+
+```dart
+// ❌ Before:
+print('🔄 Firebase初期化開始...');
+
+// ✅ After:
+AppLogger.info('🔄 Firebase初期化開始...');
+```
+
+### User Name Display & Persistence
+**home_page.dart**:
+```dart
+@override
+void initState() {
+  super.initState();
+  _loadUserName();  // Load from SharedPreferences
+}
+
+Future<void> _loadUserName() async {
+  final savedUserName = await UserPreferencesService.getUserName();
+  if (savedUserName != null && savedUserName.isNotEmpty) {
+    setState(() { userNameController.text = savedUserName; });
+  }
+}
+```
+
+**Data Flow**:
+1. サインアップ時: `UserPreferencesService.saveUserName()` + `user.updateDisplayName()`
+2. サインイン時: Firebase Auth → SharedPreferences反映
+3. アプリ起動時: SharedPreferencesから自動ロード
+
+## Known Issues (As of 2025-12-04)
+- None currently
+
+## Recent Implementations (2025-12-04)
+
+### 1. Periodic Purchase Auto-Reset Feature ✅
+**Purpose**: Automatically reset purchased items with periodic purchase intervals back to unpurchased state after the specified days.
+
+#### Implementation Files
+- **New Service**: `lib/services/periodic_purchase_service.dart` (209 lines)
+  - `resetPeriodicPurchaseItems()`: Reset all lists
+  - `resetPeriodicPurchaseItemsForList()`: Reset specific list
+  - `_shouldResetItem()`: Reset judgment logic
+  - `getPeriodicPurchaseInfo()`: Debug statistics
+
+#### Automatic Execution
+- **File**: `lib/widgets/app_initialize_widget.dart`
+- **Timing**: 5 seconds after app startup (background)
+- **Target**: All groups, all lists
+
+#### Manual Execution
+- **File**: `lib/pages/settings_page.dart`
+- **Location**: Data maintenance section
+- **Button**: "定期購入リセット実行" with result dialog
+
+#### Reset Conditions
+1. `isPurchased = true`
+2. `shoppingInterval > 0`
+3. `purchaseDate + shoppingInterval days <= now`
+
+#### Reset Actions
+- `isPurchased` → `false`
+- `purchaseDate` → `null`
+- Sync to both Firestore + Hive
+
+### 2. Shopping Item User ID Fix ✅
+**Problem**: Fixed `memberId` was hardcoded as `'dev_user'` when adding items.
+
+**Solution**:
+- **File**: `lib/pages/shopping_list_page_v2.dart`
+- **Fix**: Get current Firebase Auth user from `authStateProvider`
+- **Implementation**:
+  ```dart
+  final currentUser = ref.read(authStateProvider).value;
+  final currentMemberId = currentUser?.uid ?? 'anonymous';
+
+  final newItem = ShoppingItem.createNow(
+    memberId: currentMemberId, // ✅ Actual user UID
+    name: name,
+    quantity: quantity,
+    // ...
+  );
+  ```
+
+### 3. SharedGroup Member Name Verification ✅
+**Verification**: Confirmed that the past issue of hardcoded "ユーザー" string has been fixed.
+
+**Result**: ✅ All implementations are correct
+- Default group creation: Firestore → SharedPreferences → Firebase Auth → Email priority
+- New group creation: SharedPreferences → Firestore → Firebase Auth
+- Invitation acceptance: SharedPreferences → Firestore → Firebase Auth → Email
+
+**Conclusion**: Current implementation correctly sets actual user names. The "ユーザー" fallback is only used when all retrieval methods fail.
+
+### 4. AdMob Integration ✅
+**Purpose**: Implement production AdMob advertising.
+
+#### AdMob App ID Configuration
+- **App ID**: Configured via `.env` file (`ADMOB_APP_ID`)
+- **Android**: Configured in `AndroidManifest.xml`
+- **iOS**: Configured in `Info.plist` with `GADApplicationIdentifier` key
+
+#### Banner Ad Unit ID Configuration
+- **Ad Unit ID**: Configured via `.env` file (`ADMOB_BANNER_AD_UNIT_ID` or `ADMOB_TEST_BANNER_AD_UNIT_ID`)
+- **File**: `lib/services/ad_service.dart` (`_bannerAdUnitId`)
+
+#### Home Page Banner Ad Implementation
+- **New Widget**: `HomeBannerAdWidget`
+  - Hidden until ad loaded
+  - White background with light gray border
+  - "広告" label display
+  - Automatic memory management (dispose)
+
+- **Placement**: `lib/pages/home_page.dart`
+  - Position: Between news panel and username panel
+  - Display: Authenticated users only
+
+---
+
 ## Common Issues & Solutions
 - **Build failures**: Check for Riverpod Generator imports, remove them
 - **Missing variables**: Ensure controllers and providers are properly defined before use
@@ -843,5 +1157,155 @@ print('Needs cleanup: ${currentList.needsCleanup}');
 - **App mode UI not updating**: Wrap SegmentedButton in `Consumer` to watch `appModeNotifierProvider`
 - **Item count limits**: Always fetch latest data with `repository.getShoppingListById()` before updates
 - **Current list clears on update**: Never use `ref.invalidate()` with StreamBuilder, it clears initialData
+- **UserSettings read errors**: Ensure UserSettingsAdapterOverride is registered before other adapters
+- **Display name not showing**: Check initState calls `_loadUserName()` in home_page.dart
+- **AdMob not showing**: Verify App ID in AndroidManifest.xml/Info.plist, rebuild app completely
+- **DropdownButton not updating**: Use `value` property instead of `initialValue` for reactive updates
+- **UI shows stale data after invalidate**: Wait for provider refresh with `await ref.read(provider.future)`
+
+## Critical Flutter/Riverpod Patterns (Added: 2025-12-05)
+
+### DropdownButtonFormField - Reactive Updates
+⚠️ **Critical**: Use `value` property for reactive updates, NOT `initialValue`
+
+**Problem**: `initialValue` only sets the value once at widget creation and ignores subsequent state changes.
+
+**Solution**: Use `value` property which reactively updates when provider state changes.
+
+```dart
+// ❌ Wrong: Non-reactive, ignores state changes
+DropdownButtonFormField<String>(
+  initialValue: ref.watch(currentListProvider)?.listId,
+  items: lists.map((list) =>
+    DropdownMenuItem(value: list.listId, child: Text(list.listName))
+  ).toList(),
+)
+
+// ✅ Correct: Reactive, updates when provider changes
+DropdownButtonFormField<String>(
+  value: ref.watch(currentListProvider)?.listId,
+  items: lists.map((list) =>
+    DropdownMenuItem(value: list.listId, child: Text(list.listName))
+  ).toList(),
+)
+```
+
+**When to use**:
+- Any UI that needs to reflect provider state changes
+- Dropdown menus showing current selection
+- Forms that update based on external state
+
+### Async Timing Control with Riverpod
+⚠️ **Critical**: `ref.invalidate()` only triggers refresh, does NOT wait for completion
+
+**Problem**: When using `ref.invalidate()`, the provider refresh is asynchronous. UI may rebuild with stale data before Firestore fetch completes.
+
+**Example Scenario**:
+```dart
+// User creates new shopping list
+await repository.createShoppingList(newList);
+
+// Set as current list
+ref.read(currentListProvider.notifier).selectList(newList);
+
+// Invalidate list provider to refresh from Firestore
+ref.invalidate(groupShoppingListsProvider);
+
+// ❌ Problem: Widget rebuilds HERE with stale data
+// The dropdown shows null because lists array doesn't contain newList yet
+```
+
+**Solution**: Wait for provider refresh to complete before continuing
+
+```dart
+// ❌ Wrong: UI rebuilds with stale data
+ref.invalidate(groupShoppingListsProvider);
+// Widget rebuilds here, lists array still old
+
+// ✅ Correct: Wait for refresh to complete
+ref.invalidate(groupShoppingListsProvider);
+await ref.read(groupShoppingListsProvider.future);
+// Widget rebuilds here, lists array includes new data
+```
+
+**Real-world Example** (from `shopping_list_header_widget.dart`):
+```dart
+// After creating new list
+await repository.createShoppingList(newList);
+ref.read(currentListProvider.notifier).selectList(newList);
+
+// Invalidate and WAIT for list refresh
+ref.invalidate(groupShoppingListsProvider);
+try {
+  await ref.read(groupShoppingListsProvider.future);
+  Log.info('✅ リスト一覧更新完了 - 新しいリストを含む');
+} catch (e) {
+  Log.error('❌ リスト一覧更新エラー: $e');
+}
+
+// Now dropdown will show newList correctly
+```
+
+**When to use**:
+- After creating new entities that should appear in lists
+- When UI depends on updated provider data
+- Before navigating to screens that require fresh data
+
+### StateNotifier State Preservation
+⚠️ **Warning**: `ref.invalidate(stateNotifierProvider)` clears the state entirely
+
+**Problem**: Invalidating a StateNotifier provider resets its state to initial value.
+
+**Example**:
+```dart
+// currentListProvider is a StateNotifier
+ref.invalidate(currentListProvider);
+// ❌ currentList becomes null, losing user's selection
+```
+
+**Solution**: Only invalidate dependent data providers, not state holders
+
+```dart
+// ✅ Correct: Preserve current selection, refresh list data only
+ref.invalidate(groupShoppingListsProvider);  // Refresh list data
+await ref.read(groupShoppingListsProvider.future);
+// currentListProvider maintains its state
+```
+
+**Pattern**:
+- Keep StateNotifier providers for UI state (selections, current values)
+- Use separate AsyncNotifier providers for data fetching
+- Only invalidate data providers, let state providers persist
+
+### Debugging Async Timing Issues
+**Add strategic logging** to identify timing problems:
+
+```dart
+// Log when setting state
+Log.info('📝 カレントリストを設定: ${list.listName} (${list.listId})');
+
+// Log when building UI
+Log.info('🔍 [DEBUG] _buildDropdown - currentValue: ${currentValue}, validValue: ${validValue}, items.length: ${items.length}');
+
+// Log after provider refresh
+await ref.read(provider.future);
+Log.info('✅ プロバイダー更新完了');
+```
+
+**Common timing issue pattern**:
+```
+15:10:03.402 - 📝 Set current value: ABC
+15:10:03.413 - 🔍 [DEBUG] validValue: null, items.length: 5  ← No ABC yet
+15:10:03.693 - ✅ Got 6 items  ← ABC now included
+15:10:03.718 - 🔍 [DEBUG] validValue: null, items.length: 6  ← Still null!
+```
+
+This indicates: Provider updated, but UI needs to wait for completion before rebuilding.
+
+**Related Files**:
+- `lib/widgets/shopping_list_header_widget.dart`: DropdownButton reactive updates, async timing control
+- `lib/providers/current_list_provider.dart`: StateNotifier state preservation
+- `lib/widgets/group_list_widget.dart`: Reference implementation of proper timing control
 
 Focus on maintaining consistency with existing patterns rather than introducing new architectural approaches.
+
