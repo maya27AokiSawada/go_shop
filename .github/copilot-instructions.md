@@ -1127,12 +1127,12 @@ Future<void> _loadUserName() async {
 **Purpose**: Implement production AdMob advertising.
 
 #### AdMob App ID Configuration
-- **App ID**: `ca-app-pub-9340455460401063~5345905994`
+- **App ID**: Configured via `.env` file (`ADMOB_APP_ID`)
 - **Android**: Configured in `AndroidManifest.xml`
 - **iOS**: Configured in `Info.plist` with `GADApplicationIdentifier` key
 
 #### Banner Ad Unit ID Configuration
-- **Ad Unit ID**: `ca-app-pub-9340455460401063/8145020229`
+- **Ad Unit ID**: Configured via `.env` file (`ADMOB_BANNER_AD_UNIT_ID` or `ADMOB_TEST_BANNER_AD_UNIT_ID`)
 - **File**: `lib/services/ad_service.dart` (`_bannerAdUnitId`)
 
 #### Home Page Banner Ad Implementation

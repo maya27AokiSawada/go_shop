@@ -72,13 +72,14 @@
 **目的**: 本番用AdMob広告を実装
 
 #### AdMob App ID設定
-- **App ID**: `ca-app-pub-9340455460401063~5345905994`
+- **App ID**: Configured via `.env` file (`ADMOB_APP_ID`)
 - **Android**: `AndroidManifest.xml`に設定
 - **iOS**: `Info.plist`に`GADApplicationIdentifier`キーで設定
 
 #### バナー広告ユニットID設定
-- **広告ユニットID**: `ca-app-pub-9340455460401063/8145020229`
+- **広告ユニットID**: Configured via `.env` file (`ADMOB_BANNER_AD_UNIT_ID`)
 - **ファイル**: `lib/services/ad_service.dart`の`_bannerAdUnitId`に設定
+- **開発中**: テスト広告ID使用（`ADMOB_TEST_BANNER_AD_UNIT_ID`）
 
 #### ホーム画面バナー広告実装
 - **新規ウィジェット**: `HomeBannerAdWidget`

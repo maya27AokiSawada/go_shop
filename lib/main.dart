@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hive/hive.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'firebase_options.dart';
 import 'screens/home_screen.dart';
 // QRコード招待機能
@@ -22,7 +23,16 @@ import 'utils/app_logger.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // フレーバーの設定 - 本番環境（Firestore + Hive Hybrid - crash-proof実装テスト）
+  // 🔥 環境変数の初期化（最優先）
+  try {
+    await dotenv.load(fileName: '.env');
+    AppLogger.info('✅ 環境変数読み込み成功');
+  } catch (e) {
+    AppLogger.error('❌ 環境変数読み込みエラー: $e');
+    AppLogger.info('ℹ️ .envファイルが見つかりません - デフォルト値を使用します');
+  }
+
+  // フレーバーの設定 - 本番環境（Firestore + Hive Hybrid + テスト広告）
   F.appFlavor = Flavor.prod;
 
   // Firebase初期化（詳細なエラー情報を表示）
