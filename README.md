@@ -125,31 +125,47 @@ Go Shop は家族やグループで買い物リストをリアルタイム共有
    flutter pub get
    ```
 
-3. **環境変数設定**
+3. **Firebase設定ファイルの作成**
+
+   ```bash
+   # Firebase設定のサンプルファイルをコピー
+   cp lib/firebase_options.dart.example lib/firebase_options.dart
+
+   # firebase_options.dart に実際のFirebase認証情報を入力
+   # - apiKey
+   # - appId
+   # - messagingSenderId
+   # - projectId
+   # - authDomain
+   # - storageBucket
+   ```
+
+   ⚠️ **重要**: `lib/firebase_options.dart` はGit管理対象外です（`.gitignore`に含まれています）。各自のFirebase設定値を入力してください。
+
+4. **環境変数設定**
 
    ```bash
    # .env.example をコピーして .env ファイルを作成
    cp .env.example .env
 
    # .env ファイルに以下の情報を記入
-   # - Firebase API Key、Project ID、App ID 等
    # - AdMob App ID、Ad Unit ID
    ```
 
-4. **Firebase プロジェクト設定**
+5. **Firebase プロジェクト設定**
 
    - Firebase Console でプロジェクトを作成
    - Android、iOS、Windows アプリを登録
-   - 設定値を `.env` ファイルに記入
+   - 取得した設定値を `lib/firebase_options.dart` に記入
 
-5. **AdMob 設定**（広告機能を使用する場合）
+6. **AdMob 設定**（広告機能を使用する場合）
 
    - AdMob でアプリを作成し、App ID と Ad Unit ID を取得
    - `.env` ファイルに AdMob の設定を記入
    - `android/app/src/main/AndroidManifest.xml` に AdMob App ID を設定
    - `ios/Runner/Info.plist` に AdMob App ID を設定
 
-6. **アプリ実行**
+7. **アプリ実行**
 
    ```bash
    # Windows版
@@ -164,31 +180,31 @@ Go Shop は家族やグループで買い物リストをリアルタイム共有
 
 ### **環境変数について**
 
-セキュリティのため、機密情報は `.env` ファイルで管理しています。
+セキュリティのため、機密情報は環境ファイルで管理しています。
 
-**必要な環境変数**:
+**必要な設定ファイル**:
+
+1. **`lib/firebase_options.dart`** - Firebase認証情報
+   - `lib/firebase_options.dart.example` をコピーして作成
+   - Git管理対象外（`.gitignore`に含まれる）
+   - 各プラットフォーム（web/android/ios/windows）の設定を記入
+
+2. **`.env`** - AdMob設定など
+   - `.env.example` をコピーして作成
+   - Git管理対象外
 
 ```env
-# Firebase Configuration
-FIREBASE_API_KEY_WEB=
-FIREBASE_APP_ID_WEB=
-FIREBASE_MESSAGING_SENDER_ID=
-FIREBASE_PROJECT_ID=
-FIREBASE_AUTH_DOMAIN=
-FIREBASE_STORAGE_BUCKET=
-FIREBASE_MEASUREMENT_ID_WEB=
-FIREBASE_APP_ID_ANDROID=
-FIREBASE_APP_ID_IOS=
-FIREBASE_IOS_BUNDLE_ID=
-FIREBASE_APP_ID_WINDOWS=
-
 # AdMob Configuration
 ADMOB_APP_ID=ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX
 ADMOB_BANNER_AD_UNIT_ID=ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX
 ADMOB_TEST_BANNER_AD_UNIT_ID=ca-app-pub-3940256099942544/6300978111
 ```
 
-`.env.example` をテンプレートとして使用してください。
+⚠️ **セキュリティ注意事項**:
+
+- `lib/firebase_options.dart` と `.env` は **絶対にGitにコミットしないでください**
+- これらのファイルには機密情報が含まれています
+- `.gitignore` で除外されていることを確認してください
 
 ## 🤔 技術的チャレンジと解決策
 
