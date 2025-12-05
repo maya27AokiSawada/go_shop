@@ -1160,6 +1160,152 @@ Future<void> _loadUserName() async {
 - **UserSettings read errors**: Ensure UserSettingsAdapterOverride is registered before other adapters
 - **Display name not showing**: Check initState calls `_loadUserName()` in home_page.dart
 - **AdMob not showing**: Verify App ID in AndroidManifest.xml/Info.plist, rebuild app completely
+- **DropdownButton not updating**: Use `value` property instead of `initialValue` for reactive updates
+- **UI shows stale data after invalidate**: Wait for provider refresh with `await ref.read(provider.future)`
+
+## Critical Flutter/Riverpod Patterns (Added: 2025-12-05)
+
+### DropdownButtonFormField - Reactive Updates
+⚠️ **Critical**: Use `value` property for reactive updates, NOT `initialValue`
+
+**Problem**: `initialValue` only sets the value once at widget creation and ignores subsequent state changes.
+
+**Solution**: Use `value` property which reactively updates when provider state changes.
+
+```dart
+// ❌ Wrong: Non-reactive, ignores state changes
+DropdownButtonFormField<String>(
+  initialValue: ref.watch(currentListProvider)?.listId,
+  items: lists.map((list) =>
+    DropdownMenuItem(value: list.listId, child: Text(list.listName))
+  ).toList(),
+)
+
+// ✅ Correct: Reactive, updates when provider changes
+DropdownButtonFormField<String>(
+  value: ref.watch(currentListProvider)?.listId,
+  items: lists.map((list) =>
+    DropdownMenuItem(value: list.listId, child: Text(list.listName))
+  ).toList(),
+)
+```
+
+**When to use**:
+- Any UI that needs to reflect provider state changes
+- Dropdown menus showing current selection
+- Forms that update based on external state
+
+### Async Timing Control with Riverpod
+⚠️ **Critical**: `ref.invalidate()` only triggers refresh, does NOT wait for completion
+
+**Problem**: When using `ref.invalidate()`, the provider refresh is asynchronous. UI may rebuild with stale data before Firestore fetch completes.
+
+**Example Scenario**:
+```dart
+// User creates new shopping list
+await repository.createShoppingList(newList);
+
+// Set as current list
+ref.read(currentListProvider.notifier).selectList(newList);
+
+// Invalidate list provider to refresh from Firestore
+ref.invalidate(groupShoppingListsProvider);
+
+// ❌ Problem: Widget rebuilds HERE with stale data
+// The dropdown shows null because lists array doesn't contain newList yet
+```
+
+**Solution**: Wait for provider refresh to complete before continuing
+
+```dart
+// ❌ Wrong: UI rebuilds with stale data
+ref.invalidate(groupShoppingListsProvider);
+// Widget rebuilds here, lists array still old
+
+// ✅ Correct: Wait for refresh to complete
+ref.invalidate(groupShoppingListsProvider);
+await ref.read(groupShoppingListsProvider.future);
+// Widget rebuilds here, lists array includes new data
+```
+
+**Real-world Example** (from `shopping_list_header_widget.dart`):
+```dart
+// After creating new list
+await repository.createShoppingList(newList);
+ref.read(currentListProvider.notifier).selectList(newList);
+
+// Invalidate and WAIT for list refresh
+ref.invalidate(groupShoppingListsProvider);
+try {
+  await ref.read(groupShoppingListsProvider.future);
+  Log.info('✅ リスト一覧更新完了 - 新しいリストを含む');
+} catch (e) {
+  Log.error('❌ リスト一覧更新エラー: $e');
+}
+
+// Now dropdown will show newList correctly
+```
+
+**When to use**:
+- After creating new entities that should appear in lists
+- When UI depends on updated provider data
+- Before navigating to screens that require fresh data
+
+### StateNotifier State Preservation
+⚠️ **Warning**: `ref.invalidate(stateNotifierProvider)` clears the state entirely
+
+**Problem**: Invalidating a StateNotifier provider resets its state to initial value.
+
+**Example**:
+```dart
+// currentListProvider is a StateNotifier
+ref.invalidate(currentListProvider);
+// ❌ currentList becomes null, losing user's selection
+```
+
+**Solution**: Only invalidate dependent data providers, not state holders
+
+```dart
+// ✅ Correct: Preserve current selection, refresh list data only
+ref.invalidate(groupShoppingListsProvider);  // Refresh list data
+await ref.read(groupShoppingListsProvider.future);
+// currentListProvider maintains its state
+```
+
+**Pattern**:
+- Keep StateNotifier providers for UI state (selections, current values)
+- Use separate AsyncNotifier providers for data fetching
+- Only invalidate data providers, let state providers persist
+
+### Debugging Async Timing Issues
+**Add strategic logging** to identify timing problems:
+
+```dart
+// Log when setting state
+Log.info('📝 カレントリストを設定: ${list.listName} (${list.listId})');
+
+// Log when building UI
+Log.info('🔍 [DEBUG] _buildDropdown - currentValue: ${currentValue}, validValue: ${validValue}, items.length: ${items.length}');
+
+// Log after provider refresh
+await ref.read(provider.future);
+Log.info('✅ プロバイダー更新完了');
+```
+
+**Common timing issue pattern**:
+```
+15:10:03.402 - 📝 Set current value: ABC
+15:10:03.413 - 🔍 [DEBUG] validValue: null, items.length: 5  ← No ABC yet
+15:10:03.693 - ✅ Got 6 items  ← ABC now included
+15:10:03.718 - 🔍 [DEBUG] validValue: null, items.length: 6  ← Still null!
+```
+
+This indicates: Provider updated, but UI needs to wait for completion before rebuilding.
+
+**Related Files**:
+- `lib/widgets/shopping_list_header_widget.dart`: DropdownButton reactive updates, async timing control
+- `lib/providers/current_list_provider.dart`: StateNotifier state preservation
+- `lib/widgets/group_list_widget.dart`: Reference implementation of proper timing control
 
 Focus on maintaining consistency with existing patterns rather than introducing new architectural approaches.
 
