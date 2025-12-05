@@ -52,3 +52,33 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase & Google Services (機密情報)
+google-services.json
+lib/firebase_options.dart
+firebase-debug.log
+.firebase/
+
+# Environment files (機密情報)
+*.env
+.env
+.env.*
+extensions/*.env
+
+# API Keys & Credentials (機密情報)
+*.key
+*.pem
+*.p12
+*.jks
+*.keystore
+
+# Logs & Debug files
+*.log
+flutter_*.log
+flutter_*.png
+SH*.log.txt
+windows.log.txt
+build_*.log
+
+# Zip archives
+*.zip
