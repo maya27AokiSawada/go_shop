@@ -1059,8 +1059,157 @@ Future<void> _loadUserName() async {
 2. サインイン時: Firebase Auth → SharedPreferences反映
 3. アプリ起動時: SharedPreferencesから自動ロード
 
-## Known Issues (As of 2025-12-04)
-- None currently
+## Known Issues (As of 2025-12-06)
+- **リスト自動選択**: リスト作成後の自動選択が未検証（実装済み・ホットリロード済み）
+- **招待メンバー名表示**: Firestoreプロファイル取得実装済み・未検証
+
+## Recent Implementations (2025-12-06)
+
+### 1. Windows版QRスキャン手動入力対応 ✅
+**Background**: Windows版で`camera`や`google_mlkit_barcode_scanning`が非対応のため、QRコード自動読み取りが不可能。
+
+**Implementation**:
+- **New File**: `lib/widgets/windows_qr_scanner_simple.dart` (210 lines)
+  - FilePicker経由で画像ファイル選択
+  - 画像からのQRコード自動検出は技術的に困難（imageパッケージではQRデコード非対応）
+  - **手動入力ダイアログ**: 8行TextFieldでJSON形式のQRコードデータを貼り付け
+  - `widget.onDetect(manualInput)` → 招待処理実行
+
+**Platform Detection**:
+```dart
+// accept_invitation_widget.dart
+if (Platform.isWindows) {
+  WindowsQRScannerSimple(onDetect: _processQRInvitation);
+} else {
+  MobileScanner(onDetect: _processMobileScannerBarcode);
+}
+```
+
+**Manual Input Dialog**:
+```dart
+showDialog(
+  context: context,
+  builder: (context) => AlertDialog(
+    title: Text('QRコードデータを入力'),
+    content: TextField(
+      maxLines: 8,
+      decoration: InputDecoration(
+        hintText: 'JSON形式でQRコードデータを貼り付け',
+      ),
+    ),
+  ),
+);
+```
+
+**Verified**: ✅ 画像選択 → 手動入力 → JSON解析 → セキュリティ検証 → 招待受諾成功
+
+### 2. グループメンバー名表示問題の修正 ⚠️ 未検証
+**Problem**: 招待受諾成功後、グループメンバーリストに「ユーザー」と表示される
+
+**Root Cause**: `/users/{uid}/profile/profile`からユーザー名を取得していなかった
+
+**Solution Implemented**:
+
+#### 招待受諾側（qr_invitation_service.dart Line 280-320）
+```dart
+// Firestoreプロファイルから表示名を取得（最優先）
+String? firestoreName;
+try {
+  final profileDoc = await _firestore
+      .collection('users')
+      .doc(acceptorUid)
+      .collection('profile')
+      .doc('profile')
+      .get();
+
+  if (profileDoc.exists) {
+    firestoreName = profileDoc.data()?['displayName'] as String?;
+  }
+} catch (e) {
+  Log.error('📤 [ACCEPTOR] Firestoreプロファイル取得エラー: $e');
+}
+
+// 名前の優先順位: Firestore → SharedPreferences → UserSettings → Auth.displayName → email → UID
+final userName = (firestoreName?.isNotEmpty == true)
+    ? firestoreName!
+    : (prefsName?.isNotEmpty == true) ? prefsName! : ...;
+```
+
+#### 招待元側（notification_service.dart Line 279-310）
+```dart
+// acceptorNameが空または「ユーザー」の場合、Firestoreプロファイルから取得
+String finalAcceptorName = acceptorName;
+if (acceptorName.isEmpty || acceptorName == 'ユーザー') {
+  try {
+    final profileDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(acceptorUid)
+        .collection('profile')
+        .doc('profile')
+        .get();
+
+    if (profileDoc.exists) {
+      final firestoreName = profileDoc.data()?['displayName'] as String?;
+      if (firestoreName?.isNotEmpty == true) {
+        finalAcceptorName = firestoreName!;
+        AppLogger.info('📤 [OWNER] Firestoreから名前取得: $finalAcceptorName');
+      }
+    }
+  } catch (e) {
+    AppLogger.error('📤 [OWNER] Firestoreプロファイル取得エラー: $e');
+  }
+}
+
+// メンバーリストに追加
+updatedMembers.add(
+  SharedGroupMember(
+    memberId: acceptorUid,
+    name: finalAcceptorName,  // ✅ Firestoreから取得した名前
+    role: SharedGroupRole.member,
+  ),
+);
+```
+
+**Status**: 実装完了・ホットリロード済み・未検証
+
+**Next Test**:
+1. Android/Windowsの2デバイスで招待→受諾テスト
+2. グループメンバーリストで実際の名前が表示されるか確認
+3. Firestoreの`/users/{uid}/profile/profile`にdisplayNameが存在するか事前確認
+
+### 3. リスト作成後の自動選択機能 ⚠️ 未検証
+**Problem**: リスト作成後、ドロップダウンで新しく作成したリストが自動選択されない
+
+**Root Cause**:
+- `invalidate(groupShoppingListsProvider)`でリスト一覧再取得開始
+- UIが再ビルドされるタイミングで、まだ新しいリストが含まれていない
+- `validValue = null` → ドロップダウンに反映されない
+
+**Solution Implemented** (`shopping_list_header_widget.dart` Line 325-332):
+```dart
+// ダイアログを閉じた後、リスト一覧を更新して完了を待つ
+ref.invalidate(groupShoppingListsProvider);
+
+// リスト一覧の更新完了を待つ（新しいリストが含まれるまで）
+try {
+  await ref.read(groupShoppingListsProvider.future);
+  Log.info('✅ リスト一覧更新完了 - 新しいリストを含む');
+} catch (e) {
+  Log.error('❌ リスト一覧更新エラー: $e');
+}
+```
+
+**Expected Behavior**:
+- `invalidate()`後にリスト一覧の更新完了を待機
+- 新しいリストがlists配列に含まれた状態で`_buildListDropdown`が再ビルド
+- `validValue`が正しく設定され、DropdownButtonに反映
+
+**Status**: 実装完了・ホットリロード済み・未検証
+
+**Next Test**:
+1. サークルグループ（または任意のグループ）で新しいリストを作成
+2. ログ確認: `🔍 [DEBUG] _buildListDropdown - validValue: {UUID}`
+3. UIで作成したリストがドロップダウンに選択された状態で表示されているか確認
 
 ## Recent Implementations (2025-12-04)
 

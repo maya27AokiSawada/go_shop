@@ -38,6 +38,7 @@
 ```
 
 **問題の構造**:
+
 1. リスト作成 → `currentList`に設定 ✅
 2. `_buildListDropdown`呼び出し → lists.length: 16（新しいリストなし） → `validValue = null` ❌
 3. `invalidate()` → リスト再取得開始
@@ -62,6 +63,7 @@ try {
 ```
 
 **期待される動作**:
+
 - `invalidate()`後にリスト一覧の更新完了を待機
 - 新しいリストがlists配列に含まれた状態で`_buildListDropdown`が再ビルドされる
 - `validValue`が正しく設定され、DropdownButtonに反映される
@@ -69,12 +71,14 @@ try {
 ## 関連ファイル
 
 ### 修正済み
+
 - `lib/widgets/shopping_list_header_widget.dart`
   - Line 180: `initialValue` → `value`に変更
   - Line 325-332: リスト一覧更新完了待機処理追加
   - Line 174: デバッグログ追加
 
 ### 関連ファイル（参考）
+
 - `lib/providers/current_list_provider.dart` - カレントリスト状態管理
 - `lib/providers/group_shopping_lists_provider.dart` - リスト一覧プロバイダー
 - `lib/widgets/group_list_widget.dart` - グループ選択時の`_restoreLastUsedList()`（正常動作中）
@@ -82,16 +86,19 @@ try {
 ## 技術的知見
 
 ### Riverpod StateNotifierの注意点
+
 - `ref.invalidate(provider)`は`StateNotifier`の`state`をクリアする
 - 状態を保持したい場合は`invalidate()`しない
 - 依存する別プロバイダーのみ`invalidate()`する
 
 ### DropdownButtonFormFieldの注意点
+
 - `initialValue`: 初回レンダリング時のみ使用、その後は変更を反映しない
 - `value`: プロバイダーの状態変化をリアクティブに反映
 - `ref.watch(provider)`で監視している値は必ず`value`で設定すること
 
 ### 非同期処理のタイミング問題
+
 - `invalidate()`は非同期処理を開始するだけ
 - 完了を待つには`await ref.read(provider.future)`が必要
 - UIの再ビルドタイミングを制御するために重要
@@ -101,12 +108,15 @@ try {
 ### 🔴 最優先タスク
 
 **リスト作成後の自動選択機能の動作確認**
+
 1. ホットリロードまたはアプリ再起動
 2. サークルグループ（または任意のグループ）で新しいリストを作成
 3. ログ確認:
+
    ```
    💡 🔍 [DEBUG] _buildListDropdown - currentList: {リスト名}, validValue: {UUID}, lists.length: {件数}
    ```
+
    - `validValue`が`null`でなければ成功
    - `validValue`が新しく作成したリストのUUIDと一致していれば完璧
 4. UIで作成したリストがドロップダウンに選択された状態で表示されているか確認
@@ -114,6 +124,7 @@ try {
 ### 🟡 もし動作しない場合の代替案
 
 #### 案1: 強制的にstateを再設定
+
 ```dart
 // invalidate後、明示的にstateを再設定
 ref.invalidate(groupShoppingListsProvider);
@@ -124,12 +135,14 @@ ref.read(currentListProvider.notifier).selectList(newList, groupId: currentGroup
 ```
 
 #### 案2: ウィジェット全体を再ビルド
+
 ```dart
 // ShoppingListHeaderWidget全体をキーで再ビルド
 return ShoppingListHeaderWidget(key: ValueKey(currentList?.listId));
 ```
 
 #### 案3: ConsumerStatefulWidgetに変更
+
 現在の`ConsumerWidget`を`ConsumerStatefulWidget`に変更し、`setState()`で明示的にUIを更新する。
 
 ### 📝 検証ポイント
@@ -152,6 +165,7 @@ return ShoppingListHeaderWidget(key: ValueKey(currentList?.listId));
 ### 🔧 関連する既存機能（参考）
 
 **グループ選択時のリスト復元** (`group_list_widget.dart` Line 279-330)
+
 ```dart
 Future<void> _restoreLastUsedList(WidgetRef ref, String groupId) async {
   final listId = await ref.read(currentListProvider.notifier)
@@ -166,6 +180,7 @@ Future<void> _restoreLastUsedList(WidgetRef ref, String groupId) async {
   }
 }
 ```
+
 → この処理は正常動作中。同じパターンをリスト作成処理に適用できるか検討。
 
 ## その他の懸念事項
@@ -185,3 +200,132 @@ Future<void> _restoreLastUsedList(WidgetRef ref, String groupId) async {
 1. リスト作成後の自動選択機能の動作確認
 2. 動作しない場合は代替案の実装
 3. 動作確認後、Gitコミット・プッシュ
+
+---
+
+## 追加作業（15:15以降）
+
+### Windows版QRスキャン手動入力対応
+
+**背景**: Windows版で`camera`や`google_mlkit_barcode_scanning`が非対応のため、QRコード自動読み取りが不可能。
+
+**実装内容**:
+
+- `lib/widgets/windows_qr_scanner_simple.dart`
+  - FilePicker経由で画像ファイル選択
+  - 画像からのQRコード自動検出は困難（imageパッケージではQRデコード非対応）
+  - **手動入力ダイアログ実装**: 8行TextFieldでJSON貼り付け
+  - JSON形式でQRコードデータを入力
+
+**動作確認**:
+
+- ✅ 画像ファイル選択 → 正常動作
+- ✅ 手動入力ダイアログ表示 → 正常動作
+- ✅ JSON入力・パース → 成功
+- ✅ セキュリティ検証 → 成功
+- ✅ 招待受諾 → 成功
+
+### グループメンバー名表示問題の修正 ⚠️ 未完了
+
+**問題発見**: 招待受諾成功後、グループメンバーリストに「ユーザー」と表示される
+
+**原因分析**:
+
+1. 招待受諾側（`qr_invitation_service.dart`）でユーザー名取得時の問題
+   - SharedPreferences → UserSettings → Auth.displayName → email → UID の順で取得
+   - すべて空の場合、最終的に空文字列またはUIDになる
+
+2. **根本原因判明**: `/users/{uid}/profile/profile`からユーザー名を取得していない
+
+**実装した修正**:
+
+#### 1. 招待受諾側（qr_invitation_service.dart）
+
+```dart
+// Firestoreプロファイルから表示名を取得（最優先）
+String? firestoreName;
+try {
+  final profileDoc = await _firestore
+      .collection('users')
+      .doc(acceptorUid)
+      .collection('profile')
+      .doc('profile')
+      .get();
+
+  if (profileDoc.exists) {
+    firestoreName = profileDoc.data()?['displayName'] as String?;
+  }
+} catch (e) {
+  Log.error('📤 [ACCEPTOR] Firestoreプロファイル取得エラー: $e');
+}
+
+// 名前の優先順位: Firestore → SharedPreferences → UserSettings → Auth.displayName → email → UID
+final userName = (firestoreName?.isNotEmpty == true) ? firestoreName! : ...
+```
+
+#### 2. 招待元側（notification_service.dart）
+
+```dart
+// acceptorNameが空または「ユーザー」の場合、Firestoreプロファイルから取得
+String finalAcceptorName = acceptorName;
+if (acceptorName.isEmpty || acceptorName == 'ユーザー') {
+  try {
+    final profileDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(acceptorUid)
+        .collection('profile')
+        .doc('profile')
+        .get();
+
+    if (profileDoc.exists) {
+      final firestoreName = profileDoc.data()?['displayName'] as String?;
+      if (firestoreName?.isNotEmpty == true) {
+        finalAcceptorName = firestoreName!;
+        AppLogger.info('📤 [OWNER] Firestoreから名前取得: $finalAcceptorName');
+      }
+    }
+  } catch (e) {
+    AppLogger.error('📤 [OWNER] Firestoreプロファイル取得エラー: $e');
+  }
+}
+```
+
+**修正完了・ホットリロード済み** ✅
+
+**⚠️ 未検証**: 次回、実際の招待受諾テストで動作確認が必要
+
+## 修正ファイル一覧
+
+### 新規作成
+
+- `lib/widgets/windows_qr_scanner_simple.dart` - Windows版手動入力対応
+
+### 修正
+
+- `lib/services/qr_invitation_service.dart` - Firestoreプロファイルからユーザー名取得
+- `lib/services/notification_service.dart` - 招待元でもFirestoreから名前取得
+- `lib/widgets/shopping_list_header_widget.dart` - リスト自動選択修正（未検証）
+
+## 次回作業予定（更新）
+
+### 🔴 最優先
+
+1. **招待受諾時のユーザー名表示確認**
+   - Android/Windowsの2デバイスで招待→受諾テスト
+   - グループメンバーリストで実際の名前が表示されるか確認
+   - Firestoreの`/users/{uid}/profile/profile`にdisplayNameが存在するか事前確認
+
+2. **リスト作成後の自動選択機能確認**
+   - 前述の検証ポイント参照
+
+### 🟡 その他
+
+- 旧`windows_qr_scanner.dart`削除（不要になったファイル）
+- コミット・プッシュ
+
+## 作業時間（更新）
+
+- 開始: 14:30頃
+- Windows版QRスキャン対応: 15:15〜16:30頃
+- メンバー名表示問題修正: 16:30〜17:00頃
+- 実作業時間: 約2.5時間

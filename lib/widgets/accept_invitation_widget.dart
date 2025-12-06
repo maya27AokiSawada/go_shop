@@ -1,5 +1,7 @@
 // lib/widgets/accept_invitation_widget.dart
 import 'dart:convert';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -8,6 +10,7 @@ import '../providers/auth_provider.dart';
 import '../services/qr_invitation_service.dart';
 import '../utils/app_logger.dart';
 import '../utils/error_handler.dart';
+import 'windows_qr_scanner_simple.dart';
 
 /// 招待受諾ウィジェット
 ///
@@ -95,24 +98,20 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // プラットフォーム判定
+    final isWindows = !kIsWeb && Platform.isWindows;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('QRコードをスキャン'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
-      body: Stack(
-        children: [
-          MobileScanner(
-            controller: _controller,
-            onDetect: (capture) {
-              if (_isProcessing) return;
+      body: isWindows
+          ? WindowsQRScannerSimple(
+              onDetect: (rawValue) {
+                if (_isProcessing) return;
 
-              final barcodes = capture.barcodes;
-              if (barcodes.isEmpty) return;
-
-              final rawValue = barcodes.first.rawValue;
-              if (rawValue != null) {
                 // QRコードがJSON形式かトークン形式か判定
                 if (rawValue.startsWith('{') || rawValue.startsWith('[')) {
                   // JSON形式 = QR招待
@@ -128,11 +127,41 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
                     );
                   }
                 }
-              }
-            },
-          ),
-        ],
-      ),
+              },
+            )
+          : Stack(
+              children: [
+                MobileScanner(
+                  controller: _controller,
+                  onDetect: (capture) {
+                    if (_isProcessing) return;
+
+                    final barcodes = capture.barcodes;
+                    if (barcodes.isEmpty) return;
+
+                    final rawValue = barcodes.first.rawValue;
+                    if (rawValue != null) {
+                      // QRコードがJSON形式かトークン形式か判定
+                      if (rawValue.startsWith('{') ||
+                          rawValue.startsWith('[')) {
+                        // JSON形式 = QR招待
+                        _processQRInvitation(rawValue);
+                      } else {
+                        // サポートされない形式
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('無効なQRコード形式です'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    }
+                  },
+                ),
+              ],
+            ),
     );
   }
 

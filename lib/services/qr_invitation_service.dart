@@ -280,6 +280,23 @@ class QRInvitationService {
       final notificationService = _ref.read(notificationServiceProvider);
       final acceptorUser = _auth.currentUser;
 
+      // Firestoreプロファイルから表示名を取得
+      String? firestoreName;
+      try {
+        final profileDoc = await _firestore
+            .collection('users')
+            .doc(acceptorUid)
+            .collection('profile')
+            .doc('profile')
+            .get();
+
+        if (profileDoc.exists) {
+          firestoreName = profileDoc.data()?['displayName'] as String?;
+        }
+      } catch (e) {
+        Log.error('📤 [ACCEPTOR] Firestoreプロファイル取得エラー: $e');
+      }
+
       // SharedPreferencesから表示名を取得（ホーム画面で保存した名前）
       final prefsName = await UserPreferencesService.getUserName();
 
@@ -287,17 +304,20 @@ class QRInvitationService {
       final userSettings = await _ref.read(userSettingsProvider.future);
       final settingsName = userSettings.userName;
 
-      // 名前の優先順位: SharedPreferences → UserSettings.userName → Auth.displayName → email → UID
-      final userName = (prefsName?.isNotEmpty == true)
-          ? prefsName!
-          : (settingsName.isNotEmpty
-              ? settingsName
-              : (acceptorUser?.displayName?.isNotEmpty == true
-                  ? acceptorUser!.displayName!
-                  : (acceptorUser?.email?.isNotEmpty == true
-                      ? acceptorUser!.email!
-                      : acceptorUid)));
+      // 名前の優先順位: Firestore → SharedPreferences → UserSettings.userName → Auth.displayName → email → UID
+      final userName = (firestoreName?.isNotEmpty == true)
+          ? firestoreName!
+          : (prefsName?.isNotEmpty == true)
+              ? prefsName!
+              : (settingsName.isNotEmpty
+                  ? settingsName
+                  : (acceptorUser?.displayName?.isNotEmpty == true
+                      ? acceptorUser!.displayName!
+                      : (acceptorUser?.email?.isNotEmpty == true
+                          ? acceptorUser!.email!
+                          : acceptorUid)));
 
+      Log.info('📤 [ACCEPTOR] Firestore.displayName: $firestoreName');
       Log.info('📤 [ACCEPTOR] SharedPreferences.userName: $prefsName');
       Log.info('📤 [ACCEPTOR] UserSettings.userName: $settingsName');
       Log.info('📤 [ACCEPTOR] Auth.displayName: ${acceptorUser?.displayName}');
@@ -460,6 +480,7 @@ class QRInvitationService {
   Future<bool> _validateInvitationSecurity(
       Map<String, dynamic> invitationData, String? providedKey) async {
     final version = invitationData['version'] as String?;
+    Log.info('🔍 [SECURITY] バージョン: $version');
 
     // v3.0（セキュア版）の場合
     if (version == '3.0') {
@@ -468,10 +489,13 @@ class QRInvitationService {
         Log.info('❌ 招待IDが不足');
         return false;
       }
+      Log.info('🔍 [SECURITY] invitationId: $invitationId');
 
       // QRデータ内のセキュリティキーを取得（providedKeyがnullの場合）
       final securityKeyToValidate =
           providedKey ?? invitationData['securityKey'] as String?;
+      Log.info(
+          '🔍 [SECURITY] セキュリティキー: ${securityKeyToValidate?.substring(0, 10)}...');
 
       // Firestoreから実際の招待データを取得
       final SharedGroupId = invitationData['SharedGroupId'] as String?;
@@ -479,6 +503,12 @@ class QRInvitationService {
         Log.info('❌ SharedGroupIdが見つかりません');
         return false;
       }
+      Log.info('🔍 [SECURITY] SharedGroupId: $SharedGroupId');
+
+      final invitationPath =
+          'SharedGroups/$SharedGroupId/invitations/$invitationId';
+      Log.info('🔍 [SECURITY] Firestoreパス: $invitationPath');
+
       final invitationDoc = await _firestore
           .collection('SharedGroups')
           .doc(SharedGroupId)
@@ -487,14 +517,18 @@ class QRInvitationService {
           .get();
 
       if (!invitationDoc.exists) {
-        Log.info('❌ 招待が見つかりません: $invitationId');
+        Log.info('❌ 招待が見つかりません: $invitationId (パス: $invitationPath)');
         return false;
       }
+      Log.info('✅ [SECURITY] Firestoreドキュメント取得成功');
 
       final storedData = invitationDoc.data()!;
       final storedSecurityKey = storedData['securityKey'] as String?;
       final status = storedData['status'] as String?;
       final expiresAt = storedData['expiresAt'] as Timestamp?;
+
+      Log.info('🔍 [SECURITY] status: $status');
+      Log.info('🔍 [SECURITY] expiresAt: $expiresAt');
 
       // ステータスチェック
       if (status != 'pending') {
