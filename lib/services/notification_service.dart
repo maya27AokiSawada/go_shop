@@ -281,6 +281,29 @@ class NotificationService {
     try {
       AppLogger.info('📤 [OWNER] グループ更新開始: $groupId に $acceptorName を追加');
 
+      // acceptorNameが空の場合、Firestoreプロファイルから取得
+      String finalAcceptorName = acceptorName;
+      if (acceptorName.isEmpty || acceptorName == 'ユーザー') {
+        try {
+          final profileDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(acceptorUid)
+              .collection('profile')
+              .doc('profile')
+              .get();
+
+          if (profileDoc.exists) {
+            final firestoreName = profileDoc.data()?['displayName'] as String?;
+            if (firestoreName?.isNotEmpty == true) {
+              finalAcceptorName = firestoreName!;
+              AppLogger.info('📤 [OWNER] Firestoreから名前取得: $finalAcceptorName');
+            }
+          }
+        } catch (e) {
+          AppLogger.error('📤 [OWNER] Firestoreプロファイル取得エラー: $e');
+        }
+      }
+
       // 現在のグループ情報を取得
       final repository = _ref.read(SharedGroupRepositoryProvider);
       final currentGroup = await repository.getGroupById(groupId);
@@ -298,7 +321,7 @@ class NotificationService {
         updatedMembers.add(
           SharedGroupMember(
             memberId: acceptorUid,
-            name: acceptorName,
+            name: finalAcceptorName,
             contact: '',
             role: SharedGroupRole.member,
             isSignedIn: true,
