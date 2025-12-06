@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shopping_list.dart';
 import '../providers/shopping_list_provider.dart';
 import '../providers/purchase_group_provider.dart';
+import '../providers/current_list_provider.dart';
 import '../utils/app_logger.dart';
 
 /// 現在のグループに属する買い物リスト一覧を取得するProvider
@@ -45,5 +46,27 @@ final groupShoppingListsProvider =
       await repository.getShoppingListsByGroup(currentGroup.groupId);
 
   Log.info('✅ ${groupLists.length}件のリストを取得しました');
+
+  // リストが1つしかない場合は自動的にカレントリストに設定
+  if (groupLists.length == 1) {
+    final currentList = ref.read(currentListProvider);
+    final onlyList = groupLists.first;
+
+    // カレントリストが未設定、異なるグループのリスト、またはリスト一覧に存在しない場合に設定
+    final shouldSetCurrent = currentList == null ||
+        currentList.groupId != currentGroup.groupId ||
+        !groupLists.any((list) => list.listId == currentList.listId);
+
+    if (shouldSetCurrent) {
+      Log.info('📌 リストが1件のみのため自動設定: ${onlyList.listName} (${onlyList.listId})');
+      await ref.read(currentListProvider.notifier).selectList(
+            onlyList,
+            groupId: currentGroup.groupId,
+          );
+    } else {
+      Log.info('ℹ️ カレントリストは既に正しく設定されています: ${currentList.listName}');
+    }
+  }
+
   return groupLists;
 });
