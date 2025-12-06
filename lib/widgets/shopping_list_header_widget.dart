@@ -167,9 +167,19 @@ class ShoppingListHeaderWidget extends ConsumerWidget {
   ) {
     // currentListIdがlists内に存在するかチェック
     final currentListId = currentList?.listId;
+
+    // デバッグ: lists内の全listIdを表示
+    if (lists.isNotEmpty) {
+      Log.info(
+          '🔍 [DEBUG] lists内のlistId: ${lists.map((l) => l.listId).join(", ")}');
+    }
+
     final isCurrentListInLists = currentListId != null &&
         lists.any((list) => list.listId == currentListId);
-    final validInitialValue = isCurrentListInLists ? currentListId : null;
+    final validValue = isCurrentListInLists ? currentListId : null;
+
+    Log.info(
+        '🔍 [DEBUG] _buildListDropdown - currentList: ${currentList?.listName}, currentListId: $currentListId, validValue: $validValue, lists.length: ${lists.length}');
 
     return Row(
       children: [
@@ -177,7 +187,7 @@ class ShoppingListHeaderWidget extends ConsumerWidget {
         const SizedBox(width: 8),
         Expanded(
           child: DropdownButtonFormField<String>(
-            initialValue: validInitialValue, // valueを使用してリアクティブに更新
+            initialValue: validValue,
             decoration: InputDecoration(
               filled: true,
               fillColor: Colors.white,
@@ -311,17 +321,45 @@ class ShoppingListHeaderWidget extends ConsumerWidget {
                 Log.info(
                     '✅ 新しいリスト作成成功: ${newList.listName} (ID: ${newList.listId})');
 
-                // プロバイダーを更新してUIに反映
-                ref.invalidate(groupShoppingListsProvider);
-
-                // 作成したリストをカレントリストに設定
-                ref.read(currentListProvider.notifier).selectList(
+                // 作成したリストをカレントリストに設定（Preferencesに保存）
+                await ref.read(currentListProvider.notifier).selectList(
                       newList,
                       groupId: currentGroup.groupId,
                     );
+                Log.info('📝 カレントリストに設定完了: ${newList.listName}');
 
+                if (!context.mounted) return;
                 Navigator.of(context).pop();
 
+                // ダイアログを閉じた後、リスト一覧を更新して完了を待つ
+                ref.invalidate(groupShoppingListsProvider);
+
+                // リスト一覧の更新完了を待つ（新しいリストが含まれるまで）
+                try {
+                  final updatedLists =
+                      await ref.read(groupShoppingListsProvider.future);
+                  Log.info('✅ リスト一覧更新完了 - ${updatedLists.length}件');
+
+                  // Firestoreから取得したリストの中から、作成したリストを探して再設定
+                  final createdList = updatedLists.firstWhere(
+                    (list) =>
+                        list.listName == newList.listName &&
+                        list.groupId == currentGroup.groupId,
+                    orElse: () => newList, // 見つからない場合は作成時のリストを使用
+                  );
+
+                  // Firestoreから取得した正しいIDでカレントリストを再設定
+                  await ref.read(currentListProvider.notifier).selectList(
+                        createdList,
+                        groupId: currentGroup.groupId,
+                      );
+                  Log.info(
+                      '✅ Firestore取得後のカレントリスト再設定完了: ${createdList.listName} (${createdList.listId})');
+                } catch (e) {
+                  Log.error('❌ リスト一覧更新エラー: $e');
+                }
+
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('「$name」を作成しました')),
                 );

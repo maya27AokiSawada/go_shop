@@ -380,13 +380,10 @@ class HybridShoppingListRepository implements ShoppingListRepository {
       // Firestoreにも同期(オンライン時のみ)
       if (_isOnline && F.appFlavor == Flavor.prod && _firestoreRepo != null) {
         try {
-          await _firestoreRepo!.createShoppingList(
-            ownerUid: ownerUid,
-            groupId: groupId,
-            listName: listName,
-            description: description,
-          );
-          developer.log('☁️ Hybrid: リスト「$listName」をFirestoreに同期');
+          // HiveのリストをそのIDでFirestoreに保存
+          await _firestoreRepo!.saveShoppingListWithId(newList);
+          developer.log(
+              '☁️ Hybrid: リスト「$listName」をFirestoreに同期 (ID: ${newList.listId})');
         } catch (e) {
           developer.log('⚠️ Hybrid: Firestore同期失敗、Hiveのみで作成: $e');
         }

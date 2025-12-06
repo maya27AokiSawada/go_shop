@@ -41,6 +41,15 @@ class FirestoreShoppingListRepository implements ShoppingListRepository {
     return newList;
   }
 
+  /// 既存のShoppingListオブジェクトをFirestoreに保存（IDはそのまま使用）
+  Future<void> saveShoppingListWithId(ShoppingList list) async {
+    await _collection(list.groupId)
+        .doc(list.listId)
+        .set(_shoppingListToFirestore(list));
+    developer
+        .log('💾 Firestoreに既存IDでリスト保存: ${list.listName} (ID: ${list.listId})');
+  }
+
   @override
   Future<ShoppingList?> getShoppingListById(String listId) async {
     // コレクショングループクエリを使用して、groupIdが不明でもリストを検索
