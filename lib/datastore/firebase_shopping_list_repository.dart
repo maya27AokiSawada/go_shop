@@ -454,7 +454,7 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<void> deleteShoppingList(String listId) async {
+  Future<void> deleteShoppingList(String groupId, String listId) async {
     throw UnimplementedError(
         'FirebaseRepository multi-list support not implemented yet');
   }

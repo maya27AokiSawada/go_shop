@@ -405,7 +405,7 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
 
       // 7. リスト削除テスト
       _log('7️⃣ リスト削除テスト');
-      await repository.deleteShoppingList(testList.listId);
+      await repository.deleteShoppingList(testList.groupId, testList.listId);
       _log('✅ リスト削除成功');
 
       _log('🛒 ショッピングリストCRUDテスト完了 ✅');

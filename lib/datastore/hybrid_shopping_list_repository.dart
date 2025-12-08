@@ -459,15 +459,16 @@ class HybridShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<void> deleteShoppingList(String listId) async {
+  Future<void> deleteShoppingList(String groupId, String listId) async {
     // Hiveから削除
-    await _hiveRepo.deleteShoppingList(listId);
+    await _hiveRepo.deleteShoppingList(groupId, listId);
 
     // Firestoreからも削除（オンライン時）
     if (_firestoreRepo != null) {
       try {
-        await _firestoreRepo!.deleteShoppingList(listId);
-        developer.log('🗑️ [HYBRID] リストをFirestoreから削除: $listId');
+        await _firestoreRepo!.deleteShoppingList(groupId, listId);
+        developer.log(
+            '🗑️ [HYBRID] リストをFirestoreから削除: groupId=$groupId, listId=$listId');
       } catch (e) {
         developer.log('❌ [HYBRID] Firestore削除エラー: $e');
       }
@@ -668,7 +669,15 @@ class HybridShoppingListRepository implements ShoppingListRepository {
             .updateShoppingList(operation.data as ShoppingList);
         break;
       case _ShoppingListSyncOperationType.delete:
-        await _firestoreRepo!.deleteShoppingList(operation.listId);
+        // リストIDからgroupIDを取得（Hiveキャッシュから）
+        final listToDelete =
+            await _hiveRepo.getShoppingListById(operation.listId);
+        if (listToDelete != null) {
+          await _firestoreRepo!
+              .deleteShoppingList(listToDelete.groupId, operation.listId);
+        } else {
+          developer.log('⚠️ 削除対象リストがHiveに見つからない: ${operation.listId}');
+        }
         break;
       case _ShoppingListSyncOperationType.createItem:
         final itemData = operation.data as Map<String, dynamic>;

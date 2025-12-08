@@ -85,15 +85,9 @@ class FirestoreShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<void> deleteShoppingList(String listId) async {
-    // 最初にリストを取得してgroupIdを特定
-    final list = await getShoppingListById(listId);
-    if (list != null) {
-      await _collection(list.groupId).doc(listId).delete();
-      developer.log('🗑️ Firestoreからリスト削除 (ID: $listId)');
-    } else {
-      developer.log('⚠️ 削除対象のリストが見つからない (ID: $listId)');
-    }
+  Future<void> deleteShoppingList(String groupId, String listId) async {
+    await _collection(groupId).doc(listId).delete();
+    developer.log('🗑️ Firestoreからリスト削除 (groupId: $groupId, listId: $listId)');
   }
 
   @override

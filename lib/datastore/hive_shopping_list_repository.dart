@@ -322,7 +322,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<void> deleteShoppingList(String listId) async {
+  Future<void> deleteShoppingList(String groupId, String listId) async {
     try {
       final list = box.get(listId);
       if (list != null) {
@@ -344,9 +344,10 @@ class HiveShoppingListRepository implements ShoppingListRepository {
         //       .log('📝 グループ「${SharedGroup.groupName}」からリストID削除: $listId');
         // }
 
-        developer.log('🗑️ リスト削除: ${list.listName} (ID: $listId)');
+        developer.log(
+            '🗑️ リスト削除: ${list.listName} (groupId: $groupId, listId: $listId)');
       } else {
-        developer.log('⚠️ 削除対象リストが見つからない (ID: $listId)');
+        developer.log('⚠️ 削除対象リストが見つからない (groupId: $groupId, listId: $listId)');
       }
     } catch (e) {
       developer.log('❌ リスト削除エラー (ID: $listId): $e');
