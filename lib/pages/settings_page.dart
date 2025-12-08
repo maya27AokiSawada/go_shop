@@ -19,6 +19,7 @@ import '../widgets/test_scenario_widget.dart';
 import '../debug/fix_maya_group.dart';
 import '../config/app_mode_config.dart';
 import '../utils/app_logger.dart';
+import '../flavors.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -483,7 +484,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 ],
 
                 // 開発者ツールパネル（開発環境用）
-                if (true) ...[
+                if (F.appFlavor == Flavor.dev) ...[
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -872,8 +873,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   ),
                   const SizedBox(height: 20),
 
-                  // 🆕 データメンテナンス
-                  Card(
+                  // 🆕 データメンテナンス（開発環境のみ）
+                  if (F.appFlavor == Flavor.dev)
+                    Card(
                     elevation: 2,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
