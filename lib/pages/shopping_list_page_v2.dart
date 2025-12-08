@@ -632,7 +632,7 @@ class _ShoppingItemTile extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: badgeColor.withOpacity(0.1),
+        color: badgeColor.withValues(alpha: 0.1),
         border: Border.all(color: badgeColor, width: 1),
         borderRadius: BorderRadius.circular(12),
       ),
@@ -659,7 +659,7 @@ class _ShoppingItemTile extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.purple.withOpacity(0.1),
+        color: Colors.purple.withValues(alpha: 0.1),
         border: Border.all(color: Colors.purple, width: 1),
         borderRadius: BorderRadius.circular(12),
       ),
