@@ -38,24 +38,7 @@ class ShoppingListHeaderWidget extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // カレントグループ表示
-          Row(
-            children: [
-              Icon(Icons.group, color: Colors.blue.shade700, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                currentGroup?.groupName ?? 'グループ未選択',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: currentGroup != null
-                      ? Colors.blue.shade900
-                      : Colors.grey.shade600,
-                ),
-              ),
-            ],
-          ),
-
+          // グループ表示を削除（AppBarに統合済み）
           if (currentGroup == null) ...[
             const SizedBox(height: 12),
             Container(
