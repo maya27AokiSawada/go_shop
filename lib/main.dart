@@ -35,8 +35,8 @@ void main() async {
   // フレーバーの設定 - 本番環境（Firestore + Hive Hybrid + テスト広告）
   F.appFlavor = Flavor.prod;
 
-  // Firebase初期化（詳細なエラー情報を表示）
-  if (F.appFlavor == Flavor.prod) {
+  // Firebase初期化（prodとdev両方で有効化 - 2025-12-08変更）
+  if (F.appFlavor == Flavor.prod || F.appFlavor == Flavor.dev) {
     try {
       AppLogger.info('🔄 Firebase初期化開始...');
       AppLogger.info('🎯 現在のプラットフォーム: $defaultTargetPlatform');
