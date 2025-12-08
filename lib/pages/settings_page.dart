@@ -4,22 +4,22 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../providers/auth_provider.dart';
-import '../providers/user_settings_provider.dart';
-import '../providers/app_mode_notifier_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/user_specific_hive_provider.dart';
 import '../services/user_preferences_service.dart';
 import '../services/user_initialization_service.dart';
-import '../services/access_control_service.dart';
 import '../services/list_cleanup_service.dart';
 import '../services/shopping_list_data_migration_service.dart';
 import '../services/periodic_purchase_service.dart';
-import '../datastore/user_settings_repository.dart';
 import '../widgets/test_scenario_widget.dart';
 import '../debug/fix_maya_group.dart';
-import '../config/app_mode_config.dart';
 import '../utils/app_logger.dart';
 import '../flavors.dart';
+import '../widgets/settings/auth_status_panel.dart';
+import '../widgets/settings/firestore_sync_status_panel.dart';
+import '../widgets/settings/app_mode_switcher_panel.dart';
+import '../widgets/settings/privacy_settings_panel.dart';
+import '../widgets/settings/notification_settings_panel.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -30,7 +30,6 @@ class SettingsPage extends ConsumerStatefulWidget {
 
 class _SettingsPageState extends ConsumerState<SettingsPage> {
   final userNameController = TextEditingController();
-  bool _isSecretMode = false;
 
   @override
   void initState() {
@@ -48,13 +47,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           } else {
             AppLogger.warning('ユーザー名が保存されていません');
           }
-
-          // シークレットモード状態も読み込み
-          final accessControl = ref.read(accessControlServiceProvider);
-          final isSecretMode = await accessControl.isSecretModeEnabled();
-          setState(() {
-            _isSecretMode = isSecretMode;
-          });
         } catch (e) {
           AppLogger.error('UserPreferences読み込みエラー', e);
         }
@@ -84,402 +76,33 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // ステータス表示
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: isAuthenticated
-                        ? Colors.green.shade50
-                        : Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: isAuthenticated
-                          ? Colors.green.shade200
-                          : Colors.blue.shade200,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        isAuthenticated
-                            ? Icons.check_circle
-                            : Icons.account_circle,
-                        color: isAuthenticated ? Colors.green : Colors.blue,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          isAuthenticated ? 'ログイン済み: ${user.email}' : '未ログイン状態',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: isAuthenticated
-                                ? Colors.green.shade800
-                                : Colors.blue.shade800,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                AuthStatusPanel(user: user),
 
                 const SizedBox(height: 12),
 
                 // Firestore同期状態表示（サインイン済みの場合のみ）
-                if (isAuthenticated && syncStatus != 'idle') ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: syncStatus == 'syncing'
-                          ? Colors.orange.shade50
-                          : syncStatus == 'completed'
-                              ? Colors.green.shade50
-                              : Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: syncStatus == 'syncing'
-                            ? Colors.orange.shade200
-                            : syncStatus == 'completed'
-                                ? Colors.green.shade200
-                                : Colors.red.shade200,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          syncStatus == 'syncing'
-                              ? Icons.sync
-                              : syncStatus == 'completed'
-                                  ? Icons.check_circle
-                                  : Icons.error,
-                          color: syncStatus == 'syncing'
-                              ? Colors.orange
-                              : syncStatus == 'completed'
-                                  ? Colors.green
-                                  : Colors.red,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            syncStatus == 'syncing'
-                                ? 'Firestore同期中...'
-                                : syncStatus == 'completed'
-                                    ? 'Firestore同期完了'
-                                    : 'Firestore同期エラー',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: syncStatus == 'syncing'
-                                  ? Colors.orange.shade800
-                                  : syncStatus == 'completed'
-                                      ? Colors.green.shade800
-                                      : Colors.red.shade800,
-                            ),
-                          ),
-                        ),
-                        if (syncStatus == 'syncing')
-                          const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
+                if (isAuthenticated)
+                  FirestoreSyncStatusPanel(syncStatus: syncStatus),
+
+                if (isAuthenticated && syncStatus != 'idle')
                   const SizedBox(height: 12),
-                ],
 
                 const SizedBox(height: 20),
 
                 // アプリモード切り替えパネル（常に表示）
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue.shade200),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.swap_horiz,
-                            color: Colors.blue.shade700,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'アプリモード',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.blue.shade800,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'アプリの表示モードを切り替えます',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.blue.shade600,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Consumer(
-                        builder: (context, ref, child) {
-                          // appModeNotifierProviderを監視して現在のモードを取得
-                          final currentMode =
-                              ref.watch(appModeNotifierProvider);
-
-                          return SegmentedButton<AppMode>(
-                            segments: const [
-                              ButtonSegment<AppMode>(
-                                value: AppMode.shopping,
-                                label: Text('買い物リスト'),
-                                icon: Icon(Icons.shopping_cart, size: 16),
-                              ),
-                              ButtonSegment<AppMode>(
-                                value: AppMode.todo,
-                                label: Text('TODO共有'),
-                                icon: Icon(Icons.task_alt, size: 16),
-                              ),
-                            ],
-                            selected: {currentMode},
-                            onSelectionChanged:
-                                (Set<AppMode> newSelection) async {
-                              final newMode = newSelection.first;
-
-                              // UserSettingsに保存
-                              final userSettingsAsync =
-                                  await ref.read(userSettingsProvider.future);
-                              final updatedSettings =
-                                  userSettingsAsync.copyWith(
-                                appMode: newMode.index,
-                              );
-                              final repository =
-                                  ref.read(userSettingsRepositoryProvider);
-                              await repository.saveSettings(updatedSettings);
-
-                              // AppModeSettingsに反映
-                              AppModeSettings.setMode(newMode);
-
-                              // UIを更新（appModeNotifierProviderを使用）
-                              ref.read(appModeNotifierProvider.notifier).state =
-                                  newMode;
-
-                              // SnackBar表示
-                              if (context.mounted) {
-                                final modeName = newMode == AppMode.shopping
-                                    ? '買い物リスト'
-                                    : 'TODO共有';
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('モードを「$modeName」に変更しました'),
-                                    duration: const Duration(seconds: 2),
-                                  ),
-                                );
-                              }
-                            },
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
+                const AppModeSwitcherPanel(),
 
                 const SizedBox(height: 20),
 
                 // プライバシー設定パネル（認証済み時または開発環境で表示）
                 if (isAuthenticated || true) ...[
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.purple.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.purple.shade200),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.security,
-                              color: Colors.purple.shade700,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'プライバシー設定',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.purple.shade800,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'シークレットモードをオンにすると、サインインが必要になります',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.purple.shade600,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        ElevatedButton.icon(
-                          onPressed: () async {
-                            final accessControl =
-                                ref.read(accessControlServiceProvider);
-                            await accessControl.toggleSecretMode();
-                            final newSecretMode =
-                                await accessControl.isSecretModeEnabled();
-                            setState(() {
-                              _isSecretMode = newSecretMode;
-                            });
-                          },
-                          icon: Icon(
-                            _isSecretMode
-                                ? Icons.visibility
-                                : Icons.visibility_off,
-                            size: 16,
-                          ),
-                          label: Text(
-                            _isSecretMode ? 'シークレットモード: ON' : 'シークレットモード: OFF',
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _isSecretMode
-                                ? Colors.orange.shade100
-                                : Colors.green.shade100,
-                            foregroundColor: _isSecretMode
-                                ? Colors.orange.shade800
-                                : Colors.green.shade800,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 8),
-                            minimumSize: const Size(0, 36),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  const PrivacySettingsPanel(),
                   const SizedBox(height: 20),
                 ],
 
                 // 通知設定パネル（認証済み時のみ表示）
                 if (isAuthenticated) ...[
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.amber.shade200),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.notifications,
-                              color: Colors.amber.shade700,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                '通知設定',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.amber.shade800,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'リスト変更通知の設定',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.amber.shade600,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Consumer(
-                          builder: (context, ref, child) {
-                            final userSettingsAsync =
-                                ref.watch(userSettingsProvider);
-
-                            return userSettingsAsync.when(
-                              data: (userSettings) {
-                                return SwitchListTile(
-                                  title: const Text(
-                                    'リスト変更通知',
-                                    style: TextStyle(fontSize: 14),
-                                  ),
-                                  subtitle: const Text(
-                                    'アイテムの追加・削除・購入完了を5分ごとに通知',
-                                    style: TextStyle(fontSize: 12),
-                                  ),
-                                  value: userSettings.enableListNotifications,
-                                  onChanged: (value) async {
-                                    final repository = ref
-                                        .read(userSettingsRepositoryProvider);
-                                    final updatedSettings =
-                                        userSettings.copyWith(
-                                      enableListNotifications: value,
-                                    );
-                                    await repository
-                                        .saveSettings(updatedSettings);
-
-                                    // プロバイダーを更新
-                                    ref.invalidate(userSettingsProvider);
-
-                                    // SnackBar表示
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(
-                                          content: Text(value
-                                              ? 'リスト変更通知をオンにしました'
-                                              : 'リスト変更通知をオフにしました'),
-                                          duration: const Duration(seconds: 2),
-                                        ),
-                                      );
-                                    }
-                                  },
-                                  activeThumbColor: Colors.amber.shade700,
-                                  contentPadding: EdgeInsets.zero,
-                                );
-                              },
-                              loading: () => const Center(
-                                child: CircularProgressIndicator(),
-                              ),
-                              error: (error, stack) => Text(
-                                'エラー: $error',
-                                style: const TextStyle(color: Colors.red),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
+                  const NotificationSettingsPanel(),
                   const SizedBox(height: 20),
                 ],
 
@@ -876,226 +499,227 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   // 🆕 データメンテナンス（開発環境のみ）
                   if (F.appFlavor == Flavor.dev)
                     Card(
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.cleaning_services,
-                                  color: Colors.blue.shade700),
-                              const SizedBox(width: 8),
-                              Text(
-                                'データメンテナンス',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.blue.shade700,
-                                    ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            '削除済みアイテムのクリーンアップ',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '30日以上経過した削除済みアイテムを完全削除します',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(color: Colors.grey.shade600),
-                          ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed: () async {
-                                await _performCleanup();
-                              },
-                              icon: const Icon(Icons.delete_sweep, size: 18),
-                              label: const Text('クリーンアップ実行'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue.shade100,
-                                foregroundColor: Colors.blue.shade800,
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 12),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          const Divider(),
-                          const SizedBox(height: 20),
-                          // 🆕 定期購入アイテムのリセット
-                          Text(
-                            '定期購入アイテムの自動リセット',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '購入済み + 定期購入間隔経過のアイテムを未購入に戻します',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(color: Colors.grey.shade600),
-                          ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed: () async {
-                                await _resetPeriodicPurchaseItems();
-                              },
-                              icon: const Icon(Icons.refresh, size: 18),
-                              label: const Text('定期購入リセット実行'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.purple.shade100,
-                                foregroundColor: Colors.purple.shade800,
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 12),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          const Divider(),
-                          const SizedBox(height: 20),
-                          // 🆕 Hiveデータクリア（緊急用）
-                          Text(
-                            'Hiveデータを完全削除',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  color: Colors.red.shade700,
-                                  fontWeight: FontWeight.bold,
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.cleaning_services,
+                                    color: Colors.blue.shade700),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'データメンテナンス',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.blue.shade700,
+                                      ),
                                 ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '⚠️ ローカルの全データを削除します。Firestoreから再同期されます。',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(color: Colors.red.shade600),
-                          ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed: user == null
-                                  ? null
-                                  : () async {
-                                      await _clearAllHiveData(user);
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              '削除済みアイテムのクリーンアップ',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '30日以上経過した削除済みアイテムを完全削除します',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(color: Colors.grey.shade600),
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: () async {
+                                  await _performCleanup();
+                                },
+                                icon: const Icon(Icons.delete_sweep, size: 18),
+                                label: const Text('クリーンアップ実行'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue.shade100,
+                                  foregroundColor: Colors.blue.shade800,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 12),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            const Divider(),
+                            const SizedBox(height: 20),
+                            // 🆕 定期購入アイテムのリセット
+                            Text(
+                              '定期購入アイテムの自動リセット',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '購入済み + 定期購入間隔経過のアイテムを未購入に戻します',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(color: Colors.grey.shade600),
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: () async {
+                                  await _resetPeriodicPurchaseItems();
+                                },
+                                icon: const Icon(Icons.refresh, size: 18),
+                                label: const Text('定期購入リセット実行'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.purple.shade100,
+                                  foregroundColor: Colors.purple.shade800,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 12),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            const Divider(),
+                            const SizedBox(height: 20),
+                            // 🆕 Hiveデータクリア（緊急用）
+                            Text(
+                              'Hiveデータを完全削除',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    color: Colors.red.shade700,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '⚠️ ローカルの全データを削除します。Firestoreから再同期されます。',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(color: Colors.red.shade600),
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: user == null
+                                    ? null
+                                    : () async {
+                                        await _clearAllHiveData(user);
+                                      },
+                                icon:
+                                    const Icon(Icons.delete_forever, size: 18),
+                                label: const Text('Hiveデータをクリア'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red.shade100,
+                                  foregroundColor: Colors.red.shade800,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 12),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            const Divider(),
+                            const SizedBox(height: 20),
+                            // 🆕 Firestore同期
+                            Text(
+                              'デフォルトグループのFirestore同期',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'ローカルのみのデフォルトグループをクラウドに同期します',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(color: Colors.grey.shade600),
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: () async {
+                                  await _syncDefaultGroup();
+                                },
+                                icon: const Icon(Icons.cloud_upload, size: 18),
+                                label: const Text('Firestore同期'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green.shade100,
+                                  foregroundColor: Colors.green.shade800,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 12),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            const Divider(),
+                            const SizedBox(height: 20),
+                            // 🆕 データ移行
+                            Text(
+                              'データ形式移行（開発者向け）',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '配列形式 → Map形式への移行（通常は自動実行）',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(color: Colors.grey.shade600),
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: () async {
+                                      await _checkMigrationStatus();
                                     },
-                              icon: const Icon(Icons.delete_forever, size: 18),
-                              label: const Text('Hiveデータをクリア'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red.shade100,
-                                foregroundColor: Colors.red.shade800,
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 12),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          const Divider(),
-                          const SizedBox(height: 20),
-                          // 🆕 Firestore同期
-                          Text(
-                            'デフォルトグループのFirestore同期',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'ローカルのみのデフォルトグループをクラウドに同期します',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(color: Colors.grey.shade600),
-                          ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed: () async {
-                                await _syncDefaultGroup();
-                              },
-                              icon: const Icon(Icons.cloud_upload, size: 18),
-                              label: const Text('Firestore同期'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green.shade100,
-                                foregroundColor: Colors.green.shade800,
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 12),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          const Divider(),
-                          const SizedBox(height: 20),
-                          // 🆕 データ移行
-                          Text(
-                            'データ形式移行（開発者向け）',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '配列形式 → Map形式への移行（通常は自動実行）',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(color: Colors.grey.shade600),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: ElevatedButton.icon(
-                                  onPressed: () async {
-                                    await _checkMigrationStatus();
-                                  },
-                                  icon:
-                                      const Icon(Icons.info_outline, size: 16),
-                                  label: const Text('状況確認'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.grey.shade200,
-                                    foregroundColor: Colors.grey.shade800,
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 10),
+                                    icon: const Icon(Icons.info_outline,
+                                        size: 16),
+                                    label: const Text('状況確認'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.grey.shade200,
+                                      foregroundColor: Colors.grey.shade800,
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 10),
+                                    ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: ElevatedButton.icon(
-                                  onPressed: () async {
-                                    await _performMigration();
-                                  },
-                                  icon: const Icon(Icons.sync, size: 16),
-                                  label: const Text('移行実行'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.orange.shade100,
-                                    foregroundColor: Colors.orange.shade800,
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 10),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: () async {
+                                      await _performMigration();
+                                    },
+                                    icon: const Icon(Icons.sync, size: 16),
+                                    label: const Text('移行実行'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.orange.shade100,
+                                      foregroundColor: Colors.orange.shade800,
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 10),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
                   const SizedBox(height: 20),
                 ],
 
