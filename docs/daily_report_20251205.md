@@ -352,26 +352,86 @@ if (acceptorName.isEmpty || acceptorName == 'ユーザー') {
 - `lib/services/notification_service.dart` - 招待元でもFirestoreから名前取得
 - `lib/widgets/shopping_list_header_widget.dart` - リスト自動選択修正（未検証）
 
-## 次回作業予定（更新）
+## 次回作業予定（2025-12-09更新）
 
-### 🔴 最優先
+### 🔴 最優先: クローズドベータテスト準備
 
-1. **招待受諾時のユーザー名表示確認**
-   - Android/Windowsの2デバイスで招待→受諾テスト
-   - グループメンバーリストで実際の名前が表示されるか確認
-   - Firestoreの`/users/{uid}/profile/profile`にdisplayNameが存在するか事前確認
+#### 1. クラッシュログ・自動ログ送信機能実装
 
-2. **リスト作成後の自動選択機能確認**
-   - 前述の検証ポイント参照
+**Firebase Crashlytics導入**:
+
+- `firebase_crashlytics` パッケージ追加
+- `main.dart`でエラーハンドリング設定
+
+  ```dart
+  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterError;
+  runZonedGuarded(() => runApp(...), (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack);
+  });
+  ```
+
+- Android/iOS設定更新
+- テストクラッシュで動作確認
+
+**カスタムログ機能拡張**:
+
+- `AppLogger`にFirestore送信機能追加
+- バッファリング + 非同期送信
+- ログレベル設定（INFO/WARNING/ERROR/CRASH）
+
+**⚠️ プライバシー保護ルール**:
+
+- ❌ ログに含めてはいけない: groupName, listName, itemName, displayName, email
+- ✅ ログに含めてOK: groupId, listId, itemId, userId, 操作種別, エラーコード, 件数
+
+**ログ記述例**:
+
+```dart
+// NG: Log.info('✅ リスト削除: ${list.listName}');
+// OK: Log.info('✅ リスト削除: listId=${list.listId}');
+```
+
+**実装チェックリスト**:
+
+- [ ] Crashlytics基本設定
+- [ ] AppLoggerのFirestore送信機能
+- [ ] センシティブ情報の自動マスク処理
+- [ ] 既存ログの全件レビュー（表示名削除）
+- [ ] ログのFirestore構造設計
+- [ ] 古いログの自動削除ルール設定
+
+**Firestoreログ構造案**:
+
+```
+/appLogs/{userId}/logs/{logId}
+  - timestamp: Timestamp
+  - level: "INFO" | "WARNING" | "ERROR" | "CRASH"
+  - message: String (センシティブ情報除去済み)
+  - stackTrace: String?
+  - deviceInfo: { platform, osVersion, appVersion, deviceModel }
+  - context: { currentScreen, groupId?, listId? }
+```
+
+#### 2. 既存機能の検証（残タスク）
+
+**招待受諾時のユーザー名表示確認**:
+
+- Android/Windowsの2デバイスで招待→受諾テスト
+- グループメンバーリストで実際の名前が表示されるか確認
+
+**リスト作成後の自動選択機能確認**:
+
+- 前述の検証ポイント参照（2025-12-05セクション）
 
 ### 🟡 その他
 
 - 旧`windows_qr_scanner.dart`削除（不要になったファイル）
-- コミット・プッシュ
+- プライバシーポリシー更新（ログ収集に関する記載）
 
-## 作業時間（更新）
+---
 
-- 開始: 14:30頃
-- Windows版QRスキャン対応: 15:15〜16:30頃
-- メンバー名表示問題修正: 16:30〜17:00頃
-- 実作業時間: 約2.5時間
+## 作業時間（2025-12-08更新）
+
+- リスト削除機能修正: 約1.5時間
+- ドキュメント更新・コミット: 約0.5時間
+- 実作業時間: 約2時間
