@@ -26,12 +26,14 @@ class _HomePageState extends ConsumerState<HomePage> {
   bool _isLoading = false;
   bool _showEmailSignIn = false;
   bool _isSignUpMode = true; // true: アカウント作成, false: サインイン
+  bool _rememberEmail = false; // メールアドレス保存チェックボックス
 
   @override
   void initState() {
     super.initState();
     AppLogger.info('HomePage初期化開始');
     _loadUserName();
+    _loadSavedEmail();
   }
 
   /// ユーザー名をSharedPreferencesからロード
@@ -46,6 +48,22 @@ class _HomePageState extends ConsumerState<HomePage> {
       }
     } catch (e) {
       AppLogger.error('❌ [HOME] ユーザー名ロードエラー: $e');
+    }
+  }
+
+  /// 保存されたメールアドレスをロード
+  Future<void> _loadSavedEmail() async {
+    try {
+      final savedEmail = await UserPreferencesService.getSavedEmailForSignIn();
+      if (savedEmail != null && savedEmail.isNotEmpty) {
+        setState(() {
+          emailController.text = savedEmail;
+          _rememberEmail = true;
+        });
+        AppLogger.info('✅ [HOME] メールアドレスをロード: $savedEmail');
+      }
+    } catch (e) {
+      AppLogger.error('❌ [HOME] メールアドレスロードエラー: $e');
     }
   }
 
@@ -133,6 +151,13 @@ class _HomePageState extends ConsumerState<HomePage> {
       // サインイン
       await ref.read(authProvider).signIn(email, password);
       AppLogger.info('✅ [SIGNIN] サインイン成功');
+
+      // メールアドレス保存処理
+      await UserPreferencesService.saveOrClearEmailForSignIn(
+        email: email,
+        shouldRemember: _rememberEmail,
+      );
+      AppLogger.info('✅ [SIGNIN] メールアドレス保存設定: $_rememberEmail');
 
       // Firestoreにユーザープロファイルが存在することを確認（なければ作成）
       await FirestoreUserNameService.ensureUserProfileExists();
@@ -438,7 +463,25 @@ class _HomePageState extends ConsumerState<HomePage> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
+
+                      // メールアドレス保存チェックボックス（サインイン時のみ）
+                      if (!_isSignUpMode)
+                        CheckboxListTile(
+                          value: _rememberEmail,
+                          onChanged: (value) {
+                            setState(() {
+                              _rememberEmail = value ?? false;
+                            });
+                          },
+                          title: const Text(
+                            'メールアドレスを保存',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                          controlAffinity: ListTileControlAffinity.leading,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      const SizedBox(height: 8),
 
                       // 実行ボタン
                       ElevatedButton(
