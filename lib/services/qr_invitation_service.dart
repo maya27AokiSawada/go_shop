@@ -49,6 +49,50 @@ class QRInvitationService {
       throw Exception('ユーザーが認証されていません');
     }
 
+    // Firestoreプロファイルから表示名を取得（最優先）
+    String? firestoreName;
+    try {
+      final profileDoc = await _firestore
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('profile')
+          .doc('profile')
+          .get();
+
+      if (profileDoc.exists) {
+        firestoreName = profileDoc.data()?['displayName'] as String?;
+      }
+    } catch (e) {
+      Log.error('📤 [INVITER] Firestoreプロファイル取得エラー: $e');
+    }
+
+    // SharedPreferencesから表示名を取得
+    final prefsName = await UserPreferencesService.getUserName();
+
+    // UserSettingsから表示名を取得（Hive）
+    final userSettings = await _ref.read(userSettingsProvider.future);
+    final settingsName = userSettings.userName;
+
+    // 名前の優先順位: Firestore → SharedPreferences → UserSettings → Auth.displayName → email → UID
+    final inviterName = (firestoreName?.isNotEmpty == true)
+        ? firestoreName!
+        : (prefsName?.isNotEmpty == true)
+            ? prefsName!
+            : (settingsName.isNotEmpty
+                ? settingsName
+                : (currentUser.displayName?.isNotEmpty == true
+                    ? currentUser.displayName!
+                    : (currentUser.email?.isNotEmpty == true
+                        ? currentUser.email!
+                        : currentUser.uid)));
+
+    Log.info('📤 [INVITER] Firestore.displayName: $firestoreName');
+    Log.info('📤 [INVITER] SharedPreferences.userName: $prefsName');
+    Log.info('📤 [INVITER] UserSettings.userName: $settingsName');
+    Log.info('📤 [INVITER] Auth.displayName: ${currentUser.displayName}');
+    Log.info('📤 [INVITER] Auth.email: ${currentUser.email}');
+    Log.info('📤 [INVITER] 最終決定した名前: $inviterName');
+
     // セキュリティキーを生成
     final securityKey = _securityService.generateSecurityKey();
     final invitationId = _securityService.generateInvitationId(SharedGroupId);
@@ -66,8 +110,7 @@ class QRInvitationService {
       'invitationId': invitationId,
       'inviterUid': currentUser.uid,
       'inviterEmail': currentUser.email ?? '',
-      'inviterDisplayName':
-          currentUser.displayName ?? currentUser.email ?? 'ユーザー',
+      'inviterDisplayName': inviterName,
       'shoppingListId': shoppingListId,
       'SharedGroupId': SharedGroupId,
       'groupName': groupName,
@@ -95,9 +138,7 @@ class QRInvitationService {
       'token': invitationId, // Invitationモデルのtokenフィールド用
       'groupId': SharedGroupId, // Invitationモデル用 (SharedGroupIdのエイリアス)
       'invitedBy': currentUser.uid, // Invitationモデル用
-      'inviterName': currentUser.displayName ??
-          currentUser.email ??
-          'ユーザー', // Invitationモデル用
+      'inviterName': inviterName, // Invitationモデル用（Firestoreプロファイルから取得した名前）
       'groupMemberUids':
           {groupOwnerUid, ...groupAllowedUids}.toList(), // 重複除去してグループメンバー全員のUID
       'createdAt': FieldValue.serverTimestamp(),
