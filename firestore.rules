@@ -127,7 +127,7 @@ service cloud.firestore {
         );
       }
 
-      // リストサブコレクション：グループメンバーがアクセス可能
+      // リストサブコレクション: グループメンバーがアクセス可能
       match /shoppingLists/{listId} {
         // 親グループのメンバー確認用関数
         function isGroupMember() {
@@ -141,6 +141,26 @@ service cloud.firestore {
         // 読み取り・作成・更新・削除: すべてグループメンバーなら許可
         allow read, create, update, delete: if isGroupMember();
       }
+    }
+
+    // 🔍 コレクショングループクエリ用ルール
+    // `collectionGroup('shoppingLists')` でのアクセスに対応
+    match /{path=**}/shoppingLists/{listId} {
+      // リストデータに含まれるgroupIdを使って親グループのメンバー確認
+      function isListOwnerOrMember() {
+        let list = resource.data;
+        let group = get(/databases/$(database)/documents/SharedGroups/$(list.groupId)).data;
+        return request.auth != null && (
+          group.ownerUid == request.auth.uid ||
+          request.auth.uid in group.allowedUid
+        );
+      }
+
+      // 読み取り: リストが所属するグループのメンバーなら許可
+      allow read: if isListOwnerOrMember();
+
+      // 作成・更新・削除はサブコレクションパスのルールで制御（コレクショングループクエリでは不要）
+      allow create, update, delete: if false;
     }
   }
 }
