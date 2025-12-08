@@ -420,14 +420,20 @@ class ShoppingListHeaderWidget extends ConsumerWidget {
                 Log.info(
                     '✅ リスト削除成功: ${listToDelete.listName} (${listToDelete.listId})');
 
-                // リスト一覧を更新
-                ref.invalidate(groupShoppingListsProvider);
-
                 // カレントリストをクリア（削除したリストが選択されていた場合）
                 final currentList = ref.read(currentListProvider);
                 if (currentList?.listId == listToDelete.listId) {
                   ref.read(currentListProvider.notifier).clearSelection();
                   Log.info('✅ カレントリスト選択をクリア');
+                }
+
+                // リスト一覧を更新して完了を待つ
+                ref.invalidate(groupShoppingListsProvider);
+                try {
+                  await ref.read(groupShoppingListsProvider.future);
+                  Log.info('✅ リスト一覧更新完了 - 削除後');
+                } catch (e) {
+                  Log.error('❌ リスト一覧更新エラー: $e');
                 }
 
                 if (!context.mounted) return;
