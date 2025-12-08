@@ -416,7 +416,8 @@ class ShoppingListHeaderWidget extends ConsumerWidget {
                 final repository = ref.read(shoppingListRepositoryProvider);
 
                 // リストを削除
-                await repository.deleteShoppingList(listToDelete.listId);
+                await repository.deleteShoppingList(
+                    listToDelete.groupId, listToDelete.listId);
                 Log.info(
                     '✅ リスト削除成功: ${listToDelete.listName} (${listToDelete.listId})');
 

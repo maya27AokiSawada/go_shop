@@ -37,7 +37,7 @@ abstract class ShoppingListRepository {
   Future<void> updateShoppingList(ShoppingList list);
 
   /// Delete a shopping list by listId
-  Future<void> deleteShoppingList(String listId);
+  Future<void> deleteShoppingList(String groupId, String listId);
   Future<void> deleteShoppingListsByGroupId(String groupId);
 
   /// Add item to a specific shopping list (by listId)
