@@ -60,6 +60,7 @@ dependencies:
   url_launcher: ^6.3.1
   crypto: ^3.0.3  # セキュリティキーのハッシュ化用
   flutter_dotenv: ^5.1.0  # 環境変数管理
+  package_info_plus: ^8.0.0  # アプリバージョン情報取得
 
   # QR Code
   qr_flutter: ^4.1.0
