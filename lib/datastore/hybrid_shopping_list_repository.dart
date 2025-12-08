@@ -460,7 +460,18 @@ class HybridShoppingListRepository implements ShoppingListRepository {
 
   @override
   Future<void> deleteShoppingList(String listId) async {
+    // Hiveから削除
     await _hiveRepo.deleteShoppingList(listId);
+
+    // Firestoreからも削除（オンライン時）
+    if (_firestoreRepo != null) {
+      try {
+        await _firestoreRepo!.deleteShoppingList(listId);
+        developer.log('🗑️ [HYBRID] リストをFirestoreから削除: $listId');
+      } catch (e) {
+        developer.log('❌ [HYBRID] Firestore削除エラー: $e');
+      }
+    }
   }
 
   @override
