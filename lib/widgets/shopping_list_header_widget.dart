@@ -213,6 +213,13 @@ class ShoppingListHeaderWidget extends ConsumerWidget {
           onPressed: () => _showCreateListDialog(context, ref),
           tooltip: '新しいリストを作成',
         ),
+        // リスト削除ボタン（現在のリストが選択されている場合のみ表示）
+        if (currentList != null)
+          IconButton(
+            icon: Icon(Icons.delete_outline, color: Colors.red.shade700),
+            onPressed: () => _showDeleteListDialog(context, ref, currentList),
+            tooltip: 'リストを削除',
+          ),
       ],
     );
   }
@@ -354,6 +361,91 @@ class ShoppingListHeaderWidget extends ConsumerWidget {
               }
             },
             child: const Text('作成'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteListDialog(
+      BuildContext context, WidgetRef ref, ShoppingList listToDelete) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('リストを削除'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('「${listToDelete.listName}」を削除しますか？'),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.warning_amber,
+                      color: Colors.red.shade700, size: 20),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'この操作は取り消せません',
+                      style:
+                          TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('キャンセル'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+
+              try {
+                final repository = ref.read(shoppingListRepositoryProvider);
+
+                // リストを削除
+                await repository.deleteShoppingList(listToDelete.listId);
+                Log.info(
+                    '✅ リスト削除成功: ${listToDelete.listName} (${listToDelete.listId})');
+
+                // リスト一覧を更新
+                ref.invalidate(groupShoppingListsProvider);
+
+                // カレントリストをクリア（削除したリストが選択されていた場合）
+                final currentList = ref.read(currentListProvider);
+                if (currentList?.listId == listToDelete.listId) {
+                  ref.read(currentListProvider.notifier).clearSelection();
+                  Log.info('✅ カレントリスト選択をクリア');
+                }
+
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('「${listToDelete.listName}」を削除しました')),
+                );
+              } catch (e, stackTrace) {
+                Log.error('❌ リスト削除エラー: $e', stackTrace);
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('リスト削除に失敗しました: $e')),
+                );
+              }
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('削除'),
           ),
         ],
       ),
