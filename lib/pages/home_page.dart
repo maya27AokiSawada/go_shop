@@ -587,7 +587,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
-    final syncStatus = ref.watch(firestoreSyncStatusProvider);
+    // syncStatusは使用しないため削除（AppBarに統合済み）
 
     return SafeArea(
       child: authState.when(
@@ -605,108 +605,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ステータス表示
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: Colors.green.shade200,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.check_circle,
-                        color: Colors.green,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'ログイン済み: ${user.email}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.green.shade800,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                // Firestore同期ステータス
-                if (syncStatus != 'idle') ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: syncStatus == 'syncing'
-                          ? Colors.orange.shade50
-                          : syncStatus == 'completed'
-                              ? Colors.green.shade50
-                              : Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: syncStatus == 'syncing'
-                            ? Colors.orange.shade200
-                            : syncStatus == 'completed'
-                                ? Colors.green.shade200
-                                : Colors.red.shade200,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          syncStatus == 'syncing'
-                              ? Icons.sync
-                              : syncStatus == 'completed'
-                                  ? Icons.check_circle
-                                  : Icons.error,
-                          color: syncStatus == 'syncing'
-                              ? Colors.orange
-                              : syncStatus == 'completed'
-                                  ? Colors.green
-                                  : Colors.red,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            syncStatus == 'syncing'
-                                ? 'Firestore同期中...'
-                                : syncStatus == 'completed'
-                                    ? 'Firestore同期完了'
-                                    : 'Firestore同期エラー',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: syncStatus == 'syncing'
-                                  ? Colors.orange.shade800
-                                  : syncStatus == 'completed'
-                                      ? Colors.green.shade800
-                                      : Colors.red.shade800,
-                            ),
-                          ),
-                        ),
-                        if (syncStatus == 'syncing')
-                          const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-
-                const SizedBox(height: 20),
+                // ステータス表示を削除（AppBarに統合済み）
 
                 // ニュース＆広告パネル
                 const NewsAndAdsPanelWidget(),

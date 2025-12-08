@@ -417,47 +417,8 @@ class GroupListWidget extends ConsumerWidget {
           );
         }
 
-        return Container(
-          margin: const EdgeInsets.only(top: 8),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.blue.shade50,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.blue.shade200),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.my_location, size: 16, color: Colors.blue.shade700),
-              const SizedBox(width: 8),
-              Text(
-                'カレント: ',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.blue.shade700,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  currentGroup.groupName,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.blue.shade800,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              Text(
-                '${currentGroup.members?.length ?? 0}人',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.blue.shade600,
-                ),
-              ),
-            ],
-          ),
-        );
+        // カレントグループ表示を削除（AppBarに統合済み）
+        return const SizedBox.shrink();
       },
       loading: () => const SizedBox.shrink(),
       error: (_, __) => const SizedBox.shrink(),
