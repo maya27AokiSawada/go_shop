@@ -61,11 +61,13 @@ class SharedGroupMember with _$SharedGroupMember {
 ### Environment Configuration
 Use `lib/flavors.dart` for environment switching:
 ```dart
-F.appFlavor = Flavor.dev;   // Hive only (local development)
+F.appFlavor = Flavor.dev;   // Firestore + Hive hybrid (development)
 F.appFlavor = Flavor.prod;  // Firestore + Hive hybrid (production)
 ```
 
 **Current Setting**: `Flavor.prod` - Firestore with Hive caching enabled
+
+**Important Change (2025-12-08)**: Both `dev` and `prod` flavors now use Firebase/Firestore. The distinction is primarily for debug banners and future feature flags, not for data layer switching.
 
 ## Critical Development Patterns
 

@@ -54,11 +54,11 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
 
     // Firebase Auth状態の監視を開始
     Log.info('🔍 [APP_INIT] Flavor check: ${F.appFlavor}');
-    if (F.appFlavor == Flavor.prod) {
+    if (F.appFlavor == Flavor.prod || F.appFlavor == Flavor.dev) {
       Log.info('🔍 [APP_INIT] Starting auth listener...');
       _startAuthListener();
     } else {
-      Log.info('⚠️ [APP_INIT] Skipping auth listener (not prod flavor)');
+      Log.info('⚠️ [APP_INIT] Skipping auth listener (not prod/dev flavor)');
     }
   }
 
