@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/page_index_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/app_mode_notifier_provider.dart';
+import '../providers/purchase_group_provider.dart';
 import '../pages/home_page.dart';
 import '../pages/purchase_group_page.dart';
 import '../pages/shopping_list_page_v2.dart';
@@ -10,6 +11,24 @@ import '../pages/settings_page.dart';
 import '../flavors.dart';
 import '../config/app_mode_config.dart';
 import '../utils/app_logger.dart';
+import '../widgets/common_app_bar.dart';
+
+/// SyncStatusからSyncStateを計算するヘルパー関数
+SyncState _getSyncState(SyncStatus syncStatus, bool isAuthenticated) {
+  if (!isAuthenticated) {
+    return SyncState.notLoggedIn;
+  }
+
+  switch (syncStatus) {
+    case SyncStatus.synced:
+      return SyncState.synced;
+    case SyncStatus.syncing:
+      return SyncState.syncing;
+    case SyncStatus.offline:
+    case SyncStatus.localOnly:
+      return SyncState.offline;
+  }
+}
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -21,6 +40,21 @@ class HomeScreen extends ConsumerWidget {
 
     AppLogger.info('🔍 [HomeScreen] build() called - pageIndex: $pageIndex');
 
+    // 認証状態を取得
+    final authState = ref.watch(authStateProvider);
+    final isAuthenticated = authState.when(
+      data: (user) => user != null,
+      loading: () => false,
+      error: (_, __) => false,
+    );
+
+    // 同期状態を取得
+    final syncStatus = ref.watch(syncStatusProvider);
+    final syncState = _getSyncState(syncStatus, isAuthenticated);
+
+    // 現在のグループを取得
+    final selectedGroup = ref.watch(selectedGroupProvider).value;
+
     final List<Widget> pages = [
       const HomePage(),
       const SharedGroupPage(),
@@ -28,7 +62,39 @@ class HomeScreen extends ConsumerWidget {
       const SettingsPage(),
     ];
 
+    // ページごとのAppBarを設定
+    PreferredSizeWidget? appBar;
+    switch (pageIndex) {
+      case 0: // ホーム画面
+        appBar = CommonAppBar(
+          syncState: syncState,
+          showUserName: true,
+        );
+        break;
+      case 1: // グループ画面
+        appBar = CommonAppBar(
+          syncState: syncState,
+          currentGroup: selectedGroup,
+          showGroupName: true,
+        );
+        break;
+      case 2: // リスト画面
+        appBar = CommonAppBar(
+          syncState: syncState,
+          currentGroup: selectedGroup,
+          showGroupName: true,
+        );
+        break;
+      case 3: // 設定画面
+        appBar = CommonAppBar(
+          title: '設定',
+          syncState: syncState,
+        );
+        break;
+    }
+
     return Scaffold(
+      appBar: appBar,
       body: pages[pageIndex],
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,

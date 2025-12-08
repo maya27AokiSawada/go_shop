@@ -67,7 +67,8 @@ class UserIdChangeHelper {
 
         // 1. グループデータを同期
         syncedGroups = await FirestoreGroupSyncService.syncGroupsOnSignIn();
-        Log.info('✅ [AUTO_CLEAR] Firestoreから${syncedGroups.length}件のグループをダウンロード');
+        Log.info(
+            '✅ [AUTO_CLEAR] Firestoreから${syncedGroups.length}件のグループをダウンロード');
 
         // 2. 取得したグループをHiveに保存
         if (syncedGroups.isNotEmpty) {
@@ -77,7 +78,8 @@ class UserIdChangeHelper {
               await groupBox.put(group.groupId, group);
               Log.info('📦 [AUTO_CLEAR] グループ「${group.groupName}」をHiveに保存');
             } catch (e) {
-              Log.warning('⚠️ [AUTO_CLEAR] グループ「${group.groupName}」のHive保存失敗: $e');
+              Log.warning(
+                  '⚠️ [AUTO_CLEAR] グループ「${group.groupName}」のHive保存失敗: $e');
             }
           }
           Log.info('✅ [AUTO_CLEAR] ${syncedGroups.length}件のグループをHiveに保存完了');
@@ -115,10 +117,10 @@ class UserIdChangeHelper {
       // ユーザーに通知
       if (mounted && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('新しいアカウントでサインインしました'),
             backgroundColor: Colors.blue,
-            duration: const Duration(seconds: 3),
+            duration: Duration(seconds: 3),
           ),
         );
       }
@@ -126,7 +128,7 @@ class UserIdChangeHelper {
       Log.error('❌ [AUTO_CLEAR] UID変更自動クリア処理エラー: $e');
       if (mounted && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('アカウント切り替え処理でエラーが発生しました'),
             backgroundColor: Colors.red,
           ),
