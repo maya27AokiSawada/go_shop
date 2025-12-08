@@ -441,10 +441,45 @@ Consumer(
 - **Property not found**: Verify `memberId` vs `memberID` consistency across codebase
 - **Default group not appearing**: Ensure `createDefaultGroup()` called after UID change data clear
 - **App mode UI not updating**: Wrap SegmentedButton in `Consumer` to watch `appModeNotifierProvider`
-- **Group/List sync delays**: Under investigation - check Firestore fetch time vs Hive save time
+- **List deletion not syncing**: Use `deleteShoppingList(groupId, listId)` with both parameters to avoid collection group query PERMISSION_DENIED
 
-## Known Issues (As of 2025-11-22)
+## Known Issues (As of 2025-12-08)
 - None currently
+
+## Recent Implementations (2025-12-08)
+
+### Shopping List Deletion Fix (Completed)
+**Problem**: Deleted lists remained in Firestore and weren't removed from other devices.
+
+**Root Cause**:
+- `FirestoreShoppingListRepository.deleteShoppingList()` used collection group query
+- `collectionGroup('shoppingLists').where('listId', isEqualTo: listId)` caused `PERMISSION_DENIED`
+- Firestore rules lacked collection group query permissions
+- Deletion never reached Firestore
+
+**Solution**:
+Changed method signature from `deleteShoppingList(String listId)` to `deleteShoppingList(String groupId, String listId)`
+
+**Modified Files**:
+- `lib/datastore/shopping_list_repository.dart`: Abstract method signature
+- `lib/datastore/firestore_shopping_list_repository.dart`: Direct path deletion
+  ```dart
+  await _collection(groupId).doc(listId).delete();
+  ```
+- `lib/datastore/hybrid_shopping_list_repository.dart`: Pass groupId to both repos
+- `lib/datastore/hive_shopping_list_repository.dart`: Signature change
+- `lib/datastore/firebase_shopping_list_repository.dart`: Signature change
+- `lib/widgets/shopping_list_header_widget.dart`: UI call updated
+- `lib/widgets/test_scenario_widget.dart`: Test call updated
+
+**Commit**: `a1aa067` - "fix: deleteShoppingListにgroupIdパラメータを追加"
+
+**Verification**:
+✅ Windows deletion → Firestore document removed
+✅ Android device instantly reflects deletion
+✅ Multiple device real-time sync confirmed
+
+---
 
 ## Recent Implementations (2025-11-22)
 
