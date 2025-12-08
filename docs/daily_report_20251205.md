@@ -1,8 +1,54 @@
-# 開発日報 2025-12-05
+# 開発日報 2025-12-05 〜 2025-12-08
 
 ## 作業内容
 
-### リスト作成後の自動選択機能実装（未完了）
+### 1. リスト削除機能の完全修正（2025-12-08 完了）
+
+**問題**: リスト削除後もFirestoreに残り、他端末でも削除が反映されない
+
+#### 問題の原因
+
+- `FirestoreShoppingListRepository.deleteShoppingList()` でコレクショングループクエリを使用
+- `collectionGroup('shoppingLists').where('listId', isEqualTo: listId)` が `PERMISSION_DENIED` エラー
+- Firestoreルールにコレクショングループ用のルールが未定義
+- → `getShoppingListById()` が失敗し、削除処理が実行されず
+
+#### 解決策
+
+**削除処理の引数を変更**: `deleteShoppingList(String listId)` → `deleteShoppingList(String groupId, String listId)`
+
+**変更ファイル**:
+
+1. `lib/datastore/shopping_list_repository.dart`: 抽象メソッドシグネチャ変更
+2. `lib/datastore/firestore_shopping_list_repository.dart`: 直接パス指定で削除
+
+   ```dart
+   await _collection(groupId).doc(listId).delete();
+   ```
+
+3. `lib/datastore/hybrid_shopping_list_repository.dart`: 両リポジトリに引数追加
+4. `lib/datastore/hive_shopping_list_repository.dart`: シグネチャ変更
+5. `lib/datastore/firebase_shopping_list_repository.dart`: シグネチャ変更
+6. `lib/widgets/shopping_list_header_widget.dart`: UI側呼び出し修正
+7. `lib/widgets/test_scenario_widget.dart`: テスト側呼び出し修正
+
+**コミット**: `a1aa067` - "fix: deleteShoppingListにgroupIdパラメータを追加"
+
+#### 動作確認結果
+
+✅ Windows端末でリスト削除 → Firestoreから削除成功
+✅ Android端末で即時反映確認（リストがドロップダウンから消える）
+✅ Firebase Console手動確認でもドキュメント削除を確認
+
+**効果**:
+
+- コレクショングループクエリ不要（PERMISSION_DENIEDエラー回避）
+- 削除処理が確実にFirestoreに到達
+- 複数デバイス間でリアルタイム同期
+
+---
+
+### 2. リスト作成後の自動選択機能実装（2025-12-05 未完了）
 
 **目的**: カレントグループでリストを作成した際、作成したリストが自動的にドロップダウンで選択された状態にする。
 
