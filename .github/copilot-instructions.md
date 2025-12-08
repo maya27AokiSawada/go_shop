@@ -1059,9 +1059,8 @@ Future<void> _loadUserName() async {
 2. サインイン時: Firebase Auth → SharedPreferences反映
 3. アプリ起動時: SharedPreferencesから自動ロード
 
-## Known Issues (As of 2025-12-06)
-- **リスト自動選択**: リスト作成後の自動選択が未検証（実装済み・ホットリロード済み）
-- **招待メンバー名表示**: Firestoreプロファイル取得実装済み・未検証
+## Known Issues (As of 2025-12-08)
+- None currently
 
 ## Recent Implementations (2025-12-06)
 
@@ -1103,7 +1102,7 @@ showDialog(
 
 **Verified**: ✅ 画像選択 → 手動入力 → JSON解析 → セキュリティ検証 → 招待受諾成功
 
-### 2. グループメンバー名表示問題の修正 ⚠️ 未検証
+### 2. グループメンバー名表示問題の修正 ✅
 **Problem**: 招待受諾成功後、グループメンバーリストに「ユーザー」と表示される
 
 **Root Cause**: `/users/{uid}/profile/profile`からユーザー名を取得していなかった
@@ -1170,14 +1169,14 @@ updatedMembers.add(
 );
 ```
 
-**Status**: 実装完了・ホットリロード済み・未検証
+**Status**: 実装完了・動作確認済み ✅
 
-**Next Test**:
-1. Android/Windowsの2デバイスで招待→受諾テスト
-2. グループメンバーリストで実際の名前が表示されるか確認
-3. Firestoreの`/users/{uid}/profile/profile`にdisplayNameが存在するか事前確認
+**Verification (2025-12-08)**:
+- ✅ 招待元側: グループメンバーリストに受諾ユーザーの名前が正しく表示
+- ✅ 受諾側: グループメンバーリストに受諾ユーザーの名前が正しく表示
+- ✅ Firestoreプロファイル取得が正常動作
 
-### 3. リスト作成後の自動選択機能 ⚠️ 未検証
+### 3. リスト作成後の自動選択機能 ✅
 **Problem**: リスト作成後、ドロップダウンで新しく作成したリストが自動選択されない
 
 **Root Cause**:
@@ -1204,12 +1203,12 @@ try {
 - 新しいリストがlists配列に含まれた状態で`_buildListDropdown`が再ビルド
 - `validValue`が正しく設定され、DropdownButtonに反映
 
-**Status**: 実装完了・ホットリロード済み・未検証
+**Status**: 実装完了・動作確認済み ✅
 
-**Next Test**:
-1. サークルグループ（または任意のグループ）で新しいリストを作成
-2. ログ確認: `🔍 [DEBUG] _buildListDropdown - validValue: {UUID}`
-3. UIで作成したリストがドロップダウンに選択された状態で表示されているか確認
+**Verification (2025-12-08)**:
+- ✅ リスト作成側: 新しいリストがドロップダウンで選択された状態
+- ✅ 共有されたユーザー側: 新しいリストがドロップダウンで選択された状態
+- ✅ リスト一覧更新完了待機処理が正常動作
 
 ## Recent Implementations (2025-12-04)
 
