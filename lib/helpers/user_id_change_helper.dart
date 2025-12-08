@@ -18,6 +18,125 @@ import '../services/shopping_list_migration_service.dart';
 import '../flavors.dart';
 
 class UserIdChangeHelper {
+  /// UID変更時の自動クリア処理（ダイアログなし）
+  /// 別アカウントでサインインした場合、前のユーザーのローカルデータを自動的にクリアする
+  static Future<void> handleUserIdChangeAutomatic({
+    required WidgetRef ref,
+    required BuildContext context,
+    required String newUserId,
+    required String userEmail,
+    required bool mounted,
+  }) async {
+    try {
+      Log.info('🗑️ [AUTO_CLEAR] UID変更検出 - 自動クリア開始');
+      Log.info('🗑️ [AUTO_CLEAR] 新ユーザー: $userEmail ($newUserId)');
+
+      // 仮設定UID（MockやLocalテスト用）の場合は処理をスキップ
+      if (_isTemporaryUid(newUserId)) {
+        Log.info('🔄 仮設定UID検出 - UID変更処理をスキップ: $newUserId');
+        return;
+      }
+
+      final userSettings = ref.read(userSettingsProvider.notifier);
+      final hiveService = ref.read(userSpecificHiveProvider);
+      final isWindows = Platform.isWindows;
+
+      // Hiveの全ボックスをクリア
+      Log.info('🗑️ [AUTO_CLEAR] Hiveローカルデータをクリア中...');
+      await _clearAllHiveBoxes(ref);
+
+      if (isWindows) {
+        // Windows版: 新ユーザー用のHiveデータベースに切り替え
+        await hiveService.initializeForUser(newUserId);
+      }
+
+      // プロバイダーを無効化する前に少し待機（Hive DBの完全なクリアを保証）
+      await Future.delayed(const Duration(milliseconds: 300));
+      Log.info('⏱️ [AUTO_CLEAR] Hiveクリア後の待機完了');
+
+      // 安全にプロバイダーを無効化（遅延実行で順次）
+      await _invalidateProvidersSequentially(ref);
+
+      // プロバイダー再構築を待機
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      // Firestoreから新ユーザーのデータをダウンロード（本番環境のみ）
+      List<SharedGroup> syncedGroups = [];
+      if (F.appFlavor == Flavor.prod) {
+        Log.info('🔄 [AUTO_CLEAR] 新ユーザーのFirestoreデータをダウンロード中...');
+
+        // 1. グループデータを同期
+        syncedGroups = await FirestoreGroupSyncService.syncGroupsOnSignIn();
+        Log.info('✅ [AUTO_CLEAR] Firestoreから${syncedGroups.length}件のグループをダウンロード');
+
+        // 2. 取得したグループをHiveに保存
+        if (syncedGroups.isNotEmpty) {
+          final groupBox = ref.read(SharedGroupBoxProvider);
+          for (final group in syncedGroups) {
+            try {
+              await groupBox.put(group.groupId, group);
+              Log.info('📦 [AUTO_CLEAR] グループ「${group.groupName}」をHiveに保存');
+            } catch (e) {
+              Log.warning('⚠️ [AUTO_CLEAR] グループ「${group.groupName}」のHive保存失敗: $e');
+            }
+          }
+          Log.info('✅ [AUTO_CLEAR] ${syncedGroups.length}件のグループをHiveに保存完了');
+
+          // Hive保存後に必ずプロバイダーを無効化してUI更新
+          Log.info('🔄 [AUTO_CLEAR] Firestore同期完了 - プロバイダーを更新');
+          ref.invalidate(allGroupsProvider);
+          await Future.delayed(const Duration(milliseconds: 300));
+        }
+
+        // 3. 買い物リストデータを同期（既存グループのリストを取得）
+        // 注: 買い物リストはグループに紐づくため、グループ同期後に自動取得される
+        Log.info('✅ [AUTO_CLEAR] 買い物リストはグループに紐づいて自動取得');
+      }
+
+      // ユーザー設定を更新
+      await userSettings.updateUserId(newUserId);
+      Log.info('💾 [AUTO_CLEAR] 新UID保存完了: $newUserId');
+
+      // デフォルトグループの作成（Firestoreに同期済みグループがない場合）
+      if (syncedGroups.isEmpty) {
+        Log.info('🆕 [AUTO_CLEAR] デフォルトグループを作成');
+        final user = FirebaseAuth.instance.currentUser;
+        await ref.read(allGroupsProvider.notifier).createDefaultGroup(user);
+        Log.info('✅ [AUTO_CLEAR] デフォルトグループ作成完了');
+      }
+
+      // プロバイダーを最終更新
+      ref.invalidate(allGroupsProvider);
+      ref.invalidate(selectedGroupProvider);
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      Log.info('✅ [AUTO_CLEAR] UID変更自動クリア処理完了');
+
+      // ユーザーに通知
+      if (mounted && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('新しいアカウントでサインインしました'),
+            backgroundColor: Colors.blue,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      Log.error('❌ [AUTO_CLEAR] UID変更自動クリア処理エラー: $e');
+      if (mounted && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('アカウント切り替え処理でエラーが発生しました'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// UID変更時にダイアログを表示してユーザーに選択させる処理（旧メソッド）
+  /// @deprecated handleUserIdChangeAutomatic()を使用してください
   static Future<void> handleUserIdChange({
     required WidgetRef ref,
     required BuildContext context,

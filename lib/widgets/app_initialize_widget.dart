@@ -121,13 +121,11 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
       Log.info('🔍 [UID_WATCH] UID変更チェック結果: $hasChanged');
 
       if (hasChanged && mounted) {
-        Log.info('🚨 [UID_WATCH] UID変更検出 - ダイアログ表示');
+        Log.info('🚨 [UID_WATCH] UID変更検出 - 自動クリア実行');
 
-        // UID変更ダイアログを表示してユーザーに選択させる
-        // - 初期化: Hive削除 → 新UID保存
-        // - 引継ぎ: Hiveそのまま → 新UID保存（allowedUid追加でマージ）
-        // 注: UID保存はhandleUserIdChange内で実行される
-        await UserIdChangeHelper.handleUserIdChange(
+        // UID変更検出 → 自動的にローカルデータをクリア
+        // （別アカウントでサインインした場合、前のユーザーのデータを引き継がない）
+        await UserIdChangeHelper.handleUserIdChangeAutomatic(
           ref: ref,
           context: context,
           newUserId: currentUid,
