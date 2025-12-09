@@ -45,7 +45,13 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- AdMob App ID -->
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-9340455460401063~5345905994</string>
+	<!-- 位置情報権限（地域広告用：100km圏内の広告優先表示） -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>お近くの店舗情報や地域に関連した広告を表示するために位置情報を使用します</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>お近くの店舗情報や地域に関連した広告を表示するために位置情報を使用します</string>
 </dict>
 </plist>

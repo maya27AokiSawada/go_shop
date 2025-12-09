@@ -1309,7 +1309,7 @@ try {
 **Conclusion**: Current implementation correctly sets actual user names. The "ユーザー" fallback is only used when all retrieval methods fail.
 
 ### 4. AdMob Integration ✅
-**Purpose**: Implement production AdMob advertising.
+**Purpose**: Implement production AdMob advertising with location-based ad prioritization.
 
 #### AdMob App ID Configuration
 - **App ID**: Configured via `.env` file (`ADMOB_APP_ID`)
@@ -1320,12 +1320,40 @@ try {
 - **Ad Unit ID**: Configured via `.env` file (`ADMOB_BANNER_AD_UNIT_ID` or `ADMOB_TEST_BANNER_AD_UNIT_ID`)
 - **File**: `lib/services/ad_service.dart` (`_bannerAdUnitId`)
 
+#### Location-Based Ad Prioritization (Added: 2025-12-09) ✅
+**Feature**: Prioritize ads within 100km radius on Android/iOS devices
+
+**Implementation**:
+- **Package**: `geolocator: ^12.0.0`
+- **Permissions**:
+  - Android: `ACCESS_COARSE_LOCATION`, `ACCESS_FINE_LOCATION` in `AndroidManifest.xml`
+  - iOS: `NSLocationWhenInUseUsageDescription` in `Info.plist`
+- **Location Caching**: 1-hour cache to minimize battery drain
+- **Fallback**: Standard ads shown if location unavailable
+
+**Usage**:
+```dart
+final adService = ref.read(adServiceProvider);
+final bannerAd = await adService.createBannerAd(
+  size: AdSize.banner,
+  useLocation: true, // Enable location-based ads (100km radius)
+);
+```
+
+**Key Methods**:
+- `getCurrentLocation()`: Fetch device location with timeout (5 sec)
+- `_cacheLocation()`: Cache location for 1 hour
+- `_getCachedLocation()`: Retrieve cached location to reduce API calls
+
+**Privacy**: Location accuracy set to `LocationAccuracy.low` (city-level, sufficient for 100km radius)
+
 #### Home Page Banner Ad Implementation
 - **New Widget**: `HomeBannerAdWidget`
   - Hidden until ad loaded
   - White background with light gray border
   - "広告" label display
   - Automatic memory management (dispose)
+  - Location-based ad loading on Android/iOS
 
 - **Placement**: `lib/pages/home_page.dart`
   - Position: Between news panel and username panel
