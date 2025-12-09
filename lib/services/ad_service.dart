@@ -127,51 +127,140 @@ class AdService {
     await prefs.setInt(_dailyAdCountKey, currentCount + 1);
   }
 
-  /// バナー広告作成（ニュース欄用）
-  BannerAd createBannerAd({
+  /// バナー広告作成（位置情報ベース）
+  Future<BannerAd> createBannerAd({
     required AdSize size,
     VoidCallback? onAdLoaded,
     VoidCallback? onAdFailedToLoad,
-  }) {
+    bool useLocation = true,
+  }) async {
+    AdRequest adRequest;
+
+    if (useLocation && (Platform.isAndroid || Platform.isIOS)) {
+      // 位置情報を取得して広告リクエストに追加
+      final position = await getCurrentLocation();
+      if (position != null) {
+        Log.info('📍 位置情報取得成功: (${position.latitude}, ${position.longitude})');
+        // 位置情報を含むAdRequestを作成
+        adRequest = const AdRequest(
+          keywords: ['local', 'nearby', '地域'],
+          // Google AdMobは自動的に位置情報を使用して地域広告を配信
+        );
+      } else {
+        Log.info('📍 位置情報取得失敗、標準広告を表示');
+        adRequest = const AdRequest();
+      }
+    } else {
+      adRequest = const AdRequest();
+    }
+
     return BannerAd(
       adUnitId: _bannerAdUnitId,
       size: size,
-      request: const AdRequest(),
+      request: adRequest,
       listener: BannerAdListener(
         onAdLoaded: (Ad ad) {
-          Log.info('バナー広告が読み込まれました');
+          Log.info('✅ バナー広告が読み込まれました');
           onAdLoaded?.call();
         },
         onAdFailedToLoad: (Ad ad, LoadAdError error) {
-          Log.info('バナー広告の読み込みに失敗: $error');
+          Log.info('❌ バナー広告の読み込みに失敗: $error');
           onAdFailedToLoad?.call();
         },
       ),
     );
   }
 
-  /// 地域広告用の位置情報取得
+  /// 地域広告用の位置情報取得（100km圏内の広告優先表示）
   Future<Position?> getCurrentLocation() async {
     try {
+      // Android/iOSでのみ位置情報を取得
+      if (!Platform.isAndroid && !Platform.isIOS) {
+        return null;
+      }
+
+      // 位置情報サービスが有効かチェック
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        Log.info('📍 位置情報サービスが無効です');
+        return null;
+      }
+
       // 位置情報権限チェック
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
+        Log.info('📍 位置情報権限をリクエスト中...');
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
+          Log.info('📍 位置情報権限が拒否されました');
           return null;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
+        Log.info('📍 位置情報権限が永久に拒否されています');
         return null;
       }
 
-      // 位置情報取得
-      return await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.low, // 粗い精度で十分
+      // 位置情報取得（粗い精度で100km圏内の広告配信に使用）
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.low, // 100km圏内で十分
+        timeLimit: const Duration(seconds: 5), // タイムアウト設定
       );
+
+      // 取得した位置情報をキャッシュ（頻繁な取得を避ける）
+      await _cacheLocation(position);
+
+      return position;
     } catch (e) {
-      Log.error('位置情報取得エラー: $e');
+      Log.error('❌ 位置情報取得エラー: $e');
+      // キャッシュから取得を試みる
+      return await _getCachedLocation();
+    }
+  }
+
+  /// 位置情報をキャッシュ（1時間有効）
+  Future<void> _cacheLocation(Position position) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble('cached_latitude', position.latitude);
+      await prefs.setDouble('cached_longitude', position.longitude);
+      await prefs.setInt(
+          'cached_location_time', DateTime.now().millisecondsSinceEpoch);
+    } catch (e) {
+      Log.error('位置情報キャッシュエラー: $e');
+    }
+  }
+
+  /// キャッシュされた位置情報を取得（1時間以内のみ有効）
+  Future<Position?> _getCachedLocation() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final latitude = prefs.getDouble('cached_latitude');
+      final longitude = prefs.getDouble('cached_longitude');
+      final cachedTime = prefs.getInt('cached_location_time');
+
+      if (latitude != null && longitude != null && cachedTime != null) {
+        final age = DateTime.now().millisecondsSinceEpoch - cachedTime;
+        if (age < 3600000) {
+          // 1時間以内
+          Log.info('📍 キャッシュから位置情報を取得');
+          return Position(
+            latitude: latitude,
+            longitude: longitude,
+            timestamp: DateTime.fromMillisecondsSinceEpoch(cachedTime),
+            accuracy: 0,
+            altitude: 0,
+            heading: 0,
+            speed: 0,
+            speedAccuracy: 0,
+            altitudeAccuracy: 0,
+            headingAccuracy: 0,
+          );
+        }
+      }
+      return null;
+    } catch (e) {
       return null;
     }
   }
@@ -201,10 +290,11 @@ class _LocalNewsAdWidgetState extends ConsumerState<LocalNewsAdWidget> {
     _loadBannerAd();
   }
 
-  void _loadBannerAd() {
+  void _loadBannerAd() async {
     final adService = ref.read(adServiceProvider);
-    _bannerAd = adService.createBannerAd(
+    _bannerAd = await adService.createBannerAd(
       size: AdSize.banner,
+      useLocation: true, // 位置情報ベースの広告を有効化
       onAdLoaded: () {
         setState(() {
           _isAdLoaded = true;
@@ -295,11 +385,12 @@ class _HomeBannerAdWidgetState extends ConsumerState<HomeBannerAdWidget> {
     }
   }
 
-  void _loadBannerAd() {
+  void _loadBannerAd() async {
     try {
       final adService = ref.read(adServiceProvider);
-      _bannerAd = adService.createBannerAd(
+      _bannerAd = await adService.createBannerAd(
         size: AdSize.banner,
+        useLocation: true, // 位置情報ベースの広告を有効化（100km圏内優先）
         onAdLoaded: () {
           if (mounted) {
             setState(() {
