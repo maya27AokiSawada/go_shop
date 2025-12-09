@@ -1321,7 +1321,7 @@ try {
 - **File**: `lib/services/ad_service.dart` (`_bannerAdUnitId`)
 
 #### Location-Based Ad Prioritization (Added: 2025-12-09) ✅
-**Feature**: Prioritize ads within 100km radius on Android/iOS devices
+**Feature**: Prioritize ads within 30km radius on Android/iOS devices
 
 **Implementation**:
 - **Package**: `geolocator: ^12.0.0`
@@ -1330,13 +1330,14 @@ try {
   - iOS: `NSLocationWhenInUseUsageDescription` in `Info.plist`
 - **Location Caching**: 1-hour cache to minimize battery drain
 - **Fallback**: Standard ads shown if location unavailable
+- **Target Range**: 30km radius (approximately 20-30 minutes by car)
 
 **Usage**:
 ```dart
 final adService = ref.read(adServiceProvider);
 final bannerAd = await adService.createBannerAd(
   size: AdSize.banner,
-  useLocation: true, // Enable location-based ads (100km radius)
+  useLocation: true, // Enable location-based ads (30km radius)
 );
 ```
 
@@ -1345,7 +1346,7 @@ final bannerAd = await adService.createBannerAd(
 - `_cacheLocation()`: Cache location for 1 hour
 - `_getCachedLocation()`: Retrieve cached location to reduce API calls
 
-**Privacy**: Location accuracy set to `LocationAccuracy.low` (city-level, sufficient for 100km radius)
+**Privacy**: Location accuracy set to `LocationAccuracy.low` (city-level, sufficient for 30km radius)
 
 #### Home Page Banner Ad Implementation
 - **New Widget**: `HomeBannerAdWidget`
