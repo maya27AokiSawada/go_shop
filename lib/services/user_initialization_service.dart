@@ -113,7 +113,8 @@ class UserInitializationService {
       }
 
       final defaultGroupId = user.uid;
-      Log.info('🔍 [INIT] デフォルトグループID: $defaultGroupId');
+      Log.info(
+          '🔍 [INIT] デフォルトグループID: ${AppLogger.maskGroupId(defaultGroupId, currentUserId: user.uid)}');
 
       final hiveRepository = _ref.read(hiveSharedGroupRepositoryProvider);
 
@@ -201,7 +202,8 @@ class UserInitializationService {
 
       // STEP2-2: デフォルトグループが存在しない場合は作成
       if (!defaultGroupExists) {
-        Log.info('🆕 [INIT] デフォルトグループを作成: $defaultGroupId');
+        Log.info(
+            '🆕 [INIT] デフォルトグループを作成: ${AppLogger.maskGroupId(defaultGroupId, currentUserId: user.uid)}');
 
         try {
           final groupNotifier = _ref.read(allGroupsProvider.notifier);
@@ -247,7 +249,8 @@ class UserInitializationService {
   /// Firestoreのユーザープロフィールとローカルのプリファレンスを同期
   Future<void> _syncUserProfile(User user) async {
     try {
-      Log.info('🔄 [PROFILE SYNC] ユーザープロフィール同期開始: UID=${user.uid}');
+      Log.info(
+          '🔄 [PROFILE SYNC] ユーザープロフィール同期開始: UID=${AppLogger.maskUserId(user.uid)}');
 
       final firestore = FirebaseFirestore.instance;
       final profileDoc = firestore
@@ -272,7 +275,7 @@ class UserInitializationService {
 
       Log.info(
           '📊 [PROFILE SYNC] Firestore: ${firestoreData != null ? firestoreData['userName'] : 'なし'}');
-      Log.info('📊 [PROFILE SYNC] Local: $localUserName');
+      Log.info('📊 [PROFILE SYNC] Local: ${AppLogger.maskName(localUserName)}');
 
       // 同期の優先順位: Firestore > Local
       String? finalUserName;
@@ -285,7 +288,8 @@ class UserInitializationService {
 
         // ローカルと異なる場合は更新
         if (finalUserName != localUserName) {
-          Log.info('📥 [PROFILE SYNC] Firestoreからローカルに同期: $finalUserName');
+          Log.info(
+              '📥 [PROFILE SYNC] Firestoreからローカルに同期: ${AppLogger.maskName(finalUserName)}');
           await UserPreferencesService.saveUserName(finalUserName);
         } else {
           Log.info('✅ [PROFILE SYNC] ユーザー名は既に同期済み');
@@ -293,7 +297,8 @@ class UserInitializationService {
       } else if (localUserName != null && localUserName.isNotEmpty) {
         // Firestoreにデータがなく、ローカルにある場合
         finalUserName = localUserName;
-        Log.info('📤 [PROFILE SYNC] ローカルからFirestoreに同期: $finalUserName');
+        Log.info(
+            '📤 [PROFILE SYNC] ローカルからFirestoreに同期: ${AppLogger.maskName(finalUserName)}');
         await profileDoc.set({
           'userName': finalUserName,
           'userEmail': finalUserEmail,
@@ -312,7 +317,8 @@ class UserInitializationService {
 
       if (finalUserId != localUserId) {
         await UserPreferencesService.saveUserId(finalUserId);
-        Log.info('💾 [PROFILE SYNC] ユーザーIDを保存: $finalUserId');
+        Log.info(
+            '💾 [PROFILE SYNC] ユーザーIDを保存: ${AppLogger.maskUserId(finalUserId)}');
       }
 
       Log.info('✅ [PROFILE SYNC] ユーザープロフィール同期完了');
@@ -389,7 +395,8 @@ class UserInitializationService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      Log.info('✅ [FIRESTORE] グループに削除フラグを設定: $groupId');
+      Log.info(
+          '✅ [FIRESTORE] グループに削除フラグを設定: ${AppLogger.maskGroupId(groupId)}');
     } catch (e) {
       Log.error('❌ [FIRESTORE] 削除フラグ設定エラー: $e');
       rethrow;
@@ -494,7 +501,7 @@ class UserInitializationService {
 
     try {
       Log.info('⬇️ [SYNC] Firestore→Hive同期開始');
-      Log.info('🔑 [SYNC] ユーザーUID: ${user.uid}');
+      Log.info('🔑 [SYNC] ユーザーUID: ${AppLogger.maskUserId(user.uid)}');
       Log.info('📧 [SYNC] ユーザーEmail: ${user.email}');
 
       final firestore = FirebaseFirestore.instance;
@@ -504,7 +511,8 @@ class UserInitializationService {
 
       Log.info('🔍 [SYNC] Firestoreクエリ実行中...');
       Log.info('   collection: SharedGroups');
-      Log.info('   where: allowedUid arrayContains ${user.uid}');
+      Log.info(
+          '   where: allowedUid arrayContains ${AppLogger.maskUserId(user.uid)}');
 
       final snapshot =
           await SharedGroupsRef.where('allowedUid', arrayContains: user.uid)
@@ -514,7 +522,8 @@ class UserInitializationService {
 
       // クエリ結果がない場合、全SharedGroupsを確認
       if (snapshot.docs.isEmpty) {
-        Log.warning('⚠️ [SYNC] allowedUid=${user.uid} のグループが見つかりません');
+        Log.warning(
+            '⚠️ [SYNC] allowedUid=${AppLogger.maskUserId(user.uid)} のグループが見つかりません');
         Log.info('🔍 [SYNC] 全SharedGroupsをチェック...');
 
         final allSnapshot = await SharedGroupsRef.get();
@@ -524,7 +533,9 @@ class UserInitializationService {
           final data = doc.data();
           Log.info('  - ID: ${doc.id}');
           Log.info('    groupName: ${data['groupName']}');
-          Log.info('    allowedUid: ${data['allowedUid']}');
+          final allowedUidList = data['allowedUid'] as List<dynamic>?;
+          Log.info(
+              '    allowedUid: ${allowedUidList?.map((uid) => AppLogger.maskUserId(uid.toString())).toList() ?? []}');
           Log.info('    ownerUid: ${data['ownerUid']}');
         }
       }
@@ -686,7 +697,8 @@ class UserInitializationService {
 
           Log.info('🔍 [SYNC] グループ同期: ${group.groupName}');
           Log.info('   groupId: ${group.groupId}');
-          Log.info('   allowedUid: ${group.allowedUid}');
+          Log.info(
+              '   allowedUid: ${group.allowedUid.map((uid) => AppLogger.maskUserId(uid)).toList()}');
           Log.info('   ownerUid: ${group.ownerUid}');
 
           // 🔥 CRITICAL FIX: Hiveにのみ保存（Firestoreへの逆書き込みを防ぐ）

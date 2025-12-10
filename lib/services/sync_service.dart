@@ -75,13 +75,14 @@ class SyncService {
   /// 通知受信時などに使用
   Future<bool> syncSpecificGroup(String groupId) async {
     try {
-      AppLogger.info('🔄 [SYNC] グループ同期開始: $groupId');
+      AppLogger.info('🔄 [SYNC] グループ同期開始: ${AppLogger.maskGroupId(groupId)}');
 
       final groupDoc =
           await _firestore.collection('SharedGroups').doc(groupId).get();
 
       if (!groupDoc.exists) {
-        AppLogger.warning('⚠️ [SYNC] グループが存在しません: $groupId');
+        AppLogger.warning(
+            '⚠️ [SYNC] グループが存在しません: ${AppLogger.maskGroupId(groupId)}');
         return false;
       }
 
@@ -89,7 +90,8 @@ class SyncService {
       final isDeleted = groupData['isDeleted'] as bool? ?? false;
 
       if (isDeleted) {
-        AppLogger.info('🗑️ [SYNC] 削除済みグループ: $groupId');
+        AppLogger.info(
+            '🗑️ [SYNC] 削除済みグループ: ${AppLogger.maskGroupId(groupId)}');
         await _repository.deleteGroup(groupId);
         return true;
       }
@@ -97,10 +99,12 @@ class SyncService {
       final group = SharedGroup.fromJson(groupData);
       await _repository.updateGroup(groupId, group);
 
-      AppLogger.info('✅ [SYNC] グループ同期完了: ${group.groupName}');
+      AppLogger.info(
+          '✅ [SYNC] グループ同期完了: ${AppLogger.maskGroup(group.groupName, group.groupId)}');
       return true;
     } catch (e) {
-      AppLogger.error('❌ [SYNC] グループ同期エラー ($groupId): $e');
+      AppLogger.error(
+          '❌ [SYNC] グループ同期エラー (${AppLogger.maskGroupId(groupId)}): $e');
       return false;
     }
   }
@@ -114,7 +118,8 @@ class SyncService {
     }
 
     try {
-      AppLogger.info('⬆️ [SYNC] グループをFirestoreにアップロード: ${group.groupName}');
+      AppLogger.info(
+          '⬆️ [SYNC] グループをFirestoreにアップロード: ${AppLogger.maskGroup(group.groupName, group.groupId)}');
 
       await _firestore.collection('SharedGroups').doc(group.groupId).set({
         'groupId': group.groupId,
@@ -137,10 +142,12 @@ class SyncService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      AppLogger.info('✅ [SYNC] アップロード完了: ${group.groupName}');
+      AppLogger.info(
+          '✅ [SYNC] アップロード完了: ${AppLogger.maskGroup(group.groupName, group.groupId)}');
       return true;
     } catch (e) {
-      AppLogger.error('❌ [SYNC] アップロード失敗: ${group.groupName}, $e');
+      AppLogger.error(
+          '❌ [SYNC] アップロード失敗: ${AppLogger.maskGroup(group.groupName, group.groupId)}, $e');
       return false;
     }
   }
@@ -158,7 +165,8 @@ class SyncService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      AppLogger.info('✅ [SYNC] グループに削除フラグを設定: $groupId');
+      AppLogger.info(
+          '✅ [SYNC] グループに削除フラグを設定: ${AppLogger.maskGroupId(groupId)}');
       return true;
     } catch (e) {
       AppLogger.error('❌ [SYNC] 削除フラグ設定エラー: $e');

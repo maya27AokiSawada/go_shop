@@ -14,7 +14,7 @@ class UserNameManagementService {
   static Future<bool> saveUserName(String userName, WidgetRef ref) async {
     return await ErrorHandler.handleAsync(
           operation: () async {
-            Log.info('💾 ユーザー名保存開始: $userName');
+            Log.info('💾 ユーザー名保存開始: ${AppLogger.maskName(userName)}');
             await ref
                 .read(userNameNotifierProvider.notifier)
                 .setUserName(userName);
@@ -35,7 +35,8 @@ class UserNameManagementService {
   }) async {
     return ErrorHandler.handleAsync<String>(
       operation: () async {
-        Log.info('🔄 ユーザー名復帰開始: UID=$userId, Email=$userEmail');
+        Log.info(
+            '🔄 ユーザー名復帰開始: UID=${AppLogger.maskUserId(userId)}, Email=${AppLogger.maskName(userEmail)}');
 
         // 1. SharedPreferencesから復帰
         final prefsName = await UserPreferencesService.getUserName();
@@ -119,7 +120,8 @@ class UserNameManagementService {
   }) async {
     await ErrorHandler.handleAsync(
       operation: () async {
-        Log.info('🌍 全グループのユーザー名更新開始: 名前="$newUserName", メール="$userEmail"');
+        Log.info(
+            '🌍 全グループのユーザー名更新開始: 名前="${AppLogger.maskName(newUserName)}", メール="${AppLogger.maskName(userEmail)}"');
 
         int updatedCount = 0;
 

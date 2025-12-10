@@ -47,7 +47,8 @@ class SelectedGroupNotifier extends AsyncNotifier<SharedGroup?> {
       );
       final group = await repository.getGroupById(selectedGroupId);
       final fixedGroup = await _fixLegacyMemberRoles(group, repository);
-      AppLogger.info('🔄 [SELECTED GROUP] グループロード完了: ${fixedGroup.groupName}');
+      AppLogger.info(
+          '🔄 [SELECTED GROUP] グループロード完了: ${AppLogger.maskGroup(fixedGroup.groupName, fixedGroup.groupId)}');
       return fixedGroup;
     } catch (e, stackTrace) {
       AppLogger.error('❌ [SELECTED GROUP] ビルドエラー: $e');
@@ -79,7 +80,8 @@ class SelectedGroupNotifier extends AsyncNotifier<SharedGroup?> {
       (member) => member.memberId == currentUserId,
     );
 
-    Log.info('🔧 [LEGACY FIX] currentUserId: $currentUserId');
+    Log.info(
+        '🔧 [LEGACY FIX] currentUserId: ${AppLogger.maskUserId(currentUserId)}');
     Log.info('🔧 [LEGACY FIX] hasCurrentUser in group: $hasCurrentUser');
 
     // 現在のユーザーがメンバーリストにいない場合は、オーナーのmemberIdを更新
@@ -537,7 +539,8 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
           final storedName = await UserPreferencesService.getUserName();
           if (storedName != null && storedName.isNotEmpty) {
             userName = storedName;
-            Log.info('✅ [CREATE GROUP] SharedPreferencesからユーザー名取得: $userName');
+            Log.info(
+                '✅ [CREATE GROUP] SharedPreferencesからユーザー名取得: ${AppLogger.maskName(userName)}');
           }
         } catch (e) {
           Log.warning('⚠️ [CREATE GROUP] SharedPreferences取得エラー: $e');
@@ -572,10 +575,12 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
           userName = currentUser.displayName ??
               currentUser.email?.split('@')[0] ??
               'ユーザー';
-          Log.info('✅ [CREATE GROUP] Firebase Auth displayNameから取得: $userName');
+          Log.info(
+              '✅ [CREATE GROUP] Firebase Auth displayNameから取得: ${AppLogger.maskName(userName)}');
         }
 
-        Log.info('🆕 [CREATE GROUP] サインイン済みユーザー: $userName ($userEmail)');
+        Log.info(
+            '🆕 [CREATE GROUP] サインイン済みユーザー: ${AppLogger.maskName(userName)} (${AppLogger.maskName(userEmail)})');
       } else {
         // 未サインインユーザーの場合
         // SharedPreferencesから直接取得（UserPreferencesService使用）
@@ -592,7 +597,8 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
           userName = 'ゲスト$timestamp';
           userEmail = 'guest_$timestamp@local.app';
         }
-        Log.info('🆕 [CREATE GROUP] 未サインインユーザー: $userName ($userEmail)');
+        Log.info(
+            '🆕 [CREATE GROUP] 未サインインユーザー: ${AppLogger.maskName(userName)} (${AppLogger.maskName(userEmail)})');
       }
 
       // オーナーメンバーを作成
@@ -697,7 +703,8 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
 
       // デフォルトグループIDはユーザーのuidをそのまま使用
       final defaultGroupId = user?.uid ?? 'local_default';
-      Log.info('🆔 [CREATE DEFAULT] グループID: $defaultGroupId');
+      Log.info(
+          '🆔 [CREATE DEFAULT] グループID: ${AppLogger.maskGroupId(defaultGroupId, currentUserId: user?.uid)}');
 
       // プリファレンスからユーザー名を取得
       String displayName = 'ユーザー';
@@ -735,7 +742,8 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
         }
       }
 
-      Log.info('👤 [CREATE DEFAULT] 最終決定ユーザー名: $displayName');
+      Log.info(
+          '👤 [CREATE DEFAULT] 最終決定ユーザー名: ${AppLogger.maskName(displayName)}');
 
       // メールアドレスをSharedPreferencesに保存
       if (user?.email != null && user!.email!.isNotEmpty) {
@@ -944,7 +952,8 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
           '🔄 [SYNC DEFAULT] 既存グループ同期 (syncStatus: ${existingGroup.syncStatus})');
 
       // 🔧 CRITICAL FIX: Hiveのallowedとmemberをユーザー現在UIDに強制修正
-      Log.info('🔧 [SYNC] allowedUid修正前: ${existingGroup.allowedUid}');
+      Log.info(
+          '🔧 [SYNC] allowedUid修正前: ${existingGroup.allowedUid.map((uid) => AppLogger.maskUserId(uid)).toList()}');
 
       // オーナーメンバーのmemberIdを修正
       final correctedMembers = existingGroup.members?.map((member) {
@@ -965,7 +974,8 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
         members: correctedMembers, // memberIdも修正
       );
 
-      Log.info('✅ [SYNC] allowedUid修正後: ${syncedGroup.allowedUid}');
+      Log.info(
+          '✅ [SYNC] allowedUid修正後: ${syncedGroup.allowedUid.map((uid) => AppLogger.maskUserId(uid)).toList()}');
 
       // まずHiveに保存（キャッシュを正しい値に更新）
       await hiveRepository.saveGroup(syncedGroup);
@@ -1117,7 +1127,8 @@ class SelectedGroupIdNotifier extends StateNotifier<String?> {
   }
 
   Future<void> selectGroup(String groupId) async {
-    Log.info('📋 [SELECTED_GROUP_ID] グループ選択: $groupId');
+    Log.info(
+        '📋 [SELECTED_GROUP_ID] グループ選択: ${AppLogger.maskGroupId(groupId)}');
     state = groupId;
 
     try {

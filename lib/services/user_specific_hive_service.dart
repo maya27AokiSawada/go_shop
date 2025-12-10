@@ -112,11 +112,13 @@ class UserSpecificHiveService {
 
     // 仮設定UIDまたは無効UIDの場合はデフォルトHiveを使用
     if (targetUserId == null || _isTemporaryUid(targetUserId)) {
-      Log.info('🔄 有効なUID未発見（${targetUserId ?? "null"}） - デフォルトHiveを使用');
+      Log.info(
+          '🔄 有効なUID未発見（${AppLogger.maskUserId(targetUserId ?? "null")}） - デフォルトHiveを使用');
       return initializeForDefaultUser();
     }
 
-    Log.info('🗂️ Initializing Hive for user: $targetUserId');
+    Log.info(
+        '🗂️ Initializing Hive for user: ${AppLogger.maskUserId(targetUserId)}');
 
     // 既存のinitializeForUserを利用
     await initializeForUser(targetUserId);
@@ -124,13 +126,15 @@ class UserSpecificHiveService {
     // 使用UIDを保存（仮設定UIDでない場合のみ）
     await saveLastUsedUid(targetUserId);
 
-    Log.info('✅ Hive initialized for Windows user: $targetUserId');
+    Log.info(
+        '✅ Hive initialized for Windows user: ${AppLogger.maskUserId(targetUserId)}');
   }
 
   /// ユーザー固有のHiveデータベースを初期化
   Future<void> initializeForUser(String userId) async {
     if (_currentUserId == userId && _isInitialized) {
-      Log.info('✅ Already initialized for user: $userId');
+      Log.info(
+          '✅ Already initialized for user: ${AppLogger.maskUserId(userId)}');
       return;
     }
 
@@ -157,9 +161,11 @@ class UserSpecificHiveService {
       _currentUserId = userId;
       _isInitialized = true;
 
-      Log.info('✅ Hive initialized successfully for user: $userId');
+      Log.info(
+          '✅ Hive initialized successfully for user: ${AppLogger.maskUserId(userId)}');
     } catch (e) {
-      Log.error('❌ Failed to initialize Hive for user $userId: $e');
+      Log.error(
+          '❌ Failed to initialize Hive for user ${AppLogger.maskUserId(userId)}: $e');
       rethrow;
     }
   }

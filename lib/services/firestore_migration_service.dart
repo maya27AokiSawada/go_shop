@@ -32,7 +32,8 @@ class FirestoreDataMigrationService {
 
   /// ユーザーのグループを旧構造から新構造に移行
   Future<void> _migrateUserGroupsToNewStructure(String userId) async {
-    AppLogger.info('🔄 [MIGRATION] ユーザー $userId のグループマイグレーション開始');
+    AppLogger.info(
+        '🔄 [MIGRATION] ユーザー ${AppLogger.maskUserId(userId)} のグループマイグレーション開始');
 
     // 1. 旧構造からグループデータを取得
     final oldGroupsRef =
@@ -63,8 +64,7 @@ class FirestoreDataMigrationService {
         final group = _convertOldGroupData(groupData, groupId);
 
         // 新構造: /SharedGroups/{groupId} にグループデータを保存
-        final newGroupRef =
-            _firestore.collection('SharedGroups').doc(groupId);
+        final newGroupRef = _firestore.collection('SharedGroups').doc(groupId);
         batch.set(newGroupRef, _groupToFirestore(group));
 
         // 新構造: 全メンバーのメンバーシップを作成
@@ -100,8 +100,7 @@ class FirestoreDataMigrationService {
   }
 
   /// 旧構造のデータをSharedGroupに変換
-  SharedGroup _convertOldGroupData(
-      Map<String, dynamic> data, String groupId) {
+  SharedGroup _convertOldGroupData(Map<String, dynamic> data, String groupId) {
     try {
       // 旧データから必要な情報を抽出
       final groupName = data['groupName'] as String? ?? 'Unnamed Group';

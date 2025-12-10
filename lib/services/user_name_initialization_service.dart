@@ -29,10 +29,10 @@ class UserNameInitializationService {
 
     // 設定から現在のユーザー名を確認
     final currentUserName = await UserPreferencesService.getUserName();
-    Log.info('👤 現在のユーザー名（設定から）: $currentUserName');
+    Log.info('👤 現在のユーザー名（設定から）: ${AppLogger.maskName(currentUserName)}');
 
     if (currentUserName != null && currentUserName.isNotEmpty) {
-      Log.info('✅ ユーザー名が設定から復元されました: $currentUserName');
+      Log.info('✅ ユーザー名が設定から復元されました: ${AppLogger.maskName(currentUserName)}');
       return currentUserName;
     }
 
@@ -43,7 +43,8 @@ class UserNameInitializationService {
         await groupManagement.loadUserNameFromDefaultGroup();
 
     if (userNameFromGroup != null && userNameFromGroup.isNotEmpty) {
-      Log.info('✅ ユーザー名がグループから復元されました: $userNameFromGroup');
+      Log.info(
+          '✅ ユーザー名がグループから復元されました: ${AppLogger.maskName(userNameFromGroup)}');
       return userNameFromGroup;
     }
 
@@ -66,7 +67,7 @@ class UserNameInitializationService {
       return;
     }
 
-    Log.info('💾 ユーザー名保存開始: $userName');
+    Log.info('💾 ユーザー名保存開始: ${AppLogger.maskName(userName)}');
 
     try {
       // 1. SharedPreferences + Firestoreに保存
@@ -78,7 +79,7 @@ class UserNameInitializationService {
       await groupManagement.updateUserNameInAllGroups(userName, userEmail);
       Log.info('✅ 全グループのメンバー情報更新完了');
 
-      Log.info('✅ ユーザー名保存完了: $userName');
+      Log.info('✅ ユーザー名保存完了: ${AppLogger.maskName(userName)}');
     } catch (e) {
       Log.error('❌ ユーザー名保存エラー: $e');
       rethrow;

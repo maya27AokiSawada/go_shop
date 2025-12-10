@@ -1,11 +1,13 @@
 # Go Shop - AI Coding Agent Instructions
 
 ## Project Overview
-Go Shopは家族・グループ向けの買い物リスト共有Flutterアプリです。Firebase Auth（ユーザー認証）とCloud Firestore（データベース）を使用し、Hiveをローカルキャッシュとして併用するハイブリッド構成です。
+
+Go Shop は家族・グループ向けの買い物リスト共有 Flutter アプリです。Firebase Auth（ユーザー認証）と Cloud Firestore（データベース）を使用し、Hive をローカルキャッシュとして併用するハイブリッド構成です。
 
 ## Architecture & Key Components
 
 ### State Management - Riverpod Patterns
+
 ```dart
 // AsyncNotifierProvider pattern (primary)
 final SharedGroupProvider = AsyncNotifierProvider<SharedGroupNotifier, SharedGroup>(
@@ -27,12 +29,14 @@ final SharedGroupRepositoryProvider = Provider<SharedGroupRepository>((ref) {
 ⚠️ **Critical**: Riverpod Generator is currently disabled due to version conflicts. Use traditional Provider syntax only.
 
 ### Data Layer - Repository Pattern
+
 - **Abstract**: `lib/datastore/purchase_group_repository.dart`
-- **Hive Implementation**: `lib/datastore/hive_purchase_group_repository.dart` (dev環境)
-- **Firestore Implementation**: `lib/datastore/firestore_purchase_group_repository.dart` (prod環境)
-- **Sync Service**: `lib/services/sync_service.dart` - Firestore ⇄ Hive同期を一元管理
+- **Hive Implementation**: `lib/datastore/hive_purchase_group_repository.dart` (dev 環境)
+- **Firestore Implementation**: `lib/datastore/firestore_purchase_group_repository.dart` (prod 環境)
+- **Sync Service**: `lib/services/sync_service.dart` - Firestore ⇄ Hive 同期を一元管理
 
 Repository constructors must accept `Ref` for Riverpod integration:
+
 ```dart
 class HiveSharedGroupRepository implements SharedGroupRepository {
   final Ref _ref;
@@ -43,7 +47,9 @@ class HiveSharedGroupRepository implements SharedGroupRepository {
 ```
 
 ### Data Models - Freezed + Hive Integration
+
 Models use both `@freezed` and `@HiveType` annotations:
+
 ```dart
 @HiveType(typeId: 1)
 @freezed
@@ -59,7 +65,9 @@ class SharedGroupMember with _$SharedGroupMember {
 **Hive TypeIDs**: 0=SharedGroupRole, 1=SharedGroupMember, 2=SharedGroup, 3=ShoppingItem, 4=ShoppingList
 
 ### Environment Configuration
+
 Use `lib/flavors.dart` for environment switching:
+
 ```dart
 F.appFlavor = Flavor.dev;   // Firestore + Hive hybrid (development)
 F.appFlavor = Flavor.prod;  // Firestore + Hive hybrid (production)
@@ -72,6 +80,7 @@ F.appFlavor = Flavor.prod;  // Firestore + Hive hybrid (production)
 ## Critical Development Patterns
 
 ### Initialization Sequence
+
 ```dart
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -82,12 +91,14 @@ void main() async {
 ```
 
 ### Error-Prone Areas to Avoid
+
 1. **Property Naming**: Always use `memberId`, never `memberID`
 2. **Null Safety**: Guard against `SharedGroup.members` being null
 3. **Hive Box Access**: Ensure Boxes are opened in `_initializeHive()` before use
 4. **Riverpod Generator**: DO NOT use - causes build failures
 
 ### Build & Code Generation
+
 ```bash
 dart run build_runner build --delete-conflicting-outputs  # For *.g.dart files
 flutter analyze  # Check for compilation errors
@@ -98,19 +109,23 @@ Generated files: `*.g.dart` (Hive adapters), `*.freezed.dart` (Freezed classes)
 ## Development Workflows
 
 ### When Adding New Models
+
 1. Add both `@HiveType(typeId: X)` and `@freezed` annotations
 2. Register adapter in `main.dart`'s `_initializeHive()`
 3. Open corresponding Box in initialization
 4. Run code generation
 
 ### When Creating Providers
+
 - Use traditional syntax, avoid Generator
 - Follow `AsyncNotifierProvider` pattern for data state
 - Inject Repository via `Provider<Repository>` pattern
 - Access Hive Boxes through `ref.read(boxProvider)`
 
 ### Firebase Integration (Current Status)
+
 Firebase is **actively used** in production environment:
+
 - **Firebase Auth**: User authentication and session management
 - **Cloud Firestore**: Primary database for groups, lists, and items
 - **Hybrid Architecture**: Firestore (prod) + Hive cache for offline support
@@ -118,14 +133,18 @@ Firebase is **actively used** in production environment:
 - **Configuration**: `lib/firebase_options.dart` contains real credentials
 
 Development workflow:
+
 - `Flavor.dev`: Hive-only mode for fast local testing
 - `Flavor.prod`: Full Firestore integration with Hive fallback
 
 ### QR Invitation System
+
 **Single Source of Truth**: Use `qr_invitation_service.dart` only (旧招待システムは削除済み)
 
 #### Invitation Data Structure
+
 Firestore: `/invitations/{invitationId}`
+
 ```dart
 {
   'invitationId': String,  // Generated ID
@@ -148,13 +167,16 @@ Firestore: `/invitations/{invitationId}`
 ```
 
 #### Key Files
+
 - **Service**: `lib/services/qr_invitation_service.dart`
+
   - `createQRInvitationData()`: Create invitation in Firestore
   - `acceptQRInvitation()`: Process invitation acceptance
   - `_updateInvitationUsage()`: Increment currentUses, add to usedBy
   - `_validateInvitationSecurity()`: Validate with securityKey
 
 - **UI**: `lib/widgets/group_invitation_dialog.dart`
+
   - StreamBuilder for real-time invitation list
   - Display remainingUses (maxUses - currentUses)
   - QR code generation with `qr_flutter`
@@ -165,7 +187,9 @@ Firestore: `/invitations/{invitationId}`
   - Calls `acceptQRInvitation()` with invitationData
 
 #### Critical Patterns
+
 1. **Invitation Creation**:
+
    ```dart
    await _firestore.collection('invitations').doc(invitationId).set({
      ...invitationData,
@@ -176,6 +200,7 @@ Firestore: `/invitations/{invitationId}`
    ```
 
 2. **Usage Update** (Atomic):
+
    ```dart
    await _firestore.collection('invitations').doc(invitationId).update({
      'currentUses': FieldValue.increment(1),
@@ -185,6 +210,7 @@ Firestore: `/invitations/{invitationId}`
    ```
 
 3. **Security Validation**:
+
    ```dart
    final securityKey = providedKey ?? invitationData['securityKey'];
    if (!_securityService.validateSecurityKey(securityKey, storedKey)) {
@@ -203,22 +229,27 @@ Firestore: `/invitations/{invitationId}`
    ```
 
 #### Invitation Model Integration
+
 - `lib/models/invitation.dart` provides:
   - `remainingUses`: getter for (maxUses - currentUses)
   - `isValid`: checks !isExpired && !isMaxUsesReached
   - `isMaxUsesReached`: currentUses >= maxUses
 
 ⚠️ **DELETED FILES** (Do not reference):
+
 - ~~`invitation_repository.dart`~~
 - ~~`firestore_invitation_repository.dart`~~
 - ~~`invitation_provider.dart`~~
 - ~~`invitation_management_dialog.dart`~~
 
 ### Default Group System (Updated: 2025-11-17)
+
 **デフォルトグループ** = ユーザー専用のプライベートグループ
 
 #### Identification Rules
+
 **統一ヘルパー使用必須**: `lib/utils/group_helpers.dart`
+
 ```dart
 bool isDefaultGroup(SharedGroup group, User? currentUser) {
   // Legacy support
@@ -232,18 +263,22 @@ bool isDefaultGroup(SharedGroup group, User? currentUser) {
 ```
 
 **判定条件**:
+
 1. `groupId == 'default_group'` (レガシー対応)
 2. `groupId == user.uid` (正式仕様)
 
 #### Key Characteristics
+
 - **groupId**: `user.uid` (ユーザー固有)
-- **groupName**: `{userName}グループ` (例: "mayaグループ")
-- **syncStatus**: `SyncStatus.local` (Firestoreに同期しない)
-- **Deletion Protected**: UI/Repository/Providerの3層で保護
+- **groupName**: `{userName}グループ` (例: "maya グループ")
+- **syncStatus**: `SyncStatus.local` (Firestore に同期しない)
+- **Deletion Protected**: UI/Repository/Provider の 3 層で保護
 - **No Invitation**: 招待機能は無効化
 
 #### Creation Logic
+
 **AllGroupsNotifier.createDefaultGroup()** (`lib/providers/purchase_group_provider.dart`):
+
 ```dart
 final defaultGroupId = user?.uid ?? 'local_default';
 final defaultGroupName = '$displayNameグループ';
@@ -256,12 +291,15 @@ await hiveRepository.createGroup(
 ```
 
 **Automatic Creation Triggers**:
+
 1. App startup (if no groups exist)
 2. User sign-in (via `authStateChanges()`)
 3. UID change with data clear (explicit call in `user_id_change_helper.dart`)
 
 #### Legacy Migration (Automatic)
+
 **UserInitializationService** (STEP2-0):
+
 ```dart
 // Migrate 'default_group' → user.uid on app startup
 if (legacyGroupExists && !uidGroupExists) {
@@ -275,12 +313,14 @@ if (legacyGroupExists && !uidGroupExists) {
 ```
 
 #### Critical Implementation Points
+
 1. **Always use helper method**: `isDefaultGroup(group, currentUser)`
 2. **Never hardcode check**: Avoid `group.groupId == 'default_group'` directly
 3. **Deletion prevention**: Check in UI, Repository, and Provider layers
 4. **UID change handling**: Explicitly call `createDefaultGroup()` after data clear
 
 **Modified Files** (2025-11-17):
+
 - `lib/utils/group_helpers.dart` (new)
 - `lib/helpers/user_id_change_helper.dart`
 - `lib/services/user_initialization_service.dart`
@@ -290,7 +330,9 @@ if (legacyGroupExists && !uidGroupExists) {
 - `lib/datastore/hive_purchase_group_repository.dart`
 
 ### UID Change Detection & Data Migration
+
 **Flow** (`lib/helpers/user_id_change_helper.dart`):
+
 1. Detect UID change in `app_initialize_widget.dart`
 2. Show `UserDataMigrationDialog` (初期化 / 引継ぎ)
 3. If "初期化" selected:
@@ -303,10 +345,13 @@ if (legacyGroupExists && !uidGroupExists) {
 **Critical**: After UID change data clear, must explicitly create default group as `authStateChanges()` doesn't fire for existing login.
 
 ### App Mode & Terminology System (Added: 2025-11-18)
-**アプリモード機能** = 買い物リストモード ⇄ TODOタスク管理モード切り替え
+
+**アプリモード機能** = 買い物リストモード ⇄ TODO タスク管理モード切り替え
 
 #### Architecture
+
 **Central Configuration**: `lib/config/app_mode_config.dart`
+
 ```dart
 enum AppMode { shopping, todo }
 
@@ -327,12 +372,15 @@ class AppModeSettings {
 ```
 
 #### Persistence Layer
+
 **UserSettings Model** (`lib/models/user_settings.dart`):
+
 ```dart
 @HiveField(5) @Default(0) int appMode;  // 0=shopping, 1=todo
 ```
 
 **Mode Switching Flow**:
+
 1. User taps mode button in `home_page.dart`
 2. Save to Hive via `userSettingsRepository.saveSettings()`
 3. Update global state: `AppModeSettings.setMode(newMode)`
@@ -340,22 +388,28 @@ class AppModeSettings {
 5. All widgets using `AppModeSettings.config.*` update instantly
 
 #### UI Integration Pattern
+
 **Before** (hardcoded):
+
 ```dart
 Text('グループ')
 ```
 
 **After** (dynamic):
+
 ```dart
 Text(AppModeSettings.config.groupName)  // 'グループ' or 'チーム'
 ```
 
 #### Key Components
+
 - **Config Provider**: `lib/providers/app_mode_notifier_provider.dart`
+
   - `appModeNotifierProvider`: StateProvider for triggering UI rebuilds
   - Watch this provider in screens that need immediate updates
 
 - **Mode Switcher UI**: `lib/pages/home_page.dart` (lines 560-600)
+
   - SegmentedButton with shopping/todo options
   - Saves to Hive + updates AppModeSettings + invalidates providers
 
@@ -364,12 +418,14 @@ Text(AppModeSettings.config.groupName)  // 'グループ' or 'チーム'
   - Sets `AppModeSettings.setMode()` before UI renders
 
 #### Critical Rules
+
 1. **Always use config**: `AppModeSettings.config.{property}` for all UI text
 2. **Never hardcode**: No `'グループ'` or `'リスト'` strings in widgets
 3. **Import required**: `import '../config/app_mode_config.dart';`
 4. **Watch provider**: For instant updates, `ref.watch(appModeNotifierProvider)`
 
 #### Terminology Coverage (50+ terms)
+
 - **Group**: groupName, createGroup, selectGroup, groupMembers
 - **List**: listName, createList, selectList, shoppingList
 - **Item**: itemName, addItem, itemList, itemCount
@@ -377,6 +433,7 @@ Text(AppModeSettings.config.groupName)  // 'グループ' or 'チーム'
 - **UI Labels**: All buttons, dialogs, snackbars, navigation labels
 
 **Files Modified** (2025-11-18):
+
 - `lib/config/app_mode_config.dart` (new - 345 lines)
 - `lib/providers/app_mode_notifier_provider.dart` (new)
 - `lib/pages/home_page.dart` (mode switcher removed - moved to settings)
@@ -386,9 +443,11 @@ Text(AppModeSettings.config.groupName)  // 'グループ' or 'チーム'
 - `lib/models/user_settings.dart` (appMode field added)
 
 ### UI Organization (Updated: 2025-11-19)
+
 **Screen Separation**: Settings-related UI moved from home to dedicated settings page
 
 **home_page.dart** (Authentication & Core Features):
+
 - Login status display
 - Firestore sync status display
 - News & Ads panel
@@ -397,6 +456,7 @@ Text(AppModeSettings.config.groupName)  // 'グループ' or 'チーム'
 - Sign-out button (when authenticated)
 
 **settings_page.dart** (Configuration & Development):
+
 - Login status display
 - Firestore sync status display
 - **App mode switcher** (Shopping List ⇄ TODO Sharing)
@@ -404,8 +464,10 @@ Text(AppModeSettings.config.groupName)  // 'グループ' or 'チーム'
 - **Developer tools** (Test scenario execution)
 
 **Critical Implementation**:
+
 - App mode switcher uses `Consumer` pattern to watch `appModeNotifierProvider`
 - Ensures UI updates immediately when mode changes
+
 ```dart
 Consumer(
   builder: (context, ref, child) {
@@ -419,22 +481,27 @@ Consumer(
 ```
 
 #### Access Control Integration
+
 **Pre-signup restrictions**:
+
 - `GroupVisibilityMode.defaultOnly`: Only default group visible
 - `canCreateGroup() = false`: Group creation disabled
 - User can only use default group (local-only)
 
 **Post-signup capabilities**:
+
 - `GroupVisibilityMode.all`: All groups visible
 - `canCreateGroup() = true`: Group creation enabled
 - Default group syncs to Firestore with `groupId = user.uid`
 
 **Firestore Safety**:
+
 - Default group uses `user.uid` as document key (unique per user)
 - **Multiple default groups physically impossible** in Firestore
 - Each user can only have ONE default group synced to Firestore
 
 ## Common Issues & Solutions
+
 - **Build failures**: Check for Riverpod Generator imports, remove them
 - **Missing variables**: Ensure controllers and providers are properly defined before use
 - **Null reference errors**: Always null-check `members` lists and async data
@@ -444,14 +511,17 @@ Consumer(
 - **List deletion not syncing**: Use `deleteShoppingList(groupId, listId)` with both parameters to avoid collection group query PERMISSION_DENIED
 
 ## Known Issues (As of 2025-12-08)
+
 - None currently
 
 ## Recent Implementations (2025-12-08)
 
 ### Shopping List Deletion Fix (Completed)
+
 **Problem**: Deleted lists remained in Firestore and weren't removed from other devices.
 
 **Root Cause**:
+
 - `FirestoreShoppingListRepository.deleteShoppingList()` used collection group query
 - `collectionGroup('shoppingLists').where('listId', isEqualTo: listId)` caused `PERMISSION_DENIED`
 - Firestore rules lacked collection group query permissions
@@ -461,6 +531,7 @@ Consumer(
 Changed method signature from `deleteShoppingList(String listId)` to `deleteShoppingList(String groupId, String listId)`
 
 **Modified Files**:
+
 - `lib/datastore/shopping_list_repository.dart`: Abstract method signature
 - `lib/datastore/firestore_shopping_list_repository.dart`: Direct path deletion
   ```dart
@@ -472,7 +543,7 @@ Changed method signature from `deleteShoppingList(String listId)` to `deleteShop
 - `lib/widgets/shopping_list_header_widget.dart`: UI call updated
 - `lib/widgets/test_scenario_widget.dart`: Test call updated
 
-**Commit**: `a1aa067` - "fix: deleteShoppingListにgroupIdパラメータを追加"
+**Commit**: `a1aa067` - "fix: deleteShoppingList に groupId パラメータを追加"
 
 **Verification**:
 ✅ Windows deletion → Firestore document removed
@@ -484,15 +555,19 @@ Changed method signature from `deleteShoppingList(String listId)` to `deleteShop
 ## Recent Implementations (2025-11-22)
 
 ### Realtime Sync Feature (Phase 1 - Completed)
+
 **Implementation**: Shopping list items sync instantly across devices without screen transitions.
 
 #### Architecture
+
 - **Firestore `snapshots()`**: Real-time Stream API for live updates
 - **StreamBuilder**: Flutter widget for automatic UI rebuilds on data changes
 - **HybridRepository**: Auto-switches between Firestore Stream (online) and 30-second polling (offline/dev)
 
 #### Key Files
+
 **Repository Layer**:
+
 - `lib/datastore/shopping_list_repository.dart`: Added `watchShoppingList()` abstract method
 - `lib/datastore/firestore_shopping_list_repository.dart`: Firestore `snapshots()` implementation
 - `lib/datastore/hybrid_shopping_list_repository.dart`: Online/offline auto-switching
@@ -500,17 +575,21 @@ Changed method signature from `deleteShoppingList(String listId)` to `deleteShop
 - `lib/datastore/firebase_shopping_list_repository.dart`: Delegates to Hive polling
 
 **UI Layer**:
+
 - `lib/pages/shopping_list_page_v2.dart`: StreamBuilder integration
   - Removed `invalidate()` calls (causes current list to clear)
   - Added latest data fetch before item addition (`repository.getShoppingListById()`)
   - Fixed sync timing issue that caused item count limits
 
 **QR System**:
+
 - `lib/widgets/qr_invitation_widgets.dart`: Added `groupAllowedUids` parameter
 - `lib/widgets/qr_code_panel_widget.dart`: Updated QRInviteButton usage
 
 #### Critical Patterns
+
 1. **StreamBuilder Usage**:
+
 ```dart
 StreamBuilder<ShoppingList?>(
   stream: repository.watchShoppingList(groupId, listId),
@@ -523,6 +602,7 @@ StreamBuilder<ShoppingList?>(
 ```
 
 2. **Item Addition (Latest Data Fetch)**:
+
 ```dart
 // ❌ Wrong: Uses stale currentListProvider data
 final updatedList = currentList.copyWith(items: [...currentList.items, newItem]);
@@ -535,6 +615,7 @@ await repository.updateShoppingList(updatedList);
 ```
 
 3. **Hybrid Cache Update**:
+
 ```dart
 // watchShoppingList caches Firestore data to Hive
 return _firestoreRepo!.watchShoppingList(groupId, listId).map((firestoreList) {
@@ -546,18 +627,22 @@ return _firestoreRepo!.watchShoppingList(groupId, listId).map((firestoreList) {
 ```
 
 #### Problems Solved
+
 1. **Build errors**: Missing `watchShoppingList()` implementations in all Repository classes
 2. **Current list clears**: Removed `ref.invalidate()` that cleared StreamBuilder's initialData
 3. **Item count limit**: Fixed by fetching latest data before addition (sync timing issue)
 4. **Cache corruption**: Fixed `addItem` → `updateShoppingList` in HybridRepository
 
 #### Performance
+
 - **Windows → Android**: Instant reflection (< 1 second)
 - **Self-device**: Current list maintained, no screen transitions
 - **9+ items**: Successfully tested, no limits
 
 #### Design Document
+
 `docs/shopping_list_realtime_sync_design.md` (361 lines)
+
 - Phase 1: Basic realtime sync (✅ Completed 2025-11-22)
 - Phase 2: Optimization (pending)
 - Phase 3: Performance tuning (pending)
@@ -565,29 +650,35 @@ return _firestoreRepo!.watchShoppingList(groupId, listId).map((firestoreList) {
 ## Next Implementation (Planned for 2025-11-25+)
 
 ### Shopping Item UI Enhancements
+
 **Goal**: Enable currently disabled features in `ShoppingItem` model
 
 #### 1. Deadline (Shopping Deadline) Feature
+
 **Model Field**: `DateTime? deadline`
 
 **Planned Implementation**:
+
 - Deadline picker dialog (date + time)
 - Visual indicators:
   - Red badge for overdue items
   - Yellow badge for items due soon (< 3 days)
-  - Countdown display ("2日後" / "期限切れ")
+  - Countdown display ("2 日後" / "期限切れ")
 - Sort by deadline option
 - Deadline notification (optional)
 
 **UI Components**:
+
 - Deadline icon in item card
 - Swipe action for quick deadline setting
 - Filter/sort dropdown
 
 #### 2. Periodic Purchase (Shopping Interval) Feature
+
 **Model Field**: `int? shoppingInterval` (days between purchases)
 
 **Planned Implementation**:
+
 - Interval setting dialog:
   - Weekly (7 days)
   - Bi-weekly (14 days)
@@ -598,15 +689,18 @@ return _firestoreRepo!.watchShoppingList(groupId, listId).map((firestoreList) {
   - Display "次回購入予定: 11/30"
 - Periodic item badge (🔄 icon)
 - Auto-reminder when next purchase date approaches
-- Statistics: "前回購入から○日経過"
+- Statistics: "前回購入から ○ 日経過"
 
 **UI Components**:
+
 - Periodic purchase toggle in add/edit dialog
 - Badge display on item cards
 - "Repurchase now" quick action
 
 #### 3. Enhanced Item Card UI
+
 **Planned Layout**:
+
 ```
 ┌─────────────────────────────────────┐
 │ [✓] 牛乳 x2          🔄 [期限:2日後] │  ← Checkbox, Name, Badges
@@ -616,12 +710,14 @@ return _firestoreRepo!.watchShoppingList(groupId, listId).map((firestoreList) {
 ```
 
 **Interaction Enhancements**:
+
 - Swipe left: Delete
 - Swipe right: Edit
 - Long press: Detailed view with history
 - Tap: Toggle purchase status
 
 #### 4. Optional Enhancements
+
 - Category tags (食品、日用品、etc.)
 - Priority levels (high/medium/low)
 - Notes field for additional details
@@ -629,12 +725,14 @@ return _firestoreRepo!.watchShoppingList(groupId, listId).map((firestoreList) {
 - Price tracking
 
 #### Implementation Strategy
+
 1. **Start with Deadline**: Simpler feature, no calculations
 2. **Add Periodic Purchase**: Requires date calculations
 3. **Enhanced UI**: Integrate both features with rich card design
 4. **Testing**: Ensure Firestore sync works with new fields
 
 #### Files to Modify
+
 - `lib/pages/shopping_list_page_v2.dart`: Enhanced item cards
 - `lib/widgets/shopping_item_tile.dart` (new): Separate widget for item display
 - `lib/widgets/item_edit_dialog.dart`: Add deadline/interval pickers
@@ -642,6 +740,7 @@ return _firestoreRepo!.watchShoppingList(groupId, listId).map((firestoreList) {
 - `lib/datastore/*_shopping_list_repository.dart`: No changes (fields already synced)
 
 #### Design Considerations
+
 - Maintain realtime sync (Phase 1 implementation)
 - Ensure deadline/interval data syncs to Firestore
 - Keep UI responsive with StreamBuilder pattern
@@ -650,6 +749,7 @@ return _firestoreRepo!.watchShoppingList(groupId, listId).map((firestoreList) {
 ## ShoppingList Map Format & Differential Sync (Implemented: 2025-11-25)
 
 ### Architecture Overview
+
 **From**: `List<ShoppingItem>` (Array-based, full list sync)
 **To**: `Map<String, ShoppingItem>` (Dictionary-based, item-level sync)
 
@@ -658,6 +758,7 @@ return _firestoreRepo!.watchShoppingList(groupId, listId).map((firestoreList) {
 ### Data Structure
 
 #### ShoppingItem Model
+
 ```dart
 @HiveType(typeId: 3)
 @freezed
@@ -676,6 +777,7 @@ class ShoppingItem with _$ShoppingItem {
 ```
 
 #### ShoppingList Model
+
 ```dart
 @HiveField(3) @Default({}) Map<String, ShoppingItem> items,
 
@@ -692,6 +794,7 @@ bool get needsCleanup => deletedItemCount > 10;
 ### Backward Compatibility
 
 **Custom TypeAdapter** (`lib/adapters/shopping_item_adapter_override.dart`):
+
 ```dart
 class ShoppingItemAdapterOverride extends TypeAdapter<ShoppingItem> {
   @override
@@ -712,6 +815,7 @@ class ShoppingItemAdapterOverride extends TypeAdapter<ShoppingItem> {
 ```
 
 **Registration** (main.dart):
+
 ```dart
 void main() async {
   // 🔥 Register BEFORE default adapter initialization
@@ -726,6 +830,7 @@ void main() async {
 ### Differential Sync API
 
 **Repository Methods** (`shopping_list_repository.dart`):
+
 ```dart
 abstract class ShoppingListRepository {
   // 🔥 Send single item (not entire list)
@@ -743,6 +848,7 @@ abstract class ShoppingListRepository {
 ```
 
 **Usage Pattern** (shopping_list_page_v2.dart):
+
 ```dart
 // ❌ Old: Full list sync
 await repository.updateShoppingList(currentList.copyWith(
@@ -756,6 +862,7 @@ await repository.addSingleItem(currentList.listId, newItem);
 ### Maintenance Services
 
 #### ListCleanupService
+
 ```dart
 // Auto-cleanup on app startup (5 seconds delay)
 final cleanupService = ListCleanupService(ref);
@@ -766,6 +873,7 @@ final deletedCount = await cleanupService.cleanupAllLists(
 ```
 
 #### ShoppingListDataMigrationService
+
 ```dart
 // Migrate old List<ShoppingItem> data to Map<String, ShoppingItem>
 final migrationService = ShoppingListDataMigrationService(ref);
@@ -776,6 +884,7 @@ await migrationService.migrateToMapFormat();  // With auto-backup
 ```
 
 **UI Integration** (settings_page.dart):
+
 - データメンテナンスセクション
 - クリーンアップ実行ボタン
 - 移行状況確認ボタン
@@ -784,6 +893,7 @@ await migrationService.migrateToMapFormat();  // With auto-backup
 ### Critical Implementation Rules
 
 1. **Always use `activeItems` getter for UI display**:
+
    ```dart
    // ❌ Wrong: Shows deleted items
    for (var item in currentList.items.values) { ... }
@@ -793,6 +903,7 @@ await migrationService.migrateToMapFormat();  // With auto-backup
    ```
 
 2. **Use differential sync methods**:
+
    ```dart
    // ❌ Wrong: Sends entire list
    final updatedItems = {...currentList.items, newItem.itemId: newItem};
@@ -803,6 +914,7 @@ await migrationService.migrateToMapFormat();  // With auto-backup
    ```
 
 3. **Never modify items Map directly**:
+
    ```dart
    // ❌ Wrong: Direct mutation
    currentList.items[itemId] = updatedItem;
@@ -814,6 +926,7 @@ await migrationService.migrateToMapFormat();  // With auto-backup
    ```
 
 4. **Soft delete, not hard delete**:
+
    ```dart
    // ❌ Wrong: Remove from Map
    final updatedItems = Map<String, ShoppingItem>.from(currentList.items);
@@ -826,16 +939,17 @@ await migrationService.migrateToMapFormat();  // With auto-backup
 
 ### Performance Benefits
 
-| Metric | Before (List) | After (Map) | Improvement |
-|--------|--------------|-------------|-------------|
+| Metric                       | Before (List)     | After (Map)        | Improvement   |
+| ---------------------------- | ----------------- | ------------------ | ------------- |
 | Network payload (add 1 item) | Full list (~10KB) | Single item (~1KB) | 90% reduction |
-| Sync time (1 item) | 500ms | 50ms | 10x faster |
-| Item lookup complexity | O(n) | O(1) | Constant time |
-| Conflict resolution | Full list merge | Item-level merge | Safer |
+| Sync time (1 item)           | 500ms             | 50ms               | 10x faster    |
+| Item lookup complexity       | O(n)              | O(1)               | Constant time |
+| Conflict resolution          | Full list merge   | Item-level merge   | Safer         |
 
 ### Migration Path
 
 **Phase 1-11 (Completed 2025-11-25)**:
+
 - ✅ Data structure conversion (List → Map)
 - ✅ Backward compatibility (ShoppingItemAdapterOverride)
 - ✅ Differential sync API implementation
@@ -844,6 +958,7 @@ await migrationService.migrateToMapFormat();  // With auto-backup
 - ✅ Build & runtime testing
 
 **Phase 12+ (Future)**:
+
 - Real-time sync with Firestore `snapshots()`
 - StreamBuilder integration
 - Automatic conflict resolution
@@ -851,6 +966,7 @@ await migrationService.migrateToMapFormat();  // With auto-backup
 ### Debugging Tips
 
 **Check Hive field count**:
+
 ```bash
 # ShoppingItem should have 11 fields (8 → 11)
 dart run build_runner build --delete-conflicting-outputs
@@ -858,12 +974,14 @@ dart run build_runner build --delete-conflicting-outputs
 ```
 
 **Verify adapter registration**:
+
 ```dart
 // In main.dart, check console output:
 // ✅ ShoppingItemAdapterOverride registered
 ```
 
 **Inspect active vs deleted items**:
+
 ```dart
 print('Total items: ${currentList.items.length}');
 print('Active items: ${currentList.activeItems.length}');
@@ -874,9 +992,11 @@ print('Needs cleanup: ${currentList.needsCleanup}');
 ## Home Page UI & Authentication (Updated: 2025-12-03)
 
 ### Authentication Flow Separation
+
 **ホーム画面で「アカウント作成」と「サインイン」を完全に分離**
 
 #### UI Structure
+
 ```
 Initial Screen:
 ┌─────────────────────────────────┐
@@ -891,6 +1011,7 @@ Initial Screen:
 ```
 
 #### Account Creation Mode (`_isSignUpMode = true`)
+
 **必須項目**: ディスプレイネーム + メール + パスワード
 
 ```dart
@@ -908,13 +1029,15 @@ Future<void> _signUp() async {
 ```
 
 **表示内容**:
+
 - ✅ ディスプレイネーム入力フィールド（必須・バリデーション付き）
 - ✅ メールアドレス入力
-- ✅ パスワード入力（6文字以上）
+- ✅ パスワード入力（6 文字以上）
 - ✅ 「アカウントを作成」ボタン
 - ✅ 「サインインへ」切り替えリンク
 
 #### Sign-In Mode (`_isSignUpMode = false`)
+
 **必須項目**: メール + パスワード（ディスプレイネーム不要）
 
 ```dart
@@ -930,12 +1053,14 @@ Future<void> _signIn() async {
 ```
 
 **表示内容**:
+
 - ✅ メールアドレス入力
 - ✅ パスワード入力
 - ✅ 「サインイン」ボタン
 - ✅ 「アカウント作成へ」切り替えリンク
 
 #### Mode Switching UI
+
 ```dart
 Container(
   decoration: BoxDecoration(
@@ -955,44 +1080,55 @@ Container(
 ```
 
 #### Error Handling (Improved Messages)
+
 **アカウント作成時**:
+
 - `email-already-in-use` → 「このメールアドレスは既に使用されています」
 - `weak-password` → 「パスワードが弱すぎます」
 - `invalid-email` → 「メールアドレスの形式が正しくありません」
 
 **サインイン時**:
+
 - `user-not-found` → 「ユーザーが見つかりません。アカウント作成が必要です」
 - `wrong-password` / `invalid-credential` → 「メールアドレスまたはパスワードが正しくありません」
 
 #### Critical Implementation Points
+
 1. **ディスプレイネーム必須化** (アカウント作成時のみ)
+
    - バリデーションで空文字をブロック
-   - SharedPreferences + Firebase Auth両方に保存
+   - SharedPreferences + Firebase Auth 両方に保存
 
 2. **サインイン時の自動反映**
-   - Firebase AuthのdisplayNameが存在すればPreferencesに反映
+
+   - Firebase Auth の displayName が存在すれば Preferences に反映
    - 未設定でもサインイン可能（後から設定可能）
 
 3. **モード切り替え**
-   - `_isSignUpMode`フラグで動的にUI切り替え
+
+   - `_isSignUpMode`フラグで動的に UI 切り替え
    - フォームリセットで入力内容をクリア
 
 4. **視覚的フィードバック**
-   - アカウント作成成功時: 「ようこそ、○○さん」
+   - アカウント作成成功時: 「ようこそ、○○ さん」
    - サインイン成功時: 「サインインしました」
 
 ## Realtime Sync Feature (Completed: 2025-11-22)
 
 ### Implementation Status
+
 **Phase 1**: Shopping list items sync instantly across devices without screen transitions. ✅
 
 #### Architecture
+
 - **Firestore `snapshots()`**: Real-time Stream API for live updates
 - **StreamBuilder**: Flutter widget for automatic UI rebuilds on data changes
 - **HybridRepository**: Auto-switches between Firestore Stream (online) and 30-second polling (offline/dev)
 
 #### Key Files
+
 **Repository Layer**:
+
 - `lib/datastore/shopping_list_repository.dart`: Added `watchShoppingList()` abstract method
 - `lib/datastore/firestore_shopping_list_repository.dart`: Firestore `snapshots()` implementation
 - `lib/datastore/hybrid_shopping_list_repository.dart`: Online/offline auto-switching
@@ -1000,19 +1136,23 @@ Container(
 - `lib/datastore/firebase_shopping_list_repository.dart`: Delegates to Hive polling
 
 **UI Layer**:
+
 - `lib/pages/shopping_list_page_v2.dart`: StreamBuilder integration
   - Removed `invalidate()` calls (causes current list to clear)
   - Added latest data fetch before item addition (`repository.getShoppingListById()`)
   - Fixed sync timing issue that caused item count limits
 
 #### Performance
+
 - **Windows → Android**: Instant reflection (< 1 second)
 - **Self-device**: Current list maintained, no screen transitions
 - **Multiple items**: Successfully tested with 9+ items, no limits
 - **Network efficiency**: 90% payload reduction with differential sync
 
 #### Design Document
+
 `docs/shopping_list_realtime_sync_design.md`
+
 - Phase 1: Basic realtime sync (✅ Completed 2025-11-22)
 - Phase 2: Optimization (pending)
 - Phase 3: Performance tuning (pending)
@@ -1020,6 +1160,7 @@ Container(
 ## User Settings & Backward Compatibility (Updated: 2025-12-03)
 
 ### UserSettings Model & Adapter Override
+
 **Problem**: Adding new HiveFields breaks backward compatibility with existing data.
 
 **Solution**: Custom TypeAdapter with null-safe defaults.
@@ -1044,6 +1185,7 @@ class UserSettingsAdapterOverride extends TypeAdapter<UserSettings> {
 ```
 
 **Registration** (main.dart):
+
 ```dart
 void main() async {
   // 🔥 Register BEFORE default adapter initialization
@@ -1055,15 +1197,18 @@ void main() async {
 ```
 
 **Skip in UserSpecificHiveService**:
+
 ```dart
 // lib/services/user_specific_hive_service.dart
 if (typeId == 6) continue;  // UserSettingsAdapterOverride takes priority
 ```
 
 ### Logging System Standardization
-**AppLogger統一** (main.dart):
-- ✅ 18箇所のprint文をAppLogger.info/error/warningに変更
-- ✅ Firebase初期化ログの統一
+
+**AppLogger 統一** (main.dart):
+
+- ✅ 18 箇所の print 文を AppLogger.info/error/warning に変更
+- ✅ Firebase 初期化ログの統一
 - ✅ アダプター登録ログの統一
 
 ```dart
@@ -1075,7 +1220,9 @@ AppLogger.info('🔄 Firebase初期化開始...');
 ```
 
 ### User Name Display & Persistence
+
 **home_page.dart**:
+
 ```dart
 @override
 void initState() {
@@ -1092,26 +1239,31 @@ Future<void> _loadUserName() async {
 ```
 
 **Data Flow**:
+
 1. サインアップ時: `UserPreferencesService.saveUserName()` + `user.updateDisplayName()`
-2. サインイン時: Firebase Auth → SharedPreferences反映
-3. アプリ起動時: SharedPreferencesから自動ロード
+2. サインイン時: Firebase Auth → SharedPreferences 反映
+3. アプリ起動時: SharedPreferences から自動ロード
 
 ## Known Issues (As of 2025-12-08)
+
 - None currently
 
 ## Recent Implementations (2025-12-06)
 
-### 1. Windows版QRスキャン手動入力対応 ✅
-**Background**: Windows版で`camera`や`google_mlkit_barcode_scanning`が非対応のため、QRコード自動読み取りが不可能。
+### 1. Windows 版 QR スキャン手動入力対応 ✅
+
+**Background**: Windows 版で`camera`や`google_mlkit_barcode_scanning`が非対応のため、QR コード自動読み取りが不可能。
 
 **Implementation**:
+
 - **New File**: `lib/widgets/windows_qr_scanner_simple.dart` (210 lines)
-  - FilePicker経由で画像ファイル選択
-  - 画像からのQRコード自動検出は技術的に困難（imageパッケージではQRデコード非対応）
-  - **手動入力ダイアログ**: 8行TextFieldでJSON形式のQRコードデータを貼り付け
+  - FilePicker 経由で画像ファイル選択
+  - 画像からの QR コード自動検出は技術的に困難（image パッケージでは QR デコード非対応）
+  - **手動入力ダイアログ**: 8 行 TextField で JSON 形式の QR コードデータを貼り付け
   - `widget.onDetect(manualInput)` → 招待処理実行
 
 **Platform Detection**:
+
 ```dart
 // accept_invitation_widget.dart
 if (Platform.isWindows) {
@@ -1122,6 +1274,7 @@ if (Platform.isWindows) {
 ```
 
 **Manual Input Dialog**:
+
 ```dart
 showDialog(
   context: context,
@@ -1137,9 +1290,10 @@ showDialog(
 );
 ```
 
-**Verified**: ✅ 画像選択 → 手動入力 → JSON解析 → セキュリティ検証 → 招待受諾成功
+**Verified**: ✅ 画像選択 → 手動入力 → JSON 解析 → セキュリティ検証 → 招待受諾成功
 
 ### 2. グループメンバー名表示問題の修正 ✅
+
 **Problem**: 招待受諾成功後、グループメンバーリストに「ユーザー」と表示される
 
 **Root Cause**: `/users/{uid}/profile/profile`からユーザー名を取得していなかった
@@ -1147,6 +1301,7 @@ showDialog(
 **Solution Implemented**:
 
 #### 招待受諾側（qr_invitation_service.dart Line 280-320）
+
 ```dart
 // Firestoreプロファイルから表示名を取得（最優先）
 String? firestoreName;
@@ -1172,6 +1327,7 @@ final userName = (firestoreName?.isNotEmpty == true)
 ```
 
 #### 招待元側（notification_service.dart Line 279-310）
+
 ```dart
 // acceptorNameが空または「ユーザー」の場合、Firestoreプロファイルから取得
 String finalAcceptorName = acceptorName;
@@ -1209,19 +1365,23 @@ updatedMembers.add(
 **Status**: 実装完了・動作確認済み ✅
 
 **Verification (2025-12-08)**:
+
 - ✅ 招待元側: グループメンバーリストに受諾ユーザーの名前が正しく表示
 - ✅ 受諾側: グループメンバーリストに受諾ユーザーの名前が正しく表示
-- ✅ Firestoreプロファイル取得が正常動作
+- ✅ Firestore プロファイル取得が正常動作
 
 ### 3. リスト作成後の自動選択機能 ✅
+
 **Problem**: リスト作成後、ドロップダウンで新しく作成したリストが自動選択されない
 
 **Root Cause**:
+
 - `invalidate(groupShoppingListsProvider)`でリスト一覧再取得開始
-- UIが再ビルドされるタイミングで、まだ新しいリストが含まれていない
+- UI が再ビルドされるタイミングで、まだ新しいリストが含まれていない
 - `validValue = null` → ドロップダウンに反映されない
 
 **Solution Implemented** (`shopping_list_header_widget.dart` Line 325-332):
+
 ```dart
 // ダイアログを閉じた後、リスト一覧を更新して完了を待つ
 ref.invalidate(groupShoppingListsProvider);
@@ -1236,13 +1396,15 @@ try {
 ```
 
 **Expected Behavior**:
+
 - `invalidate()`後にリスト一覧の更新完了を待機
-- 新しいリストがlists配列に含まれた状態で`_buildListDropdown`が再ビルド
-- `validValue`が正しく設定され、DropdownButtonに反映
+- 新しいリストが lists 配列に含まれた状態で`_buildListDropdown`が再ビルド
+- `validValue`が正しく設定され、DropdownButton に反映
 
 **Status**: 実装完了・動作確認済み ✅
 
 **Verification (2025-12-08)**:
+
 - ✅ リスト作成側: 新しいリストがドロップダウンで選択された状態
 - ✅ 共有されたユーザー側: 新しいリストがドロップダウンで選択された状態
 - ✅ リスト一覧更新完了待機処理が正常動作
@@ -1250,9 +1412,11 @@ try {
 ## Recent Implementations (2025-12-04)
 
 ### 1. Periodic Purchase Auto-Reset Feature ✅
+
 **Purpose**: Automatically reset purchased items with periodic purchase intervals back to unpurchased state after the specified days.
 
 #### Implementation Files
+
 - **New Service**: `lib/services/periodic_purchase_service.dart` (209 lines)
   - `resetPeriodicPurchaseItems()`: Reset all lists
   - `resetPeriodicPurchaseItemsForList()`: Reset specific list
@@ -1260,32 +1424,39 @@ try {
   - `getPeriodicPurchaseInfo()`: Debug statistics
 
 #### Automatic Execution
+
 - **File**: `lib/widgets/app_initialize_widget.dart`
 - **Timing**: 5 seconds after app startup (background)
 - **Target**: All groups, all lists
 
 #### Manual Execution
+
 - **File**: `lib/pages/settings_page.dart`
 - **Location**: Data maintenance section
 - **Button**: "定期購入リセット実行" with result dialog
 
 #### Reset Conditions
+
 1. `isPurchased = true`
 2. `shoppingInterval > 0`
 3. `purchaseDate + shoppingInterval days <= now`
 
 #### Reset Actions
+
 - `isPurchased` → `false`
 - `purchaseDate` → `null`
 - Sync to both Firestore + Hive
 
 ### 2. Shopping Item User ID Fix ✅
+
 **Problem**: Fixed `memberId` was hardcoded as `'dev_user'` when adding items.
 
 **Solution**:
+
 - **File**: `lib/pages/shopping_list_page_v2.dart`
 - **Fix**: Get current Firebase Auth user from `authStateProvider`
 - **Implementation**:
+
   ```dart
   final currentUser = ref.read(authStateProvider).value;
   final currentMemberId = currentUser?.uid ?? 'anonymous';
@@ -1299,9 +1470,11 @@ try {
   ```
 
 ### 3. SharedGroup Member Name Verification ✅
+
 **Verification**: Confirmed that the past issue of hardcoded "ユーザー" string has been fixed.
 
 **Result**: ✅ All implementations are correct
+
 - Default group creation: Firestore → SharedPreferences → Firebase Auth → Email priority
 - New group creation: SharedPreferences → Firestore → Firebase Auth
 - Invitation acceptance: SharedPreferences → Firestore → Firebase Auth → Email
@@ -1309,21 +1482,26 @@ try {
 **Conclusion**: Current implementation correctly sets actual user names. The "ユーザー" fallback is only used when all retrieval methods fail.
 
 ### 4. AdMob Integration ✅
+
 **Purpose**: Implement production AdMob advertising with location-based ad prioritization.
 
 #### AdMob App ID Configuration
+
 - **App ID**: Configured via `.env` file (`ADMOB_APP_ID`)
 - **Android**: Configured in `AndroidManifest.xml`
 - **iOS**: Configured in `Info.plist` with `GADApplicationIdentifier` key
 
 #### Banner Ad Unit ID Configuration
+
 - **Ad Unit ID**: Configured via `.env` file (`ADMOB_BANNER_AD_UNIT_ID` or `ADMOB_TEST_BANNER_AD_UNIT_ID`)
 - **File**: `lib/services/ad_service.dart` (`_bannerAdUnitId`)
 
 #### Location-Based Ad Prioritization (Added: 2025-12-09) ✅
+
 **Feature**: Prioritize ads within 30km radius on Android/iOS devices
 
 **Implementation**:
+
 - **Package**: `geolocator: ^12.0.0`
 - **Permissions**:
   - Android: `ACCESS_COARSE_LOCATION`, `ACCESS_FINE_LOCATION` in `AndroidManifest.xml`
@@ -1333,6 +1511,7 @@ try {
 - **Target Range**: 30km radius (approximately 20-30 minutes by car)
 
 **Usage**:
+
 ```dart
 final adService = ref.read(adServiceProvider);
 final bannerAd = await adService.createBannerAd(
@@ -1342,6 +1521,7 @@ final bannerAd = await adService.createBannerAd(
 ```
 
 **Key Methods**:
+
 - `getCurrentLocation()`: Fetch device location with timeout (5 sec)
 - `_cacheLocation()`: Cache location for 1 hour
 - `_getCachedLocation()`: Retrieve cached location to reduce API calls
@@ -1349,7 +1529,9 @@ final bannerAd = await adService.createBannerAd(
 **Privacy**: Location accuracy set to `LocationAccuracy.low` (city-level, sufficient for 30km radius)
 
 #### Home Page Banner Ad Implementation
+
 - **New Widget**: `HomeBannerAdWidget`
+
   - Hidden until ad loaded
   - White background with light gray border
   - "広告" label display
@@ -1363,6 +1545,7 @@ final bannerAd = await adService.createBannerAd(
 ---
 
 ## Common Issues & Solutions
+
 - **Build failures**: Check for Riverpod Generator imports, remove them
 - **Missing variables**: Ensure controllers and providers are properly defined before use
 - **Null reference errors**: Always null-check `members` lists and async data
@@ -1380,6 +1563,7 @@ final bannerAd = await adService.createBannerAd(
 ## Critical Flutter/Riverpod Patterns (Added: 2025-12-05)
 
 ### DropdownButtonFormField - Reactive Updates
+
 ⚠️ **Critical**: Use `value` property for reactive updates, NOT `initialValue`
 
 **Problem**: `initialValue` only sets the value once at widget creation and ignores subsequent state changes.
@@ -1405,16 +1589,19 @@ DropdownButtonFormField<String>(
 ```
 
 **When to use**:
+
 - Any UI that needs to reflect provider state changes
 - Dropdown menus showing current selection
 - Forms that update based on external state
 
 ### Async Timing Control with Riverpod
+
 ⚠️ **Critical**: `ref.invalidate()` only triggers refresh, does NOT wait for completion
 
 **Problem**: When using `ref.invalidate()`, the provider refresh is asynchronous. UI may rebuild with stale data before Firestore fetch completes.
 
 **Example Scenario**:
+
 ```dart
 // User creates new shopping list
 await repository.createShoppingList(newList);
@@ -1443,6 +1630,7 @@ await ref.read(groupShoppingListsProvider.future);
 ```
 
 **Real-world Example** (from `shopping_list_header_widget.dart`):
+
 ```dart
 // After creating new list
 await repository.createShoppingList(newList);
@@ -1461,16 +1649,19 @@ try {
 ```
 
 **When to use**:
+
 - After creating new entities that should appear in lists
 - When UI depends on updated provider data
 - Before navigating to screens that require fresh data
 
 ### StateNotifier State Preservation
+
 ⚠️ **Warning**: `ref.invalidate(stateNotifierProvider)` clears the state entirely
 
 **Problem**: Invalidating a StateNotifier provider resets its state to initial value.
 
 **Example**:
+
 ```dart
 // currentListProvider is a StateNotifier
 ref.invalidate(currentListProvider);
@@ -1487,11 +1678,13 @@ await ref.read(groupShoppingListsProvider.future);
 ```
 
 **Pattern**:
+
 - Keep StateNotifier providers for UI state (selections, current values)
 - Use separate AsyncNotifier providers for data fetching
 - Only invalidate data providers, let state providers persist
 
 ### Debugging Async Timing Issues
+
 **Add strategic logging** to identify timing problems:
 
 ```dart
@@ -1507,6 +1700,7 @@ Log.info('✅ プロバイダー更新完了');
 ```
 
 **Common timing issue pattern**:
+
 ```
 15:10:03.402 - 📝 Set current value: ABC
 15:10:03.413 - 🔍 [DEBUG] validValue: null, items.length: 5  ← No ABC yet
@@ -1517,9 +1711,140 @@ Log.info('✅ プロバイダー更新完了');
 This indicates: Provider updated, but UI needs to wait for completion before rebuilding.
 
 **Related Files**:
+
 - `lib/widgets/shopping_list_header_widget.dart`: DropdownButton reactive updates, async timing control
 - `lib/providers/current_list_provider.dart`: StateNotifier state preservation
 - `lib/widgets/group_list_widget.dart`: Reference implementation of proper timing control
 
 Focus on maintaining consistency with existing patterns rather than introducing new architectural approaches.
 
+---
+
+## Recent Implementations (2025-12-10)
+
+### Firebase Crashlytics Implementation ✅
+
+**Purpose**: Automatic crash log collection for production error analysis
+
+**Implementation**:
+
+- Added `firebase_crashlytics: ^5.0.5` to `pubspec.yaml`
+- Configured error handlers in `main.dart`:
+  - `FlutterError.onError`: Flutter framework errors
+  - `PlatformDispatcher.instance.onError`: Async errors
+- Integrated with AppLogger for error logging
+
+**Verification**:
+✅ Initialization successful
+✅ Error logs sent to Firebase Console confirmed
+
+**Commit**: `41fe8ef` - "feat: Firebase Crashlytics 実装"
+
+---
+
+### Privacy Protection for Logging System ✅
+
+**Background**: Preparing for external log transmission during testing requires personal information masking
+
+#### AppLogger Extensions
+
+Added privacy protection methods to `lib/utils/app_logger.dart`:
+
+- `maskUserId(String? userId)`: Shows only first 3 characters (e.g., `abc***`)
+- `maskName(String? name)`: Shows only first 2 characters (e.g., `すも***`)
+- `maskGroup(String? groupName, String? groupId)`: Masks group info (e.g., `家族***(group_id)`)
+- `maskList(String? listName, String? listId)`: Masks list info
+- `maskItem(String? itemName, String? itemId)`: Masks item info
+- `maskGroupId(String? groupId, {String? currentUserId})`: Masks only default group IDs (= UIDs)
+
+#### Log Output Unification
+
+- **Debug mode**: `debugPrint()` only (for VS Code Debug Console)
+- **Release mode**: `logger` package detailed logs + `debugPrint()` (for production troubleshooting)
+- Fixed duplicate log display issue
+
+#### Personal Information Masking
+
+**Modified Files**: 28 files
+
+- User names → First 2 characters only
+- UIDs → First 3 characters only
+- Email addresses → First 2 characters only
+- Group names → First 2 characters + ID
+- List names → First 2 characters + ID
+- Item names → First 2 characters + ID
+- allowedUid arrays → Mask each element
+- Default group groupIds → Masked (regular group IDs remain visible)
+
+**Key Modified Files**:
+
+- `lib/main.dart` (Firebase Auth current user)
+- `lib/pages/home_page.dart` (signup/signin user names)
+- `lib/pages/settings_page.dart` (user name loading)
+- `lib/providers/auth_provider.dart` (auth-related user names/emails)
+- `lib/providers/purchase_group_provider.dart` (group creation/selection UIDs/group names)
+- `lib/services/notification_service.dart` (notification UIDs/group names)
+- `lib/services/sync_service.dart` (sync group info)
+- `lib/services/qr_invitation_service.dart` (invitation user names/UIDs/group info)
+- `lib/services/user_initialization_service.dart` (user initialization UIDs/profile info)
+- `lib/services/user_specific_hive_service.dart` (Hive initialization UIDs)
+- Plus 18 other files (user services, widgets)
+
+**Masking Examples**:
+
+```dart
+// Before
+Log.info('ユーザー名: $userName');  // → "ユーザー名: すもも"
+Log.info('UID: $userId');           // → "UID: abc123def456ghi789"
+Log.info('allowedUid: $allowedUid'); // → "allowedUid: [abc123, def456, ghi789]"
+Log.info('デフォルトグループID: $groupId'); // → "デフォルトグループID: abc123def456"
+
+// After
+Log.info('ユーザー名: ${AppLogger.maskName(userName)}');  // → "ユーザー名: すも***"
+Log.info('UID: ${AppLogger.maskUserId(userId)}');         // → "UID: abc***"
+Log.info('allowedUid: ${allowedUid.map((uid) => AppLogger.maskUserId(uid)).toList()}');
+// → "allowedUid: [abc***, def***, ghi***]"
+Log.info('デフォルトグループID: ${AppLogger.maskGroupId(groupId, currentUserId: user.uid)}');
+// → "デフォルトグループID: abc***"
+```
+
+#### Technical Learnings
+
+**1. Debug Console Log Display**
+
+- **Problem**: `logger` package logs not showing in VS Code Debug Console
+- **Cause**: `logger` outputs to stdout/stderr, not visible in Debug Console
+- **Solution**: Use Flutter's `debugPrint()` concurrently
+
+```dart
+static void info(String message) {
+  if (!kDebugMode) _instance.i(message);  // logger only in release mode
+  debugPrint(message);  // Always use debugPrint (for VS Code display)
+}
+```
+
+**2. Default Group groupId Design**
+
+- **Issue**: Default group `groupId` equals user's UID, exposing personal info in logs
+- **Solution**: Conditional masking with `maskGroupId()`
+
+```dart
+static String maskGroupId(String? groupId, {String? currentUserId}) {
+  final isDefaultGroup = groupId == 'default_group' ||
+                        (currentUserId != null && groupId == currentUserId);
+
+  if (isDefaultGroup) {
+    return maskUserId(groupId);  // Mask default group only
+  }
+
+  return groupId;  // Regular group IDs remain visible (shared identifiers)
+}
+```
+
+---
+
+## Known Issues (As of 2025-12-10)
+
+- None currently
+
+---

@@ -418,7 +418,8 @@ class _GroupCreationWithCopyDialogState
       }
 
       // ✅ グループ作成処理完了
-      AppLogger.info('✅ [CREATE GROUP DIALOG] グループ作成処理完了: $groupName');
+      AppLogger.info(
+          '✅ [CREATE GROUP DIALOG] グループ作成処理完了: ${AppLogger.maskName(groupName)}');
       AppLogger.info('🔍 [CREATE GROUP DIALOG] mounted状態: $mounted');
 
       // ローディング解除 - ユーザーに完了を視覚的に示す

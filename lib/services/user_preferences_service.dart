@@ -24,7 +24,8 @@ class UserPreferencesService {
       operation: () async {
         final prefs = await SharedPreferences.getInstance();
         final userName = prefs.getString(_keyUserName);
-        Log.info('📱 SharedPreferences getUserName: $userName');
+        Log.info(
+            '📱 SharedPreferences getUserName: ${AppLogger.maskName(userName)}');
         return userName ?? '';
       },
       context: 'USER_PREFS:getUserName',
@@ -84,7 +85,8 @@ class UserPreferencesService {
       operation: () async {
         final prefs = await SharedPreferences.getInstance();
         final userId = prefs.getString(_keyUserId);
-        Log.info('📱 SharedPreferences getUserId: $userId');
+        Log.info(
+            '📱 SharedPreferences getUserId: ${AppLogger.maskUserId(userId)}');
         return userId ?? '';
       },
       context: 'USER_PREFS:getUserId',
@@ -98,7 +100,8 @@ class UserPreferencesService {
           operation: () async {
             final prefs = await SharedPreferences.getInstance();
             final success = await prefs.setString(_keyUserId, userId);
-            Log.info('💾 SharedPreferences saveUserId: $userId - 成功: $success');
+            Log.info(
+                '💾 SharedPreferences saveUserId: ${AppLogger.maskUserId(userId)} - 成功: $success');
             return success;
           },
           context: 'USER_PREFS:saveUserId',

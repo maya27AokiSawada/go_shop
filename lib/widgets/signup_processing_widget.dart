@@ -170,7 +170,8 @@ class _SignupProcessingWidgetState extends ConsumerState<SignupProcessingWidget>
       await UserPreferencesService.saveUserEmail(user.email!);
     }
 
-    Log.info('✅ [SIGNUP_WIDGET] ユーザープロフィール設定完了: $displayName');
+    Log.info(
+        '✅ [SIGNUP_WIDGET] ユーザープロファイル設定完了: ${AppLogger.maskName(displayName)}');
   }
 
   /// STEP2: ローカルデフォルトグループの検出
@@ -238,7 +239,8 @@ class _SignupProcessingWidgetState extends ConsumerState<SignupProcessingWidget>
     // デフォルトグループを作成
     await repository.createGroup(newGroupId, 'My Lists', ownerMember);
 
-    Log.info('✅ [SIGNUP_WIDGET] Firebaseデフォルトグループ作成完了: $newGroupId');
+    Log.info(
+        '✅ [SIGNUP_WIDGET] Firebaseデフォルトグループ作成完了: ${AppLogger.maskGroupId(newGroupId)}');
     return newGroupId;
   }
 

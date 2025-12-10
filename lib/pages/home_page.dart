@@ -44,7 +44,8 @@ class _HomePageState extends ConsumerState<HomePage> {
         setState(() {
           userNameController.text = savedUserName;
         });
-        AppLogger.info('✅ [HOME] ユーザー名をロード: $savedUserName');
+        AppLogger.info(
+            '✅ [HOME] ユーザー名をロード: ${AppLogger.maskName(savedUserName)}');
       }
     } catch (e) {
       AppLogger.error('❌ [HOME] ユーザー名ロードエラー: $e');
@@ -94,17 +95,20 @@ class _HomePageState extends ConsumerState<HomePage> {
       if (user != null) {
         await user.updateDisplayName(userName);
         await user.reload();
-        AppLogger.info('✅ [SIGNUP] Firebase Authのディスプレイネームを更新: $userName');
+        AppLogger.info(
+            '✅ [SIGNUP] Firebase Authのディスプレイネームを更新: ${AppLogger.maskName(userName)}');
       }
 
       // Firestoreにユーザープロファイルを作成
       await FirestoreUserNameService.ensureUserProfileExists(
           userName: userName);
-      AppLogger.info('✅ [SIGNUP] Firestoreにユーザープロファイル作成: $userName');
+      AppLogger.info(
+          '✅ [SIGNUP] Firestoreにユーザープロファイル作成: ${AppLogger.maskName(userName)}');
 
       // ディスプレイネームをPreferencesに保存
       await UserPreferencesService.saveUserName(userName);
-      AppLogger.info('✅ [SIGNUP] ディスプレイネームをPreferencesに保存: $userName');
+      AppLogger.info(
+          '✅ [SIGNUP] ディスプレイネームをPreferencesに保存: ${AppLogger.maskName(userName)}');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -172,7 +176,8 @@ class _HomePageState extends ConsumerState<HomePage> {
         setState(() {
           userNameController.text = firestoreUserName;
         });
-        AppLogger.info('✅ [SIGNIN] Firestoreからユーザー名を取得・反映: $firestoreUserName');
+        AppLogger.info(
+            '✅ [SIGNIN] Firestoreからユーザー名を取得・反映: ${AppLogger.maskName(firestoreUserName)}');
       } else {
         // Firestoreに未設定の場合、Firebase Authから取得を試みる
         final user = ref.read(authProvider).currentUser;
