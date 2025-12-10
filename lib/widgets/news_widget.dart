@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/app_news.dart';
 import '../providers/news_provider.dart';
+import '../providers/subscription_provider.dart';
+import '../pages/premium_page.dart';
 
 /// ホーム画面用ニュース表示ウィジェット
 class NewsWidget extends ConsumerWidget {
@@ -10,12 +12,122 @@ class NewsWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final newsAsync = ref.watch(newsStreamProvider);
+    // 課金催促条件をチェック
+    final shouldShowPaymentReminder =
+        ref.watch(shouldShowPaymentReminderProvider);
 
+    // 課金催促条件に当てはまる場合は警告表示に差し替え
+    if (shouldShowPaymentReminder) {
+      return _buildPaymentReminderCard(context, ref);
+    }
+
+    // 通常のニュース表示
+    final newsAsync = ref.watch(newsStreamProvider);
     return newsAsync.when(
       data: (news) => _buildNewsCard(context, news),
       loading: () => _buildLoadingCard(),
       error: (error, stack) => _buildErrorCard(error.toString()),
+    );
+  }
+
+  /// トライアル終了警告カード
+  Widget _buildPaymentReminderCard(BuildContext context, WidgetRef ref) {
+    final notifier = ref.read(subscriptionProvider.notifier);
+    final message = notifier.paymentReminderMessage;
+
+    return Card(
+      margin: const EdgeInsets.all(16.0),
+      elevation: 2,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.orange[100]!,
+              Colors.orange[200]!,
+            ],
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 警告ヘッダー
+              Row(
+                children: [
+                  Icon(
+                    Icons.schedule,
+                    color: Colors.orange[700],
+                    size: 28,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      '無料期間終了のお知らせ',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange[800],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                message,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.orange[700],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => const PremiumPage(),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.star),
+                      label: const Text('プレミアムプラン'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange[600],
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('明日また通知します'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        '後で',
+                        style: TextStyle(color: Colors.orange[700]),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
