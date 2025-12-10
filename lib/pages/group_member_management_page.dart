@@ -41,15 +41,14 @@ class _GroupMemberManagementPageState
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         actions: [
-          // デフォルトグループ（プライベート専用）では招待機能を非表示
-          if (!_isDefaultGroup(widget.group))
-            IconButton(
-              onPressed: () {
-                _showInviteOptions(context);
-              },
-              icon: const Icon(Icons.person_add),
-              tooltip: 'メンバーを招待',
-            ),
+          // 全グループで招待機能を表示（デフォルトグループも招待可能）
+          IconButton(
+            onPressed: () {
+              _showInviteOptions(context);
+            },
+            icon: const Icon(Icons.person_add),
+            tooltip: 'メンバーを招待',
+          ),
         ],
       ),
       body: allGroupsAsync.when(
@@ -116,20 +115,28 @@ class _GroupMemberManagementPageState
                 ),
               ),
               const SizedBox(height: 8),
-              Text('グループ名: ${group.groupName}'),
-              if (_isDefaultGroup(group)) ...[
-                Text(
-                  'プライベート専用（あなたのみ）',
-                  style: TextStyle(
-                    color: Colors.green.shade600,
-                    fontWeight: FontWeight.w500,
+              // グループ名編集TextField
+              Row(
+                children: [
+                  const Text('グループ名: '),
+                  Expanded(
+                    child: TextField(
+                      controller: TextEditingController(text: group.groupName),
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        border: OutlineInputBorder(),
+                      ),
+                      onSubmitted: (value) => _updateGroupName(group, value),
+                    ),
                   ),
-                ),
-              ] else ...[
-                Text('メンバー数: ${members.length}人'),
-                if (group.ownerName?.isNotEmpty == true)
-                  Text('オーナー: ${group.ownerName}'),
-              ],
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text('メンバー数: ${members.length}人'),
+              if (group.ownerName?.isNotEmpty == true)
+                Text('オーナー: ${group.ownerName}'),
             ],
           ),
         ),
@@ -414,8 +421,7 @@ class _GroupMemberManagementPageState
     );
   }
 
-  void _showRemoveMemberDialog(
-      SharedGroupMember member, SharedGroup group) {
+  void _showRemoveMemberDialog(SharedGroupMember member, SharedGroup group) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -454,6 +460,43 @@ class _GroupMemberManagementPageState
       );
     } catch (e) {
       AppLogger.error('❌ [MEMBER_MGMT] メンバー削除エラー: $e');
+    }
+  }
+
+  /// グループ名を更新
+  void _updateGroupName(SharedGroup group, String newName) async {
+    if (newName.isEmpty || newName.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('グループ名を入力してください'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (newName == group.groupName) {
+      // 変更なし
+      return;
+    }
+
+    try {
+      // グループ名を更新
+      final updatedGroup = group.copyWith(groupName: newName);
+      await ref.read(SharedGroupRepositoryProvider).updateGroup(
+            group.groupId,
+            updatedGroup,
+          );
+
+      // プロバイダーを更新
+      ref.invalidate(allGroupsProvider);
+
+      AppLogger.info('✅ [GROUP_MGMT] グループ名更新完了: $newName');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('グループ名を「$newName」に変更しました')),
+      );
+    } catch (e) {
+      AppLogger.error('❌ [GROUP_MGMT] グループ名更新エラー: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('削除に失敗しました: $e')),
       );
