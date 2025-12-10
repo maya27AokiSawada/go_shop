@@ -256,43 +256,62 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
       'ownerUid': list.ownerUid,
       'groupId': list.groupId,
       'groupName': list.groupName,
-      'items': list.items
-          .map((item) => {
-                'memberId': item.memberId,
-                'name': item.name,
-                'quantity': item.quantity,
-                'registeredDate': item.registeredDate.toIso8601String(),
-                'purchaseDate': item.purchaseDate?.toIso8601String(),
-                'isPurchased': item.isPurchased,
-                'shoppingInterval': item.shoppingInterval,
-                'deadline': item.deadline?.toIso8601String(),
-              })
-          .toList(),
+      'items': list.items.entries
+          .map((entry) => MapEntry(
+                entry.key,
+                {
+                  'itemId': entry.value.itemId,
+                  'memberId': entry.value.memberId,
+                  'name': entry.value.name,
+                  'quantity': entry.value.quantity,
+                  'registeredDate':
+                      entry.value.registeredDate.toIso8601String(),
+                  'purchaseDate': entry.value.purchaseDate?.toIso8601String(),
+                  'isPurchased': entry.value.isPurchased,
+                  'shoppingInterval': entry.value.shoppingInterval,
+                  'deadline': entry.value.deadline?.toIso8601String(),
+                  'isDeleted': entry.value.isDeleted,
+                  'deletedAt': entry.value.deletedAt?.toIso8601String(),
+                },
+              ))
+          .map((e) => MapEntry(e.key, e.value))
+          .fold<Map<String, dynamic>>({}, (map, entry) {
+        map[entry.key] = entry.value;
+        return map;
+      }),
       'lastUpdated': FieldValue.serverTimestamp(),
     };
   }
 
   /// FirestoreのMapをShoppingListに変換
   ShoppingList _mapToShoppingList(Map<String, dynamic> data) {
-    final itemsData = data['items'] as List<dynamic>? ?? [];
-    final items = itemsData.map((itemData) {
-      final itemMap = itemData as Map<String, dynamic>;
-      return ShoppingItem(
-        memberId: itemMap['memberId'] ?? '',
-        name: itemMap['name'] ?? '',
-        quantity: itemMap['quantity'] ?? 1,
-        registeredDate: DateTime.parse(
-            itemMap['registeredDate'] ?? DateTime.now().toIso8601String()),
-        purchaseDate: itemMap['purchaseDate'] != null
-            ? DateTime.parse(itemMap['purchaseDate'])
-            : null,
-        isPurchased: itemMap['isPurchased'] ?? false,
-        shoppingInterval: itemMap['shoppingInterval'] ?? 0,
-        deadline: itemMap['deadline'] != null
-            ? DateTime.parse(itemMap['deadline'])
-            : null,
+    final itemsData = data['items'] as Map<String, dynamic>? ?? {};
+    final items = itemsData.map((key, value) {
+      final itemMap = value as Map<String, dynamic>;
+      return MapEntry(
+        key,
+        ShoppingItem(
+          itemId: itemMap['itemId'] ?? key,
+          memberId: itemMap['memberId'] ?? '',
+          name: itemMap['name'] ?? '',
+          quantity: itemMap['quantity'] ?? 1,
+          registeredDate: DateTime.parse(
+              itemMap['registeredDate'] ?? DateTime.now().toIso8601String()),
+          purchaseDate: itemMap['purchaseDate'] != null
+              ? DateTime.parse(itemMap['purchaseDate'])
+              : null,
+          isPurchased: itemMap['isPurchased'] ?? false,
+          shoppingInterval: itemMap['shoppingInterval'] ?? 0,
+          deadline: itemMap['deadline'] != null
+              ? DateTime.parse(itemMap['deadline'])
+              : null,
+          isDeleted: itemMap['isDeleted'] ?? false,
+          deletedAt: itemMap['deletedAt'] != null
+              ? DateTime.parse(itemMap['deletedAt'])
+              : null,
+        ),
       );
-    }).toList();
+    });
 
     return ShoppingList.create(
       ownerUid: data['ownerUid'] ?? '',
@@ -304,16 +323,16 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
     );
   }
 
-  /// 繰り返し購入アイチE��の処琁E
+  /// 繰り返し購入アイテムの処理
   ShoppingList _processRepeatPurchases(ShoppingList list) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final processedItems = <ShoppingItem>[];
+    final processedItems = Map<String, ShoppingItem>.from(list.items);
 
-    for (final item in list.items) {
-      processedItems.add(item);
+    for (final entry in list.items.entries) {
+      final item = entry.value;
 
-      // 繰り返し購入の条件をチェチE��
+      // 繰り返し購入の条件をチェック
       if (item.shoppingInterval > 0 &&
           item.isPurchased &&
           item.purchaseDate != null) {
@@ -323,11 +342,12 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
         final nextPurchaseDate =
             purchaseDate.add(Duration(days: item.shoppingInterval));
 
-        // 次回購入予定日が今日以降で、同じ名前�E未購入アイチE��が存在しなぁE��吁E
+        // 次回購入予定日が今日以降で、同じ名前の未購入アイテムが存在しない場合
         if ((nextPurchaseDate.isBefore(today) ||
                 nextPurchaseDate.isAtSameMomentAs(today)) &&
-            !_hasUnpurchasedItemWithSameName(processedItems, item.name)) {
-          // 1週間以冁E�E間隔の場合�E期限めE日後に、それ以外�E間隔刁E��長
+            !_hasUnpurchasedItemWithSameName(
+                processedItems.values.toList(), item.name)) {
+          // 1週間以下の間隔の場合は期限を1日後に、それ以外は間隔分長く
           DateTime? newDeadline;
           if (item.shoppingInterval <= 7) {
             newDeadline = DateTime.now().add(const Duration(days: 1));
@@ -345,7 +365,7 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
             deadline: newDeadline,
           );
 
-          processedItems.add(newItem);
+          processedItems[newItem.itemId] = newItem;
           AppLogger.info(
               '🔄 Created repeat purchase item: ${item.name} (${item.shoppingInterval} days interval)');
         }
@@ -360,21 +380,21 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
     return items.any((item) => item.name == name && !item.isPurchased);
   }
 
-  /// Firebaseからの更新が忁E��かどぁE��を判断
+  /// Firebaseからの更新が必要かどうかを判断
   bool _shouldUpdateFromFirebase(
       ShoppingList hiveList, ShoppingList firebaseList) {
-    // アイチE��数が異なる場合�E更新
+    // アイテム数が異なる場合は更新
     if (hiveList.items.length != firebaseList.items.length) {
       AppLogger.info(
           '📊 Item count differs: Hive=${hiveList.items.length}, Firebase=${firebaseList.items.length}');
       return true;
     }
 
-    // 吁E��イチE��の冁E��を比輁E
-    final hiveItemsSet = hiveList.items
+    // 各アイテムの内容を比較
+    final hiveItemsSet = hiveList.items.values
         .map((item) => '${item.name}_${item.memberId}_${item.isPurchased}')
         .toSet();
-    final firebaseItemsSet = firebaseList.items
+    final firebaseItemsSet = firebaseList.items.values
         .map((item) => '${item.name}_${item.memberId}_${item.isPurchased}')
         .toSet();
 
@@ -384,7 +404,7 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
       return true;
     }
 
-    AppLogger.info('✁EHive and Firebase data are identical');
+    AppLogger.info('✅ Hive and Firebase data are identical');
     return false;
   }
 
@@ -502,5 +522,75 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
   Stream<ShoppingList?> watchShoppingList(String groupId, String listId) {
     // Firebase版はHiveのポーリング方式にフォールバック
     return _hiveRepo.watchShoppingList(groupId, listId);
+  }
+
+  // === Differential Sync Methods (Map Format) ===
+  @override
+  Future<void> addSingleItem(String listId, ShoppingItem item) async {
+    await _hiveRepo.addSingleItem(listId, item);
+
+    final user = _currentUser;
+    if (user != null) {
+      try {
+        final list = await _hiveRepo.getShoppingListById(listId);
+        if (list != null) {
+          await _syncToFirebase(list);
+        }
+      } catch (e) {
+        AppLogger.error('Firebase sync error during add single item: $e');
+      }
+    }
+  }
+
+  @override
+  Future<void> removeSingleItem(String listId, String itemId) async {
+    await _hiveRepo.removeSingleItem(listId, itemId);
+
+    final user = _currentUser;
+    if (user != null) {
+      try {
+        final list = await _hiveRepo.getShoppingListById(listId);
+        if (list != null) {
+          await _syncToFirebase(list);
+        }
+      } catch (e) {
+        AppLogger.error('Firebase sync error during remove single item: $e');
+      }
+    }
+  }
+
+  @override
+  Future<void> updateSingleItem(String listId, ShoppingItem item) async {
+    await _hiveRepo.updateSingleItem(listId, item);
+
+    final user = _currentUser;
+    if (user != null) {
+      try {
+        final list = await _hiveRepo.getShoppingListById(listId);
+        if (list != null) {
+          await _syncToFirebase(list);
+        }
+      } catch (e) {
+        AppLogger.error('Firebase sync error during update single item: $e');
+      }
+    }
+  }
+
+  @override
+  Future<void> cleanupDeletedItems(String listId,
+      {int olderThanDays = 30}) async {
+    await _hiveRepo.cleanupDeletedItems(listId, olderThanDays: olderThanDays);
+
+    final user = _currentUser;
+    if (user != null) {
+      try {
+        final list = await _hiveRepo.getShoppingListById(listId);
+        if (list != null) {
+          await _syncToFirebase(list);
+        }
+      } catch (e) {
+        AppLogger.error('Firebase sync error during cleanup deleted items: $e');
+      }
+    }
   }
 }
