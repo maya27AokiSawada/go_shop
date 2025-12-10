@@ -84,7 +84,8 @@ class SignupService {
       await UserPreferencesService.saveUserEmail(user.email!);
     }
 
-    Log.info('✅ [SIGNUP_SERVICE] ユーザープロフィール設定完了: $finalDisplayName');
+    Log.info(
+        '✅ [SIGNUP_SERVICE] ユーザープロファイル設定完了: ${AppLogger.maskName(finalDisplayName)}');
   }
 
   /// ローカルデフォルトグループの検出

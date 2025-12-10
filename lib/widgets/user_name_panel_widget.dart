@@ -144,7 +144,7 @@ class _UserNamePanelWidgetState extends ConsumerState<UserNamePanelWidget> {
 
     try {
       final userName = widget.userNameController.text.trim();
-      AppLogger.info('👤 ユーザー名保存開始: $userName');
+      AppLogger.info('👤 ユーザー名保存開始: ${AppLogger.maskName(userName)}');
 
       // SharedPreferencesに保存
       final success = await UserPreferencesService.saveUserName(userName);

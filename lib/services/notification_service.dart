@@ -97,12 +97,14 @@ class NotificationService {
     }
 
     if (_isListening) {
-      AppLogger.info('🔔 [NOTIFICATION] 既にリスナー起動中 (UID: ${currentUser.uid})');
+      AppLogger.info(
+          '🔔 [NOTIFICATION] 既にリスナー起動中 (UID: ${AppLogger.maskUserId(currentUser.uid)})');
       return;
     }
 
     AppLogger.info('🔔 [NOTIFICATION] ========== リアルタイム通知リスナー起動開始 ==========');
-    AppLogger.info('🔔 [NOTIFICATION] ユーザーUID: ${currentUser.uid}');
+    AppLogger.info(
+        '🔔 [NOTIFICATION] ユーザーUID: ${AppLogger.maskUserId(currentUser.uid)}');
     AppLogger.info(
         '🔔 [NOTIFICATION] ユーザー名: ${currentUser.displayName ?? "未設定"}');
     AppLogger.info('🔔 [NOTIFICATION] メール: ${currentUser.email}');
@@ -183,7 +185,8 @@ class NotificationService {
           final acceptorName =
               notification.metadata?['acceptorName'] as String? ?? 'ユーザー';
 
-          AppLogger.info('👥 [NOTIFICATION] グループID: $groupId');
+          AppLogger.info(
+              '👥 [NOTIFICATION] グループID: ${AppLogger.maskGroupId(groupId)}');
           AppLogger.info('👥 [NOTIFICATION] 受諾者UID: $acceptorUid');
           AppLogger.info('👥 [NOTIFICATION] 受諾者名: $acceptorName');
 
@@ -199,7 +202,8 @@ class NotificationService {
             if (selectedGroupId == groupId) {
               // 対象グループが現在選択中の場合、selectedGroupProviderも更新
               _ref.invalidate(selectedGroupProvider);
-              AppLogger.info('✅ [NOTIFICATION] 選択中グループも更新: $groupId');
+              AppLogger.info(
+                  '✅ [NOTIFICATION] 選択中グループも更新: ${AppLogger.maskGroupId(groupId)}');
             }
 
             // 受諾者に確認通知を送信
@@ -279,7 +283,8 @@ class NotificationService {
   Future<void> _addMemberToGroup(
       String groupId, String acceptorUid, String acceptorName) async {
     try {
-      AppLogger.info('📤 [OWNER] グループ更新開始: $groupId に $acceptorName を追加');
+      AppLogger.info(
+          '📤 [OWNER] グループ更新開始: ${AppLogger.maskGroupId(groupId)} に ${AppLogger.maskName(acceptorName)} を追加');
 
       // acceptorNameが空の場合、Firestoreプロファイルから取得
       String finalAcceptorName = acceptorName;
@@ -370,13 +375,15 @@ class NotificationService {
   /// 特定グループをFirestoreから取得してHiveに同期
   Future<void> _syncSpecificGroupFromFirestore(String groupId) async {
     try {
-      AppLogger.info('🔄 [NOTIFICATION] グループ同期開始: $groupId');
+      AppLogger.info(
+          '🔄 [NOTIFICATION] グループ同期開始: ${AppLogger.maskGroupId(groupId)}');
 
       // 🔥 共通ユーティリティでFirestoreから取得
       final group = await FirestoreHelper.fetchGroup(groupId);
 
       if (group == null) {
-        AppLogger.warning('⚠️ [NOTIFICATION] グループが存在しません: $groupId');
+        AppLogger.warning(
+            '⚠️ [NOTIFICATION] グループが存在しません: ${AppLogger.maskGroupId(groupId)}');
         return;
       }
 
@@ -394,7 +401,8 @@ class NotificationService {
       } else {
         // HiveRepositoryの場合は通常のupdateを使用
         await repository.updateGroup(groupId, group);
-        AppLogger.info('✅ [NOTIFICATION] グループ同期完了: ${group.groupName}');
+        AppLogger.info(
+            '✅ [NOTIFICATION] グループ同期完了: ${AppLogger.maskGroup(group.groupName, group.groupId)}');
       }
     } catch (e) {
       AppLogger.error('❌ [NOTIFICATION] グループ同期エラー: $e');
@@ -439,7 +447,8 @@ class NotificationService {
 
       await _firestore.collection('notifications').add(notificationData);
 
-      AppLogger.info('📤 [NOTIFICATION] 送信完了: $targetUserId - ${type.value}');
+      AppLogger.info(
+          '📤 [NOTIFICATION] 送信完了: ${AppLogger.maskUserId(targetUserId)} - ${type.value}');
     } catch (e) {
       AppLogger.error('❌ [NOTIFICATION] 送信エラー: $e');
     }
@@ -461,7 +470,8 @@ class NotificationService {
       final groupDoc =
           await _firestore.collection('SharedGroups').doc(groupId).get();
       if (!groupDoc.exists) {
-        AppLogger.error('❌ [NOTIFICATION] グループが見つかりません: $groupId');
+        AppLogger.error(
+            '❌ [NOTIFICATION] グループが見つかりません: ${AppLogger.maskGroupId(groupId)}');
         return;
       }
 

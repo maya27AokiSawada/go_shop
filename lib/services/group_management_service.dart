@@ -30,7 +30,8 @@ class GroupManagementService {
       final SharedGroupAsync = _ref.read(selectedGroupProvider);
       final currentUserName = await UserPreferencesService.getUserName();
 
-      Log.info('📊 現在のSharedPreferences userName: $currentUserName');
+      Log.info(
+          '📊 現在のSharedPreferences userName: ${AppLogger.maskName(currentUserName)}');
 
       return await SharedGroupAsync.when(
         data: (group) async {
@@ -146,7 +147,7 @@ class GroupManagementService {
         loading: () => '',
         error: (_, __) => '',
       );
-      Log.info('🔐 現在のユーザーID: $currentUserId');
+      Log.info('🔐 現在のユーザーID: ${AppLogger.maskUserId(currentUserId)}');
 
       // 全グループを取得
       final repository = _ref.read(SharedGroupRepositoryProvider);

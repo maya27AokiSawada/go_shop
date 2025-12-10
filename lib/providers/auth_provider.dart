@@ -192,7 +192,8 @@ class FirebaseAuthService {
         if (savedUserName != null && savedUserName.isNotEmpty) {
           userName = savedUserName;
           userNameController.text = userName;
-          Log.info('📝 SharedPreferences からユーザー名を復元: $userName');
+          Log.info(
+              '📝 SharedPreferences からユーザー名を復元: ${AppLogger.maskName(userName)}');
         } else {
           // ユーザー名がない場合はエラー
           UiHelper.showWarningMessage(
@@ -203,7 +204,8 @@ class FirebaseAuthService {
       } else {
         // 入力されたユーザー名を SharedPreferences に保存
         await UserPreferencesService.saveUserName(userName);
-        Log.info('💾 入力されたユーザー名を SharedPreferences に保存: $userName');
+        Log.info(
+            '💾 入力されたユーザー名を SharedPreferences に保存: ${AppLogger.maskName(userName)}');
       }
 
       final userCredential =
@@ -303,11 +305,13 @@ class FirebaseAuthService {
     }
 
     try {
-      Log.info('🔧 サインアップ開始: $email - userName: $userName');
+      Log.info(
+          '🔧 サインアップ開始: ${AppLogger.maskName(email)} - userName: ${AppLogger.maskName(userName)}');
 
       // ユーザー名を SharedPreferences に保存（サインアップ時に同期）
       await UserPreferencesService.saveUserName(userName);
-      Log.info('💾 ユーザー名を SharedPreferences に保存（サインアップ時）: $userName');
+      Log.info(
+          '💾 ユーザー名を SharedPreferences に保存（サインアップ時）: ${AppLogger.maskName(userName)}');
 
       // ユーザー名を UserSettings (Hive) にも保存
       try {
@@ -371,7 +375,7 @@ class FirebaseAuthService {
     }
 
     try {
-      Log.info('💾 ユーザー名保存開始: $userName');
+      Log.info('💾 ユーザー名保存開始: ${AppLogger.maskName(userName)}');
 
       // UserNameNotifierを使用してSharedPreferences + Firestoreに保存
       await ref.read(userNameNotifierProvider.notifier).setUserName(userName);
@@ -662,7 +666,8 @@ class FirebaseAuthService {
       if (savedUserName != null && savedUserName.isNotEmpty) {
         userName = savedUserName;
         userNameController.text = userName;
-        Log.info('📱 SharedPreferences からユーザー名を復元: $userName');
+        Log.info(
+            '📱 SharedPreferences からユーザー名を復元: ${AppLogger.maskName(userName)}');
       }
     }
 

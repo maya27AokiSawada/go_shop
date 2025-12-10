@@ -113,7 +113,8 @@ class InvitationMonitorService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      Log.info('✅ SharedGroup allowedUids更新: $groupId + $newUid');
+      Log.info(
+          '✅ SharedGroup allowedUids更新: $groupId + ${AppLogger.maskUserId(newUid)}');
     } catch (e) {
       Log.error('❌ SharedGroup更新エラー: $e');
       rethrow;
@@ -132,7 +133,8 @@ class InvitationMonitorService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      Log.info('✅ ShoppingList allowedUids更新: $listId + $newUid');
+      Log.info(
+          '✅ ShoppingList allowedUids更新: $listId + ${AppLogger.maskUserId(newUid)}');
     } catch (e) {
       Log.error('❌ ShoppingList更新エラー: $e');
       rethrow;

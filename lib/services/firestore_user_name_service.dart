@@ -19,7 +19,8 @@ class FirestoreUserNameService {
         return null;
       }
 
-      Log.info('🔍 Firestoreからユーザー名取得開始: UID=${user.uid}');
+      Log.info(
+          '🔍 Firestoreからユーザー名取得開始: UID=${AppLogger.maskUserId(user.uid)}');
 
       final docRef = _firestore
           .collection('users')
@@ -32,7 +33,7 @@ class FirestoreUserNameService {
         final data = docSnapshot.data() as Map<String, dynamic>;
         final userName = data['userName'] as String?;
 
-        Log.info('✅ Firestoreからユーザー名取得成功: $userName');
+        Log.info('✅ Firestoreからユーザー名取得成功: ${AppLogger.maskName(userName)}');
         return userName;
       } else {
         Log.info('📭 Firestoreにユーザードキュメントなし');
@@ -53,7 +54,8 @@ class FirestoreUserNameService {
         return false;
       }
 
-      Log.info('💾 Firestoreにユーザー名保存開始: UID=${user.uid}, 名前=$userName');
+      Log.info(
+          '💾 Firestoreにユーザー名保存開始: UID=${AppLogger.maskUserId(user.uid)}, 名前=${AppLogger.maskName(userName)}');
 
       final docRef = _firestore
           .collection('users')

@@ -86,12 +86,17 @@ class QRInvitationService {
                         ? currentUser.email!
                         : currentUser.uid)));
 
-    Log.info('📤 [INVITER] Firestore.displayName: $firestoreName');
-    Log.info('📤 [INVITER] SharedPreferences.userName: $prefsName');
-    Log.info('📤 [INVITER] UserSettings.userName: $settingsName');
-    Log.info('📤 [INVITER] Auth.displayName: ${currentUser.displayName}');
-    Log.info('📤 [INVITER] Auth.email: ${currentUser.email}');
-    Log.info('📤 [INVITER] 最終決定した名前: $inviterName');
+    Log.info(
+        '📤 [INVITER] Firestore.displayName: ${AppLogger.maskName(firestoreName)}');
+    Log.info(
+        '📤 [INVITER] SharedPreferences.userName: ${AppLogger.maskName(prefsName)}');
+    Log.info(
+        '📤 [INVITER] UserSettings.userName: ${AppLogger.maskName(settingsName)}');
+    Log.info(
+        '📤 [INVITER] Auth.displayName: ${AppLogger.maskName(currentUser.displayName)}');
+    Log.info(
+        '📤 [INVITER] Auth.email: ${AppLogger.maskName(currentUser.email)}');
+    Log.info('📤 [INVITER] 最終決定した名前: ${AppLogger.maskName(inviterName)}');
 
     // セキュリティキーを生成
     final securityKey = _securityService.generateSecurityKey();
@@ -314,8 +319,8 @@ class QRInvitationService {
 
       // ⚠️ 受諾者の処理: 通知送信のみ（Hive/Firestore更新は招待元が実施）
       Log.info('📤 [ACCEPTOR] 招待元への通知を送信（すべての更新は招待元が実施）');
-      Log.info('📤 [ACCEPTOR] 招待元UID: $inviterUid');
-      Log.info('📤 [ACCEPTOR] 受諾者UID: $acceptorUid');
+      Log.info('📤 [ACCEPTOR] 招待元UID: ${AppLogger.maskUserId(inviterUid)}');
+      Log.info('📤 [ACCEPTOR] 受諾者UID: ${AppLogger.maskUserId(acceptorUid)}');
 
       // 招待元のオーナーに通知を送信
       final notificationService = _ref.read(notificationServiceProvider);
@@ -358,12 +363,17 @@ class QRInvitationService {
                           ? acceptorUser!.email!
                           : acceptorUid)));
 
-      Log.info('📤 [ACCEPTOR] Firestore.displayName: $firestoreName');
-      Log.info('📤 [ACCEPTOR] SharedPreferences.userName: $prefsName');
-      Log.info('📤 [ACCEPTOR] UserSettings.userName: $settingsName');
-      Log.info('📤 [ACCEPTOR] Auth.displayName: ${acceptorUser?.displayName}');
-      Log.info('📤 [ACCEPTOR] Auth.email: ${acceptorUser?.email}');
-      Log.info('📤 [ACCEPTOR] 最終決定した名前: $userName');
+      Log.info(
+          '📤 [ACCEPTOR] Firestore.displayName: ${AppLogger.maskName(firestoreName)}');
+      Log.info(
+          '📤 [ACCEPTOR] SharedPreferences.userName: ${AppLogger.maskName(prefsName)}');
+      Log.info(
+          '📤 [ACCEPTOR] UserSettings.userName: ${AppLogger.maskName(settingsName)}');
+      Log.info(
+          '📤 [ACCEPTOR] Auth.displayName: ${AppLogger.maskName(acceptorUser?.displayName)}');
+      Log.info(
+          '📤 [ACCEPTOR] Auth.email: ${AppLogger.maskName(acceptorUser?.email)}');
+      Log.info('📤 [ACCEPTOR] 最終決定した名前: ${AppLogger.maskName(userName)}');
 
       final groupId = invitationData['SharedGroupId'] as String;
       final groupName = invitationData['groupName'] as String? ?? 'グループ';
@@ -470,7 +480,8 @@ class QRInvitationService {
         return;
       } catch (e) {
         // グループが存在しない場合は続行
-        Log.info('📝 [PLACEHOLDER] グループが存在しないため作成します: $groupId');
+        Log.info(
+            '📝 [PLACEHOLDER] グループが存在しないため作成します: ${AppLogger.maskGroupId(groupId)}');
       }
 
       // プレースホルダーグループ作成
@@ -506,7 +517,8 @@ class QRInvitationService {
 
       // Hiveに保存
       await repository.updateGroup(groupId, placeholderGroup);
-      Log.info('✅ [PLACEHOLDER] プレースホルダーグループ保存完了: $groupId');
+      Log.info(
+          '✅ [PLACEHOLDER] プレースホルダーグループ保存完了: ${AppLogger.maskGroupId(groupId)}');
 
       // UI更新
       _ref.invalidate(allGroupsProvider);
@@ -664,7 +676,8 @@ class QRInvitationService {
           final prefs = await UserPreferencesService.getUserName();
           if (prefs != null && prefs.isNotEmpty) {
             userName = prefs;
-            Log.info('✅ [PARTNER] SharedPreferencesからユーザー名取得: "$userName"');
+            Log.info(
+                '✅ [PARTNER] SharedPreferencesからユーザー名取得: "${AppLogger.maskName(userName)}"');
           }
         } catch (e) {
           Log.warning('⚠️ [PARTNER] SharedPreferences取得エラー: $e');
@@ -684,7 +697,8 @@ class QRInvitationService {
               final profileData = profileDoc.data();
               userName = profileData?['userName'] ?? '';
               if (userName.isNotEmpty) {
-                Log.info('✅ [PARTNER] Firestore profileからユーザー名取得: "$userName"');
+                Log.info(
+                    '✅ [PARTNER] Firestore profileからユーザー名取得: "${AppLogger.maskName(userName)}"');
               }
             }
           } catch (e) {
@@ -696,7 +710,8 @@ class QRInvitationService {
         if (userName.isEmpty) {
           userName = acceptorUser?.displayName ?? '';
           if (userName.isNotEmpty) {
-            Log.info('✅ [PARTNER] Firebase Auth displayNameから取得: "$userName"');
+            Log.info(
+                '✅ [PARTNER] Firebase Auth displayNameから取得: "${AppLogger.maskName(userName)}"');
           }
         }
 
@@ -706,7 +721,8 @@ class QRInvitationService {
           userName = userEmail.isNotEmpty
               ? userEmail.split('@').first
               : 'Unknown User';
-          Log.warning('⚠️ [PARTNER] すべての取得失敗 - フォールバック: "$userName"');
+          Log.warning(
+              '⚠️ [PARTNER] すべての取得失敗 - フォールバック: "${AppLogger.maskName(userName)}"');
         }
 
         // 新しいメンバー情報
@@ -724,7 +740,8 @@ class QRInvitationService {
           'updatedAt': FieldValue.serverTimestamp(),
         });
 
-        Log.info('✅ パートナーとして ${doc.id} グループに追加: $acceptorUid');
+        Log.info(
+            '✅ パートナーとして ${doc.id} グループに追加: ${AppLogger.maskUserId(acceptorUid)}');
 
         // グループの全メンバーに通知を送信（参加者本人は除く）
         final notificationService = _ref.read(notificationServiceProvider);
@@ -760,8 +777,8 @@ class QRInvitationService {
       final groupId = invitationData['SharedGroupId'] as String;
       final groupName = invitationData['groupName'] as String;
 
-      Log.info('🔍 [QR_INVITATION] グループID: $groupId');
-      Log.info('🔍 [QR_INVITATION] グループ名: $groupName');
+      Log.info('🔍 [QR_INVITATION] グループID: ${AppLogger.maskGroupId(groupId)}');
+      Log.info('🔍 [QR_INVITATION] グループ名: ${AppLogger.maskName(groupName)}');
 
       // ⚠️ 重要: FirestoreとHiveの両方からallowedUidを取得してマージ
       final repository = _ref.read(SharedGroupRepositoryProvider);
@@ -795,8 +812,10 @@ class QRInvitationService {
         hiveAllowedUid = List<String>.from(hiveGroup.allowedUid);
         hiveMembers =
             List<models.SharedGroupMember>.from(hiveGroup.members ?? []);
-        Log.info('✅ [QR_INVITATION] Hiveから取得: ${hiveGroup.groupName}');
-        Log.info('🔍 [QR_INVITATION] Hive allowedUid: $hiveAllowedUid');
+        Log.info(
+            '✅ [QR_INVITATION] Hiveから取得: ${AppLogger.maskGroup(hiveGroup.groupName, hiveGroup.groupId)}');
+        Log.info(
+            '🔍 [QR_INVITATION] Hive allowedUid: ${hiveAllowedUid.map((uid) => AppLogger.maskUserId(uid)).toList()}');
       } catch (e) {
         Log.error('⚠️ [QR_INVITATION] Hive取得エラー: $e');
       }
@@ -806,7 +825,8 @@ class QRInvitationService {
         ...firestoreAllowedUid,
         ...hiveAllowedUid,
       }.toList();
-      Log.info('🔀 [QR_INVITATION] マージ後 allowedUid: $mergedAllowedUid');
+      Log.info(
+          '🔀 [QR_INVITATION] マージ後 allowedUid: ${mergedAllowedUid.map((uid) => AppLogger.maskUserId(uid)).toList()}');
 
       // 4. ベースとなるグループを決定（Firestoreを優先、なければHive）
       final baseGroup = firestoreGroup ?? hiveGroup;
@@ -830,7 +850,8 @@ class QRInvitationService {
         Log.info('💡 [QR_INVITATION] acceptorUidは既に存在: $acceptorUid');
       }
 
-      Log.info('🔍 [QR_INVITATION] 最終 allowedUid: $allowedUid');
+      Log.info(
+          '🔍 [QR_INVITATION] 最終 allowedUid: ${allowedUid.map((uid) => AppLogger.maskUserId(uid)).toList()}');
 
       // membersリストにも追加
       final memberExists = members.any((m) => m.memberId == acceptorUid);
@@ -918,7 +939,8 @@ class QRInvitationService {
         updatedAt: DateTime.now(),
       );
 
-      Log.info('🔍 [QR_INVITATION] 更新前 - allowedUid: ${baseGroup.allowedUid}');
+      Log.info(
+          '🔍 [QR_INVITATION] 更新前 - allowedUid: ${baseGroup.allowedUid.map((uid) => AppLogger.maskUserId(uid)).toList()}');
       Log.info(
           '🔍 [QR_INVITATION] 更新後 - allowedUid: ${updatedGroup.allowedUid}');
       Log.info('🔍 [QR_INVITATION] メンバー数: ${updatedGroup.members?.length}');

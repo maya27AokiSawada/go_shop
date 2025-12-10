@@ -72,7 +72,8 @@ class _AuthPanelWidgetState extends ConsumerState<AuthPanelWidget> {
         final savedUserName = await UserPreferencesService.getUserName();
         if (savedUserName != null && savedUserName.isNotEmpty && mounted) {
           userNameController.text = savedUserName;
-          AppLogger.info('👤 AuthPanel: 保存されたユーザー名を設定: $savedUserName');
+          AppLogger.info(
+              '👤 AuthPanel: 保存されたユーザー名を設定: ${AppLogger.maskName(savedUserName)}');
         }
       } else {
         AppLogger.info(

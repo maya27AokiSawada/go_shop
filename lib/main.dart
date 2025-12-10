@@ -57,7 +57,9 @@ void main() async {
 
       // Firebase Auth の状態確認
       AppLogger.info('🔐 Firebase Auth インスタンス: ${FirebaseAuth.instance}');
-      AppLogger.info('🔐 現在のユーザー: ${FirebaseAuth.instance.currentUser}');
+      final currentUser = FirebaseAuth.instance.currentUser;
+      AppLogger.info(
+          '🔐 現在のユーザー: ${currentUser != null ? AppLogger.maskUserId(currentUser.uid) : "未ログイン"}');
 
       // Firestore の状態確認
       AppLogger.info('🗃️ Firestore インスタンス: ${FirebaseFirestore.instance}');

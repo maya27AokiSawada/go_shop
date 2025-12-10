@@ -43,7 +43,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           final userName = await UserPreferencesService.getUserName();
           if (userName != null && userName.isNotEmpty) {
             userNameController.text = userName;
-            AppLogger.info('ユーザー名読み込み成功: $userName');
+            AppLogger.info('ユーザー名読み込み成功: ${AppLogger.maskName(userName)}');
           } else {
             AppLogger.warning('ユーザー名が保存されていません');
           }

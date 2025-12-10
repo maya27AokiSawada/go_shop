@@ -543,7 +543,8 @@ class GroupListWidget extends ConsumerWidget {
     final isOwner = currentMember.role == SharedGroupRole.owner;
 
     if (!isOwner) {
-      AppLogger.info('📋 [GROUP_OPTIONS] オーナーではないため削除権限なし: $currentUserId');
+      AppLogger.info(
+          '📋 [GROUP_OPTIONS] オーナーではないため削除権限なし: ${AppLogger.maskUserId(currentUserId)}');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('グループを削除できるのはオーナーのみです'),

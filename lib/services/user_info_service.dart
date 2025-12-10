@@ -40,7 +40,7 @@ class UserInfoService {
     // 1. まずフォームから取得
     if (userNameFromForm != null && userNameFromForm.trim().isNotEmpty) {
       userName = userNameFromForm.trim();
-      Log.info('🚀 フォームからユーザー名取得: "$userName"');
+      Log.info('🚀 フォームからユーザー名取得: "${AppLogger.maskName(userName)}"');
     }
 
     // 2. フォームが空の場合、SharedPreferencesから取得
@@ -48,7 +48,8 @@ class UserInfoService {
       final settingsUserName = await UserPreferencesService.getUserName();
       if (settingsUserName != null && settingsUserName.isNotEmpty) {
         userName = settingsUserName;
-        Log.info('🚀 SharedPreferencesからユーザー名取得: "$userName"');
+        Log.info(
+            '🚀 SharedPreferencesからユーザー名取得: "${AppLogger.maskName(userName)}"');
       }
     }
 
@@ -61,7 +62,7 @@ class UserInfoService {
               user.displayName != null &&
               user.displayName!.isNotEmpty) {
             userName = user.displayName!;
-            Log.info('🚀 認証状態からユーザー名取得: "$userName"');
+            Log.info('🚀 認証状態からユーザー名取得: "${AppLogger.maskName(userName)}"');
           }
         },
         loading: () async {},
@@ -77,7 +78,7 @@ class UserInfoService {
       );
     }
 
-    Log.info('🚀 使用するユーザー名: "$userName"');
+    Log.info('🚀 使用するユーザー名: "${AppLogger.maskName(userName)}"');
 
     try {
       // メールアドレスを取得
@@ -101,7 +102,8 @@ class UserInfoService {
       // UserSettingsにもユーザー情報を保存
       await _updateUserSettings(userName, userEmail);
 
-      Log.info('✅ ユーザー情報保存完了: $userName ($userEmail)');
+      Log.info(
+          '✅ ユーザー情報保存完了: ${AppLogger.maskName(userName)} (${AppLogger.maskName(userEmail)})');
 
       return UserInfoSaveResult(
         success: true,
@@ -181,7 +183,7 @@ class UserInfoService {
     SharedGroup defaultGroup;
 
     if (existingGroup != null) {
-      Log.info('📋 既存グループを更新: $userName');
+      Log.info('📋 既存グループを更新: ${AppLogger.maskName(userName)}');
 
       // 新しいサインインユーザーを必ずオーナーにする
       final updatedMembers = <SharedGroupMember>[];
@@ -203,7 +205,8 @@ class UserInfoService {
         invitationStatus: InvitationStatus.self,
         isSignedIn: true,
       ));
-      Log.info('  - 新しいオーナーを追加: $userName ($userEmail)');
+      Log.info(
+          '  - 新しいオーナーを追加: ${AppLogger.maskName(userName)} (${AppLogger.maskName(userEmail)})');
 
       defaultGroup = existingGroup.copyWith(
         members: updatedMembers,
@@ -280,7 +283,8 @@ class UserInfoService {
       final userSettingsRepository = _ref.read(userSettingsRepositoryProvider);
       await userSettingsRepository.updateUserName(userName);
       await userSettingsRepository.updateUserEmail(userEmail);
-      Log.info('✅ UserSettings保存完了: $userName, $userEmail');
+      Log.info(
+          '✅ UserSettings保存完了: ${AppLogger.maskName(userName)}, ${AppLogger.maskName(userEmail)}');
     } catch (e) {
       Log.warning('⚠️ UserSettings保存エラー: $e');
     }
