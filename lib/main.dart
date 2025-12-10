@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:hive/hive.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'firebase_options.dart';
@@ -60,6 +61,21 @@ void main() async {
 
       // Firestore の状態確認
       AppLogger.info('🗃️ Firestore インスタンス: ${FirebaseFirestore.instance}');
+
+      // 🔥 Crashlytics初期化
+      FlutterError.onError = (errorDetails) {
+        FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+        AppLogger.error('❌ Flutter Fatal Error: ${errorDetails.exception}');
+      };
+
+      // Pass all uncaught asynchronous errors to Crashlytics
+      PlatformDispatcher.instance.onError = (error, stack) {
+        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+        AppLogger.error('❌ Async Error: $error');
+        return true;
+      };
+
+      AppLogger.info('✅ Firebase Crashlytics初期化成功');
     } catch (e, stackTrace) {
       AppLogger.error('❌ Firebase初期化エラー詳細: $e');
       AppLogger.error('📚 エラータイプ: ${e.runtimeType}');
