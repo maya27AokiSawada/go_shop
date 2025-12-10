@@ -211,17 +211,7 @@ class GroupListWidget extends ConsumerWidget {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (isDefGroup)
-              Text(
-                'プライベート専用（あなたのみ）',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.green.shade700,
-                  fontWeight: FontWeight.w500,
-                ),
-              )
-            else
-              Text('メンバー: $memberCount人'),
+            Text('メンバー: $memberCount人'),
             if (!isDefGroup && (group.ownerUid?.isNotEmpty ?? false))
               Text(
                 'オーナー: ${group.ownerName ?? group.ownerUid}',
@@ -248,7 +238,7 @@ class GroupListWidget extends ConsumerWidget {
                 children: [
                   Icon(Icons.people, size: 18),
                   SizedBox(width: 8),
-                  Text('メンバー管理'),
+                  Text('グループ管理'),
                 ],
               ),
             ),
