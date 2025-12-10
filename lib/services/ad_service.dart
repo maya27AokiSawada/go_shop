@@ -389,7 +389,7 @@ class _HomeBannerAdWidgetState extends ConsumerState<HomeBannerAdWidget> {
     try {
       final adService = ref.read(adServiceProvider);
       _bannerAd = await adService.createBannerAd(
-        size: AdSize.banner,
+        size: AdSize.mediumRectangle, // 高さ拡大（50→250）
         useLocation: true, // 位置情報ベースの広告を有効化（30km圏内優先）
         onAdLoaded: () {
           if (mounted) {

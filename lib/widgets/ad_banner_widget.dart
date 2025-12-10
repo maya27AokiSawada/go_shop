@@ -120,44 +120,6 @@ class HomeAdBannerWidget extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
           ],
-
-          // 模擬広告コンテンツ
-          Container(
-            height: 100,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey[300]!),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.shopping_bag,
-                  size: 32,
-                  color: Colors.green[600],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '🛍️ お買い物をもっと便利に！',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green[700],
-                  ),
-                ),
-                Text(
-                  'サンプル広告（実際の広告に置き換え）',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.grey[500],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
           if (isTrialActive && remainingDays > 0) ...[
             const SizedBox(height: 12),
             Row(
