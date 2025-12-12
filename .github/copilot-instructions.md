@@ -1843,8 +1843,75 @@ static String maskGroupId(String? groupId, {String? currentUserId}) {
 
 ---
 
-## Known Issues (As of 2025-12-10)
+## Known Issues (As of 2025-12-12)
 
 - None currently
+
+---
+
+## Recent Implementations (2025-12-12)
+
+### Firestore Security Rules Fix for Shopping List Permissions ✅
+
+**Background**: Windows Desktop users reported shopping lists not syncing to Firestore despite successful Hive saves.
+
+**Problem**:
+- Error: `[cloud_firestore/permission-denied] Missing or insufficient permissions`
+- Lists created locally (Hive) but failed to sync to Firestore
+- Initially thought to be Windows Firestore threading issue, but was actually permissions
+
+**Root Cause**:
+- `firestore.rules` used `isGroupMember()` function with `resource.data`
+- **Critical Issue**: `resource` doesn't exist during new subcollection document creation
+- Permission check always failed for new `sharedLists` documents
+
+**Problematic Code** (firestore.rules L96-113):
+```javascript
+function isGroupMember(groupId) {
+  return request.auth != null && (
+    resource.data.ownerUid == request.auth.uid ||  // ❌ resource.data doesn't exist on creation
+    request.auth.uid in resource.data.allowedUid
+  );
+}
+
+match /sharedLists/{listId} {
+  allow read, write: if isGroupMember(groupId);  // ❌ Always fails on create
+}
+```
+
+**Solution Implemented**:
+Changed to direct parent document reference using `get()` function:
+
+```javascript
+match /sharedLists/{listId} {
+  allow read, create, update, delete: if request.auth != null && (
+    get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid ||
+    request.auth.uid in get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.allowedUid
+  );
+}
+```
+
+**Deployment**:
+```bash
+firebase deploy --only firestore:rules
+✅ cloud.firestore: rules file firestore.rules compiled successfully
+✅ firestore: released rules firestore.rules to cloud.firestore
+```
+
+**Verification Results**:
+- ✅ Lists instantly appear in UI (Hive cache)
+- ✅ Lists sync to Firestore after 1-3 seconds (network delay)
+- ✅ No more `permission-denied` errors
+- ✅ Multi-device sync working as expected
+
+**Modified Files**:
+- `firestore.rules` (L96-113): sharedLists match block
+
+**Key Learning**:
+- Thread errors can be red herrings - always check actual error messages
+- `resource.data` only exists for existing documents, not during creation
+- Use `get()` to fetch parent document data for subcollection permissions
+
+**Commit**: `67a90a1` - "fix: FirestoreセキュリティルールでsharedListsのパーミッション修正"
 
 ---
