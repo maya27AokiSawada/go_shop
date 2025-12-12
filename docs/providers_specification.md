@@ -82,26 +82,26 @@ enum SharedGroupRole {
 }
 ```
 
-### 4. ShoppingList（買い物リスト）
+### 4. SharedList（買い物リスト）
 ```dart
 @HiveType(typeId: 10)
 @freezed
-class ShoppingList with _$ShoppingList {
-  const factory ShoppingList({
+class SharedList with _$SharedList {
+  const factory SharedList({
     @HiveField(0) required String ownerUid,
     @HiveField(1) required String groupId,
     @HiveField(2) required String groupName,
-    @HiveField(3) required List<ShoppingItem> items,
-  }) = _ShoppingList;
+    @HiveField(3) required List<SharedItem> items,
+  }) = _SharedList;
 }
 ```
 
-### 5. ShoppingItem（買い物アイテム）
+### 5. SharedItem（買い物アイテム）
 ```dart
 @HiveType(typeId: 11)
 @freezed
-class ShoppingItem with _$ShoppingItem {
-  const factory ShoppingItem({
+class SharedItem with _$SharedItem {
+  const factory SharedItem({
     @HiveField(0) required String itemId,
     @HiveField(1) required String name,
     @HiveField(2) @Default(1) int quantity,
@@ -110,7 +110,7 @@ class ShoppingItem with _$ShoppingItem {
     @HiveField(5) DateTime? addedAt,
     @HiveField(6) String? purchasedBy,
     @HiveField(7) DateTime? purchasedAt,
-  }) = _ShoppingItem;
+  }) = _SharedItem;
 }
 ```
 
@@ -173,24 +173,24 @@ final allGroupsProvider = FutureProvider<List<SharedGroup>>((ref) async {
 - `createGroup()`: グループ作成
 - `deleteGroup(String groupId)`: グループ削除
 
-### 3. ShoppingListProvider
+### 3. SharedListProvider
 **ファイル**: `lib/providers/shopping_list_provider.dart`
 
 ```dart
 // Hive Boxプロバイダー
-final shoppingListBoxProvider = Provider<Box<ShoppingList>>((ref) {
-  return Hive.box<ShoppingList>('shoppingLists');
+final sharedListBoxProvider = Provider<Box<SharedList>>((ref) {
+  return Hive.box<SharedList>('sharedLists');
 });
 
 // メインの買い物リスト管理プロバイダー
-final shoppingListProvider = AsyncNotifierProvider<ShoppingListNotifier, ShoppingList>(
-  () => ShoppingListNotifier(),
+final sharedListProvider = AsyncNotifierProvider<SharedListNotifier, SharedList>(
+  () => SharedListNotifier(),
 );
 
 // フィルタープロバイダー
-final purchasedItemsProvider = Provider<List<ShoppingItem>>((ref) => /* ... */);
-final unpurchasedItemsProvider = Provider<List<ShoppingItem>>((ref) => /* ... */);
-final memberItemsProvider = Provider.family<List<ShoppingItem>, String>((ref, memberId) => /* ... */);
+final purchasedItemsProvider = Provider<List<SharedItem>>((ref) => /* ... */);
+final unpurchasedItemsProvider = Provider<List<SharedItem>>((ref) => /* ... */);
+final memberItemsProvider = Provider.family<List<SharedItem>, String>((ref, memberId) => /* ... */);
 ```
 
 ---
@@ -244,7 +244,7 @@ abstract class SharedGroupRepository {
    - メンバーの追加・編集・削除
    - グループ名・リスト名編集
 
-3. **ShoppingListPage** (`lib/pages/shopping_list_page.dart`)
+3. **SharedListPage** (`lib/pages/shopping_list_page.dart`)
    - 買い物リスト表示
    - アイテムの追加・削除・購入状態変更
 
@@ -258,7 +258,7 @@ abstract class SharedGroupRepository {
 2. **NewMemberInputForm** (`lib/widgets/new_member_input_form.dart`)
    - 新規メンバー追加フォーム
 
-3. **ShoppingListWidget** (`lib/widgets/shopping_list_widget.dart`)
+3. **SharedListWidget** (`lib/widgets/shopping_list_widget.dart`)
    - 買い物リスト表示ウィジェット
 
 4. **FamilyMemberWidget** (`lib/widgets/family_member_widget.dart`)
@@ -366,8 +366,8 @@ class F {
 - TypeID 0: SharedGroupRole (enum)
 - TypeID 1: SharedGroupMember
 - TypeID 2: SharedGroup  
-- TypeID 10: ShoppingList
-- TypeID 11: ShoppingItem
+- TypeID 10: SharedList
+- TypeID 11: SharedItem
 
 ### Firebase設定
 - 設定ファイル: `lib/firebase_options.dart`

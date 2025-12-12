@@ -8,14 +8,14 @@
 
 #### 問題の原因
 
-- `FirestoreShoppingListRepository.deleteShoppingList()` でコレクショングループクエリを使用
-- `collectionGroup('shoppingLists').where('listId', isEqualTo: listId)` が `PERMISSION_DENIED` エラー
+- `FirestoreSharedListRepository.deleteSharedList()` でコレクショングループクエリを使用
+- `collectionGroup('sharedLists').where('listId', isEqualTo: listId)` が `PERMISSION_DENIED` エラー
 - Firestoreルールにコレクショングループ用のルールが未定義
-- → `getShoppingListById()` が失敗し、削除処理が実行されず
+- → `getSharedListById()` が失敗し、削除処理が実行されず
 
 #### 解決策
 
-**削除処理の引数を変更**: `deleteShoppingList(String listId)` → `deleteShoppingList(String groupId, String listId)`
+**削除処理の引数を変更**: `deleteSharedList(String listId)` → `deleteSharedList(String groupId, String listId)`
 
 **変更ファイル**:
 
@@ -32,7 +32,7 @@
 6. `lib/widgets/shopping_list_header_widget.dart`: UI側呼び出し修正
 7. `lib/widgets/test_scenario_widget.dart`: テスト側呼び出し修正
 
-**コミット**: `a1aa067` - "fix: deleteShoppingListにgroupIdパラメータを追加"
+**コミット**: `a1aa067` - "fix: deleteSharedListにgroupIdパラメータを追加"
 
 #### 動作確認結果
 
@@ -74,7 +74,7 @@
 4. **根本原因の特定**
    - デバッグログ追加: `_buildListDropdown`で`validValue`を確認
    - **判明**: `currentList`は正しく設定されているが、`validValue = null`になっている
-   - **原因**: `invalidate(groupShoppingListsProvider)`でリスト一覧が再取得される際、タイミングの問題で新しいリストがまだ含まれていない
+   - **原因**: `invalidate(groupSharedListsProvider)`でリスト一覧が再取得される際、タイミングの問題で新しいリストがまだ含まれていない
 
 #### ログ分析結果
 
@@ -97,11 +97,11 @@
 
 ```dart
 // ダイアログを閉じた後、リスト一覧を更新して完了を待つ
-ref.invalidate(groupShoppingListsProvider);
+ref.invalidate(groupSharedListsProvider);
 
 // リスト一覧の更新完了を待つ（新しいリストが含まれるまで）
 try {
-  await ref.read(groupShoppingListsProvider.future);
+  await ref.read(groupSharedListsProvider.future);
   Log.info('✅ リスト一覧更新完了 - 新しいリストを含む');
 } catch (e) {
   Log.error('❌ リスト一覧更新エラー: $e');
@@ -173,8 +173,8 @@ try {
 
 ```dart
 // invalidate後、明示的にstateを再設定
-ref.invalidate(groupShoppingListsProvider);
-await ref.read(groupShoppingListsProvider.future);
+ref.invalidate(groupSharedListsProvider);
+await ref.read(groupSharedListsProvider.future);
 
 // 再度selectListを呼び出してstateを強制更新
 ref.read(currentListProvider.notifier).selectList(newList, groupId: currentGroup.groupId);
@@ -183,8 +183,8 @@ ref.read(currentListProvider.notifier).selectList(newList, groupId: currentGroup
 #### 案2: ウィジェット全体を再ビルド
 
 ```dart
-// ShoppingListHeaderWidget全体をキーで再ビルド
-return ShoppingListHeaderWidget(key: ValueKey(currentList?.listId));
+// SharedListHeaderWidget全体をキーで再ビルド
+return SharedListHeaderWidget(key: ValueKey(currentList?.listId));
 ```
 
 #### 案3: ConsumerStatefulWidgetに変更
@@ -218,7 +218,7 @@ Future<void> _restoreLastUsedList(WidgetRef ref, String groupId) async {
       .getSavedListIdForGroup(groupId);
 
   if (listId != null) {
-    final lists = await ref.read(groupShoppingListsProvider.future);
+    final lists = await ref.read(groupSharedListsProvider.future);
     final list = lists.where((l) => l.listId == listId).firstOrNull;
     if (list != null) {
       ref.read(currentListProvider.notifier).selectList(list, groupId: groupId);
@@ -231,7 +231,7 @@ Future<void> _restoreLastUsedList(WidgetRef ref, String groupId) async {
 
 ## その他の懸念事項
 
-- `groupShoppingListsProvider`の更新タイミングとFirestore同期の遅延
+- `groupSharedListsProvider`の更新タイミングとFirestore同期の遅延
 - ホットリロード時の状態保持（開発時のみの問題）
 - 複数デバイス間でのリアルタイム同期との兼ね合い
 

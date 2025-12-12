@@ -97,7 +97,7 @@ QRコード画像生成（qr_flutter）
   "inviterUid": "VqNEozvTyXXw55Q46mNiGNMNngw2",
   "inviterEmail": "maya@example.com",
   "inviterDisplayName": "Maya",
-  "shoppingListId": "list_123",
+  "sharedListId": "list_123",
   "SharedGroupId": "1762...",
   "groupName": "家族の買い物",
   "groupOwnerUid": "VqNEozvTyXXw55Q46mNiGNMNngw2",

@@ -10,7 +10,7 @@ abstract class UserSettingsRepository {
   Future<void> saveSettings(UserSettings settings);
   Future<void> updateUserName(String userName);
   Future<void> updateLastUsedGroupId(String groupId);
-  Future<void> updateLastUsedShoppingListId(String shoppingListId);
+  Future<void> updateLastUsedSharedListId(String sharedListId);
   Future<void> clearAllSettings();
   Future<void> updateUserId(String userId);
   Future<void> updateUserEmail(String userEmail);
@@ -83,10 +83,10 @@ class HiveUserSettingsRepository implements UserSettingsRepository {
   }
 
   @override
-  Future<void> updateLastUsedShoppingListId(String shoppingListId) async {
+  Future<void> updateLastUsedSharedListId(String sharedListId) async {
     final currentSettings = await getSettings();
     final updatedSettings =
-        currentSettings.copyWith(lastUsedShoppingListId: shoppingListId);
+        currentSettings.copyWith(lastUsedSharedListId: sharedListId);
     await saveSettings(updatedSettings);
   }
 

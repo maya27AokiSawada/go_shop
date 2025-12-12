@@ -282,8 +282,8 @@ class _SignupProcessingWidgetState extends ConsumerState<SignupProcessingWidget>
 
     await repository.updateGroup(newGroupId, migratedGroup);
 
-    // ShoppingListの移行
-    await _migrateShoppingLists('default_group', newGroupId);
+    // SharedListの移行
+    await _migrateSharedLists('default_group', newGroupId);
 
     // デフォルトグループのownerメンバーIDをFirebase UIDに更新
     try {
@@ -309,15 +309,15 @@ class _SignupProcessingWidgetState extends ConsumerState<SignupProcessingWidget>
     Log.info('✅ [SIGNUP_WIDGET] ローカルデータ移行完了');
   }
 
-  /// ShoppingListの移行
-  Future<void> _migrateShoppingLists(
+  /// SharedListの移行
+  Future<void> _migrateSharedLists(
       String oldGroupId, String newGroupId) async {
     try {
-      // ShoppingListの移行は簡略化（基本的なログ記録のみ）
-      Log.info('💡 [SIGNUP_WIDGET] ShoppingList移行をスキップ（今後実装予定）');
-      // TODO: 実際のShoppingList移行ロジックを実装
+      // SharedListの移行は簡略化（基本的なログ記録のみ）
+      Log.info('💡 [SIGNUP_WIDGET] SharedList移行をスキップ（今後実装予定）');
+      // TODO: 実際のSharedList移行ロジックを実装
     } catch (e) {
-      Log.warning('⚠️ [SIGNUP_WIDGET] ShoppingList移行エラー: $e');
+      Log.warning('⚠️ [SIGNUP_WIDGET] SharedList移行エラー: $e');
     }
   }
 

@@ -8,7 +8,7 @@ import '../utils/firestore_converter.dart'; // Firestore変換ユーティリテ
 import '../models/shared_group.dart' as models;
 import '../providers/purchase_group_provider.dart';
 import '../providers/hive_provider.dart'; // Hive Box プロバイダー
-import '../datastore/hive_purchase_group_repository.dart'
+import '../datastore/hive_shared_group_repository.dart'
     show hiveSharedGroupRepositoryProvider;
 import '../datastore/firestore_purchase_group_repository.dart'; // Repository型チェック用
 import '../flavors.dart';

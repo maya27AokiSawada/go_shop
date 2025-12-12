@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/app_logger.dart';
 import 'dart:io';
 import '../models/shared_group.dart';
-import '../models/shopping_list.dart';
+import '../models/shared_list.dart';
 import '../models/user_settings.dart';
 // import '../models/invitation.dart';  // 削除済み - QRコードシステムに移行
 // import '../models/accepted_invitation.dart';  // 削除済み - QRコードシステムに移行
@@ -26,7 +26,7 @@ class UserSpecificHiveService {
   // スキーマバージョンの管理
   static const String _schemaVersionKey = 'hive_schema_version';
   static const int _currentSchemaVersion =
-      2; // Version 2: SharedGroup.shoppingListIds 削除
+      2; // Version 2: SharedGroup.sharedListIds 削除
 
   /// 前回使用したUIDを保存
   Future<void> saveLastUsedUid(String uid) async {
@@ -84,8 +84,8 @@ class UserSpecificHiveService {
       Hive.registerAdapter(SharedGroupMemberAdapter());
       Hive.registerAdapter(SharedGroupAdapter());
       // 🔥 後方互換性のためカスタムアダプターを使用
-      // Hive.registerAdapter(ShoppingItemAdapter()); // デフォルトアダプターは使用しない (typeId=3)
-      Hive.registerAdapter(ShoppingListAdapter());
+      // Hive.registerAdapter(SharedItemAdapter()); // デフォルトアダプターは使用しない (typeId=3)
+      Hive.registerAdapter(SharedListAdapter());
       Hive.registerAdapter(InvitationStatusAdapter()); // 継続使用
       Hive.registerAdapter(InvitationTypeAdapter()); // InvitationType用
       Hive.registerAdapter(
@@ -224,7 +224,7 @@ class UserSpecificHiveService {
       // 個別のBoxを順次閉じる（Hive.close()は使わない）
       final boxesToClose = [
         'SharedGroups',
-        'shoppingLists',
+        'sharedLists',
         'userSettings',
         'subscriptions'
       ];
@@ -294,8 +294,8 @@ class UserSpecificHiveService {
       // SharedGroupBox
       await _safeOpenBox<SharedGroup>('SharedGroups', '📁 SharedGroup');
 
-      // ShoppingListBox
-      await _safeOpenBox<ShoppingList>('shoppingLists', '🛒 ShoppingList');
+      // SharedListBox
+      await _safeOpenBox<SharedList>('sharedLists', '🛒 SharedList');
 
       // UserSettingsBox
       await _safeOpenBox<UserSettings>('userSettings', '⚙️ UserSettings');
@@ -327,21 +327,21 @@ class UserSpecificHiveService {
     } catch (e) {
       Log.error('❌ Failed to open $displayName box ($boxName): $e');
 
-      // 🔥 ShoppingList Boxのエラーは特別処理（データフォーマット破損の可能性）
-      if (boxName == 'shoppingLists') {
+      // 🔥 SharedList Boxのエラーは特別処理（データフォーマット破損の可能性）
+      if (boxName == 'sharedLists') {
         Log.warning(
-            '⚠️ ShoppingList box corrupted. Deleting and recreating...');
+            '⚠️ SharedList box corrupted. Deleting and recreating...');
         try {
           // 破損したBoxを削除
           await Hive.deleteBoxFromDisk(boxName);
-          Log.info('🗑️ Deleted corrupted ShoppingList box');
+          Log.info('🗑️ Deleted corrupted SharedList box');
 
           // 再作成
           await Hive.openBox<T>(boxName);
-          Log.info('✅ Recreated ShoppingList box successfully');
+          Log.info('✅ Recreated SharedList box successfully');
           return;
         } catch (deleteError) {
-          Log.error('❌ Failed to recreate ShoppingList box: $deleteError');
+          Log.error('❌ Failed to recreate SharedList box: $deleteError');
         }
       }
 
@@ -390,7 +390,7 @@ class UserSpecificHiveService {
   /// SharedGroupのスキーマ変更に伴い、関連するBoxのデータファイルを削除
   Future<void> _migrateToV2() async {
     Log.info(
-        '🚀 Running migration to v2: Deleting old SharedGroups and shoppingLists data files...');
+        '🚀 Running migration to v2: Deleting old SharedGroups and sharedLists data files...');
     try {
       // 現在のHiveパスを取得（デフォルトまたはユーザー固有のパス）
       final appDocDir = await getApplicationDocumentsDirectory();
@@ -414,20 +414,20 @@ class UserSpecificHiveService {
         Log.info('✅ Deleted SharedGroups.lock file.');
       }
 
-      // shoppingLists のデータファイルを削除
-      final shoppingListsFile = File('$hivePath/shoppingLists.hive');
-      if (await shoppingListsFile.exists()) {
-        await shoppingListsFile.delete();
-        Log.info('✅ Deleted shoppingLists.hive file.');
+      // sharedLists のデータファイルを削除
+      final sharedListsFile = File('$hivePath/sharedLists.hive');
+      if (await sharedListsFile.exists()) {
+        await sharedListsFile.delete();
+        Log.info('✅ Deleted sharedLists.hive file.');
       } else {
         Log.info(
-            'ℹ️  shoppingLists.hive file not found (already deleted or never existed).');
+            'ℹ️  sharedLists.hive file not found (already deleted or never existed).');
       }
 
-      final shoppingListsLockFile = File('$hivePath/shoppingLists.lock');
-      if (await shoppingListsLockFile.exists()) {
-        await shoppingListsLockFile.delete();
-        Log.info('✅ Deleted shoppingLists.lock file.');
+      final sharedListsLockFile = File('$hivePath/sharedLists.lock');
+      if (await sharedListsLockFile.exists()) {
+        await sharedListsLockFile.delete();
+        Log.info('✅ Deleted sharedLists.lock file.');
       }
 
       Log.info(

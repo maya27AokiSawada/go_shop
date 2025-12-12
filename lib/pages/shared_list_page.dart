@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/shared_list.dart';
@@ -8,7 +8,7 @@ import '../providers/security_provider.dart';
 import '../providers/current_list_provider.dart';
 import '../services/access_control_service.dart';
 import '../helpers/validation_service.dart';
-import '../widgets/shopping_list_header_widget.dart';
+import '../widgets/shared_list_header_widget.dart';
 import '../utils/app_logger.dart';
 
 // NOTE: selectedGroupIdProviderはpurchase_group_provider.dartで定義済み
@@ -693,7 +693,8 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
                 final selectedGroupId = ref.read(selectedGroupIdProvider);
                 if (selectedGroupId == null) return;
                 await ref
-                    .read(sharedListForGroupProvider(selectedGroupId).notifier)
+                    .read(
+                        sharedListForGroupProvider(selectedGroupId).notifier)
                     .removeItem(item);
                 if (context.mounted) {
                   Navigator.of(context).pop();
@@ -1034,7 +1035,8 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
                 final selectedGroupId = ref.read(selectedGroupIdProvider);
                 if (selectedGroupId == null) return;
                 await ref
-                    .read(sharedListForGroupProvider(selectedGroupId).notifier)
+                    .read(
+                        sharedListForGroupProvider(selectedGroupId).notifier)
                     .clearPurchasedItems();
                 if (context.mounted) {
                   Navigator.of(context).pop();

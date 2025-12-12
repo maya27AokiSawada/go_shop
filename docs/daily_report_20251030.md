@@ -66,13 +66,13 @@ AppLogger.info('🗑️ [GROUP_SELECT] カレントリストをクリアしま�
 2. `_selectCurrentGroup()` 実行
 3. `currentGroupProvider.notifier.selectGroup()` でグループ更新
 4. `currentListProvider.notifier.clearSelection()` でリスト選択クリア
-5. `groupShoppingListsProvider` が新しいグループのリスト一覧を取得
+5. `groupSharedListsProvider` が新しいグループのリスト一覧を取得
 6. Dropdown が空の状態から正常に再構築
 
 ### Provider構成
 - `currentGroupProvider`: 現在選択中のグループを管理
 - `currentListProvider`: 現在選択中のリストを管理（SharedPreferences永続化）
-- `groupShoppingListsProvider`: 現在のグループに紐づくリスト一覧を提供
+- `groupSharedListsProvider`: 現在のグループに紐づくリスト一覧を提供
 
 ## 完了したタスク
 
@@ -97,7 +97,7 @@ AppLogger.info('🗑️ [GROUP_SELECT] カレントリストをクリアしま�
 - **目的**: CRUD処理が正しく実装されているか確認
 - **対象リポジトリ**:
   - `HiveSharedGroupRepository` (グループCRUD)
-  - `HiveShoppingListRepository` (リストCRUD)
+  - `HiveSharedListRepository` (リストCRUD)
   - `FirestoreSharedGroupRepository` (未実装部分の確認)
 
 **テスト項目**:
@@ -109,17 +109,17 @@ SharedGroupRepository:
 - [ ] updateGroup() - グループ更新
 - [ ] deleteGroup() - グループ削除
 
-ShoppingListRepository:
-- [ ] createShoppingList() - リスト作成
-- [ ] getShoppingListsByGroupId() - グループ別リスト取得
-- [ ] updateShoppingList() - リスト更新（アイテム追加・削除）
-- [ ] deleteShoppingList() - リスト削除
+SharedListRepository:
+- [ ] createSharedList() - リスト作成
+- [ ] getSharedListsByGroupId() - グループ別リスト取得
+- [ ] updateSharedList() - リスト更新（アイテム追加・削除）
+- [ ] deleteSharedList() - リスト削除
 ```
 
 ### 2. Firestore実装の確認（中優先）
 - Todo: getAllGroups()修正（allowedUidフィルタリング）
 - Todo: 他のCRUD操作修正
-- Todo: shoppingLists処理確認
+- Todo: sharedLists処理確認
 
 ### 3. エラーハンドリング強化（低優先）
 - バックグラウンド保存失敗時のユーザー通知

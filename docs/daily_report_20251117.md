@@ -170,7 +170,7 @@ if (user != null && expectedDefaultGroupId != 'local_default') {
 
 1. UID変更検出 → `UserDataMigrationDialog`表示
 2. 「初期化」選択:
-   - Hiveデータクリア（SharedGroup + ShoppingList）
+   - Hiveデータクリア（SharedGroup + SharedList）
    - プロバイダー無効化
    - `SelectedGroupIdNotifier.clearSelection()`実行
    - Firestore同期（新ユーザーのデータをダウンロード）

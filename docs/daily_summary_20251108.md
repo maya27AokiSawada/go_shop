@@ -255,7 +255,7 @@ await _firestore.collection('invitations').doc(invitationId).update({
 │  (Local Cache - ローカル)                            │
 │                                                      │
 │  - SharedGroupBox                                  │
-│  - shoppingListBox                                   │
+│  - sharedListBox                                   │
 │  - itemBox                                           │
 └──────────────────────────────────────────────────────┘
           ↑ 読み書き ↓

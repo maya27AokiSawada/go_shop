@@ -9,7 +9,7 @@
 メール送信による招待機能をコメントアウトし、QRコードによる招待機能を新規実装しました。
 
 ### 🎯 実装目標
-1. **招待元**: 自分のUID、ShoppingListID、SharedGroupIDをQRコード化
+1. **招待元**: 自分のUID、SharedListID、SharedGroupIDをQRコード化
 2. **招待先**: QRコード読み取り後、自分のUIDを招待元に通知
 3. **メール機能**: 既存のメール招待機能をコメントアウトして保持
 
@@ -39,7 +39,7 @@ qr_code_scanner: ^1.0.1  # QRコード読み取り
 {
   "inviterUid": "MP32WXhWHed9YViRbigjwkZk3tr1",
   "inviterEmail": "fatima.sumomo@gmail.com",
-  "shoppingListId": "sample_list_id",
+  "sharedListId": "sample_list_id",
   "SharedGroupId": "sample_group_id", 
   "message": "Go Shopグループへの招待です",
   "createdAt": "2025-10-10T10:00:00.000Z",
@@ -110,7 +110,7 @@ qr_code_scanner: ^1.0.1  # QRコード読み取り
   inviterUid: "招待者UID",
   acceptorUid: "受諾者UID", 
   acceptorEmail: "受諾者メール",
-  shoppingListId: "ショッピングリストID",
+  sharedListId: "ショッピングリストID",
   SharedGroupId: "グループID",
   acceptedAt: Timestamp,
   type: "qr_invitation_accepted",
@@ -124,7 +124,7 @@ qr_code_scanner: ^1.0.1  # QRコード読み取り
   recipientUid: "通知受信者UID",
   type: "invitation_accepted", 
   message: "fatima.sumomo@gmail.com さんがあなたの招待を受諾しました",
-  shoppingListId: "ショッピングリストID",
+  sharedListId: "ショッピングリストID",
   SharedGroupId: "グループID",
   acceptorEmail: "受諾者メール",
   createdAt: Timestamp,
@@ -181,7 +181,7 @@ AutoInviteButton(group: SharedGroup),
 ## ⚠️ 今後の改善事項
 
 ### **必須対応**
-1. **実際のShoppingListID取得**: 現在は'default_shopping_list'
+1. **実際のSharedListID取得**: 現在は'default_shopping_list'
 2. **QRコード共有機能**: share_plusライブラリ追加
 3. **通知表示UI**: 受諾通知の表示機能
 

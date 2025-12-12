@@ -19,7 +19,7 @@ class UserSettingsAdapter extends TypeAdapter<UserSettings> {
     return UserSettings(
       userName: fields[0] as String,
       lastUsedGroupId: fields[1] as String,
-      lastUsedShoppingListId: fields[2] as String,
+      lastUsedSharedListId: fields[2] as String,
       userId: fields[3] as String,
       userEmail: fields[4] as String,
       appMode: fields[5] as int,
@@ -36,7 +36,7 @@ class UserSettingsAdapter extends TypeAdapter<UserSettings> {
       ..writeByte(1)
       ..write(obj.lastUsedGroupId)
       ..writeByte(2)
-      ..write(obj.lastUsedShoppingListId)
+      ..write(obj.lastUsedSharedListId)
       ..writeByte(3)
       ..write(obj.userId)
       ..writeByte(4)
@@ -66,7 +66,7 @@ _$UserSettingsImpl _$$UserSettingsImplFromJson(Map<String, dynamic> json) =>
     _$UserSettingsImpl(
       userName: json['userName'] as String? ?? '',
       lastUsedGroupId: json['lastUsedGroupId'] as String? ?? '',
-      lastUsedShoppingListId: json['lastUsedShoppingListId'] as String? ?? '',
+      lastUsedSharedListId: json['lastUsedSharedListId'] as String? ?? '',
       userId: json['userId'] as String? ?? '',
       userEmail: json['userEmail'] as String? ?? '',
       appMode: (json['appMode'] as num?)?.toInt() ?? 0,
@@ -77,7 +77,7 @@ Map<String, dynamic> _$$UserSettingsImplToJson(_$UserSettingsImpl instance) =>
     <String, dynamic>{
       'userName': instance.userName,
       'lastUsedGroupId': instance.lastUsedGroupId,
-      'lastUsedShoppingListId': instance.lastUsedShoppingListId,
+      'lastUsedSharedListId': instance.lastUsedSharedListId,
       'userId': instance.userId,
       'userEmail': instance.userEmail,
       'appMode': instance.appMode,

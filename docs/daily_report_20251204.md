@@ -46,7 +46,7 @@
   final currentUser = ref.read(authStateProvider).value;
   final currentMemberId = currentUser?.uid ?? 'anonymous';
 
-  final newItem = ShoppingItem.createNow(
+  final newItem = SharedItem.createNow(
     memberId: currentMemberId, // ✅ 実際のユーザーUID
     name: name,
     quantity: quantity,
@@ -97,7 +97,7 @@
 ## 技術的なポイント
 
 ### 定期購入システムの設計
-- **判定ロジック**: `ShoppingItem`の既存フィールド（`shoppingInterval`, `purchaseDate`, `isPurchased`）を活用
+- **判定ロジック**: `SharedItem`の既存フィールド（`shoppingInterval`, `purchaseDate`, `isPurchased`）を活用
 - **実行タイミング**: バックグラウンド実行でユーザー体験を損なわない
 - **同期**: Firestore + Hiveの両方を更新して一貫性を保証
 - **保守性**: 設定画面から手動実行可能

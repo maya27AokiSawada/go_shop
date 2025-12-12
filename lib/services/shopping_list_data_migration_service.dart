@@ -3,8 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
-import '../models/shopping_list.dart';
-import '../providers/shopping_list_provider.dart';
+import '../models/shared_list.dart';
+import '../providers/shared_list_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../flavors.dart';
 
@@ -19,14 +19,14 @@ import '../flavors.dart';
 /// **移行処理**:
 /// 1. 既存の配列形式データを検出
 /// 2. 各アイテムにitemIdを自動生成（UUID）
-/// 3. Map<String, ShoppingItem>形式に変換
+/// 3. Map<String, SharedItem>形式に変換
 /// 4. isDeleted=false, deletedAt=nullで初期化
 /// 5. バックアップ作成（Firestore）
-class ShoppingListDataMigrationService {
+class SharedListDataMigrationService {
   final Ref _ref;
   final _uuid = const Uuid();
 
-  ShoppingListDataMigrationService(this._ref);
+  SharedListDataMigrationService(this._ref);
 
   /// 全データ移行を実行（Hive + Firestore）
   ///
@@ -62,7 +62,7 @@ class ShoppingListDataMigrationService {
     try {
       developer.log('🔄 [MIGRATION] Hive移行開始');
 
-      final repository = _ref.read(shoppingListRepositoryProvider);
+      final repository = _ref.read(sharedListRepositoryProvider);
       final allGroupsAsync = _ref.read(allGroupsProvider);
       final allGroups = allGroupsAsync.when(
         data: (groups) => groups,
@@ -73,7 +73,7 @@ class ShoppingListDataMigrationService {
       int migratedCount = 0;
 
       for (final group in allGroups) {
-        final lists = await repository.getShoppingListsByGroup(group.groupId);
+        final lists = await repository.getSharedListsByGroup(group.groupId);
 
         for (final list in lists) {
           if (_needsMigration(list)) {
@@ -81,7 +81,7 @@ class ShoppingListDataMigrationService {
                 '🔄 [MIGRATION] Hive移行: リスト「${list.listName}」(${list.activeItems.length}アイテム)');
 
             final migratedList = _migrateList(list);
-            await repository.updateShoppingList(migratedList);
+            await repository.updateSharedList(migratedList);
             migratedCount++;
 
             developer.log('✅ [MIGRATION] Hive移行完了: リスト「${list.listName}」');
@@ -187,7 +187,7 @@ class ShoppingListDataMigrationService {
   /// リストが移行対象かチェック
   ///
   /// **判定基準**: items.valuesの最初のアイテムにitemIdがないか確認
-  bool _needsMigration(ShoppingList list) {
+  bool _needsMigration(SharedList list) {
     if (list.items.isEmpty) return false;
 
     // すでにMap形式の場合はスキップ
@@ -196,8 +196,8 @@ class ShoppingListDataMigrationService {
   }
 
   /// リストをMap形式に移行
-  ShoppingList _migrateList(ShoppingList list) {
-    final migratedItems = <String, ShoppingItem>{};
+  SharedList _migrateList(SharedList list) {
+    final migratedItems = <String, SharedItem>{};
 
     for (final item in list.items.values) {
       // itemIdがない場合は生成
@@ -304,7 +304,7 @@ class ShoppingListDataMigrationService {
   /// **戻り値**: {total: 総リスト数, migrated: 移行済み数, remaining: 未移行数}
   Future<Map<String, int>> checkMigrationStatus() async {
     try {
-      final repository = _ref.read(shoppingListRepositoryProvider);
+      final repository = _ref.read(sharedListRepositoryProvider);
       final allGroupsAsync = _ref.read(allGroupsProvider);
       final allGroups = allGroupsAsync.when(
         data: (groups) => groups,
@@ -317,7 +317,7 @@ class ShoppingListDataMigrationService {
       int remaining = 0;
 
       for (final group in allGroups) {
-        final lists = await repository.getShoppingListsByGroup(group.groupId);
+        final lists = await repository.getSharedListsByGroup(group.groupId);
         total += lists.length;
 
         for (final list in lists) {
@@ -341,8 +341,8 @@ class ShoppingListDataMigrationService {
   }
 }
 
-/// ShoppingListDataMigrationServiceのプロバイダー
-final shoppingListDataMigrationServiceProvider =
-    Provider<ShoppingListDataMigrationService>((ref) {
-  return ShoppingListDataMigrationService(ref);
+/// SharedListDataMigrationServiceのプロバイダー
+final sharedListDataMigrationServiceProvider =
+    Provider<SharedListDataMigrationService>((ref) {
+  return SharedListDataMigrationService(ref);
 });

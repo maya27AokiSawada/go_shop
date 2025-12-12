@@ -2,14 +2,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import 'dart:developer' as developer;
-import '../models/shopping_list.dart';
-import '../datastore/shopping_list_repository.dart';
-import '../datastore/hive_shopping_list_repository.dart';
-import '../datastore/firestore_shopping_list_repository.dart';
+import '../models/shared_list.dart';
+import '../datastore/shared_list_repository.dart';
+import '../datastore/hive_shared_list_repository.dart';
+import '../datastore/firestore_shared_list_repository.dart';
 import '../services/list_notification_batch_service.dart';
 import '../flavors.dart';
 
-/// Hive（ローカルキャッシュ）+ Firestore（リモート）のハイブリッドShoppingListリポジトリ
+/// Hive（ローカルキャッシュ）+ Firestore（リモート）のハイブリッドSharedListリポジトリ
 ///
 /// 動作原理:
 /// - 全グループ: Firestore優先（リアルタイム同期）
@@ -18,25 +18,25 @@ import '../flavors.dart';
 /// - 書き込み: HiveとFirestore両方に保存（楽観的更新）
 /// - 同期: バックグラウンドでFirestore→Hiveの差分同期
 /// - オフライン: Hiveのみで動作、オンライン復帰時に自動同期
-class HybridShoppingListRepository implements ShoppingListRepository {
+class HybridSharedListRepository implements SharedListRepository {
   final Ref _ref;
-  late final HiveShoppingListRepository _hiveRepo;
-  FirestoreShoppingListRepository? _firestoreRepo;
+  late final HiveSharedListRepository _hiveRepo;
+  FirestoreSharedListRepository? _firestoreRepo;
 
   // 接続状態管理
   bool _isOnline = true;
   bool _isSyncing = false;
 
   // 同期キューとタイマー管理
-  final List<_ShoppingListSyncOperation> _syncQueue = [];
+  final List<_SharedListSyncOperation> _syncQueue = [];
   Timer? _syncTimer;
 
-  HybridShoppingListRepository(this._ref) {
-    _hiveRepo = HiveShoppingListRepository(_ref);
+  HybridSharedListRepository(this._ref) {
+    _hiveRepo = HiveSharedListRepository(_ref);
     // DEVモードではFirestoreリポジトリを初期化しない
     if (F.appFlavor != Flavor.dev) {
       try {
-        _firestoreRepo = FirestoreShoppingListRepository(_ref);
+        _firestoreRepo = FirestoreSharedListRepository(_ref);
         developer.log('🌐 [HYBRID_SHOPPING] Firestore統合有効化');
       } catch (e, stackTrace) {
         developer.log('❌ [HYBRID_SHOPPING] Firestore初期化エラー: $e');
@@ -70,14 +70,14 @@ class HybridShoppingListRepository implements ShoppingListRepository {
   // =================================================================
 
   @override
-  Future<ShoppingList?> getShoppingList(String groupId) async {
+  Future<SharedList?> getSharedList(String groupId) async {
     try {
       // 1. まずHiveから取得（高速）
-      final cachedList = await _hiveRepo.getShoppingList(groupId);
+      final cachedList = await _hiveRepo.getSharedList(groupId);
 
       if (F.appFlavor == Flavor.dev || !_isOnline) {
         // Dev環境またはオフライン時はHiveのみ
-        developer.log('📦 Cache-only: ShoppingList取得 (groupId: $groupId)');
+        developer.log('📦 Cache-only: SharedList取得 (groupId: $groupId)');
         return cachedList;
       }
 
@@ -85,16 +85,16 @@ class HybridShoppingListRepository implements ShoppingListRepository {
       _syncFromFirestoreBackground(groupId);
 
       // 3. キャッシュデータを即座に返却
-      developer.log('⚡ Cache-first: ShoppingList取得 (groupId: $groupId)');
+      developer.log('⚡ Cache-first: SharedList取得 (groupId: $groupId)');
       return cachedList;
     } catch (e) {
-      developer.log('❌ HybridShoppingList.getShoppingList error: $e');
+      developer.log('❌ HybridSharedList.getSharedList error: $e');
       return null;
     }
   }
 
   @override
-  Future<void> addItem(ShoppingList list) async {
+  Future<void> addItem(SharedList list) async {
     try {
       // 1. 楽観的更新: まずHiveに保存（高速）
       await _hiveRepo.addItem(list);
@@ -106,16 +106,16 @@ class HybridShoppingListRepository implements ShoppingListRepository {
 
       // 2. 同期処理でFirestoreに保存（ユーザーを待たせてもOK）
       await _syncListToFirestoreWithFallback(
-          list, _ShoppingListSyncOperationType.create);
+          list, _SharedListSyncOperationType.create);
     } catch (e) {
-      developer.log('❌ HybridShoppingList.addItem error: $e');
+      developer.log('❌ HybridSharedList.addItem error: $e');
       rethrow;
     }
   }
 
   /// Firestoreへの同期処理（フォールバック付き）
   Future<void> _syncListToFirestoreWithFallback(
-      ShoppingList list, _ShoppingListSyncOperationType operationType) async {
+      SharedList list, _SharedListSyncOperationType operationType) async {
     if (_firestoreRepo == null) {
       developer.log('⚠️ Firestore repository not available');
       return;
@@ -123,7 +123,7 @@ class HybridShoppingListRepository implements ShoppingListRepository {
 
     try {
       // 10秒タイムアウトで同期実行
-      await _firestoreRepo!.updateShoppingList(list).timeout(
+      await _firestoreRepo!.updateSharedList(list).timeout(
             const Duration(seconds: 10),
           );
       developer.log('✅ Firestore同期成功: ${list.listName}');
@@ -131,7 +131,7 @@ class HybridShoppingListRepository implements ShoppingListRepository {
       developer.log('⚠️ Firestore同期失敗、キューに追加: $e');
 
       // 同期キューに追加
-      _addToSyncQueue(_ShoppingListSyncOperation(
+      _addToSyncQueue(_SharedListSyncOperation(
         type: operationType,
         listId: list.listId,
         data: list,
@@ -145,28 +145,28 @@ class HybridShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<void> clearShoppingList(String groupId) async {
+  Future<void> clearSharedList(String groupId) async {
     try {
       // 1. まずHiveをクリア
-      await _hiveRepo.clearShoppingList(groupId);
+      await _hiveRepo.clearSharedList(groupId);
 
       if (F.appFlavor == Flavor.dev || !_isOnline || _firestoreRepo == null) {
         return;
       }
 
       // 2. Firestoreも同期でクリア
-      await _firestoreRepo!.clearShoppingList(groupId);
+      await _firestoreRepo!.clearSharedList(groupId);
     } catch (e) {
-      developer.log('❌ HybridShoppingList.clearShoppingList error: $e');
+      developer.log('❌ HybridSharedList.clearSharedList error: $e');
       rethrow;
     }
   }
 
   @override
-  Future<void> addShoppingItem(String groupId, ShoppingItem item) async {
+  Future<void> addSharedItem(String groupId, SharedItem item) async {
     try {
       // 1. Hiveに追加
-      await _hiveRepo.addShoppingItem(groupId, item);
+      await _hiveRepo.addSharedItem(groupId, item);
 
       if (F.appFlavor == Flavor.dev || !_isOnline) {
         return;
@@ -174,16 +174,16 @@ class HybridShoppingListRepository implements ShoppingListRepository {
 
       // 2. 同期処理でFirestoreに追加
       await _syncItemToFirestoreWithFallback(
-          groupId, item, _ShoppingListSyncOperationType.createItem);
+          groupId, item, _SharedListSyncOperationType.createItem);
     } catch (e) {
-      developer.log('❌ HybridShoppingList.addShoppingItem error: $e');
+      developer.log('❌ HybridSharedList.addSharedItem error: $e');
       rethrow;
     }
   }
 
   /// Firestoreへのアイテム同期処理（フォールバック付き）
-  Future<void> _syncItemToFirestoreWithFallback(String listId,
-      ShoppingItem item, _ShoppingListSyncOperationType operationType) async {
+  Future<void> _syncItemToFirestoreWithFallback(String listId, SharedItem item,
+      _SharedListSyncOperationType operationType) async {
     if (_firestoreRepo == null) {
       developer.log('⚠️ Firestore repository not available');
       return;
@@ -192,12 +192,12 @@ class HybridShoppingListRepository implements ShoppingListRepository {
     try {
       // 10秒タイムアウトで同期実行
       switch (operationType) {
-        case _ShoppingListSyncOperationType.createItem:
+        case _SharedListSyncOperationType.createItem:
           await _firestoreRepo!.addItemToList(listId, item).timeout(
                 const Duration(seconds: 10),
               );
           break;
-        case _ShoppingListSyncOperationType.updateItem:
+        case _SharedListSyncOperationType.updateItem:
           await _firestoreRepo!
               .updateItemStatusInList(listId, item,
                   isPurchased: item.isPurchased)
@@ -205,7 +205,7 @@ class HybridShoppingListRepository implements ShoppingListRepository {
                 const Duration(seconds: 10),
               );
           break;
-        case _ShoppingListSyncOperationType.deleteItem:
+        case _SharedListSyncOperationType.deleteItem:
           await _firestoreRepo!.removeItemFromList(listId, item).timeout(
                 const Duration(seconds: 10),
               );
@@ -218,7 +218,7 @@ class HybridShoppingListRepository implements ShoppingListRepository {
       developer.log('⚠️ Firestore item sync失敗、キューに追加: $e');
 
       // 同期キューに追加
-      _addToSyncQueue(_ShoppingListSyncOperation(
+      _addToSyncQueue(_SharedListSyncOperation(
         type: operationType,
         listId: listId,
         data: {'item': item},
@@ -232,10 +232,10 @@ class HybridShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<void> removeShoppingItem(String groupId, ShoppingItem item) async {
+  Future<void> removeSharedItem(String groupId, SharedItem item) async {
     try {
       // 1. Hiveから削除
-      await _hiveRepo.removeShoppingItem(groupId, item);
+      await _hiveRepo.removeSharedItem(groupId, item);
 
       if (F.appFlavor == Flavor.dev || !_isOnline) {
         return;
@@ -243,19 +243,19 @@ class HybridShoppingListRepository implements ShoppingListRepository {
 
       // 2. 同期処理でFirestoreからも削除
       await _syncItemToFirestoreWithFallback(
-          groupId, item, _ShoppingListSyncOperationType.deleteItem);
+          groupId, item, _SharedListSyncOperationType.deleteItem);
     } catch (e) {
-      developer.log('❌ HybridShoppingList.removeShoppingItem error: $e');
+      developer.log('❌ HybridSharedList.removeSharedItem error: $e');
       rethrow;
     }
   }
 
   @override
-  Future<void> updateShoppingItemStatus(String groupId, ShoppingItem item,
+  Future<void> updateSharedItemStatus(String groupId, SharedItem item,
       {required bool isPurchased}) async {
     try {
       // 1. Hiveのステータス更新
-      await _hiveRepo.updateShoppingItemStatus(groupId, item,
+      await _hiveRepo.updateSharedItemStatus(groupId, item,
           isPurchased: isPurchased);
 
       if (F.appFlavor == Flavor.dev || !_isOnline) {
@@ -265,15 +265,15 @@ class HybridShoppingListRepository implements ShoppingListRepository {
       // 2. 同期処理でFirestoreのステータスも更新
       final updatedItem = item.copyWith(isPurchased: isPurchased);
       await _syncItemToFirestoreWithFallback(
-          groupId, updatedItem, _ShoppingListSyncOperationType.updateItem);
+          groupId, updatedItem, _SharedListSyncOperationType.updateItem);
     } catch (e) {
-      developer.log('❌ HybridShoppingList.updateShoppingItemStatus error: $e');
+      developer.log('❌ HybridSharedList.updateSharedItemStatus error: $e');
       rethrow;
     }
   }
 
   @override
-  Future<ShoppingList> getOrCreateList(String groupId, String groupName) async {
+  Future<SharedList> getOrCreateList(String groupId, String groupName) async {
     try {
       // 1. まずHiveから取得を試行
       final existingList = await _hiveRepo.getOrCreateList(groupId, groupName);
@@ -287,7 +287,7 @@ class HybridShoppingListRepository implements ShoppingListRepository {
 
       return existingList;
     } catch (e) {
-      developer.log('❌ HybridShoppingList.getOrCreateList error: $e');
+      developer.log('❌ HybridSharedList.getOrCreateList error: $e');
       rethrow;
     }
   }
@@ -303,10 +303,10 @@ class HybridShoppingListRepository implements ShoppingListRepository {
     Future.microtask(() async {
       _isSyncing = true;
       try {
-        final firestoreList = await _firestoreRepo!.getShoppingList(groupId);
+        final firestoreList = await _firestoreRepo!.getSharedList(groupId);
         if (firestoreList != null) {
           // Hiveと比較して新しければ更新
-          final hiveList = await _hiveRepo.getShoppingList(groupId);
+          final hiveList = await _hiveRepo.getSharedList(groupId);
           if (_shouldUpdateFromFirestore(hiveList, firestoreList)) {
             await _hiveRepo.addItem(firestoreList);
             developer.log('🔄 Background sync: Firestore→Hive完了');
@@ -323,7 +323,7 @@ class HybridShoppingListRepository implements ShoppingListRepository {
 
   /// Firestoreデータの方が新しいかチェック
   bool _shouldUpdateFromFirestore(
-      ShoppingList? hiveList, ShoppingList firestoreList) {
+      SharedList? hiveList, SharedList firestoreList) {
     if (hiveList == null) return true;
 
     // アイテム数で簡易比較（実際のアプリでは更新日時を使用すべき）
@@ -362,7 +362,7 @@ class HybridShoppingListRepository implements ShoppingListRepository {
   // === Multi-List Methods Implementation ===
 
   @override
-  Future<ShoppingList> createShoppingList({
+  Future<SharedList> createSharedList({
     required String ownerUid,
     required String groupId,
     required String listName,
@@ -370,23 +370,31 @@ class HybridShoppingListRepository implements ShoppingListRepository {
   }) async {
     try {
       // Hive側で新規作成
-      final newList = await _hiveRepo.createShoppingList(
+      final newList = await _hiveRepo.createSharedList(
         ownerUid: ownerUid,
         groupId: groupId,
         listName: listName,
         description: description,
       );
 
+      developer.log(
+          '🔍 [CREATE_LIST] リスト作成条件チェック: Flavor=${F.appFlavor}, isOnline=$_isOnline, firestoreRepo=${_firestoreRepo != null}');
+
       // Firestoreにも同期(オンライン時のみ)
       if (_isOnline && F.appFlavor == Flavor.prod && _firestoreRepo != null) {
         try {
-          // HiveのリストをそのIDでFirestoreに保存
-          await _firestoreRepo!.saveShoppingListWithId(newList);
           developer.log(
-              '☁️ Hybrid: リスト「$listName」をFirestoreに同期 (ID: ${newList.listId})');
-        } catch (e) {
+              '🌐 [CREATE_LIST] Firestoreに同期開始: ${newList.listName} (groupId: ${newList.groupId}, listId: ${newList.listId})');
+          // HiveのリストをそのIDでFirestoreに保存
+          await _firestoreRepo!.saveSharedListWithId(newList);
+          developer.log(
+              '☁️ Hybrid: リスト「$listName」をFirestoreに同期完了 (ID: ${newList.listId})');
+        } catch (e, stackTrace) {
           developer.log('⚠️ Hybrid: Firestore同期失敗、Hiveのみで作成: $e');
+          developer.log('📄 StackTrace: $stackTrace');
         }
+      } else {
+        developer.log('⚠️ [CREATE_LIST] Firestore同期スキップ (条件不一致)');
       }
 
       return newList;
@@ -397,12 +405,12 @@ class HybridShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<ShoppingList?> getShoppingListById(String listId) async {
-    return await _hiveRepo.getShoppingListById(listId);
+  Future<SharedList?> getSharedListById(String listId) async {
+    return await _hiveRepo.getSharedListById(listId);
   }
 
   @override
-  Future<List<ShoppingList>> getShoppingListsByGroup(String groupId) async {
+  Future<List<SharedList>> getSharedListsByGroup(String groupId) async {
     try {
       // すべてのグループでFirestore優先（デフォルトグループも含む）
       if (_isSharedGroup(groupId) &&
@@ -413,11 +421,11 @@ class HybridShoppingListRepository implements ShoppingListRepository {
 
         // 1. Firestoreから最新データを取得
         final firestoreLists =
-            await _firestoreRepo!.getShoppingListsByGroup(groupId);
+            await _firestoreRepo!.getSharedListsByGroup(groupId);
 
         // 2. Hiveにキャッシュ（バックグラウンド）
         for (final list in firestoreLists) {
-          _hiveRepo.updateShoppingList(list).catchError((e) {
+          _hiveRepo.updateSharedList(list).catchError((e) {
             developer.log('⚠️ Hiveキャッシュ失敗 (${list.listId}): $e');
           });
         }
@@ -428,19 +436,19 @@ class HybridShoppingListRepository implements ShoppingListRepository {
 
       // オフライン時またはDev環境はHive優先
       developer.log('📦 [HIVE優先] リスト取得: $groupId');
-      return await _hiveRepo.getShoppingListsByGroup(groupId);
+      return await _hiveRepo.getSharedListsByGroup(groupId);
     } catch (e) {
-      developer.log('❌ HybridShoppingList.getShoppingListsByGroup error: $e');
+      developer.log('❌ HybridSharedList.getSharedListsByGroup error: $e');
       // エラー時はHiveフォールバック
-      return await _hiveRepo.getShoppingListsByGroup(groupId);
+      return await _hiveRepo.getSharedListsByGroup(groupId);
     }
   }
 
   @override
-  Future<void> updateShoppingList(ShoppingList list) async {
+  Future<void> updateSharedList(SharedList list) async {
     try {
       // 1. まずHiveに保存（楽観的更新）
-      await _hiveRepo.updateShoppingList(list);
+      await _hiveRepo.updateSharedList(list);
 
       if (F.appFlavor == Flavor.dev || !_isOnline) {
         return; // Dev環境またはオフライン時はHiveのみ
@@ -449,24 +457,24 @@ class HybridShoppingListRepository implements ShoppingListRepository {
       // 2. すべてのグループでFirestoreにも同期
       if (_isSharedGroup(list.groupId)) {
         await _syncListToFirestoreWithFallback(
-            list, _ShoppingListSyncOperationType.update);
+            list, _SharedListSyncOperationType.update);
         developer.log('🌐 [FIRESTORE同期] ${list.listName}');
       }
     } catch (e) {
-      developer.log('❌ HybridShoppingList.updateShoppingList error: $e');
+      developer.log('❌ HybridSharedList.updateSharedList error: $e');
       rethrow;
     }
   }
 
   @override
-  Future<void> deleteShoppingList(String groupId, String listId) async {
+  Future<void> deleteSharedList(String groupId, String listId) async {
     // Hiveから削除
-    await _hiveRepo.deleteShoppingList(groupId, listId);
+    await _hiveRepo.deleteSharedList(groupId, listId);
 
     // Firestoreからも削除（オンライン時）
     if (_firestoreRepo != null) {
       try {
-        await _firestoreRepo!.deleteShoppingList(groupId, listId);
+        await _firestoreRepo!.deleteSharedList(groupId, listId);
         developer.log(
             '🗑️ [HYBRID] リストをFirestoreから削除: groupId=$groupId, listId=$listId');
       } catch (e) {
@@ -476,13 +484,13 @@ class HybridShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<void> addItemToList(String listId, ShoppingItem item) async {
+  Future<void> addItemToList(String listId, SharedItem item) async {
     try {
       // 1. Hiveに追加
       await _hiveRepo.addItemToList(listId, item);
 
       // 2. 通知記録（groupIdを取得するためにリストを取得）
-      final list = await _hiveRepo.getShoppingListById(listId);
+      final list = await _hiveRepo.getSharedListById(listId);
       if (list != null) {
         final notifyService = _ref.read(listNotificationBatchServiceProvider);
         await notifyService.recordItemAdded(
@@ -498,21 +506,21 @@ class HybridShoppingListRepository implements ShoppingListRepository {
 
       // 3. 同期処理でFirestoreに追加
       await _syncItemToFirestoreWithFallback(
-          listId, item, _ShoppingListSyncOperationType.createItem);
+          listId, item, _SharedListSyncOperationType.createItem);
     } catch (e) {
-      developer.log('❌ HybridShoppingList.addItemToList error: $e');
+      developer.log('❌ HybridSharedList.addItemToList error: $e');
       rethrow;
     }
   }
 
   @override
-  Future<void> removeItemFromList(String listId, ShoppingItem item) async {
+  Future<void> removeItemFromList(String listId, SharedItem item) async {
     try {
       // 1. Hiveから削除
       await _hiveRepo.removeItemFromList(listId, item);
 
       // 2. 通知記録（groupIdを取得するためにリストを取得）
-      final list = await _hiveRepo.getShoppingListById(listId);
+      final list = await _hiveRepo.getSharedListById(listId);
       if (list != null) {
         final notifyService = _ref.read(listNotificationBatchServiceProvider);
         await notifyService.recordItemRemoved(
@@ -528,15 +536,15 @@ class HybridShoppingListRepository implements ShoppingListRepository {
 
       // 3. 同期処理でFirestoreからも削除
       await _syncItemToFirestoreWithFallback(
-          listId, item, _ShoppingListSyncOperationType.deleteItem);
+          listId, item, _SharedListSyncOperationType.deleteItem);
     } catch (e) {
-      developer.log('❌ HybridShoppingList.removeItemFromList error: $e');
+      developer.log('❌ HybridSharedList.removeItemFromList error: $e');
       rethrow;
     }
   }
 
   @override
-  Future<void> updateItemStatusInList(String listId, ShoppingItem item,
+  Future<void> updateItemStatusInList(String listId, SharedItem item,
       {required bool isPurchased}) async {
     try {
       // 1. Hiveの状態を更新
@@ -545,7 +553,7 @@ class HybridShoppingListRepository implements ShoppingListRepository {
 
       // 2. 通知記録（購入完了時のみ）
       if (isPurchased) {
-        final list = await _hiveRepo.getShoppingListById(listId);
+        final list = await _hiveRepo.getSharedListById(listId);
         if (list != null) {
           final notifyService = _ref.read(listNotificationBatchServiceProvider);
           await notifyService.recordItemPurchased(
@@ -563,9 +571,9 @@ class HybridShoppingListRepository implements ShoppingListRepository {
       // 3. 同期処理でFirestoreの状態も更新
       final updatedItem = item.copyWith(isPurchased: isPurchased);
       await _syncItemToFirestoreWithFallback(
-          listId, updatedItem, _ShoppingListSyncOperationType.updateItem);
+          listId, updatedItem, _SharedListSyncOperationType.updateItem);
     } catch (e) {
-      developer.log('❌ HybridShoppingList.updateItemStatusInList error: $e');
+      developer.log('❌ HybridSharedList.updateItemStatusInList error: $e');
       rethrow;
     }
   }
@@ -576,20 +584,20 @@ class HybridShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<ShoppingList> getOrCreateDefaultList(
+  Future<SharedList> getOrCreateDefaultList(
       String groupId, String groupName) async {
     return await _hiveRepo.getOrCreateDefaultList(groupId, groupName);
   }
 
   @override
-  Future<void> deleteShoppingListsByGroupId(String groupId) async {
+  Future<void> deleteSharedListsByGroupId(String groupId) async {
     // Hiveリポジトリに委譲
-    await _hiveRepo.deleteShoppingListsByGroupId(groupId);
+    await _hiveRepo.deleteSharedListsByGroupId(groupId);
 
     // オンラインかつFirestoreリポジトリが利用可能な場合、Firestoreでも削除
     if (_isOnline && _firestoreRepo != null && F.appFlavor != Flavor.dev) {
       try {
-        await _firestoreRepo!.deleteShoppingListsByGroupId(groupId);
+        await _firestoreRepo!.deleteSharedListsByGroupId(groupId);
       } catch (e) {
         developer.log('⚠️ Firestore deletion failed (continuing): $e');
       }
@@ -601,7 +609,7 @@ class HybridShoppingListRepository implements ShoppingListRepository {
   // =================================================================
 
   /// 同期キューに追加
-  void _addToSyncQueue(_ShoppingListSyncOperation operation) {
+  void _addToSyncQueue(_SharedListSyncOperation operation) {
     _syncQueue.add(operation);
     developer.log(
         '📝 Sync queue added: ${operation.type} for list ${operation.listId}');
@@ -623,8 +631,7 @@ class HybridShoppingListRepository implements ShoppingListRepository {
     _isSyncing = true;
     developer.log('🔄 Processing sync queue: ${_syncQueue.length} operations');
 
-    final operationsToProcess =
-        List<_ShoppingListSyncOperation>.from(_syncQueue);
+    final operationsToProcess = List<_SharedListSyncOperation>.from(_syncQueue);
     _syncQueue.clear();
 
     for (final operation in operationsToProcess) {
@@ -653,45 +660,42 @@ class HybridShoppingListRepository implements ShoppingListRepository {
   }
 
   /// 個別同期操作を実行
-  Future<void> _executeSyncOperation(
-      _ShoppingListSyncOperation operation) async {
+  Future<void> _executeSyncOperation(_SharedListSyncOperation operation) async {
     if (_firestoreRepo == null) {
       throw Exception('Firestore repository not available');
     }
 
     switch (operation.type) {
-      case _ShoppingListSyncOperationType.create:
-        await _firestoreRepo!
-            .updateShoppingList(operation.data as ShoppingList);
+      case _SharedListSyncOperationType.create:
+        await _firestoreRepo!.updateSharedList(operation.data as SharedList);
         break;
-      case _ShoppingListSyncOperationType.update:
-        await _firestoreRepo!
-            .updateShoppingList(operation.data as ShoppingList);
+      case _SharedListSyncOperationType.update:
+        await _firestoreRepo!.updateSharedList(operation.data as SharedList);
         break;
-      case _ShoppingListSyncOperationType.delete:
+      case _SharedListSyncOperationType.delete:
         // リストIDからgroupIDを取得（Hiveキャッシュから）
         final listToDelete =
-            await _hiveRepo.getShoppingListById(operation.listId);
+            await _hiveRepo.getSharedListById(operation.listId);
         if (listToDelete != null) {
           await _firestoreRepo!
-              .deleteShoppingList(listToDelete.groupId, operation.listId);
+              .deleteSharedList(listToDelete.groupId, operation.listId);
         } else {
           developer.log('⚠️ 削除対象リストがHiveに見つからない: ${operation.listId}');
         }
         break;
-      case _ShoppingListSyncOperationType.createItem:
+      case _SharedListSyncOperationType.createItem:
         final itemData = operation.data as Map<String, dynamic>;
         await _firestoreRepo!
-            .addItemToList(operation.listId, itemData['item'] as ShoppingItem);
+            .addItemToList(operation.listId, itemData['item'] as SharedItem);
         break;
-      case _ShoppingListSyncOperationType.updateItem:
+      case _SharedListSyncOperationType.updateItem:
         final itemData = operation.data as Map<String, dynamic>;
-        final item = itemData['item'] as ShoppingItem;
+        final item = itemData['item'] as SharedItem;
         await _firestoreRepo!.updateItemStatusInList(operation.listId, item,
             isPurchased: item.isPurchased);
         break;
-      case _ShoppingListSyncOperationType.deleteItem:
-        final item = operation.data as ShoppingItem;
+      case _SharedListSyncOperationType.deleteItem:
+        final item = operation.data as SharedItem;
         await _firestoreRepo!.removeItemFromList(operation.listId, item);
         break;
     }
@@ -704,7 +708,7 @@ class HybridShoppingListRepository implements ShoppingListRepository {
     developer.log('🔄 App exit sync: ${_syncQueue.length} operations');
     _syncTimer?.cancel();
 
-    final operations = List<_ShoppingListSyncOperation>.from(_syncQueue);
+    final operations = List<_SharedListSyncOperation>.from(_syncQueue);
     _syncQueue.clear();
 
     for (final operation in operations) {
@@ -723,16 +727,16 @@ class HybridShoppingListRepository implements ShoppingListRepository {
   // =================================================================
 
   @override
-  Future<void> addSingleItem(String listId, ShoppingItem item) async {
+  Future<void> addSingleItem(String listId, SharedItem item) async {
     try {
       // 1. Hive: まずローカルに追加（楽観的更新）
-      final hiveList = await _hiveRepo.getShoppingListById(listId);
+      final hiveList = await _hiveRepo.getSharedListById(listId);
       if (hiveList == null) {
         throw Exception('List not found: $listId');
       }
 
       // Map形式に対応: itemId をキーとして追加
-      final updatedItems = Map<String, ShoppingItem>.from(hiveList.items);
+      final updatedItems = Map<String, SharedItem>.from(hiveList.items);
       updatedItems[item.itemId] = item;
 
       final updatedList = hiveList.copyWith(
@@ -740,14 +744,19 @@ class HybridShoppingListRepository implements ShoppingListRepository {
         updatedAt: DateTime.now(),
       );
 
-      await _hiveRepo.updateShoppingList(updatedList);
+      await _hiveRepo.updateSharedList(updatedList);
       developer.log('✅ [HYBRID_DIFF] Hive: Item added (${item.name})');
 
       // 2. Firestore: バックグラウンドで差分同期
-      if (F.appFlavor == Flavor.dev || !_isOnline) return;
+      developer.log(
+          '🔍 [HYBRID_DIFF] Firestore同期チェック: Flavor=${F.appFlavor}, isOnline=$_isOnline, firestoreRepo=${_firestoreRepo != null}');
+      if (F.appFlavor == Flavor.dev || !_isOnline) {
+        developer.log('⚠️ [HYBRID_DIFF] Firestore同期スキップ (Dev環境またはオフライン)');
+        return;
+      }
 
       _syncSingleItemToFirestore(
-          listId, item, _ShoppingListSyncOperationType.createItem);
+          listId, item, _SharedListSyncOperationType.createItem);
     } catch (e, stackTrace) {
       developer.log('❌ [HYBRID_DIFF] addSingleItem error: $e');
       developer.log('📄 StackTrace: $stackTrace');
@@ -759,7 +768,7 @@ class HybridShoppingListRepository implements ShoppingListRepository {
   Future<void> removeSingleItem(String listId, String itemId) async {
     try {
       // 論理削除: isDeleted = true に設定
-      final hiveList = await _hiveRepo.getShoppingListById(listId);
+      final hiveList = await _hiveRepo.getSharedListById(listId);
       if (hiveList == null) return;
 
       final item = hiveList.items[itemId];
@@ -774,7 +783,7 @@ class HybridShoppingListRepository implements ShoppingListRepository {
         deletedAt: DateTime.now(),
       );
 
-      final updatedItems = Map<String, ShoppingItem>.from(hiveList.items);
+      final updatedItems = Map<String, SharedItem>.from(hiveList.items);
       updatedItems[itemId] = deletedItem;
 
       final updatedList = hiveList.copyWith(
@@ -782,7 +791,7 @@ class HybridShoppingListRepository implements ShoppingListRepository {
         updatedAt: DateTime.now(),
       );
 
-      await _hiveRepo.updateShoppingList(updatedList);
+      await _hiveRepo.updateSharedList(updatedList);
       developer
           .log('✅ [HYBRID_DIFF] Hive: Item logically deleted (${item.name})');
 
@@ -792,7 +801,7 @@ class HybridShoppingListRepository implements ShoppingListRepository {
       _syncSingleItemToFirestore(
         listId,
         deletedItem,
-        _ShoppingListSyncOperationType.deleteItem,
+        _SharedListSyncOperationType.deleteItem,
       );
     } catch (e) {
       developer.log('❌ [HYBRID_DIFF] removeSingleItem error: $e');
@@ -801,12 +810,12 @@ class HybridShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<void> updateSingleItem(String listId, ShoppingItem item) async {
+  Future<void> updateSingleItem(String listId, SharedItem item) async {
     try {
-      final hiveList = await _hiveRepo.getShoppingListById(listId);
+      final hiveList = await _hiveRepo.getSharedListById(listId);
       if (hiveList == null) return;
 
-      final updatedItems = Map<String, ShoppingItem>.from(hiveList.items);
+      final updatedItems = Map<String, SharedItem>.from(hiveList.items);
       updatedItems[item.itemId] = item;
 
       final updatedList = hiveList.copyWith(
@@ -814,7 +823,7 @@ class HybridShoppingListRepository implements ShoppingListRepository {
         updatedAt: DateTime.now(),
       );
 
-      await _hiveRepo.updateShoppingList(updatedList);
+      await _hiveRepo.updateSharedList(updatedList);
       developer.log('✅ [HYBRID_DIFF] Hive: Item updated (${item.name})');
 
       if (F.appFlavor == Flavor.dev || !_isOnline) return;
@@ -822,7 +831,7 @@ class HybridShoppingListRepository implements ShoppingListRepository {
       _syncSingleItemToFirestore(
         listId,
         item,
-        _ShoppingListSyncOperationType.updateItem,
+        _SharedListSyncOperationType.updateItem,
       );
     } catch (e) {
       developer.log('❌ [HYBRID_DIFF] updateSingleItem error: $e');
@@ -834,13 +843,13 @@ class HybridShoppingListRepository implements ShoppingListRepository {
   Future<void> cleanupDeletedItems(String listId,
       {int olderThanDays = 30}) async {
     try {
-      final list = await _hiveRepo.getShoppingListById(listId);
+      final list = await _hiveRepo.getSharedListById(listId);
       if (list == null) return;
 
       final cutoffDate = DateTime.now().subtract(Duration(days: olderThanDays));
 
       // 削除から指定日数以上経過したアイテムを物理削除
-      final cleanedItems = Map<String, ShoppingItem>.fromEntries(
+      final cleanedItems = Map<String, SharedItem>.fromEntries(
         list.items.entries.where((entry) {
           final item = entry.value;
           if (!item.isDeleted) return true; // アクティブアイテムは残す
@@ -860,7 +869,7 @@ class HybridShoppingListRepository implements ShoppingListRepository {
         updatedAt: DateTime.now(),
       );
 
-      await _hiveRepo.updateShoppingList(cleanedList);
+      await _hiveRepo.updateSharedList(cleanedList);
       developer
           .log('🧹 [HYBRID_CLEANUP] Removed $removedCount items from Hive');
 
@@ -868,7 +877,7 @@ class HybridShoppingListRepository implements ShoppingListRepository {
       if (F.appFlavor == Flavor.dev || !_isOnline) return;
 
       // バックグラウンド同期（エラーは無視）
-      _firestoreRepo?.updateShoppingList(cleanedList).then((_) {
+      _firestoreRepo?.updateSharedList(cleanedList).then((_) {
         developer.log('🧹 [HYBRID_CLEANUP] Firestore synced');
       }).catchError((e) {
         developer.log('⚠️ [HYBRID_CLEANUP] Firestore sync failed: $e');
@@ -882,18 +891,18 @@ class HybridShoppingListRepository implements ShoppingListRepository {
   /// 単一アイテムをFirestoreに同期（バックグラウンド）
   void _syncSingleItemToFirestore(
     String listId,
-    ShoppingItem item,
-    _ShoppingListSyncOperationType operationType,
+    SharedItem item,
+    _SharedListSyncOperationType operationType,
   ) {
     // バックグラウンドで非同期処理
-    _hiveRepo.getShoppingListById(listId).then((list) {
+    _hiveRepo.getSharedListById(listId).then((list) {
       if (list != null && _firestoreRepo != null) {
-        _firestoreRepo!.updateShoppingList(list).then((_) {
+        _firestoreRepo!.updateSharedList(list).then((_) {
           developer.log('🔄 [HYBRID_DIFF] Firestore synced: $operationType');
         }).catchError((e) {
           developer.log('⚠️ [HYBRID_DIFF] Firestore sync failed: $e');
           // 失敗時は同期キューに追加
-          _addToSyncQueue(_ShoppingListSyncOperation(
+          _addToSyncQueue(_SharedListSyncOperation(
             type: operationType,
             listId: listId,
             data: item,
@@ -911,8 +920,7 @@ class HybridShoppingListRepository implements ShoppingListRepository {
   // =================================================================
 
   @override
-  Stream<ShoppingList?> watchShoppingList(
-      String groupId, String listId) async* {
+  Stream<SharedList?> watchSharedList(String groupId, String listId) async* {
     developer
         .log('🔴 [HYBRID_REALTIME] Stream開始: groupId=$groupId, listId=$listId');
 
@@ -922,7 +930,7 @@ class HybridShoppingListRepository implements ShoppingListRepository {
 
       // 初回データ取得してからポーリング
       yield* Stream.periodic(const Duration(seconds: 30), (_) async {
-        return await _hiveRepo.getShoppingListById(listId);
+        return await _hiveRepo.getSharedListById(listId);
       }).asyncMap((future) => future);
       return;
     }
@@ -930,11 +938,11 @@ class HybridShoppingListRepository implements ShoppingListRepository {
     // オンライン時はFirestoreのStreamを使用
     developer.log('🌐 [HYBRID_REALTIME] Firestoreストリームモード');
 
-    yield* _firestoreRepo!.watchShoppingList(groupId, listId).map(
+    yield* _firestoreRepo!.watchSharedList(groupId, listId).map(
       (firestoreList) {
         // Firestoreから取得したデータをHiveにキャッシュ（バックグラウンド）
         if (firestoreList != null) {
-          _hiveRepo.updateShoppingList(firestoreList).catchError((e) {
+          _hiveRepo.updateSharedList(firestoreList).catchError((e) {
             developer.log('⚠️ [HYBRID_REALTIME] Hiveキャッシュ保存エラー: $e');
           });
           developer.log(
@@ -947,13 +955,13 @@ class HybridShoppingListRepository implements ShoppingListRepository {
       _isOnline = false; // オフラインマークを設定
 
       // エラー時はHiveキャッシュにフォールバック
-      return _hiveRepo.getShoppingListById(listId);
+      return _hiveRepo.getSharedListById(listId);
     });
   }
 }
 
 // 同期操作の種類を定義
-enum _ShoppingListSyncOperationType {
+enum _SharedListSyncOperationType {
   create,
   update,
   delete,
@@ -963,14 +971,14 @@ enum _ShoppingListSyncOperationType {
 }
 
 // 同期操作を表すクラス
-class _ShoppingListSyncOperation {
-  final _ShoppingListSyncOperationType type;
+class _SharedListSyncOperation {
+  final _SharedListSyncOperationType type;
   final String listId;
-  final dynamic data; // ShoppingList、ShoppingItem、またはアイテムID
+  final dynamic data; // SharedList、SharedItem、またはアイテムID
   final DateTime timestamp;
   int retryCount;
 
-  _ShoppingListSyncOperation({
+  _SharedListSyncOperation({
     required this.type,
     required this.listId,
     this.data,

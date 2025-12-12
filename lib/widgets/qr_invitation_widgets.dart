@@ -10,7 +10,7 @@ import '../utils/error_handler.dart';
 
 /// QRコード招待ボタンウィジェット
 class QRInviteButton extends ConsumerWidget {
-  final String shoppingListId;
+  final String sharedListId;
   final String SharedGroupId;
   final String groupName;
   final String groupOwnerUid;
@@ -19,7 +19,7 @@ class QRInviteButton extends ConsumerWidget {
 
   const QRInviteButton({
     super.key,
-    required this.shoppingListId,
+    required this.sharedListId,
     required this.SharedGroupId,
     required this.groupName,
     required this.groupOwnerUid,
@@ -45,7 +45,7 @@ class QRInviteButton extends ConsumerWidget {
       operation: () async {
         final qrService = ref.read(qrInvitationServiceProvider);
         final invitationData = await qrService.createQRInvitationData(
-          shoppingListId: shoppingListId,
+          sharedListId: sharedListId,
           SharedGroupId: SharedGroupId,
           groupName: groupName,
           groupOwnerUid: groupOwnerUid,

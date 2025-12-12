@@ -459,7 +459,7 @@ mixin _$SharedGroup {
   List<SharedGroupMember>? get members => throw _privateConstructorUsedError;
   @HiveField(6)
   String? get ownerMessage =>
-      throw _privateConstructorUsedError; // @HiveField(7) @Default([]) List<String> shoppingListIds, // サブコレクション化のため不要に
+      throw _privateConstructorUsedError; // @HiveField(7) @Default([]) List<String> sharedListIds, // サブコレクション化のため不要に
   @HiveField(11)
   List<String> get allowedUid => throw _privateConstructorUsedError;
   @HiveField(12)
@@ -792,9 +792,9 @@ class _$SharedGroupImpl extends _SharedGroup {
   @override
   @HiveField(6)
   final String? ownerMessage;
-// @HiveField(7) @Default([]) List<String> shoppingListIds, // サブコレクション化のため不要に
+// @HiveField(7) @Default([]) List<String> sharedListIds, // サブコレクション化のため不要に
   final List<String> _allowedUid;
-// @HiveField(7) @Default([]) List<String> shoppingListIds, // サブコレクション化のため不要に
+// @HiveField(7) @Default([]) List<String> sharedListIds, // サブコレクション化のため不要に
   @override
   @JsonKey()
   @HiveField(11)
@@ -964,7 +964,7 @@ abstract class _SharedGroup extends SharedGroup {
   @override
   @HiveField(6)
   String? get ownerMessage;
-  @override // @HiveField(7) @Default([]) List<String> shoppingListIds, // サブコレクション化のため不要に
+  @override // @HiveField(7) @Default([]) List<String> sharedListIds, // サブコレクション化のため不要に
   @HiveField(11)
   List<String> get allowedUid;
   @override

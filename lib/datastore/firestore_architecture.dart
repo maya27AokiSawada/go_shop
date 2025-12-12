@@ -4,13 +4,13 @@
 /// Owner UID Collection Structure:
 ///
 /// /users/{ownerUid}/SharedGroups/{groupId} - Purchase Group Document
-/// /users/{ownerUid}/shoppingLists/{listId} - Shopping List Document
+/// /users/{ownerUid}/sharedLists/{listId} - Shopping List Document
 ///
 /// Each Purchase Group contains:
 /// - Basic group info (name, creation date, etc.)
 /// - Members list with roles
 /// - AcceptedUids list (users who accepted invitations)
-/// - ShoppingListIds array (references to shopping lists)
+/// - SharedListIds array (references to shopping lists)
 ///
 /// Invitation Flow:
 /// 1. Owner/Manager creates invitation for specific group
@@ -34,7 +34,7 @@ import '../models/shared_group.dart';
 class FirestoreCollections {
   static const String users = 'users';
   static const String SharedGroups = 'SharedGroups';
-  static const String shoppingLists = 'shoppingLists';
+  static const String sharedLists = 'sharedLists';
 
   /// Get user's purchase groups collection reference
   static CollectionReference<Map<String, dynamic>> getUserSharedGroups(
@@ -46,12 +46,12 @@ class FirestoreCollections {
   }
 
   /// Get user's shopping lists collection reference
-  static CollectionReference<Map<String, dynamic>> getUserShoppingLists(
+  static CollectionReference<Map<String, dynamic>> getUserSharedLists(
       String ownerUid) {
     return FirebaseFirestore.instance
         .collection(users)
         .doc(ownerUid)
-        .collection(shoppingLists);
+        .collection(sharedLists);
   }
 
   /// Get specific purchase group document reference
@@ -61,9 +61,9 @@ class FirestoreCollections {
   }
 
   /// Get specific shopping list document reference
-  static DocumentReference<Map<String, dynamic>> getShoppingListDoc(
+  static DocumentReference<Map<String, dynamic>> getSharedListDoc(
       String ownerUid, String listId) {
-    return getUserShoppingLists(ownerUid).doc(listId);
+    return getUserSharedLists(ownerUid).doc(listId);
   }
 }
 
@@ -90,7 +90,7 @@ class FirestoreSharedGroup {
   String? get ownerEmail => baseGroup.ownerEmail;
   String? get ownerUid => baseGroup.ownerUid;
   List<SharedGroupMember>? get members => baseGroup.members;
-  // shoppingListIds はサブコレクションに移行したため削除
+  // sharedListIds はサブコレクションに移行したため削除
 
   /// Create from base SharedGroup
   factory FirestoreSharedGroup.fromSharedGroup(
@@ -128,7 +128,7 @@ class FirestoreSharedGroup {
                   })
               .toList() ??
           [],
-      // 'shoppingListIds': shoppingListIds, // サブコレクションに移行したため削除
+      // 'sharedListIds': sharedListIds, // サブコレクションに移行したため削除
       'acceptedUids': acceptedUids,
       'pendingInvitations': pendingInvitations,
       'createdAt': createdAt.toIso8601String(),
@@ -156,7 +156,7 @@ class FirestoreSharedGroup {
                 isSignedIn: m['isSignedIn'] ?? false,
               ))
           .toList(),
-      // shoppingListIds はサブコレクションに移行したため削除
+      // sharedListIds はサブコレクションに移行したため削除
     );
 
     return FirestoreSharedGroup(
@@ -205,7 +205,7 @@ class FirestoreSharedGroup {
       ownerEmail: ownerEmail,
       ownerUid: ownerUid,
       members: members,
-      // shoppingListIds はサブコレクションに移行したため削除
+      // sharedListIds はサブコレクションに移行したため削除
     );
   }
 }

@@ -2,10 +2,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../utils/app_logger.dart';
 import '../models/shared_group.dart';
-import '../models/shopping_list.dart';
+import '../models/shared_list.dart';
 import '../providers/auth_provider.dart';
 import '../providers/purchase_group_provider.dart';
-import '../providers/shopping_list_provider.dart';
+import '../providers/shared_list_provider.dart';
 import '../providers/user_name_provider.dart';
 // import '../providers/user_settings_provider.dart';
 import '../datastore/user_settings_repository.dart';
@@ -22,7 +22,7 @@ class UserInfoService {
 
   UserInfoService(this._ref);
 
-  /// ユーザー情報を保存（デフォルトグループ、ShoppingList、UserSettings）
+  /// ユーザー情報を保存（デフォルトグループ、SharedList、UserSettings）
   ///
   /// 優先順位でユーザー名を取得:
   /// 1. フォーム入力
@@ -88,8 +88,8 @@ class UserInfoService {
       // デフォルトグループを更新
       await _updateDefaultGroup(userName, userEmail);
 
-      // デフォルトShoppingListを作成（存在しない場合のみ）
-      await _ensureDefaultShoppingList();
+      // デフォルトSharedListを作成（存在しない場合のみ）
+      await _ensureDefaultSharedList();
 
       // 全グループで同じUID/メールアドレスのメンバー名を更新
       final groupService = _ref.read(groupManagementServiceProvider);
@@ -241,26 +241,25 @@ class UserInfoService {
     Log.info('✅ デフォルトグループ保存完了');
   }
 
-  /// デフォルトShoppingListを確保（存在しない場合のみ作成）
-  Future<void> _ensureDefaultShoppingList() async {
+  /// デフォルトSharedListを確保（存在しない場合のみ作成）
+  Future<void> _ensureDefaultSharedList() async {
     const groupId = 'default_group';
 
     try {
-      final existingShoppingList = await _ref.read(shoppingListProvider.future);
-      Log.info(
-          '📝 既存のShoppingListを発見: ${existingShoppingList.items.length}個のアイテム');
+      final existingSharedList = await _ref.read(sharedListProvider.future);
+      Log.info('📝 既存のSharedListを発見: ${existingSharedList.items.length}個のアイテム');
       // 既に存在する場合は何もしない
     } catch (e) {
-      Log.info('📝 ShoppingListが存在しないため新規作成');
+      Log.info('📝 SharedListが存在しないため新規作成');
 
       // 存在しない場合のみ作成
-      final sampleItem = ShoppingItem.createNow(
+      final sampleItem = SharedItem.createNow(
         memberId: 'defaultUser',
         name: 'サンプル商品',
         quantity: 1,
       );
 
-      final defaultShoppingList = ShoppingList.create(
+      final defaultSharedList = SharedList.create(
         ownerUid: 'defaultUser',
         groupId: groupId,
         groupName: 'あなたのグループ',
@@ -269,9 +268,9 @@ class UserInfoService {
       );
 
       await _ref
-          .read(shoppingListProvider.notifier)
-          .updateShoppingList(defaultShoppingList);
-      Log.info('✅ デフォルトShoppingListを作成しました（サンプル商品含む）');
+          .read(sharedListProvider.notifier)
+          .updateSharedList(defaultSharedList);
+      Log.info('✅ デフォルトSharedListを作成しました（サンプル商品含む）');
     }
   }
 

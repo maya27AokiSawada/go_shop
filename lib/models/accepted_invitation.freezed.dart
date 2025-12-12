@@ -30,8 +30,8 @@ mixin _$AcceptedInvitation {
   String get SharedGroupId =>
       throw _privateConstructorUsedError; // 対象SharedGroupのID
   @HiveField(4)
-  String get shoppingListId =>
-      throw _privateConstructorUsedError; // 対象ShoppingListのID
+  String get sharedListId =>
+      throw _privateConstructorUsedError; // 対象SharedListのID
   @HiveField(5)
   String get inviteRole =>
       throw _privateConstructorUsedError; // 招待時のロール（member/manager）
@@ -61,7 +61,7 @@ abstract class $AcceptedInvitationCopyWith<$Res> {
       @HiveField(1) String acceptorEmail,
       @HiveField(2) String acceptorName,
       @HiveField(3) String SharedGroupId,
-      @HiveField(4) String shoppingListId,
+      @HiveField(4) String sharedListId,
       @HiveField(5) String inviteRole,
       @HiveField(6) DateTime acceptedAt,
       @HiveField(7) bool isProcessed,
@@ -86,7 +86,7 @@ class _$AcceptedInvitationCopyWithImpl<$Res, $Val extends AcceptedInvitation>
     Object? acceptorEmail = null,
     Object? acceptorName = null,
     Object? SharedGroupId = null,
-    Object? shoppingListId = null,
+    Object? sharedListId = null,
     Object? inviteRole = null,
     Object? acceptedAt = null,
     Object? isProcessed = null,
@@ -110,9 +110,9 @@ class _$AcceptedInvitationCopyWithImpl<$Res, $Val extends AcceptedInvitation>
           ? _value.SharedGroupId
           : SharedGroupId // ignore: cast_nullable_to_non_nullable
               as String,
-      shoppingListId: null == shoppingListId
-          ? _value.shoppingListId
-          : shoppingListId // ignore: cast_nullable_to_non_nullable
+      sharedListId: null == sharedListId
+          ? _value.sharedListId
+          : sharedListId // ignore: cast_nullable_to_non_nullable
               as String,
       inviteRole: null == inviteRole
           ? _value.inviteRole
@@ -151,7 +151,7 @@ abstract class _$$AcceptedInvitationImplCopyWith<$Res>
       @HiveField(1) String acceptorEmail,
       @HiveField(2) String acceptorName,
       @HiveField(3) String SharedGroupId,
-      @HiveField(4) String shoppingListId,
+      @HiveField(4) String sharedListId,
       @HiveField(5) String inviteRole,
       @HiveField(6) DateTime acceptedAt,
       @HiveField(7) bool isProcessed,
@@ -174,7 +174,7 @@ class __$$AcceptedInvitationImplCopyWithImpl<$Res>
     Object? acceptorEmail = null,
     Object? acceptorName = null,
     Object? SharedGroupId = null,
-    Object? shoppingListId = null,
+    Object? sharedListId = null,
     Object? inviteRole = null,
     Object? acceptedAt = null,
     Object? isProcessed = null,
@@ -198,9 +198,9 @@ class __$$AcceptedInvitationImplCopyWithImpl<$Res>
           ? _value.SharedGroupId
           : SharedGroupId // ignore: cast_nullable_to_non_nullable
               as String,
-      shoppingListId: null == shoppingListId
-          ? _value.shoppingListId
-          : shoppingListId // ignore: cast_nullable_to_non_nullable
+      sharedListId: null == sharedListId
+          ? _value.sharedListId
+          : sharedListId // ignore: cast_nullable_to_non_nullable
               as String,
       inviteRole: null == inviteRole
           ? _value.inviteRole
@@ -234,7 +234,7 @@ class _$AcceptedInvitationImpl implements _AcceptedInvitation {
       @HiveField(1) required this.acceptorEmail,
       @HiveField(2) required this.acceptorName,
       @HiveField(3) required this.SharedGroupId,
-      @HiveField(4) required this.shoppingListId,
+      @HiveField(4) required this.sharedListId,
       @HiveField(5) required this.inviteRole,
       @HiveField(6) required this.acceptedAt,
       @HiveField(7) this.isProcessed = false,
@@ -262,8 +262,8 @@ class _$AcceptedInvitationImpl implements _AcceptedInvitation {
 // 対象SharedGroupのID
   @override
   @HiveField(4)
-  final String shoppingListId;
-// 対象ShoppingListのID
+  final String sharedListId;
+// 対象SharedListのID
   @override
   @HiveField(5)
   final String inviteRole;
@@ -287,7 +287,7 @@ class _$AcceptedInvitationImpl implements _AcceptedInvitation {
 
   @override
   String toString() {
-    return 'AcceptedInvitation(acceptorUid: $acceptorUid, acceptorEmail: $acceptorEmail, acceptorName: $acceptorName, SharedGroupId: $SharedGroupId, shoppingListId: $shoppingListId, inviteRole: $inviteRole, acceptedAt: $acceptedAt, isProcessed: $isProcessed, processedAt: $processedAt, notes: $notes)';
+    return 'AcceptedInvitation(acceptorUid: $acceptorUid, acceptorEmail: $acceptorEmail, acceptorName: $acceptorName, SharedGroupId: $SharedGroupId, sharedListId: $sharedListId, inviteRole: $inviteRole, acceptedAt: $acceptedAt, isProcessed: $isProcessed, processedAt: $processedAt, notes: $notes)';
   }
 
   @override
@@ -303,8 +303,8 @@ class _$AcceptedInvitationImpl implements _AcceptedInvitation {
                 other.acceptorName == acceptorName) &&
             (identical(other.SharedGroupId, SharedGroupId) ||
                 other.SharedGroupId == SharedGroupId) &&
-            (identical(other.shoppingListId, shoppingListId) ||
-                other.shoppingListId == shoppingListId) &&
+            (identical(other.sharedListId, sharedListId) ||
+                other.sharedListId == sharedListId) &&
             (identical(other.inviteRole, inviteRole) ||
                 other.inviteRole == inviteRole) &&
             (identical(other.acceptedAt, acceptedAt) ||
@@ -324,7 +324,7 @@ class _$AcceptedInvitationImpl implements _AcceptedInvitation {
       acceptorEmail,
       acceptorName,
       SharedGroupId,
-      shoppingListId,
+      sharedListId,
       inviteRole,
       acceptedAt,
       isProcessed,
@@ -352,7 +352,7 @@ abstract class _AcceptedInvitation implements AcceptedInvitation {
       @HiveField(1) required final String acceptorEmail,
       @HiveField(2) required final String acceptorName,
       @HiveField(3) required final String SharedGroupId,
-      @HiveField(4) required final String shoppingListId,
+      @HiveField(4) required final String sharedListId,
       @HiveField(5) required final String inviteRole,
       @HiveField(6) required final DateTime acceptedAt,
       @HiveField(7) final bool isProcessed,
@@ -376,8 +376,8 @@ abstract class _AcceptedInvitation implements AcceptedInvitation {
   String get SharedGroupId;
   @override // 対象SharedGroupのID
   @HiveField(4)
-  String get shoppingListId;
-  @override // 対象ShoppingListのID
+  String get sharedListId;
+  @override // 対象SharedListのID
   @HiveField(5)
   String get inviteRole;
   @override // 招待時のロール（member/manager）

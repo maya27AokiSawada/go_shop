@@ -22,7 +22,7 @@ void main() async {
   final listsSnapshot = await firestore
       .collection('SharedGroups')
       .doc(groupId)
-      .collection('shoppingLists')
+      .collection('sharedLists')
       .get();
 
   print('✅ 取得完了: ${listsSnapshot.docs.length}件\n');
@@ -45,7 +45,7 @@ void main() async {
   final targetDoc = await firestore
       .collection('SharedGroups')
       .doc(groupId)
-      .collection('shoppingLists')
+      .collection('sharedLists')
       .doc(deleteTargetListId)
       .get();
 
@@ -57,7 +57,7 @@ void main() async {
     print('   削除コマンド例:');
     print('   await firestore.collection("SharedGroups")');
     print('       .doc("$groupId")');
-    print('       .collection("shoppingLists")');
+    print('       .collection("sharedLists")');
     print('       .doc("$deleteTargetListId")');
     print('       .delete();');
   } else {

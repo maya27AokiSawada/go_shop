@@ -74,7 +74,7 @@ class SecurityValidator {
   /// Firestoreセキュリティルール準拠チェック
   static void validateFirestoreRuleCompliance({
     required String operation, // 'read', 'write', 'create', 'delete'
-    required String resourceType, // 'SharedGroup', 'shoppingList'
+    required String resourceType, // 'SharedGroup', 'sharedList'
     required SharedGroup group,
     required String currentUid,
   }) {

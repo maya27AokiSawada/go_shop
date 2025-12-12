@@ -2,13 +2,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/app_logger.dart';
 
-/// UID変更時にデフォルトグループのShoppingListをマイグレーションするサービス
-class ShoppingListMigrationService {
+/// UID変更時にデフォルトグループのSharedListをマイグレーションするサービス
+class SharedListMigrationService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   /// 旧デフォルトグループのリストを新デフォルトグループに移行
   ///
-  /// Firestoreデータ構造: /SharedGroups/{groupId}/shoppingLists/{listId}
+  /// Firestoreデータ構造: /SharedGroups/{groupId}/sharedLists/{listId}
   ///
   /// 処理:
   /// 1. 旧グループID配下の全リストを取得
@@ -28,7 +28,7 @@ class ShoppingListMigrationService {
       final oldCollectionRef = _firestore
           .collection('SharedGroups')
           .doc(oldGroupId)
-          .collection('shoppingLists');
+          .collection('sharedLists');
 
       final oldListsSnapshot = await oldCollectionRef.get();
 
@@ -43,7 +43,7 @@ class ShoppingListMigrationService {
       final newCollectionRef = _firestore
           .collection('SharedGroups')
           .doc(newGroupId)
-          .collection('shoppingLists');
+          .collection('sharedLists');
 
       int successCount = 0;
       int errorCount = 0;

@@ -22,7 +22,7 @@ class AcceptedInvitationService {
   Future<void> recordAcceptedInvitation({
     required String inviterUid,
     required String SharedGroupId,
-    required String shoppingListId,
+    required String sharedListId,
     required String inviteRole,
     String? notes,
   }) async {
@@ -43,7 +43,7 @@ class AcceptedInvitationService {
       acceptorEmail: acceptorEmail,
       acceptorName: acceptorName,
       SharedGroupId: SharedGroupId,
-      shoppingListId: shoppingListId,
+      sharedListId: sharedListId,
       inviteRole: inviteRole,
       acceptedAt: DateTime.now(),
       isProcessed: false,

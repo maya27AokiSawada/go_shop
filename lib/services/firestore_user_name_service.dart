@@ -46,6 +46,8 @@ class FirestoreUserNameService {
   }
 
   /// 現在のユーザーのユーザー名を保存
+  /// - ドキュメントが存在しない場合は自動作成（SetOptions(merge: true)使用）
+  /// - emailはFirebase Authの値と比較して更新
   static Future<bool> saveUserName(String userName) async {
     try {
       final user = _auth.currentUser;
@@ -63,13 +65,47 @@ class FirestoreUserNameService {
           .collection('profile')
           .doc('userName');
 
-      await docRef.set({
-        'userName': userName,
-        'userEmail': user.email ?? '',
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      // 既存のドキュメントを取得してemailを確認
+      final docSnapshot = await docRef.get();
+      final currentEmail = user.email ?? '';
 
-      Log.info('✅ Firestoreにユーザー名保存完了: $userName');
+      final Map<String, dynamic> dataToSave = {
+        'userName': userName,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      if (docSnapshot.exists) {
+        // ドキュメントが存在する場合、emailが異なるなら更新
+        final existingData = docSnapshot.data() as Map<String, dynamic>;
+        final storedEmail = existingData['userEmail'] as String? ?? '';
+
+        if (storedEmail != currentEmail) {
+          Log.info(
+              '📧 [PROFILE] emailが異なります: 保存済み=$storedEmail, Auth=$currentEmail');
+          dataToSave['userEmail'] = currentEmail;
+          Log.info('✅ [PROFILE] emailを更新: $currentEmail');
+        } else {
+          Log.info('✅ [PROFILE] emailは既に同期済み');
+        }
+      } else {
+        // ドキュメントが存在しない場合は新規作成（createdAtも追加）
+        Log.info('🆕 [PROFILE] 新規ドキュメント作成: ${AppLogger.maskName(userName)}');
+        dataToSave['userEmail'] = currentEmail;
+        dataToSave['createdAt'] = FieldValue.serverTimestamp();
+      }
+
+      // SetOptions(merge: true)でドキュメントを作成または更新
+      Log.info('📝 [FIRESTORE WRITE] set()実行前 - データ: $dataToSave');
+      Log.info(
+          '📝 [FIRESTORE WRITE] パス: users/${AppLogger.maskUserId(user.uid)}/profile/userName');
+
+      // Windows版Firestoreのスレッド問題を回避するため、メインスレッドで実行
+      await Future.microtask(() async {
+        await docRef.set(dataToSave, SetOptions(merge: true));
+      });
+
+      Log.info('✅ [FIRESTORE WRITE] set()実行完了');
+      Log.info('✅ Firestoreにユーザー名保存完了: ${AppLogger.maskName(userName)}');
       return true;
     } catch (e) {
       Log.error('❌ Firestoreユーザー名保存エラー: $e');
@@ -130,6 +166,7 @@ class FirestoreUserNameService {
 
   /// ユーザープロファイルを作成または更新（サインイン時に呼び出す）
   /// Firestoreにユーザードキュメントが存在しない場合に自動作成
+  /// - emailはFirebase Authの値と比較して更新
   static Future<void> ensureUserProfileExists({String? userName}) async {
     try {
       final user = _auth.currentUser;
@@ -138,7 +175,8 @@ class FirestoreUserNameService {
         return;
       }
 
-      Log.info('🔍 [PROFILE] ユーザープロファイル確認開始: UID=${user.uid}');
+      Log.info(
+          '🔍 [PROFILE] ユーザープロファイル確認開始: UID=${AppLogger.maskUserId(user.uid)}');
 
       final docRef = _firestore
           .collection('users')
@@ -146,10 +184,13 @@ class FirestoreUserNameService {
           .collection('profile')
           .doc('userName');
 
-      Log.info('📍 [PROFILE] ドキュメントパス: users/${user.uid}/profile/userName');
+      Log.info(
+          '📍 [PROFILE] ドキュメントパス: users/${AppLogger.maskUserId(user.uid)}/profile/userName');
 
       final docSnapshot = await docRef.get();
       Log.info('🔍 [PROFILE] ドキュメント存在チェック: exists=${docSnapshot.exists}');
+
+      final currentEmail = user.email ?? '';
 
       if (!docSnapshot.exists) {
         // プロファイルが存在しない場合は作成
@@ -158,21 +199,52 @@ class FirestoreUserNameService {
             user.email?.split('@').first ??
             'ユーザー';
 
-        Log.info('📝 [PROFILE] ドキュメント作成開始: $defaultUserName');
+        Log.info(
+            '📝 [PROFILE] ドキュメント作成開始: ${AppLogger.maskName(defaultUserName)}');
 
-        await docRef.set({
+        final createData = {
           'userName': defaultUserName,
-          'userEmail': user.email ?? '',
+          'userEmail': currentEmail,
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
+        };
+        Log.info('📝 [FIRESTORE WRITE] set()実行前 - データ: $createData');
+
+        // Windows版Firestoreのスレッド問題を回避するため、メインスレッドで実行
+        await Future.microtask(() async {
+          await docRef.set(createData);
         });
 
+        Log.info('✅ [FIRESTORE WRITE] set()実行完了');
         Log.info(
-            '✅ [PROFILE] Firestoreにユーザードキュメント作成完了: $defaultUserName (UID: ${user.uid})');
+            '✅ [PROFILE] Firestoreにユーザードキュメント作成完了: ${AppLogger.maskName(defaultUserName)} (UID: ${AppLogger.maskUserId(user.uid)})');
       } else {
-        final existingData = docSnapshot.data();
-        Log.info(
-            '💡 [PROFILE] ユーザードキュメントは既に存在します (UID: ${user.uid}), データ: $existingData');
+        // プロファイルが存在する場合、emailが異なるなら更新
+        final existingData = docSnapshot.data() as Map<String, dynamic>;
+        final storedEmail = existingData['userEmail'] as String? ?? '';
+
+        if (storedEmail != currentEmail) {
+          Log.info(
+              '📧 [PROFILE] emailが異なります: 保存済み=$storedEmail, Auth=$currentEmail');
+
+          final updateData = {
+            'userEmail': currentEmail,
+            'updatedAt': FieldValue.serverTimestamp(),
+          };
+          Log.info('📝 [FIRESTORE WRITE] update()実行前 - データ: $updateData');
+
+          // Windows版Firestoreのスレッド問題を回避するため、メインスレッドで実行
+          await Future.microtask(() async {
+            await docRef.update(updateData);
+          });
+
+          Log.info('✅ [FIRESTORE WRITE] update()実行完了');
+          Log.info('✅ [PROFILE] emailを更新: $currentEmail');
+        } else {
+          final existingUserName = existingData['userName'] as String? ?? '';
+          Log.info(
+              '💡 [PROFILE] ユーザードキュメントは既に存在します (UID: ${AppLogger.maskUserId(user.uid)}), ユーザー名: ${AppLogger.maskName(existingUserName)}, email: $storedEmail');
+        }
       }
     } catch (e) {
       Log.error('❌ [PROFILE] ユーザープロファイル作成エラー: $e');

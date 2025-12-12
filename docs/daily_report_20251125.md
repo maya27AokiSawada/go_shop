@@ -2,7 +2,7 @@
 
 ## 実装内容サマリー
 
-### 🎯 Phase 1-11完了: ShoppingList Map形式化・後方互換性・メンテナンス機能追加
+### 🎯 Phase 1-11完了: SharedList Map形式化・後方互換性・メンテナンス機能追加
 
 **目的**: リアルタイム同期の基盤整備として、配列形式から連想配列（Map）形式への大規模データ構造変更を実施。
 
@@ -14,12 +14,12 @@
 
 #### Before
 ```dart
-@HiveField(3) @Default([]) List<ShoppingItem> items,
+@HiveField(3) @Default([]) List<SharedItem> items,
 ```
 
 #### After
 ```dart
-@HiveField(3) @Default({}) Map<String, ShoppingItem> items,
+@HiveField(3) @Default({}) Map<String, SharedItem> items,
 ```
 
 **理由**:
@@ -29,7 +29,7 @@
 
 ### 2. 新フィールド追加
 
-**ShoppingItem**に以下を追加:
+**SharedItem**に以下を追加:
 
 | フィールド | 型 | デフォルト値 | 用途 |
 |-----------|-----|-------------|------|
@@ -38,7 +38,7 @@
 | `deletedAt` | DateTime? | null | 削除日時（Nullable） |
 
 **Hive構造変更**:
-- typeId: 3（ShoppingItem）
+- typeId: 3（SharedItem）
 - フィールド数: 8 → 11
 
 ### 3. 後方互換性対応（Phase 9）
@@ -49,13 +49,13 @@
 
 ```dart
 // lib/adapters/shopping_item_adapter_override.dart
-class ShoppingItemAdapterOverride extends TypeAdapter<ShoppingItem> {
+class SharedItemAdapterOverride extends TypeAdapter<SharedItem> {
   @override
   final int typeId = 3;
 
   @override
-  ShoppingItem read(BinaryReader reader) {
-    return ShoppingItem(
+  SharedItem read(BinaryReader reader) {
+    return SharedItem(
       // 既存フィールド読み込み...
       itemId: (fields[8] as String?) ?? _uuid.v4(),  // 🔥 Null時は自動生成
       isDeleted: fields[9] as bool? ?? false,        // 🔥 デフォルト値
@@ -70,7 +70,7 @@ class ShoppingItemAdapterOverride extends TypeAdapter<ShoppingItem> {
 void main() async {
   // 🔥 デフォルトアダプターより先に登録（Override）
   if (!Hive.isAdapterRegistered(3)) {
-    Hive.registerAdapter(ShoppingItemAdapterOverride());
+    Hive.registerAdapter(SharedItemAdapterOverride());
   }
   await UserSpecificHiveService.initializeAdapters();
   runApp(const ProviderScope(child: MyApp()));
@@ -82,15 +82,15 @@ void main() async {
 **Repository層に4つの新メソッド追加**:
 
 ```dart
-abstract class ShoppingListRepository {
+abstract class SharedListRepository {
   // 単一アイテム追加（Firestoreに1件のみ送信）
-  Future<void> addSingleItem(String listId, ShoppingItem item);
+  Future<void> addSingleItem(String listId, SharedItem item);
 
   // 単一アイテム削除（論理削除: itemIdのみ送信）
   Future<void> removeSingleItem(String listId, String itemId);
 
   // 単一アイテム更新（Firestoreに1件のみ送信）
-  Future<void> updateSingleItem(String listId, ShoppingItem item);
+  Future<void> updateSingleItem(String listId, SharedItem item);
 
   // 削除済みアイテムの物理削除（30日以上経過）
   Future<void> cleanupDeletedItems(String listId, {int olderThanDays = 30});
@@ -120,9 +120,9 @@ class ListCleanupService {
 
 **自動実行**: `user_initialization_service.dart`でアプリ起動5秒後にバックグラウンド実行
 
-#### ShoppingListDataMigrationService (354行)
+#### SharedListDataMigrationService (354行)
 ```dart
-class ShoppingListDataMigrationService {
+class SharedListDataMigrationService {
   // 配列形式 → Map形式への移行
   Future<void> migrateToMapFormat();
 
@@ -210,7 +210,7 @@ class ShoppingListDataMigrationService {
 ### 問題2: Hiveデータ互換性エラー
 **現象**: 再ビルド時に型エラー再発
 **原因**: 既存HiveデータにitemIdフィールドなし
-**解決**: ShoppingItemAdapterOverride実装（Null安全な読み込み）
+**解決**: SharedItemAdapterOverride実装（Null安全な読み込み）
 
 ### 問題3: データ削除失敗
 **現象**: $env:LOCALAPPDATA\go_shop削除時にAccess denied
@@ -283,7 +283,7 @@ class ShoppingListDataMigrationService {
 **Commit Hash**: 4ab7fdd
 **Commit Message**:
 ```
-feat: Phase 1-11完了 - ShoppingList Map形式化・後方互換性・メンテナンス機能追加
+feat: Phase 1-11完了 - SharedList Map形式化・後方互換性・メンテナンス機能追加
 ```
 
 **Push先**: origin/oneness

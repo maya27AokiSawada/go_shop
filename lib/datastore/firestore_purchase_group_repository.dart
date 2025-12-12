@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
 import '../models/shared_group.dart';
-import '../datastore/purchase_group_repository.dart';
+import '../datastore/shared_group_repository.dart';
 import 'dart:developer' as developer;
 
 class FirestoreSharedGroupRepository implements SharedGroupRepository {
@@ -19,7 +19,7 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
   }
 
   /// ショッピングリストID生成（groupId + UUID）
-  String generateShoppingListId(String groupId) {
+  String generateSharedListId(String groupId) {
     final uuid = _uuid.v4().replaceAll('-', '').substring(0, 12);
     return '${groupId}_$uuid';
   }
@@ -66,8 +66,10 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
           '🔍 [FIRESTORE] allowedUid in groupData: ${groupData['allowedUid']}');
 
       try {
-        // シンプルなset操作でトランザクションを避ける（crash-proof）
-        await groupDocRef.set(groupData);
+        // Windows版Firestoreのスレッド問題を回避
+        await Future.microtask(() async {
+          await groupDocRef.set(groupData);
+        });
         developer
             .log('✅ [FIRESTORE] Group write successful: $groupName ($groupId)');
       } catch (writeError) {
@@ -75,8 +77,10 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
             .log('❌ [FIRESTORE] Write failed, trying transaction: $writeError');
 
         // setが失敗した場合のみトランザクションを試行
-        await _firestore.runTransaction((transaction) async {
-          transaction.set(groupDocRef, groupData);
+        await Future.microtask(() async {
+          await _firestore.runTransaction((transaction) async {
+            transaction.set(groupDocRef, groupData);
+          });
         });
         developer.log(
             '✅ [FIRESTORE] Transaction write successful: $groupName ($groupId)');
@@ -153,10 +157,13 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
           '🔍 [FIRESTORE UPDATE] updateData[allowedUid]: ${updateData['allowedUid']}');
 
       // set(merge: true)を使用してドキュメントが存在しない場合も対応
-      await _groupsCollection.doc(groupId).set({
-        ...updateData,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      // Windows版Firestoreのスレッド問題を回避
+      await Future.microtask(() async {
+        await _groupsCollection.doc(groupId).set({
+          ...updateData,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      });
 
       developer
           .log('✅ [FIRESTORE UPDATE] Updated in Firestore: ${group.groupName}');
@@ -186,9 +193,12 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
       final group = _groupFromFirestore(doc);
 
       // 論理削除: isDeletedフラグを立てる（物理削除はしない）
-      await _groupsCollection.doc(groupId).update({
-        'isDeleted': true,
-        'updatedAt': FieldValue.serverTimestamp(),
+      // Windows版Firestoreのスレッド問題を回避
+      await Future.microtask(() async {
+        await _groupsCollection.doc(groupId).update({
+          'isDeleted': true,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
       });
 
       developer.log('🔥 [FIRESTORE] Marked group as deleted: $groupId');
@@ -209,9 +219,12 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
       final updatedGroup = group.addMember(member);
 
       // グループデータを更新（members配列が含まれている）
-      await _groupsCollection
-          .doc(groupId)
-          .update(_groupToFirestore(updatedGroup));
+      // Windows版Firestoreのスレッド問題を回避
+      await Future.microtask(() async {
+        await _groupsCollection
+            .doc(groupId)
+            .update(_groupToFirestore(updatedGroup));
+      });
 
       developer.log(
           '🔥 [FIRESTORE] Added member and created membership: ${member.name} to $groupId');
@@ -230,9 +243,12 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
       final updatedGroup = group.removeMember(member);
 
       // グループデータを更新（members配列が含まれている）
-      await _groupsCollection
-          .doc(groupId)
-          .update(_groupToFirestore(updatedGroup));
+      // Windows版Firestoreのスレッド問題を回避
+      await Future.microtask(() async {
+        await _groupsCollection
+            .doc(groupId)
+            .update(_groupToFirestore(updatedGroup));
+      });
 
       developer.log(
           '🔥 [FIRESTORE] Removed member and deleted membership: ${member.name} from $groupId');
@@ -288,6 +304,8 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
       'groupName': group.groupName,
       'groupId': group.groupId,
       'ownerUid': group.ownerUid,
+      'ownerName': group.ownerName,
+      'ownerEmail': group.ownerEmail,
       'allowedUid': group.allowedUid, // 🔥 CRITICAL: 招待機能に必須
       'members':
           group.members?.map((m) => _memberToFirestore(m)).toList() ?? [],

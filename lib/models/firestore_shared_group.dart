@@ -61,7 +61,7 @@ class FirestoreSharedGroup {
   final String ownerEmail;                          // オーナーメールアドレス
   final List<String> memberUids;                    // 確定メンバーのUID一覧
   final List<GroupInvitedUser> invitedUsers;        // 招待中ユーザー一覧
-  final List<String> shoppingListIds;              // このグループが持つShoppingListのID一覧
+  final List<String> sharedListIds;              // このグループが持つSharedListのID一覧
   final Map<String, dynamic> metadata;             // その他のメタデータ
 
   const FirestoreSharedGroup({
@@ -71,7 +71,7 @@ class FirestoreSharedGroup {
     required this.ownerEmail,
     this.memberUids = const [],
     this.invitedUsers = const [],
-    this.shoppingListIds = const [],
+    this.sharedListIds = const [],
     this.metadata = const {},
   });
 
@@ -82,7 +82,7 @@ class FirestoreSharedGroup {
     String? ownerEmail,
     List<String>? memberUids,
     List<GroupInvitedUser>? invitedUsers,
-    List<String>? shoppingListIds,
+    List<String>? sharedListIds,
     Map<String, dynamic>? metadata,
   }) {
     return FirestoreSharedGroup(
@@ -92,7 +92,7 @@ class FirestoreSharedGroup {
       ownerEmail: ownerEmail ?? this.ownerEmail,
       memberUids: memberUids ?? this.memberUids,
       invitedUsers: invitedUsers ?? this.invitedUsers,
-      shoppingListIds: shoppingListIds ?? this.shoppingListIds,
+      sharedListIds: sharedListIds ?? this.sharedListIds,
       metadata: metadata ?? this.metadata,
     );
   }
@@ -109,7 +109,7 @@ class FirestoreSharedGroup {
       invitedUsers: (data['invitedUsers'] as List?)
           ?.map((e) => GroupInvitedUser.fromJson(e as Map<String, dynamic>))
           .toList() ?? [],
-      shoppingListIds: List<String>.from(data['shoppingListIds'] ?? []),
+      sharedListIds: List<String>.from(data['sharedListIds'] ?? []),
       metadata: data['metadata'] ?? {},
     );
   }
@@ -122,7 +122,7 @@ class FirestoreSharedGroup {
       'ownerEmail': ownerEmail,
       'memberUids': memberUids,
       'invitedUsers': invitedUsers.map((e) => e.toJson()).toList(),
-      'shoppingListIds': shoppingListIds,
+      'sharedListIds': sharedListIds,
       'metadata': metadata,
       'updatedAt': FieldValue.serverTimestamp(),
     };
@@ -188,21 +188,21 @@ class FirestoreSharedGroup {
     return copyWith(invitedUsers: cleanedInvitedUsers);
   }
 
-  // ShoppingListをグループに追加
-  FirestoreSharedGroup addShoppingList(String shoppingListId) {
-    if (shoppingListIds.contains(shoppingListId)) {
+  // SharedListをグループに追加
+  FirestoreSharedGroup addSharedList(String sharedListId) {
+    if (sharedListIds.contains(sharedListId)) {
       return this;
     }
     
     return copyWith(
-      shoppingListIds: [...shoppingListIds, shoppingListId],
+      sharedListIds: [...sharedListIds, sharedListId],
     );
   }
 
-  // ShoppingListをグループから削除
-  FirestoreSharedGroup removeShoppingList(String shoppingListId) {
+  // SharedListをグループから削除
+  FirestoreSharedGroup removeSharedList(String sharedListId) {
     return copyWith(
-      shoppingListIds: shoppingListIds.where((id) => id != shoppingListId).toList(),
+      sharedListIds: sharedListIds.where((id) => id != sharedListId).toList(),
     );
   }
 

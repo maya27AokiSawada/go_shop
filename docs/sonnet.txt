@@ -1,0 +1,168 @@
+﻿# リスト・アイテムのFirestore書き込み問題レビュー
+
+## 現在の症状
+
+リストやアイテムがFirestoreに書き込めなくなっている状態です。
+
+## レビュー対象ファイル
+
+`android/app/src/prod/google-services.json` を見ると、以下の構成になっています:
+
+```json
+{
+  "project_id": "gotoshop-572b7",
+  "client": [
+    {
+      "package_name": "net.sumomo_planning.go_shop"
+    },
+    {
+      "package_name": "net.sumomo_planning.go_shop.dev"
+    }
+  ]
+}
+```
+
+## 考えられる原因
+
+### 1. **Repository切り替えロジックの破損**
+
+正しい実装では、`F.appFlavor`に応じてRepositoryを切り替える必要があります:
+
+```dart
+// 正しいパターン (lib/providers/shopping_list_provider.dart等)
+final sharedListRepositoryProvider = Provider<SharedListRepository>((ref) {
+  if (F.appFlavor == Flavor.prod) {
+    return FirestoreSharedListRepository(ref);  // または HybridSharedListRepository
+  } else {
+    return HiveSharedListRepository(ref);
+  }
+});
+```
+
+**確認ポイント**: このロジックが削除されていないか？
+
+### 2. **HybridRepositoryの誤った使用**
+
+`HybridSharedListRepository`は以下の条件でFirestoreを使います:
+
+```dart
+// lib/datastore/hybrid_shopping_list_repository.dart
+final isOnline = ref.read(connectivityServiceProvider).isOnline;
+final user = ref.read(authStateProvider).value;
+
+if (isOnline && user != null) {
+  // Firestoreを使う
+} else {
+  // Hiveを使う
+}
+```
+
+**確認ポイント**:
+- インターネット接続がオフになっていないか？
+- Firebase認証ユーザーがnullになっていないか？
+
+### 3. **Firestore Rulesの権限エラー**
+
+過去のログで`PERMISSION_DENIED`エラーが出ていた履歴があります。
+
+**確認方法**:
+```bash
+# Android Studioのログコンソールで以下を検索
+PERMISSION_DENIED
+```
+
+**対処**: Firestore Rulesで適切な権限を設定:
+
+```javascript
+// firestore.rules
+match /sharedLists/{listId} {
+  allow read, write: if request.auth != null;
+}
+
+match /sharedLists/{listId}/items/{itemId} {
+  allow read, write: if request.auth != null;
+}
+```
+
+### 4. **パス構造の変更**
+
+正しいFirestoreパス構造:
+
+```
+/groups/{groupId}/sharedLists/{listId}
+/groups/{groupId}/sharedLists/{listId}/items/{itemId}
+```
+
+**確認ポイント**: Geminiが以下のような誤った変更をしていないか？
+
+```dart
+// ❌ 誤った変更例
+_firestore.collection('sharedLists').doc(listId)  // groupIdが抜けている
+
+// ✅ 正しい実装
+_firestore.collection('groups').doc(groupId)
+          .collection('sharedLists').doc(listId)
+```
+
+## Geminiへの説明文
+
+---
+
+**重要な修正が必要です。以下のルールを守ってコードを確認してください:**
+
+### ルール1: Repository切り替えロジックを維持
+
+```dart
+// このパターンを削除していませんか？
+final repositoryProvider = Provider<Repository>((ref) {
+  if (F.appFlavor == Flavor.prod) {
+    return FirestoreRepository(ref);  // prodはFirestoreを使う
+  } else {
+    return HiveRepository(ref);       // devはHiveのみ
+  }
+});
+```
+
+### ルール2: Firestoreパスは必ず`groups/{groupId}`から始める
+
+```dart
+// ❌ これは間違い
+_firestore.collection('sharedLists')
+
+// ✅ これが正しい
+_firestore.collection('groups').doc(groupId).collection('sharedLists')
+```
+
+### ルール3: HybridRepositoryの条件チェックを削除しない
+
+```dart
+// この部分は絶対に削除しないでください
+final isOnline = ref.read(connectivityServiceProvider).isOnline;
+final user = ref.read(authStateProvider).value;
+
+if (isOnline && user != null) {
+  // Firestoreを使う
+}
+```
+
+### ルール4: `ref.invalidate()`後は必ず`await`で完了を待つ
+
+```dart
+// ❌ これだとUIが古いデータで更新される
+ref.invalidate(listProvider);
+
+// ✅ 必ずawaitで完了を待つ
+ref.invalidate(listProvider);
+await ref.read(listProvider.future);
+```
+
+---
+
+## 次のステップ
+
+1. **ログを確認**: `AppLogger`で`PERMISSION_DENIED`や`null`エラーを探す
+2. **Repositoryプロバイダーを確認**: `FirestoreRepository`が正しく選択されているか
+3. **Firestoreパスを確認**: `groups/{groupId}`が含まれているか
+4. **認証状態を確認**: `authStateProvider`がnullでないか
+
+これらを確認して、どの部分が壊れているか特定してください。

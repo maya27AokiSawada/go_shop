@@ -6,9 +6,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../utils/app_logger.dart';
 import '../models/accepted_invitation.dart';
-import '../models/shopping_list.dart';
+import '../models/shared_list.dart';
 import '../services/accepted_invitation_service.dart';
-import '../providers/shopping_list_provider.dart';
+import '../providers/shared_list_provider.dart';
 
 /// 招待監視サービスプロバイダー
 final invitationMonitorServiceProvider =
@@ -74,14 +74,14 @@ class InvitationMonitorService {
         newUid: invitation.acceptorUid,
       );
 
-      // 2. ShoppingListのallowedUidsに追加
-      await _updateShoppingListAllowedUids(
-        listId: invitation.shoppingListId,
+      // 2. SharedListのallowedUidsに追加
+      await _updateSharedListAllowedUids(
+        listId: invitation.sharedListId,
         newUid: invitation.acceptorUid,
       );
 
       // 3. グループに属する既存のショッピングリストをダウンロード
-      await _downloadExistingShoppingLists(
+      await _downloadExistingSharedLists(
         groupId: invitation.SharedGroupId,
         acceptorUid: invitation.acceptorUid,
       );
@@ -121,22 +121,22 @@ class InvitationMonitorService {
     }
   }
 
-  /// ShoppingListのallowedUidsを更新
-  Future<void> _updateShoppingListAllowedUids({
+  /// SharedListのallowedUidsを更新
+  Future<void> _updateSharedListAllowedUids({
     required String listId,
     required String newUid,
   }) async {
     try {
-      // Firestoreの ShoppingList ドキュメントを直接更新
-      await _firestore.collection('shoppingLists').doc(listId).update({
+      // Firestoreの SharedList ドキュメントを直接更新
+      await _firestore.collection('sharedLists').doc(listId).update({
         'allowedUids': FieldValue.arrayUnion([newUid]),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
       Log.info(
-          '✅ ShoppingList allowedUids更新: $listId + ${AppLogger.maskUserId(newUid)}');
+          '✅ SharedList allowedUids更新: $listId + ${AppLogger.maskUserId(newUid)}');
     } catch (e) {
-      Log.error('❌ ShoppingList更新エラー: $e');
+      Log.error('❌ SharedList更新エラー: $e');
       rethrow;
     }
   }
@@ -181,8 +181,8 @@ class InvitationMonitorService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // ShoppingListから削除
-      await _firestore.collection('shoppingLists').doc(listId).update({
+      // SharedListから削除
+      await _firestore.collection('sharedLists').doc(listId).update({
         'allowedUids': FieldValue.arrayRemove([revokeUid]),
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -223,7 +223,7 @@ class InvitationMonitorService {
   }
 
   /// グループに属する既存のショッピングリストをFirestoreからダウンロードしてHiveに保存
-  Future<void> _downloadExistingShoppingLists({
+  Future<void> _downloadExistingSharedLists({
     required String groupId,
     required String acceptorUid,
   }) async {
@@ -232,7 +232,7 @@ class InvitationMonitorService {
 
       // 1. Firestoreからグループに属する全リストを取得
       final listsSnapshot = await _firestore
-          .collectionGroup('shoppingLists')
+          .collectionGroup('sharedLists')
           .where('groupId', isEqualTo: groupId)
           .get();
 
@@ -244,17 +244,17 @@ class InvitationMonitorService {
       Log.info('📋 [DOWNLOAD LISTS] ${listsSnapshot.docs.length}件のリストを発見');
 
       // 2. Hiveのショッピングリストボックスを取得
-      final shoppingListBox = _ref.read(shoppingListBoxProvider);
+      final sharedListBox = _ref.read(sharedListBoxProvider);
 
       // 3. 各リストをHiveに保存
       int savedCount = 0;
       for (final doc in listsSnapshot.docs) {
         try {
           final data = doc.data();
-          final list = _shoppingListFromFirestore(doc.id, data);
+          final list = _sharedListFromFirestore(doc.id, data);
 
           // Hiveに保存（既存データは上書き）
-          await shoppingListBox.put(list.listId, list);
+          await sharedListBox.put(list.listId, list);
           savedCount++;
 
           Log.info(
@@ -272,15 +272,14 @@ class InvitationMonitorService {
     }
   }
 
-  /// FirestoreドキュメントからShoppingListモデルに変換
-  ShoppingList _shoppingListFromFirestore(
-      String docId, Map<String, dynamic> data) {
+  /// FirestoreドキュメントからSharedListモデルに変換
+  SharedList _sharedListFromFirestore(String docId, Map<String, dynamic> data) {
     final items = (data['items'] as List?)
-            ?.map((item) => _shoppingItemFromMap(item as Map<String, dynamic>))
+            ?.map((item) => _sharedItemFromMap(item as Map<String, dynamic>))
             .toList() ??
         [];
 
-    return ShoppingList(
+    return SharedList(
       listId: docId,
       ownerUid: data['ownerUid'] ?? '',
       groupId: data['groupId'] ?? '',
@@ -293,9 +292,9 @@ class InvitationMonitorService {
     );
   }
 
-  /// MapからShoppingItemに変換
-  ShoppingItem _shoppingItemFromMap(Map<String, dynamic> data) {
-    return ShoppingItem(
+  /// MapからSharedItemに変換
+  SharedItem _sharedItemFromMap(Map<String, dynamic> data) {
+    return SharedItem(
       memberId: data['memberId'] ?? '',
       name: data['name'] ?? '',
       quantity: data['quantity'] ?? 1,

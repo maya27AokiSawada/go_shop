@@ -254,7 +254,7 @@ Go Shopは自動的にデータを同期します：
 
 2. **各種テストを実行**
    - SharedGroup同期テスト
-   - ShoppingList同期テスト
+   - SharedList同期テスト
    - データ整合性チェック
 
 ---

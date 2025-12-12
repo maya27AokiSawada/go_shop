@@ -1,6 +1,6 @@
-// lib/datastore/firestore_purchase_group_adapter.dart
+// lib/datastore/firestore_shared_group_adapter.dart
 import '../models/shared_group.dart';
-import '../datastore/purchase_group_repository.dart';
+import '../datastore/shared_group_repository.dart';
 import '../helpers/validation_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';

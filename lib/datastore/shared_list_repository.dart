@@ -1,26 +1,26 @@
-// lib/datastore/repository/shopping_list_repository.dart
-import '../models/shopping_list.dart';
+// lib/datastore/repository/shared_list_repository.dart
+import '../models/shared_list.dart';
 
-abstract class ShoppingListRepository {
+abstract class SharedListRepository {
   // === Legacy Methods (for backward compatibility) ===
   @deprecated
-  Future<ShoppingList?> getShoppingList(String groupId);
-  Future<void> addItem(ShoppingList list);
+  Future<SharedList?> getSharedList(String groupId);
+  Future<void> addItem(SharedList list);
   @deprecated
-  Future<void> clearShoppingList(String groupId);
+  Future<void> clearSharedList(String groupId);
   @deprecated
-  Future<void> addShoppingItem(String groupId, ShoppingItem item);
+  Future<void> addSharedItem(String groupId, SharedItem item);
   @deprecated
-  Future<void> removeShoppingItem(String groupId, ShoppingItem item);
+  Future<void> removeSharedItem(String groupId, SharedItem item);
   @deprecated
-  Future<void> updateShoppingItemStatus(String groupId, ShoppingItem item,
+  Future<void> updateSharedItemStatus(String groupId, SharedItem item,
       {required bool isPurchased});
   @deprecated
-  Future<ShoppingList> getOrCreateList(String groupId, String groupName);
+  Future<SharedList> getOrCreateList(String groupId, String groupName);
 
   // === New Multi-List Methods ===
   /// Create a new shopping list for a group
-  Future<ShoppingList> createShoppingList({
+  Future<SharedList> createSharedList({
     required String ownerUid,
     required String groupId,
     required String listName,
@@ -28,37 +28,37 @@ abstract class ShoppingListRepository {
   });
 
   /// Get a specific shopping list by listId
-  Future<ShoppingList?> getShoppingListById(String listId);
+  Future<SharedList?> getSharedListById(String listId);
 
   /// Get all shopping lists for a specific group
-  Future<List<ShoppingList>> getShoppingListsByGroup(String groupId);
+  Future<List<SharedList>> getSharedListsByGroup(String groupId);
 
   /// Update an entire shopping list
-  Future<void> updateShoppingList(ShoppingList list);
+  Future<void> updateSharedList(SharedList list);
 
   /// Delete a shopping list by listId
-  Future<void> deleteShoppingList(String groupId, String listId);
-  Future<void> deleteShoppingListsByGroupId(String groupId);
+  Future<void> deleteSharedList(String groupId, String listId);
+  Future<void> deleteSharedListsByGroupId(String groupId);
 
   /// Add item to a specific shopping list (by listId)
-  Future<void> addItemToList(String listId, ShoppingItem item);
+  Future<void> addItemToList(String listId, SharedItem item);
 
   /// Remove item from a specific shopping list (by listId)
-  Future<void> removeItemFromList(String listId, ShoppingItem item);
+  Future<void> removeItemFromList(String listId, SharedItem item);
 
   /// Update item status in a specific shopping list
-  Future<void> updateItemStatusInList(String listId, ShoppingItem item,
+  Future<void> updateItemStatusInList(String listId, SharedItem item,
       {required bool isPurchased});
 
   // 🆕 Map-based differential sync methods
   /// Add single item to list (Map differential sync)
-  Future<void> addSingleItem(String listId, ShoppingItem item);
+  Future<void> addSingleItem(String listId, SharedItem item);
 
   /// Remove single item from list (Map differential sync - logical delete)
   Future<void> removeSingleItem(String listId, String itemId);
 
   /// Update single item in list (Map differential sync)
-  Future<void> updateSingleItem(String listId, ShoppingItem item);
+  Future<void> updateSingleItem(String listId, SharedItem item);
 
   /// Physically delete items marked as deleted (cleanup)
   Future<void> cleanupDeletedItems(String listId, {int olderThanDays = 30});
@@ -67,11 +67,11 @@ abstract class ShoppingListRepository {
   Future<void> clearPurchasedItemsFromList(String listId);
 
   /// Get or create default list for a group (backward compatibility)
-  Future<ShoppingList> getOrCreateDefaultList(String groupId, String groupName);
+  Future<SharedList> getOrCreateDefaultList(String groupId, String groupName);
 
   // === Realtime Sync Methods ===
   /// Watch a specific shopping list for realtime updates
-  /// Returns a Stream that emits the latest ShoppingList data whenever it changes
+  /// Returns a Stream that emits the latest SharedList data whenever it changes
   /// Returns null if the list doesn't exist
-  Stream<ShoppingList?> watchShoppingList(String groupId, String listId);
+  Stream<SharedList?> watchSharedList(String groupId, String listId);
 }

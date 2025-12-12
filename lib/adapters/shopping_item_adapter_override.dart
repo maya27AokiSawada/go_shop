@@ -1,23 +1,23 @@
 import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
-import '../models/shopping_list.dart';
+import '../models/shared_list.dart';
 
 const _uuid = Uuid();
 
-/// ShoppingItemの後方互換性を持つカスタムアダプター
+/// SharedItemの後方互換性を持つカスタムアダプター
 /// 古いデータ（itemId, isDeleted, deletedAtなし）を読み込めるようにする
-class ShoppingItemAdapterOverride extends TypeAdapter<ShoppingItem> {
+class SharedItemAdapterOverride extends TypeAdapter<SharedItem> {
   @override
   final int typeId = 3;
 
   @override
-  ShoppingItem read(BinaryReader reader) {
+  SharedItem read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
 
-    return ShoppingItem(
+    return SharedItem(
       memberId: fields[0] as String,
       name: fields[1] as String,
       quantity: fields[2] as int? ?? 1,
@@ -36,7 +36,7 @@ class ShoppingItemAdapterOverride extends TypeAdapter<ShoppingItem> {
   }
 
   @override
-  void write(BinaryWriter writer, ShoppingItem obj) {
+  void write(BinaryWriter writer, SharedItem obj) {
     writer
       ..writeByte(11) // フィールド数
       ..writeByte(0)
@@ -69,7 +69,7 @@ class ShoppingItemAdapterOverride extends TypeAdapter<ShoppingItem> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is ShoppingItemAdapterOverride &&
+      other is SharedItemAdapterOverride &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

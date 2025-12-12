@@ -2,18 +2,18 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/shopping_list.dart';
+import '../models/shared_list.dart';
 import '../utils/app_logger.dart';
 
 /// 現在選択されている買い物リストを管理するProvider
-class CurrentListNotifier extends StateNotifier<ShoppingList?> {
+class CurrentListNotifier extends StateNotifier<SharedList?> {
   static const String _currentListIdKey = 'current_list_id'; // 後方互換用（非推奨）
   static const String _groupListMapKey = 'group_list_map'; // グループごとの最終使用リストマップ
 
   CurrentListNotifier() : super(null);
 
   /// リストを選択（グループIDと紐付けて保存）
-  Future<void> selectList(ShoppingList list, {String? groupId}) async {
+  Future<void> selectList(SharedList list, {String? groupId}) async {
     Log.info('📝 カレントリストを設定: ${list.listName} (${list.listId})');
     Log.info('🔧 [DEBUG] selectList - groupId: $groupId');
     state = list;
@@ -139,7 +139,7 @@ class CurrentListNotifier extends StateNotifier<ShoppingList?> {
   }
 
   /// リスト内容を更新（SharedPreferencesにも保存）
-  Future<void> updateList(ShoppingList updatedList, {String? groupId}) async {
+  Future<void> updateList(SharedList updatedList, {String? groupId}) async {
     Log.info('🔄 カレントリストを更新: ${updatedList.listName}');
     state = updatedList;
 
@@ -160,6 +160,6 @@ class CurrentListNotifier extends StateNotifier<ShoppingList?> {
 }
 
 final currentListProvider =
-    StateNotifierProvider<CurrentListNotifier, ShoppingList?>((ref) {
+    StateNotifierProvider<CurrentListNotifier, SharedList?>((ref) {
   return CurrentListNotifier();
 });

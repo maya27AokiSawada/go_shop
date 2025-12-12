@@ -26,7 +26,7 @@ mixin _$UserSettings {
   String get lastUsedGroupId =>
       throw _privateConstructorUsedError; // 空文字列で初期化、グループリストから自動選択
   @HiveField(2)
-  String get lastUsedShoppingListId => throw _privateConstructorUsedError;
+  String get lastUsedSharedListId => throw _privateConstructorUsedError;
   @HiveField(3)
   String get userId => throw _privateConstructorUsedError;
   @HiveField(4)
@@ -51,7 +51,7 @@ abstract class $UserSettingsCopyWith<$Res> {
   $Res call(
       {@HiveField(0) String userName,
       @HiveField(1) String lastUsedGroupId,
-      @HiveField(2) String lastUsedShoppingListId,
+      @HiveField(2) String lastUsedSharedListId,
       @HiveField(3) String userId,
       @HiveField(4) String userEmail,
       @HiveField(5) int appMode,
@@ -73,7 +73,7 @@ class _$UserSettingsCopyWithImpl<$Res, $Val extends UserSettings>
   $Res call({
     Object? userName = null,
     Object? lastUsedGroupId = null,
-    Object? lastUsedShoppingListId = null,
+    Object? lastUsedSharedListId = null,
     Object? userId = null,
     Object? userEmail = null,
     Object? appMode = null,
@@ -88,9 +88,9 @@ class _$UserSettingsCopyWithImpl<$Res, $Val extends UserSettings>
           ? _value.lastUsedGroupId
           : lastUsedGroupId // ignore: cast_nullable_to_non_nullable
               as String,
-      lastUsedShoppingListId: null == lastUsedShoppingListId
-          ? _value.lastUsedShoppingListId
-          : lastUsedShoppingListId // ignore: cast_nullable_to_non_nullable
+      lastUsedSharedListId: null == lastUsedSharedListId
+          ? _value.lastUsedSharedListId
+          : lastUsedSharedListId // ignore: cast_nullable_to_non_nullable
               as String,
       userId: null == userId
           ? _value.userId
@@ -123,7 +123,7 @@ abstract class _$$UserSettingsImplCopyWith<$Res>
   $Res call(
       {@HiveField(0) String userName,
       @HiveField(1) String lastUsedGroupId,
-      @HiveField(2) String lastUsedShoppingListId,
+      @HiveField(2) String lastUsedSharedListId,
       @HiveField(3) String userId,
       @HiveField(4) String userEmail,
       @HiveField(5) int appMode,
@@ -143,7 +143,7 @@ class __$$UserSettingsImplCopyWithImpl<$Res>
   $Res call({
     Object? userName = null,
     Object? lastUsedGroupId = null,
-    Object? lastUsedShoppingListId = null,
+    Object? lastUsedSharedListId = null,
     Object? userId = null,
     Object? userEmail = null,
     Object? appMode = null,
@@ -158,9 +158,9 @@ class __$$UserSettingsImplCopyWithImpl<$Res>
           ? _value.lastUsedGroupId
           : lastUsedGroupId // ignore: cast_nullable_to_non_nullable
               as String,
-      lastUsedShoppingListId: null == lastUsedShoppingListId
-          ? _value.lastUsedShoppingListId
-          : lastUsedShoppingListId // ignore: cast_nullable_to_non_nullable
+      lastUsedSharedListId: null == lastUsedSharedListId
+          ? _value.lastUsedSharedListId
+          : lastUsedSharedListId // ignore: cast_nullable_to_non_nullable
               as String,
       userId: null == userId
           ? _value.userId
@@ -188,7 +188,7 @@ class _$UserSettingsImpl implements _UserSettings {
   const _$UserSettingsImpl(
       {@HiveField(0) this.userName = '',
       @HiveField(1) this.lastUsedGroupId = '',
-      @HiveField(2) this.lastUsedShoppingListId = '',
+      @HiveField(2) this.lastUsedSharedListId = '',
       @HiveField(3) this.userId = '',
       @HiveField(4) this.userEmail = '',
       @HiveField(5) this.appMode = 0,
@@ -209,7 +209,7 @@ class _$UserSettingsImpl implements _UserSettings {
   @override
   @JsonKey()
   @HiveField(2)
-  final String lastUsedShoppingListId;
+  final String lastUsedSharedListId;
   @override
   @JsonKey()
   @HiveField(3)
@@ -231,7 +231,7 @@ class _$UserSettingsImpl implements _UserSettings {
 
   @override
   String toString() {
-    return 'UserSettings(userName: $userName, lastUsedGroupId: $lastUsedGroupId, lastUsedShoppingListId: $lastUsedShoppingListId, userId: $userId, userEmail: $userEmail, appMode: $appMode, enableListNotifications: $enableListNotifications)';
+    return 'UserSettings(userName: $userName, lastUsedGroupId: $lastUsedGroupId, lastUsedSharedListId: $lastUsedSharedListId, userId: $userId, userEmail: $userEmail, appMode: $appMode, enableListNotifications: $enableListNotifications)';
   }
 
   @override
@@ -243,8 +243,8 @@ class _$UserSettingsImpl implements _UserSettings {
                 other.userName == userName) &&
             (identical(other.lastUsedGroupId, lastUsedGroupId) ||
                 other.lastUsedGroupId == lastUsedGroupId) &&
-            (identical(other.lastUsedShoppingListId, lastUsedShoppingListId) ||
-                other.lastUsedShoppingListId == lastUsedShoppingListId) &&
+            (identical(other.lastUsedSharedListId, lastUsedSharedListId) ||
+                other.lastUsedSharedListId == lastUsedSharedListId) &&
             (identical(other.userId, userId) || other.userId == userId) &&
             (identical(other.userEmail, userEmail) ||
                 other.userEmail == userEmail) &&
@@ -260,7 +260,7 @@ class _$UserSettingsImpl implements _UserSettings {
       runtimeType,
       userName,
       lastUsedGroupId,
-      lastUsedShoppingListId,
+      lastUsedSharedListId,
       userId,
       userEmail,
       appMode,
@@ -284,7 +284,7 @@ abstract class _UserSettings implements UserSettings {
   const factory _UserSettings(
       {@HiveField(0) final String userName,
       @HiveField(1) final String lastUsedGroupId,
-      @HiveField(2) final String lastUsedShoppingListId,
+      @HiveField(2) final String lastUsedSharedListId,
       @HiveField(3) final String userId,
       @HiveField(4) final String userEmail,
       @HiveField(5) final int appMode,
@@ -301,7 +301,7 @@ abstract class _UserSettings implements UserSettings {
   String get lastUsedGroupId;
   @override // 空文字列で初期化、グループリストから自動選択
   @HiveField(2)
-  String get lastUsedShoppingListId;
+  String get lastUsedSharedListId;
   @override
   @HiveField(3)
   String get userId;

@@ -16,7 +16,7 @@ class AcceptedInvitation with _$AcceptedInvitation {
     @HiveField(1) required String acceptorEmail,      // 受諾者のメール
     @HiveField(2) required String acceptorName,       // 受諾者の表示名
     @HiveField(3) required String SharedGroupId,    // 対象SharedGroupのID
-    @HiveField(4) required String shoppingListId,     // 対象ShoppingListのID
+    @HiveField(4) required String sharedListId,     // 対象SharedListのID
     @HiveField(5) required String inviteRole,         // 招待時のロール（member/manager）
     @HiveField(6) required DateTime acceptedAt,       // 受諾日時
     @HiveField(7) @Default(false) bool isProcessed,   // 招待元が処理済みかフラグ
@@ -35,7 +35,7 @@ class FirestoreAcceptedInvitation {
   final String acceptorEmail;
   final String acceptorName;
   final String SharedGroupId;
-  final String shoppingListId;
+  final String sharedListId;
   final String inviteRole;
   final DateTime acceptedAt;
   final bool isProcessed;
@@ -48,7 +48,7 @@ class FirestoreAcceptedInvitation {
     required this.acceptorEmail,
     required this.acceptorName,
     required this.SharedGroupId,
-    required this.shoppingListId,
+    required this.sharedListId,
     required this.inviteRole,
     required this.acceptedAt,
     this.isProcessed = false,
@@ -67,7 +67,7 @@ class FirestoreAcceptedInvitation {
       acceptorEmail: data['acceptorEmail'] as String,
       acceptorName: data['acceptorName'] as String,
       SharedGroupId: data['SharedGroupId'] as String,
-      shoppingListId: data['shoppingListId'] as String,
+      sharedListId: data['sharedListId'] as String,
       inviteRole: data['inviteRole'] as String,
       acceptedAt: (data['acceptedAt'] as Timestamp).toDate(),
       isProcessed: data['isProcessed'] as bool? ?? false,
@@ -85,7 +85,7 @@ class FirestoreAcceptedInvitation {
       'acceptorEmail': acceptorEmail,
       'acceptorName': acceptorName,
       'SharedGroupId': SharedGroupId,
-      'shoppingListId': shoppingListId,
+      'sharedListId': sharedListId,
       'inviteRole': inviteRole,
       'acceptedAt': Timestamp.fromDate(acceptedAt),
       'isProcessed': isProcessed,
@@ -102,7 +102,7 @@ class FirestoreAcceptedInvitation {
       acceptorEmail: acceptorEmail,
       acceptorName: acceptorName,
       SharedGroupId: SharedGroupId,
-      shoppingListId: shoppingListId,
+      sharedListId: sharedListId,
       inviteRole: inviteRole,
       acceptedAt: acceptedAt,
       isProcessed: true,

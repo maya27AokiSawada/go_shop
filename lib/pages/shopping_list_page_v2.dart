@@ -1,24 +1,24 @@
 // lib/pages/shopping_list_page_v2.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/shopping_list.dart';
+import '../models/shared_list.dart';
 import '../providers/current_list_provider.dart';
 import '../providers/purchase_group_provider.dart';
-import '../providers/shopping_list_provider.dart';
+import '../providers/shared_list_provider.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/shopping_list_header_widget.dart';
 import '../utils/app_logger.dart';
 
 /// 買い物リスト画面（新バージョン）
 /// カレントグループとカレントリストを使用したシンプルな実装
-class ShoppingListPageV2 extends ConsumerStatefulWidget {
-  const ShoppingListPageV2({super.key});
+class SharedListPageV2 extends ConsumerStatefulWidget {
+  const SharedListPageV2({super.key});
 
   @override
-  ConsumerState<ShoppingListPageV2> createState() => _ShoppingListPageV2State();
+  ConsumerState<SharedListPageV2> createState() => _SharedListPageV2State();
 }
 
-class _ShoppingListPageV2State extends ConsumerState<ShoppingListPageV2> {
+class _SharedListPageV2State extends ConsumerState<SharedListPageV2> {
   String? _previousGroupId; // 前回のグループIDを保存
   DateTime? _selectedDeadline; // 選択された期限
   DateTime? _selectedRepeatDate; // 繰り返し購入日
@@ -124,11 +124,11 @@ class _ShoppingListPageV2State extends ConsumerState<ShoppingListPageV2> {
           child: Column(
             children: [
               // ヘッダー：グループ選択＋リスト選択
-              const ShoppingListHeaderWidget(),
+              const SharedListHeaderWidget(),
 
               // アイテム一覧
               Expanded(
-                child: _ShoppingItemsListWidget(),
+                child: _SharedItemsListWidget(),
               ),
             ],
           ),
@@ -304,7 +304,7 @@ class _ShoppingListPageV2State extends ConsumerState<ShoppingListPageV2> {
 
                 try {
                   // 新しいアイテムを作成（itemIdは自動生成）
-                  final newItem = ShoppingItem.createNow(
+                  final newItem = SharedItem.createNow(
                     memberId: currentMemberId,
                     name: name,
                     quantity: quantity,
@@ -316,7 +316,7 @@ class _ShoppingListPageV2State extends ConsumerState<ShoppingListPageV2> {
                   );
 
                   // 🆕 差分同期: 単一アイテムのみ追加
-                  final repository = ref.read(shoppingListRepositoryProvider);
+                  final repository = ref.read(sharedListRepositoryProvider);
                   await repository.addSingleItem(currentList.listId, newItem);
 
                   // StreamBuilderが自動的に更新を検知するため、invalidateは不要
@@ -417,7 +417,7 @@ class _ShoppingListPageV2State extends ConsumerState<ShoppingListPageV2> {
 }
 
 /// アイテム一覧を表示するウィジェット
-class _ShoppingItemsListWidget extends ConsumerWidget {
+class _SharedItemsListWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentList = ref.watch(currentListProvider);
@@ -451,7 +451,7 @@ class _ShoppingItemsListWidget extends ConsumerWidget {
 
     // アイテムをソートするメソッド
     // 優先順位: 1. 未購入を上に、2. 期限が早い順、3. 購入済みを下に
-    List<ShoppingItem> sortItems(List<ShoppingItem> items) {
+    List<SharedItem> sortItems(List<SharedItem> items) {
       final sortedItems = [...items];
       sortedItems.sort((a, b) {
         // 1. 購入済みを下に
@@ -474,11 +474,11 @@ class _ShoppingItemsListWidget extends ConsumerWidget {
     }
 
     // リアルタイム同期用のStreamBuilder
-    final repository = ref.read(shoppingListRepositoryProvider);
+    final repository = ref.read(sharedListRepositoryProvider);
 
-    return StreamBuilder<ShoppingList?>(
+    return StreamBuilder<SharedList?>(
       key: ValueKey(currentList.listId), // リストIDが変わったら再構築
-      stream: repository.watchShoppingList(selectedGroupId, currentList.listId),
+      stream: repository.watchSharedList(selectedGroupId, currentList.listId),
       initialData: currentList, // 初期データは既存のcurrentListを使用
       builder: (context, snapshot) {
         if (snapshot.hasError) {
@@ -535,7 +535,7 @@ class _ShoppingItemsListWidget extends ConsumerWidget {
           itemCount: activeItems.length,
           itemBuilder: (context, index) {
             final item = activeItems[index];
-            return _ShoppingItemTile(item: item);
+            return _SharedItemTile(item: item);
           },
         );
       },
@@ -544,10 +544,10 @@ class _ShoppingItemsListWidget extends ConsumerWidget {
 }
 
 /// アイテム1件を表示するウィジェット
-class _ShoppingItemTile extends ConsumerWidget {
-  final ShoppingItem item;
+class _SharedItemTile extends ConsumerWidget {
+  final SharedItem item;
 
-  const _ShoppingItemTile({
+  const _SharedItemTile({
     required this.item,
   });
 
@@ -692,7 +692,7 @@ class _ShoppingItemTile extends ConsumerWidget {
         purchaseDate: isPurchased ? DateTime.now() : null,
       );
 
-      final repository = ref.read(shoppingListRepositoryProvider);
+      final repository = ref.read(sharedListRepositoryProvider);
       await repository.updateSingleItem(currentList.listId, updatedItem);
 
       // StreamBuilderが自動的に更新を検知するため、invalidateは不要
@@ -722,7 +722,7 @@ class _ShoppingItemTile extends ConsumerWidget {
 
               try {
                 // 🆕 論理削除: isDeleted=trueに設定
-                final repository = ref.read(shoppingListRepositoryProvider);
+                final repository = ref.read(sharedListRepositoryProvider);
                 await repository.removeSingleItem(
                     currentList.listId, item.itemId);
 
