@@ -28,7 +28,7 @@
 
 ### STEP2: ローカルデータ検出
 - 既存の`default_group`を検出
-- メンバー情報とShoppingListの確認
+- メンバー情報とSharedListの確認
 
 ### STEP3: Firebase形式デフォルトグループ作成
 - `default_{firebase_uid}`形式のグループID
@@ -38,7 +38,7 @@
 ### STEP4: データ移行
 - オーナーのmemberIdをFirebase UIDに変更
 - ローカルグループの適切な削除
-- ShoppingListの移行（今後実装）
+- SharedListの移行（今後実装）
 
 ### STEP5: 状態更新
 - 全てのプロバイダーのリフレッシュ
@@ -158,7 +158,7 @@ class AuthScreen extends ConsumerWidget {
 
 ## 今後の拡張予定
 
-- ShoppingListの完全移行実装
+- SharedListの完全移行実装
 - より詳細なエラーメッセージ
 - 処理のキャンセル機能
 - オフライン対応

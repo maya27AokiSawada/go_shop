@@ -166,101 +166,73 @@ class GroupListWidget extends ConsumerWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       elevation: isCurrentGroup ? 4 : 1,
       color: isCurrentGroup ? Colors.blue.shade50 : null,
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: isCurrentGroup
-              ? Colors.blue.shade200
-              : (isDefGroup ? Colors.green.shade100 : Colors.blue.shade100),
-          child: isCurrentGroup
-              ? const Icon(Icons.check_circle, color: Colors.white, size: 20)
-              : Icon(
-                  isDefGroup ? Icons.person : Icons.group,
-                  color: isDefGroup ? Colors.green.shade700 : Colors.blue,
-                ),
-        ),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                group.groupName,
-                style: TextStyle(
-                  fontWeight: FontWeight.w500,
-                  color: isCurrentGroup ? Colors.blue.shade800 : null,
-                ),
-              ),
-            ),
-            if (isCurrentGroup)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.shade300),
-                ),
-                child: Text(
-                  'カレント',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue.shade700,
-                  ),
-                ),
-              ),
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('メンバー: $memberCount人'),
-            if (!isDefGroup && (group.ownerUid?.isNotEmpty ?? false))
-              Text(
-                'オーナー: ${group.ownerName ?? group.ownerUid}',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-              ),
-          ],
-        ),
-        trailing: PopupMenuButton<String>(
-          icon: const Icon(Icons.settings, size: 18, color: Colors.grey),
-          tooltip: 'グループ設定',
-          onSelected: (value) {
-            if (value == 'members') {
-              AppLogger.info('📋 [GROUP_LIST] メンバー管理: ${group.groupId}');
-              _navigateToMemberManagement(context, ref, group);
-            } else if (value == 'invite') {
-              AppLogger.info('📋 [GROUP_LIST] 招待管理: ${group.groupId}');
-              _showInvitationDialog(context, ref, group);
-            }
-          },
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'members',
-              child: Row(
-                children: [
-                  Icon(Icons.people, size: 18),
-                  SizedBox(width: 8),
-                  Text('グループ管理'),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'invite',
-              child: Row(
-                children: [
-                  Icon(Icons.person_add, size: 18),
-                  SizedBox(width: 8),
-                  Text('招待管理'),
-                ],
-              ),
-            ),
-          ],
-        ),
+      child: GestureDetector(
         onTap: () async {
           AppLogger.info('📋 [GROUP_LIST] グループ選択: ${group.groupId}');
           await _selectCurrentGroup(context, ref, group);
         },
+        onDoubleTap: () {
+          AppLogger.info('📋 [GROUP_LIST] メンバー管理: ${group.groupId}');
+          _navigateToMemberManagement(context, ref, group);
+        },
         onLongPress: () {
           _showGroupOptions(context, ref, group);
         },
+        child: ListTile(
+          leading: CircleAvatar(
+            backgroundColor: isCurrentGroup
+                ? Colors.blue.shade200
+                : (isDefGroup ? Colors.green.shade100 : Colors.blue.shade100),
+            child: isCurrentGroup
+                ? const Icon(Icons.check_circle, color: Colors.white, size: 20)
+                : Icon(
+                    isDefGroup ? Icons.person : Icons.group,
+                    color: isDefGroup ? Colors.green.shade700 : Colors.blue,
+                  ),
+          ),
+          title: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  group.groupName,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w500,
+                    color: isCurrentGroup ? Colors.blue.shade800 : null,
+                  ),
+                ),
+              ),
+              if (isCurrentGroup)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade300),
+                  ),
+                  child: Text(
+                    'カレント',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade700,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('メンバー: $memberCount人'),
+              if (!isDefGroup && (group.ownerUid?.isNotEmpty ?? false))
+                Text(
+                  'オーナー: ${group.ownerName ?? '（不明）'}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -275,7 +247,7 @@ class GroupListWidget extends ConsumerWidget {
             .getSavedListIdForGroup(groupId);
 
         // グループのリスト一覧を取得
-        final listsAsync = await ref.read(groupShoppingListsProvider.future);
+        final listsAsync = await ref.read(groupSharedListsProvider.future);
 
         // 🆕 リストが空の場合（新規グループなど）は何もしない
         if (listsAsync.isEmpty) {
@@ -332,7 +304,7 @@ class GroupListWidget extends ConsumerWidget {
     if (selectedGroupId == group.groupId) {
       AppLogger.info('📋 [GROUP_SELECT] 既に選択済み: ${group.groupId}');
       // 既に選択済みの場合もリストを再取得してUIを更新
-      ref.invalidate(groupShoppingListsProvider);
+      ref.invalidate(groupSharedListsProvider);
       return;
     }
 
@@ -366,7 +338,7 @@ class GroupListWidget extends ConsumerWidget {
     );
 
     // グループ切り替え時にリスト一覧プロバイダーも再取得
-    ref.invalidate(groupShoppingListsProvider);
+    ref.invalidate(groupSharedListsProvider);
   }
 
   void _navigateToMemberManagement(
@@ -428,7 +400,7 @@ class GroupListWidget extends ConsumerWidget {
           ),
           SizedBox(height: 8),
           Text(
-            '右下の + ボタンから\n新しいグループを作成してください',
+            '右下の + ボタンから新しいグループを作成してください',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.grey),
           ),

@@ -2,8 +2,8 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
 
-part 'shopping_list.freezed.dart';
-part 'shopping_list.g.dart';
+part 'shared_list.freezed.dart';
+part 'shared_list.g.dart';
 
 const uuid = Uuid();
 
@@ -18,8 +18,8 @@ enum ListType {
 
 @HiveType(typeId: 3)
 @freezed
-class ShoppingItem with _$ShoppingItem {
-  const factory ShoppingItem({
+class SharedItem with _$SharedItem {
+  const factory SharedItem({
     @HiveField(0) required String memberId,
     @HiveField(1) required String name, // 商品名
     @HiveField(2) @Default(1) int quantity, // 数量
@@ -33,10 +33,10 @@ class ShoppingItem with _$ShoppingItem {
     @HiveField(8) required String itemId, // 🆕 アイテム固有ID
     @HiveField(9) @Default(false) bool isDeleted, // 🆕 論理削除フラグ
     @HiveField(10) DateTime? deletedAt, // 🆕 削除日時
-  }) = _ShoppingItem;
+  }) = _SharedItem;
 
   // ファクトリーコンストラクタでカスタムロジック
-  factory ShoppingItem.createNow({
+  factory SharedItem.createNow({
     required String memberId,
     required String name,
     String? itemId, // 🆕 オプショナル、未指定なら自動生成
@@ -45,7 +45,7 @@ class ShoppingItem with _$ShoppingItem {
     int shoppingInterval = 0,
     DateTime? deadline, // 購入期限を追加
   }) {
-    return ShoppingItem(
+    return SharedItem(
       memberId: memberId,
       name: name,
       itemId: itemId ?? uuid.v4(), // 🆕 自動生成
@@ -60,24 +60,24 @@ class ShoppingItem with _$ShoppingItem {
 
 @HiveType(typeId: 4)
 @freezed
-class ShoppingList with _$ShoppingList {
-  const ShoppingList._(); // 🆕 カスタムメソッド用
+class SharedList with _$SharedList {
+  const SharedList._(); // 🆕 カスタムメソッド用
 
-  const factory ShoppingList({
+  const factory SharedList({
     @HiveField(0) required String ownerUid,
     @HiveField(1) required String groupId,
     @HiveField(2) required String groupName,
-    @HiveField(3) @Default({}) Map<String, ShoppingItem> items, // 🆕 Map形式に変更
+    @HiveField(3) @Default({}) Map<String, SharedItem> items, // 🆕 Map形式に変更
     @HiveField(4) required String listId, // 追加: リストID
     @HiveField(5) required String listName, // 追加: リスト名
     @HiveField(6) @Default('') String description, // 追加: リスト説明
     @HiveField(7) required DateTime createdAt, // 追加: 作成日時
     @HiveField(8) DateTime? updatedAt, // 追加: 更新日時
     @HiveField(9) @Default(ListType.shopping) ListType listType, // リストタイプ追加
-  }) = _ShoppingList;
+  }) = _SharedList;
 
   // 🆕 アクティブなアイテムのみ取得（isDeleted=falseのみ）
-  List<ShoppingItem> get activeItems =>
+  List<SharedItem> get activeItems =>
       items.values.where((item) => !item.isDeleted).toList()
         ..sort((a, b) => a.registeredDate.compareTo(b.registeredDate));
 
@@ -93,17 +93,17 @@ class ShoppingList with _$ShoppingList {
   bool get needsCleanup => deletedItemCount > 10;
 
   // ファクトリーコンストラクタでIDと日時を自動生成
-  factory ShoppingList.create({
+  factory SharedList.create({
     required String ownerUid,
     required String groupId,
     required String groupName,
     required String listName,
     String? listId,
     String description = '',
-    Map<String, ShoppingItem> items = const {}, // 🆕 Map形式に変更
+    Map<String, SharedItem> items = const {}, // 🆕 Map形式に変更
   }) {
     final now = DateTime.now();
-    return ShoppingList(
+    return SharedList(
       ownerUid: ownerUid,
       groupId: groupId,
       groupName: groupName,

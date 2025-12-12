@@ -103,8 +103,8 @@ class DataVersionService {
       // 各Boxを削除
       final boxNames = [
         'SharedGroupBox',
-        'shoppingListBox',
-        'shoppingItemBox',
+        'sharedListBox',
+        'sharedItemBox',
         'memberPoolBox',
       ];
 

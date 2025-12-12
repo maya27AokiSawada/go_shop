@@ -1,7 +1,7 @@
 import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/shopping_list.dart';
-import '../providers/shopping_list_provider.dart';
+import '../models/shared_list.dart';
+import '../providers/shared_list_provider.dart';
 import '../providers/purchase_group_provider.dart';
 
 /// 買い物リストの論理削除アイテムクリーンアップサービス
@@ -31,7 +31,7 @@ class ListCleanupService {
     try {
       developer.log('🧹 クリーンアップサービス開始 ($olderThanDays日以上経過)');
 
-      final repository = _ref.read(shoppingListRepositoryProvider);
+      final repository = _ref.read(sharedListRepositoryProvider);
 
       // 全グループから全リストを取得
       final allGroupsAsync = _ref.read(allGroupsProvider);
@@ -41,10 +41,10 @@ class ListCleanupService {
         error: (_, __) => [],
       );
 
-      final allLists = <ShoppingList>[];
+      final allLists = <SharedList>[];
       for (final group in allGroups) {
         final groupLists =
-            await repository.getShoppingListsByGroup(group.groupId);
+            await repository.getSharedListsByGroup(group.groupId);
         allLists.addAll(groupLists);
       }
 
@@ -68,7 +68,7 @@ class ListCleanupService {
             olderThanDays: olderThanDays);
 
         // クリーンアップ後のリストを取得して確認
-        final updatedList = await repository.getShoppingListById(list.listId);
+        final updatedList = await repository.getSharedListById(list.listId);
         final afterCount = updatedList?.deletedItemCount ?? 0;
         final cleanedCount = beforeCount - afterCount;
 
@@ -104,8 +104,8 @@ class ListCleanupService {
     int olderThanDays = 30,
   }) async {
     try {
-      final repository = _ref.read(shoppingListRepositoryProvider);
-      final list = await repository.getShoppingListById(listId);
+      final repository = _ref.read(sharedListRepositoryProvider);
+      final list = await repository.getSharedListById(listId);
 
       if (list == null) {
         developer.log('⚠️ リストが見つかりません (ID: $listId)');
@@ -116,7 +116,7 @@ class ListCleanupService {
       await repository.cleanupDeletedItems(listId,
           olderThanDays: olderThanDays);
 
-      final updatedList = await repository.getShoppingListById(listId);
+      final updatedList = await repository.getSharedListById(listId);
       final afterCount = updatedList?.deletedItemCount ?? 0;
       final cleanedCount = beforeCount - afterCount;
 
@@ -140,7 +140,7 @@ class ListCleanupService {
   /// **戻り値**: {リストID: 削除済みアイテム数} のマップ
   Future<Map<String, int>> getDeletedItemsStats() async {
     try {
-      final repository = _ref.read(shoppingListRepositoryProvider);
+      final repository = _ref.read(sharedListRepositoryProvider);
       final allGroupsAsync = _ref.read(allGroupsProvider);
       final allGroups = allGroupsAsync.when(
         data: (groups) => groups,
@@ -148,10 +148,10 @@ class ListCleanupService {
         error: (_, __) => [],
       );
 
-      final allLists = <ShoppingList>[];
+      final allLists = <SharedList>[];
       for (final group in allGroups) {
         final groupLists =
-            await repository.getShoppingListsByGroup(group.groupId);
+            await repository.getSharedListsByGroup(group.groupId);
         allLists.addAll(groupLists);
       }
 
@@ -170,9 +170,9 @@ class ListCleanupService {
   /// クリーンアップが必要なリストを取得
   ///
   /// **戻り値**: needsCleanup = true のリスト一覧
-  Future<List<ShoppingList>> getListsNeedingCleanup() async {
+  Future<List<SharedList>> getListsNeedingCleanup() async {
     try {
-      final repository = _ref.read(shoppingListRepositoryProvider);
+      final repository = _ref.read(sharedListRepositoryProvider);
       final allGroupsAsync = _ref.read(allGroupsProvider);
       final allGroups = allGroupsAsync.when(
         data: (groups) => groups,
@@ -180,10 +180,10 @@ class ListCleanupService {
         error: (_, __) => [],
       );
 
-      final allLists = <ShoppingList>[];
+      final allLists = <SharedList>[];
       for (final group in allGroups) {
         final groupLists =
-            await repository.getShoppingListsByGroup(group.groupId);
+            await repository.getSharedListsByGroup(group.groupId);
         allLists.addAll(groupLists);
       }
 

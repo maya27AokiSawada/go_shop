@@ -175,7 +175,7 @@ class SharedGroup with _$SharedGroup {
     @HiveField(4) String? ownerUid,
     @HiveField(5) List<SharedGroupMember>? members,
     @HiveField(6) String? ownerMessage,
-    // @HiveField(7) @Default([]) List<String> shoppingListIds, // サブコレクション化のため不要に
+    // @HiveField(7) @Default([]) List<String> sharedListIds, // サブコレクション化のため不要に
     @HiveField(11) @Default([]) List<String> allowedUid,
     @HiveField(12) @Default(false) bool isSecret,
     // acceptedUid: [{uid: securityKey}] のような構造を想定
@@ -200,7 +200,7 @@ class SharedGroup with _$SharedGroup {
     required List<SharedGroupMember> members,
     String? groupId,
     String? ownerMessage,
-    // List<String>? shoppingListIds, // サブコレクション化のため不要に
+    // List<String>? sharedListIds, // サブコレクション化のため不要に
     bool isSecret = false,
   }) {
     final owner = members.firstWhere(
@@ -217,7 +217,7 @@ class SharedGroup with _$SharedGroup {
       ownerUid: owner.memberId,
       members: members,
       ownerMessage: ownerMessage,
-      // shoppingListIds: shoppingListIds ?? [], // サブコレクション化のため不要に
+      // sharedListIds: sharedListIds ?? [], // サブコレクション化のため不要に
       allowedUid: [owner.memberId], // 作成者を自動的に許可リストに追加
       isSecret: isSecret,
       acceptedUid: [],
@@ -362,5 +362,5 @@ class SharedGroup with _$SharedGroup {
   // グループが削除されているかチェック
   bool get isDeletedGroup => isDeleted;
 
-  // shoppingListIds関連のメソッドはサブコレクション化により不要になったため削除
+  // sharedListIds関連のメソッドはサブコレクション化により不要になったため削除
 }

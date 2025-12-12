@@ -21,7 +21,7 @@ class AcceptedInvitationAdapter extends TypeAdapter<AcceptedInvitation> {
       acceptorEmail: fields[1] as String,
       acceptorName: fields[2] as String,
       SharedGroupId: fields[3] as String,
-      shoppingListId: fields[4] as String,
+      sharedListId: fields[4] as String,
       inviteRole: fields[5] as String,
       acceptedAt: fields[6] as DateTime,
       isProcessed: fields[7] as bool,
@@ -43,7 +43,7 @@ class AcceptedInvitationAdapter extends TypeAdapter<AcceptedInvitation> {
       ..writeByte(3)
       ..write(obj.SharedGroupId)
       ..writeByte(4)
-      ..write(obj.shoppingListId)
+      ..write(obj.sharedListId)
       ..writeByte(5)
       ..write(obj.inviteRole)
       ..writeByte(6)
@@ -78,7 +78,7 @@ _$AcceptedInvitationImpl _$$AcceptedInvitationImplFromJson(
       acceptorEmail: json['acceptorEmail'] as String,
       acceptorName: json['acceptorName'] as String,
       SharedGroupId: json['SharedGroupId'] as String,
-      shoppingListId: json['shoppingListId'] as String,
+      sharedListId: json['sharedListId'] as String,
       inviteRole: json['inviteRole'] as String,
       acceptedAt: DateTime.parse(json['acceptedAt'] as String),
       isProcessed: json['isProcessed'] as bool? ?? false,
@@ -95,7 +95,7 @@ Map<String, dynamic> _$$AcceptedInvitationImplToJson(
       'acceptorEmail': instance.acceptorEmail,
       'acceptorName': instance.acceptorName,
       'SharedGroupId': instance.SharedGroupId,
-      'shoppingListId': instance.shoppingListId,
+      'sharedListId': instance.sharedListId,
       'inviteRole': instance.inviteRole,
       'acceptedAt': instance.acceptedAt.toIso8601String(),
       'isProcessed': instance.isProcessed,

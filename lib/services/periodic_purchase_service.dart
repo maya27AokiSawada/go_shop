@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/shopping_list.dart';
-import '../providers/shopping_list_provider.dart';
+import '../models/shared_list.dart';
+import '../providers/shared_list_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../utils/app_logger.dart';
 
@@ -27,7 +27,7 @@ class PeriodicPurchaseService {
     try {
       Log.info('🔄 定期購入アイテムリセットサービス開始');
 
-      final repository = _ref.read(shoppingListRepositoryProvider);
+      final repository = _ref.read(sharedListRepositoryProvider);
 
       // 全グループから全リストを取得
       final allGroupsAsync = _ref.read(allGroupsProvider);
@@ -37,10 +37,10 @@ class PeriodicPurchaseService {
         error: (_, __) => [],
       );
 
-      final allLists = <ShoppingList>[];
+      final allLists = <SharedList>[];
       for (final group in allGroups) {
         final groupLists =
-            await repository.getShoppingListsByGroup(group.groupId);
+            await repository.getSharedListsByGroup(group.groupId);
         allLists.addAll(groupLists);
       }
 
@@ -73,10 +73,10 @@ class PeriodicPurchaseService {
     try {
       Log.info('🔄 特定リストの定期購入アイテムリセット: listId=$listId');
 
-      final repository = _ref.read(shoppingListRepositoryProvider);
+      final repository = _ref.read(sharedListRepositoryProvider);
 
       // リストを取得
-      final list = await repository.getShoppingListById(listId);
+      final list = await repository.getSharedListById(listId);
       if (list == null) {
         Log.warning('⚠️ リストが見つかりません: $listId');
         return 0;
@@ -91,14 +91,14 @@ class PeriodicPurchaseService {
 
   /// リスト内の定期購入アイテムをリセット（内部処理）
   Future<int> _resetPeriodicPurchaseItemsInList(
-    ShoppingList list,
+    SharedList list,
     dynamic repository,
   ) async {
     int resetCount = 0;
     final now = DateTime.now();
 
     // リセット対象アイテムを検出
-    final itemsToReset = <ShoppingItem>[];
+    final itemsToReset = <SharedItem>[];
     for (final item in list.activeItems) {
       if (_shouldResetItem(item, now)) {
         itemsToReset.add(item);
@@ -112,7 +112,7 @@ class PeriodicPurchaseService {
     Log.info('📝 リスト「${list.listName}」でリセット対象: ${itemsToReset.length} 件');
 
     // アイテムを未購入状態にリセット
-    final updatedItems = Map<String, ShoppingItem>.from(list.items);
+    final updatedItems = Map<String, SharedItem>.from(list.items);
     for (final item in itemsToReset) {
       final resetItem = item.copyWith(
         isPurchased: false,
@@ -131,13 +131,13 @@ class PeriodicPurchaseService {
       updatedAt: DateTime.now(),
     );
 
-    await repository.updateShoppingList(updatedList);
+    await repository.updateSharedList(updatedList);
 
     return resetCount;
   }
 
   /// アイテムをリセットすべきか判定
-  bool _shouldResetItem(ShoppingItem item, DateTime now) {
+  bool _shouldResetItem(SharedItem item, DateTime now) {
     // 購入済みでない場合はスキップ
     if (!item.isPurchased) return false;
 
@@ -158,7 +158,7 @@ class PeriodicPurchaseService {
   /// 定期購入アイテム情報を取得（デバッグ用）
   Future<Map<String, dynamic>> getPeriodicPurchaseInfo() async {
     try {
-      final repository = _ref.read(shoppingListRepositoryProvider);
+      final repository = _ref.read(sharedListRepositoryProvider);
 
       final allGroupsAsync = _ref.read(allGroupsProvider);
       final allGroups = allGroupsAsync.when(
@@ -167,10 +167,10 @@ class PeriodicPurchaseService {
         error: (_, __) => [],
       );
 
-      final allLists = <ShoppingList>[];
+      final allLists = <SharedList>[];
       for (final group in allGroups) {
         final groupLists =
-            await repository.getShoppingListsByGroup(group.groupId);
+            await repository.getSharedListsByGroup(group.groupId);
         allLists.addAll(groupLists);
       }
 

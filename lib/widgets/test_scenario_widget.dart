@@ -6,11 +6,11 @@ import '../flavors.dart';
 import '../utils/app_logger.dart';
 import '../providers/auth_provider.dart';
 import '../providers/purchase_group_provider.dart';
-import '../providers/shopping_list_provider.dart';
+import '../providers/shared_list_provider.dart';
 import '../models/shared_group.dart';
-import '../models/shopping_list.dart';
+import '../models/shared_list.dart';
 import '../datastore/hybrid_purchase_group_repository.dart';
-import '../datastore/hybrid_shopping_list_repository.dart';
+import '../datastore/hybrid_shared_list_repository.dart';
 import '../services/access_control_service.dart';
 import '../services/user_preferences_service.dart';
 
@@ -287,7 +287,7 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
 
   /// ショッピングリストCRUDテスト
 
-  Future<void> _testShoppingListCrud() async {
+  Future<void> _testSharedListCrud() async {
     if (!_isLoggedIn && F.appFlavor == Flavor.prod) {
       _log('❌ エラー: 先にFirebase認証を完了してください');
       return;
@@ -296,13 +296,13 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
     _log('🛒 ショッピングリストCRUDテスト開始...');
 
     try {
-      final repository = ref.read(shoppingListRepositoryProvider);
+      final repository = ref.read(sharedListRepositoryProvider);
       final testUserId = _currentUser?.uid ?? 'test_user_123';
       const testGroupId = 'default_group'; // デフォルトグループでテスト
 
       // 1. リスト作成テスト
       _log('1️⃣ ショッピングリスト作成テスト');
-      final testList = await repository.createShoppingList(
+      final testList = await repository.createSharedList(
         ownerUid: testUserId,
         groupId: testGroupId,
         listName: 'テストリスト ${DateTime.now().hour}:${DateTime.now().minute}',
@@ -312,8 +312,7 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
 
       // 2. リスト取得テスト
       _log('2️⃣ リスト取得テスト');
-      final retrievedList =
-          await repository.getShoppingListById(testList.listId);
+      final retrievedList = await repository.getSharedListById(testList.listId);
       if (retrievedList != null) {
         _log('✅ リスト取得成功: ${retrievedList.listName}');
         _log('   アイテム数: ${retrievedList.items.length}');
@@ -323,7 +322,7 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
 
       // 3. グループ別リスト取得テスト
       _log('3️⃣ グループ別リスト取得テスト');
-      final groupLists = await repository.getShoppingListsByGroup(testGroupId);
+      final groupLists = await repository.getSharedListsByGroup(testGroupId);
       _log('✅ グループ別リスト取得成功: ${groupLists.length}件');
       for (final list in groupLists) {
         _log('   - ${list.listName} (${list.items.length}アイテム)');
@@ -332,17 +331,17 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
       // 4. アイテム追加テスト
       _log('4️⃣ アイテム追加テスト');
       final testItems = [
-        ShoppingItem.createNow(
+        SharedItem.createNow(
           memberId: testUserId,
           name: 'テスト商品1',
           quantity: 2,
         ),
-        ShoppingItem.createNow(
+        SharedItem.createNow(
           memberId: testUserId,
           name: 'テスト商品2',
           quantity: 1,
         ),
-        ShoppingItem.createNow(
+        SharedItem.createNow(
           memberId: testUserId,
           name: 'テスト商品3',
           quantity: 3,
@@ -356,12 +355,12 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
         );
       }
 
-      await repository.updateShoppingList(currentList);
+      await repository.updateSharedList(currentList);
       _log('✅ アイテム追加成功: ${testItems.length}件追加');
 
       // 4.5. アイテム追加確認テスト
       _log('4️⃣.5 アイテム追加確認テスト');
-      final savedList = await repository.getShoppingListById(testList.listId);
+      final savedList = await repository.getSharedListById(testList.listId);
       if (savedList != null) {
         _log('✅ リスト再取得成功: ${savedList.items.length}件のアイテム');
         for (final entry in savedList.items.entries) {
@@ -389,7 +388,7 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
       });
 
       currentList = currentList.copyWith(items: updatedItems);
-      await repository.updateShoppingList(currentList);
+      await repository.updateSharedList(currentList);
       _log('✅ アイテム購入状態更新成功');
 
       // 6. アイテム削除テスト
@@ -400,12 +399,12 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
       );
 
       currentList = currentList.copyWith(items: filteredItems);
-      await repository.updateShoppingList(currentList);
+      await repository.updateSharedList(currentList);
       _log('✅ アイテム削除成功: 残り${filteredItems.length}件');
 
       // 7. リスト削除テスト
       _log('7️⃣ リスト削除テスト');
-      await repository.deleteShoppingList(testList.groupId, testList.listId);
+      await repository.deleteSharedList(testList.groupId, testList.listId);
       _log('✅ リスト削除成功');
 
       _log('🛒 ショッピングリストCRUDテスト完了 ✅');
@@ -431,7 +430,7 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
     try {
       // Hybridリポジトリのインスタンスを取得
       final groupRepo = ref.read(SharedGroupRepositoryProvider);
-      final listRepo = ref.read(shoppingListRepositoryProvider);
+      final listRepo = ref.read(sharedListRepositoryProvider);
 
       // リポジトリの型を確認
       _log('📍 GroupRepository Type: ${groupRepo.runtimeType}');
@@ -510,7 +509,7 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
 
         // 6. ショッピングリスト同期キューテスト
         _log('6️⃣ ショッピングリスト同期キューテスト');
-        if (listRepo is HybridShoppingListRepository) {
+        if (listRepo is HybridSharedListRepository) {
           _log('🛒 ショッピングリスト同期状態確認');
           _log('🌐 List Online Status: ${listRepo.isOnline}');
           _log('🔄 List Sync Status: ${listRepo.isSyncing}');
@@ -520,15 +519,15 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
             // まず、テストグループに対してデフォルトのショッピングリストを作成
             _log('🛒 テストグループ用ショッピングリスト作成...');
             try {
-              final testShoppingList = await listRepo.createShoppingList(
+              final testSharedList = await listRepo.createSharedList(
                 ownerUid: userId,
                 groupId: testGroupId,
                 listName: 'テスト用買い物リスト',
                 description: 'Hybrid同期テスト用のリスト',
               );
-              _log('✅ ショッピングリスト作成完了: ${testShoppingList.listName}');
+              _log('✅ ショッピングリスト作成完了: ${testSharedList.listName}');
 
-              final testItem = ShoppingItem.createNow(
+              final testItem = SharedItem.createNow(
                 memberId: userId,
                 name: '同期テスト商品_${DateTime.now().millisecondsSinceEpoch}',
                 quantity: 1,
@@ -537,9 +536,9 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
               // アイテム追加（同期キューテスト）- 正しくlistIdを使用
               _log('🔄 商品追加で同期キューテスト実行中...');
               _log(
-                  '📍 Debug: listId=${testShoppingList.listId}, item=${testItem.name}');
+                  '📍 Debug: listId=${testSharedList.listId}, item=${testItem.name}');
 
-              await listRepo.addItemToList(testShoppingList.listId, testItem);
+              await listRepo.addItemToList(testSharedList.listId, testItem);
               _log('✅ 商品追加完了（同期キューによる処理）');
 
               // 少し待機してから同期状況確認
@@ -548,7 +547,7 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
             } catch (createError) {
               _log('❌ ショッピングリスト作成エラー: $createError');
               _log('❌ StackTrace: ${StackTrace.current}');
-              // createShoppingListが失敗した場合はこのテストをスキップ
+              // createSharedListが失敗した場合はこのテストをスキップ
               _log('⏭️ ショッピングリスト同期キューテストをスキップします');
             }
           } catch (e, stackTrace) {
@@ -1076,7 +1075,7 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
       await Future.delayed(const Duration(seconds: 1));
 
       // 3. ショッピングリストCRUDテスト
-      await _testShoppingListCrud();
+      await _testSharedListCrud();
       await Future.delayed(const Duration(seconds: 1));
 
       _log('=' * 50);
@@ -1319,8 +1318,7 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed:
-                                _isRunning ? null : _testShoppingListCrud,
+                            onPressed: _isRunning ? null : _testSharedListCrud,
                             icon: const Icon(Icons.shopping_cart),
                             label: const Text('リストCRUD'),
                             style: ElevatedButton.styleFrom(

@@ -110,7 +110,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/shared_group.dart';
-import '../datastore/purchase_group_repository.dart';
+import '../datastore/shared_group_repository.dart';
 
 final syncServiceProvider = Provider<SyncService>((ref) {
   return SyncService(ref);
@@ -267,8 +267,8 @@ await ErrorHandler.handleAsync(
 
 ```dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'purchase_group_repository.dart';
-import 'hive_purchase_group_repository.dart';
+import 'shared_group_repository.dart';
+import 'hive_shared_group_repository.dart';
 import '../flavors.dart';
 
 /// リポジトリのファクトリー

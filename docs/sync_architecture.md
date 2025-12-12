@@ -52,8 +52,8 @@ users/
 **Box構造:**
 ```dart
 Box<SharedGroup> SharedGroupBox  // TypeID: 2
-Box<ShoppingList> shoppingListBox    // TypeID: 4
-Box<ShoppingItem> itemBox            // TypeID: 3
+Box<SharedList> sharedListBox    // TypeID: 4
+Box<SharedItem> itemBox            // TypeID: 3
 ```
 
 **特徴:**

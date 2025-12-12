@@ -6,7 +6,7 @@ Firestore同期の診断とHive優先アーキテクチャの確認を実施し�
 ## 実施内容
 
 ### 1. Firestore構造の確認
-- **発見事項**: Firebase Consoleで確認したところ、`/SharedGroups` と `/shoppingLists` のコレクションが存在しない
+- **発見事項**: Firebase Consoleで確認したところ、`/SharedGroups` と `/sharedLists` のコレクションが存在しない
 - **原因調査**: Firestore書き込みが実行されていない可能性を調査
 
 ### 2. Firestore同期診断のためのデバッグログ追加
@@ -91,8 +91,8 @@ Firestore同期の診断とHive優先アーキテクチャの確認を実施し�
    - `updateGroup()`, `deleteGroup()` のFirestore同期
    - `getAllGroups()` の動作確認
 
-5. **ShoppingLists処理の確認**
-   - `/shoppingLists` コレクションの取扱い確認
+5. **SharedLists処理の確認**
+   - `/sharedLists` コレクションの取扱い確認
 
 ## 技術メモ
 

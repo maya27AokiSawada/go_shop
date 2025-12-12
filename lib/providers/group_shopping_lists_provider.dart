@@ -1,14 +1,14 @@
 // lib/providers/group_shopping_lists_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/shopping_list.dart';
-import '../providers/shopping_list_provider.dart';
+import '../models/shared_list.dart';
+import '../providers/shared_list_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/current_list_provider.dart';
 import '../utils/app_logger.dart';
 
 /// 現在のグループに属する買い物リスト一覧を取得するProvider
-final groupShoppingListsProvider =
-    FutureProvider.autoDispose<List<ShoppingList>>((ref) async {
+final groupSharedListsProvider =
+    FutureProvider.autoDispose<List<SharedList>>((ref) async {
   final selectedGroupId = ref.watch(selectedGroupIdProvider);
 
   if (selectedGroupId == null) {
@@ -26,7 +26,7 @@ final groupShoppingListsProvider =
   );
 
   Log.info(
-      '🔍 [DEBUG] groupShoppingListsProvider - currentGroup: ${currentGroup?.groupName} (${currentGroup?.groupId})');
+      '🔍 [DEBUG] groupSharedListsProvider - currentGroup: ${currentGroup?.groupName} (${currentGroup?.groupId})');
 
   if (currentGroup == null) {
     Log.info('⚠️ グループ情報の取得に失敗したため、空リストを返します');
@@ -41,9 +41,9 @@ final groupShoppingListsProvider =
 
   Log.info('🔄 グループ「${currentGroup.groupName}」のリスト一覧を取得中...');
 
-  final repository = ref.read(shoppingListRepositoryProvider);
+  final repository = ref.read(sharedListRepositoryProvider);
   final groupLists =
-      await repository.getShoppingListsByGroup(currentGroup.groupId);
+      await repository.getSharedListsByGroup(currentGroup.groupId);
 
   Log.info('✅ ${groupLists.length}件のリストを取得しました');
 

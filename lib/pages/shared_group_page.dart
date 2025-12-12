@@ -6,6 +6,7 @@ import '../providers/purchase_group_provider.dart';
 import '../providers/security_provider.dart';
 import '../widgets/group_list_widget.dart';
 import '../widgets/group_creation_with_copy_dialog.dart';
+import '../screens/qr_scan_screen.dart';
 
 class SharedGroupPage extends ConsumerStatefulWidget {
   const SharedGroupPage({super.key});
@@ -50,26 +51,35 @@ class _SharedGroupPageState extends ConsumerState<SharedGroupPage> {
 
     Log.info('🏷️ [PAGE BUILD] SharedGroupPage表示開始');
 
-    return Stack(
-      children: [
-        const SafeArea(
-          child: Padding(
-            padding: EdgeInsets.all(16.0),
-            child: GroupListWidget(),
-          ),
+    return Scaffold(
+      body: const SafeArea(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: GroupListWidget(),
         ),
-        Positioned(
-          right: 16,
-          bottom: 16,
-          child: FloatingActionButton.extended(
+      ),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            onPressed: () {
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (context) => const QrScanScreen()));
+            },
+            heroTag: 'scan_qr_code',
+            child: const Icon(Icons.qr_code_scanner),
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton.extended(
             onPressed: () => _showCreateGroupDialog(context),
             backgroundColor: Colors.blue,
             foregroundColor: Colors.white,
             icon: const Icon(Icons.group_add),
             label: const Text('新しいグループ'),
+            heroTag: 'create_group',
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

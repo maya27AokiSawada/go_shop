@@ -25,9 +25,9 @@ Future<void> createNewUserCollections(String userId) async {
       'last_updated': FieldValue.serverTimestamp(),
     });
 
-    // 3. ShoppingListドキュメントを作成
+    // 3. SharedListドキュメントを作成
     // 買い物リストのアイテムを配列で保持する例
-    await userDocument.collection('shopping_lists').doc('ShoppingList').set({
+    await userDocument.collection('shopping_lists').doc('SharedList').set({
       'items': [], // 最初は空のリスト
       'created_by': userId,
       'created_at': FieldValue.serverTimestamp(),

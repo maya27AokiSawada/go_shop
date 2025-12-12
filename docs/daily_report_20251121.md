@@ -60,9 +60,9 @@
 #### データ構造
 
 ```
-/SharedGroups/{groupId}/shoppingLists/{listId}
+/SharedGroups/{groupId}/sharedLists/{listId}
   - listId, ownerUid, groupId, groupName, listName
-  - items: Array<ShoppingItem>
+  - items: Array<SharedItem>
   - createdAt, updatedAt
 ```
 
@@ -75,7 +75,7 @@
 #### Firestoreセキュリティルール
 
 ```javascript
-match /shoppingLists/{listId} {
+match /sharedLists/{listId} {
   allow read, write: if ownerUid or in allowedUids
   allow create: if ownerUid == auth.uid
   allow delete: if ownerUid == auth.uid
@@ -136,14 +136,14 @@ _processBatch()       // 5分ごとのバッチ処理
 case NotificationType.itemAdded:
 case NotificationType.itemRemoved:
 case NotificationType.itemPurchased:
-  // TODO: ShoppingListProviderの無効化処理
+  // TODO: SharedListProviderの無効化処理
 ```
 
 ---
 
 ## 🚧 未完成タスク（明日対応が必要）
 
-### タスク1: HybridShoppingListRepositoryへの通知統合
+### タスク1: HybridSharedListRepositoryへの通知統合
 
 **ファイル**: `lib/datastore/hybrid_shopping_list_repository.dart`
 
@@ -162,7 +162,7 @@ case NotificationType.itemPurchased:
 
 ```dart
 @override
-Future<void> addItemToList(String listId, ShoppingItem item) async {
+Future<void> addItemToList(String listId, SharedItem item) async {
   await _hiveRepo.addItemToList(listId, item);
 
   // 通知記録
@@ -300,7 +300,7 @@ dart run build_runner build --delete-conflicting-outputs
 
 ### 高優先度
 
-1. **HybridShoppingListRepositoryへの通知統合** (30分)
+1. **HybridSharedListRepositoryへの通知統合** (30分)
 2. **バッチサービスの起動処理追加** (15分)
 3. **設定画面への通知ON/OFF追加** (20分)
 4. **動作確認・テスト** (30分)

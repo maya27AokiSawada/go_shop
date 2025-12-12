@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:developer' as developer;
 import '../models/shared_group.dart';
 import '../models/user_settings.dart';
-import '../datastore/purchase_group_repository.dart';
+import '../datastore/shared_group_repository.dart';
 import '../providers/hive_provider.dart';
 import '../providers/user_specific_hive_provider.dart';
 import '../flavors.dart';

@@ -2,7 +2,7 @@
 
 import 'package:hive_flutter/hive_flutter.dart';
 import 'lib/models/shared_group.dart';
-import 'lib/models/shopping_list.dart';
+import 'lib/models/shared_list.dart';
 import 'lib/models/user_settings.dart';
 // import 'lib/models/invitation.dart';  // 削除済み - QRコードシステムに移行
 // import 'lib/models/accepted_invitation.dart';  // 削除済み - QRコードシステムに移行
@@ -20,8 +20,8 @@ void main() async {
       Hive.registerAdapter(SharedGroupRoleAdapter());
       Hive.registerAdapter(SharedGroupMemberAdapter());
       Hive.registerAdapter(SharedGroupAdapter());
-      Hive.registerAdapter(ShoppingItemAdapter());
-      Hive.registerAdapter(ShoppingListAdapter());
+      Hive.registerAdapter(SharedItemAdapter());
+      Hive.registerAdapter(SharedListAdapter());
       // Hive.registerAdapter(InvitationAdapter());  // 削除済み - QRコードシステムに移行
       // Hive.registerAdapter(AcceptedInvitationAdapter());  // 削除済み - QRコードシステムに移行
       Hive.registerAdapter(UserSettingsAdapter());

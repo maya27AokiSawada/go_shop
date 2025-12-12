@@ -5,7 +5,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import '../utils/app_logger.dart';
 import '../models/shared_group.dart';
-import '../models/shopping_list.dart';
+import '../models/shared_list.dart';
 import '../models/user_settings.dart';
 import 'data_version_service.dart';
 
@@ -76,13 +76,13 @@ class HiveInitializationService {
       }
 
       if (!Hive.isAdapterRegistered(3)) {
-        Hive.registerAdapter(ShoppingItemAdapter());
-        AppLogger.info('ShoppingItemAdapter (typeId: 3) 登録');
+        Hive.registerAdapter(SharedItemAdapter());
+        AppLogger.info('SharedItemAdapter (typeId: 3) 登録');
       }
 
       if (!Hive.isAdapterRegistered(4)) {
-        Hive.registerAdapter(ShoppingListAdapter());
-        AppLogger.info('ShoppingListAdapter (typeId: 4) 登録');
+        Hive.registerAdapter(SharedListAdapter());
+        AppLogger.info('SharedListAdapter (typeId: 4) 登録');
       }
 
       if (!Hive.isAdapterRegistered(5)) {
@@ -123,10 +123,10 @@ class HiveInitializationService {
         AppLogger.info('SharedGroupBox 開封完了');
       }
 
-      // ShoppingListBox
-      if (!Hive.isBoxOpen('shoppingListBox')) {
-        await Hive.openBox<ShoppingList>('shoppingListBox');
-        AppLogger.info('shoppingListBox 開封完了');
+      // SharedListBox
+      if (!Hive.isBoxOpen('sharedListBox')) {
+        await Hive.openBox<SharedList>('sharedListBox');
+        AppLogger.info('sharedListBox 開封完了');
       }
 
       // UserSettingsBox

@@ -1,6 +1,6 @@
 // lib/helpers/validation_service.dart
 import '../models/shared_group.dart';
-import '../models/shopping_list.dart';
+import '../models/shared_list.dart';
 
 /// アプリ全体で使用される重複チェックとバリデーション機能を提供するサービス
 class ValidationService {
@@ -116,7 +116,7 @@ class ValidationService {
   /// 注意: 現在のモデルではリスト名は groupId ベースで管理されているため、
   /// 将来的にリスト名が独立して管理される場合に備えた実装
   static ValidationResult validateListName(
-      String listName, List<ShoppingList> existingLists, String groupId,
+      String listName, List<SharedList> existingLists, String groupId,
       {String? excludeListId}) {
     // 空文字チェック
     if (listName.trim().isEmpty) {
@@ -135,7 +135,7 @@ class ValidationService {
           list.groupName.toLowerCase() == trimmedName.toLowerCase() &&
           list.groupId == groupId &&
           list.groupId != excludeListId,
-      orElse: () => ShoppingList.create(
+      orElse: () => SharedList.create(
           ownerUid: '',
           groupId: '',
           groupName: '',
@@ -158,7 +158,7 @@ class ValidationService {
   /// [existingItems] 既存のアイテムリスト
   /// [memberId] アイテムを登録するメンバーID
   static ValidationResult validateItemName(
-      String itemName, List<ShoppingItem> existingItems, String memberId,
+      String itemName, List<SharedItem> existingItems, String memberId,
       {String? excludeItemId}) {
     // 空文字チェック
     if (itemName.trim().isEmpty) {
@@ -177,7 +177,7 @@ class ValidationService {
           item.name.toLowerCase() == trimmedName.toLowerCase() &&
           item.memberId == memberId &&
           !item.isPurchased, // 未購入のアイテムのみチェック
-      orElse: () => ShoppingItem.createNow(memberId: '', name: ''),
+      orElse: () => SharedItem.createNow(memberId: '', name: ''),
     );
 
     if (duplicateItem.name.isNotEmpty) {

@@ -41,13 +41,18 @@ class _GroupMemberManagementPageState
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         actions: [
-          // 全グループで招待機能を表示（デフォルトグループも招待可能）
           IconButton(
-            onPressed: () {
-              _showInviteOptions(context);
-            },
             icon: const Icon(Icons.person_add),
             tooltip: 'メンバーを招待',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      GroupInvitationPage(group: widget.group),
+                ),
+              );
+            },
           ),
         ],
       ),

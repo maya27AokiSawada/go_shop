@@ -21,9 +21,9 @@ class UserSettingsNotifier extends AsyncNotifier<UserSettings> {
     ref.invalidateSelf();
   }
 
-  Future<void> updateLastUsedShoppingListId(String shoppingListId) async {
+  Future<void> updateLastUsedSharedListId(String sharedListId) async {
     final repository = ref.read(userSettingsRepositoryProvider);
-    await repository.updateLastUsedShoppingListId(shoppingListId);
+    await repository.updateLastUsedSharedListId(sharedListId);
     ref.invalidateSelf();
   }
 
@@ -85,10 +85,10 @@ final lastUsedGroupIdProvider = Provider<String>((ref) {
   );
 });
 
-final lastUsedShoppingListIdProvider = Provider<String>((ref) {
+final lastUsedSharedListIdProvider = Provider<String>((ref) {
   final settings = ref.watch(userSettingsProvider);
   return settings.when(
-    data: (settings) => settings.lastUsedShoppingListId,
+    data: (settings) => settings.lastUsedSharedListId,
     loading: () => '',
     error: (_, __) => '',
   );

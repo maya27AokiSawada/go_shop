@@ -104,7 +104,7 @@ class AppModeConfig {
     }
   }
 
-  String get shoppingList {
+  String get sharedList {
     switch (mode) {
       case AppMode.shopping:
         return '買い物リスト';

@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import '../utils/app_logger.dart';
 import '../models/shared_group.dart';
-import '../models/shopping_list.dart';
+import '../models/shared_list.dart';
 import '../models/user_settings.dart';
 
 // 安全なBoxアクセス用のプロバイダー（エラーハンドリング強化）
@@ -24,18 +24,18 @@ final SharedGroupBoxProvider = Provider<Box<SharedGroup>>((ref) {
   }
 });
 
-final shoppingListBoxProvider = Provider<Box<ShoppingList>>((ref) {
+final sharedListBoxProvider = Provider<Box<SharedList>>((ref) {
   try {
-    if (Hive.isBoxOpen('shoppingLists')) {
-      return Hive.box<ShoppingList>('shoppingLists');
+    if (Hive.isBoxOpen('sharedLists')) {
+      return Hive.box<SharedList>('sharedLists');
     } else {
       Log.warning(
-          '⚠️ ShoppingList box is not open. This may be normal during app restart.');
+          '⚠️ SharedList box is not open. This may be normal during app restart.');
       throw StateError(
-          'ShoppingList box is not open. Please initialize Hive first.');
+          'SharedList box is not open. Please initialize Hive first.');
     }
   } catch (e) {
-    Log.error('❌ Failed to access ShoppingList box: $e');
+    Log.error('❌ Failed to access SharedList box: $e');
     rethrow;
   }
 });

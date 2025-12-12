@@ -58,12 +58,12 @@ void main() async {
       print('✅ デフォルトグループ存在');
       print('データ: ${defaultGroupDoc.data()}');
 
-      // ShoppingListsも確認
-      print('\n=== 4. ShoppingLists確認 ===');
+      // SharedListsも確認
+      print('\n=== 4. SharedLists確認 ===');
       final listsSnapshot = await firestore
           .collection('SharedGroups')
           .doc(sumomoUid)
-          .collection('shoppingLists')
+          .collection('sharedLists')
           .get();
 
       print('リスト数: ${listsSnapshot.docs.length}件');

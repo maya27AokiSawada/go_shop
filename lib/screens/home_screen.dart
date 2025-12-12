@@ -5,7 +5,7 @@ import '../providers/auth_provider.dart';
 import '../providers/app_mode_notifier_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../pages/home_page.dart';
-import '../pages/purchase_group_page.dart';
+import '../pages/shared_group_page.dart';
 import '../pages/shopping_list_page_v2.dart';
 import '../pages/settings_page.dart';
 import '../flavors.dart';
@@ -58,7 +58,7 @@ class HomeScreen extends ConsumerWidget {
     final List<Widget> pages = [
       const HomePage(),
       const SharedGroupPage(),
-      const ShoppingListPageV2(),
+      const SharedListPageV2(),
       const SettingsPage(),
     ];
 

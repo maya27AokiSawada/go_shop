@@ -227,8 +227,8 @@ class _EnhancedInvitationTestPageState
                       Text(
                           'オーナー: ${group.ownerName ?? group.ownerEmail ?? 'Unknown'}'),
                       Text('メンバー数: ${group.members?.length ?? 0}人'),
-                      if (group.shoppingListIds.isNotEmpty)
-                        Text('リスト数: ${group.shoppingListIds.length}個'),
+                      if (group.sharedListIds.isNotEmpty)
+                        Text('リスト数: ${group.sharedListIds.length}個'),
                     ],
                   ),
                   trailing: PopupMenuButton<String>(

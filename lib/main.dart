@@ -11,7 +11,7 @@ import 'firebase_options.dart';
 import 'screens/home_screen.dart';
 // QRコード招待機能
 import 'screens/qr_scan_screen.dart';
-import 'pages/purchase_group_page_simple.dart';
+import 'pages/shared_group_page_simple.dart';
 import 'services/hive_lock_cleaner.dart';
 import 'services/user_specific_hive_service.dart';
 import 'widgets/app_initialize_widget.dart';
@@ -22,7 +22,9 @@ import 'adapters/user_settings_adapter_override.dart';
 import 'utils/app_logger.dart';
 
 void main() async {
+  AppLogger.info('▶️ main() 開始');
   WidgetsFlutterBinding.ensureInitialized();
+  AppLogger.info('✅ WidgetsFlutterBinding.ensureInitialized() 完了');
 
   // 🔥 環境変数の初期化（最優先）
   try {
@@ -35,6 +37,7 @@ void main() async {
 
   // フレーバーの設定 - 本番環境（Firestore + Hive Hybrid + テスト広告）
   F.appFlavor = Flavor.prod;
+  AppLogger.info('⚙️ フレーバー設定完了: ${F.appFlavor}');
 
   // Firebase初期化（prodとdev両方で有効化 - 2025-12-08変更）
   if (F.appFlavor == Flavor.prod || F.appFlavor == Flavor.dev) {
@@ -53,7 +56,7 @@ void main() async {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
-      AppLogger.info('✅ Firebase初期化成功');
+      AppLogger.info('✅ Firebase.initializeApp() 完了');
 
       // Firebase Auth の状態確認
       AppLogger.info('🔐 Firebase Auth インスタンス: ${FirebaseAuth.instance}');
@@ -96,14 +99,16 @@ void main() async {
     AppLogger.info('💡 開発環境：Firebaseをスキップ（Hiveのみ使用）');
   }
 
+  AppLogger.info('🔄 Hive初期化プロセス開始...');
   // ホットリスタート対応：既存のHiveロックファイルをクリア
   await HiveLockCleaner.clearOneDriveLocks();
+  AppLogger.info('✅ HiveLockCleaner.clearOneDriveLocks() 完了');
 
   // 🔥 後方互換性のためカスタムアダプター登録
   if (!Hive.isAdapterRegistered(3)) {
-    Hive.registerAdapter(ShoppingItemAdapterOverride());
+    Hive.registerAdapter(SharedItemAdapterOverride());
     AppLogger.info(
-        '✅ ShoppingItemAdapterOverride registered (backward compatible)');
+        '✅ SharedItemAdapterOverride registered (backward compatible)');
   }
   if (!Hive.isAdapterRegistered(6)) {
     Hive.registerAdapter(UserSettingsAdapterOverride());
@@ -113,7 +118,9 @@ void main() async {
 
   // グローバルHiveアダプター登録のみ実行（Box開封はUserSpecificHiveServiceに委任）
   await UserSpecificHiveService.initializeAdapters();
+  AppLogger.info('✅ UserSpecificHiveService.initializeAdapters() 完了');
 
+  AppLogger.info('🚀 runApp() 実行開始');
   runApp(const ProviderScope(child: MyApp()));
 }
 
@@ -122,6 +129,7 @@ class MyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    AppLogger.info('🎨 MyApp.build() 開始');
     return MaterialApp(
       title: F.title,
       theme: ThemeData(

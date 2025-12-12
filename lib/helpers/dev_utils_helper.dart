@@ -5,12 +5,10 @@ import '../flavors.dart';
 import '../providers/auth_provider.dart';
 import '../providers/enhanced_group_provider.dart';
 import '../providers/hive_provider.dart' as hive_provider;
-import '../providers/shopping_list_provider.dart';
+import '../providers/shared_list_provider.dart';
 import '../providers/user_settings_provider.dart';
 
 class DevUtilsHelper {
-  
-
   /// Hiveデータクリア機能（開発環境のみ）
   static Widget buildHiveDataClearButton({
     required BuildContext context,
@@ -40,7 +38,7 @@ class DevUtilsHelper {
     required VoidCallback onComplete,
   }) async {
     final shouldClear = await _showClearConfirmationDialog(context);
-    
+
     if (shouldClear == true) {
       try {
         await _performDataClear(ref);
@@ -78,24 +76,24 @@ class DevUtilsHelper {
   static Future<void> _performDataClear(WidgetRef ref) async {
     // 全ての設定をクリア
     await ref.read(userSettingsProvider.notifier).clearAllSettings();
-    
+
     // Hiveボックスをクリア
     final SharedGroupBox = ref.read(hive_provider.SharedGroupBoxProvider);
-    final shoppingListBox = ref.read(hive_provider.shoppingListBoxProvider);
+    final sharedListBox = ref.read(hive_provider.sharedListBoxProvider);
     final userSettingsBox = ref.read(hive_provider.userSettingsBoxProvider);
-    
+
     await SharedGroupBox.clear();
-    await shoppingListBox.clear();
+    await sharedListBox.clear();
     await userSettingsBox.clear();
-    
+
     // Firebase認証からサインアウト
     await ref.read(authProvider).signOut();
-    
+
     // プロバイダーを無効化
     ref.invalidate(enhancedGroupProvider);
-    ref.invalidate(shoppingListProvider);
+    ref.invalidate(sharedListProvider);
     ref.invalidate(userSettingsProvider);
-    
+
     Log.info('🗑️ 全てのHiveデータをクリアしました');
   }
 
@@ -112,7 +110,8 @@ class DevUtilsHelper {
   }
 
   /// エラーメッセージを表示
-  static Future<void> _showErrorMessage(BuildContext context, dynamic error) async {
+  static Future<void> _showErrorMessage(
+      BuildContext context, dynamic error) async {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

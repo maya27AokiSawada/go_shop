@@ -4,10 +4,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/app_logger.dart';
 import '../providers/purchase_group_provider.dart';
-import '../providers/shopping_list_provider.dart';
+import '../providers/shared_list_provider.dart';
 import '../widgets/sync_status_widget.dart';
 import '../models/shared_group.dart';
-import '../models/shopping_list.dart';
+import '../models/shared_list.dart';
 import '../flavors.dart';
 
 /// ハイブリッド同期システムのテストページ
@@ -212,7 +212,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
                   label: const Text('メンバー追加'),
                 ),
                 ElevatedButton.icon(
-                  onPressed: _testShoppingListSync,
+                  onPressed: _testSharedListSync,
                   icon: const Icon(Icons.shopping_cart),
                   label: const Text('買い物リスト同期'),
                 ),
@@ -719,7 +719,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
     );
   }
 
-  void _testShoppingListSync() async {
+  void _testSharedListSync() async {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('買い物リスト同期テストを実行中...')),
     );
@@ -742,17 +742,17 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
       final testGroup = groups.first;
       final groupId = testGroup.groupId;
 
-      // ShoppingListRepository取得
-      final repository = ref.read(shoppingListRepositoryProvider);
+      // SharedListRepository取得
+      final repository = ref.read(sharedListRepositoryProvider);
 
       // テスト用買い物リストを作成
-      final testList = ShoppingList.create(
+      final testList = SharedList.create(
         ownerUid: testGroup.ownerUid ?? 'test',
         groupId: groupId,
         groupName: testGroup.groupName,
         listName: 'テストリスト',
         items: [
-          ShoppingItem(
+          SharedItem(
             memberId: 'test',
             name: 'テスト商品${DateTime.now().millisecondsSinceEpoch % 1000}',
             quantity: 1,
@@ -767,7 +767,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
       await repository.addItem(testList);
 
       // 保存後の確認
-      final savedList = await repository.getShoppingList(groupId);
+      final savedList = await repository.getSharedList(groupId);
 
       String resultMessage = '✅ 買い物リスト同期テスト完了\n';
       resultMessage += '• グループ: ${testGroup.groupName}\n';
@@ -796,7 +796,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
       );
 
       Log.info(
-          '🛒 ShoppingList sync test completed for group: ${testGroup.groupName}');
+          '🛒 SharedList sync test completed for group: ${testGroup.groupName}');
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -804,7 +804,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
           backgroundColor: Colors.red,
         ),
       );
-      Log.error('❌ ShoppingList sync test error: $e');
+      Log.error('❌ SharedList sync test error: $e');
     }
   }
 }

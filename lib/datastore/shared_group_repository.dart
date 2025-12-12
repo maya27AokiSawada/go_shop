@@ -1,4 +1,4 @@
-// lib/datastore/repository/purchase_group_repository.dart
+// lib/datastore/repository/shared_group_repository.dart
 import '../models/shared_group.dart';
 
 abstract class SharedGroupRepository {

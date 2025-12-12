@@ -62,7 +62,7 @@ class SharedGroupMember with _$SharedGroupMember {
 }
 ```
 
-**Hive TypeIDs**: 0=SharedGroupRole, 1=SharedGroupMember, 2=SharedGroup, 3=ShoppingItem, 4=ShoppingList
+**Hive TypeIDs**: 0=SharedGroupRole, 1=SharedGroupMember, 2=SharedGroup, 3=SharedItem, 4=SharedList
 
 ### Environment Configuration
 
@@ -336,7 +336,7 @@ if (legacyGroupExists && !uidGroupExists) {
 1. Detect UID change in `app_initialize_widget.dart`
 2. Show `UserDataMigrationDialog` (初期化 / 引継ぎ)
 3. If "初期化" selected:
-   - Clear Hive boxes (SharedGroup + ShoppingList)
+   - Clear Hive boxes (SharedGroup + SharedList)
    - Call `SelectedGroupIdNotifier.clearSelection()`
    - Sync from Firestore (download new user's data)
    - **Create default group** (explicit call)
@@ -427,7 +427,7 @@ Text(AppModeSettings.config.groupName)  // 'グループ' or 'チーム'
 #### Terminology Coverage (50+ terms)
 
 - **Group**: groupName, createGroup, selectGroup, groupMembers
-- **List**: listName, createList, selectList, shoppingList
+- **List**: listName, createList, selectList, sharedList
 - **Item**: itemName, addItem, itemList, itemCount
 - **Actions**: createAction, editAction, deleteAction, shareAction
 - **UI Labels**: All buttons, dialogs, snackbars, navigation labels
@@ -508,7 +508,7 @@ Consumer(
 - **Property not found**: Verify `memberId` vs `memberID` consistency across codebase
 - **Default group not appearing**: Ensure `createDefaultGroup()` called after UID change data clear
 - **App mode UI not updating**: Wrap SegmentedButton in `Consumer` to watch `appModeNotifierProvider`
-- **List deletion not syncing**: Use `deleteShoppingList(groupId, listId)` with both parameters to avoid collection group query PERMISSION_DENIED
+- **List deletion not syncing**: Use `deleteSharedList(groupId, listId)` with both parameters to avoid collection group query PERMISSION_DENIED
 
 ## Known Issues (As of 2025-12-08)
 
@@ -522,13 +522,13 @@ Consumer(
 
 **Root Cause**:
 
-- `FirestoreShoppingListRepository.deleteShoppingList()` used collection group query
-- `collectionGroup('shoppingLists').where('listId', isEqualTo: listId)` caused `PERMISSION_DENIED`
+- `FirestoreSharedListRepository.deleteSharedList()` used collection group query
+- `collectionGroup('sharedLists').where('listId', isEqualTo: listId)` caused `PERMISSION_DENIED`
 - Firestore rules lacked collection group query permissions
 - Deletion never reached Firestore
 
 **Solution**:
-Changed method signature from `deleteShoppingList(String listId)` to `deleteShoppingList(String groupId, String listId)`
+Changed method signature from `deleteSharedList(String listId)` to `deleteSharedList(String groupId, String listId)`
 
 **Modified Files**:
 
@@ -543,7 +543,7 @@ Changed method signature from `deleteShoppingList(String listId)` to `deleteShop
 - `lib/widgets/shopping_list_header_widget.dart`: UI call updated
 - `lib/widgets/test_scenario_widget.dart`: Test call updated
 
-**Commit**: `a1aa067` - "fix: deleteShoppingList に groupId パラメータを追加"
+**Commit**: `a1aa067` - "fix: deleteSharedList に groupId パラメータを追加"
 
 **Verification**:
 ✅ Windows deletion → Firestore document removed
@@ -568,7 +568,7 @@ Changed method signature from `deleteShoppingList(String listId)` to `deleteShop
 
 **Repository Layer**:
 
-- `lib/datastore/shopping_list_repository.dart`: Added `watchShoppingList()` abstract method
+- `lib/datastore/shopping_list_repository.dart`: Added `watchSharedList()` abstract method
 - `lib/datastore/firestore_shopping_list_repository.dart`: Firestore `snapshots()` implementation
 - `lib/datastore/hybrid_shopping_list_repository.dart`: Online/offline auto-switching
 - `lib/datastore/hive_shopping_list_repository.dart`: 30-second polling fallback
@@ -578,7 +578,7 @@ Changed method signature from `deleteShoppingList(String listId)` to `deleteShop
 
 - `lib/pages/shopping_list_page_v2.dart`: StreamBuilder integration
   - Removed `invalidate()` calls (causes current list to clear)
-  - Added latest data fetch before item addition (`repository.getShoppingListById()`)
+  - Added latest data fetch before item addition (`repository.getSharedListById()`)
   - Fixed sync timing issue that caused item count limits
 
 **QR System**:
@@ -591,8 +591,8 @@ Changed method signature from `deleteShoppingList(String listId)` to `deleteShop
 1. **StreamBuilder Usage**:
 
 ```dart
-StreamBuilder<ShoppingList?>(
-  stream: repository.watchShoppingList(groupId, listId),
+StreamBuilder<SharedList?>(
+  stream: repository.watchSharedList(groupId, listId),
   initialData: currentList,  // Prevents flicker
   builder: (context, snapshot) {
     final liveList = snapshot.data ?? currentList;
@@ -608,19 +608,19 @@ StreamBuilder<ShoppingList?>(
 final updatedList = currentList.copyWith(items: [...currentList.items, newItem]);
 
 // ✅ Correct: Fetch latest from Repository
-final latestList = await repository.getShoppingListById(currentList.listId);
+final latestList = await repository.getSharedListById(currentList.listId);
 final updatedList = latestList.copyWith(items: [...latestList.items, newItem]);
-await repository.updateShoppingList(updatedList);
+await repository.updateSharedList(updatedList);
 // StreamBuilder auto-detects update, no invalidate needed
 ```
 
 3. **Hybrid Cache Update**:
 
 ```dart
-// watchShoppingList caches Firestore data to Hive
-return _firestoreRepo!.watchShoppingList(groupId, listId).map((firestoreList) {
+// watchSharedList caches Firestore data to Hive
+return _firestoreRepo!.watchSharedList(groupId, listId).map((firestoreList) {
   if (firestoreList != null) {
-    _hiveRepo.updateShoppingList(firestoreList);  // Not addItem!
+    _hiveRepo.updateSharedList(firestoreList);  // Not addItem!
   }
   return firestoreList;
 });
@@ -628,10 +628,10 @@ return _firestoreRepo!.watchShoppingList(groupId, listId).map((firestoreList) {
 
 #### Problems Solved
 
-1. **Build errors**: Missing `watchShoppingList()` implementations in all Repository classes
+1. **Build errors**: Missing `watchSharedList()` implementations in all Repository classes
 2. **Current list clears**: Removed `ref.invalidate()` that cleared StreamBuilder's initialData
 3. **Item count limit**: Fixed by fetching latest data before addition (sync timing issue)
-4. **Cache corruption**: Fixed `addItem` → `updateShoppingList` in HybridRepository
+4. **Cache corruption**: Fixed `addItem` → `updateSharedList` in HybridRepository
 
 #### Performance
 
@@ -651,7 +651,7 @@ return _firestoreRepo!.watchShoppingList(groupId, listId).map((firestoreList) {
 
 ### Shopping Item UI Enhancements
 
-**Goal**: Enable currently disabled features in `ShoppingItem` model
+**Goal**: Enable currently disabled features in `SharedItem` model
 
 #### 1. Deadline (Shopping Deadline) Feature
 
@@ -746,24 +746,24 @@ return _firestoreRepo!.watchShoppingList(groupId, listId).map((firestoreList) {
 - Keep UI responsive with StreamBuilder pattern
 - Add proper validation (deadline must be future date, interval > 0)
 
-## ShoppingList Map Format & Differential Sync (Implemented: 2025-11-25)
+## SharedList Map Format & Differential Sync (Implemented: 2025-11-25)
 
 ### Architecture Overview
 
-**From**: `List<ShoppingItem>` (Array-based, full list sync)
-**To**: `Map<String, ShoppingItem>` (Dictionary-based, item-level sync)
+**From**: `List<SharedItem>` (Array-based, full list sync)
+**To**: `Map<String, SharedItem>` (Dictionary-based, item-level sync)
 
 **Purpose**: Enable real-time differential sync - send only changed items instead of entire list.
 
 ### Data Structure
 
-#### ShoppingItem Model
+#### SharedItem Model
 
 ```dart
 @HiveType(typeId: 3)
 @freezed
-class ShoppingItem with _$ShoppingItem {
-  const factory ShoppingItem({
+class SharedItem with _$SharedItem {
+  const factory SharedItem({
     @HiveField(0) required String name,
     @HiveField(1) @Default(false) bool isPurchased,
     // ... existing fields ...
@@ -772,17 +772,17 @@ class ShoppingItem with _$ShoppingItem {
     @HiveField(8) required String itemId,           // UUID v4, unique identifier
     @HiveField(9) @Default(false) bool isDeleted,   // Soft delete flag
     @HiveField(10) DateTime? deletedAt,             // Deletion timestamp
-  }) = _ShoppingItem;
+  }) = _SharedItem;
 }
 ```
 
-#### ShoppingList Model
+#### SharedList Model
 
 ```dart
-@HiveField(3) @Default({}) Map<String, ShoppingItem> items,
+@HiveField(3) @Default({}) Map<String, SharedItem> items,
 
 // 🆕 New Getters
-List<ShoppingItem> get activeItems =>
+List<SharedItem> get activeItems =>
     items.values.where((item) => !item.isDeleted).toList();
 
 int get deletedItemCount =>
@@ -796,15 +796,15 @@ bool get needsCleanup => deletedItemCount > 10;
 **Custom TypeAdapter** (`lib/adapters/shopping_item_adapter_override.dart`):
 
 ```dart
-class ShoppingItemAdapterOverride extends TypeAdapter<ShoppingItem> {
+class SharedItemAdapterOverride extends TypeAdapter<SharedItem> {
   @override
-  final int typeId = 3;  // Override default ShoppingItemAdapter
+  final int typeId = 3;  // Override default SharedItemAdapter
 
   @override
-  ShoppingItem read(BinaryReader reader) {
+  SharedItem read(BinaryReader reader) {
     final fields = <int, dynamic>{/* read fields */};
 
-    return ShoppingItem(
+    return SharedItem(
       // Existing fields...
       itemId: (fields[8] as String?) ?? _uuid.v4(),  // 🔥 Auto-generate if null
       isDeleted: fields[9] as bool? ?? false,        // 🔥 Default value
@@ -820,7 +820,7 @@ class ShoppingItemAdapterOverride extends TypeAdapter<ShoppingItem> {
 void main() async {
   // 🔥 Register BEFORE default adapter initialization
   if (!Hive.isAdapterRegistered(3)) {
-    Hive.registerAdapter(ShoppingItemAdapterOverride());
+    Hive.registerAdapter(SharedItemAdapterOverride());
   }
   await UserSpecificHiveService.initializeAdapters();
   runApp(const ProviderScope(child: MyApp()));
@@ -832,15 +832,15 @@ void main() async {
 **Repository Methods** (`shopping_list_repository.dart`):
 
 ```dart
-abstract class ShoppingListRepository {
+abstract class SharedListRepository {
   // 🔥 Send single item (not entire list)
-  Future<void> addSingleItem(String listId, ShoppingItem item);
+  Future<void> addSingleItem(String listId, SharedItem item);
 
   // 🔥 Soft delete by itemId only
   Future<void> removeSingleItem(String listId, String itemId);
 
   // 🔥 Update single item (not entire list)
-  Future<void> updateSingleItem(String listId, ShoppingItem item);
+  Future<void> updateSingleItem(String listId, SharedItem item);
 
   // 🔥 Physical delete of soft-deleted items (30+ days old)
   Future<void> cleanupDeletedItems(String listId, {int olderThanDays = 30});
@@ -851,7 +851,7 @@ abstract class ShoppingListRepository {
 
 ```dart
 // ❌ Old: Full list sync
-await repository.updateShoppingList(currentList.copyWith(
+await repository.updateSharedList(currentList.copyWith(
   items: [...currentList.items, newItem],
 ));
 
@@ -872,11 +872,11 @@ final deletedCount = await cleanupService.cleanupAllLists(
 );
 ```
 
-#### ShoppingListDataMigrationService
+#### SharedListDataMigrationService
 
 ```dart
-// Migrate old List<ShoppingItem> data to Map<String, ShoppingItem>
-final migrationService = ShoppingListDataMigrationService(ref);
+// Migrate old List<SharedItem> data to Map<String, SharedItem>
+final migrationService = SharedListDataMigrationService(ref);
 final status = await migrationService.checkMigrationStatus();
 // status: { total: 10, migrated: 8, remaining: 2 }
 
@@ -907,7 +907,7 @@ await migrationService.migrateToMapFormat();  // With auto-backup
    ```dart
    // ❌ Wrong: Sends entire list
    final updatedItems = {...currentList.items, newItem.itemId: newItem};
-   await repository.updateShoppingList(currentList.copyWith(items: updatedItems));
+   await repository.updateSharedList(currentList.copyWith(items: updatedItems));
 
    // ✅ Correct: Sends only new item
    await repository.addSingleItem(currentList.listId, newItem);
@@ -920,7 +920,7 @@ await migrationService.migrateToMapFormat();  // With auto-backup
    currentList.items[itemId] = updatedItem;
 
    // ✅ Correct: Use copyWith
-   final updatedItems = Map<String, ShoppingItem>.from(currentList.items);
+   final updatedItems = Map<String, SharedItem>.from(currentList.items);
    updatedItems[itemId] = updatedItem;
    await repository.updateSingleItem(currentList.listId, updatedItem);
    ```
@@ -929,7 +929,7 @@ await migrationService.migrateToMapFormat();  // With auto-backup
 
    ```dart
    // ❌ Wrong: Remove from Map
-   final updatedItems = Map<String, ShoppingItem>.from(currentList.items);
+   final updatedItems = Map<String, SharedItem>.from(currentList.items);
    updatedItems.remove(itemId);
 
    // ✅ Correct: Mark as deleted
@@ -951,7 +951,7 @@ await migrationService.migrateToMapFormat();  // With auto-backup
 **Phase 1-11 (Completed 2025-11-25)**:
 
 - ✅ Data structure conversion (List → Map)
-- ✅ Backward compatibility (ShoppingItemAdapterOverride)
+- ✅ Backward compatibility (SharedItemAdapterOverride)
 - ✅ Differential sync API implementation
 - ✅ Maintenance services (cleanup, migration)
 - ✅ UI integration (settings page)
@@ -968,7 +968,7 @@ await migrationService.migrateToMapFormat();  // With auto-backup
 **Check Hive field count**:
 
 ```bash
-# ShoppingItem should have 11 fields (8 → 11)
+# SharedItem should have 11 fields (8 → 11)
 dart run build_runner build --delete-conflicting-outputs
 # Look for: "typeId = 3, numFields = 11"
 ```
@@ -977,7 +977,7 @@ dart run build_runner build --delete-conflicting-outputs
 
 ```dart
 // In main.dart, check console output:
-// ✅ ShoppingItemAdapterOverride registered
+// ✅ SharedItemAdapterOverride registered
 ```
 
 **Inspect active vs deleted items**:
@@ -1129,7 +1129,7 @@ Container(
 
 **Repository Layer**:
 
-- `lib/datastore/shopping_list_repository.dart`: Added `watchShoppingList()` abstract method
+- `lib/datastore/shopping_list_repository.dart`: Added `watchSharedList()` abstract method
 - `lib/datastore/firestore_shopping_list_repository.dart`: Firestore `snapshots()` implementation
 - `lib/datastore/hybrid_shopping_list_repository.dart`: Online/offline auto-switching
 - `lib/datastore/hive_shopping_list_repository.dart`: 30-second polling fallback
@@ -1139,7 +1139,7 @@ Container(
 
 - `lib/pages/shopping_list_page_v2.dart`: StreamBuilder integration
   - Removed `invalidate()` calls (causes current list to clear)
-  - Added latest data fetch before item addition (`repository.getShoppingListById()`)
+  - Added latest data fetch before item addition (`repository.getSharedListById()`)
   - Fixed sync timing issue that caused item count limits
 
 #### Performance
@@ -1376,7 +1376,7 @@ updatedMembers.add(
 
 **Root Cause**:
 
-- `invalidate(groupShoppingListsProvider)`でリスト一覧再取得開始
+- `invalidate(groupSharedListsProvider)`でリスト一覧再取得開始
 - UI が再ビルドされるタイミングで、まだ新しいリストが含まれていない
 - `validValue = null` → ドロップダウンに反映されない
 
@@ -1384,11 +1384,11 @@ updatedMembers.add(
 
 ```dart
 // ダイアログを閉じた後、リスト一覧を更新して完了を待つ
-ref.invalidate(groupShoppingListsProvider);
+ref.invalidate(groupSharedListsProvider);
 
 // リスト一覧の更新完了を待つ（新しいリストが含まれるまで）
 try {
-  await ref.read(groupShoppingListsProvider.future);
+  await ref.read(groupSharedListsProvider.future);
   Log.info('✅ リスト一覧更新完了 - 新しいリストを含む');
 } catch (e) {
   Log.error('❌ リスト一覧更新エラー: $e');
@@ -1461,7 +1461,7 @@ try {
   final currentUser = ref.read(authStateProvider).value;
   final currentMemberId = currentUser?.uid ?? 'anonymous';
 
-  final newItem = ShoppingItem.createNow(
+  final newItem = SharedItem.createNow(
     memberId: currentMemberId, // ✅ Actual user UID
     name: name,
     quantity: quantity,
@@ -1552,7 +1552,7 @@ final bannerAd = await adService.createBannerAd(
 - **Property not found**: Verify `memberId` vs `memberID` consistency across codebase
 - **Default group not appearing**: Ensure `createDefaultGroup()` called after UID change data clear
 - **App mode UI not updating**: Wrap SegmentedButton in `Consumer` to watch `appModeNotifierProvider`
-- **Item count limits**: Always fetch latest data with `repository.getShoppingListById()` before updates
+- **Item count limits**: Always fetch latest data with `repository.getSharedListById()` before updates
 - **Current list clears on update**: Never use `ref.invalidate()` with StreamBuilder, it clears initialData
 - **UserSettings read errors**: Ensure UserSettingsAdapterOverride is registered before other adapters
 - **Display name not showing**: Check initState calls `_loadUserName()` in home_page.dart
@@ -1604,13 +1604,13 @@ DropdownButtonFormField<String>(
 
 ```dart
 // User creates new shopping list
-await repository.createShoppingList(newList);
+await repository.createSharedList(newList);
 
 // Set as current list
 ref.read(currentListProvider.notifier).selectList(newList);
 
 // Invalidate list provider to refresh from Firestore
-ref.invalidate(groupShoppingListsProvider);
+ref.invalidate(groupSharedListsProvider);
 
 // ❌ Problem: Widget rebuilds HERE with stale data
 // The dropdown shows null because lists array doesn't contain newList yet
@@ -1620,12 +1620,12 @@ ref.invalidate(groupShoppingListsProvider);
 
 ```dart
 // ❌ Wrong: UI rebuilds with stale data
-ref.invalidate(groupShoppingListsProvider);
+ref.invalidate(groupSharedListsProvider);
 // Widget rebuilds here, lists array still old
 
 // ✅ Correct: Wait for refresh to complete
-ref.invalidate(groupShoppingListsProvider);
-await ref.read(groupShoppingListsProvider.future);
+ref.invalidate(groupSharedListsProvider);
+await ref.read(groupSharedListsProvider.future);
 // Widget rebuilds here, lists array includes new data
 ```
 
@@ -1633,13 +1633,13 @@ await ref.read(groupShoppingListsProvider.future);
 
 ```dart
 // After creating new list
-await repository.createShoppingList(newList);
+await repository.createSharedList(newList);
 ref.read(currentListProvider.notifier).selectList(newList);
 
 // Invalidate and WAIT for list refresh
-ref.invalidate(groupShoppingListsProvider);
+ref.invalidate(groupSharedListsProvider);
 try {
-  await ref.read(groupShoppingListsProvider.future);
+  await ref.read(groupSharedListsProvider.future);
   Log.info('✅ リスト一覧更新完了 - 新しいリストを含む');
 } catch (e) {
   Log.error('❌ リスト一覧更新エラー: $e');
@@ -1672,8 +1672,8 @@ ref.invalidate(currentListProvider);
 
 ```dart
 // ✅ Correct: Preserve current selection, refresh list data only
-ref.invalidate(groupShoppingListsProvider);  // Refresh list data
-await ref.read(groupShoppingListsProvider.future);
+ref.invalidate(groupSharedListsProvider);  // Refresh list data
+await ref.read(groupSharedListsProvider.future);
 // currentListProvider maintains its state
 ```
 

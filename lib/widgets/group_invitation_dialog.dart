@@ -273,7 +273,7 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
     // QRコード用のJSONデータを生成
     final qrData = jsonEncode({
       'invitationId': invitation.token,
-      'SharedGroupId': widget.group.groupId,
+      'sharedGroupId': widget.group.groupId,
       'groupName': widget.group.groupName,
       'inviterUid': invitation.invitedBy,
       'inviterName': invitation.inviterName,
@@ -418,8 +418,7 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
     try {
       final qrService = ref.read(qrInvitationServiceProvider);
       await qrService.createQRInvitationData(
-        shoppingListId: '',
-        SharedGroupId: widget.group.groupId,
+        sharedGroupId: widget.group.groupId,
         groupName: widget.group.groupName,
         groupOwnerUid: widget.group.ownerUid ?? widget.group.groupId,
         groupAllowedUids: widget.group.allowedUid,

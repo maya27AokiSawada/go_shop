@@ -1,8 +1,8 @@
-# ShoppingList リアルタイム同期設計書
+# SharedList リアルタイム同期設計書
 
 ## 目的
 
-複数デバイス間でShoppingListの変更をリアルタイムに同期する機能を実装する。
+複数デバイス間でSharedListの変更をリアルタイムに同期する機能を実装する。
 
 ## 現状の問題点
 
@@ -31,10 +31,10 @@ StreamBuilder<QuerySnapshot>(
 ### 1. Firestore構造（変更なし）
 
 ```
-/SharedGroups/{groupId}/shoppingLists/{listId}
+/SharedGroups/{groupId}/sharedLists/{listId}
   ├─ listId: String
   ├─ listName: String
-  ├─ items: List<ShoppingItem>
+  ├─ items: List<SharedItem>
   ├─ createdAt: Timestamp
   └─ updatedAt: Timestamp
 ```
@@ -43,38 +43,38 @@ StreamBuilder<QuerySnapshot>(
 
 #### 2-1. Repository層（データ取得）
 
-**FirestoreShoppingListRepository**に追加:
+**FirestoreSharedListRepository**に追加:
 
 ```dart
 // 新規メソッド
-Stream<ShoppingList?> watchShoppingList(String groupId, String listId) {
+Stream<SharedList?> watchSharedList(String groupId, String listId) {
   return _firestore
       .collection('SharedGroups')
       .doc(groupId)
-      .collection('shoppingLists')
+      .collection('sharedLists')
       .doc(listId)
       .snapshots()
       .map((snapshot) {
         if (!snapshot.exists) return null;
-        return ShoppingList.fromFirestore(snapshot);
+        return SharedList.fromFirestore(snapshot);
       });
 }
 ```
 
-**HybridShoppingListRepository**に追加:
+**HybridSharedListRepository**に追加:
 
 ```dart
-Stream<ShoppingList?> watchShoppingList(String groupId, String listId) {
+Stream<SharedList?> watchSharedList(String groupId, String listId) {
   // Dev環境またはオフライン時はポーリング方式にフォールバック
   if (F.appFlavor == Flavor.dev || !_isOnline || _firestoreRepo == null) {
     // 定期的にHiveから取得（30秒間隔）
     return Stream.periodic(Duration(seconds: 30), (_) {
-      return _hiveRepo.getShoppingList(groupId);
+      return _hiveRepo.getSharedList(groupId);
     }).asyncMap((future) => future);
   }
 
   // オンライン時はFirestoreのStreamを使用
-  return _firestoreRepo!.watchShoppingList(groupId, listId).map((firestoreList) {
+  return _firestoreRepo!.watchSharedList(groupId, listId).map((firestoreList) {
     // Firestoreから取得したデータをHiveにキャッシュ（バックグラウンド）
     if (firestoreList != null) {
       _hiveRepo.addItem(firestoreList).catchError((e) {
@@ -93,7 +93,7 @@ Stream<ShoppingList?> watchShoppingList(String groupId, String listId) {
 **パターンA（推奨）: StreamBuilderを直接使用**
 
 ```dart
-// _ShoppingItemsListWidget の build メソッド内
+// _SharedItemsListWidget の build メソッド内
 @override
 Widget build(BuildContext context, WidgetRef ref) {
   final currentList = ref.watch(currentListProvider);
@@ -103,10 +103,10 @@ Widget build(BuildContext context, WidgetRef ref) {
     return Center(child: Text('リストを選択してください'));
   }
 
-  final repository = ref.read(shoppingListRepositoryProvider) as HybridShoppingListRepository;
+  final repository = ref.read(sharedListRepositoryProvider) as HybridSharedListRepository;
 
-  return StreamBuilder<ShoppingList?>(
-    stream: repository.watchShoppingList(selectedGroupId, currentList.listId),
+  return StreamBuilder<SharedList?>(
+    stream: repository.watchSharedList(selectedGroupId, currentList.listId),
     initialData: currentList, // 初期データは既存のcurrentListを使用
     builder: (context, snapshot) {
       if (snapshot.hasError) {
@@ -123,7 +123,7 @@ Widget build(BuildContext context, WidgetRef ref) {
         itemCount: liveList.items.length,
         itemBuilder: (context, index) {
           final item = liveList.items[index];
-          return _ShoppingItemTile(item: item, index: index);
+          return _SharedItemTile(item: item, index: index);
         },
       );
     },
@@ -135,16 +135,16 @@ Widget build(BuildContext context, WidgetRef ref) {
 
 ```dart
 // lib/providers/shopping_list_provider.dart に追加
-final liveShoppingListProvider = StreamProvider.family<ShoppingList?, (String, String)>(
+final liveSharedListProvider = StreamProvider.family<SharedList?, (String, String)>(
   (ref, params) {
     final (groupId, listId) = params;
-    final repository = ref.watch(shoppingListRepositoryProvider) as HybridShoppingListRepository;
-    return repository.watchShoppingList(groupId, listId);
+    final repository = ref.watch(sharedListRepositoryProvider) as HybridSharedListRepository;
+    return repository.watchSharedList(groupId, listId);
   },
 );
 
 // shopping_list_page_v2.dart で使用
-final liveListAsync = ref.watch(liveShoppingListProvider((selectedGroupId, currentList.listId)));
+final liveListAsync = ref.watch(liveSharedListProvider((selectedGroupId, currentList.listId)));
 return liveListAsync.when(
   data: (liveList) => /* UI */,
   loading: () => CircularProgressIndicator(),
@@ -175,16 +175,16 @@ Hiveにキャッシュ（バックグラウンド）
 #### オフライン対応
 
 ```dart
-// HybridShoppingListRepository
-Stream<ShoppingList?> watchShoppingList(String groupId, String listId) {
+// HybridSharedListRepository
+Stream<SharedList?> watchSharedList(String groupId, String listId) {
   return _firestoreRepo!
-      .watchShoppingList(groupId, listId)
+      .watchSharedList(groupId, listId)
       .handleError((error) {
         developer.log('⚠️ Firestore Stream エラー: $error');
         _isOnline = false; // オフラインマークを設定
 
         // Hiveキャッシュにフォールバック
-        return _hiveRepo.getShoppingList(groupId);
+        return _hiveRepo.getSharedList(groupId);
       });
 }
 ```
@@ -192,12 +192,12 @@ Stream<ShoppingList?> watchShoppingList(String groupId, String listId) {
 #### Stream破棄
 
 ```dart
-// _ShoppingItemsListWidget を StatefulWidget に変更
-class _ShoppingItemsListWidget extends ConsumerStatefulWidget {
+// _SharedItemsListWidget を StatefulWidget に変更
+class _SharedItemsListWidget extends ConsumerStatefulWidget {
   // ...
 }
 
-class _ShoppingItemsListWidgetState extends ConsumerState<_ShoppingItemsListWidget> {
+class _SharedItemsListWidgetState extends ConsumerState<_SharedItemsListWidget> {
   StreamSubscription? _subscription;
 
   @override
@@ -230,7 +230,7 @@ class _ShoppingItemsListWidgetState extends ConsumerState<_ShoppingItemsListWidg
 
 ```dart
 // 画面が非アクティブ時はStreamを一時停止
-class _ShoppingItemsListWidgetState extends ConsumerState<_ShoppingItemsListWidget>
+class _SharedItemsListWidgetState extends ConsumerState<_SharedItemsListWidget>
     with WidgetsBindingObserver {
 
   StreamSubscription? _subscription;
@@ -264,9 +264,9 @@ class _ShoppingItemsListWidgetState extends ConsumerState<_ShoppingItemsListWidg
 
 #### Phase 1（最小実装）
 
-1. `FirestoreShoppingListRepository.watchShoppingList()` メソッド追加
-2. `HybridShoppingListRepository.watchShoppingList()` メソッド追加
-3. `shopping_list_page_v2.dart`の`_ShoppingItemsListWidget`を`StreamBuilder`に変更
+1. `FirestoreSharedListRepository.watchSharedList()` メソッド追加
+2. `HybridSharedListRepository.watchSharedList()` メソッド追加
+3. `shopping_list_page_v2.dart`の`_SharedItemsListWidget`を`StreamBuilder`に変更
 
 #### Phase 2（最適化）
 
@@ -336,9 +336,9 @@ class _ShoppingItemsListWidgetState extends ConsumerState<_ShoppingItemsListWidg
 
 ## 実装開始前チェックリスト
 
-- [ ] FirestoreのShoppingListコレクション構造を確認
-- [ ] 現在のFirestore Rulesで`shoppingLists`サブコレクションの読み取り権限を確認
-- [ ] `shopping_list_repository.dart`インターフェースに`watchShoppingList`メソッドを追加
+- [ ] FirestoreのSharedListコレクション構造を確認
+- [ ] 現在のFirestore Rulesで`sharedLists`サブコレクションの読み取り権限を確認
+- [ ] `shopping_list_repository.dart`インターフェースに`watchSharedList`メソッドを追加
 - [ ] Phase 1の実装範囲を最終確認
 - [ ] テスト用のグループ・リストを準備
 - [ ] Firestore使用量の現状を確認（Firebase Console）

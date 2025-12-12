@@ -7,7 +7,7 @@ import '../utils/app_logger.dart';
 import '../models/shared_group.dart';
 import '../providers/user_settings_provider.dart';
 import '../providers/purchase_group_provider.dart';
-import '../providers/shopping_list_provider.dart' hide shoppingListBoxProvider;
+import '../providers/shared_list_provider.dart' hide sharedListBoxProvider;
 import '../providers/user_specific_hive_provider.dart';
 import '../providers/hive_provider.dart';
 import '../widgets/user_data_migration_dialog.dart';
@@ -257,7 +257,7 @@ class UserIdChangeHelper {
               // 旧デフォルトグループのリストをマイグレーション（グループが存在する場合）
               if (oldUserId.isNotEmpty && !_isTemporaryUid(oldUserId)) {
                 Log.info('🔄 [UID変更] リストマイグレーション開始: $oldUserId → ${user.uid}');
-                await ShoppingListMigrationService.migrateDefaultGroupLists(
+                await SharedListMigrationService.migrateDefaultGroupLists(
                   oldGroupId: oldUserId,
                   newGroupId: user.uid,
                 );
@@ -333,7 +333,7 @@ class UserIdChangeHelper {
     await Future.delayed(const Duration(milliseconds: 200));
     ref.invalidate(userSettingsProvider);
     await Future.delayed(const Duration(milliseconds: 200));
-    ref.invalidate(shoppingListProvider);
+    ref.invalidate(sharedListProvider);
     await Future.delayed(const Duration(milliseconds: 200));
     ref.invalidate(selectedGroupProvider);
     ref.invalidate(allGroupsProvider);
@@ -344,7 +344,7 @@ class UserIdChangeHelper {
     await Future.delayed(const Duration(milliseconds: 500));
     ref.invalidate(userSettingsProvider);
     await Future.delayed(const Duration(milliseconds: 500));
-    ref.invalidate(shoppingListProvider);
+    ref.invalidate(sharedListProvider);
     await Future.delayed(const Duration(milliseconds: 500));
     ref.invalidate(selectedGroupProvider);
     ref.invalidate(allGroupsProvider);
@@ -357,13 +357,13 @@ class UserIdChangeHelper {
 
       // 各Hiveボックスを取得してクリア
       final SharedGroupBox = ref.read(SharedGroupBoxProvider);
-      final shoppingListBox = ref.read(shoppingListBoxProvider);
+      final sharedListBox = ref.read(sharedListBoxProvider);
 
       await SharedGroupBox.clear();
       Log.info('✅ SharedGroupボックスをクリア');
 
-      await shoppingListBox.clear();
-      Log.info('✅ ShoppingListボックスをクリア');
+      await sharedListBox.clear();
+      Log.info('✅ SharedListボックスをクリア');
 
       Log.info('✅ Hiveボックスのクリア完了');
     } catch (e) {

@@ -1,21 +1,21 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/shopping_list.dart';
+import '../models/shared_list.dart';
 import '../providers/auth_provider.dart';
 import '../helpers/mock_auth_service.dart';
-import 'shopping_list_repository.dart';
-import 'hive_shopping_list_repository.dart';
+import 'shared_list_repository.dart';
+import 'hive_shared_list_repository.dart';
 import '../utils/app_logger.dart';
 
-/// Firebase同期機�E付きShoppingListRepository
+/// Firebase同期機�E付きSharedListRepository
 /// ログイン状態ではFirestoreと同期し、オフラインではHiveを使用
-class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
+class FirebaseSyncSharedListRepository implements SharedListRepository {
   final Ref ref;
-  final HiveShoppingListRepository _hiveRepo;
+  final HiveSharedListRepository _hiveRepo;
 
-  FirebaseSyncShoppingListRepository(this.ref)
-      : _hiveRepo = HiveShoppingListRepository(ref);
+  FirebaseSyncSharedListRepository(this.ref)
+      : _hiveRepo = HiveSharedListRepository(ref);
 
   /// 現在のユーザーを取征E
   User? get _currentUser {
@@ -52,20 +52,20 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
   }
 
   /// Firestoreコレクション参照を取得
-  CollectionReference? _getUserShoppingListsCollection() {
+  CollectionReference? _getUserSharedListsCollection() {
     final user = _currentUser;
     if (user == null) return null;
 
     return FirebaseFirestore.instance
         .collection('users')
         .doc(user.uid)
-        .collection('shoppingLists');
+        .collection('sharedLists');
   }
 
   @override
-  Future<ShoppingList?> getShoppingList(String groupId) async {
+  Future<SharedList?> getSharedList(String groupId) async {
     AppLogger.info(
-        'FirebaseSyncRepo: Reading ShoppingList for group: $groupId');
+        'FirebaseSyncRepo: Reading SharedList for group: $groupId');
 
     // ログイン状態ならFirebaseから同期を試衁E
     final user = _currentUser;
@@ -73,21 +73,21 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
       try {
         await _syncFromFirebase(groupId);
         AppLogger.info('Firebase sync completed - Returning from Hive');
-        return await _hiveRepo.getShoppingList(groupId);
+        return await _hiveRepo.getSharedList(groupId);
       } catch (e) {
         AppLogger.error('Firebase sync error: $e - Returning from Hive');
-        return await _hiveRepo.getShoppingList(groupId);
+        return await _hiveRepo.getSharedList(groupId);
       }
     }
 
     // ログインしてぁE��ぁE��合�EHiveから直接読み込み
     AppLogger.info('Not logged in - Reading from Hive only');
-    return await _hiveRepo.getShoppingList(groupId);
+    return await _hiveRepo.getSharedList(groupId);
   }
 
   @override
-  Future<void> addItem(ShoppingList list) async {
-    AppLogger.info('FirebaseSyncRepo: Starting ShoppingList save');
+  Future<void> addItem(SharedList list) async {
+    AppLogger.info('FirebaseSyncRepo: Starting SharedList save');
 
     // Save to Hive first
     await _hiveRepo.addItem(list);
@@ -109,13 +109,13 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<void> clearShoppingList(String groupId) async {
-    await _hiveRepo.clearShoppingList(groupId);
+  Future<void> clearSharedList(String groupId) async {
+    await _hiveRepo.clearSharedList(groupId);
 
     final user = _currentUser;
     if (user != null) {
       try {
-        final list = await _hiveRepo.getShoppingList(groupId);
+        final list = await _hiveRepo.getSharedList(groupId);
         if (list != null) {
           await _syncToFirebase(list);
         }
@@ -126,13 +126,13 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<void> addShoppingItem(String groupId, ShoppingItem item) async {
-    await _hiveRepo.addShoppingItem(groupId, item);
+  Future<void> addSharedItem(String groupId, SharedItem item) async {
+    await _hiveRepo.addSharedItem(groupId, item);
 
     final user = _currentUser;
     if (user != null) {
       try {
-        final list = await _hiveRepo.getShoppingList(groupId);
+        final list = await _hiveRepo.getSharedList(groupId);
         if (list != null) {
           await _syncToFirebase(list);
         }
@@ -143,13 +143,13 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<void> removeShoppingItem(String groupId, ShoppingItem item) async {
-    await _hiveRepo.removeShoppingItem(groupId, item);
+  Future<void> removeSharedItem(String groupId, SharedItem item) async {
+    await _hiveRepo.removeSharedItem(groupId, item);
 
     final user = _currentUser;
     if (user != null) {
       try {
-        final list = await _hiveRepo.getShoppingList(groupId);
+        final list = await _hiveRepo.getSharedList(groupId);
         if (list != null) {
           await _syncToFirebase(list);
         }
@@ -160,15 +160,15 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<void> updateShoppingItemStatus(String groupId, ShoppingItem item,
+  Future<void> updateSharedItemStatus(String groupId, SharedItem item,
       {required bool isPurchased}) async {
-    await _hiveRepo.updateShoppingItemStatus(groupId, item,
+    await _hiveRepo.updateSharedItemStatus(groupId, item,
         isPurchased: isPurchased);
 
     final user = _currentUser;
     if (user != null) {
       try {
-        final list = await _hiveRepo.getShoppingList(groupId);
+        final list = await _hiveRepo.getSharedList(groupId);
         if (list != null) {
           await _syncToFirebase(list);
         }
@@ -180,7 +180,7 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
 
   /// FirebaseからHiveに同期
   Future<void> _syncFromFirebase(String groupId) async {
-    final collection = _getUserShoppingListsCollection();
+    final collection = _getUserSharedListsCollection();
     if (collection == null) return;
 
     try {
@@ -198,10 +198,10 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
 
       if (doc.exists) {
         final data = doc.data() as Map<String, dynamic>;
-        final firebaseList = _mapToShoppingList(data);
+        final firebaseList = _mapToSharedList(data);
 
         // Compare with current Hive data
-        final hiveList = await _hiveRepo.getShoppingList(groupId);
+        final hiveList = await _hiveRepo.getSharedList(groupId);
 
         if (hiveList == null ||
             _shouldUpdateFromFirebase(hiveList, firebaseList)) {
@@ -222,13 +222,13 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
   }
 
   /// HiveからFirebaseに同期
-  Future<void> _syncToFirebase(ShoppingList list) async {
-    final collection = _getUserShoppingListsCollection();
+  Future<void> _syncToFirebase(SharedList list) async {
+    final collection = _getUserSharedListsCollection();
     if (collection == null) return;
 
     try {
       AppLogger.info('🔥 Hive -> Firebase sync started');
-      final data = _shoppingListToMap(list);
+      final data = _sharedListToMap(list);
 
       // 10秒�Eタイムアウトを設宁E
       await collection
@@ -250,8 +250,8 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
     }
   }
 
-  /// ShoppingListをFirestore用のMapに変換
-  Map<String, dynamic> _shoppingListToMap(ShoppingList list) {
+  /// SharedListをFirestore用のMapに変換
+  Map<String, dynamic> _sharedListToMap(SharedList list) {
     return {
       'ownerUid': list.ownerUid,
       'groupId': list.groupId,
@@ -283,14 +283,14 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
     };
   }
 
-  /// FirestoreのMapをShoppingListに変換
-  ShoppingList _mapToShoppingList(Map<String, dynamic> data) {
+  /// FirestoreのMapをSharedListに変換
+  SharedList _mapToSharedList(Map<String, dynamic> data) {
     final itemsData = data['items'] as Map<String, dynamic>? ?? {};
     final items = itemsData.map((key, value) {
       final itemMap = value as Map<String, dynamic>;
       return MapEntry(
         key,
-        ShoppingItem(
+        SharedItem(
           itemId: itemMap['itemId'] ?? key,
           memberId: itemMap['memberId'] ?? '',
           name: itemMap['name'] ?? '',
@@ -313,7 +313,7 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
       );
     });
 
-    return ShoppingList.create(
+    return SharedList.create(
       ownerUid: data['ownerUid'] ?? '',
       groupId: data['groupId'] ?? '',
       groupName: data['groupName'] ?? '',
@@ -324,10 +324,10 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
   }
 
   /// 繰り返し購入アイテムの処理
-  ShoppingList _processRepeatPurchases(ShoppingList list) {
+  SharedList _processRepeatPurchases(SharedList list) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final processedItems = Map<String, ShoppingItem>.from(list.items);
+    final processedItems = Map<String, SharedItem>.from(list.items);
 
     for (final entry in list.items.entries) {
       final item = entry.value;
@@ -356,7 +356,7 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
                 item.deadline!.add(Duration(days: item.shoppingInterval));
           }
 
-          final newItem = ShoppingItem.createNow(
+          final newItem = SharedItem.createNow(
             memberId: item.memberId,
             name: item.name,
             quantity: item.quantity,
@@ -376,13 +376,13 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
   }
 
   /// 同じ名前の未購入アイチE��が存在するかチェチE��
-  bool _hasUnpurchasedItemWithSameName(List<ShoppingItem> items, String name) {
+  bool _hasUnpurchasedItemWithSameName(List<SharedItem> items, String name) {
     return items.any((item) => item.name == name && !item.isPurchased);
   }
 
   /// Firebaseからの更新が必要かどうかを判断
   bool _shouldUpdateFromFirebase(
-      ShoppingList hiveList, ShoppingList firebaseList) {
+      SharedList hiveList, SharedList firebaseList) {
     // アイテム数が異なる場合は更新
     if (hiveList.items.length != firebaseList.items.length) {
       AppLogger.info(
@@ -408,14 +408,14 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
     return false;
   }
 
-  // HiveShoppingListRepositoryの追加メソチE��を委譲
+  // HiveSharedListRepositoryの追加メソチE��を委譲
   Future<void> deleteList(String groupId) async {
     await _hiveRepo.deleteList(groupId);
 
     final user = _currentUser;
     if (user != null) {
       try {
-        final collection = _getUserShoppingListsCollection();
+        final collection = _getUserSharedListsCollection();
         await collection?.doc(groupId).delete();
       } catch (e) {
         AppLogger.error('Firebase delete error: $e');
@@ -423,12 +423,12 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
     }
   }
 
-  List<ShoppingList> getAllLists() {
+  List<SharedList> getAllLists() {
     return _hiveRepo.getAllLists();
   }
 
   @override
-  Future<ShoppingList> getOrCreateList(String groupId, String groupName) async {
+  Future<SharedList> getOrCreateList(String groupId, String groupName) async {
     // ログイン状態なら�EにFirebaseから同期を試衁E
     final user = _currentUser;
     if (user != null) {
@@ -445,7 +445,7 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
   // === Multi-List Methods - Not Implemented Yet ===
 
   @override
-  Future<ShoppingList> createShoppingList({
+  Future<SharedList> createSharedList({
     required String ownerUid,
     required String groupId,
     required String listName,
@@ -456,43 +456,43 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<ShoppingList?> getShoppingListById(String listId) async {
+  Future<SharedList?> getSharedListById(String listId) async {
     throw UnimplementedError(
         'FirebaseRepository multi-list support not implemented yet');
   }
 
   @override
-  Future<List<ShoppingList>> getShoppingListsByGroup(String groupId) async {
+  Future<List<SharedList>> getSharedListsByGroup(String groupId) async {
     throw UnimplementedError(
         'FirebaseRepository multi-list support not implemented yet');
   }
 
   @override
-  Future<void> updateShoppingList(ShoppingList list) async {
+  Future<void> updateSharedList(SharedList list) async {
     throw UnimplementedError(
         'FirebaseRepository multi-list support not implemented yet');
   }
 
   @override
-  Future<void> deleteShoppingList(String groupId, String listId) async {
+  Future<void> deleteSharedList(String groupId, String listId) async {
     throw UnimplementedError(
         'FirebaseRepository multi-list support not implemented yet');
   }
 
   @override
-  Future<void> addItemToList(String listId, ShoppingItem item) async {
+  Future<void> addItemToList(String listId, SharedItem item) async {
     throw UnimplementedError(
         'FirebaseRepository multi-list support not implemented yet');
   }
 
   @override
-  Future<void> removeItemFromList(String listId, ShoppingItem item) async {
+  Future<void> removeItemFromList(String listId, SharedItem item) async {
     throw UnimplementedError(
         'FirebaseRepository multi-list support not implemented yet');
   }
 
   @override
-  Future<void> updateItemStatusInList(String listId, ShoppingItem item,
+  Future<void> updateItemStatusInList(String listId, SharedItem item,
       {required bool isPurchased}) async {
     throw UnimplementedError(
         'FirebaseRepository multi-list support not implemented yet');
@@ -505,34 +505,34 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<ShoppingList> getOrCreateDefaultList(
+  Future<SharedList> getOrCreateDefaultList(
       String groupId, String groupName) async {
     return await getOrCreateList(groupId, groupName);
   }
 
   @override
-  Future<void> deleteShoppingListsByGroupId(String groupId) async {
+  Future<void> deleteSharedListsByGroupId(String groupId) async {
     // Firebase実装では、グループ削除時に関連するショッピングリストも削除する
     // 現在はHiveリポジトリに委譲
-    await _hiveRepo.deleteShoppingListsByGroupId(groupId);
+    await _hiveRepo.deleteSharedListsByGroupId(groupId);
   }
 
   // === Realtime Sync Methods ===
   @override
-  Stream<ShoppingList?> watchShoppingList(String groupId, String listId) {
+  Stream<SharedList?> watchSharedList(String groupId, String listId) {
     // Firebase版はHiveのポーリング方式にフォールバック
-    return _hiveRepo.watchShoppingList(groupId, listId);
+    return _hiveRepo.watchSharedList(groupId, listId);
   }
 
   // === Differential Sync Methods (Map Format) ===
   @override
-  Future<void> addSingleItem(String listId, ShoppingItem item) async {
+  Future<void> addSingleItem(String listId, SharedItem item) async {
     await _hiveRepo.addSingleItem(listId, item);
 
     final user = _currentUser;
     if (user != null) {
       try {
-        final list = await _hiveRepo.getShoppingListById(listId);
+        final list = await _hiveRepo.getSharedListById(listId);
         if (list != null) {
           await _syncToFirebase(list);
         }
@@ -549,7 +549,7 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
     final user = _currentUser;
     if (user != null) {
       try {
-        final list = await _hiveRepo.getShoppingListById(listId);
+        final list = await _hiveRepo.getSharedListById(listId);
         if (list != null) {
           await _syncToFirebase(list);
         }
@@ -560,13 +560,13 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<void> updateSingleItem(String listId, ShoppingItem item) async {
+  Future<void> updateSingleItem(String listId, SharedItem item) async {
     await _hiveRepo.updateSingleItem(listId, item);
 
     final user = _currentUser;
     if (user != null) {
       try {
-        final list = await _hiveRepo.getShoppingListById(listId);
+        final list = await _hiveRepo.getSharedListById(listId);
         if (list != null) {
           await _syncToFirebase(list);
         }
@@ -584,7 +584,7 @@ class FirebaseSyncShoppingListRepository implements ShoppingListRepository {
     final user = _currentUser;
     if (user != null) {
       try {
-        final list = await _hiveRepo.getShoppingListById(listId);
+        final list = await _hiveRepo.getSharedListById(listId);
         if (list != null) {
           await _syncToFirebase(list);
         }

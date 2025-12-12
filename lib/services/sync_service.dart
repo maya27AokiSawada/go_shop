@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/shared_group.dart';
-import '../datastore/purchase_group_repository.dart';
+import '../datastore/shared_group_repository.dart';
 import '../providers/purchase_group_provider.dart';
 import '../utils/app_logger.dart';
 import '../flavors.dart';

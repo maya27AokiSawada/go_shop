@@ -266,8 +266,8 @@ class NotificationService {
           // リスト変更通知 - リストプロバイダーを更新
           AppLogger.info(
               '📝 [NOTIFICATION] リスト変更通知: ${notification.type.value}');
-          // TODO: ShoppingListProviderの無効化処理を追加
-          // _ref.invalidate(shoppingListProvider);
+          // TODO: SharedListProviderの無効化処理を追加
+          // _ref.invalidate(sharedListProvider);
           AppLogger.info('✅ [NOTIFICATION] リスト変更通知処理完了');
           break;
       }

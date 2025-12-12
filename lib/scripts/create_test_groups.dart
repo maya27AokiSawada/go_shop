@@ -1,7 +1,7 @@
 // テスト用のグループデータを作成するスクリプト
 import '../services/hive_initialization_service.dart';
 import '../models/shared_group.dart';
-import '../datastore/hive_purchase_group_repository.dart';
+import '../datastore/hive_shared_group_repository.dart';
 import '../utils/app_logger.dart';
 import '../flavors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

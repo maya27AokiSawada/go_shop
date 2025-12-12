@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// Firestore用ShoppingListクラス（簡素化版）
-class FirestoreShoppingList {
+// Firestore用SharedListクラス（簡素化版）
+class FirestoreSharedList {
   final String id;                              // ドキュメントID
   final String ownerUid;                        // オーナーUID
   final String groupId;                         // 所属グループID（アクセス権限はSharedGroupから取得）
@@ -9,7 +9,7 @@ class FirestoreShoppingList {
   final List<Map<String, dynamic>> items;      // 買い物アイテム
   final Map<String, dynamic> metadata;         // その他のメタデータ
 
-  const FirestoreShoppingList({
+  const FirestoreSharedList({
     required this.id,
     required this.ownerUid,
     required this.groupId,
@@ -18,7 +18,7 @@ class FirestoreShoppingList {
     this.metadata = const {},
   });
 
-  FirestoreShoppingList copyWith({
+  FirestoreSharedList copyWith({
     String? id,
     String? ownerUid,
     String? groupId,
@@ -26,7 +26,7 @@ class FirestoreShoppingList {
     List<Map<String, dynamic>>? items,
     Map<String, dynamic>? metadata,
   }) {
-    return FirestoreShoppingList(
+    return FirestoreSharedList(
       id: id ?? this.id,
       ownerUid: ownerUid ?? this.ownerUid,
       groupId: groupId ?? this.groupId,
@@ -37,9 +37,9 @@ class FirestoreShoppingList {
   }
 
   // Firestore用のMap変換メソッド
-  factory FirestoreShoppingList.fromFirestore(DocumentSnapshot doc) {
+  factory FirestoreSharedList.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-    return FirestoreShoppingList(
+    return FirestoreSharedList(
       id: doc.id,
       ownerUid: data['ownerUid'] ?? '',
       groupId: data['groupId'] ?? '',
@@ -67,12 +67,12 @@ class FirestoreShoppingList {
   }
 
   // アイテムを追加
-  FirestoreShoppingList addItem(Map<String, dynamic> item) {
+  FirestoreSharedList addItem(Map<String, dynamic> item) {
     return copyWith(items: [...items, item]);
   }
 
   // アイテムを更新
-  FirestoreShoppingList updateItem(int index, Map<String, dynamic> updatedItem) {
+  FirestoreSharedList updateItem(int index, Map<String, dynamic> updatedItem) {
     if (index < 0 || index >= items.length) return this;
     
     final updatedItems = [...items];
@@ -81,7 +81,7 @@ class FirestoreShoppingList {
   }
 
   // アイテムを削除
-  FirestoreShoppingList removeItem(int index) {
+  FirestoreSharedList removeItem(int index) {
     if (index < 0 || index >= items.length) return this;
     
     final updatedItems = [...items];

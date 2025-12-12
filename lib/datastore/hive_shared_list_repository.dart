@@ -1,29 +1,29 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'dart:developer' as developer;
-import '../models/shopping_list.dart';
+import '../models/shared_list.dart';
 import '../providers/hive_provider.dart';
 import '../providers/auth_provider.dart';
 import '../helpers/validation_service.dart';
-import 'shopping_list_repository.dart';
+import 'shared_list_repository.dart';
 
-class HiveShoppingListRepository implements ShoppingListRepository {
+class HiveSharedListRepository implements SharedListRepository {
   final Ref ref;
 
-  HiveShoppingListRepository(this.ref);
+  HiveSharedListRepository(this.ref);
 
-  Box<ShoppingList> get box {
+  Box<SharedList> get box {
     try {
-      if (!Hive.isBoxOpen('shoppingLists')) {
+      if (!Hive.isBoxOpen('sharedLists')) {
         throw StateError(
-            'ShoppingList box is not open. This may occur during app restart.');
+            'SharedList box is not open. This may occur during app restart.');
       }
-      return ref.read(shoppingListBoxProvider);
+      return ref.read(sharedListBoxProvider);
     } on StateError catch (e) {
       developer.log('⚠️ Box not available (normal during restart): $e');
       rethrow;
     } catch (e) {
-      developer.log('❌ Failed to access ShoppingList box: $e');
+      developer.log('❌ Failed to access SharedList box: $e');
       rethrow;
     }
   }
@@ -47,18 +47,18 @@ class HiveShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<ShoppingList?> getShoppingList(String listId) async {
+  Future<SharedList?> getSharedList(String listId) async {
     // listIdで直接取得（新方式）
     return box.get(listId);
   }
 
   @override
-  Future<void> addItem(ShoppingList list) async {
+  Future<void> addItem(SharedList list) async {
     try {
-      // listIdをキーとして保存（updateShoppingListと統一）
+      // listIdをキーとして保存（updateSharedListと統一）
       await box.put(list.listId, list);
       developer.log(
-          '💾 HiveShoppingListRepository: データを保存 - Key: ${list.listId}, Items: ${list.activeItems.length}個'); // 🆕 activeItems使用
+          '💾 HiveSharedListRepository: データを保存 - Key: ${list.listId}, Items: ${list.activeItems.length}個'); // 🆕 activeItems使用
       developer.log('📦 Box contents after save: ${box.length} lists total');
 
       // 保存確認
@@ -70,13 +70,13 @@ class HiveShoppingListRepository implements ShoppingListRepository {
         developer.log('❌ 保存確認失敗: データが見つかりません');
       }
     } catch (e) {
-      developer.log('❌ HiveShoppingListRepository: 保存エラー - $e');
+      developer.log('❌ HiveSharedListRepository: 保存エラー - $e');
       rethrow;
     }
   }
 
   @override
-  Future<void> clearShoppingList(String listId) async {
+  Future<void> clearSharedList(String listId) async {
     // listIdで直接取得
     final list = box.get(listId);
     if (list != null) {
@@ -86,7 +86,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<void> addShoppingItem(String groupId, ShoppingItem item) async {
+  Future<void> addSharedItem(String groupId, SharedItem item) async {
     final userKey = _getUserSpecificKey(groupId);
     final list = box.get(userKey);
     if (list != null) {
@@ -105,7 +105,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
       final SharedGroupBox = ref.read(SharedGroupBoxProvider);
       final SharedGroup = SharedGroupBox.get(groupId);
 
-      final newList = ShoppingList.create(
+      final newList = SharedList.create(
         ownerUid: SharedGroup?.ownerUid ?? 'defaultUser',
         groupId: groupId,
         groupName: SharedGroup?.groupName ?? 'Shopping List',
@@ -118,12 +118,12 @@ class HiveShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<void> removeShoppingItem(String groupId, ShoppingItem item) async {
+  Future<void> removeSharedItem(String groupId, SharedItem item) async {
     final userKey = _getUserSpecificKey(groupId);
     final list = box.get(userKey);
     if (list != null) {
       // MapからitemIdで直接削除
-      final updatedItems = Map<String, ShoppingItem>.from(list.items)
+      final updatedItems = Map<String, SharedItem>.from(list.items)
         ..remove(item.itemId);
       final updatedList = list.copyWith(items: updatedItems);
       await box.put(userKey, updatedList);
@@ -132,13 +132,13 @@ class HiveShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<void> updateShoppingItemStatus(String groupId, ShoppingItem item,
+  Future<void> updateSharedItemStatus(String groupId, SharedItem item,
       {required bool isPurchased}) async {
     final userKey = _getUserSpecificKey(groupId);
     final list = box.get(userKey);
     if (list != null) {
       // 🆕 Map形式対応: itemIdで直接アクセス
-      final updatedItems = Map<String, ShoppingItem>.from(list.items);
+      final updatedItems = Map<String, SharedItem>.from(list.items);
       if (updatedItems.containsKey(item.itemId)) {
         updatedItems[item.itemId] = updatedItems[item.itemId]!.copyWith(
           isPurchased: isPurchased,
@@ -160,14 +160,14 @@ class HiveShoppingListRepository implements ShoppingListRepository {
     developer.log('🗑️ リスト削除: $userKey');
   }
 
-  List<ShoppingList> getAllLists() {
+  List<SharedList> getAllLists() {
     final lists = box.values.toList();
     developer.log('📋 全リスト取得: ${lists.length}個');
     return lists;
   }
 
   @override
-  Future<ShoppingList> getOrCreateList(String groupId, String groupName) async {
+  Future<SharedList> getOrCreateList(String groupId, String groupName) async {
     final userKey = _getUserSpecificKey(groupId);
     final existingList = box.get(userKey);
     if (existingList != null) {
@@ -192,7 +192,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
     final SharedGroupBox = ref.read(SharedGroupBoxProvider);
     final SharedGroup = SharedGroupBox.get(groupId);
 
-    final defaultList = ShoppingList.create(
+    final defaultList = SharedList.create(
       ownerUid: SharedGroup?.ownerUid ?? 'defaultUser',
       groupId: groupId,
       groupName: SharedGroup?.groupName ?? groupName,
@@ -224,7 +224,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
     }
   }
 
-  // ShoppingItemのmemberIdが有効かチェック
+  // SharedItemのmemberIdが有効かチェック
   bool isValidMemberId(String groupId, String memberId) {
     final SharedGroupBox = ref.read(SharedGroupBoxProvider);
     final SharedGroup = SharedGroupBox.get(groupId);
@@ -238,7 +238,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
   // === New Multi-List Methods Implementation ===
 
   @override
-  Future<ShoppingList> createShoppingList({
+  Future<SharedList> createSharedList({
     required String ownerUid,
     required String groupId,
     required String listName,
@@ -246,7 +246,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
   }) async {
     try {
       // Create new shopping list with generated listId
-      final newList = ShoppingList.create(
+      final newList = SharedList.create(
         ownerUid: ownerUid,
         groupId: groupId,
         groupName:
@@ -260,16 +260,16 @@ class HiveShoppingListRepository implements ShoppingListRepository {
       await box.put(newList.listId, newList);
       developer.log('🆕 新規リスト作成: ${newList.listName} (ID: ${newList.listId})');
 
-      // `SharedGroup`から`shoppingListIds`が削除されたため、この処理は不要
+      // `SharedGroup`から`sharedListIds`が削除されたため、この処理は不要
       // final SharedGroupBox = ref.read(SharedGroupBoxProvider);
       // final SharedGroup = SharedGroupBox.get(groupId);
       // if (SharedGroup != null) {
-      //   final updatedShoppingListIds = <String>[
-      //     ...(SharedGroup.shoppingListIds ?? []),
+      //   final updatedSharedListIds = <String>[
+      //     ...(SharedGroup.sharedListIds ?? []),
       //     newList.listId
       //   ];
       //   final updatedGroup =
-      //       SharedGroup.copyWith(shoppingListIds: updatedShoppingListIds);
+      //       SharedGroup.copyWith(sharedListIds: updatedSharedListIds);
       //   await SharedGroupBox.put(groupId, updatedGroup);
       //   developer.log(
       //       '📝 グループ「${SharedGroup.groupName}」にリストID追加: ${newList.listId}');
@@ -283,7 +283,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<ShoppingList?> getShoppingListById(String listId) async {
+  Future<SharedList?> getSharedListById(String listId) async {
     try {
       final list = box.get(listId);
       developer
@@ -296,7 +296,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<List<ShoppingList>> getShoppingListsByGroup(String groupId) async {
+  Future<List<SharedList>> getSharedListsByGroup(String groupId) async {
     try {
       // HiveのBox全体をスキャンし、groupIdが一致するものをフィルタリング
       final lists =
@@ -311,7 +311,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<void> updateShoppingList(ShoppingList list) async {
+  Future<void> updateSharedList(SharedList list) async {
     try {
       await box.put(list.listId, list);
       developer.log('💾 リスト更新: ${list.listName} (ID: ${list.listId})');
@@ -322,23 +322,23 @@ class HiveShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<void> deleteShoppingList(String groupId, String listId) async {
+  Future<void> deleteSharedList(String groupId, String listId) async {
     try {
       final list = box.get(listId);
       if (list != null) {
         // Remove from Hive
         await box.delete(listId);
 
-        // `SharedGroup`から`shoppingListIds`が削除されたため、この処理は不要
+        // `SharedGroup`から`sharedListIds`が削除されたため、この処理は不要
         // final SharedGroupBox = ref.read(SharedGroupBoxProvider);
         // final SharedGroup = SharedGroupBox.get(list.groupId);
         // if (SharedGroup != null) {
-        //   final updatedShoppingListIds = (SharedGroup.shoppingListIds ?? [])
+        //   final updatedSharedListIds = (SharedGroup.sharedListIds ?? [])
         //       .where((id) => id != listId)
         //       .toList()
         //       .cast<String>();
         //   final updatedGroup =
-        //       SharedGroup.copyWith(shoppingListIds: updatedShoppingListIds);
+        //       SharedGroup.copyWith(sharedListIds: updatedSharedListIds);
         //   await SharedGroupBox.put(list.groupId, updatedGroup);
         //   developer
         //       .log('📝 グループ「${SharedGroup.groupName}」からリストID削除: $listId');
@@ -356,7 +356,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<void> addItemToList(String listId, ShoppingItem item) async {
+  Future<void> addItemToList(String listId, SharedItem item) async {
     try {
       final list = box.get(listId);
       if (list == null) {
@@ -380,7 +380,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<void> removeItemFromList(String listId, ShoppingItem item) async {
+  Future<void> removeItemFromList(String listId, SharedItem item) async {
     try {
       final list = box.get(listId);
       if (list == null) {
@@ -397,7 +397,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<void> updateItemStatusInList(String listId, ShoppingItem item,
+  Future<void> updateItemStatusInList(String listId, SharedItem item,
       {required bool isPurchased}) async {
     try {
       final list = box.get(listId);
@@ -429,7 +429,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
       }
 
       // 🆕 activeItemsから未購入のみ残す（Map形式）
-      final remainingItems = <String, ShoppingItem>{};
+      final remainingItems = <String, SharedItem>{};
       list.activeItems.where((item) => !item.isPurchased).forEach((item) {
         remainingItems[item.itemId] = item;
       });
@@ -448,11 +448,11 @@ class HiveShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<ShoppingList> getOrCreateDefaultList(
+  Future<SharedList> getOrCreateDefaultList(
       String groupId, String groupName) async {
     try {
       // Check if group has any existing lists
-      final existingLists = await getShoppingListsByGroup(groupId);
+      final existingLists = await getSharedListsByGroup(groupId);
       if (existingLists.isNotEmpty) {
         // Return the first list as default
         developer.log('📋 デフォルトリスト取得: ${existingLists.first.listName}');
@@ -463,7 +463,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
       final SharedGroupBox = ref.read(SharedGroupBoxProvider);
       final SharedGroup = SharedGroupBox.get(groupId);
 
-      final defaultList = await createShoppingList(
+      final defaultList = await createSharedList(
         ownerUid: SharedGroup?.ownerUid ?? 'defaultUser',
         groupId: groupId,
         listName: '$groupNameのリスト',
@@ -479,7 +479,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
   }
 
   @override
-  Future<void> deleteShoppingListsByGroupId(String groupId) async {
+  Future<void> deleteSharedListsByGroupId(String groupId) async {
     try {
       // groupIdが一致するリストのキーを特定
       final keysToDelete =
@@ -499,24 +499,24 @@ class HiveShoppingListRepository implements ShoppingListRepository {
 
   // === Realtime Sync Methods ===
   @override
-  Stream<ShoppingList?> watchShoppingList(String groupId, String listId) {
+  Stream<SharedList?> watchSharedList(String groupId, String listId) {
     // Hive doesn't support native streams, so we'll return a periodic polling stream
     developer.log('🔴 [HIVE_REALTIME] ポーリング開始: listId=$listId');
 
     return Stream.periodic(const Duration(seconds: 30), (_) async {
-      return await getShoppingListById(listId);
+      return await getSharedListById(listId);
     }).asyncMap((future) => future);
   }
 
   // 🆕 Map-based Differential Sync Methods
   @override
-  Future<void> addSingleItem(String listId, ShoppingItem item) async {
+  Future<void> addSingleItem(String listId, SharedItem item) async {
     developer.log('🔄 [HIVE_DIFF] Adding single item: ${item.name}');
 
-    final list = await getShoppingListById(listId);
+    final list = await getSharedListById(listId);
     if (list == null) throw Exception('List not found: $listId');
 
-    final updatedItems = Map<String, ShoppingItem>.from(list.items);
+    final updatedItems = Map<String, SharedItem>.from(list.items);
     updatedItems[item.itemId] = item;
 
     final updatedList = list.copyWith(
@@ -524,7 +524,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
       updatedAt: DateTime.now(),
     );
 
-    await updateShoppingList(updatedList);
+    await updateSharedList(updatedList);
     developer.log('✅ [HIVE_DIFF] Item added to Hive');
   }
 
@@ -532,7 +532,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
   Future<void> removeSingleItem(String listId, String itemId) async {
     developer.log('🔄 [HIVE_DIFF] Logically deleting item: $itemId');
 
-    final list = await getShoppingListById(listId);
+    final list = await getSharedListById(listId);
     if (list == null) return;
 
     final item = list.items[itemId];
@@ -546,7 +546,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
       deletedAt: DateTime.now(),
     );
 
-    final updatedItems = Map<String, ShoppingItem>.from(list.items);
+    final updatedItems = Map<String, SharedItem>.from(list.items);
     updatedItems[itemId] = deletedItem;
 
     final updatedList = list.copyWith(
@@ -554,18 +554,18 @@ class HiveShoppingListRepository implements ShoppingListRepository {
       updatedAt: DateTime.now(),
     );
 
-    await updateShoppingList(updatedList);
+    await updateSharedList(updatedList);
     developer.log('✅ [HIVE_DIFF] Item logically deleted in Hive');
   }
 
   @override
-  Future<void> updateSingleItem(String listId, ShoppingItem item) async {
+  Future<void> updateSingleItem(String listId, SharedItem item) async {
     developer.log('🔄 [HIVE_DIFF] Updating single item: ${item.name}');
 
-    final list = await getShoppingListById(listId);
+    final list = await getSharedListById(listId);
     if (list == null) return;
 
-    final updatedItems = Map<String, ShoppingItem>.from(list.items);
+    final updatedItems = Map<String, SharedItem>.from(list.items);
     updatedItems[item.itemId] = item;
 
     final updatedList = list.copyWith(
@@ -573,7 +573,7 @@ class HiveShoppingListRepository implements ShoppingListRepository {
       updatedAt: DateTime.now(),
     );
 
-    await updateShoppingList(updatedList);
+    await updateSharedList(updatedList);
     developer.log('✅ [HIVE_DIFF] Item updated in Hive');
   }
 
@@ -582,12 +582,12 @@ class HiveShoppingListRepository implements ShoppingListRepository {
       {int olderThanDays = 30}) async {
     developer.log('🧹 [HIVE_CLEANUP] Starting cleanup for list: $listId');
 
-    final list = await getShoppingListById(listId);
+    final list = await getSharedListById(listId);
     if (list == null) return;
 
     final cutoffDate = DateTime.now().subtract(Duration(days: olderThanDays));
 
-    final cleanedItems = Map<String, ShoppingItem>.fromEntries(
+    final cleanedItems = Map<String, SharedItem>.fromEntries(
       list.items.entries.where((entry) {
         final item = entry.value;
         if (!item.isDeleted) return true;
@@ -607,17 +607,17 @@ class HiveShoppingListRepository implements ShoppingListRepository {
       updatedAt: DateTime.now(),
     );
 
-    await updateShoppingList(cleanedList);
+    await updateSharedList(cleanedList);
     developer.log('🧹 [HIVE_CLEANUP] Removed $removedCount items from Hive');
   }
 }
 
 // Repository Provider
-final hiveShoppingListRepositoryProvider =
-    Provider<HiveShoppingListRepository>((ref) {
-  return HiveShoppingListRepository(ref);
+final hiveSharedListRepositoryProvider =
+    Provider<HiveSharedListRepository>((ref) {
+  return HiveSharedListRepository(ref);
 });
 
-final shoppingListRepositoryProvider = Provider<ShoppingListRepository>((ref) {
-  return ref.read(hiveShoppingListRepositoryProvider);
+final sharedListRepositoryProvider = Provider<SharedListRepository>((ref) {
+  return ref.read(hiveSharedListRepositoryProvider);
 });

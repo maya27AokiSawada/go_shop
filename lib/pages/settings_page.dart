@@ -1183,7 +1183,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       );
 
       final migrationService =
-          ref.read(shoppingListDataMigrationServiceProvider);
+          ref.read(sharedListDataMigrationServiceProvider);
       final status = await migrationService.checkMigrationStatus();
 
       // ローディング閉じる
@@ -1325,7 +1325,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
       // 移行実行
       final migrationService =
-          ref.read(shoppingListDataMigrationServiceProvider);
+          ref.read(sharedListDataMigrationServiceProvider);
       final migratedCount = await migrationService.migrateAllData();
 
       // ローディング閉じる
@@ -1454,7 +1454,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       // ユーザー固有のBox名を構築
       final boxSuffix = user.uid;
       final sharedGroupBoxName = 'SharedGroups_$boxSuffix';
-      final shoppingListBoxName = 'ShoppingLists_$boxSuffix';
+      final sharedListBoxName = 'SharedLists_$boxSuffix';
 
       // SharedGroups Boxを削除
       if (Hive.isBoxOpen(sharedGroupBoxName)) {
@@ -1463,12 +1463,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       await Hive.deleteBoxFromDisk(sharedGroupBoxName);
       AppLogger.info('✅ [HIVE_CLEAR] SharedGroups削除完了');
 
-      // ShoppingLists Boxを削除
-      if (Hive.isBoxOpen(shoppingListBoxName)) {
-        await Hive.box(shoppingListBoxName).close();
+      // SharedLists Boxを削除
+      if (Hive.isBoxOpen(sharedListBoxName)) {
+        await Hive.box(sharedListBoxName).close();
       }
-      await Hive.deleteBoxFromDisk(shoppingListBoxName);
-      AppLogger.info('✅ [HIVE_CLEAR] ShoppingLists削除完了');
+      await Hive.deleteBoxFromDisk(sharedListBoxName);
+      AppLogger.info('✅ [HIVE_CLEAR] SharedLists削除完了');
 
       // Boxを再オープン
       final hiveService = ref.read(userSpecificHiveProvider);

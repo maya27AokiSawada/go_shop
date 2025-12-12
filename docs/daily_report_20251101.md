@@ -19,7 +19,7 @@
 
 | ファイル | 修正内容 | 対応方法 |
 |---------|---------|----------|
-| `shopping_list_page.dart` | 未使用import削除（current_group_provider.dart）<br>未使用変数削除（allGroupsAsync, shoppingListAsync）<br>将来使用予定メソッド6件保持 | import削除<br>変数削除<br>`// ignore: unused_element`追加 |
+| `shopping_list_page.dart` | 未使用import削除（current_group_provider.dart）<br>未使用変数削除（allGroupsAsync, sharedListAsync）<br>将来使用予定メソッド6件保持 | import削除<br>変数削除<br>`// ignore: unused_element`追加 |
 | `hive_shopping_list_repository.dart` | 冗長なnull演算子修正（`user.uid ?? 'anonymous'` → `user.uid`） | null安全性修正 |
 | `firestore_shopping_list_repository.dart` | 未使用`_ref`フィールド保持 | `// ignore: unused_field`追加 |
 | `data_migration_widget.dart` | 未使用`_progress`フィールド保持 | `// ignore: unused_field`追加 |

@@ -1,5 +1,5 @@
 import '../models/shared_group.dart';
-import '../models/firestore_shopping_list.dart';
+import '../models/firestore_shared_list.dart';
 
 /// アクセス権限を管理するヘルパークラス
 class AccessControlHelper {
@@ -11,32 +11,32 @@ class AccessControlHelper {
     return activeMembers.any((member) => member.memberId == uid);
   }
 
-  /// ユーザーがShoppingListにアクセス権限を持つかどうかをチェック
-  static bool canAccessShoppingList(
-    FirestoreShoppingList shoppingList, 
+  /// ユーザーがSharedListにアクセス権限を持つかどうかをチェック
+  static bool canAccessSharedList(
+    FirestoreSharedList sharedList, 
     String uid, 
     SharedGroup? group
   ) {
     // オーナーは常にアクセス可能
-    if (shoppingList.hasOwnerAccess(uid)) return true;
+    if (sharedList.hasOwnerAccess(uid)) return true;
     
     // グループが存在し、そのメンバーならアクセス可能
-    if (group != null && shoppingList.groupId == group.groupId) {
+    if (group != null && sharedList.groupId == group.groupId) {
       return isGroupMember(group, uid);
     }
     
     return false;
   }
 
-  /// ユーザーがShoppingListを編集する権限を持つかどうかをチェック
-  static bool canEditShoppingList(
-    FirestoreShoppingList shoppingList, 
+  /// ユーザーがSharedListを編集する権限を持つかどうかをチェック
+  static bool canEditSharedList(
+    FirestoreSharedList sharedList, 
     String uid, 
     SharedGroup? group
   ) {
     // 基本的にはアクセス権限と同じ
     // 将来的にはより細かい権限制御を追加可能
-    return canAccessShoppingList(shoppingList, uid, group);
+    return canAccessSharedList(sharedList, uid, group);
   }
 
   /// ユーザーがSharedGroupを管理する権限を持つかどうかをチェック
@@ -94,9 +94,9 @@ class AccessControlHelper {
   /// 統合アクセスチェック（開発環境考慮）
   static bool checkAccess({
     required String operation, // 'read', 'write', 'create', 'delete'
-    required String resourceType, // 'shoppingList', 'SharedGroup'
+    required String resourceType, // 'sharedList', 'SharedGroup'
     required String uid,
-    FirestoreShoppingList? shoppingList,
+    FirestoreSharedList? sharedList,
     SharedGroup? group,
   }) {
     // 開発環境では全てのアクセスを許可
@@ -106,15 +106,15 @@ class AccessControlHelper {
     
     // 本番環境での詳細チェック
     switch (resourceType) {
-      case 'shoppingList':
-        if (shoppingList == null) return false;
+      case 'sharedList':
+        if (sharedList == null) return false;
         switch (operation) {
           case 'read':
           case 'write':
-            return canAccessShoppingList(shoppingList, uid, group);
+            return canAccessSharedList(sharedList, uid, group);
           case 'create':
           case 'delete':
-            return shoppingList.hasOwnerAccess(uid);
+            return sharedList.hasOwnerAccess(uid);
           default:
             return false;
         }

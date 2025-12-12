@@ -14,7 +14,7 @@ class UserPreferencesService {
 
   // UserSettings相当のキー（Hive Boxから移行）
   static const String _keyLastUsedGroupId = 'last_used_group_id';
-  static const String _keyLastUsedShoppingListId = 'last_used_shopping_list_id';
+  static const String _keyLastUsedSharedListId = 'last_used_shopping_list_id';
   static const String _keyAppMode = 'app_mode'; // 0=shopping, 1=todo
   static const String _keyEnableListNotifications = 'enable_list_notifications';
 
@@ -314,31 +314,31 @@ class UserPreferencesService {
   }
 
   /// 最後に使用したリストIDを取得
-  static Future<String> getLastUsedShoppingListId() async {
+  static Future<String> getLastUsedSharedListId() async {
     return await ErrorHandler.handleAsync(
           operation: () async {
             final prefs = await SharedPreferences.getInstance();
-            final listId = prefs.getString(_keyLastUsedShoppingListId) ?? '';
+            final listId = prefs.getString(_keyLastUsedSharedListId) ?? '';
             Log.info('📱 最後に使用したリストID: $listId');
             return listId;
           },
-          context: 'USER_PREFS:getLastUsedShoppingListId',
+          context: 'USER_PREFS:getLastUsedSharedListId',
           defaultValue: '',
         ) ??
         '';
   }
 
   /// 最後に使用したリストIDを保存
-  static Future<bool> saveLastUsedShoppingListId(String listId) async {
+  static Future<bool> saveLastUsedSharedListId(String listId) async {
     return await ErrorHandler.handleAsync(
           operation: () async {
             final prefs = await SharedPreferences.getInstance();
             final success =
-                await prefs.setString(_keyLastUsedShoppingListId, listId);
+                await prefs.setString(_keyLastUsedSharedListId, listId);
             Log.info('💾 最後に使用したリストID保存: $listId - 成功: $success');
             return success;
           },
-          context: 'USER_PREFS:saveLastUsedShoppingListId',
+          context: 'USER_PREFS:saveLastUsedSharedListId',
           defaultValue: false,
         ) ??
         false;
