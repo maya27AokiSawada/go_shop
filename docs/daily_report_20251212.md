@@ -14,11 +14,13 @@
 **目的**: 旧ユーザーアカウントにFirestoreプロファイルが欠落している問題の解決
 
 **実装内容**:
+
 - `FirestoreUserNameService.saveUserName()`: `SetOptions(merge: true)`で自動作成
 - `FirestoreUserNameService.ensureUserProfileExists()`: メールアドレス同期ロジック追加
 - Firebase Auth email → Firestore profile email 比較・更新機能
 
 **変更ファイル**:
+
 - `lib/services/firestore_user_name_service.dart` (L48-230)
 
 ---
@@ -26,6 +28,7 @@
 ### 2. Windows Desktop Firestore スレッド問題対応 ⚠️
 
 **問題**:
+
 ```
 [ERROR:flutter/shell/common/shell.cc(1178)] The 'ui' isolate has called a non-platform thread task on a platform thread.
 ```
@@ -33,6 +36,7 @@
 **初期対応**: すべてのFirestore書き込み操作を`Future.microtask()`でラップ
 
 **変更ファイル**:
+
 - `lib/services/firestore_user_name_service.dart`
 - `lib/datastore/firestore_shared_list_repository.dart`
 - `lib/datastore/firestore_purchase_group_repository.dart`
@@ -47,16 +51,19 @@
 ユーザーから「やっぱりsharedListsサブコレクションが作られません」との報告後、ログ分析で真の原因を発見
 
 **エラーログ**:
+
 ```
 ❌ [REALTIME] Streamエラー: [cloud_firestore/permission-denied] Missing or insufficient permissions
 ```
 
 **真の原因**:
+
 - `firestore.rules`の`isGroupMember()`関数が`resource.data`を使用
 - **新規subcollection作成時には`resource`が存在しない**
 - → 権限チェックが常に失敗
 
 **問題のコード** (firestore.rules L96-113):
+
 ```
 function isGroupMember(groupId) {
   return request.auth != null && (
@@ -77,6 +84,7 @@ match /sharedLists/{listId} {
 **解決策**: `resource.data`の代わりに`get()`関数で親ドキュメントから直接取得
 
 **修正後のコード** (firestore.rules L96-113):
+
 ```
 match /sharedLists/{listId} {
   allow read, create, update, delete: if request.auth != null && (
@@ -87,6 +95,7 @@ match /sharedLists/{listId} {
 ```
 
 **デプロイ**:
+
 ```bash
 firebase deploy --only firestore:rules
 ✅ cloud.firestore: rules file firestore.rules compiled successfully
@@ -102,12 +111,14 @@ firebase deploy --only firestore:rules
 **環境**: Windows Desktop版アプリ
 
 **手順**:
+
 1. アプリ再起動
 2. 新しいリスト作成
 3. アイテム追加
 4. Firestore Consoleで確認
 
 **結果**:
+
 - ✅ **UIに即座に表示** (Hive キャッシュへの保存)
 - ✅ **数秒遅れてFirestoreに反映** (ネットワーク同期)
 - ✅ `[cloud_firestore/permission-denied]`エラー消失
@@ -122,6 +133,7 @@ firebase deploy --only firestore:rules
 **教訓**: スレッドエラーが目立つが、実際の根本原因は別の場所にある場合がある
 
 **分析手順**:
+
 1. 表面的なエラー (スレッド警告) に惑わされず
 2. ログの詳細を分析 (permission-denied)
 3. Firestoreセキュリティルールを確認
@@ -130,12 +142,14 @@ firebase deploy --only firestore:rules
 ### 2. Firestore Security Rules のベストプラクティス
 
 **誤り**: サブコレクション作成時に`resource.data`を使用
+
 ```javascript
 // ❌ 新規ドキュメント作成時は resource が存在しない
 resource.data.allowedUid
 ```
 
 **正解**: 親ドキュメントから直接取得
+
 ```javascript
 // ✅ 親ドキュメントは常に存在する
 get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.allowedUid
@@ -144,10 +158,12 @@ get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.allowedUid
 ### 3. ハイブリッドアーキテクチャの動作確認
 
 **設計通りの動作**:
+
 1. **Hive**: ローカルキャッシュ (即座に反映)
 2. **Firestore**: ネットワーク同期 (1-3秒遅延)
 
 **メリット**:
+
 - オフライン対応
 - レスポンス向上
 - データ永続化
@@ -161,6 +177,7 @@ get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.allowedUid
 **目的**: Windows Desktop Firestoreのスレッド問題を軽減
 
 **実装箇所**:
+
 ```dart
 await Future.microtask(() async {
   await docRef.set(dataToSave, SetOptions(merge: true));
@@ -168,6 +185,7 @@ await Future.microtask(() async {
 ```
 
 **効果**:
+
 - ✅ スレッド警告の頻度減少
 - ⚠️ データ損失は防げていなかった (permissions問題が原因)
 - 💡 将来的には有用な対策
