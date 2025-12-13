@@ -1843,9 +1843,114 @@ static String maskGroupId(String? groupId, {String? currentUserId}) {
 
 ---
 
-## Known Issues (As of 2025-12-12)
+## Known Issues (As of 2025-12-13)
 
-- None currently
+### Android Firestore Sync Error (Unresolved)
+
+**Symptom**: Android app shows red cloud icon with X mark (network disconnected state)
+
+**Occurrence**: After successful APK installation on Android device (SH 54D, Android 15)
+
+**Possible Causes**:
+
+1. **Firebase Configuration Mismatch**:
+
+   - `google-services.json` appId may differ between Windows and Android
+   - Firebase project settings not properly configured for Android flavor
+
+2. **Network Permissions**:
+
+   - Internet permission may be missing in AndroidManifest.xml
+   - Firestore connection timeout issues
+
+3. **Authentication State**:
+
+   - Auth credentials not properly saved/restored on Android
+   - SharedPreferences or Hive data path issues on Android
+
+4. **Firestore Security Rules**:
+   - Android device ID or auth token not matching security rules
+
+**Investigation Plan** (Next Session):
+
+- Check Android logs with `flutter logs -d <device-id>`
+- Verify Firebase Console error logs
+- Confirm `firebase_options.dart` configuration
+- Verify `google-services.json` appId
+- Add Firestore connection debug logging
+
+---
+
+## Recent Implementations (2025-12-13)
+
+### Android Build System Troubleshooting ✅
+
+**Problem**: Android build failed with multiple errors
+
+#### Issue 1: Build Cache Lock
+
+**Error**:
+
+```
+java.io.IOException: Unable to delete directory 'C:\FlutterProject\go_shop\build'
+Failed to delete some children. Process has files open.
+```
+
+**Cause**: Windows debug session locking build directory while attempting Android build
+
+**Solution**: Skip `gradlew clean` and directly run `assembleDebug`:
+
+```bash
+cd android
+./gradlew assembleDebug --no-daemon
+```
+
+#### Issue 2: Flutter Plugin Native Code Not Linked
+
+**Error**:
+
+```
+error: package com.baseflow.geocoding does not exist
+error: package io.flutter.plugins.googlemobileads does not exist
+... (16 errors total)
+```
+
+**Root Cause**: `flutter pub get` not executed properly, GeneratedPluginRegistrant.java missing plugin references
+
+**Solution**:
+
+```bash
+flutter pub get  # Re-fetch plugins
+cd android
+./gradlew assembleDebug --no-daemon  # Build directly
+```
+
+**Result**: ✅ BUILD SUCCESSFUL in 5m 22s
+
+**Generated APKs**:
+
+- `build\app\outputs\flutter-apk\app-dev-debug.apk`
+- `build\app\outputs\flutter-apk\app-prod-debug.apk`
+
+**Installed to**: Android device (SH 54D, Android 15 API 35)
+
+### Technical Learnings
+
+**Flutter Multi-Device Execution**:
+
+- F5 debug launch limited to one device (VS Code restriction)
+- Second device requires separate terminal: `flutter run -d <device-id>`
+- Shared build directory causes lock conflicts during clean operations
+
+**Gradle Best Practices**:
+
+- Clean not always necessary: `./gradlew assembleDebug --no-daemon` works directly
+- `--no-daemon` option prevents lingering Gradle processes and reduces memory usage
+
+**Flutter APK Types**:
+
+- **Debug APK**: Large size (includes debug symbols), for development/testing
+- **Release APK**: Optimized size, for production distribution (`flutter build apk --release`)
 
 ---
 
@@ -1856,16 +1961,19 @@ static String maskGroupId(String? groupId, {String? currentUserId}) {
 **Background**: Windows Desktop users reported shopping lists not syncing to Firestore despite successful Hive saves.
 
 **Problem**:
+
 - Error: `[cloud_firestore/permission-denied] Missing or insufficient permissions`
 - Lists created locally (Hive) but failed to sync to Firestore
 - Initially thought to be Windows Firestore threading issue, but was actually permissions
 
 **Root Cause**:
+
 - `firestore.rules` used `isGroupMember()` function with `resource.data`
 - **Critical Issue**: `resource` doesn't exist during new subcollection document creation
 - Permission check always failed for new `sharedLists` documents
 
 **Problematic Code** (firestore.rules L96-113):
+
 ```javascript
 function isGroupMember(groupId) {
   return request.auth != null && (
@@ -1892,6 +2000,7 @@ match /sharedLists/{listId} {
 ```
 
 **Deployment**:
+
 ```bash
 firebase deploy --only firestore:rules
 ✅ cloud.firestore: rules file firestore.rules compiled successfully
@@ -1899,19 +2008,22 @@ firebase deploy --only firestore:rules
 ```
 
 **Verification Results**:
+
 - ✅ Lists instantly appear in UI (Hive cache)
 - ✅ Lists sync to Firestore after 1-3 seconds (network delay)
 - ✅ No more `permission-denied` errors
 - ✅ Multi-device sync working as expected
 
 **Modified Files**:
+
 - `firestore.rules` (L96-113): sharedLists match block
 
 **Key Learning**:
+
 - Thread errors can be red herrings - always check actual error messages
 - `resource.data` only exists for existing documents, not during creation
 - Use `get()` to fetch parent document data for subcollection permissions
 
-**Commit**: `67a90a1` - "fix: FirestoreセキュリティルールでsharedListsのパーミッション修正"
+**Commit**: `67a90a1` - "fix: Firestore セキュリティルールで sharedLists のパーミッション修正"
 
 ---
