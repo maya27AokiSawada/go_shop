@@ -38,6 +38,16 @@ service cloud.firestore {
                                resource.data.userId == request.auth.uid;
     }
 
+    // 招待コレクション（トップレベル）：QR招待システム用
+    match /invitations/{invitationId} {
+      // 認証済みユーザーは招待の読み取り・作成・更新が可能
+      allow read, create, update: if request.auth != null;
+
+      // 削除は招待作成者のみ可能
+      allow delete: if request.auth != null &&
+                       resource.data.invitedBy == request.auth.uid;
+    }
+
     // 招待ログコレクション：招待受諾の記録用
     match /invitation_logs/{logId} {
       allow read: if request.auth != null;
@@ -97,8 +107,23 @@ service cloud.firestore {
 
       // invitations サブコレクション
       match /invitations/{invitationId} {
-        allow read: if isGroupMember();
-        allow create, update, delete: if isGroupMemberForWrite();
+        // 読み取り：グループメンバーのみ
+        allow read: if request.auth != null && (
+          get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.allowedUid
+        );
+
+        // 作成・更新：グループメンバーのみ
+        allow create, update: if request.auth != null && (
+          get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.allowedUid
+        );
+
+        // 削除：招待作成者または グループオーナーのみ
+        allow delete: if request.auth != null && (
+          resource.data.invitedBy == request.auth.uid ||
+          get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid
+        );
       }
 
       // sharedLists サブコレクション（修正版）
