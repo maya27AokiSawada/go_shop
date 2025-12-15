@@ -510,9 +510,153 @@ Consumer(
 - **App mode UI not updating**: Wrap SegmentedButton in `Consumer` to watch `appModeNotifierProvider`
 - **List deletion not syncing**: Use `deleteSharedList(groupId, listId)` with both parameters to avoid collection group query PERMISSION_DENIED
 
-## Known Issues (As of 2025-12-08)
+## Known Issues (As of 2025-12-15)
 
-- None currently
+### 1. TBA1011 Firestore Sync Error (Unresolved) ⚠️
+
+**Symptom**: Red cloud icon with X mark (network disconnected state)
+
+**Occurrence**: On Android device TBA1011 (JA5-TBA1011, Android 15)
+
+**Error**: `Unable to resolve host firestore.googleapis.com`
+
+**Status**:
+
+- Network connectivity confirmed (ping tests pass)
+- 2-second initialization delay implemented (ineffective)
+- Device can function as QR generation device (Hive local-only mode)
+
+**Suspected Causes**:
+
+- Device-specific DNS configuration
+- Private DNS settings
+- Firestore SDK timing issues
+
+**Workaround**: Use TBA1011 for local operations only, rely on other devices for Firestore sync
+
+### 2. QR Code Scan Non-Responsiveness (Investigation) 🔍
+
+**Symptom**: SH 54D doesn't respond when scanning QR codes from TBA1011
+
+**Implemented Diagnostics**:
+
+- MobileScanner debug logging added
+- QR code size increased to 250px
+- QR data reduced to 5 fields (v3.1 lightweight)
+
+**Next Steps**:
+
+- Verify debug logs show `onDetect` callbacks
+- Test with v3.1 lightweight QR codes
+- Check barcode detection count
+
+---
+
+## Recent Implementations (2025-12-15)
+
+### 1. Android Gradle Build System Root Fix ✅
+
+**Problem**: `flutter run` without flavor specification failed to produce APK
+
+**Root Cause**: Ambiguous flavor dimension when assembling debug APK
+
+**Solution (Fundamental Fix)**:
+
+- Added `missingDimensionStrategy("default", "dev")` in `android/app/build.gradle.kts`
+- Added `android.defaultFlavor=dev` in `android/gradle.properties`
+- Created flavor-specific and device-specific launch configurations in `.vscode/launch.json`
+
+**Modified Files**:
+
+- `android/app/build.gradle.kts` (L47-49): Added missingDimensionStrategy
+- `android/gradle.properties` (L5-6): Added defaultFlavor setting
+- `.vscode/launch.json`: Complete rewrite with 6 configurations
+- `android/app/src/main/AndroidManifest.xml` (L21): Added `usesCleartextTraffic="false"`
+- `lib/main.dart` (L47-53): Added 2-second Android network initialization delay
+
+**Result**:
+✅ `flutter run` consistently uses dev flavor
+✅ Device-specific debugging configurations available
+✅ No more "Gradle build failed to produce an .apk file" errors
+
+### 2. QR Code Invitation System Lightweight Implementation (v3.1) ✅
+
+**Background**: QR codes contained 17 fields (~600 characters), causing complex QR patterns and poor scan reliability
+
+**Implementation**:
+
+#### QR Data Reduction (75% size reduction)
+
+**Before (v3.0)**: 17 fields, ~600 characters (full invitation data in QR)
+**After (v3.1)**: 5 fields, ~150 characters (minimal data + Firestore fetch)
+
+```json
+// v3.1 QR Code Data (lightweight)
+{
+  "invitationId": "abc123",
+  "sharedGroupId": "group_xyz",
+  "securityKey": "secure_key",
+  "type": "secure_qr_invitation",
+  "version": "3.1"
+}
+```
+
+#### Firestore Integration
+
+- Acceptor fetches full invitation details from Firestore using `invitationId`
+- `securityKey` validates Firestore data (prevents tampering)
+- Expiration and status checks performed on Firestore data
+
+#### QR Code Size Optimization
+
+- Increased from 200px to 250px (better scan reliability)
+- Data reduction makes QR pattern simpler
+- **Larger + Simpler QR = Faster Scanning**
+
+#### Backward Compatibility
+
+- Supports both v3.0 (full) and v3.1 (lightweight)
+- Legacy invitations (v2.0 and earlier) still supported
+
+**Modified Files**:
+
+- `lib/services/qr_invitation_service.dart`:
+  - `encodeQRData()`: Minimal data encoding (L160-171)
+  - `decodeQRData()`: Made async, v3.1 support (L174-196)
+  - `_fetchInvitationDetails()`: Fetch from Firestore (L199-257)
+  - `_validateSecureInvitation()`: v3.1 lightweight validation (L260-328)
+  - `generateQRWidget()`: Default size 250px (L331)
+- `lib/widgets/accept_invitation_widget.dart`:
+  - `_processQRInvitation()`: Use `decodeQRData()` with Firestore integration (L203-214)
+  - Added comprehensive MobileScanner debug logs (L137-178)
+- `lib/pages/group_invitation_page.dart`: QR size 250px (L241)
+- `lib/widgets/invite_widget.dart`: QR size 250px (L63)
+- `lib/widgets/qr_invitation_widgets.dart`: QR size 250px (L135)
+
+**Verification**: Pending (requires testing on physical devices)
+
+### 3. MobileScanner Debug Logging Enhancement ✅
+
+**Purpose**: Diagnose QR scan non-responsiveness issue
+
+**Added Logs**:
+
+- `onDetect` callback invocation confirmation
+- `_isProcessing` state tracking
+- Barcode detection count display
+- `rawValue` content preview (first 50 chars)
+- JSON format validation result
+
+**Modified File**: `lib/widgets/accept_invitation_widget.dart` (L137-178)
+
+**Expected Diagnostics**:
+
+- No `onDetect` logs → QR not detected (camera/resolution issue)
+- `Barcode count: 0` → QR not decoded (size/quality issue)
+- `rawValue: null` → Decode failure (data format issue)
+- `JSON format detected` → Success
+
+---
 
 ## Recent Implementations (2025-12-08)
 

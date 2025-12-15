@@ -134,19 +134,37 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
                 MobileScanner(
                   controller: _controller,
                   onDetect: (capture) {
-                    if (_isProcessing) return;
+                    Log.info('🔍 [MOBILE_SCANNER] onDetect呼び出し');
+                    Log.info(
+                        '🔍 [MOBILE_SCANNER] _isProcessing=$_isProcessing');
+
+                    if (_isProcessing) {
+                      Log.info('⚠️ [MOBILE_SCANNER] 既に処理中のためスキップ');
+                      return;
+                    }
 
                     final barcodes = capture.barcodes;
-                    if (barcodes.isEmpty) return;
+                    Log.info('🔍 [MOBILE_SCANNER] バーコード数: ${barcodes.length}');
+
+                    if (barcodes.isEmpty) {
+                      Log.info('⚠️ [MOBILE_SCANNER] バーコードが検出されませんでした');
+                      return;
+                    }
 
                     final rawValue = barcodes.first.rawValue;
+                    Log.info(
+                        '🔍 [MOBILE_SCANNER] rawValue: ${rawValue?.substring(0, rawValue.length > 50 ? 50 : rawValue.length)}...');
+
                     if (rawValue != null) {
                       // QRコードがJSON形式かトークン形式か判定
                       if (rawValue.startsWith('{') ||
                           rawValue.startsWith('[')) {
+                        Log.info('✅ [MOBILE_SCANNER] JSON形式のQRコード検出');
                         // JSON形式 = QR招待
                         _processQRInvitation(rawValue);
                       } else {
+                        Log.warning(
+                            '⚠️ [MOBILE_SCANNER] サポートされないQRコード形式: ${rawValue.substring(0, rawValue.length > 20 ? 20 : rawValue.length)}');
                         // サポートされない形式
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -157,6 +175,8 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
                           );
                         }
                       }
+                    } else {
+                      Log.warning('⚠️ [MOBILE_SCANNER] rawValueがnullです');
                     }
                   },
                 ),
@@ -180,17 +200,19 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
           throw Exception('ユーザー情報が取得できません');
         }
 
-        // QRデータをJSONとしてパース
-        Map<String, dynamic> invitationData;
-        try {
-          invitationData = jsonDecode(qrData) as Map<String, dynamic>;
-          Log.info('🔍 [QR_SCAN] 受信したQRデータ: $qrData');
-          Log.info(
-              '🔍 [QR_SCAN] SharedGroupId: ${invitationData['SharedGroupId']}');
-          Log.info('🔍 [QR_SCAN] groupName: ${invitationData['groupName']}');
-        } catch (e) {
+        // QRデータをパース＆Firestoreから詳細取得（v3.1軽量版対応）
+        final qrService = ref.read(qrInvitationServiceProvider);
+        final invitationData = await qrService.decodeQRData(qrData);
+
+        if (invitationData == null) {
           throw Exception('無効なQRコード形式です');
         }
+
+        Log.info(
+            '🔍 [QR_SCAN] 受信したQRデータ: ${qrData.substring(0, qrData.length > 100 ? 100 : qrData.length)}...');
+        Log.info(
+            '🔍 [QR_SCAN] SharedGroupId: ${invitationData['sharedGroupId']}');
+        Log.info('🔍 [QR_SCAN] groupName: ${invitationData['groupName']}');
 
         // 確認ダイアログ
         final groupName = invitationData['groupName'] as String? ?? '不明なグループ';

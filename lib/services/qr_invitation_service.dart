@@ -157,20 +157,36 @@ class QRInvitationService {
     return invitationData;
   }
 
-  /// QRコードデータをJSONエンコード
+  /// QRコードデータをJSONエンコード（軽量版: 必須データのみ）
   String encodeQRData(Map<String, dynamic> invitationData) {
-    return jsonEncode(invitationData);
+    // QRコードには最小限のデータのみ含める（スキャン精度向上のため）
+    final minimalData = {
+      'invitationId': invitationData['invitationId'],
+      'sharedGroupId': invitationData['sharedGroupId'],
+      'securityKey': invitationData['securityKey'],
+      'type': 'secure_qr_invitation',
+      'version': '3.1', // 軽量版
+    };
+    return jsonEncode(minimalData);
   }
 
   /// QRコードデータをJSONデコード（セキュリティ検証付き）
-  Map<String, dynamic>? decodeQRData(String qrData) {
+  Future<Map<String, dynamic>?> decodeQRData(String qrData) async {
     try {
       final decoded = jsonDecode(qrData) as Map<String, dynamic>;
 
       // バージョンチェック
       final version = decoded['version'] as String?;
-      if (version == '3.0') {
-        return _validateSecureInvitation(decoded);
+      if (version == '3.0' || version == '3.1') {
+        final validated = _validateSecureInvitation(decoded);
+        if (validated == null) return null;
+
+        // v3.1（軽量版）の場合はFirestoreから詳細を取得
+        if (version == '3.1') {
+          return await _fetchInvitationDetails(validated);
+        }
+
+        return validated;
       } else {
         return _validateLegacyInvitation(decoded);
       }
@@ -180,10 +196,78 @@ class QRInvitationService {
     }
   }
 
-  /// セキュア招待（v3.0）の検証
+  /// Firestoreから招待詳細を取得（v3.1軽量版用）
+  Future<Map<String, dynamic>?> _fetchInvitationDetails(
+      Map<String, dynamic> minimalData) async {
+    try {
+      final invitationId = minimalData['invitationId'] as String;
+      final sharedGroupId = minimalData['sharedGroupId'] as String;
+      final securityKey = minimalData['securityKey'] as String;
+
+      Log.info('📥 Firestoreから招待詳細を取得: $invitationId');
+
+      // Firestoreから招待詳細を取得
+      final invitationDoc = await _firestore
+          .collection('SharedGroups')
+          .doc(sharedGroupId)
+          .collection('invitations')
+          .doc(invitationId)
+          .get();
+
+      if (!invitationDoc.exists) {
+        Log.error('❌ 招待が見つかりません: $invitationId');
+        return null;
+      }
+
+      final invitationData = invitationDoc.data()!;
+
+      // セキュリティキー検証
+      if (invitationData['securityKey'] != securityKey) {
+        Log.error('❌ セキュリティキーが一致しません');
+        return null;
+      }
+
+      // 有効期限チェック
+      final expiresAt = (invitationData['expiresAt'] as Timestamp).toDate();
+      if (DateTime.now().isAfter(expiresAt)) {
+        Log.error('❌ 招待の有効期限切れ');
+        return null;
+      }
+
+      // ステータスチェック
+      final status = invitationData['status'] as String?;
+      if (status != 'pending') {
+        Log.error('❌ 招待のステータスが無効: $status');
+        return null;
+      }
+
+      Log.info('✅ 招待詳細取得成功');
+      return invitationData;
+    } catch (e) {
+      Log.error('❌ 招待詳細取得エラー: $e');
+      return null;
+    }
+  }
+
+  /// セキュア招待（v3.0/v3.1）の検証
   Map<String, dynamic>? _validateSecureInvitation(
       Map<String, dynamic> decoded) {
-    // 必須フィールドのチェック
+    final version = decoded['version'] as String?;
+
+    // v3.1（軽量版）: 最小限のフィールドのみチェック
+    if (version == '3.1') {
+      if (decoded['type'] != 'secure_qr_invitation' ||
+          decoded['invitationId'] == null ||
+          decoded['sharedGroupId'] == null ||
+          decoded['securityKey'] == null) {
+        Log.info('セキュア招待データ（軽量版）の必須フィールドが不足');
+        return null;
+      }
+      // 軽量版: Firestoreから詳細取得するためここではバリデーションのみ
+      return decoded;
+    }
+
+    // v3.0（フル版）: 全フィールドチェック（後方互換性）
     if (decoded['type'] != 'secure_qr_invitation' ||
         decoded['invitationId'] == null ||
         decoded['inviterUid'] == null ||
@@ -242,8 +326,8 @@ class QRInvitationService {
     return null;
   }
 
-  /// QRコードウィジェットを生成
-  Widget generateQRWidget(String qrData, {double size = 200.0}) {
+  /// QRコードウィジェットを生成（デフォルトサイズ250でスキャン精度向上）
+  Widget generateQRWidget(String qrData, {double size = 250.0}) {
     return Container(
       padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(

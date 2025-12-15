@@ -44,6 +44,9 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // デフォルトflavorをdevに設定（本質的な解決）
+        missingDimensionStrategy("default", "dev")
     }
 
     flavorDimensions += "default"
