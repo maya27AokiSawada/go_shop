@@ -5,21 +5,64 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "go_shop",
+            "name": "go_shop (dev)",
             "request": "launch",
-            "type": "dart"
+            "type": "dart",
+            "args": [
+                "--flavor",
+                "dev"
+            ]
+        },
+        {
+            "name": "go_shop (prod)",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "--flavor",
+                "prod"
+            ]
+        },
+        {
+            "name": "go_shop (dev) - SH 54D",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "--flavor",
+                "dev",
+                "-d",
+                "192.168.0.36:38995"
+            ]
+        },
+        {
+            "name": "go_shop (dev) - TBA1011",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "--flavor",
+                "dev",
+                "-d",
+                "192.168.0.25:5555"
+            ]
         },
         {
             "name": "go_shop (profile mode)",
             "request": "launch",
             "type": "dart",
-            "flutterMode": "profile"
+            "flutterMode": "profile",
+            "args": [
+                "--flavor",
+                "dev"
+            ]
         },
         {
             "name": "go_shop (release mode)",
             "request": "launch",
             "type": "dart",
-            "flutterMode": "release"
+            "flutterMode": "release",
+            "args": [
+                "--flavor",
+                "prod"
+            ]
         }
     ]
 }

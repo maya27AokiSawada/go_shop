@@ -132,8 +132,8 @@ class QRInviteDialog extends ConsumerWidget {
             ),
             const SizedBox(height: 20),
 
-            // QRコード
-            qrService.generateQRWidget(qrData, size: 200.0),
+            // QRコード（サイズを250に増加してスキャン精度向上）
+            qrService.generateQRWidget(qrData, size: 250.0),
             const SizedBox(height: 20),
 
             // 招待情報

@@ -238,7 +238,7 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
                         ? QrImageView(
                             data: _qrData!,
                             version: QrVersions.auto,
-                            size: 200.0,
+                            size: 250.0,
                             backgroundColor: Colors.white,
                           )
                         : const SizedBox(

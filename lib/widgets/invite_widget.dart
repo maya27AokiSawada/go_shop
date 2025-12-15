@@ -60,7 +60,7 @@ class InviteWidget extends ConsumerWidget {
                   QrImageView(
                     data: inviteCode,
                     version: QrVersions.auto,
-                    size: 180.0,
+                    size: 250.0,
                     backgroundColor: Colors.white,
                   ),
                   const SizedBox(height: 8),
