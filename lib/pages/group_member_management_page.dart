@@ -45,6 +45,17 @@ class _GroupMemberManagementPageState
             icon: const Icon(Icons.person_add),
             tooltip: 'メンバーを招待',
             onPressed: () {
+              // 権限チェック
+              if (!_canInviteMembers()) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('メンバーを招待できるのはオーナー、管理者、パートナーのみです'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                return;
+              }
+
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -267,7 +278,40 @@ class _GroupMemberManagementPageState
     }
   }
 
+  /// 現在のユーザーが招待権限を持っているかチェック
+  bool _canInviteMembers() {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return false;
+
+    final currentMember = widget.group.members?.firstWhere(
+      (member) => member.memberId == currentUser.uid,
+      orElse: () => const SharedGroupMember(
+        memberId: '',
+        name: '',
+        contact: '',
+        role: SharedGroupRole.member,
+      ),
+    );
+
+    // owner、manager、partnerのみ招待可能
+    return currentMember != null &&
+        (currentMember.role == SharedGroupRole.owner ||
+            currentMember.role == SharedGroupRole.manager ||
+            currentMember.role == SharedGroupRole.partner);
+  }
+
   void _showInviteOptions(BuildContext context) {
+    // 権限チェック
+    if (!_canInviteMembers()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('メンバーを招待できるのはオーナー、管理者、パートナーのみです'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     showModalBottomSheet(
       context: context,
       builder: (context) => Container(
