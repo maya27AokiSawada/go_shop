@@ -107,13 +107,10 @@ service cloud.firestore {
 
       // invitations サブコレクション
       match /invitations/{invitationId} {
-        // 読み取り：グループメンバーのみ
-        allow read: if request.auth != null && (
-          get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid ||
-          request.auth.uid in get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.allowedUid
-        );
+        // 読み取り：認証済みユーザー全員（招待を受け取る人はまだメンバーではない）
+        allow read: if request.auth != null;
 
-        // 作成・更新：グループメンバーのみ
+        // 作成・更新：グループメンバーのみ（招待を作成する人）
         allow create, update: if request.auth != null && (
           get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid ||
           request.auth.uid in get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.allowedUid
