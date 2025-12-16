@@ -1,5 +1,27 @@
 # Go Shop - AI Coding Agent Instructions
 
+## ⚠️ Critical Project Rules
+
+### Git Push Policy
+
+**IMPORTANT**: Always follow this push strategy unless explicitly instructed otherwise:
+
+- **Default**: Push to `oneness` branch only
+
+  ```bash
+  git push origin oneness
+  ```
+
+- **When explicitly instructed**: Push to both `oneness` and `main`
+  ```bash
+  git push origin oneness
+  git push origin oneness:main
+  ```
+
+**Reasoning**: `oneness` branch is for active development and testing. `main` branch receives stable, tested changes only when explicitly approved by the user.
+
+---
+
 ## Project Overview
 
 Go Shop は家族・グループ向けの買い物リスト共有 Flutter アプリです。Firebase Auth（ユーザー認証）と Cloud Firestore（データベース）を使用し、Hive をローカルキャッシュとして併用するハイブリッド構成です。
