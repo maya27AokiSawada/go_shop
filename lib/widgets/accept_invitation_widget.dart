@@ -1,5 +1,4 @@
 // lib/widgets/accept_invitation_widget.dart
-import 'dart:convert';
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -7,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../providers/auth_provider.dart';
+import '../providers/purchase_group_provider.dart';
 import '../services/qr_invitation_service.dart';
 import '../utils/app_logger.dart';
 import '../utils/error_handler.dart';
@@ -214,8 +214,34 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
             '🔍 [QR_SCAN] SharedGroupId: ${invitationData['sharedGroupId']}');
         Log.info('🔍 [QR_SCAN] groupName: ${invitationData['groupName']}');
 
-        // 確認ダイアログ
         final groupName = invitationData['groupName'] as String? ?? '不明なグループ';
+        final groupId = invitationData['sharedGroupId'] as String;
+
+        // すでにグループメンバーかチェック
+        final groupRepository = ref.read(SharedGroupRepositoryProvider);
+        try {
+          final existingGroup = await groupRepository.getGroupById(groupId);
+
+          if (existingGroup.allowedUid.contains(user.uid)) {
+            Log.info('💡 [QR_SCAN] すでにグループメンバー: ${user.uid}');
+            if (mounted) {
+              Navigator.of(context).pop(); // スキャナー画面を閉じる
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('すでに「$groupName」に参加しています'),
+                  backgroundColor: Colors.blue,
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+            }
+            return;
+          }
+        } catch (e) {
+          // グループが見つからない場合は新規参加として続行
+          Log.info('📝 [QR_SCAN] グループ未参加 - 確認ダイアログ表示');
+        }
+
+        // 確認ダイアログ
         final confirmed = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
