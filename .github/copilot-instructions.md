@@ -574,6 +574,125 @@ Consumer(
 
 ---
 
+## Recent Implementations (2025-12-16)
+
+### 1. QR Invitation Duplicate Check Implementation ✅
+
+**Purpose**: Prevent confusing "invitation accepted" message when scanning QR codes for already-joined groups.
+
+**Implementation**:
+
+- **File**: `lib/widgets/accept_invitation_widget.dart` (Lines 220-245)
+
+  - Added member check logic immediately after QR scan
+  - Check if `user.uid` exists in `existingGroup.allowedUid`
+  - Show "すでに「○○」に参加しています" message for duplicate invitations
+  - Close scanner screen without showing confirmation dialog
+  - Added `mounted` check to fix BuildContext async error
+
+- **File**: `lib/services/qr_invitation_service.dart` (Lines 464-481)
+  - Removed duplicate check logic from service layer (UI layer now handles it)
+
+**Test Results**:
+✅ TBA1011 + SH 54D two-device physical test passed
+✅ "すでに参加しています" message displays correctly
+✅ WiFi simultaneous connection Firestore sync error resolved by switching to mobile network
+
+**Commits**:
+
+- 2e9d181: QR invitation duplicate check implementation
+- e53b6d8: BuildContext async error fix
+- 7c332d6: launch.json update (pushed to both oneness and main)
+
+### 2. New Account Registration Hive Data Clear Fix ✅
+
+**Problem**: Previous user's group and list data remained after sign-out → new account creation.
+
+**Solution**:
+
+- **File**: `lib/pages/home_page.dart` (Lines 92-106)
+  - Added Hive box clear operations in signUp process
+  - `SharedGroupBox.clear()`, `sharedListBox.clear()`
+  - Provider invalidation: `ref.invalidate(allGroupsProvider)` etc.
+  - 300ms delay to ensure UI update
+
+**Verification**: ✅ Implemented and committed
+
+### 3. User Name Setting Logic Issue (In Progress) ⚠️
+
+**Problem**: UI input "まや" resulted in "fatima.sumomo" (email prefix) being set.
+
+**Investigation & Fix Attempt**:
+
+- **File**: `lib/services/firestore_user_name_service.dart` (Lines 223-249)
+  - **Root Cause**: `ensureUserProfileExists()` ignored `userName` parameter when profile already existed
+  - **Fix**: Added priority check for `userName` parameter
+    ```dart
+    if (userName != null && userName.isNotEmpty) {
+      // Always use userName parameter (both for new creation and existing update)
+      await docRef.set(dataToSave, SetOptions(merge: true));
+      return;
+    }
+    ```
+
+**Test Status**:
+
+- TBA1011 debug launch successful (`flutter run -d JA0023942506007867 --flavor dev`)
+- Test with "すもも" + `fatima.yatomi@outlook.com` → Same issue occurred
+- **Status**: Not yet resolved, requires further investigation
+
+**Next Investigation Points**:
+
+- Verify `ensureUserProfileExists(userName: userName)` call in home_page.dart
+- Check Firebase Auth displayName update timing
+- Test after complete app restart (not just hot reload)
+- Confirm actual Firestore write content via adb logcat
+
+### 4. Test Checklist Creation ✅
+
+**File**: `docs/test_checklist_20251216.md`
+
+- 13 categories of comprehensive test items
+- QR invitation duplicate check items added
+
+### 5. Device Configuration Update ✅
+
+**File**: `.vscode/launch.json`
+
+- SH 54D IP address updated: 192.168.0.12:39955
+
+**Commit**: 7c332d6
+
+---
+
+## Known Issues (As of 2025-12-16)
+
+### User Name Setting Logic Bug (Under Investigation) ⚠️
+
+**Symptom**: UI text input ignored, email prefix used instead
+
+**Occurrence**: New account creation on Android device
+
+**Status**:
+
+- firestore_user_name_service.dart modified
+- SetOptions(merge: true) implementation added
+- Test execution pending (requires complete app restart)
+
+**Suspected Causes**:
+
+- home_page.dart signUp process may not pass userName parameter correctly
+- Firebase Auth displayName update timing issue
+- Hot reload not reflecting code changes
+
+**Next Steps**:
+
+- Debug home_page.dart signUp process
+- Verify Firestore actual write content
+- Test after complete app restart
+
+---
+
 ## Recent Implementations (2025-12-15)
 
 ### 1. Android Gradle Build System Root Fix ✅

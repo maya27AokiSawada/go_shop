@@ -192,15 +192,44 @@ class FirestoreUserNameService {
 
       final currentEmail = user.email ?? '';
 
+      // userNameパラメータが指定されている場合は、必ず使用する（新規作成時も既存更新時も）
+      if (userName != null && userName.isNotEmpty) {
+        Log.info(
+            '📝 [PROFILE] 指定されたユーザー名で作成/更新: ${AppLogger.maskName(userName)}');
+
+        final dataToSave = {
+          'userName': userName,
+          'userEmail': currentEmail,
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+
+        if (!docSnapshot.exists) {
+          // 新規作成時はcreatedAtも追加
+          dataToSave['createdAt'] = FieldValue.serverTimestamp();
+          Log.info('📝 [FIRESTORE WRITE] set()実行前（新規作成） - データ: $dataToSave');
+        } else {
+          Log.info('📝 [FIRESTORE WRITE] set()実行前（既存更新） - データ: $dataToSave');
+        }
+
+        // Windows版Firestoreのスレッド問題を回避するため、メインスレッドで実行
+        await Future.microtask(() async {
+          await docRef.set(dataToSave, SetOptions(merge: true));
+        });
+
+        Log.info('✅ [FIRESTORE WRITE] set()実行完了');
+        Log.info(
+            '✅ [PROFILE] ユーザー名を作成/更新: ${AppLogger.maskName(userName)} (UID: ${AppLogger.maskUserId(user.uid)})');
+        return;
+      }
+
+      // userNameパラメータがない場合のみ、既存データまたはデフォルト値を使用
       if (!docSnapshot.exists) {
         // プロファイルが存在しない場合は作成
-        final defaultUserName = userName ??
-            user.displayName ??
-            user.email?.split('@').first ??
-            'ユーザー';
+        final defaultUserName =
+            user.displayName ?? user.email?.split('@').first ?? 'ユーザー';
 
         Log.info(
-            '📝 [PROFILE] ドキュメント作成開始: ${AppLogger.maskName(defaultUserName)}');
+            '📝 [PROFILE] ドキュメント作成開始（デフォルト値使用）: ${AppLogger.maskName(defaultUserName)}');
 
         final createData = {
           'userName': defaultUserName,
