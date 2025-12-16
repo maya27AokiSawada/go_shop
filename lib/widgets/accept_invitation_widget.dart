@@ -242,6 +242,7 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
         }
 
         // 確認ダイアログ
+        if (!mounted) return;
         final confirmed = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
