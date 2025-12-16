@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
+import '../providers/hive_provider.dart';
+import '../providers/purchase_group_provider.dart';
+import '../providers/shared_list_provider.dart' hide sharedListBoxProvider;
 import '../services/user_preferences_service.dart';
 import '../services/user_initialization_service.dart';
 import '../services/firestore_user_name_service.dart';
@@ -89,6 +92,20 @@ class _HomePageState extends ConsumerState<HomePage> {
       // 新規登録
       await ref.read(authProvider).signUp(email, password);
       AppLogger.info('✅ [SIGNUP] 新規ユーザー登録成功');
+
+      // 🆕 Hiveデータをクリア（前のユーザーのデータを削除）
+      final SharedGroupBox = ref.read(SharedGroupBoxProvider);
+      final sharedListBox = ref.read(sharedListBoxProvider);
+      await SharedGroupBox.clear();
+      await sharedListBox.clear();
+      AppLogger.info('🗑️ [SIGNUP] 前ユーザーのHiveデータをクリア完了');
+
+      // プロバイダーを無効化（UIをリセット）
+      ref.invalidate(allGroupsProvider);
+      ref.invalidate(selectedGroupProvider);
+      ref.invalidate(sharedListProvider);
+      await Future.delayed(const Duration(milliseconds: 300));
+      AppLogger.info('🔄 [SIGNUP] プロバイダー無効化完了');
 
       // Firebase Authのディスプレイネームを更新
       final user = ref.read(authProvider).currentUser;
