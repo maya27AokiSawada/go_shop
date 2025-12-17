@@ -437,10 +437,24 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
           '🔍 [ALL GROUPS] Hive Raw取得: ${allGroupsRaw.length}グループ（削除済み含む）');
 
       // 削除済みグループをフィルタリング
-      final allGroups = allGroupsRaw.where((g) => !g.isDeleted).toList();
+      var allGroups = allGroupsRaw.where((g) => !g.isDeleted).toList();
       final deletedCount = allGroupsRaw.length - allGroups.length;
       if (deletedCount > 0) {
         Log.info('🗑️ [ALL GROUPS] 削除済みグループを除外: $deletedCount グループ');
+      }
+
+      // 🔥 CRITICAL: allowedUidに現在ユーザーが含まれないグループを除外
+      final currentUser = ref.read(authStateProvider).value;
+      if (currentUser != null) {
+        final beforeFilterCount = allGroups.length;
+        allGroups = allGroups
+            .where((g) => g.allowedUid.contains(currentUser.uid))
+            .toList();
+        final invalidCount = beforeFilterCount - allGroups.length;
+        if (invalidCount > 0) {
+          Log.warning(
+              '⚠️ [ALL GROUPS] allowedUid不一致グループを除外: $invalidCount グループ');
+        }
       }
 
       Log.info('🔄 [ALL GROUPS] Hive直接取得完了: ${allGroups.length}グループ');
@@ -755,9 +769,6 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
       final defaultGroupName = '$displayNameグループ';
       Log.info('📝 [CREATE DEFAULT] グループ作成: $defaultGroupName');
 
-      Log.info(
-          '🔍 [CREATE DEFAULT] 直接Hiveリポジトリ使用: ${hiveRepository.runtimeType}');
-
       // Hive初期化完了を待機
       if (!hiveReady) {
         Log.info('⏳ [CREATE DEFAULT] Hive初期化完了待機中...');
@@ -765,7 +776,79 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
         Log.info('✅ [CREATE DEFAULT] Hive初期化完了');
       }
 
-      // ⚠️ 既存グループチェック: すでに存在する場合はスキップ
+      // 🔥 CRITICAL: サインイン状態ではFirestoreを優先チェック
+      if (user != null && F.appFlavor == Flavor.prod) {
+        Log.info('🔥 [CREATE DEFAULT] サインイン状態 - Firestoreから既存グループ確認');
+
+        try {
+          // Firestoreから全グループ取得
+          final firestore = FirebaseFirestore.instance;
+          final groupsSnapshot = await firestore
+              .collection('SharedGroups')
+              .where('allowedUid', arrayContains: user.uid)
+              .get();
+
+          Log.info(
+              '📊 [CREATE DEFAULT] Firestoreに${groupsSnapshot.docs.length}グループ存在');
+
+          // デフォルトグループ（groupId = user.uid）が存在するか確認
+          final defaultGroupDoc = groupsSnapshot.docs.firstWhere(
+            (doc) => doc.id == defaultGroupId,
+            orElse: () => throw Exception('デフォルトグループなし'),
+          );
+
+          // Firestoreにデフォルトグループが存在する！
+          Log.info('✅ [CREATE DEFAULT] Firestoreにデフォルトグループ存在 - Hiveに同期');
+
+          // FirestoreからSharedGroupモデルに変換
+          final data = defaultGroupDoc.data();
+          final firestoreGroup = SharedGroup(
+            groupId: data['groupId'] as String,
+            groupName: data['groupName'] as String,
+            ownerUid: data['ownerUid'] as String,
+            allowedUid: (data['allowedUid'] as List<dynamic>?)
+                    ?.map((e) => e.toString())
+                    .toList() ??
+                [],
+            members: (data['members'] as List<dynamic>?)?.map((m) {
+                  final memberData = m as Map<String, dynamic>;
+                  return SharedGroupMember(
+                    memberId: memberData['memberId'] as String,
+                    name: memberData['name'] as String,
+                    contact: memberData['contact'] as String? ?? '',
+                    role: _parseRole(memberData['role'] as String?),
+                    isSignedIn: memberData['isSignedIn'] as bool? ?? false,
+                    isInvited: memberData['isInvited'] as bool? ?? false,
+                    isInvitationAccepted:
+                        memberData['isInvitationAccepted'] as bool? ?? false,
+                  );
+                }).toList() ??
+                [],
+            syncStatus: models.SyncStatus.synced,
+            isDeleted: false,
+          );
+
+          // Hiveに保存
+          await hiveRepository.saveGroup(firestoreGroup);
+          Log.info('✅ [CREATE DEFAULT] FirestoreグループをHiveに保存完了');
+
+          // 🔥 CRITICAL: Hiveクリーンアップ - allowedUidに含まれないグループを削除
+          await _cleanupInvalidHiveGroups(user.uid, hiveRepository);
+
+          Log.info('✅ [CREATE DEFAULT] 初期化完了 - 作成不要');
+          return;
+        } catch (e) {
+          Log.info('💡 [CREATE DEFAULT] Firestoreにデフォルトグループなし: $e');
+          Log.info('📝 [CREATE DEFAULT] 新規作成を続行');
+
+          // 🔥 CRITICAL: 新規作成前にもHiveクリーンアップ
+          await _cleanupInvalidHiveGroups(user.uid, hiveRepository);
+        }
+      } else {
+        Log.info('🔍 [CREATE DEFAULT] オフラインまたはdev環境 - Hiveのみチェック');
+      }
+
+      // ⚠️ 既存グループチェック（Hive）: すでに存在する場合はスキップ
       try {
         final existingGroup = await hiveRepository.getGroupById(defaultGroupId);
         Log.info(
@@ -1313,4 +1396,50 @@ enum SyncStatus {
   offline, // オフライン
   syncing, // 同期中
   synced, // 同期済み
+}
+
+/// SharedGroupRoleをパース（Firestoreデータ変換用）
+SharedGroupRole _parseRole(String? roleString) {
+  switch (roleString) {
+    case 'owner':
+      return SharedGroupRole.owner;
+    case 'member':
+      return SharedGroupRole.member;
+    default:
+      return SharedGroupRole.member;
+  }
+}
+
+/// Hiveから不正なグループを削除（allowedUidに現在ユーザーが含まれないもの）
+Future<void> _cleanupInvalidHiveGroups(
+  String currentUserId,
+  HiveSharedGroupRepository hiveRepository,
+) async {
+  try {
+    Log.info(
+        '🧹 [CLEANUP] Hiveクリーンアップ開始 - currentUserId: ${AppLogger.maskUserId(currentUserId)}');
+
+    final allHiveGroups = await hiveRepository.getAllGroups();
+    Log.info('🧹 [CLEANUP] Hive内グループ数: ${allHiveGroups.length}');
+
+    int deletedCount = 0;
+    for (final group in allHiveGroups) {
+      // allowedUidに現在のユーザーが含まれているか確認
+      if (!group.allowedUid.contains(currentUserId)) {
+        Log.info(
+            '🗑️ [CLEANUP] Hiveから削除（Firestoreは保持）: ${AppLogger.maskGroup(group.groupName, group.groupId)} - allowedUid: ${group.allowedUid.map((uid) => AppLogger.maskUserId(uid)).toList()}');
+        await hiveRepository
+            .deleteGroup(group.groupId); // ⚠️ Hiveのみから削除、Firestoreは削除しない
+        deletedCount++;
+      }
+    }
+
+    if (deletedCount > 0) {
+      Log.info('✅ [CLEANUP] $deletedCount個の不正グループをHiveから削除（Firestoreは保持）');
+    } else {
+      Log.info('✅ [CLEANUP] 削除対象なし - Hiveは正常');
+    }
+  } catch (e) {
+    Log.error('❌ [CLEANUP] Hiveクリーンアップエラー: $e');
+  }
 }

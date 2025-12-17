@@ -238,9 +238,17 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
 
   /// 内部用：初期化待機なしでグループを取得
   Future<List<SharedGroup>> _getAllGroupsInternal() async {
+    AppLogger.info(
+        '🔍 [HYBRID] _getAllGroupsInternal開始 - Flavor: ${F.appFlavor}, Online: $_isOnline');
     try {
       // 1. まずHiveから取得（高速）
       final cachedGroups = await _hiveRepo.getAllGroups();
+      AppLogger.info('📦 [HYBRID] Hiveから${cachedGroups.length}グループ取得');
+      AppLogger.info('📦 [HYBRID] Hiveから${cachedGroups.length}グループ取得');
+      for (var group in cachedGroups) {
+        AppLogger.info(
+            '  📦 [HIVE] ${AppLogger.maskGroup(group.groupName, group.groupId)} - allowedUid: ${group.allowedUid.map((uid) => AppLogger.maskUserId(uid)).toList()}');
+      }
 
       if (F.appFlavor == Flavor.dev || !_isOnline) {
         // Dev環境またはオフライン時はHiveのみ
@@ -253,9 +261,16 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
           F.appFlavor == Flavor.prod &&
           _firestoreRepo != null) {
         developer.log('🔍 Hiveが空です。Firestoreから復旧を試みます...');
+        AppLogger.info('🔍 [HYBRID] Hive空、Firestoreフォールバック開始...');
         try {
           final firestoreGroups = await _firestoreRepo!.getAllGroups();
           developer.log('✅ Firestore復旧: ${firestoreGroups.length}グループを取得');
+          AppLogger.info(
+              '✅ [HYBRID] Firestoreから${firestoreGroups.length}グループ取得');
+          for (var group in firestoreGroups) {
+            AppLogger.info(
+                '  📡 [FIRESTORE] ${AppLogger.maskGroup(group.groupName, group.groupId)} - allowedUid: ${group.allowedUid.map((uid) => AppLogger.maskUserId(uid)).toList()}');
+          }
 
           // Hiveにキャッシュ
           for (final group in firestoreGroups) {
