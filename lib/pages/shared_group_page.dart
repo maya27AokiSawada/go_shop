@@ -51,48 +51,11 @@ class _SharedGroupPageState extends ConsumerState<SharedGroupPage> {
 
     Log.info('🏷️ [PAGE BUILD] SharedGroupPage表示開始');
 
-    // グループ数をチェックしてローディング表示
-    final allGroupsAsync = ref.watch(allGroupsProvider);
-
     return Scaffold(
-      body: SafeArea(
+      body: const SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: allGroupsAsync.when(
-            data: (groups) {
-              // グループが0件の場合はローディング表示
-              if (groups.isEmpty) {
-                return const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 16),
-                      Text(
-                        'グループを準備中...',
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                );
-              }
-              return const GroupListWidget();
-            },
-            loading: () => const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text(
-                    'グループを読み込み中...',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
-            error: (error, stack) => const GroupListWidget(), // エラー時は通常表示
-          ),
+          padding: EdgeInsets.all(16.0),
+          child: GroupListWidget(),
         ),
       ),
       floatingActionButton: Column(

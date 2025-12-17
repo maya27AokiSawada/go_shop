@@ -107,6 +107,8 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
 
       final currentUserId = currentUser.uid;
       developer.log('🔥 [FIRESTORE] Fetching groups for user: $currentUserId');
+      AppLogger.info(
+          '🔥 [FIRESTORE_REPO] getAllGroups開始 - currentUserId: ${AppLogger.maskUserId(currentUserId)}');
 
       // 新しいアーキテクチャ: ルートの'SharedGroups'をクエリ
       final groupsSnapshot = await _groupsCollection
@@ -115,6 +117,15 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
 
       developer.log(
           '🔥 [FIRESTORE] Fetched groups count: ${groupsSnapshot.docs.length}');
+      AppLogger.info('✅ [FIRESTORE_REPO] ${groupsSnapshot.docs.length}グループ取得');
+
+      for (var doc in groupsSnapshot.docs) {
+        final data = doc.data();
+        final groupName = data['groupName'] as String? ?? 'Unknown';
+        final allowedUid = data['allowedUid'] as List<dynamic>? ?? [];
+        AppLogger.info(
+            '  📄 [FIRESTORE_DOC] ${AppLogger.maskGroup(groupName, doc.id)} - allowedUid: ${allowedUid.map((uid) => AppLogger.maskUserId(uid.toString())).toList()}');
+      }
 
       if (groupsSnapshot.docs.isEmpty) {
         developer.log('⚠️ [FIRESTORE] No groups found for this user.');

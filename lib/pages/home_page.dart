@@ -89,21 +89,21 @@ class _HomePageState extends ConsumerState<HomePage> {
       final password = passwordController.text;
       final userName = userNameController.text.trim();
 
-      // 新規登録前に古いデータをクリア
-      // SharedPreferencesをクリア（古いユーザー名を削除）
+      // 新規登録前に古いデータをクリア（順序重要！）
+      // 1. SharedPreferencesをクリア（古いユーザー名を削除）
       await UserPreferencesService.clearAllUserInfo();
       AppLogger.info('🗑️ [SIGNUP] SharedPreferences 全ユーザー情報をクリア');
 
-      // 新規登録
-      await ref.read(authProvider).signUp(email, password);
-      AppLogger.info('✅ [SIGNUP] 新規ユーザー登録成功');
-
-      // 🆕 Hiveデータをクリア（前のユーザーのデータを削除）
+      // 2. Hiveデータをクリア（Firebase Auth登録前に実行）
       final SharedGroupBox = ref.read(SharedGroupBoxProvider);
       final sharedListBox = ref.read(sharedListBoxProvider);
       await SharedGroupBox.clear();
       await sharedListBox.clear();
       AppLogger.info('🗑️ [SIGNUP] 前ユーザーのHiveデータをクリア完了');
+
+      // 3. Firebase Auth 新規登録（authStateChanges発火前にHiveクリア完了）
+      await ref.read(authProvider).signUp(email, password);
+      AppLogger.info('✅ [SIGNUP] 新規ユーザー登録成功');
 
       // プロバイダーを無効化（UIをリセット）
       ref.invalidate(allGroupsProvider);
@@ -131,6 +131,24 @@ class _HomePageState extends ConsumerState<HomePage> {
       await UserPreferencesService.saveUserName(userName);
       AppLogger.info(
           '✅ [SIGNUP] ディスプレイネームをPreferencesに保存: ${AppLogger.maskName(userName)}');
+
+      // メールアドレスをPreferencesに保存
+      await UserPreferencesService.saveUserEmail(email);
+      AppLogger.info('✅ [SIGNUP] メールアドレスをPreferencesに保存');
+
+      // Firestoreデータ反映を待つ（書き込み完了まで待機）
+      AppLogger.info('⏳ [SIGNUP] Firestoreデータ反映待機中...');
+      await Future.delayed(const Duration(seconds: 2));
+
+      // Firestore→Hiveの同期を実行（デフォルトグループをHiveに反映）
+      AppLogger.info('🔄 [SIGNUP] Firestore→Hive同期開始...');
+      await ref.read(forceSyncProvider.future);
+      AppLogger.info('✅ [SIGNUP] Firestore→Hive同期完了');
+
+      // プロバイダーを再読み込み（グループリストを更新）
+      ref.invalidate(allGroupsProvider);
+      await Future.delayed(const Duration(milliseconds: 500));
+      AppLogger.info('🔄 [SIGNUP] allGroupsProvider再読み込み完了');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -174,7 +192,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       final email = emailController.text.trim();
       final password = passwordController.text;
 
-      // サインイン
+      // サインイン（サインアウト時に既にHiveクリア済み）
       await ref.read(authProvider).signIn(email, password);
       AppLogger.info('✅ [SIGNIN] サインイン成功');
 
@@ -216,6 +234,20 @@ class _HomePageState extends ConsumerState<HomePage> {
           AppLogger.info('💡 [SIGNIN] ユーザー名が未設定（Firestore・Auth両方）');
         }
       }
+
+      // Firestoreデータ反映を待つ
+      AppLogger.info('⏳ [SIGNIN] Firestoreデータ反映待機中...');
+      await Future.delayed(const Duration(seconds: 1));
+
+      // Firestore→Hiveの同期を実行（グループデータをHiveに反映）
+      AppLogger.info('🔄 [SIGNIN] Firestore→Hive同期開始...');
+      await ref.read(forceSyncProvider.future);
+      AppLogger.info('✅ [SIGNIN] Firestore→Hive同期完了');
+
+      // プロバイダーを再読み込み（グループリストを更新）
+      ref.invalidate(allGroupsProvider);
+      await Future.delayed(const Duration(milliseconds: 500));
+      AppLogger.info('🔄 [SIGNIN] allGroupsProvider再読み込み完了');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -691,7 +723,27 @@ class _HomePageState extends ConsumerState<HomePage> {
                   child: ElevatedButton.icon(
                     onPressed: () async {
                       try {
+                        // サインアウト前にHiveをクリア
+                        final SharedGroupBox = ref.read(SharedGroupBoxProvider);
+                        final sharedListBox = ref.read(sharedListBoxProvider);
+                        await SharedGroupBox.clear();
+                        await sharedListBox.clear();
+                        AppLogger.info('🗑️ [SIGNOUT] Hiveデータをクリア完了');
+
+                        // SharedPreferencesをクリア
+                        await UserPreferencesService.clearAllUserInfo();
+                        AppLogger.info('🗑️ [SIGNOUT] SharedPreferencesをクリア完了');
+
+                        // プロバイダーを無効化
+                        ref.invalidate(allGroupsProvider);
+                        ref.invalidate(selectedGroupProvider);
+                        ref.invalidate(sharedListProvider);
+                        AppLogger.info('🔄 [SIGNOUT] プロバイダー無効化完了');
+
+                        // Firebase Authからサインアウト
                         await ref.read(authProvider).signOut();
+                        AppLogger.info('✅ [SIGNOUT] サインアウト完了');
+
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -701,6 +753,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                           );
                         }
                       } catch (e) {
+                        AppLogger.error('❌ [SIGNOUT] サインアウトエラー', e);
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
