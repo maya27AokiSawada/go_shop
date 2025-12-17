@@ -89,6 +89,11 @@ class _HomePageState extends ConsumerState<HomePage> {
       final password = passwordController.text;
       final userName = userNameController.text.trim();
 
+      // 新規登録前に古いデータをクリア
+      // SharedPreferencesをクリア（古いユーザー名を削除）
+      await UserPreferencesService.clearAllUserInfo();
+      AppLogger.info('🗑️ [SIGNUP] SharedPreferences 全ユーザー情報をクリア');
+
       // 新規登録
       await ref.read(authProvider).signUp(email, password);
       AppLogger.info('✅ [SIGNUP] 新規ユーザー登録成功');
