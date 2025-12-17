@@ -410,18 +410,21 @@ class GroupListWidget extends ConsumerWidget {
   }
 
   Widget _buildLoadingWidget() {
-    return Container(
-      padding: const EdgeInsets.all(32),
-      child: const Row(
+    return Center(
+      child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
+          const CircularProgressIndicator(),
+          const SizedBox(height: 16),
+          const Text(
+            'グループを読み込み中...',
+            style: TextStyle(fontSize: 16, color: Colors.grey),
           ),
-          SizedBox(width: 12),
-          Text('グループを読み込み中...'),
+          const SizedBox(height: 8),
+          Text(
+            'デフォルトグループを準備しています',
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+          ),
         ],
       ),
     );
