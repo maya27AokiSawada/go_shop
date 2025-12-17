@@ -2312,3 +2312,227 @@ firebase deploy --only firestore:rules
 **Commit**: `67a90a1` - "fix: Firestore セキュリティルールで sharedLists のパーミッション修正"
 
 ---
+
+## Recent Implementations (2025-12-17)
+
+### サインイン必須仕様への完全対応 ✅
+
+**Background**: アプリをサインイン状態でのみ動作する仕様に変更。しかし、デフォルトグループ作成時に Hive を優先チェックしており、Firestore の既存グループを見ていなかった。
+
+#### 1. 認証フロー全体のデータ管理改善
+
+**問題**: サインアウト → サインイン時に前ユーザーのグループが残る
+
+**修正内容**:
+
+**サインアップ処理** (`lib/pages/home_page.dart` Lines 82-150):
+
+```dart
+// 処理順序（重要！）
+// 1. SharedPreferences + Hiveクリア（Firebase Auth登録前）
+await UserPreferencesService.clearAllUserInfo();
+await SharedGroupBox.clear();
+await sharedListBox.clear();
+
+// 2. Firebase Auth新規登録
+await ref.read(authProvider).signUp(email, password);
+
+// 3-9. プロバイダー無効化、displayName更新、Firestore同期
+```
+
+**サインアウト処理** (`lib/pages/home_page.dart` Lines 705-750):
+
+```dart
+// 1. Hive + SharedPreferencesクリア
+await SharedGroupBox.clear();
+await sharedListBox.clear();
+await UserPreferencesService.clearAllUserInfo();
+
+// 2. プロバイダー無効化
+ref.invalidate(allGroupsProvider);
+
+// 3. Firebase Authサインアウト
+await ref.read(authProvider).signOut();
+```
+
+**サインイン処理** (`lib/pages/home_page.dart` Lines 187-250):
+
+```dart
+// サインイン（サインアウト時に既にHiveクリア済み）
+await ref.read(authProvider).signIn(email, password);
+
+// Firestore→Hive同期
+await Future.delayed(const Duration(seconds: 1));
+await ref.read(forceSyncProvider.future);
+ref.invalidate(allGroupsProvider);
+```
+
+#### 2. 🔥 サインイン時の Firestore 優先読み込み実装
+
+**問題**:
+
+- `createDefaultGroup()`が Hive を先にチェック
+- Firestore に既存のデフォルトグループがあるのに新規作成してしまう
+
+**修正** (`lib/providers/purchase_group_provider.dart` Lines 765-825):
+
+```dart
+// 🔥 CRITICAL: サインイン状態ではFirestoreを優先チェック
+if (user != null && F.appFlavor == Flavor.prod) {
+  Log.info('🔥 [CREATE DEFAULT] サインイン状態 - Firestoreから既存グループ確認');
+
+  try {
+    // Firestoreから全グループ取得
+    final firestore = FirebaseFirestore.instance;
+    final groupsSnapshot = await firestore
+        .collection('SharedGroups')
+        .where('allowedUid', arrayContains: user.uid)
+        .get();
+
+    // デフォルトグループ（groupId = user.uid）が存在するか確認
+    final defaultGroupDoc = groupsSnapshot.docs.firstWhere(
+      (doc) => doc.id == defaultGroupId,
+      orElse: () => throw Exception('デフォルトグループなし'),
+    );
+
+    // Firestoreにデフォルトグループが存在 → Hiveに同期して終了
+    final firestoreGroup = SharedGroup(...);
+    await hiveRepository.saveGroup(firestoreGroup);
+
+    // 🔥 Hiveクリーンアップ実行
+    await _cleanupInvalidHiveGroups(user.uid, hiveRepository);
+
+    return;
+  } catch (e) {
+    // Firestoreにデフォルトグループなし → 新規作成
+    await _cleanupInvalidHiveGroups(user.uid, hiveRepository);
+  }
+}
+```
+
+**動作フロー**:
+
+1. サインイン状態では**Firestore を最初にチェック**
+2. デフォルトグループ（groupId = user.uid）が存在すれば Hive に同期
+3. 存在しなければ新規作成して Firestore + Hive に保存
+
+#### 3. 🔥 Hive クリーンアップ機能実装
+
+**目的**: Hive に残っている他ユーザーのグループを自動削除
+
+**実装** (`lib/providers/purchase_group_provider.dart` Lines 1415-1448):
+
+```dart
+/// Hiveから不正なグループを削除（allowedUidに現在ユーザーが含まれないもの）
+Future<void> _cleanupInvalidHiveGroups(
+  String currentUserId,
+  HiveSharedGroupRepository hiveRepository,
+) async {
+  try {
+    final allHiveGroups = await hiveRepository.getAllGroups();
+
+    int deletedCount = 0;
+    for (final group in allHiveGroups) {
+      // allowedUidに現在のユーザーが含まれているか確認
+      if (!group.allowedUid.contains(currentUserId)) {
+        Log.info('🗑️ [CLEANUP] Hiveから削除（Firestoreは保持）: ${group.groupName}');
+        await hiveRepository.deleteGroup(group.groupId);  // ⚠️ Hiveのみ削除
+        deletedCount++;
+      }
+    }
+
+    if (deletedCount > 0) {
+      Log.info('✅ [CLEANUP] ${deletedCount}個の不正グループをHiveから削除（Firestoreは保持）');
+    }
+  } catch (e) {
+    Log.error('❌ [CLEANUP] Hiveクリーンアップエラー: $e');
+  }
+}
+```
+
+**重要**:
+
+- **Firestore は削除しない**（他ユーザーが使用している可能性があるため）
+- Hive ローカルキャッシュのみ削除
+
+**実行タイミング**:
+
+1. サインイン時の Firestore チェック後
+2. デフォルトグループ新規作成前
+
+#### 4. getAllGroups()での allowedUid フィルタリング
+
+**二重の安全策** (`lib/providers/purchase_group_provider.dart` Lines 438-446):
+
+```dart
+// 🔥 CRITICAL: allowedUidに現在ユーザーが含まれないグループを除外
+final currentUser = ref.read(authStateProvider).value;
+if (currentUser != null) {
+  allGroups = allGroups.where((g) => g.allowedUid.contains(currentUser.uid)).toList();
+  if (invalidCount > 0) {
+    Log.warning('⚠️ [ALL GROUPS] allowedUid不一致グループを除外: $invalidCount グループ');
+  }
+}
+```
+
+#### 5. デバッグログ強化
+
+**データソース追跡** (`lib/datastore/hybrid_purchase_group_repository.dart`, `firestore_purchase_group_repository.dart`):
+
+```dart
+// Hybrid Repository
+AppLogger.info('🔍 [HYBRID] _getAllGroupsInternal開始 - Flavor: ${F.appFlavor}, Online: $_isOnline');
+AppLogger.info('📦 [HYBRID] Hiveから${cachedGroups.length}グループ取得');
+for (var group in cachedGroups) {
+  AppLogger.info('  📦 [HIVE] ${group.groupName} - allowedUid: [...]');
+}
+
+// Firestore Repository
+AppLogger.info('🔥 [FIRESTORE_REPO] getAllGroups開始 - currentUserId: ***');
+for (var doc in groupsSnapshot.docs) {
+  AppLogger.info('  📄 [FIRESTORE_DOC] ${groupName} - allowedUid: [...]');
+}
+```
+
+**Verification Results**:
+
+- ✅ すもも/ファティマでサインアウト → サインイン
+- ✅ それぞれ自分のグループのみ表示
+- ✅ 他ユーザーのグループは表示されない
+- ✅ Hive クリーンアップログ正常動作
+- ✅ Firestore コンソールで他ユーザーのグループが保持されていることを確認
+
+**Modified Files**:
+
+- `lib/pages/home_page.dart` (サインアップ/サインイン/サインアウト処理)
+- `lib/providers/purchase_group_provider.dart` (createDefaultGroup, getAllGroups, \_cleanupInvalidHiveGroups)
+- `lib/datastore/hybrid_purchase_group_repository.dart` (デバッグログ追加)
+- `lib/datastore/firestore_purchase_group_repository.dart` (デバッグログ追加)
+- `lib/widgets/group_list_widget.dart` (ローディングウィジェット改善)
+
+**Commits**:
+
+- `4ba82a7` - "fix: ユーザー名設定ロジック修正（SharedPreferences/Hive クリア順序）"
+- `a5eb33c` - "fix: サインアウト時の Hive/SharedPreferences クリア実装"
+- `09246b5` - "feat: グループ画面ローディングスピナー追加"
+- `1a869a3` - "fix: サインイン時の Firestore 優先読み込みと Hive クリーンアップ実装"
+
+### Next Steps (2025-12-18 予定)
+
+**優先タスク**: サインイン必須仕様への完全対応確認
+
+**確認項目**:
+
+1. グループ操作（作成/削除/メンバー管理）
+2. リスト操作（作成/削除/選択）
+3. アイテム操作（追加/削除/更新/購入状態トグル）
+4. 招待機能（QR 作成/受諾）
+5. 同期機能（Firestore→Hive、バックグラウンド同期）
+
+**確認方法**:
+
+- 各操作の冒頭で`currentUser`チェック
+- `currentUser == null`の場合はエラーメッセージ or ログイン画面誘導
+- UI 側でもサインアウト状態では操作ボタン無効化
+
+---
