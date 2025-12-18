@@ -241,71 +241,57 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
     AppLogger.info(
         '🔍 [HYBRID] _getAllGroupsInternal開始 - Flavor: ${F.appFlavor}, Online: $_isOnline');
     try {
-      // 1. まずHiveから取得（高速）
-      final cachedGroups = await _hiveRepo.getAllGroups();
-      AppLogger.info('📦 [HYBRID] Hiveから${cachedGroups.length}グループ取得');
-      AppLogger.info('📦 [HYBRID] Hiveから${cachedGroups.length}グループ取得');
-      for (var group in cachedGroups) {
-        AppLogger.info(
-            '  📦 [HIVE] ${AppLogger.maskGroup(group.groupName, group.groupId)} - allowedUid: ${group.allowedUid.map((uid) => AppLogger.maskUserId(uid)).toList()}');
-      }
-
-      if (F.appFlavor == Flavor.dev || !_isOnline) {
-        // Dev環境またはオフライン時はHiveのみ
-        developer.log('📦 Cache-only: ${cachedGroups.length}グループ取得');
-        return cachedGroups;
-      }
-
-      // ✅ Hiveが空の場合、Firestoreからフォールバック
-      if (cachedGroups.isEmpty &&
-          F.appFlavor == Flavor.prod &&
-          _firestoreRepo != null) {
-        developer.log('🔍 Hiveが空です。Firestoreから復旧を試みます...');
-        AppLogger.info('🔍 [HYBRID] Hive空、Firestoreフォールバック開始...');
+      // 🔥 サインイン必須仕様: Firestore優先
+      if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
         try {
+          developer.log('🔥 [HYBRID_REPO] Firestore優先モード - Firestoreから全グループ取得');
+          AppLogger.info('🔥 [HYBRID] Firestore優先モード - 全グループ取得開始');
+
+          // 1. Firestoreから取得（常に最新）
           final firestoreGroups = await _firestoreRepo!.getAllGroups();
-          developer.log('✅ Firestore復旧: ${firestoreGroups.length}グループを取得');
+          developer.log(
+              '✅ [HYBRID_REPO] Firestore取得完了: ${firestoreGroups.length}グループ');
           AppLogger.info(
               '✅ [HYBRID] Firestoreから${firestoreGroups.length}グループ取得');
+
           for (var group in firestoreGroups) {
             AppLogger.info(
                 '  📡 [FIRESTORE] ${AppLogger.maskGroup(group.groupName, group.groupId)} - allowedUid: ${group.allowedUid.map((uid) => AppLogger.maskUserId(uid)).toList()}');
           }
 
-          // Hiveにキャッシュ
+          // 2. Hiveにキャッシュ（次回の高速読み取りのため）
           for (final group in firestoreGroups) {
             await _hiveRepo.saveGroup(group);
           }
-          developer.log('💾 Hiveにキャッシュ保存完了');
+          developer.log('✅ [HYBRID_REPO] Hiveキャッシュ更新完了');
+          AppLogger.info('✅ [HYBRID] Hiveキャッシュ更新完了');
+
           return firestoreGroups;
-        } catch (firestoreError) {
-          developer.log('⚠️ Firestore復旧失敗: $firestoreError');
-          // Firestore復旧失敗時も、キャッシュの空リストを返す（オフライン対応）
+        } catch (e) {
+          developer.log('⚠️ [HYBRID_REPO] Firestore取得エラー、Hiveにフォールバック: $e');
+          AppLogger.warning('⚠️ [HYBRID] Firestore取得エラー、Hiveにフォールバック: $e');
+
+          // Firestoreエラー時のみHiveフォールバック
+          final cachedGroups = await _hiveRepo.getAllGroups();
+          AppLogger.info(
+              '📦 [HYBRID] Hiveから${cachedGroups.length}グループ取得（フォールバック）');
           return cachedGroups;
         }
       }
 
-      // 2. バックグラウンドでFirestoreと同期（ノンブロッキング）
-      _syncFromFirestoreInBackground();
-
-      // 3. キャッシュデータを即座に返却
-      developer.log('⚡ Cache-first: ${cachedGroups.length}グループ取得 (同期中...)');
-      return cachedGroups;
-    } catch (e) {
-      developer.log('❌ getAllGroups error: $e');
-
-      // Hiveでエラーの場合、Firestoreから直接取得を試行
-      if (_isOnline && F.appFlavor == Flavor.prod && _firestoreRepo != null) {
-        try {
-          final firestoreGroups = await _firestoreRepo!.getAllGroups();
-          developer
-              .log('🔥 Fallback to Firestore: ${firestoreGroups.length}グループ');
-          return firestoreGroups;
-        } catch (firestoreError) {
-          developer.log('❌ Firestore fallback failed: $firestoreError');
-        }
+      // dev環境またはFirestore未初期化の場合のみHive
+      developer.log('📦 [HYBRID_REPO] dev環境 - Hiveから取得');
+      final cachedGroups = await _hiveRepo.getAllGroups();
+      AppLogger.info('📦 [HYBRID] Hiveから${cachedGroups.length}グループ取得（dev環境）');
+      for (var group in cachedGroups) {
+        AppLogger.info(
+            '  📦 [HIVE] ${AppLogger.maskGroup(group.groupName, group.groupId)} - allowedUid: ${group.allowedUid.map((uid) => AppLogger.maskUserId(uid)).toList()}');
       }
 
+      return cachedGroups;
+    } catch (e) {
+      developer.log('❌ [HYBRID_REPO] getAllGroups error: $e');
+      AppLogger.error('❌ [HYBRID] getAllGroups error: $e');
       rethrow;
     }
   }
@@ -326,35 +312,31 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
 
   @override
   Future<SharedGroup> getGroupById(String groupId) async {
-    try {
-      // 1. Hiveから取得を試行
-      final cachedGroup = await _hiveRepo.getGroupById(groupId);
+    // 🔥 サインイン必須仕様: Firestore優先
+    if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
+      try {
+        developer
+            .log('🔥 [HYBRID_REPO] Firestore優先モード - Firestoreから取得: $groupId');
 
-      if (F.appFlavor == Flavor.dev || !_isOnline) {
-        return cachedGroup;
+        // 1. Firestoreから取得（常に最新）
+        final firestoreGroup = await _firestoreRepo!.getGroupById(groupId);
+        developer
+            .log('✅ [HYBRID_REPO] Firestore取得完了: ${firestoreGroup.groupName}');
+
+        // 2. Hiveにキャッシュ（次回の高速読み取りのため）
+        await _hiveRepo.saveGroup(firestoreGroup);
+        developer.log('✅ [HYBRID_REPO] Hiveキャッシュ更新完了');
+
+        return firestoreGroup;
+      } catch (e) {
+        developer.log('⚠️ [HYBRID_REPO] Firestore取得エラー、Hiveにフォールバック: $e');
+        // Firestoreエラー時のみHiveフォールバック
+        return await _hiveRepo.getGroupById(groupId);
       }
-
-      // 2. バックグラウンドでFirestoreの最新版をチェック
-      _syncGroupFromFirestoreInBackground(groupId);
-
-      return cachedGroup;
-    } catch (e) {
-      // Hiveで見つからない場合、Firestoreから取得してキャッシュ
-      if (_isOnline && F.appFlavor == Flavor.prod && _firestoreRepo != null) {
-        try {
-          final firestoreGroup = await _firestoreRepo!.getGroupById(groupId);
-
-          // Hiveにキャッシュ
-          await _hiveRepo.saveGroup(firestoreGroup);
-
-          developer.log('🔄 Firestore→Cache: ${firestoreGroup.groupName}');
-          return firestoreGroup;
-        } catch (firestoreError) {
-          developer.log('❌ Group not found in Firestore: $groupId');
-        }
-      }
-
-      rethrow;
+    } else {
+      // dev環境またはFirestore未初期化の場合のみHive
+      developer.log('📝 [HYBRID_REPO] dev環境 - Hiveから取得: $groupId');
+      return await _hiveRepo.getGroupById(groupId);
     }
   }
 
@@ -372,29 +354,37 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
     developer.log('✅ [HYBRID_REPO] 安全な初期化確認完了 - グループ作成続行');
 
     try {
-      // 1. まずHiveに保存（楽観的更新）
-      developer.log('📝 [HYBRID_REPO] Hive保存開始...');
-      developer
-          .log('🔍 [HYBRID_REPO] _hiveRepo インスタンス: ${_hiveRepo.runtimeType}');
-      developer.log('🔍 [HYBRID_REPO] createGroup パラメータ:');
-      developer.log('   - groupId: $groupId');
-      developer.log('   - groupName: $groupName');
-      developer.log('   - member: ${member.name} (${member.memberId})');
-
-      final newGroup = await _hiveRepo.createGroup(groupId, groupName, member);
-      developer.log('✅ [HYBRID_REPO] Hive保存完了: $groupName');
-
       // メンバープール用グループはHiveのみに保存する
       if (groupId == 'member_pool') {
         developer
             .log('🔒 [HYBRID_REPO] Member pool group - Hiveのみ: $groupName');
+        final newGroup =
+            await _hiveRepo.createGroup(groupId, groupName, member);
         return newGroup;
       }
 
-      // 2. Firestoreへの同期的書き込み（ユーザーを待たせてもOK）
-      await _syncCreateGroupToFirestoreWithFallback(newGroup);
+      // 🔥 サインイン必須仕様: Firestore優先
+      if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
+        developer.log('🔥 [HYBRID_REPO] Firestore優先モード - Firestoreに作成');
 
-      return newGroup;
+        // 1. Firestoreに作成
+        final newGroup =
+            await _firestoreRepo!.createGroup(groupId, groupName, member);
+        developer.log('✅ [HYBRID_REPO] Firestore作成完了: $groupName');
+
+        // 2. Hiveにキャッシュ（読み取り高速化のため）
+        await _hiveRepo.saveGroup(newGroup);
+        developer.log('✅ [HYBRID_REPO] Hiveキャッシュ保存完了: $groupName');
+
+        return newGroup;
+      } else {
+        // dev環境またはFirestore未初期化の場合のみHive
+        developer.log('📝 [HYBRID_REPO] dev環境 - Hiveに作成');
+        final newGroup =
+            await _hiveRepo.createGroup(groupId, groupName, member);
+        developer.log('✅ [HYBRID_REPO] Hive保存完了: $groupName');
+        return newGroup;
+      }
     } catch (e) {
       developer.log('❌ [HYBRID_REPO] グループ作成エラー: $e');
       rethrow;
