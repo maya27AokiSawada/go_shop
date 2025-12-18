@@ -771,34 +771,42 @@ class HybridSharedListRepository implements SharedListRepository {
   @override
   Future<void> addSingleItem(String listId, SharedItem item) async {
     try {
-      // 1. Hive: まずローカルに追加（楽観的更新）
-      final hiveList = await _hiveRepo.getSharedListById(listId);
-      if (hiveList == null) {
-        throw Exception('List not found: $listId');
+      // 🔥 サインイン必須仕様: Firestore優先＋差分同期
+      if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
+        developer.log('🔥 [HYBRID_DIFF] Firestore優先モード - アイテム追加');
+
+        // 1. Firestoreに単一アイテムのみ追加（差分同期）
+        await _firestoreRepo!.addSingleItem(listId, item);
+        developer.log('✅ [HYBRID_DIFF] Firestore: 単一アイテム追加完了 (${item.name})');
+
+        // 2. Hiveキャッシュを更新（読み取り高速化）
+        final hiveList = await _hiveRepo.getSharedListById(listId);
+        if (hiveList != null) {
+          final updatedItems = Map<String, SharedItem>.from(hiveList.items);
+          updatedItems[item.itemId] = item;
+          final updatedList = hiveList.copyWith(
+            items: updatedItems,
+            updatedAt: DateTime.now(),
+          );
+          await _hiveRepo.updateSharedList(updatedList);
+          developer.log('✅ [HYBRID_DIFF] Hiveキャッシュ更新完了');
+        }
+      } else {
+        // dev環境またはFirestore未初期化の場合のみHive
+        developer.log('📝 [HYBRID_DIFF] dev環境 - Hiveに追加');
+        final hiveList = await _hiveRepo.getSharedListById(listId);
+        if (hiveList == null) {
+          throw Exception('List not found: $listId');
+        }
+        final updatedItems = Map<String, SharedItem>.from(hiveList.items);
+        updatedItems[item.itemId] = item;
+        final updatedList = hiveList.copyWith(
+          items: updatedItems,
+          updatedAt: DateTime.now(),
+        );
+        await _hiveRepo.updateSharedList(updatedList);
+        developer.log('✅ [HYBRID_DIFF] Hive保存完了: ${item.name}');
       }
-
-      // Map形式に対応: itemId をキーとして追加
-      final updatedItems = Map<String, SharedItem>.from(hiveList.items);
-      updatedItems[item.itemId] = item;
-
-      final updatedList = hiveList.copyWith(
-        items: updatedItems,
-        updatedAt: DateTime.now(),
-      );
-
-      await _hiveRepo.updateSharedList(updatedList);
-      developer.log('✅ [HYBRID_DIFF] Hive: Item added (${item.name})');
-
-      // 2. Firestore: バックグラウンドで差分同期
-      developer.log(
-          '🔍 [HYBRID_DIFF] Firestore同期チェック: Flavor=${F.appFlavor}, isOnline=$_isOnline, firestoreRepo=${_firestoreRepo != null}');
-      if (F.appFlavor == Flavor.dev || !_isOnline) {
-        developer.log('⚠️ [HYBRID_DIFF] Firestore同期スキップ (Dev環境またはオフライン)');
-        return;
-      }
-
-      _syncSingleItemToFirestore(
-          listId, item, _SharedListSyncOperationType.createItem);
     } catch (e, stackTrace) {
       developer.log('❌ [HYBRID_DIFF] addSingleItem error: $e');
       developer.log('📄 StackTrace: $stackTrace');
@@ -809,42 +817,57 @@ class HybridSharedListRepository implements SharedListRepository {
   @override
   Future<void> removeSingleItem(String listId, String itemId) async {
     try {
-      // 論理削除: isDeleted = true に設定
-      final hiveList = await _hiveRepo.getSharedListById(listId);
-      if (hiveList == null) return;
+      // 🔥 サインイン必須仕様: Firestore優先＋差分同期（論理削除）
+      if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
+        developer.log('🔥 [HYBRID_DIFF] Firestore優先モード - アイテム削除');
 
-      final item = hiveList.items[itemId];
-      if (item == null) {
-        developer.log('⚠️ [HYBRID_DIFF] Item not found: $itemId');
-        return;
+        // 1. Firestoreで単一アイテムのみ論理削除（差分同期）
+        await _firestoreRepo!.removeSingleItem(listId, itemId);
+        developer
+            .log('✅ [HYBRID_DIFF] Firestore: 単一アイテム削除完了 (itemId: $itemId)');
+
+        // 2. Hiveキャッシュを更新
+        final hiveList = await _hiveRepo.getSharedListById(listId);
+        if (hiveList != null) {
+          final item = hiveList.items[itemId];
+          if (item != null) {
+            final deletedItem = item.copyWith(
+              isDeleted: true,
+              deletedAt: DateTime.now(),
+            );
+            final updatedItems = Map<String, SharedItem>.from(hiveList.items);
+            updatedItems[itemId] = deletedItem;
+            final updatedList = hiveList.copyWith(
+              items: updatedItems,
+              updatedAt: DateTime.now(),
+            );
+            await _hiveRepo.updateSharedList(updatedList);
+            developer.log('✅ [HYBRID_DIFF] Hiveキャッシュ更新完了');
+          }
+        }
+      } else {
+        // dev環境またはFirestore未初期化の場合のみHive
+        developer.log('📝 [HYBRID_DIFF] dev環境 - Hiveから削除');
+        final hiveList = await _hiveRepo.getSharedListById(listId);
+        if (hiveList == null) return;
+        final item = hiveList.items[itemId];
+        if (item == null) {
+          developer.log('⚠️ [HYBRID_DIFF] Item not found: $itemId');
+          return;
+        }
+        final deletedItem = item.copyWith(
+          isDeleted: true,
+          deletedAt: DateTime.now(),
+        );
+        final updatedItems = Map<String, SharedItem>.from(hiveList.items);
+        updatedItems[itemId] = deletedItem;
+        final updatedList = hiveList.copyWith(
+          items: updatedItems,
+          updatedAt: DateTime.now(),
+        );
+        await _hiveRepo.updateSharedList(updatedList);
+        developer.log('✅ [HYBRID_DIFF] Hive削除完了: ${item.name}');
       }
-
-      // isDeleted = true, deletedAt = now
-      final deletedItem = item.copyWith(
-        isDeleted: true,
-        deletedAt: DateTime.now(),
-      );
-
-      final updatedItems = Map<String, SharedItem>.from(hiveList.items);
-      updatedItems[itemId] = deletedItem;
-
-      final updatedList = hiveList.copyWith(
-        items: updatedItems,
-        updatedAt: DateTime.now(),
-      );
-
-      await _hiveRepo.updateSharedList(updatedList);
-      developer
-          .log('✅ [HYBRID_DIFF] Hive: Item logically deleted (${item.name})');
-
-      // Firestore同期
-      if (F.appFlavor == Flavor.dev || !_isOnline) return;
-
-      _syncSingleItemToFirestore(
-        listId,
-        deletedItem,
-        _SharedListSyncOperationType.deleteItem,
-      );
     } catch (e) {
       developer.log('❌ [HYBRID_DIFF] removeSingleItem error: $e');
       rethrow;
@@ -854,27 +877,40 @@ class HybridSharedListRepository implements SharedListRepository {
   @override
   Future<void> updateSingleItem(String listId, SharedItem item) async {
     try {
-      final hiveList = await _hiveRepo.getSharedListById(listId);
-      if (hiveList == null) return;
+      // 🔥 サインイン必須仕様: Firestore優先＋差分同期
+      if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
+        developer.log('🔥 [HYBRID_DIFF] Firestore優先モード - アイテム更新');
 
-      final updatedItems = Map<String, SharedItem>.from(hiveList.items);
-      updatedItems[item.itemId] = item;
+        // 1. Firestoreで単一アイテムのみ更新（差分同期）
+        await _firestoreRepo!.updateSingleItem(listId, item);
+        developer.log('✅ [HYBRID_DIFF] Firestore: 単一アイテム更新完了 (${item.name})');
 
-      final updatedList = hiveList.copyWith(
-        items: updatedItems,
-        updatedAt: DateTime.now(),
-      );
-
-      await _hiveRepo.updateSharedList(updatedList);
-      developer.log('✅ [HYBRID_DIFF] Hive: Item updated (${item.name})');
-
-      if (F.appFlavor == Flavor.dev || !_isOnline) return;
-
-      _syncSingleItemToFirestore(
-        listId,
-        item,
-        _SharedListSyncOperationType.updateItem,
-      );
+        // 2. Hiveキャッシュを更新
+        final hiveList = await _hiveRepo.getSharedListById(listId);
+        if (hiveList != null) {
+          final updatedItems = Map<String, SharedItem>.from(hiveList.items);
+          updatedItems[item.itemId] = item;
+          final updatedList = hiveList.copyWith(
+            items: updatedItems,
+            updatedAt: DateTime.now(),
+          );
+          await _hiveRepo.updateSharedList(updatedList);
+          developer.log('✅ [HYBRID_DIFF] Hiveキャッシュ更新完了');
+        }
+      } else {
+        // dev環境またはFirestore未初期化の場合のみHive
+        developer.log('📝 [HYBRID_DIFF] dev環境 - Hiveに更新');
+        final hiveList = await _hiveRepo.getSharedListById(listId);
+        if (hiveList == null) return;
+        final updatedItems = Map<String, SharedItem>.from(hiveList.items);
+        updatedItems[item.itemId] = item;
+        final updatedList = hiveList.copyWith(
+          items: updatedItems,
+          updatedAt: DateTime.now(),
+        );
+        await _hiveRepo.updateSharedList(updatedList);
+        developer.log('✅ [HYBRID_DIFF] Hive更新完了: ${item.name}');
+      }
     } catch (e) {
       developer.log('❌ [HYBRID_DIFF] updateSingleItem error: $e');
       rethrow;
