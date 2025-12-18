@@ -2536,3 +2536,219 @@ for (var doc in groupsSnapshot.docs) {
 - UI 側でもサインアウト状態では操作ボタン無効化
 
 ---
+
+## Recent Implementations (2025-12-18)
+
+### 1. サインイン必須仕様への完全対応（全階層 Firestore 優先化） ✅
+
+**Background**: サインイン必須アプリとして、Group/List/Item の全階層で Firestore 優先＋効率的な同期を実現。
+
+#### Phase 1: SharedGroup CRUD Firestore 優先化（午前）
+
+**目的**: Hive 優先から Firestore 優先への変更
+
+**実装内容**:
+
+- `hybrid_purchase_group_repository.dart`の 5 つの CRUD メソッドを Firestore 優先に変更
+  - `createGroup()`: Firestore 作成 → Hive キャッシュ
+  - `getGroupById()`: Firestore 取得 → Hive キャッシュ
+  - `getAllGroups()`: Firestore 取得 → Hive キャッシュ＋ allowedUid フィルタリング
+  - `updateGroup()`: Firestore 更新 → Hive キャッシュ
+  - `deleteGroup()`: Firestore 削除 → Hive キャッシュ削除
+
+**技術的改善**:
+
+- `_isSharedGroup()`削除（不要な条件分岐を簡素化）
+- 条件を「prod 環境かつ Firestore 初期化済み」のみに統一
+- Firestore エラー時は Hive フォールバック（データ保護）
+
+**コミット**: `107c1e7`
+
+#### Phase 2: SharedList CRUD Firestore 優先化（午後前半）
+
+**目的**: SharedList の全 CRUD 操作を Firestore 優先に統一
+
+**実装内容**:
+
+- `hybrid_shared_list_repository.dart`の 5 つの CRUD メソッドを Firestore 優先に変更
+  - `createSharedList()`: Firestore 作成 → Hive キャッシュ
+  - `getSharedListById()`: Firestore 取得 → Hive キャッシュ（groupId 不要化）
+  - `getSharedListsByGroup()`: Firestore 取得 → Hive キャッシュ
+  - `updateSharedList()`: Firestore 更新 → Hive キャッシュ
+  - `deleteSharedList()`: Firestore 削除 → Hive キャッシュ削除
+
+**動作テスト**:
+
+- SH 54D で動作確認完了
+- グループ・リスト・アイテムの作成削除が正常動作
+
+**コミット**: `b3b7838`
+
+#### Phase 3: SharedItem 差分同期最適化（午後後半）
+
+**目的**: Map 形式の真の効率化（リスト全体送信 → 単一アイテム送信）
+
+**背景**:
+
+- SharedItem は Map<String, SharedItem>形式だが、従来はリスト全体を送信
+- FirestoreSharedListRepository には既に差分同期メソッドが実装済みだったが、HybridSharedListRepository が活用していなかった
+
+**実装内容**:
+
+- `hybrid_shared_list_repository.dart`の 3 つのメソッドを Firestore 優先＋差分同期に変更
+  - `addSingleItem()`: Firestore 差分追加（`items.{itemId}`のみ） → Hive キャッシュ
+  - `removeSingleItem()`: Firestore 論理削除（`items.$itemId.isDeleted`のみ） → Hive キャッシュ
+  - `updateSingleItem()`: Firestore 差分更新（`items.{itemId}`のみ） → Hive キャッシュ
+
+**最適化効果**:
+
+- **Before**: リスト全体送信（10 アイテム = ~5KB）
+- **After**: 単一アイテム送信（1 アイテム = ~500B）
+- **データ転送量約 90%削減達成** 🎉
+
+**技術詳細**:
+
+```dart
+// Firestore差分更新の例（firestore_shared_list_repository.dart）
+await _collection(list.groupId).doc(listId).update({
+  'items.${item.itemId}': _itemToFirestore(item), // ← 単一フィールドのみ更新
+  'updatedAt': FieldValue.serverTimestamp(),
+});
+```
+
+**コミット**: `2c41315`
+
+### 2. アイテム追加ダイアログ二重送信防止 ✅
+
+**問題**:
+
+- アイテム追加処理中に「追加」ボタンを複数回タップ可能
+- Firestore 処理待機中にダイアログが閉じない
+- 結果的に同じアイテムが複数回追加される
+
+**対策実装**:
+
+```dart
+// shopping_list_page_v2.dart
+bool isSubmitting = false; // 🔥 二重送信防止フラグ
+
+ElevatedButton(
+  onPressed: isSubmitting ? null : () async {
+    if (isSubmitting) return;
+
+    // 🔥 送信開始：ボタン無効化
+    setDialogState(() {
+      isSubmitting = true;
+    });
+
+    try {
+      await repository.addSingleItem(currentList.listId, newItem);
+
+      // ダイアログを閉じる
+      if (context.mounted) {
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      // エラー時は送信フラグをリセット
+      setDialogState(() {
+        isSubmitting = false;
+      });
+    }
+  },
+  child: isSubmitting
+    ? const SizedBox(
+        width: 16,
+        height: 16,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      )
+    : const Text('追加'),
+),
+```
+
+**特徴**:
+
+- 処理中はボタンを無効化（`onPressed: null`）
+- 視覚的フィードバック（ローディングスピナー表示）
+- `context.mounted`チェックでダイアログ閉じる前に確認
+- エラー時は送信フラグをリセット
+
+**コミット**: `dcc60cb`
+
+### Known Issues & Solutions
+
+#### Issue 1: SH 54D の Firestore 接続問題 ⚠️
+
+**症状**:
+
+```
+Unable to resolve host "firestore.googleapis.com": No address associated with hostname
+```
+
+**原因**: SH 54D 特有のネットワーク接続問題（Known Issue）
+
+**対応**: モバイル通信に切り替えて解決 ✅
+
+### Technical Learnings
+
+1. **Firestore 差分同期の重要性**
+
+   - Map 形式のデータ構造だけでは不十分
+   - Firestore の更新 API も対応させる必要がある
+   - `items.{itemId}`フィールド単位の更新で大幅な効率化
+
+2. **Repository 層の役割分担**
+
+   - **FirestoreRepository**: 差分同期メソッド提供（既に実装済み）
+   - **HybridRepository**: それらを活用する（今回実装）
+
+3. **UI/UX 改善の重要性**
+   - 二重送信防止は必須機能
+   - 視覚的フィードバック（ローディングスピナー）でユーザー体験向上
+
+### Next Session Tasks（優先度順）
+
+#### 1. Firestore ユーザー情報構造簡素化 📝
+
+**現状**:
+
+```
+/users/{uid}/profile/profile  ← 無駄に深い
+```
+
+**改善案**:
+
+```
+/users/{uid}  ← シンプル
+  ├─ displayName
+  ├─ email
+  ├─ createdAt
+  └─ updatedAt
+```
+
+**理由**:
+
+- ユーザー情報は増える可能性が低い
+- サブコレクション不要（プロファイル 1 つだけ）
+- 読み書きのパフォーマンス向上
+
+**影響範囲**:
+
+- `firestore_user_name_service.dart`
+- `qr_invitation_service.dart`
+- `firestore.rules`
+- マイグレーション処理
+
+#### 2. Firestore 同期時のローディング表示確認 🔄
+
+**確認箇所**:
+
+- グループ一覧読み込み時
+- リスト一覧読み込み時
+- サインイン・サインアップ時
+- QR 招待受諾時
+
+**実装済み**:
+
+- アイテム追加ダイアログ（CircularProgressIndicator）
+
+---
