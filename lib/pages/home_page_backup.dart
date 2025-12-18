@@ -43,8 +43,8 @@ class _HomePageState extends ConsumerState<HomePage> {
   Future<void> _signInWithGoogle() async {
     setState(() => _isLoading = true);
     try {
-      final authProvider = ref.read(authProviderProvider.notifier);
-      await authProvider.signInWithGoogle();
+      final authNotifier = ref.read(authProvider.notifier);
+      await authNotifier.signInWithGoogle();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

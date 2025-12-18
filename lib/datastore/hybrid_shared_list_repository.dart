@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import 'dart:developer' as developer;
 import '../models/shared_list.dart';
@@ -53,17 +52,6 @@ class HybridSharedListRepository implements SharedListRepository {
 
   /// 同期状態をチェック
   bool get isSyncing => _isSyncing;
-
-  /// 共有グループかどうかを判定
-  /// デフォルトグループも含め、すべてのグループをFirestoreと同期する
-  /// （デフォルトグループは他ユーザーを招待しないだけで、同期は行う）
-  bool _isSharedGroup(String groupId) {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return false;
-
-    // すべてのグループをFirestoreと同期対象とする
-    return true;
-  }
 
   // =================================================================
   // キャッシュ戦略: Cache-First with Background Sync
@@ -369,117 +357,171 @@ class HybridSharedListRepository implements SharedListRepository {
     String? description,
   }) async {
     try {
-      // Hive側で新規作成
-      final newList = await _hiveRepo.createSharedList(
-        ownerUid: ownerUid,
-        groupId: groupId,
-        listName: listName,
-        description: description,
-      );
+      // 🔥 サインイン必須仕様: Firestore優先
+      if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
+        developer.log('🔥 [HYBRID_LIST] Firestore優先モード - Firestoreに作成');
 
-      developer.log(
-          '🔍 [CREATE_LIST] リスト作成条件チェック: Flavor=${F.appFlavor}, isOnline=$_isOnline, firestoreRepo=${_firestoreRepo != null}');
+        // 1. Firestoreに作成
+        final newList = await _firestoreRepo!.createSharedList(
+          ownerUid: ownerUid,
+          groupId: groupId,
+          listName: listName,
+          description: description,
+        );
+        developer.log(
+            '✅ [HYBRID_LIST] Firestore作成完了: ${newList.listName} (listId: ${newList.listId})');
 
-      // Firestoreにも同期(オンライン時のみ)
-      if (_isOnline && F.appFlavor == Flavor.prod && _firestoreRepo != null) {
-        try {
-          developer.log(
-              '🌐 [CREATE_LIST] Firestoreに同期開始: ${newList.listName} (groupId: ${newList.groupId}, listId: ${newList.listId})');
-          // HiveのリストをそのIDでFirestoreに保存
-          await _firestoreRepo!.saveSharedListWithId(newList);
-          developer.log(
-              '☁️ Hybrid: リスト「$listName」をFirestoreに同期完了 (ID: ${newList.listId})');
-        } catch (e, stackTrace) {
-          developer.log('⚠️ Hybrid: Firestore同期失敗、Hiveのみで作成: $e');
-          developer.log('📄 StackTrace: $stackTrace');
-        }
+        // 2. Hiveにキャッシュ（読み取り高速化のため）
+        await _hiveRepo.updateSharedList(newList);
+        developer.log('✅ [HYBRID_LIST] Hiveキャッシュ保存完了');
+
+        return newList;
       } else {
-        developer.log('⚠️ [CREATE_LIST] Firestore同期スキップ (条件不一致)');
+        // dev環境またはFirestore未初期化の場合のみHive
+        developer.log('📝 [HYBRID_LIST] dev環境 - Hiveに作成');
+        final newList = await _hiveRepo.createSharedList(
+          ownerUid: ownerUid,
+          groupId: groupId,
+          listName: listName,
+          description: description,
+        );
+        developer.log('✅ [HYBRID_LIST] Hive保存完了: ${newList.listName}');
+        return newList;
       }
-
-      return newList;
     } catch (e) {
-      developer.log('❌ Hybrid: リスト作成エラー: $e');
+      developer.log('❌ [HYBRID_LIST] リスト作成エラー: $e');
       rethrow;
     }
   }
 
   @override
   Future<SharedList?> getSharedListById(String listId) async {
-    return await _hiveRepo.getSharedListById(listId);
+    try {
+      // 🔥 サインイン必須仕様: Firestore優先
+      if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
+        developer
+            .log('🔥 [HYBRID_LIST] Firestore優先モード - Firestoreから取得: $listId');
+
+        try {
+          // 1. Firestoreから取得（groupIdなしで検索可能なメソッド使用）
+          final firestoreList = await _firestoreRepo!.getSharedListById(listId);
+
+          if (firestoreList != null) {
+            developer.log(
+                '✅ [HYBRID_LIST] Firestore取得完了: ${firestoreList.listName}');
+
+            // 2. Hiveにキャッシュ
+            await _hiveRepo.updateSharedList(firestoreList);
+            developer.log('✅ [HYBRID_LIST] Hiveキャッシュ更新完了');
+
+            return firestoreList;
+          } else {
+            developer.log('⚠️ [HYBRID_LIST] Firestoreにリストなし - Hiveフォールバック');
+            return await _hiveRepo.getSharedListById(listId);
+          }
+        } catch (e) {
+          developer.log('⚠️ [HYBRID_LIST] Firestore取得エラー - Hiveフォールバック: $e');
+          return await _hiveRepo.getSharedListById(listId);
+        }
+      } else {
+        // dev環境またはFirestore未初期化の場合はHive
+        developer.log('📝 [HYBRID_LIST] dev環境 - Hiveから取得');
+        return await _hiveRepo.getSharedListById(listId);
+      }
+    } catch (e) {
+      developer.log('❌ [HYBRID_LIST] リスト取得エラー: $e');
+      rethrow;
+    }
   }
 
   @override
   Future<List<SharedList>> getSharedListsByGroup(String groupId) async {
     try {
-      // すべてのグループでFirestore優先（デフォルトグループも含む）
-      if (_isSharedGroup(groupId) &&
-          _isOnline &&
-          _firestoreRepo != null &&
-          F.appFlavor != Flavor.dev) {
-        developer.log('🌐 [FIRESTORE優先] リスト取得: $groupId');
+      // 🔥 サインイン必須仕様: Firestore優先（条件簡素化）
+      if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
+        developer
+            .log('🔥 [HYBRID_LIST] Firestore優先モード - Firestoreから取得: $groupId');
 
-        // 1. Firestoreから最新データを取得
-        final firestoreLists =
-            await _firestoreRepo!.getSharedListsByGroup(groupId);
+        try {
+          // 1. Firestoreから最新データを取得
+          final firestoreLists =
+              await _firestoreRepo!.getSharedListsByGroup(groupId);
+          developer
+              .log('✅ [HYBRID_LIST] Firestore取得完了: ${firestoreLists.length}件');
 
-        // 2. Hiveにキャッシュ（バックグラウンド）
-        for (final list in firestoreLists) {
-          _hiveRepo.updateSharedList(list).catchError((e) {
-            developer.log('⚠️ Hiveキャッシュ失敗 (${list.listId}): $e');
-          });
+          // 2. Hiveにキャッシュ（読み取り高速化のため）
+          for (final list in firestoreLists) {
+            await _hiveRepo.updateSharedList(list);
+          }
+          developer
+              .log('✅ [HYBRID_LIST] Hiveキャッシュ保存完了: ${firestoreLists.length}件');
+
+          return firestoreLists;
+        } catch (e) {
+          // Firestoreエラー時のみHiveフォールバック
+          developer.log('⚠️ [HYBRID_LIST] Firestore取得エラー - Hiveフォールバック: $e');
+          return await _hiveRepo.getSharedListsByGroup(groupId);
         }
-
-        developer.log('✅ [FIRESTORE] ${firestoreLists.length}件取得完了');
-        return firestoreLists;
+      } else {
+        // dev環境またはFirestore未初期化の場合はHive
+        developer.log('📝 [HYBRID_LIST] dev環境 - Hiveから取得');
+        return await _hiveRepo.getSharedListsByGroup(groupId);
       }
-
-      // オフライン時またはDev環境はHive優先
-      developer.log('📦 [HIVE優先] リスト取得: $groupId');
-      return await _hiveRepo.getSharedListsByGroup(groupId);
     } catch (e) {
-      developer.log('❌ HybridSharedList.getSharedListsByGroup error: $e');
-      // エラー時はHiveフォールバック
-      return await _hiveRepo.getSharedListsByGroup(groupId);
+      developer.log('❌ [HYBRID_LIST] リスト一覧取得エラー: $e');
+      rethrow;
     }
   }
 
   @override
   Future<void> updateSharedList(SharedList list) async {
     try {
-      // 1. まずHiveに保存（楽観的更新）
-      await _hiveRepo.updateSharedList(list);
+      // 🔥 サインイン必須仕様: Firestore優先（条件簡素化）
+      if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
+        developer.log('🔥 [HYBRID_LIST] Firestore優先モード - Firestoreに更新');
 
-      if (F.appFlavor == Flavor.dev || !_isOnline) {
-        return; // Dev環境またはオフライン時はHiveのみ
-      }
+        // 1. Firestoreに更新
+        await _firestoreRepo!.updateSharedList(list);
+        developer.log('✅ [HYBRID_LIST] Firestore更新完了: ${list.listName}');
 
-      // 2. すべてのグループでFirestoreにも同期
-      if (_isSharedGroup(list.groupId)) {
-        await _syncListToFirestoreWithFallback(
-            list, _SharedListSyncOperationType.update);
-        developer.log('🌐 [FIRESTORE同期] ${list.listName}');
+        // 2. Hiveにキャッシュ
+        await _hiveRepo.updateSharedList(list);
+        developer.log('✅ [HYBRID_LIST] Hiveキャッシュ更新完了');
+      } else {
+        // dev環境またはFirestore未初期化の場合はHive
+        developer.log('📝 [HYBRID_LIST] dev環境 - Hiveに更新');
+        await _hiveRepo.updateSharedList(list);
+        developer.log('✅ [HYBRID_LIST] Hive更新完了: ${list.listName}');
       }
     } catch (e) {
-      developer.log('❌ HybridSharedList.updateSharedList error: $e');
+      developer.log('❌ [HYBRID_LIST] リスト更新エラー: $e');
       rethrow;
     }
   }
 
   @override
   Future<void> deleteSharedList(String groupId, String listId) async {
-    // Hiveから削除
-    await _hiveRepo.deleteSharedList(groupId, listId);
+    try {
+      // 🔥 サインイン必須仕様: Firestore優先（条件簡素化）
+      if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
+        developer.log('🔥 [HYBRID_LIST] Firestore優先モード - Firestoreから削除');
 
-    // Firestoreからも削除（オンライン時）
-    if (_firestoreRepo != null) {
-      try {
+        // 1. Firestoreから削除
         await _firestoreRepo!.deleteSharedList(groupId, listId);
-        developer.log(
-            '🗑️ [HYBRID] リストをFirestoreから削除: groupId=$groupId, listId=$listId');
-      } catch (e) {
-        developer.log('❌ [HYBRID] Firestore削除エラー: $e');
+        developer.log('✅ [HYBRID_LIST] Firestore削除完了: listId=$listId');
+
+        // 2. Hiveキャッシュからも削除
+        await _hiveRepo.deleteSharedList(groupId, listId);
+        developer.log('✅ [HYBRID_LIST] Hiveキャッシュ削除完了');
+      } else {
+        // dev環境またはFirestore未初期化の場合はHive
+        developer.log('📝 [HYBRID_LIST] dev環境 - Hiveから削除');
+        await _hiveRepo.deleteSharedList(groupId, listId);
+        developer.log('✅ [HYBRID_LIST] Hive削除完了: listId=$listId');
       }
+    } catch (e) {
+      developer.log('❌ [HYBRID_LIST] リスト削除エラー: $e');
+      rethrow;
     }
   }
 
