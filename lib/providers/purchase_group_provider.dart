@@ -14,6 +14,7 @@ import '../services/access_control_service.dart';
 import '../services/user_preferences_service.dart';
 import '../services/user_initialization_service.dart';
 import '../services/firestore_user_name_service.dart';
+import 'auth_provider.dart';
 import 'user_specific_hive_provider.dart';
 import 'current_list_provider.dart';
 
