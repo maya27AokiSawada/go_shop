@@ -162,6 +162,7 @@ class _SharedListPageV2State extends ConsumerState<SharedListPageV2> {
   void _showAddItemDialog(BuildContext context, WidgetRef ref) {
     final nameController = TextEditingController();
     final quantityController = TextEditingController(text: '1');
+    bool isSubmitting = false; // 🔥 二重送信防止フラグ
 
     showDialog(
       context: context,
@@ -284,65 +285,95 @@ class _SharedListPageV2State extends ConsumerState<SharedListPageV2> {
               child: const Text('キャンセル'),
             ),
             ElevatedButton(
-              onPressed: () async {
-                final name = nameController.text.trim();
-                if (name.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('商品名を入力してください')),
-                  );
-                  return;
-                }
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      // 🔥 二重送信防止：処理中は無効化
+                      if (isSubmitting) return;
 
-                final quantity = int.tryParse(quantityController.text) ?? 1;
+                      final name = nameController.text.trim();
+                      if (name.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('商品名を入力してください')),
+                        );
+                        return;
+                      }
 
-                final currentList = ref.read(currentListProvider);
-                if (currentList == null) return;
+                      final quantity =
+                          int.tryParse(quantityController.text) ?? 1;
 
-                // 現在のユーザーIDを取得
-                final currentUser = ref.read(authStateProvider).value;
-                final currentMemberId = currentUser?.uid ?? 'anonymous';
+                      final currentList = ref.read(currentListProvider);
+                      if (currentList == null) return;
 
-                try {
-                  // 新しいアイテムを作成（itemIdは自動生成）
-                  final newItem = SharedItem.createNow(
-                    memberId: currentMemberId,
-                    name: name,
-                    quantity: quantity,
-                    deadline: _selectedDeadline, // 期限を追加
-                    shoppingInterval: _selectedRepeatDate != null
-                        ? _calculateInterval(_selectedRepeatDate!)
-                        : 0,
-                    // itemId: 自動生成される
-                  );
+                      // 現在のユーザーIDを取得
+                      final currentUser = ref.read(authStateProvider).value;
+                      final currentMemberId = currentUser?.uid ?? 'anonymous';
 
-                  // 🆕 差分同期: 単一アイテムのみ追加
-                  final repository = ref.read(sharedListRepositoryProvider);
-                  await repository.addSingleItem(currentList.listId, newItem);
+                      // 🔥 送信開始：ボタン無効化
+                      setDialogState(() {
+                        isSubmitting = true;
+                      });
 
-                  // StreamBuilderが自動的に更新を検知するため、invalidateは不要
+                      try {
+                        // 新しいアイテムを作成（itemIdは自動生成）
+                        final newItem = SharedItem.createNow(
+                          memberId: currentMemberId,
+                          name: name,
+                          quantity: quantity,
+                          deadline: _selectedDeadline, // 期限を追加
+                          shoppingInterval: _selectedRepeatDate != null
+                              ? _calculateInterval(_selectedRepeatDate!)
+                              : 0,
+                          // itemId: 自動生成される
+                        );
 
-                  Log.info(
-                      '✅ アイテム追加成功: $name x $quantity (itemId: ${newItem.itemId})');
+                        // 🆕 差分同期: 単一アイテムのみ追加
+                        final repository =
+                            ref.read(sharedListRepositoryProvider);
+                        await repository.addSingleItem(
+                            currentList.listId, newItem);
 
-                  // 期限と定期購入をリセット
-                  setState(() {
-                    _selectedDeadline = null;
-                    _selectedRepeatDate = null;
-                  });
+                        // StreamBuilderが自動的に更新を検知するため、invalidateは不要
 
-                  Navigator.of(context).pop();
+                        Log.info(
+                            '✅ アイテム追加成功: $name x $quantity (itemId: ${newItem.itemId})');
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('「$name」を追加しました')),
-                  );
-                } catch (e, stackTrace) {
-                  Log.error('❌ アイテム追加エラー: $e', stackTrace);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('アイテム追加に失敗しました: $e')),
-                  );
-                }
-              },
-              child: const Text('追加'),
+                        // 期限と定期購入をリセット
+                        setState(() {
+                          _selectedDeadline = null;
+                          _selectedRepeatDate = null;
+                        });
+
+                        // ダイアログを閉じる
+                        if (context.mounted) {
+                          Navigator.of(context).pop();
+
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('「$name」を追加しました')),
+                          );
+                        }
+                      } catch (e, stackTrace) {
+                        Log.error('❌ アイテム追加エラー: $e', stackTrace);
+
+                        // エラー時は送信フラグをリセット
+                        setDialogState(() {
+                          isSubmitting = false;
+                        });
+
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('アイテム追加に失敗しました: $e')),
+                          );
+                        }
+                      }
+                    },
+              child: isSubmitting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('追加'),
             ),
           ],
         ),
