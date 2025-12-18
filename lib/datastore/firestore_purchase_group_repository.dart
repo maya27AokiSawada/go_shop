@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:go_shop/utils/app_logger.dart';
 import 'package:uuid/uuid.dart';
 import '../models/shared_group.dart';
 import '../datastore/shared_group_repository.dart';
@@ -120,9 +121,9 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
       AppLogger.info('✅ [FIRESTORE_REPO] ${groupsSnapshot.docs.length}グループ取得');
 
       for (var doc in groupsSnapshot.docs) {
-        final data = doc.data();
-        final groupName = data['groupName'] as String? ?? 'Unknown';
-        final allowedUid = data['allowedUid'] as List<dynamic>? ?? [];
+        final data = doc.data() as Map<String, dynamic>?;
+        final groupName = data?['groupName'] as String? ?? 'Unknown';
+        final allowedUid = data?['allowedUid'] as List<dynamic>? ?? [];
         AppLogger.info(
             '  📄 [FIRESTORE_DOC] ${AppLogger.maskGroup(groupName, doc.id)} - allowedUid: ${allowedUid.map((uid) => AppLogger.maskUserId(uid.toString())).toList()}');
       }
