@@ -859,6 +859,85 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
           await _cleanupInvalidHiveGroups(user.uid, hiveRepository);
         }
 
+        // 🔥 グループ名とメンバー名の更新チェック（ユーザー名が変わった場合に対応）
+        final defaultGroupName = '$displayNameグループ';
+        final needsGroupNameUpdate =
+            existingGroup.groupName != defaultGroupName;
+
+        // オーナーメンバーの名前が現在のユーザー名と一致するかチェック
+        final ownerMember = existingGroup.members?.firstWhere(
+          (m) => m.memberId == defaultGroupId,
+          orElse: () => SharedGroupMember(
+            memberId: defaultGroupId,
+            name: '',
+            role: SharedGroupRole.owner,
+          ),
+        );
+        final needsMemberNameUpdate = ownerMember != null &&
+            ownerMember.name.isNotEmpty &&
+            ownerMember.name != displayName;
+
+        if (needsGroupNameUpdate || needsMemberNameUpdate) {
+          Log.info('🔄 [CREATE DEFAULT] デフォルトグループ情報を更新');
+          if (needsGroupNameUpdate) {
+            Log.info(
+                '  - グループ名: ${existingGroup.groupName} → $defaultGroupName');
+          }
+          if (needsMemberNameUpdate) {
+            Log.info('  - メンバー名: ${ownerMember.name} → $displayName');
+          }
+
+          // メンバーリストの更新
+          final updatedMembers = existingGroup.members?.map((m) {
+            if (m.memberId == defaultGroupId) {
+              return m.copyWith(name: displayName);
+            }
+            return m;
+          }).toList();
+
+          final updatedGroup = existingGroup.copyWith(
+            groupName: defaultGroupName,
+            members: updatedMembers,
+          );
+
+          // Hiveに保存
+          await hiveRepository.saveGroup(updatedGroup);
+
+          // Firestoreにも同期（サインイン状態の場合）
+          if (user != null && F.appFlavor == Flavor.prod) {
+            try {
+              final firestore = FirebaseFirestore.instance;
+              final updateData = <String, dynamic>{
+                'groupName': defaultGroupName,
+                'updatedAt': FieldValue.serverTimestamp(),
+              };
+
+              // メンバー情報も更新
+              if (updatedMembers != null) {
+                updateData['members'] = updatedMembers
+                    .map((m) => {
+                          'memberId': m.memberId,
+                          'name': m.name,
+                          'contact': m.contact,
+                          'role': m.role.toString().split('.').last,
+                          'isSignedIn': m.isSignedIn,
+                          'isInvited': m.isInvited,
+                          'isInvitationAccepted': m.isInvitationAccepted,
+                        })
+                    .toList();
+              }
+
+              await firestore
+                  .collection('SharedGroups')
+                  .doc(defaultGroupId)
+                  .update(updateData);
+              Log.info('✅ [CREATE DEFAULT] Firestoreのデフォルトグループ情報も更新完了');
+            } catch (e) {
+              Log.error('❌ [CREATE DEFAULT] Firestoreグループ情報更新エラー: $e');
+            }
+          }
+        }
+
         // ⚠️ レガシー'default_group'が残っている場合は削除
         if (defaultGroupId != 'default_group') {
           try {
