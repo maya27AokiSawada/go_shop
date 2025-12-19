@@ -873,8 +873,8 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
             role: SharedGroupRole.owner,
           ),
         );
+        // 🔥 FIX: ownerMemberが見つかり、名前が異なる場合は更新（空でも更新）
         final needsMemberNameUpdate = ownerMember != null &&
-            ownerMember.name.isNotEmpty &&
             ownerMember.name != displayName;
 
         if (needsGroupNameUpdate || needsMemberNameUpdate) {
