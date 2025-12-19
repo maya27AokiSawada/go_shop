@@ -119,30 +119,32 @@ class _WindowsQRScannerSimpleState extends State<WindowsQRScannerSimple> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('QRコードを手動入力'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Windows版では画像からのQRコード自動読み取りは未対応です。',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'スマートフォンで表示されているQRコードの内容（JSON形式）を\n'
-              '手動で入力してください:',
-              style: TextStyle(fontSize: 12),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: controller,
-              maxLines: 8,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: '{"groupId": "...", "groupName": "...", ...}',
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Windows版では画像からのQRコード自動読み取りは未対応です。',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              const Text(
+                'スマートフォンで表示されているQRコードの内容（JSON形式）を\n'
+                '手動で入力してください:',
+                style: TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: controller,
+                maxLines: 8,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: '{"groupId": "...", "groupName": "...", ...}',
+                ),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(

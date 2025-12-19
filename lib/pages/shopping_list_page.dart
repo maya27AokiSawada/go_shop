@@ -368,129 +368,132 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: const Text('新しいアイテムを追加'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: _itemNameController,
-                decoration: const InputDecoration(
-                  labelText: '商品名',
-                  border: OutlineInputBorder(),
-                ),
-                autofocus: true,
-                enabled: !_isLoading,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _quantityController,
-                decoration: const InputDecoration(
-                  labelText: '数量',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-                enabled: !_isLoading,
-              ),
-              const SizedBox(height: 16),
-              InkWell(
-                onTap: _isLoading
-                    ? null
-                    : () => _selectDeadline(context, setState),
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey),
-                    borderRadius: BorderRadius.circular(4),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: _itemNameController,
+                  decoration: const InputDecoration(
+                    labelText: '商品名',
+                    border: OutlineInputBorder(),
                   ),
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      Icon(Icons.calendar_today,
-                          color: _isLoading ? Colors.grey : null),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _selectedDeadline == null
-                              ? '購入期限を選択（任意）'
-                              : '期限: ${_formatDate(_selectedDeadline!)}',
-                          style: TextStyle(
-                            color:
-                                _selectedDeadline == null ? Colors.grey : null,
-                          ),
-                        ),
-                      ),
-                      if (_selectedDeadline != null)
-                        IconButton(
-                          icon: const Icon(Icons.clear, size: 16),
-                          onPressed: _isLoading
-                              ? null
-                              : () {
-                                  setState(() {
-                                    _selectedDeadline = null;
-                                  });
-                                },
-                        ),
-                    ],
-                  ),
+                  autofocus: true,
+                  enabled: !_isLoading,
                 ),
-              ),
-              const SizedBox(height: 16),
-              InkWell(
-                onTap: _isLoading
-                    ? null
-                    : () => _selectRepeatDate(context, setState),
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      Icon(Icons.repeat,
-                          color: _isLoading ? Colors.grey : null),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _selectedRepeatDate == null
-                              ? '次回購入予定日（任意）'
-                              : '次回: ${_formatDate(_selectedRepeatDate!)} (${_calculateInterval(_selectedRepeatDate!)}日間隔)',
-                          style: TextStyle(
-                            color: _selectedRepeatDate == null
-                                ? Colors.grey
-                                : null,
-                          ),
-                        ),
-                      ),
-                      if (_selectedRepeatDate != null)
-                        IconButton(
-                          icon: const Icon(Icons.clear, size: 16),
-                          onPressed: _isLoading
-                              ? null
-                              : () {
-                                  setState(() {
-                                    _selectedRepeatDate = null;
-                                  });
-                                },
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-              if (_isLoading) ...[
                 const SizedBox(height: 16),
-                const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                    SizedBox(width: 12),
-                    Text('保存中...', style: TextStyle(color: Colors.grey)),
-                  ],
+                TextField(
+                  controller: _quantityController,
+                  decoration: const InputDecoration(
+                    labelText: '数量',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.number,
+                  enabled: !_isLoading,
                 ),
+                const SizedBox(height: 16),
+                InkWell(
+                  onTap: _isLoading
+                      ? null
+                      : () => _selectDeadline(context, setState),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        Icon(Icons.calendar_today,
+                            color: _isLoading ? Colors.grey : null),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _selectedDeadline == null
+                                ? '購入期限を選択（任意）'
+                                : '期限: ${_formatDate(_selectedDeadline!)}',
+                            style: TextStyle(
+                              color: _selectedDeadline == null
+                                  ? Colors.grey
+                                  : null,
+                            ),
+                          ),
+                        ),
+                        if (_selectedDeadline != null)
+                          IconButton(
+                            icon: const Icon(Icons.clear, size: 16),
+                            onPressed: _isLoading
+                                ? null
+                                : () {
+                                    setState(() {
+                                      _selectedDeadline = null;
+                                    });
+                                  },
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                InkWell(
+                  onTap: _isLoading
+                      ? null
+                      : () => _selectRepeatDate(context, setState),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        Icon(Icons.repeat,
+                            color: _isLoading ? Colors.grey : null),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _selectedRepeatDate == null
+                                ? '次回購入予定日（任意）'
+                                : '次回: ${_formatDate(_selectedRepeatDate!)} (${_calculateInterval(_selectedRepeatDate!)}日間隔)',
+                            style: TextStyle(
+                              color: _selectedRepeatDate == null
+                                  ? Colors.grey
+                                  : null,
+                            ),
+                          ),
+                        ),
+                        if (_selectedRepeatDate != null)
+                          IconButton(
+                            icon: const Icon(Icons.clear, size: 16),
+                            onPressed: _isLoading
+                                ? null
+                                : () {
+                                    setState(() {
+                                      _selectedRepeatDate = null;
+                                    });
+                                  },
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (_isLoading) ...[
+                  const SizedBox(height: 16),
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      SizedBox(width: 12),
+                      Text('保存中...', style: TextStyle(color: Colors.grey)),
+                    ],
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
           actions: [
             TextButton(
@@ -529,128 +532,131 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: const Text('アイテムを編集'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: _itemNameController,
-                decoration: const InputDecoration(
-                  labelText: '商品名',
-                  border: OutlineInputBorder(),
-                ),
-                enabled: !_isLoading,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _quantityController,
-                decoration: const InputDecoration(
-                  labelText: '数量',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-                enabled: !_isLoading,
-              ),
-              const SizedBox(height: 16),
-              InkWell(
-                onTap: _isLoading
-                    ? null
-                    : () => _selectDeadline(context, setState),
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey),
-                    borderRadius: BorderRadius.circular(4),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: _itemNameController,
+                  decoration: const InputDecoration(
+                    labelText: '商品名',
+                    border: OutlineInputBorder(),
                   ),
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      Icon(Icons.calendar_today,
-                          color: _isLoading ? Colors.grey : null),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _selectedDeadline == null
-                              ? '購入期限を選択（任意）'
-                              : '期限: ${_formatDate(_selectedDeadline!)}',
-                          style: TextStyle(
-                            color:
-                                _selectedDeadline == null ? Colors.grey : null,
-                          ),
-                        ),
-                      ),
-                      if (_selectedDeadline != null)
-                        IconButton(
-                          icon: const Icon(Icons.clear, size: 16),
-                          onPressed: _isLoading
-                              ? null
-                              : () {
-                                  setState(() {
-                                    _selectedDeadline = null;
-                                  });
-                                },
-                        ),
-                    ],
-                  ),
+                  enabled: !_isLoading,
                 ),
-              ),
-              const SizedBox(height: 16),
-              InkWell(
-                onTap: _isLoading
-                    ? null
-                    : () => _selectRepeatDate(context, setState),
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      Icon(Icons.repeat,
-                          color: _isLoading ? Colors.grey : null),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _selectedRepeatDate == null
-                              ? '次回購入予定日（任意）'
-                              : '次回: ${_formatDate(_selectedRepeatDate!)} (${_calculateInterval(_selectedRepeatDate!)}日間隔)',
-                          style: TextStyle(
-                            color: _selectedRepeatDate == null
-                                ? Colors.grey
-                                : null,
-                          ),
-                        ),
-                      ),
-                      if (_selectedRepeatDate != null)
-                        IconButton(
-                          icon: const Icon(Icons.clear, size: 16),
-                          onPressed: _isLoading
-                              ? null
-                              : () {
-                                  setState(() {
-                                    _selectedRepeatDate = null;
-                                  });
-                                },
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-              if (_isLoading) ...[
                 const SizedBox(height: 16),
-                const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                    SizedBox(width: 12),
-                    Text('更新中...', style: TextStyle(color: Colors.grey)),
-                  ],
+                TextField(
+                  controller: _quantityController,
+                  decoration: const InputDecoration(
+                    labelText: '数量',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.number,
+                  enabled: !_isLoading,
                 ),
+                const SizedBox(height: 16),
+                InkWell(
+                  onTap: _isLoading
+                      ? null
+                      : () => _selectDeadline(context, setState),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        Icon(Icons.calendar_today,
+                            color: _isLoading ? Colors.grey : null),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _selectedDeadline == null
+                                ? '購入期限を選択（任意）'
+                                : '期限: ${_formatDate(_selectedDeadline!)}',
+                            style: TextStyle(
+                              color: _selectedDeadline == null
+                                  ? Colors.grey
+                                  : null,
+                            ),
+                          ),
+                        ),
+                        if (_selectedDeadline != null)
+                          IconButton(
+                            icon: const Icon(Icons.clear, size: 16),
+                            onPressed: _isLoading
+                                ? null
+                                : () {
+                                    setState(() {
+                                      _selectedDeadline = null;
+                                    });
+                                  },
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                InkWell(
+                  onTap: _isLoading
+                      ? null
+                      : () => _selectRepeatDate(context, setState),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        Icon(Icons.repeat,
+                            color: _isLoading ? Colors.grey : null),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _selectedRepeatDate == null
+                                ? '次回購入予定日（任意）'
+                                : '次回: ${_formatDate(_selectedRepeatDate!)} (${_calculateInterval(_selectedRepeatDate!)}日間隔)',
+                            style: TextStyle(
+                              color: _selectedRepeatDate == null
+                                  ? Colors.grey
+                                  : null,
+                            ),
+                          ),
+                        ),
+                        if (_selectedRepeatDate != null)
+                          IconButton(
+                            icon: const Icon(Icons.clear, size: 16),
+                            onPressed: _isLoading
+                                ? null
+                                : () {
+                                    setState(() {
+                                      _selectedRepeatDate = null;
+                                    });
+                                  },
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (_isLoading) ...[
+                  const SizedBox(height: 16),
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      SizedBox(width: 12),
+                      Text('更新中...', style: TextStyle(color: Colors.grey)),
+                    ],
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
           actions: [
             TextButton(
