@@ -360,16 +360,15 @@ class FirestoreSharedListRepository implements SharedListRepository {
   }
 
   // 🆕 Map-based Differential Sync Methods
-  @override
-  Future<void> addSingleItem(String listId, SharedItem item) async {
-    developer.log('🔄 [FIRESTORE_DIFF] Adding single item: ${item.name}');
+  /// groupIdを指定して単一アイテムを追加（コレクショングループクエリ回避版）
+  Future<void> addSingleItemWithGroupId(
+      String listId, String groupId, SharedItem item) async {
+    developer.log(
+        '🔄 [FIRESTORE_DIFF] Adding single item with groupId: ${item.name}');
+    developer
+        .log('📋 [FIRESTORE_DIFF] Target groupId: $groupId, listId: $listId');
 
-    // Firestoreでは部分更新としてMapのキーを追加
-    // items.{itemId} = item.toJson()
-    final list = await getSharedListById(listId);
-    if (list == null) throw Exception('List not found: $listId');
-
-    await _collection(list.groupId).doc(listId).update({
+    await _collection(groupId).doc(listId).update({
       'items.${item.itemId}': _itemToFirestore(item),
       'updatedAt': FieldValue.serverTimestamp(),
     });
@@ -378,10 +377,87 @@ class FirestoreSharedListRepository implements SharedListRepository {
   }
 
   @override
+  Future<void> addSingleItem(String listId, SharedItem item) async {
+    developer.log('🔄 [FIRESTORE_DIFF] Adding single item: ${item.name}');
+
+    // Firestoreでは部分更新としてMapのキーを追加
+    // items.{itemId} = item.toJson()
+
+    // まずローカルキャッシュからgroupIdを取得（高速）
+    SharedList? list;
+    try {
+      list = await getSharedListById(listId);
+    } catch (e) {
+      developer.log(
+          '⚠️ [FIRESTORE_DIFF] Local cache miss, trying Firestore query: $e');
+      // キャッシュにない場合、コレクショングループクエリで検索
+      final querySnapshot = await _firestore
+          .collectionGroup('sharedLists')
+          .where('listId', isEqualTo: listId)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        throw Exception('List not found: $listId');
+      }
+
+      list = _sharedListFromFirestore(querySnapshot.docs.first);
+    }
+
+    if (list == null) throw Exception('List not found: $listId');
+
+    developer.log('📋 [FIRESTORE_DIFF] Target groupId: ${list.groupId}');
+    await _collection(list.groupId).doc(listId).update({
+      'items.${item.itemId}': _itemToFirestore(item),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    developer.log('✅ [FIRESTORE_DIFF] Item added to Firestore');
+  }
+
+  /// groupIdを指定して単一アイテムを削除（コレクショングループクエリ回避版）
+  Future<void> removeSingleItemWithGroupId(
+      String listId, String groupId, String itemId) async {
+    developer.log(
+        '🔄 [FIRESTORE_DIFF] Logically deleting item with groupId: $itemId');
+    developer
+        .log('📋 [FIRESTORE_DIFF] Target groupId: $groupId, listId: $listId');
+
+    // 論理削除: isDeleted = true に更新
+    await _collection(groupId).doc(listId).update({
+      'items.$itemId.isDeleted': true,
+      'items.$itemId.deletedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    developer.log('✅ [FIRESTORE_DIFF] Item logically deleted');
+  }
+
+  @override
   Future<void> removeSingleItem(String listId, String itemId) async {
     developer.log('🔄 [FIRESTORE_DIFF] Logically deleting item: $itemId');
 
-    final list = await getSharedListById(listId);
+    // まずローカルキャッシュからgroupIdを取得
+    SharedList? list;
+    try {
+      list = await getSharedListById(listId);
+    } catch (e) {
+      developer.log(
+          '⚠️ [FIRESTORE_DIFF] Local cache miss, trying Firestore query: $e');
+      final querySnapshot = await _firestore
+          .collectionGroup('sharedLists')
+          .where('listId', isEqualTo: listId)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        developer.log('⚠️ [FIRESTORE_DIFF] List not found: $listId');
+        return;
+      }
+
+      list = _sharedListFromFirestore(querySnapshot.docs.first);
+    }
+
     if (list == null) return;
 
     final item = list.items[itemId];
@@ -390,6 +466,7 @@ class FirestoreSharedListRepository implements SharedListRepository {
       return;
     }
 
+    developer.log('📋 [FIRESTORE_DIFF] Target groupId: ${list.groupId}');
     // 論理削除: isDeleted = true に更新
     await _collection(list.groupId).doc(listId).update({
       'items.$itemId.isDeleted': true,
@@ -400,13 +477,50 @@ class FirestoreSharedListRepository implements SharedListRepository {
     developer.log('✅ [FIRESTORE_DIFF] Item logically deleted');
   }
 
+  /// groupIdを指定して単一アイテムを更新（コレクショングループクエリ回避版）
+  Future<void> updateSingleItemWithGroupId(
+      String listId, String groupId, SharedItem item) async {
+    developer.log(
+        '🔄 [FIRESTORE_DIFF] Updating single item with groupId: ${item.name}');
+    developer
+        .log('📋 [FIRESTORE_DIFF] Target groupId: $groupId, listId: $listId');
+
+    await _collection(groupId).doc(listId).update({
+      'items.${item.itemId}': _itemToFirestore(item),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    developer.log('✅ [FIRESTORE_DIFF] Item updated in Firestore');
+  }
+
   @override
   Future<void> updateSingleItem(String listId, SharedItem item) async {
     developer.log('🔄 [FIRESTORE_DIFF] Updating single item: ${item.name}');
 
-    final list = await getSharedListById(listId);
+    // まずローカルキャッシュからgroupIdを取得
+    SharedList? list;
+    try {
+      list = await getSharedListById(listId);
+    } catch (e) {
+      developer.log(
+          '⚠️ [FIRESTORE_DIFF] Local cache miss, trying Firestore query: $e');
+      final querySnapshot = await _firestore
+          .collectionGroup('sharedLists')
+          .where('listId', isEqualTo: listId)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        developer.log('⚠️ [FIRESTORE_DIFF] List not found: $listId');
+        return;
+      }
+
+      list = _sharedListFromFirestore(querySnapshot.docs.first);
+    }
+
     if (list == null) return;
 
+    developer.log('📋 [FIRESTORE_DIFF] Target groupId: ${list.groupId}');
     await _collection(list.groupId).doc(listId).update({
       'items.${item.itemId}': _itemToFirestore(item),
       'updatedAt': FieldValue.serverTimestamp(),
@@ -420,7 +534,27 @@ class FirestoreSharedListRepository implements SharedListRepository {
       {int olderThanDays = 30}) async {
     developer.log('🧹 [FIRESTORE_CLEANUP] Starting cleanup for list: $listId');
 
-    final list = await getSharedListById(listId);
+    // まずローカルキャッシュからgroupIdを取得
+    SharedList? list;
+    try {
+      list = await getSharedListById(listId);
+    } catch (e) {
+      developer.log(
+          '⚠️ [FIRESTORE_CLEANUP] Local cache miss, trying Firestore query: $e');
+      final querySnapshot = await _firestore
+          .collectionGroup('sharedLists')
+          .where('listId', isEqualTo: listId)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        developer.log('⚠️ [FIRESTORE_CLEANUP] List not found: $listId');
+        return;
+      }
+
+      list = _sharedListFromFirestore(querySnapshot.docs.first);
+    }
+
     if (list == null) return;
 
     // 削除済みアイテムを物理削除（全体を保存し直す）

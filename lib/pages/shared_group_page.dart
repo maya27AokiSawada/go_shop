@@ -18,8 +18,6 @@ class SharedGroupPage extends ConsumerStatefulWidget {
 class _SharedGroupPageState extends ConsumerState<SharedGroupPage> {
   @override
   Widget build(BuildContext context) {
-    final selectedGroupId = ref.watch(selectedGroupIdProvider);
-
     // セキュリティチェック
     final canViewData = ref.watch(dataVisibilityProvider);
     final authRequired = ref.watch(authRequiredProvider);

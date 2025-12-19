@@ -1,5 +1,29 @@
 # Go Shop - AI Coding Agent Instructions
 
+## 🚀 Quick Start for AI Agents (December 2025)
+
+**Project**: Flutter multi-platform shopping list sharing app (家族・グループ向け買い物リスト共有アプリ)
+**Architecture**: Firestore-first hybrid (Firestore → Hive cache), authentication-required
+**State Management**: Riverpod (traditional syntax, NO generator)
+**Key Pattern**: Repository pattern with differential sync for 90% network reduction
+
+**Critical Rules**:
+
+1. **Firestore FIRST**: Always read from Firestore when authenticated, cache to Hive
+2. **Differential sync**: Use `addSingleItem()`, NOT full list updates
+3. **Auth flow order**: Clear data → Auth → Set name → Sync → Invalidate providers
+4. **Hive cleanup**: Remove other users' groups, NEVER touch Firestore
+5. **Push to `oneness`** only unless explicitly told to push to `main`
+
+**Recent Major Changes (2025-12-17/18)**:
+
+- ✅ All CRUD operations migrated to Firestore-first
+- ✅ SharedItem differential sync implemented (Map-based field updates)
+- ✅ Authentication flow completely overhauled with proper data cleanup
+- ✅ Default group creation now checks Firestore before Hive
+
+---
+
 ## ⚠️ Critical Project Rules
 
 ### Git Push Policy
@@ -26,7 +50,44 @@
 
 Go Shop は家族・グループ向けの買い物リスト共有 Flutter アプリです。Firebase Auth（ユーザー認証）と Cloud Firestore（データベース）を使用し、Hive をローカルキャッシュとして併用するハイブリッド構成です。
 
+**Current Status (December 2025)**: Authentication-required app with Firestore-first architecture for all CRUD operations.
+
 ## Architecture & Key Components
+
+### 🔥 Critical Architecture Shift (December 2025)
+
+**Firestore-First Hybrid Pattern** - All three data layers now prioritize Firestore:
+
+1. **SharedGroup** (Groups) - `lib/datastore/hybrid_purchase_group_repository.dart`
+2. **SharedList** (Shopping Lists) - `lib/datastore/hybrid_shared_list_repository.dart`
+3. **SharedItem** (List Items) - Differential sync via `addSingleItem()`, `updateSingleItem()`, `removeSingleItem()`
+
+**Pattern**:
+
+```dart
+// ✅ Correct: Firestore first, Hive cache second
+if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
+  try {
+    // 1. Fetch from Firestore (always latest)
+    final firestoreData = await _firestoreRepo!.getData();
+
+    // 2. Cache to Hive (for next fast read)
+    await _hiveRepo.saveData(firestoreData);
+
+    return firestoreData;
+  } catch (e) {
+    // Firestore error → Hive fallback
+    return await _hiveRepo.getData();
+  }
+}
+```
+
+**Why This Matters**:
+
+- Authentication is mandatory - users are always online
+- Firestore has the source of truth
+- Hive is now purely a cache, not primary storage
+- 90% reduction in data transfer via differential sync (Map-based updates)
 
 ### State Management - Riverpod Patterns
 
@@ -118,6 +179,38 @@ void main() async {
 2. **Null Safety**: Guard against `SharedGroup.members` being null
 3. **Hive Box Access**: Ensure Boxes are opened in `_initializeHive()` before use
 4. **Riverpod Generator**: DO NOT use - causes build failures
+5. **Data Operations**: Always use differential sync methods for SharedItem operations (see below)
+
+### ⚡ Differential Sync Pattern (December 2025)
+
+**Critical**: SharedItem uses Map format with field-level updates, not full list replacement.
+
+```dart
+// ❌ Wrong: Sends entire list (~5KB for 10 items)
+final updatedItems = {...currentList.items, newItem.itemId: newItem};
+await repository.updateSharedList(currentList.copyWith(items: updatedItems));
+
+// ✅ Correct: Sends only changed item (~500B)
+await repository.addSingleItem(currentList.listId, newItem);
+await repository.updateSingleItem(currentList.listId, updatedItem);
+await repository.removeSingleItem(currentList.listId, itemId);  // Soft delete
+```
+
+**Implementation** (`lib/datastore/firestore_shared_list_repository.dart`):
+
+```dart
+// Field-level update - only sends modified item
+await _collection(list.groupId).doc(listId).update({
+  'items.${item.itemId}': _itemToFirestore(item),  // Single field update
+  'updatedAt': FieldValue.serverTimestamp(),
+});
+```
+
+**Performance Impact**:
+
+- Before: 10 items = ~5KB per operation
+- After: 1 item = ~500B per operation
+- **90% network reduction achieved**
 
 ### Build & Code Generation
 
@@ -530,7 +623,148 @@ Consumer(
 - **Property not found**: Verify `memberId` vs `memberID` consistency across codebase
 - **Default group not appearing**: Ensure `createDefaultGroup()` called after UID change data clear
 - **App mode UI not updating**: Wrap SegmentedButton in `Consumer` to watch `appModeNotifierProvider`
+- **Item count limits**: Always fetch latest data with `repository.getSharedListById()` before updates
+- **Current list clears on update**: Never use `ref.invalidate()` with StreamBuilder, it clears initialData
+- **UserSettings read errors**: Ensure UserSettingsAdapterOverride is registered before other adapters
+- **Display name not showing**: Check initState calls `_loadUserName()` in home_page.dart
+- **AdMob not showing**: Verify App ID in AndroidManifest.xml/Info.plist, rebuild app completely
+- **DropdownButton not updating**: Use `value` property instead of `initialValue` for reactive updates
+- **UI shows stale data after invalidate**: Wait for provider refresh with `await ref.read(provider.future)`
 - **List deletion not syncing**: Use `deleteSharedList(groupId, listId)` with both parameters to avoid collection group query PERMISSION_DENIED
+- **Wrong user's groups showing**: Clear Hive + SharedPreferences before sign-out, use Firestore-first reads on sign-in
+
+## 🔐 Authentication & Data Management (December 2025)
+
+### Critical Authentication Flow
+
+**Authentication is MANDATORY** - App requires sign-in to access all features.
+
+#### Sign-Up Process Order (Critical!)
+
+```dart
+// lib/pages/home_page.dart
+// ⚠️ MUST follow this exact order:
+
+// 1. Clear ALL local data BEFORE Firebase Auth registration
+await UserPreferencesService.clearAllUserInfo();
+await SharedGroupBox.clear();
+await sharedListBox.clear();
+
+// 2. Create Firebase Auth account
+await ref.read(authProvider).signUp(email, password);
+
+// 3. Set display name in both Firebase Auth and SharedPreferences
+await UserPreferencesService.saveUserName(userName);
+await user.updateDisplayName(userName);
+await user.reload();
+
+// 4. Invalidate providers to trigger re-initialization
+ref.invalidate(allGroupsProvider);
+// ... other providers
+
+// 5. Trigger Firestore→Hive sync
+await ref.read(forceSyncProvider.future);
+```
+
+#### Sign-Out Process
+
+```dart
+// 1. Clear Hive + SharedPreferences first
+await SharedGroupBox.clear();
+await sharedListBox.clear();
+await UserPreferencesService.clearAllUserInfo();
+
+// 2. Invalidate all providers
+ref.invalidate(allGroupsProvider);
+ref.invalidate(selectedGroupProvider);
+// ... other providers
+
+// 3. Firebase Auth sign-out last
+await ref.read(authProvider).signOut();
+```
+
+#### Sign-In Process with Firestore Priority
+
+```dart
+// 1. Sign in with Firebase Auth
+await ref.read(authProvider).signIn(email, password);
+
+// 2. Retrieve and save user name
+final firestoreUserName = await FirestoreUserNameService.getUserName();
+await UserPreferencesService.saveUserName(firestoreUserName);
+
+// 3. Wait for network stabilization
+await Future.delayed(const Duration(seconds: 1));
+
+// 4. Force Firestore→Hive sync
+await ref.read(forceSyncProvider.future);
+ref.invalidate(allGroupsProvider);
+
+// 5. Wait for provider refresh
+await Future.delayed(const Duration(milliseconds: 500));
+```
+
+### 🔥 Firestore-First Default Group Creation
+
+**Critical Pattern** (`lib/providers/purchase_group_provider.dart`):
+
+```dart
+// ✅ Correct: Check Firestore FIRST when signed in
+if (user != null && F.appFlavor == Flavor.prod) {
+  try {
+    // 1. Query Firestore for existing default group (groupId = user.uid)
+    final groupsSnapshot = await firestore
+        .collection('SharedGroups')
+        .where('allowedUid', arrayContains: user.uid)
+        .get();
+
+    final defaultGroupDoc = groupsSnapshot.docs.firstWhere(
+      (doc) => doc.id == user.uid,
+      orElse: () => throw Exception('No default group'),
+    );
+
+    // 2. Found in Firestore → Sync to Hive and return
+    final firestoreGroup = SharedGroup.fromFirestore(defaultGroupDoc);
+    await hiveRepository.saveGroup(firestoreGroup);
+
+    // 3. Cleanup invalid groups in Hive
+    await _cleanupInvalidHiveGroups(user.uid, hiveRepository);
+
+    return;
+  } catch (e) {
+    // 4. Not found in Firestore → Create new
+    await _createNewDefaultGroup(user);
+  }
+}
+
+// ❌ Wrong: Checking Hive first (old pattern)
+final existingGroups = await hiveRepository.getAllGroups();
+if (existingGroups.any((g) => g.groupId == user.uid)) {
+  return; // This misses Firestore updates!
+}
+```
+
+### Hive Cleanup Strategy
+
+**Purpose**: Remove other users' cached groups from local Hive storage.
+
+```dart
+Future<void> _cleanupInvalidHiveGroups(
+  String currentUserId,
+  HiveSharedGroupRepository hiveRepository,
+) async {
+  final allHiveGroups = await hiveRepository.getAllGroups();
+
+  for (final group in allHiveGroups) {
+    // Delete if current user NOT in allowedUid
+    if (!group.allowedUid.contains(currentUserId)) {
+      await hiveRepository.deleteGroup(group.groupId);  // ⚠️ Hive only, NOT Firestore
+    }
+  }
+}
+```
+
+**⚠️ CRITICAL**: Never delete from Firestore during cleanup - other users may still need those groups!
 
 ## Known Issues (As of 2025-12-15)
 
@@ -571,6 +805,196 @@ Consumer(
 - Verify debug logs show `onDetect` callbacks
 - Test with v3.1 lightweight QR codes
 - Check barcode detection count
+
+---
+
+## Recent Implementations (2025-12-18)
+
+### 1. Firestore-First Architecture for All CRUD Operations ✅
+
+**Completed**: Full migration from Hive-first to Firestore-first for all three data layers.
+
+#### Phase 1: SharedGroup CRUD (Morning)
+
+**Modified**: `lib/datastore/hybrid_purchase_group_repository.dart`
+
+All 5 CRUD methods now follow Firestore-first pattern:
+
+- `createGroup()`: Firestore create → Hive cache
+- `getGroupById()`: Firestore fetch → Hive cache
+- `getAllGroups()`: Firestore fetch → Hive cache + allowedUid filtering
+- `updateGroup()`: Firestore update → Hive cache
+- `deleteGroup()`: Firestore delete → Hive cache delete
+
+**Simplification**: Removed `_isSharedGroup()` helper - unified to "prod + Firestore initialized" check.
+
+**Commit**: `107c1e7`
+
+#### Phase 2: SharedList CRUD (Afternoon)
+
+**Modified**: `lib/datastore/hybrid_shared_list_repository.dart`
+
+All 5 CRUD methods migrated:
+
+- `createSharedList()`: Firestore create → Hive cache
+- `getSharedListById()`: Firestore fetch → Hive cache (no groupId needed)
+- `getSharedListsByGroup()`: Firestore fetch → Hive cache
+- `updateSharedList()`: Firestore update → Hive cache
+- `deleteSharedList()`: Firestore delete → Hive cache delete
+
+**Testing**: Verified on SH 54D physical device - all CRUD operations working.
+
+**Commit**: `b3b7838`
+
+#### Phase 3: SharedItem Differential Sync (Late Afternoon)
+
+**Background**: Map<String, SharedItem> format existed but HybridRepository was sending entire lists.
+
+**Modified**: `lib/datastore/hybrid_shared_list_repository.dart`
+
+Implemented true differential sync:
+
+- `addSingleItem()`: Firestore field update (`items.{itemId}`) → Hive cache
+- `removeSingleItem()`: Firestore soft delete (`items.{itemId}.isDeleted = true`) → Hive cache
+- `updateSingleItem()`: Firestore field update → Hive cache
+
+**Performance**:
+
+- Before: 10 items = ~5KB per operation
+- After: 1 item = ~500B per operation
+- **90% network traffic reduction achieved** 🎉
+
+**Commit**: `2c41315`
+
+### 2. Double Submission Prevention ✅
+
+**Problem**: Users could tap "Add Item" button multiple times during Firestore processing.
+
+**Solution** (`lib/pages/shopping_list_page_v2.dart`):
+
+```dart
+bool isSubmitting = false;
+
+ElevatedButton(
+  onPressed: isSubmitting ? null : () async {
+    setState(() { isSubmitting = true; });
+
+    try {
+      await repository.addSingleItem(listId, newItem);
+      if (context.mounted) Navigator.pop(context);
+    } catch (e) {
+      setState(() { isSubmitting = false; });
+    }
+  },
+  child: isSubmitting
+    ? CircularProgressIndicator(strokeWidth: 2)
+    : Text('追加'),
+)
+```
+
+**Features**:
+
+- Button disabled during processing
+- Visual feedback (loading spinner)
+- `context.mounted` check before dialog close
+- Error recovery (re-enable button on failure)
+
+**Commit**: `dcc60cb`
+
+---
+
+## Recent Implementations (2025-12-17)
+
+### サインイン必須仕様への完全対応 ✅
+
+**Overview**: Comprehensive authentication flow improvements with Firestore-first reads and Hive cleanup.
+
+#### 1. User Name Setting Logic Fix
+
+**Problem**: UI input "まや" → Firebase set "fatima.sumomo" (email prefix)
+
+**Root Cause**: SharedPreferences cleared AFTER Firebase Auth registration
+
+**Fix** (`lib/pages/home_page.dart`):
+
+```dart
+// ✅ Correct order:
+// 1. Clear SharedPreferences + Hive FIRST
+await UserPreferencesService.clearAllUserInfo();
+await SharedGroupBox.clear();
+
+// 2. THEN create Firebase Auth account
+await authProvider.signUp(email, password);
+
+// 3. Set display name
+await UserPreferencesService.saveUserName(userName);
+```
+
+#### 2. Sign-Out Data Cleanup
+
+**Added** (`lib/pages/home_page.dart` Lines 705-750):
+
+```dart
+// Complete cleanup on sign-out
+await SharedGroupBox.clear();
+await sharedListBox.clear();
+await UserPreferencesService.clearAllUserInfo();
+ref.invalidate(allGroupsProvider);
+await authProvider.signOut();
+```
+
+#### 3. Firestore Priority on Sign-In
+
+**Critical Change** (`lib/providers/purchase_group_provider.dart` Lines 765-825):
+
+```dart
+// 🔥 Check Firestore FIRST when creating default group
+if (user != null && F.appFlavor == Flavor.prod) {
+  try {
+    final groupsSnapshot = await firestore
+        .collection('SharedGroups')
+        .where('allowedUid', arrayContains: user.uid)
+        .get();
+
+    // Found existing default group → sync to Hive
+    if (groupsSnapshot.docs.any((doc) => doc.id == user.uid)) {
+      await syncFromFirestore();
+      await _cleanupInvalidHiveGroups(user.uid);
+      return;
+    }
+  } catch (e) {
+    // Not found → create new
+  }
+}
+```
+
+#### 4. Hive Cleanup Implementation
+
+**New Method** (`lib/providers/purchase_group_provider.dart` Lines 1415-1448):
+
+```dart
+Future<void> _cleanupInvalidHiveGroups(
+  String currentUserId,
+  HiveSharedGroupRepository hiveRepository,
+) async {
+  final allHiveGroups = await hiveRepository.getAllGroups();
+
+  for (final group in allHiveGroups) {
+    if (!group.allowedUid.contains(currentUserId)) {
+      await hiveRepository.deleteGroup(group.groupId);  // Hive only!
+    }
+  }
+}
+```
+
+**Safety**: Deletes from Hive only, never Firestore (other users may still use those groups).
+
+**Commits**:
+
+- `4ba82a7`: User name setting logic fix
+- `a5eb33c`: Sign-out data cleanup
+- `09246b5`: Loading spinner for group list
+- `1a869a3`: Firestore-first reads + Hive cleanup
 
 ---
 
