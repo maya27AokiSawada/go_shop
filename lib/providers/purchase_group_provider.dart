@@ -854,6 +854,11 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
         Log.info(
             '💡 [CREATE DEFAULT] 既存グループのsyncStatus: ${existingGroup.syncStatus}');
 
+        // 🔥 CRITICAL: Hiveクリーンアップ - allowedUidに含まれないグループを削除
+        if (user != null) {
+          await _cleanupInvalidHiveGroups(user.uid, hiveRepository);
+        }
+
         // ⚠️ レガシー'default_group'が残っている場合は削除
         if (defaultGroupId != 'default_group') {
           try {
