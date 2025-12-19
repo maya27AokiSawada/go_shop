@@ -969,6 +969,9 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
             await firestore.collection('SharedGroups').doc(defaultGroupId).set({
               'groupId': syncedGroup.groupId,
               'groupName': syncedGroup.groupName,
+              'ownerName': syncedGroup.ownerName ?? displayName, // 🔥 追加: オーナー名
+              'ownerEmail':
+                  syncedGroup.ownerEmail ?? user.email, // 🔥 追加: オーナーメール
               'ownerUid': user.uid,
               'allowedUid': [user.uid],
               'members': syncedGroup.members
@@ -1061,6 +1064,9 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
           await firestore.collection('SharedGroups').doc(defaultGroupId).set({
             'groupId': syncedGroup.groupId,
             'groupName': syncedGroup.groupName,
+            'ownerName': syncedGroup.ownerName ?? displayName, // 🔥 追加: オーナー名
+            'ownerEmail':
+                syncedGroup.ownerEmail ?? user.email, // 🔥 追加: オーナーメール
             'ownerUid': user.uid,
             'allowedUid': [user.uid],
             'members': syncedGroup.members
