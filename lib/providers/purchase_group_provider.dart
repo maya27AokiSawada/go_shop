@@ -561,27 +561,24 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
           Log.warning('⚠️ [CREATE GROUP] SharedPreferences取得エラー: $e');
         }
 
-        // 2. Firestore /users/{uid}/profile/userName から取得を試みる
+        // 2. Firestore /users/{uid} から取得を試みる
         if (userName == 'ゲスト') {
           try {
-            final profileDoc = await FirebaseFirestore.instance
+            final userDoc = await FirebaseFirestore.instance
                 .collection('users')
                 .doc(currentUser.uid)
-                .collection('profile')
-                .doc('userName')
                 .get();
 
-            if (profileDoc.exists) {
-              final profileData = profileDoc.data();
-              final firestoreName = profileData?['userName'];
+            if (userDoc.exists) {
+              final userData = userDoc.data();
+              final firestoreName = userData?['displayName'];
               if (firestoreName != null && firestoreName.isNotEmpty) {
                 userName = firestoreName;
-                Log.info(
-                    '✅ [CREATE GROUP] Firestore profileからユーザー名取得: $userName');
+                Log.info('✅ [CREATE GROUP] Firestoreからユーザー名取得: $userName');
               }
             }
           } catch (e) {
-            Log.warning('⚠️ [CREATE GROUP] Firestore profile取得エラー: $e');
+            Log.warning('⚠️ [CREATE GROUP] Firestore取得エラー: $e');
           }
         }
 

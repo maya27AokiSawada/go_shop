@@ -5,7 +5,7 @@ import '../utils/app_logger.dart';
 /// ユーザー名をFirestoreで管理するサービス
 ///
 /// コレクション構造:
-/// users/{uid}/profile/userName -> { userName: string, userEmail: string, createdAt: timestamp, updatedAt: timestamp }
+/// users/{uid} -> { displayName: string, email: string, createdAt: timestamp, updatedAt: timestamp }
 class FirestoreUserNameService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -22,16 +22,12 @@ class FirestoreUserNameService {
       Log.info(
           '🔍 Firestoreからユーザー名取得開始: UID=${AppLogger.maskUserId(user.uid)}');
 
-      final docRef = _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('profile')
-          .doc('userName');
+      final docRef = _firestore.collection('users').doc(user.uid);
       final docSnapshot = await docRef.get();
 
       if (docSnapshot.exists) {
         final data = docSnapshot.data() as Map<String, dynamic>;
-        final userName = data['userName'] as String?;
+        final userName = data['displayName'] as String?;
 
         Log.info('✅ Firestoreからユーザー名取得成功: ${AppLogger.maskName(userName)}');
         return userName;
@@ -59,30 +55,26 @@ class FirestoreUserNameService {
       Log.info(
           '💾 Firestoreにユーザー名保存開始: UID=${AppLogger.maskUserId(user.uid)}, 名前=${AppLogger.maskName(userName)}');
 
-      final docRef = _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('profile')
-          .doc('userName');
+      final docRef = _firestore.collection('users').doc(user.uid);
 
       // 既存のドキュメントを取得してemailを確認
       final docSnapshot = await docRef.get();
       final currentEmail = user.email ?? '';
 
       final Map<String, dynamic> dataToSave = {
-        'userName': userName,
+        'displayName': userName,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
       if (docSnapshot.exists) {
         // ドキュメントが存在する場合、emailが異なるなら更新
         final existingData = docSnapshot.data() as Map<String, dynamic>;
-        final storedEmail = existingData['userEmail'] as String? ?? '';
+        final storedEmail = existingData['email'] as String? ?? '';
 
         if (storedEmail != currentEmail) {
           Log.info(
               '📧 [PROFILE] emailが異なります: 保存済み=$storedEmail, Auth=$currentEmail');
-          dataToSave['userEmail'] = currentEmail;
+          dataToSave['email'] = currentEmail;
           Log.info('✅ [PROFILE] emailを更新: $currentEmail');
         } else {
           Log.info('✅ [PROFILE] emailは既に同期済み');
@@ -90,14 +82,14 @@ class FirestoreUserNameService {
       } else {
         // ドキュメントが存在しない場合は新規作成（createdAtも追加）
         Log.info('🆕 [PROFILE] 新規ドキュメント作成: ${AppLogger.maskName(userName)}');
-        dataToSave['userEmail'] = currentEmail;
+        dataToSave['email'] = currentEmail;
         dataToSave['createdAt'] = FieldValue.serverTimestamp();
       }
 
       // SetOptions(merge: true)でドキュメントを作成または更新
       Log.info('📝 [FIRESTORE WRITE] set()実行前 - データ: $dataToSave');
       Log.info(
-          '📝 [FIRESTORE WRITE] パス: users/${AppLogger.maskUserId(user.uid)}/profile/userName');
+          '📝 [FIRESTORE WRITE] パス: users/${AppLogger.maskUserId(user.uid)}');
 
       // Windows版Firestoreのスレッド問題を回避するため、メインスレッドで実行
       await Future.microtask(() async {
@@ -124,11 +116,7 @@ class FirestoreUserNameService {
 
       Log.info('🗑️ Firestoreからユーザー名削除開始: UID=${user.uid}');
 
-      final docRef = _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('profile')
-          .doc('userName');
+      final docRef = _firestore.collection('users').doc(user.uid);
       await docRef.delete();
 
       Log.info('✅ Firestoreからユーザードキュメント削除完了');
@@ -149,13 +137,11 @@ class FirestoreUserNameService {
     return _firestore
         .collection('users')
         .doc(user.uid)
-        .collection('profile')
-        .doc('userName')
         .snapshots()
         .map((snapshot) {
       if (snapshot.exists) {
         final data = snapshot.data() as Map<String, dynamic>;
-        final userName = data['userName'] as String?;
+        final userName = data['displayName'] as String?;
         Log.info('🔄 Firestoreユーザー名リアルタイム更新: $userName');
         return userName;
       } else {
@@ -178,14 +164,10 @@ class FirestoreUserNameService {
       Log.info(
           '🔍 [PROFILE] ユーザープロファイル確認開始: UID=${AppLogger.maskUserId(user.uid)}');
 
-      final docRef = _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('profile')
-          .doc('userName');
+      final docRef = _firestore.collection('users').doc(user.uid);
 
       Log.info(
-          '📍 [PROFILE] ドキュメントパス: users/${AppLogger.maskUserId(user.uid)}/profile/userName');
+          '📍 [PROFILE] ドキュメントパス: users/${AppLogger.maskUserId(user.uid)}');
 
       final docSnapshot = await docRef.get();
       Log.info('🔍 [PROFILE] ドキュメント存在チェック: exists=${docSnapshot.exists}');
@@ -198,8 +180,8 @@ class FirestoreUserNameService {
             '📝 [PROFILE] 指定されたユーザー名で作成/更新: ${AppLogger.maskName(userName)}');
 
         final dataToSave = {
-          'userName': userName,
-          'userEmail': currentEmail,
+          'displayName': userName,
+          'email': currentEmail,
           'updatedAt': FieldValue.serverTimestamp(),
         };
 
@@ -232,8 +214,8 @@ class FirestoreUserNameService {
             '📝 [PROFILE] ドキュメント作成開始（デフォルト値使用）: ${AppLogger.maskName(defaultUserName)}');
 
         final createData = {
-          'userName': defaultUserName,
-          'userEmail': currentEmail,
+          'displayName': defaultUserName,
+          'email': currentEmail,
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
         };
@@ -250,14 +232,14 @@ class FirestoreUserNameService {
       } else {
         // プロファイルが存在する場合、emailが異なるなら更新
         final existingData = docSnapshot.data() as Map<String, dynamic>;
-        final storedEmail = existingData['userEmail'] as String? ?? '';
+        final storedEmail = existingData['email'] as String? ?? '';
 
         if (storedEmail != currentEmail) {
           Log.info(
               '📧 [PROFILE] emailが異なります: 保存済み=$storedEmail, Auth=$currentEmail');
 
           final updateData = {
-            'userEmail': currentEmail,
+            'email': currentEmail,
             'updatedAt': FieldValue.serverTimestamp(),
           };
           Log.info('📝 [FIRESTORE WRITE] update()実行前 - データ: $updateData');
@@ -270,7 +252,7 @@ class FirestoreUserNameService {
           Log.info('✅ [FIRESTORE WRITE] update()実行完了');
           Log.info('✅ [PROFILE] emailを更新: $currentEmail');
         } else {
-          final existingUserName = existingData['userName'] as String? ?? '';
+          final existingUserName = existingData['displayName'] as String? ?? '';
           Log.info(
               '💡 [PROFILE] ユーザードキュメントは既に存在します (UID: ${AppLogger.maskUserId(user.uid)}), ユーザー名: ${AppLogger.maskName(existingUserName)}, email: $storedEmail');
         }

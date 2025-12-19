@@ -55,14 +55,9 @@ service cloud.firestore {
       allow update, delete: if false;  // 記録は変更不可
     }
 
-    // ユーザードキュメント（基本情報）
+    // ユーザードキュメント（displayName, email, createdAt, updatedAt）
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
-
-      // ユーザープロファイル：自分のプロファイルのみ読み書き可能
-      match /profile/{document=**} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-      }
 
       // 受諾招待コレクション：誰でも書き込み可能（招待受諾用）
       match /acceptedInvitations/{acceptorUid} {

@@ -51,15 +51,11 @@ class QRInvitationService {
     // Firestoreプロファイルから表示名を取得（最優先）
     String? firestoreName;
     try {
-      final profileDoc = await _firestore
-          .collection('users')
-          .doc(currentUser.uid)
-          .collection('profile')
-          .doc('profile')
-          .get();
+      final userDoc =
+          await _firestore.collection('users').doc(currentUser.uid).get();
 
-      if (profileDoc.exists) {
-        firestoreName = profileDoc.data()?['displayName'] as String?;
+      if (userDoc.exists) {
+        firestoreName = userDoc.data()?['displayName'] as String?;
       }
     } catch (e) {
       Log.error('📤 [INVITER] Firestoreプロファイル取得エラー: $e');
@@ -411,15 +407,11 @@ class QRInvitationService {
       // Firestoreプロファイルから表示名を取得
       String? firestoreName;
       try {
-        final profileDoc = await _firestore
-            .collection('users')
-            .doc(acceptorUid)
-            .collection('profile')
-            .doc('profile')
-            .get();
+        final userDoc =
+            await _firestore.collection('users').doc(acceptorUid).get();
 
-        if (profileDoc.exists) {
-          firestoreName = profileDoc.data()?['displayName'] as String?;
+        if (userDoc.exists) {
+          firestoreName = userDoc.data()?['displayName'] as String?;
         }
       } catch (e) {
         Log.error('📤 [ACCEPTOR] Firestoreプロファイル取得エラー: $e');
@@ -768,23 +760,19 @@ class QRInvitationService {
         // 2. Firestore /users/{uid}/profile/userName から取得を試みる
         if (userName.isEmpty) {
           try {
-            final profileDoc = await _firestore
-                .collection('users')
-                .doc(acceptorUid)
-                .collection('profile')
-                .doc('userName')
-                .get();
+            final userDoc =
+                await _firestore.collection('users').doc(acceptorUid).get();
 
-            if (profileDoc.exists) {
-              final profileData = profileDoc.data();
-              userName = profileData?['userName'] ?? '';
+            if (userDoc.exists) {
+              final userData = userDoc.data();
+              userName = userData?['displayName'] ?? '';
               if (userName.isNotEmpty) {
                 Log.info(
-                    '✅ [PARTNER] Firestore profileからユーザー名取得: "${AppLogger.maskName(userName)}"');
+                    '✅ [PARTNER] Firestoreからユーザー名取得: "${AppLogger.maskName(userName)}"');
               }
             }
           } catch (e) {
-            Log.error('⚠️ [PARTNER] Firestore profile取得エラー: $e');
+            Log.error('⚠️ [PARTNER] Firestore取得エラー: $e');
           }
         }
 
@@ -959,26 +947,19 @@ class QRInvitationService {
 
         // 2. Firestore /users/{uid}/profile/userName から取得を試みる
         if (userName.isEmpty) {
-          Log.info(
-              '⚠️ [QR_INVITATION] SharedPreferences空 - Firestore profileから取得試行');
+          Log.info('⚠️ [QR_INVITATION] SharedPreferences空 - Firestoreから取得試行');
           try {
-            final profileDoc = await _firestore
-                .collection('users')
-                .doc(acceptorUid)
-                .collection('profile')
-                .doc('userName')
-                .get();
+            final userDoc =
+                await _firestore.collection('users').doc(acceptorUid).get();
 
-            Log.info(
-                '🔍 [QR_INVITATION] Firestore profileドキュメント存在: ${profileDoc.exists}');
-            if (profileDoc.exists) {
-              final profileData = profileDoc.data();
-              userName = profileData?['userName'] ?? '';
-              Log.info(
-                  '✅ [QR_INVITATION] Firestore profileからユーザー名取得: "$userName"');
+            Log.info('🔍 [QR_INVITATION] Firestoreドキュメント存在: ${userDoc.exists}');
+            if (userDoc.exists) {
+              final userData = userDoc.data();
+              userName = userData?['displayName'] ?? '';
+              Log.info('✅ [QR_INVITATION] Firestoreからユーザー名取得: "$userName"');
             }
           } catch (e) {
-            Log.error('⚠️ [QR_INVITATION] Firestore profile取得エラー: $e');
+            Log.error('⚠️ [QR_INVITATION] Firestore取得エラー: $e');
           }
         }
 
