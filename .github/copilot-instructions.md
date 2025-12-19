@@ -808,6 +808,165 @@ Future<void> _cleanupInvalidHiveGroups(
 
 ---
 
+## Recent Implementations (2025-12-19)
+
+### 1. QR コードスキャン機能の改善 ✅
+
+**Background**: SH 54D で TBA1011 が生成した QR コードをスキャンしても反応しない問題
+
+**原因**: 室内照明の問題（照度不足）の可能性 + MobileScanner のデフォルト設定
+
+#### MobileScannerController の明示的設定
+
+**Modified**: `lib/widgets/accept_invitation_widget.dart`
+
+```dart
+_controller = MobileScannerController(
+  formats: [BarcodeFormat.qrCode], // QRコード専用
+  detectionSpeed: DetectionSpeed.normal,
+  facing: CameraFacing.back,
+  torchEnabled: false,
+);
+```
+
+**従来**: デフォルト設定（全バーコード形式対応）
+**改善後**: QR コード専用、検出速度最適化
+
+#### エラーハンドリング強化
+
+```dart
+MobileScanner(
+  errorBuilder: (context, error, child) {
+    return Center(
+      child: Column(
+        children: [
+          Icon(Icons.error, color: Colors.red, size: 48),
+          Text('カメラエラー: $error'),
+          Text('カメラの権限を確認してください'),
+        ],
+      ),
+    );
+  },
+)
+```
+
+#### 視覚的フィードバック追加
+
+- **スキャンエリアオーバーレイ**: 280x280 の白枠
+- **ガイドテキスト**: "QR コードをここに"
+- **処理中インジケーター**: CircularProgressIndicator
+
+#### デバッグログ強化
+
+**QR 生成側** (`qr_invitation_service.dart`):
+
+```dart
+Log.info('📲 [QR_ENCODE] QRコード生成: データ長=${encodedData.length}文字');
+Log.info('📲 [QR_ENCODE] データ内容: $encodedData');
+```
+
+**QR デコード側** (`qr_invitation_service.dart`):
+
+```dart
+Log.info('📲 [QR_DECODE] QRコードデコード開始: データ長=${qrData.length}文字');
+Log.info('📲 [QR_DECODE] JSONデコード成功');
+Log.info('📲 [QR_DECODE] version: ${decoded['version']}');
+```
+
+**スキャナー側** (`accept_invitation_widget.dart`):
+
+```dart
+Log.info('📷 [MOBILE_SCANNER] カメラ画像取得 - onDetect呼び出し');
+Log.info('🔍 [MOBILE_SCANNER] バーコード数: ${barcodes.length}');
+Log.info('🔍 [MOBILE_SCANNER] rawValue長さ: ${rawValue?.length ?? 0}文字');
+```
+
+**結果**: ✅ QR コード招待が正常動作（照明条件改善により）
+
+### 2. 2 デバイス間リアルタイム同期の実証 ✅
+
+**テスト環境**:
+
+- デバイス 1: SH 54D (まや)
+- デバイス 2: TBA1011 (すもも)
+
+**確認項目**:
+
+#### ✅ リスト作成の同期
+
+- TBA1011 でリスト作成 → SH 54D で即座に表示
+- SH 54D でリスト作成 → TBA1011 で即座に表示
+
+#### ✅ アイテム追加の同期
+
+- 一方のデバイスでアイテム追加 → もう一方で 1 秒以内に反映
+
+#### ✅ アイテム削除の同期
+
+- 一方のデバイスでアイテム削除 → もう一方で即座に削除反映
+
+**アーキテクチャの検証**:
+
+- Firestore-first architecture 正常動作
+- 差分同期（単一アイテム送信）正常動作
+- HybridSharedListRepository のキャッシュ機構正常動作
+
+**Performance Metrics**:
+
+- 同期速度: < 1 秒
+- データ転送量: ~500B/操作（90%削減達成）
+- 同期安定性: 安定
+
+### 3. Next Steps (優先度順)
+
+#### 🎯 HIGH: アイテム削除権限チェック実装
+
+**要件**: アイテム削除は以下のユーザーのみ許可
+
+- アイテム登録者（`item.memberId`）
+- グループオーナー（`group.ownerUid`）
+
+**実装予定ファイル**:
+
+- `lib/pages/shopping_list_page_v2.dart`: UI 側の権限チェック
+- `lib/datastore/firestore_shared_list_repository.dart`: Firestore 側の権限チェック
+- `lib/datastore/hybrid_shared_list_repository.dart`: 権限チェックのパススルー
+
+**実装パターン**:
+
+```dart
+// UI側でボタン無効化
+final canDelete = currentUser.uid == item.memberId ||
+                 currentUser.uid == currentGroup.ownerUid;
+
+// Repository側で検証
+Future<void> removeSingleItem(String listId, String itemId) async {
+  final currentUser = _auth.currentUser;
+  final item = await getItemById(listId, itemId);
+  final group = await getGroupById(groupId);
+
+  if (currentUser.uid != item.memberId &&
+      currentUser.uid != group.ownerUid) {
+    throw Exception('削除権限がありません');
+  }
+
+  // 削除処理...
+}
+```
+
+#### MEDIUM: Firestore ユーザー情報構造簡素化
+
+- 現状: `/users/{uid}/profile/profile`（無駄に深い）
+- 改善: `/users/{uid}`（シンプル）
+
+#### LOW: その他改善
+
+- アイテム編集権限チェック（削除と同様）
+- QR コード招待の有効期限確認機能
+- バックグラウンド同期の最適化
+
+---
+
 ## Recent Implementations (2025-12-18)
 
 ### 1. Firestore-First Architecture for All CRUD Operations ✅

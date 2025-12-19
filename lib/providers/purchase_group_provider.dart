@@ -831,7 +831,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
           Log.info('✅ [CREATE DEFAULT] FirestoreグループをHiveに保存完了');
 
           // 🔥 CRITICAL: Hiveクリーンアップ - allowedUidに含まれないグループを削除
-          await _cleanupInvalidHiveGroups(user.uid, hiveRepository);
+          await _cleanupInvalidHiveGroupsInternal(user.uid, hiveRepository);
 
           Log.info('✅ [CREATE DEFAULT] 初期化完了 - 作成不要');
           return;
@@ -840,7 +840,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
           Log.info('📝 [CREATE DEFAULT] 新規作成を続行');
 
           // 🔥 CRITICAL: 新規作成前にもHiveクリーンアップ
-          await _cleanupInvalidHiveGroups(user.uid, hiveRepository);
+          await _cleanupInvalidHiveGroupsInternal(user.uid, hiveRepository);
         }
       } else {
         Log.info('🔍 [CREATE DEFAULT] オフラインまたはdev環境 - Hiveのみチェック');
@@ -856,7 +856,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
 
         // 🔥 CRITICAL: Hiveクリーンアップ - allowedUidに含まれないグループを削除
         if (user != null) {
-          await _cleanupInvalidHiveGroups(user.uid, hiveRepository);
+          await _cleanupInvalidHiveGroupsInternal(user.uid, hiveRepository);
         }
 
         // 🔥 グループ名とメンバー名の更新チェック（ユーザー名が変わった場合に対応）
@@ -865,17 +865,18 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
             existingGroup.groupName != defaultGroupName;
 
         // オーナーメンバーの名前が現在のユーザー名と一致するかチェック
-        final ownerMember = existingGroup.members?.firstWhere(
-          (m) => m.memberId == defaultGroupId,
-          orElse: () => SharedGroupMember(
-            memberId: defaultGroupId,
-            name: '',
-            role: SharedGroupRole.owner,
-          ),
-        );
+        SharedGroupMember? ownerMember;
+        try {
+          ownerMember = existingGroup.members?.firstWhere(
+            (m) => m.memberId == defaultGroupId,
+          );
+        } catch (e) {
+          // オーナーメンバーが見つからない場合はnull
+          ownerMember = null;
+        }
         // 🔥 FIX: ownerMemberが見つかり、名前が異なる場合は更新（空でも更新）
-        final needsMemberNameUpdate = ownerMember != null &&
-            ownerMember.name != displayName;
+        final needsMemberNameUpdate =
+            ownerMember != null && ownerMember.name != displayName;
 
         if (needsGroupNameUpdate || needsMemberNameUpdate) {
           Log.info('🔄 [CREATE DEFAULT] デフォルトグループ情報を更新');
@@ -1099,6 +1100,19 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
       Log.error('❌ [CREATE DEFAULT] スタックトレース: $stackTrace');
       // rethrow; // REMOVED: Allow initialization to continue
     }
+  }
+
+  /// 🔥 Hiveから不正なグループを削除（allowedUidに現在ユーザーが含まれないもの）
+  /// サインイン成功時に呼び出される
+  Future<void> cleanupInvalidHiveGroups() async {
+    final currentUser = ref.read(authStateProvider).value;
+    if (currentUser == null) {
+      Log.warning('⚠️ [CLEANUP] 認証なし - クリーンアップスキップ');
+      return;
+    }
+
+    final hiveRepository = ref.read(hiveSharedGroupRepositoryProvider);
+    await _cleanupInvalidHiveGroupsInternal(currentUser.uid, hiveRepository);
   }
 
   /// 🆕 デフォルトグループを手動でFirestoreに同期
@@ -1499,7 +1513,8 @@ SharedGroupRole _parseRole(String? roleString) {
 }
 
 /// Hiveから不正なグループを削除（allowedUidに現在ユーザーが含まれないもの）
-Future<void> _cleanupInvalidHiveGroups(
+/// 内部実装（外部からは cleanupInvalidHiveGroups() を使用）
+Future<void> _cleanupInvalidHiveGroupsInternal(
   String currentUserId,
   HiveSharedGroupRepository hiveRepository,
 ) async {

@@ -163,13 +163,22 @@ class QRInvitationService {
       'type': 'secure_qr_invitation',
       'version': '3.1', // 軽量版
     };
-    return jsonEncode(minimalData);
+    final encodedData = jsonEncode(minimalData);
+    Log.info('📲 [QR_ENCODE] QRコード生成: データ長=${encodedData.length}文字');
+    Log.info('📲 [QR_ENCODE] データ内容: $encodedData');
+    return encodedData;
   }
 
   /// QRコードデータをJSONデコード（セキュリティ検証付き）
   Future<Map<String, dynamic>?> decodeQRData(String qrData) async {
+    Log.info('📲 [QR_DECODE] QRコードデコード開始: データ長=${qrData.length}文字');
+    Log.info(
+        '📲 [QR_DECODE] 受信データ: ${qrData.substring(0, qrData.length > 200 ? 200 : qrData.length)}');
     try {
       final decoded = jsonDecode(qrData) as Map<String, dynamic>;
+      Log.info('📲 [QR_DECODE] JSONデコード成功');
+      Log.info('📲 [QR_DECODE] version: ${decoded['version']}');
+      Log.info('📲 [QR_DECODE] type: ${decoded['type']}');
 
       // バージョンチェック
       final version = decoded['version'] as String?;
@@ -184,10 +193,14 @@ class QRInvitationService {
 
         return validated;
       } else {
+        Log.warning('📲 [QR_DECODE] 未対応のバージョン: $version');
         return _validateLegacyInvitation(decoded);
       }
-    } catch (e) {
-      Log.error('QRコードデコードエラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ [QR_DECODE] QRコードデコードエラー: $e');
+      Log.error('❌ [QR_DECODE] スタックトレース: $stackTrace');
+      Log.error(
+          '❌ [QR_DECODE] 問題のあるデータ: ${qrData.substring(0, qrData.length > 100 ? 100 : qrData.length)}');
       return null;
     }
   }
