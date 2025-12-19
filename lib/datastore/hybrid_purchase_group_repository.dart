@@ -36,6 +36,8 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
   FirestoreSharedGroupRepository? _firestoreRepo;
 
   // 接続状態管理
+  // 🔥 CRITICAL: 初期値をtrueにして、初期化完了後に実際の状態を反映
+  // 理由: 非同期初期化中にsyncStatusProviderが呼ばれるとfalseのままになる
   bool _isOnline = true;
   bool _isSyncing = false;
 
@@ -101,7 +103,9 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
       if (currentUser == null) {
         developer.log('⚠️ [HYBRID_REPO] 認証なし - Firestore同期スキップ（Hiveのみモード）');
         _firestoreRepo = null;
-        _isOnline = false;
+        // 🔥 FIX: 認証なしの場合でもtrueを維持（UIで「未ログイン」表示は別の判定）
+        // _isOnlineはFirestoreへの接続可否を示し、認証状態は別途チェックする
+        _isOnline = true; // ネットワーク自体は接続可能
         _isInitialized = true;
         _initializationError = 'No authentication - Hive only mode';
         return;

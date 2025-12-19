@@ -87,7 +87,22 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = MobileScannerController();
+    // QRコード専用設定でコントローラーを初期化
+    _controller = MobileScannerController(
+      formats: [BarcodeFormat.qrCode], // QRコードのみ検出
+      detectionSpeed: DetectionSpeed.normal, // 通常速度
+      facing: CameraFacing.back, // バックカメラ
+      torchEnabled: false,
+    );
+    Log.info('📷 [MOBILE_SCANNER] コントローラー初期化完了 - QRコード専用モード');
+
+    // カメラ起動を待ってから状態をログ出力
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        Log.info('📷 [MOBILE_SCANNER] カメラ起動待機完了');
+        Log.info('📷 [MOBILE_SCANNER] Torch対応: ${_controller.torchEnabled}');
+      }
+    });
   }
 
   @override
@@ -133,7 +148,24 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
               children: [
                 MobileScanner(
                   controller: _controller,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, child) {
+                    Log.error('❌ [MOBILE_SCANNER] カメラエラー: $error');
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error, color: Colors.red, size: 48),
+                          const SizedBox(height: 16),
+                          Text('カメラエラー: $error'),
+                          const SizedBox(height: 16),
+                          const Text('カメラの権限を確認してください'),
+                        ],
+                      ),
+                    );
+                  },
                   onDetect: (capture) {
+                    Log.info('📷 [MOBILE_SCANNER] カメラ画像取得 - onDetect呼び出し');
                     Log.info('🔍 [MOBILE_SCANNER] onDetect呼び出し');
                     Log.info(
                         '🔍 [MOBILE_SCANNER] _isProcessing=$_isProcessing');
@@ -153,13 +185,20 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
 
                     final rawValue = barcodes.first.rawValue;
                     Log.info(
-                        '🔍 [MOBILE_SCANNER] rawValue: ${rawValue?.substring(0, rawValue.length > 50 ? 50 : rawValue.length)}...');
+                        '🔍 [MOBILE_SCANNER] rawValue長さ: ${rawValue?.length ?? 0}文字');
+                    Log.info(
+                        '🔍 [MOBILE_SCANNER] rawValue内容: ${rawValue?.substring(0, rawValue.length > 100 ? 100 : (rawValue.length ?? 0))}');
 
                     if (rawValue != null) {
+                      Log.info(
+                          '🔍 [MOBILE_SCANNER] 最初の文字: "${rawValue.isNotEmpty ? rawValue[0] : ''}"');
+                      Log.info(
+                          '🔍 [MOBILE_SCANNER] JSON形式チェック: startsWith({)=${rawValue.startsWith('{')} startsWith([)=${rawValue.startsWith('[')}');
+
                       // QRコードがJSON形式かトークン形式か判定
                       if (rawValue.startsWith('{') ||
                           rawValue.startsWith('[')) {
-                        Log.info('✅ [MOBILE_SCANNER] JSON形式のQRコード検出');
+                        Log.info('✅ [MOBILE_SCANNER] JSON形式のQRコード検出 - 処理開始');
                         // JSON形式 = QR招待
                         _processQRInvitation(rawValue);
                       } else {
@@ -180,6 +219,45 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
                     }
                   },
                 ),
+                // スキャンエリアのオーバーレイ
+                Center(
+                  child: Container(
+                    width: 280,
+                    height: 280,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.white, width: 3),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        'QRコードをここに',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          backgroundColor: Colors.black54,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                // 処理中インジケーター
+                if (_isProcessing)
+                  Container(
+                    color: Colors.black54,
+                    child: const Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(color: Colors.white),
+                          SizedBox(height: 16),
+                          Text(
+                            '処理中...',
+                            style: TextStyle(color: Colors.white, fontSize: 18),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
               ],
             ),
     );
