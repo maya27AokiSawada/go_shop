@@ -253,16 +253,12 @@ class UserInitializationService {
           '🔄 [PROFILE SYNC] ユーザープロフィール同期開始: UID=${AppLogger.maskUserId(user.uid)}');
 
       final firestore = FirebaseFirestore.instance;
-      final profileDoc = firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('profile')
-          .doc('userName');
+      final userDoc = firestore.collection('users').doc(user.uid);
 
       // Firestoreからプロフィールを取得
-      final profileSnapshot = await profileDoc.get();
-      final firestoreData = profileSnapshot.exists
-          ? profileSnapshot.data() as Map<String, dynamic>
+      final userSnapshot = await userDoc.get();
+      final firestoreData = userSnapshot.exists
+          ? userSnapshot.data() as Map<String, dynamic>
           : null;
 
       // SharedPreferencesから現在のデータを取得
@@ -274,7 +270,7 @@ class UserInitializationService {
       final authEmail = user.email;
 
       Log.info(
-          '📊 [PROFILE SYNC] Firestore: ${firestoreData != null ? firestoreData['userName'] : 'なし'}');
+          '📊 [PROFILE SYNC] Firestore: ${firestoreData != null ? firestoreData['displayName'] : 'なし'}');
       Log.info('📊 [PROFILE SYNC] Local: ${AppLogger.maskName(localUserName)}');
 
       // 同期の優先順位: Firestore > Local
@@ -282,9 +278,9 @@ class UserInitializationService {
       String finalUserEmail = authEmail ?? localUserEmail ?? '';
       String finalUserId = user.uid;
 
-      if (firestoreData != null && firestoreData['userName'] != null) {
+      if (firestoreData != null && firestoreData['displayName'] != null) {
         // Firestoreにデータがある場合
-        finalUserName = firestoreData['userName'] as String;
+        finalUserName = firestoreData['displayName'] as String;
 
         // ローカルと異なる場合は更新
         if (finalUserName != localUserName) {
@@ -299,9 +295,9 @@ class UserInitializationService {
         finalUserName = localUserName;
         Log.info(
             '📤 [PROFILE SYNC] ローカルからFirestoreに同期: ${AppLogger.maskName(finalUserName)}');
-        await profileDoc.set({
-          'userName': finalUserName,
-          'userEmail': finalUserEmail,
+        await userDoc.set({
+          'displayName': finalUserName,
+          'email': finalUserEmail,
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
       } else {

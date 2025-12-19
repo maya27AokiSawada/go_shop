@@ -290,22 +290,20 @@ class NotificationService {
       String finalAcceptorName = acceptorName;
       if (acceptorName.isEmpty || acceptorName == 'ユーザー') {
         try {
-          final profileDoc = await FirebaseFirestore.instance
+          final userDoc = await FirebaseFirestore.instance
               .collection('users')
               .doc(acceptorUid)
-              .collection('profile')
-              .doc('profile')
               .get();
 
-          if (profileDoc.exists) {
-            final firestoreName = profileDoc.data()?['displayName'] as String?;
+          if (userDoc.exists) {
+            final firestoreName = userDoc.data()?['displayName'] as String?;
             if (firestoreName?.isNotEmpty == true) {
               finalAcceptorName = firestoreName!;
               AppLogger.info('📤 [OWNER] Firestoreから名前取得: $finalAcceptorName');
             }
           }
         } catch (e) {
-          AppLogger.error('📤 [OWNER] Firestoreプロファイル取得エラー: $e');
+          AppLogger.error('📤 [OWNER] Firestore取得エラー: $e');
         }
       }
 

@@ -11,6 +11,7 @@ import '../services/user_initialization_service.dart';
 import '../services/list_cleanup_service.dart';
 import '../services/shopping_list_data_migration_service.dart';
 import '../services/periodic_purchase_service.dart';
+import '../services/user_profile_migration_service.dart';
 import '../widgets/test_scenario_widget.dart';
 import '../debug/fix_maya_group.dart';
 import '../utils/app_logger.dart';
@@ -591,6 +592,41 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                             const SizedBox(height: 20),
                             const Divider(),
                             const SizedBox(height: 20),
+                            // 🆕 ユーザープロファイル移行
+                            Text(
+                              'ユーザープロファイル移行',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '旧構造から新構造へユーザープロファイルを移行します',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(color: Colors.grey.shade600),
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: user == null
+                                    ? null
+                                    : () async {
+                                        await _migrateUserProfile(user);
+                                      },
+                                icon: const Icon(Icons.sync_alt, size: 18),
+                                label: const Text('プロファイル移行実行'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green.shade100,
+                                  foregroundColor: Colors.green.shade800,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 12),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            const Divider(),
+                            const SizedBox(height: 20),
                             // 🆕 Hiveデータクリア（緊急用）
                             Text(
                               'Hiveデータを完全削除',
@@ -1070,6 +1106,125 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     }
   }
 
+  /// ユーザープロファイル移行メソッド
+  Future<void> _migrateUserProfile(User user) async {
+    try {
+      // ローディング表示
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('プロファイルを移行中...'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final migrationService = UserProfileMigrationService();
+
+      // 移行状況チェック
+      final status = await migrationService.checkMigrationStatus(user.uid);
+
+      if (status['migrated'] == true) {
+        // 既に移行済み
+        if (!mounted) return;
+        Navigator.of(context).pop();
+
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.info, color: Colors.blue),
+                SizedBox(width: 8),
+                Text('移行不要'),
+              ],
+            ),
+            content: const Text('プロファイルは既に新構造に移行済みです。'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+
+      // 移行実行
+      final success = await migrationService.migrateCurrentUserProfile();
+
+      // ローディング閉じる
+      if (!mounted) return;
+      Navigator.of(context).pop();
+
+      // 結果表示
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(success ? Icons.check_circle : Icons.error,
+                  color: success ? Colors.green : Colors.red),
+              const SizedBox(width: 8),
+              Text(success ? '移行完了' : '移行失敗'),
+            ],
+          ),
+          content: Text(
+            success
+                ? 'ユーザープロファイルを新構造に移行しました。\n\n旧構造: /users/{uid}/profile/profile\n新構造: /users/{uid}'
+                : 'プロファイルの移行に失敗しました。\nログを確認してください。',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      AppLogger.error('プロファイル移行エラー', e);
+
+      // エラー時もローディングを閉じる
+      if (mounted) Navigator.of(context).pop();
+
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.error, color: Colors.red),
+              SizedBox(width: 8),
+              Text('移行エラー'),
+            ],
+          ),
+          content: Text('エラー: $e'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
   /// 定期購入アイテムのリセットメソッド
   Future<void> _resetPeriodicPurchaseItems() async {
     try {
@@ -1182,8 +1337,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         ),
       );
 
-      final migrationService =
-          ref.read(sharedListDataMigrationServiceProvider);
+      final migrationService = ref.read(sharedListDataMigrationServiceProvider);
       final status = await migrationService.checkMigrationStatus();
 
       // ローディング閉じる
@@ -1324,8 +1478,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       );
 
       // 移行実行
-      final migrationService =
-          ref.read(sharedListDataMigrationServiceProvider);
+      final migrationService = ref.read(sharedListDataMigrationServiceProvider);
       final migratedCount = await migrationService.migrateAllData();
 
       // ローディング閉じる
