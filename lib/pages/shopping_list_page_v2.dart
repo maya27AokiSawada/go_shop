@@ -169,115 +169,118 @@ class _SharedListPageV2State extends ConsumerState<SharedListPageV2> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: const Text('買い物アイテムを追加'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: '商品名',
-                  hintText: '例: 牛乳',
-                ),
-                autofocus: true,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: quantityController,
-                decoration: const InputDecoration(
-                  labelText: '数量',
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 16),
-              InkWell(
-                onTap: () async {
-                  final picked = await _selectDeadlineForDialog(context);
-                  if (picked != null) {
-                    setDialogState(() {
-                      _selectedDeadline = picked;
-                    });
-                  }
-                },
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey),
-                    borderRadius: BorderRadius.circular(4),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: '商品名',
+                    hintText: '例: 牛乳',
                   ),
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.calendar_today),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _selectedDeadline == null
-                              ? '購入期限を選択（任意）'
-                              : '期限: ${_formatDate(_selectedDeadline!)}',
-                          style: TextStyle(
-                            color:
-                                _selectedDeadline == null ? Colors.grey : null,
+                  autofocus: true,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: quantityController,
+                  decoration: const InputDecoration(
+                    labelText: '数量',
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 16),
+                InkWell(
+                  onTap: () async {
+                    final picked = await _selectDeadlineForDialog(context);
+                    if (picked != null) {
+                      setDialogState(() {
+                        _selectedDeadline = picked;
+                      });
+                    }
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.calendar_today),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _selectedDeadline == null
+                                ? '購入期限を選択（任意）'
+                                : '期限: ${_formatDate(_selectedDeadline!)}',
+                            style: TextStyle(
+                              color: _selectedDeadline == null
+                                  ? Colors.grey
+                                  : null,
+                            ),
                           ),
                         ),
-                      ),
-                      if (_selectedDeadline != null)
-                        IconButton(
-                          icon: const Icon(Icons.clear, size: 16),
-                          onPressed: () {
-                            setDialogState(() {
-                              _selectedDeadline = null;
-                            });
-                          },
-                        ),
-                    ],
+                        if (_selectedDeadline != null)
+                          IconButton(
+                            icon: const Icon(Icons.clear, size: 16),
+                            onPressed: () {
+                              setDialogState(() {
+                                _selectedDeadline = null;
+                              });
+                            },
+                          ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              InkWell(
-                onTap: () async {
-                  final picked = await _selectRepeatDateForDialog(context);
-                  if (picked != null) {
-                    setDialogState(() {
-                      _selectedRepeatDate = picked;
-                    });
-                  }
-                },
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.repeat),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _selectedRepeatDate == null
-                              ? '次回購入予定日（任意）'
-                              : '次回: ${_formatDate(_selectedRepeatDate!)} (${_calculateInterval(_selectedRepeatDate!)}日間隔)',
-                          style: TextStyle(
-                            color: _selectedRepeatDate == null
-                                ? Colors.grey
-                                : null,
+                const SizedBox(height: 16),
+                InkWell(
+                  onTap: () async {
+                    final picked = await _selectRepeatDateForDialog(context);
+                    if (picked != null) {
+                      setDialogState(() {
+                        _selectedRepeatDate = picked;
+                      });
+                    }
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.repeat),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _selectedRepeatDate == null
+                                ? '次回購入予定日（任意）'
+                                : '次回: ${_formatDate(_selectedRepeatDate!)} (${_calculateInterval(_selectedRepeatDate!)}日間隔)',
+                            style: TextStyle(
+                              color: _selectedRepeatDate == null
+                                  ? Colors.grey
+                                  : null,
+                            ),
                           ),
                         ),
-                      ),
-                      if (_selectedRepeatDate != null)
-                        IconButton(
-                          icon: const Icon(Icons.clear, size: 16),
-                          onPressed: () {
-                            setDialogState(() {
-                              _selectedRepeatDate = null;
-                            });
-                          },
-                        ),
-                    ],
+                        if (_selectedRepeatDate != null)
+                          IconButton(
+                            icon: const Icon(Icons.clear, size: 16),
+                            onPressed: () {
+                              setDialogState(() {
+                                _selectedRepeatDate = null;
+                              });
+                            },
+                          ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           actions: [
             TextButton(

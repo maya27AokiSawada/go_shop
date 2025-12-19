@@ -30,7 +30,7 @@
                 "--flavor",
                 "dev",
                 "-d",
-                "192.168.0.12:42767"
+                "adb-359705470227530-zcWeB5._adb-tls-connect._tcp"
             ]
         },
         {

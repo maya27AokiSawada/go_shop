@@ -13,7 +13,7 @@ class AppLogger {
       printEmojis: true,
       dateTimeFormat: DateTimeFormat.dateAndTime,
     ),
-    output: kDebugMode ? null : ConsoleOutput(), // デバッグモードではlogger出力を無効化
+    output: ConsoleOutput(), // 常にlogger出力を有効化
   );
 
   /// ロガーインスタンスを取得
@@ -74,67 +74,67 @@ class AppLogger {
 
   /// 情報レベルのログ
   static void info(String message) {
-    if (!kDebugMode) _instance.i(message);
+    _instance.i(message);
     debugPrint(message);
   }
 
   /// 警告レベルのログ
   static void warning(String message) {
-    if (!kDebugMode) _instance.w(message);
+    _instance.w(message);
     debugPrint('⚠️ $message');
   }
 
   /// エラーレベルのログ
   static void error(String message, [dynamic error, StackTrace? stackTrace]) {
-    if (!kDebugMode) _instance.e(message, error: error, stackTrace: stackTrace);
+    _instance.e(message, error: error, stackTrace: stackTrace);
     debugPrint('❌ $message');
   }
 
   /// デバッグレベルのログ
   static void debug(String message) {
-    if (!kDebugMode) _instance.d(message);
+    _instance.d(message);
     debugPrint('🐛 $message');
   }
 
   /// 詳細レベルのログ
   static void verbose(String message) {
-    if (!kDebugMode) _instance.t(message);
+    _instance.t(message);
     debugPrint('📝 $message');
   }
 
   /// 成功メッセージ（infoレベル + 絵文字）
   static void success(String message) {
-    if (!kDebugMode) _instance.i('✅ $message');
+    _instance.i('✅ $message');
     debugPrint('✅ $message');
   }
 
   /// 処理中メッセージ（infoレベル + 絵文字）
   static void processing(String message) {
-    if (!kDebugMode) _instance.i('🔄 $message');
+    _instance.i('🔄 $message');
     debugPrint('🔄 $message');
   }
 
   /// 保存メッセージ（infoレベル + 絵文字）
   static void save(String message) {
-    if (!kDebugMode) _instance.i('💾 $message');
+    _instance.i('💾 $message');
     debugPrint('💾 $message');
   }
 
   /// メール関連メッセージ（infoレベル + 絵文字）
   static void email(String message) {
-    if (!kDebugMode) _instance.i('📧 $message');
+    _instance.i('📧 $message');
     debugPrint('📧 $message');
   }
 
   /// 招待関連メッセージ（infoレベル + 絵文字）
   static void invitation(String message) {
-    if (!kDebugMode) _instance.i('🤝 $message');
+    _instance.i('🤝 $message');
     debugPrint('🤝 $message');
   }
 
   /// セキュリティ関連メッセージ（warningレベル + 絵文字）
   static void security(String message) {
-    if (!kDebugMode) _instance.w('🔐 $message');
+    _instance.w('🔐 $message');
     debugPrint('🔐 $message');
   }
 }
