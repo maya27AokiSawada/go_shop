@@ -339,7 +339,7 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
                         // StreamBuilderが自動的に更新を検知するため、invalidateは不要
 
                         Log.info(
-                            '✅ アイテム追加成功: $name x $quantity (itemId: ${newItem.itemId})');
+                            '✅ アイテム追加成功: ${AppLogger.maskItem(name, newItem.itemId)} x $quantity');
 
                         // 期限と定期購入をリセット
                         setState(() {
@@ -719,6 +719,36 @@ class _SharedItemTile extends ConsumerWidget {
     final currentList = ref.read(currentListProvider);
     if (currentList == null) return;
 
+    // 🔥 編集権限チェック: アイテム登録者またはグループオーナー
+    final currentUser = ref.read(authStateProvider).value;
+    final currentGroupAsync = ref.read(selectedGroupProvider);
+
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context as BuildContext).showSnackBar(
+        const SnackBar(content: Text('編集権限を確認できません')),
+      );
+      return;
+    }
+
+    final currentGroup = currentGroupAsync.valueOrNull;
+    if (currentGroup == null) {
+      ScaffoldMessenger.of(context as BuildContext).showSnackBar(
+        const SnackBar(content: Text('グループ情報を取得できません')),
+      );
+      return;
+    }
+
+    // 編集権限チェック: アイテム登録者またはグループオーナー
+    final canEdit = currentUser.uid == item.memberId ||
+        currentUser.uid == currentGroup.ownerUid;
+
+    if (!canEdit) {
+      ScaffoldMessenger.of(context as BuildContext).showSnackBar(
+        const SnackBar(content: Text('このアイテムを編集する権限がありません')),
+      );
+      return;
+    }
+
     try {
       // 🆕 差分同期: 単一アイテムのみ更新
       final updatedItem = item.copyWith(
@@ -732,13 +762,55 @@ class _SharedItemTile extends ConsumerWidget {
       // StreamBuilderが自動的に更新を検知するため、invalidateは不要
 
       Log.info(
-          '✅ アイテム購入状態更新: ${item.name} -> $isPurchased (itemId: ${item.itemId})');
+          '✅ アイテム購入状態更新: ${AppLogger.maskItem(item.name, item.itemId)} -> $isPurchased');
     } catch (e, stackTrace) {
       Log.error('❌ 購入状態保存エラー: $e', stackTrace);
+
+      // 🔥 ユーザーへのフィードバック追加
+      if ((context as BuildContext).mounted) {
+        ScaffoldMessenger.of(context as BuildContext).showSnackBar(
+          SnackBar(
+            content: Text('購入状態の更新に失敗しました: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   void _deleteItem(BuildContext context, WidgetRef ref) {
+    //カレントユーザーがアイテムを削除する権限があるかチェック
+    //カレントユーザー=アイテム追加者 または　owner、managerであるなら削除可能
+    //TODO #2  managerロールについては現在未実装
+    final currentUser = ref.read(authStateProvider).value;
+    final currentGroupAsync = ref.read(selectedGroupProvider);
+
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('削除権限を確認できません')),
+      );
+      return;
+    }
+
+    // AsyncValueからSharedGroupを取得
+    final currentGroup = currentGroupAsync.valueOrNull;
+    if (currentGroup == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('グループ情報を取得できません')),
+      );
+      return;
+    }
+
+    // 削除権限チェック: アイテム登録者またはグループオーナー
+    final canDelete = currentUser.uid == item.memberId ||
+        currentUser.uid == currentGroup.ownerUid;
+
+    if (!canDelete) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('このアイテムを削除する権限がありません')),
+      );
+      return;
+    }
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -755,14 +827,17 @@ class _SharedItemTile extends ConsumerWidget {
               if (currentList == null) return;
 
               try {
-                // 🆕 論理削除: isDeleted=trueに設定
+                // Repository取得
                 final repository = ref.read(sharedListRepositoryProvider);
+
+                // 🆕 論理削除: isDeleted=trueに設定
                 await repository.removeSingleItem(
                     currentList.listId, item.itemId);
 
                 // StreamBuilderが自動的に更新を検知するため、invalidateは不要
 
-                Log.info('🗑️ アイテム論理削除: ${item.name} (itemId: ${item.itemId})');
+                Log.info(
+                    '🗑️ アイテム論理削除: ${AppLogger.maskItem(item.name, item.itemId)}');
 
                 Navigator.of(context).pop();
 
