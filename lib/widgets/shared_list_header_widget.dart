@@ -321,33 +321,12 @@ class SharedListHeaderWidget extends ConsumerWidget {
                 if (!context.mounted) return;
                 Navigator.of(context).pop();
 
-                // ダイアログを閉じた後、リスト一覧を更新して完了を待つ
+                // リスト一覧を無効化（次回アクセス時に再取得）
                 ref.invalidate(groupSharedListsProvider);
+                Log.info('✅ リスト一覧を無効化 - 次回アクセス時に自動更新');
 
-                // リスト一覧の更新完了を待つ（新しいリストが含まれるまで）
-                try {
-                  final updatedLists =
-                      await ref.read(groupSharedListsProvider.future);
-                  Log.info('✅ リスト一覧更新完了 - ${updatedLists.length}件');
-
-                  // Firestoreから取得したリストの中から、作成したリストを探して再設定
-                  final createdList = updatedLists.firstWhere(
-                    (list) =>
-                        list.listName == newList.listName &&
-                        list.groupId == currentGroup.groupId,
-                    orElse: () => newList, // 見つからない場合は作成時のリストを使用
-                  );
-
-                  // Firestoreから取得した正しいIDでカレントリストを再設定
-                  await ref.read(currentListProvider.notifier).selectList(
-                        createdList,
-                        groupId: currentGroup.groupId,
-                      );
-                  Log.info(
-                      '✅ Firestore取得後のカレントリスト再設定完了: ${createdList.listName} (${createdList.listId})');
-                } catch (e) {
-                  Log.error('❌ リスト一覧更新エラー: $e');
-                }
+                // 🔥 Windows環境でのフリーズ回避のため、await削除
+                // StreamBuilderが次回アクセス時に自動的に最新データを取得
 
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
