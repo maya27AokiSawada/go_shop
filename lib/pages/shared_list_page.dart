@@ -587,11 +587,21 @@ class _SharedItemTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // 🔥 削除権限のみ事前に計算（購入状態変更は全メンバー可能）
+    final currentUser = ref.watch(authStateProvider).value;
+    final currentGroup = ref.watch(selectedGroupProvider).valueOrNull;
+
+    final canDelete = currentUser != null &&
+        currentGroup != null &&
+        (currentUser.uid == item.memberId ||
+            currentUser.uid == currentGroup.ownerUid);
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: ListTile(
         leading: Checkbox(
           value: item.isPurchased,
+          // 🔥 購入状態変更は全メンバー可能（権限チェックなし）
           onChanged: (bool? value) {
             if (value != null) {
               _toggleItemPurchased(ref, value);
@@ -616,11 +626,17 @@ class _SharedItemTile extends ConsumerWidget {
               _buildRepeatBadge(item.shoppingInterval),
           ],
         ),
-        trailing: IconButton(
-          icon: const Icon(Icons.delete, color: Colors.red, size: 20),
-          onPressed: () => _deleteItem(context, ref),
-          tooltip: '削除',
-        ),
+        trailing: canDelete
+            ? IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                onPressed: () => _deleteItem(context, ref),
+                tooltip: '削除',
+              )
+            : Tooltip(
+                message: 'このアイテムは削除できません',
+                child:
+                    Icon(Icons.delete, color: Colors.grey.shade400, size: 20),
+              ),
       ),
     );
   }
@@ -719,36 +735,7 @@ class _SharedItemTile extends ConsumerWidget {
     final currentList = ref.read(currentListProvider);
     if (currentList == null) return;
 
-    // 🔥 編集権限チェック: アイテム登録者またはグループオーナー
-    final currentUser = ref.read(authStateProvider).value;
-    final currentGroupAsync = ref.read(selectedGroupProvider);
-
-    if (currentUser == null) {
-      ScaffoldMessenger.of(context as BuildContext).showSnackBar(
-        const SnackBar(content: Text('編集権限を確認できません')),
-      );
-      return;
-    }
-
-    final currentGroup = currentGroupAsync.valueOrNull;
-    if (currentGroup == null) {
-      ScaffoldMessenger.of(context as BuildContext).showSnackBar(
-        const SnackBar(content: Text('グループ情報を取得できません')),
-      );
-      return;
-    }
-
-    // 編集権限チェック: アイテム登録者またはグループオーナー
-    final canEdit = currentUser.uid == item.memberId ||
-        currentUser.uid == currentGroup.ownerUid;
-
-    if (!canEdit) {
-      ScaffoldMessenger.of(context as BuildContext).showSnackBar(
-        const SnackBar(content: Text('このアイテムを編集する権限がありません')),
-      );
-      return;
-    }
-
+    // 🔥 購入状態変更は全メンバー可能（権限チェックなし）
     try {
       // 🆕 差分同期: 単一アイテムのみ更新
       final updatedItem = item.copyWith(
@@ -759,58 +746,15 @@ class _SharedItemTile extends ConsumerWidget {
       final repository = ref.read(sharedListRepositoryProvider);
       await repository.updateSingleItem(currentList.listId, updatedItem);
 
-      // StreamBuilderが自動的に更新を検知するため、invalidateは不要
-
       Log.info(
           '✅ アイテム購入状態更新: ${AppLogger.maskItem(item.name, item.itemId)} -> $isPurchased');
     } catch (e, stackTrace) {
       Log.error('❌ 購入状態保存エラー: $e', stackTrace);
-
-      // 🔥 ユーザーへのフィードバック追加
-      if ((context as BuildContext).mounted) {
-        ScaffoldMessenger.of(context as BuildContext).showSnackBar(
-          SnackBar(
-            content: Text('購入状態の更新に失敗しました: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
     }
   }
 
   void _deleteItem(BuildContext context, WidgetRef ref) {
-    //カレントユーザーがアイテムを削除する権限があるかチェック
-    //カレントユーザー=アイテム追加者 または　owner、managerであるなら削除可能
-    //TODO #2  managerロールについては現在未実装
-    final currentUser = ref.read(authStateProvider).value;
-    final currentGroupAsync = ref.read(selectedGroupProvider);
-
-    if (currentUser == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('削除権限を確認できません')),
-      );
-      return;
-    }
-
-    // AsyncValueからSharedGroupを取得
-    final currentGroup = currentGroupAsync.valueOrNull;
-    if (currentGroup == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('グループ情報を取得できません')),
-      );
-      return;
-    }
-
-    // 削除権限チェック: アイテム登録者またはグループオーナー
-    final canDelete = currentUser.uid == item.memberId ||
-        currentUser.uid == currentGroup.ownerUid;
-
-    if (!canDelete) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('このアイテムを削除する権限がありません')),
-      );
-      return;
-    }
+    // 🔥 権限チェック削除（UIで既にチェック済み）
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -833,8 +777,6 @@ class _SharedItemTile extends ConsumerWidget {
                 // 🆕 論理削除: isDeleted=trueに設定
                 await repository.removeSingleItem(
                     currentList.listId, item.itemId);
-
-                // StreamBuilderが自動的に更新を検知するため、invalidateは不要
 
                 Log.info(
                     '🗑️ アイテム論理削除: ${AppLogger.maskItem(item.name, item.itemId)}');
