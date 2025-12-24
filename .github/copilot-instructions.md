@@ -808,6 +808,115 @@ Future<void> _cleanupInvalidHiveGroups(
 
 ---
 
+## Recent Implementations (2025-12-24)
+
+### 1. 通知履歴画面実装 ✅
+
+**Purpose**: Firestore の通知データをリアルタイムで表示し、履歴として管理できる機能を実装
+
+**Implementation Files**:
+
+- **New Page**: `lib/pages/notification_history_page.dart` (332 lines)
+
+  - Firestore `notifications`コレクションからリアルタイムデータ取得
+  - StreamBuilder でリアルタイム更新
+  - 未読/既読管理機能
+  - 通知タイプ別アイコン・色表示
+  - 時間差表示（「たった今」「3 分前」「2 日前」など）
+  - 既読マーク機能（タップまたはチェックボタン）
+  - 既読通知の一括削除機能
+
+- **Modified**: `lib/widgets/settings/notification_settings_panel.dart`
+  - 「通知履歴を見る」ボタンを追加
+  - ElevatedButton で NotificationHistoryPage に遷移
+
+#### 主な機能
+
+**リアルタイム通知表示**:
+
+```dart
+StreamBuilder<QuerySnapshot>(
+  stream: _firestore
+      .collection('notifications')
+      .where('userId', isEqualTo: currentUser.uid)
+      .orderBy('timestamp', descending: true)
+      .limit(100)
+      .snapshots(),
+  builder: (context, snapshot) {
+    // 通知リスト表示
+  },
+)
+```
+
+**未読/既読管理**:
+
+```dart
+// 既読マーク
+await _firestore.collection('notifications').doc(notificationId).update({
+  'read': true,
+  'readAt': FieldValue.serverTimestamp(),
+});
+
+// 既読通知一括削除
+final readNotifications = await _firestore
+    .collection('notifications')
+    .where('userId', isEqualTo: userId)
+    .where('read', isEqualTo: true)
+    .get();
+```
+
+**通知タイプ別 UI**:
+
+- `listCreated`: 緑アイコン（playlist_add）
+- `listDeleted`: 赤アイコン（delete）
+- `listRenamed`: 青アイコン（edit）
+- `groupMemberAdded`: 紫アイコン（person_add）
+- `itemAdded`: 緑アイコン（add_shopping_cart）
+
+#### Firestore インデックス
+
+**Deployed**: `firestore.indexes.json`に以下のインデックスを追加済み:
+
+```json
+{
+  "collectionGroup": "notifications",
+  "fields": [
+    { "fieldPath": "userId", "order": "ASCENDING" },
+    { "fieldPath": "read", "order": "ASCENDING" },
+    { "fieldPath": "timestamp", "order": "DESCENDING" }
+  ]
+}
+```
+
+**Status**: デプロイ完了（`firebase deploy --only firestore:indexes`）
+
+#### エラーハンドリング
+
+**failed-precondition 対応**:
+
+- インデックスエラーを詳細表示
+- Firebase Console URL を案内
+- 既読削除時のインデックスエラー検出
+
+**Commit**: `c1fac4a` - "feat: 通知履歴画面実装"
+
+### 2. マルチデバイス通知対応（継続）
+
+**Background**: 同一ユーザーの複数デバイス間で通知を共有
+
+**Key Changes** (from 2025-12-23):
+
+- Self-notification blocking removed in `notification_service.dart`
+- `sendNotification()`メソッドで同一 UID 送信を許可
+- コメント追加: "🔥 複数デバイス対応: 同じユーザーでも別デバイスに通知を送信する"
+
+**Integration**:
+
+- 通知履歴画面で全デバイスの通知を一元管理
+- SH 54D → Pixel 9 への通知送信・受信確認済み
+
+---
+
 ## Recent Implementations (2025-12-19)
 
 ### 1. QR コードスキャン機能の改善 ✅
