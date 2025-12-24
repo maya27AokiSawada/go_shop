@@ -1,15 +1,23 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:developer' as developer show log;
 import '../models/shared_list.dart';
+import '../models/shared_group.dart';
+import '../services/notification_service.dart';
+import '../services/user_preferences_service.dart';
+import '../providers/auth_provider.dart';
 import 'shared_list_repository.dart';
 import '../providers/firestore_provider.dart';
 
 class FirestoreSharedListRepository implements SharedListRepository {
   final FirebaseFirestore _firestore;
+  final FirebaseAuth _auth;
+  final Ref _ref;
 
-  FirestoreSharedListRepository(Ref ref)
-      : _firestore = ref.read(firestoreProvider);
+  FirestoreSharedListRepository(this._ref)
+      : _firestore = _ref.read(firestoreProvider),
+        _auth = FirebaseAuth.instance;
 
   // サブコレクションへの参照を返すメソッド
   CollectionReference _collection(String groupId) => _firestore
@@ -42,6 +50,26 @@ class FirestoreSharedListRepository implements SharedListRepository {
       });
       developer.log(
           '🆕 Firestoreに新規リスト作成: ${newList.listName} (ID: ${newList.listId})');
+
+      // リスト作成通知を送信
+      try {
+        final currentUser = _ref.read(authStateProvider).value;
+        final creatorName = currentUser?.displayName ??
+            await UserPreferencesService.getUserName() ??
+            'ユーザー';
+
+        await _ref
+            .read(notificationServiceProvider)
+            .sendListCreatedNotification(
+              groupId: groupId,
+              listId: newList.listId,
+              listName: listName,
+              creatorName: creatorName,
+            );
+      } catch (e) {
+        developer.log('⚠️ リスト作成通知送信エラー: $e');
+      }
+
       return newList;
     } catch (e) {
       developer.log('❌ Firestoreへのリスト作成失敗: $e');
@@ -89,22 +117,90 @@ class FirestoreSharedListRepository implements SharedListRepository {
 
   @override
   Future<void> updateSharedList(SharedList list) async {
+    // 更新前のリスト名を取得（名前変更検出用）
+    String? oldListName;
+    try {
+      final existingDoc =
+          await _collection(list.groupId).doc(list.listId).get();
+      if (existingDoc.exists) {
+        oldListName =
+            (existingDoc.data() as Map<String, dynamic>)['listName'] as String?;
+      }
+    } catch (e) {
+      developer.log('⚠️ 既存リスト名取得失敗: $e');
+    }
+
     // Windows版Firestoreのスレッド問題を回避
     await Future.microtask(() async {
       await _collection(list.groupId)
           .doc(list.listId)
-          .update(_sharedListToFirestore(list));
+          .set(_sharedListToFirestore(list));
     });
     developer.log('💾 Firestoreでリスト更新: ${list.listName} (ID: ${list.listId})');
+
+    // リスト名が変更された場合、通知を送信
+    if (oldListName != null && oldListName != list.listName) {
+      try {
+        final currentUser = _ref.read(authStateProvider).value;
+        final renamerName = currentUser?.displayName ??
+            await UserPreferencesService.getUserName() ??
+            'ユーザー';
+
+        await _ref
+            .read(notificationServiceProvider)
+            .sendListRenamedNotification(
+              groupId: list.groupId,
+              listId: list.listId,
+              oldName: oldListName,
+              newName: list.listName,
+              renamerName: renamerName,
+            );
+      } catch (e) {
+        developer.log('⚠️ リスト名変更通知送信エラー: $e');
+      }
+    }
   }
 
   @override
   Future<void> deleteSharedList(String groupId, String listId) async {
+    // 削除前にリスト名を取得（通知用）
+    String? listName;
+    try {
+      final listDoc = await _collection(groupId).doc(listId).get();
+      if (listDoc.exists) {
+        listName =
+            (listDoc.data() as Map<String, dynamic>)['listName'] as String?;
+      }
+    } catch (e) {
+      developer.log('⚠️ リスト名取得失敗: $e');
+    }
+
     // Windows版Firestoreのスレッド問題を回避
     await Future.microtask(() async {
       await _collection(groupId).doc(listId).delete();
     });
     developer.log('🗑️ Firestoreからリスト削除 (groupId: $groupId, listId: $listId)');
+
+    // リスト削除通知を送信
+    if (listName != null) {
+      try {
+        final currentUser = _ref.read(authStateProvider).value;
+        final deleterName = currentUser?.displayName ??
+            await UserPreferencesService.getUserName() ??
+            'ユーザー';
+
+        await _ref
+            .read(notificationServiceProvider)
+            .sendListDeletedNotification(
+              groupId: groupId,
+              listId: listId,
+              listName: listName,
+              deleterName: deleterName,
+            );
+      } catch (e) {
+        developer.log('⚠️ リスト削除通知送信エラー: $e');
+      }
+    }
   }
 
   @override
@@ -423,6 +519,51 @@ class FirestoreSharedListRepository implements SharedListRepository {
     developer
         .log('📋 [FIRESTORE_DIFF] Target groupId: $groupId, listId: $listId');
 
+    // 🔐 削除権限チェック
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      developer.log('❌ [PERMISSION] 認証されていません - 削除権限なし');
+      throw Exception('削除するにはログインが必要です');
+    }
+
+    // アイテム情報を取得
+    final listDoc = await _collection(groupId).doc(listId).get();
+    if (!listDoc.exists) {
+      developer.log('❌ [PERMISSION] リストが見つかりません');
+      throw Exception('リストが見つかりません');
+    }
+
+    final listData = listDoc.data() as Map<String, dynamic>;
+    final itemsData = listData['items'] as Map<String, dynamic>? ?? {};
+    final itemData = itemsData[itemId] as Map<String, dynamic>?;
+
+    if (itemData == null) {
+      developer.log('⚠️ [PERMISSION] アイテムが見つかりません');
+      return;
+    }
+
+    final itemMemberId = itemData['memberId'] as String?;
+
+    // グループ情報を取得
+    final groupDoc =
+        await _firestore.collection('SharedGroups').doc(groupId).get();
+    if (!groupDoc.exists) {
+      developer.log('❌ [PERMISSION] グループが見つかりません');
+      throw Exception('グループが見つかりません');
+    }
+
+    final groupData = groupDoc.data() as Map<String, dynamic>;
+    final ownerUid = groupData['ownerUid'] as String?;
+
+    // 権限チェック: アイテム登録者 or グループオーナー
+    if (currentUser.uid != itemMemberId && currentUser.uid != ownerUid) {
+      developer.log(
+          '❌ [PERMISSION] 削除権限なし - currentUser: ${currentUser.uid}, itemOwner: $itemMemberId, groupOwner: $ownerUid');
+      throw Exception('このアイテムを削除する権限がありません');
+    }
+
+    developer.log('✅ [PERMISSION] 削除権限確認完了 - User: ${currentUser.uid}');
+
     // 論理削除: isDeleted = true に更新
     await _collection(groupId).doc(listId).update({
       'items.$itemId.isDeleted': true,
@@ -466,7 +607,34 @@ class FirestoreSharedListRepository implements SharedListRepository {
       return;
     }
 
+    // 🔐 削除権限チェック
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      developer.log('❌ [PERMISSION] 認証されていません - 削除権限なし');
+      throw Exception('削除するにはログインが必要です');
+    }
+
+    // グループ情報を取得してオーナーかどうか確認
+    final groupDoc =
+        await _firestore.collection('SharedGroups').doc(list.groupId).get();
+    if (!groupDoc.exists) {
+      developer.log('❌ [PERMISSION] グループが見つかりません');
+      throw Exception('グループが見つかりません');
+    }
+
+    final groupData = groupDoc.data() as Map<String, dynamic>;
+    final ownerUid = groupData['ownerUid'] as String?;
+
+    // 権限チェック: アイテム登録者 or グループオーナー
+    if (currentUser.uid != item.memberId && currentUser.uid != ownerUid) {
+      developer.log(
+          '❌ [PERMISSION] 削除権限なし - currentUser: ${currentUser.uid}, itemOwner: ${item.memberId}, groupOwner: $ownerUid');
+      throw Exception('このアイテムを削除する権限がありません');
+    }
+
+    developer.log('✅ [PERMISSION] 削除権限確認完了 - User: ${currentUser.uid}');
     developer.log('📋 [FIRESTORE_DIFF] Target groupId: ${list.groupId}');
+
     // 論理削除: isDeleted = true に更新
     await _collection(list.groupId).doc(listId).update({
       'items.$itemId.isDeleted': true,
@@ -485,6 +653,59 @@ class FirestoreSharedListRepository implements SharedListRepository {
     developer
         .log('📋 [FIRESTORE_DIFF] Target groupId: $groupId, listId: $listId');
 
+    // 🔐 編集権限チェック（購入状態変更を除く）
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      developer.log('❌ [PERMISSION] 認証されていません - 編集権限なし');
+      throw Exception('編集するにはログインが必要です');
+    }
+
+    // 既存アイテム情報を取得
+    final listDoc = await _collection(groupId).doc(listId).get();
+    if (!listDoc.exists) {
+      developer.log('❌ [PERMISSION] リストが見つかりません');
+      throw Exception('リストが見つかりません');
+    }
+
+    final listData = listDoc.data() as Map<String, dynamic>;
+    final itemsData = listData['items'] as Map<String, dynamic>? ?? {};
+    final existingItemData = itemsData[item.itemId] as Map<String, dynamic>?;
+
+    if (existingItemData == null) {
+      developer.log('⚠️ [PERMISSION] アイテムが見つかりません');
+      return;
+    }
+
+    // 購入状態のみの変更かチェック（簡易的に名前と数量を確認）
+    final existingName = existingItemData['name'] as String?;
+    final existingQuantity = existingItemData['quantity'] as int?;
+    final isOnlyPurchaseStatusChange =
+        item.name == existingName && item.quantity == existingQuantity;
+
+    if (!isOnlyPurchaseStatusChange) {
+      // 購入状態以外の変更 → 権限チェック必要
+      final groupDoc =
+          await _firestore.collection('SharedGroups').doc(groupId).get();
+      if (!groupDoc.exists) {
+        developer.log('❌ [PERMISSION] グループが見つかりません');
+        throw Exception('グループが見つかりません');
+      }
+
+      final groupData = groupDoc.data() as Map<String, dynamic>;
+      final ownerUid = groupData['ownerUid'] as String?;
+
+      // 権限チェック: アイテム登録者 or グループオーナー
+      if (currentUser.uid != item.memberId && currentUser.uid != ownerUid) {
+        developer.log(
+            '❌ [PERMISSION] 編集権限なし - currentUser: ${currentUser.uid}, itemOwner: ${item.memberId}, groupOwner: $ownerUid');
+        throw Exception('このアイテムを編集する権限がありません');
+      }
+
+      developer.log('✅ [PERMISSION] 編集権限確認完了 - User: ${currentUser.uid}');
+    } else {
+      developer.log('✅ [PERMISSION] 購入状態変更のみ - 権限チェックスキップ');
+    }
+
     await _collection(groupId).doc(listId).update({
       'items.${item.itemId}': _itemToFirestore(item),
       'updatedAt': FieldValue.serverTimestamp(),
@@ -496,6 +717,13 @@ class FirestoreSharedListRepository implements SharedListRepository {
   @override
   Future<void> updateSingleItem(String listId, SharedItem item) async {
     developer.log('🔄 [FIRESTORE_DIFF] Updating single item: ${item.name}');
+
+    // 🔐 編集権限チェック（購入状態変更を除く）
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      developer.log('❌ [PERMISSION] 認証されていません - 編集権限なし');
+      throw Exception('編集するにはログインが必要です');
+    }
 
     // まずローカルキャッシュからgroupIdを取得
     SharedList? list;
@@ -519,6 +747,45 @@ class FirestoreSharedListRepository implements SharedListRepository {
     }
 
     if (list == null) return;
+
+    // 既存のアイテム情報を取得
+    final existingItem = list.items[item.itemId];
+    if (existingItem == null) {
+      developer.log('⚠️ [FIRESTORE_DIFF] Item not found: ${item.itemId}');
+      return;
+    }
+
+    // 🔐 権限チェック: アイテム登録者 or グループオーナー
+    // ただし、購入状態の変更（isPurchased, purchaseDate）のみの場合は全メンバー許可
+    final isOnlyPurchaseStatusChange = item.name == existingItem.name &&
+        item.quantity == existingItem.quantity &&
+        item.memberId == existingItem.memberId &&
+        item.deadline == existingItem.deadline &&
+        item.shoppingInterval == existingItem.shoppingInterval;
+
+    if (!isOnlyPurchaseStatusChange) {
+      // 購入状態以外の変更 → 権限チェック必要
+      final groupDoc =
+          await _firestore.collection('SharedGroups').doc(list.groupId).get();
+      if (!groupDoc.exists) {
+        developer.log('❌ [PERMISSION] グループが見つかりません');
+        throw Exception('グループが見つかりません');
+      }
+
+      final groupData = groupDoc.data() as Map<String, dynamic>;
+      final ownerUid = groupData['ownerUid'] as String?;
+
+      // 権限チェック: アイテム登録者 or グループオーナー
+      if (currentUser.uid != item.memberId && currentUser.uid != ownerUid) {
+        developer.log(
+            '❌ [PERMISSION] 編集権限なし - currentUser: ${currentUser.uid}, itemOwner: ${item.memberId}, groupOwner: $ownerUid');
+        throw Exception('このアイテムを編集する権限がありません');
+      }
+
+      developer.log('✅ [PERMISSION] 編集権限確認完了 - User: ${currentUser.uid}');
+    } else {
+      developer.log('✅ [PERMISSION] 購入状態変更のみ - 権限チェックスキップ');
+    }
 
     developer.log('📋 [FIRESTORE_DIFF] Target groupId: ${list.groupId}');
     await _collection(list.groupId).doc(listId).update({

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/user_settings_provider.dart';
 import '../../datastore/user_settings_repository.dart';
+import '../../pages/notification_history_page.dart';
 
 /// 通知設定パネルウィジェット
 class NotificationSettingsPanel extends ConsumerWidget {
@@ -99,6 +100,24 @@ class NotificationSettingsPanel extends ConsumerWidget {
                 ),
               );
             },
+          ),
+          const SizedBox(height: 12),
+          // 通知履歴を見るボタン
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const NotificationHistoryPage(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.history),
+            label: const Text('通知履歴を見る'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.amber.shade700,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 40),
+            ),
           ),
         ],
       ),
