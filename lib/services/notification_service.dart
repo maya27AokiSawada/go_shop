@@ -23,7 +23,12 @@ enum NotificationType {
   groupDeleted('group_deleted'),
   syncConfirmation('sync_confirmation'), // 同期確認通知
 
-  // リスト関連通知（5分間隔でバッチ送信）
+  // リスト関連通知（即時送信）
+  listCreated('list_created'), // リスト作成
+  listDeleted('list_deleted'), // リスト削除
+  listRenamed('list_renamed'), // リスト名変更
+
+  // アイテム関連通知（5分間隔でバッチ送信）
   itemAdded('item_added'), // アイテム追加
   itemRemoved('item_removed'), // アイテム削除
   itemPurchased('item_purchased'); // 購入完了
@@ -270,6 +275,27 @@ class NotificationService {
           // _ref.invalidate(sharedListProvider);
           AppLogger.info('✅ [NOTIFICATION] リスト変更通知処理完了');
           break;
+
+        case NotificationType.listCreated:
+          // リスト作成通知
+          AppLogger.info('📝 [NOTIFICATION] リスト作成通知受信');
+          _ref.invalidate(allGroupsProvider);
+          AppLogger.info('✅ [NOTIFICATION] リスト作成通知処理完了');
+          break;
+
+        case NotificationType.listDeleted:
+          // リスト削除通知
+          AppLogger.info('🗑️ [NOTIFICATION] リスト削除通知受信');
+          _ref.invalidate(allGroupsProvider);
+          AppLogger.info('✅ [NOTIFICATION] リスト削除通知処理完了');
+          break;
+
+        case NotificationType.listRenamed:
+          // リスト名変更通知
+          AppLogger.info('✏️ [NOTIFICATION] リスト名変更通知受信');
+          _ref.invalidate(allGroupsProvider);
+          AppLogger.info('✅ [NOTIFICATION] リスト名変更通知処理完了');
+          break;
       }
 
       // 通知を既読にする
@@ -422,11 +448,8 @@ class NotificationService {
         return;
       }
 
-      // 自分自身には送信しない
-      if (targetUserId == currentUser.uid) {
-        AppLogger.info('📭 [NOTIFICATION] 自分自身への送信スキップ');
-        return;
-      }
+      // 🔥 複数デバイス対応: 同じユーザーでも別デバイスに通知を送信する
+      // （マルチデバイスUXのため、自分自身への送信制限を削除）
 
       final notificationData = {
         'userId': targetUserId,
@@ -443,6 +466,8 @@ class NotificationService {
         notificationData['metadata'] = metadata;
       }
 
+      AppLogger.info(
+          '🔔 [NOTIFICATION] Firestoreドキュメント作成: type=${type.value}, target=${AppLogger.maskUserId(targetUserId)}');
       await _firestore.collection('notifications').add(notificationData);
 
       AppLogger.info(
@@ -478,8 +503,11 @@ class NotificationService {
           List<Map<String, dynamic>>.from(groupData['members'] ?? []);
 
       AppLogger.info(
-          '📢 [NOTIFICATION] グループメンバーへ一斉送信: $groupId (${members.length}人)');
+          '📢 [NOTIFICATION] グループメンバーへ一斉送信: ${AppLogger.maskGroupId(groupId)} (${members.length}人)');
+      AppLogger.info('📢 [NOTIFICATION] 送信タイプ: ${type.value}');
+      AppLogger.info('📢 [NOTIFICATION] メッセージ: $message');
 
+      int sentCount = 0;
       // 各メンバーに通知
       for (var member in members) {
         final memberId = member['memberId'] as String?;
@@ -487,8 +515,13 @@ class NotificationService {
 
         // 除外リストチェック
         if (excludeUserIds != null && excludeUserIds.contains(memberId)) {
+          AppLogger.info(
+              '⏭️ [NOTIFICATION] スキップ（除外リスト）: ${AppLogger.maskUserId(memberId)}');
           continue;
         }
+
+        AppLogger.info(
+            '📤 [NOTIFICATION] 送信中 [${sentCount + 1}/${members.length}]: ${AppLogger.maskUserId(memberId)}');
 
         await sendNotification(
           targetUserId: memberId,
@@ -497,11 +530,95 @@ class NotificationService {
           message: message,
           metadata: metadata,
         );
+        sentCount++;
       }
 
-      AppLogger.info('✅ [NOTIFICATION] グループへの一斉送信完了');
+      AppLogger.info('✅ [NOTIFICATION] グループへの一斉送信完了: $sentCount件送信');
     } catch (e) {
       AppLogger.error('❌ [NOTIFICATION] グループ送信エラー: $e');
+    }
+  }
+
+  /// リスト作成通知を送信
+  Future<void> sendListCreatedNotification({
+    required String groupId,
+    required String listId,
+    required String listName,
+    required String creatorName,
+  }) async {
+    try {
+      AppLogger.info('📝 [NOTIFICATION] リスト作成通知送信: $listName');
+
+      await sendNotificationToGroup(
+        groupId: groupId,
+        type: NotificationType.listCreated,
+        message: '$creatorName が「$listName」を作成しました',
+        metadata: {
+          'listId': listId,
+          'listName': listName,
+          'creatorName': creatorName,
+        },
+      );
+
+      AppLogger.info('✅ [NOTIFICATION] リスト作成通知送信完了');
+    } catch (e) {
+      AppLogger.error('❌ [NOTIFICATION] リスト作成通知エラー: $e');
+    }
+  }
+
+  /// リスト削除通知を送信
+  Future<void> sendListDeletedNotification({
+    required String groupId,
+    required String listId,
+    required String listName,
+    required String deleterName,
+  }) async {
+    try {
+      AppLogger.info('🗑️ [NOTIFICATION] リスト削除通知送信: $listName');
+
+      await sendNotificationToGroup(
+        groupId: groupId,
+        type: NotificationType.listDeleted,
+        message: '$deleterName が「$listName」を削除しました',
+        metadata: {
+          'listId': listId,
+          'listName': listName,
+          'deleterName': deleterName,
+        },
+      );
+
+      AppLogger.info('✅ [NOTIFICATION] リスト削除通知送信完了');
+    } catch (e) {
+      AppLogger.error('❌ [NOTIFICATION] リスト削除通知エラー: $e');
+    }
+  }
+
+  /// リスト名変更通知を送信
+  Future<void> sendListRenamedNotification({
+    required String groupId,
+    required String listId,
+    required String oldName,
+    required String newName,
+    required String renamerName,
+  }) async {
+    try {
+      AppLogger.info('✏️ [NOTIFICATION] リスト名変更通知送信: $oldName → $newName');
+
+      await sendNotificationToGroup(
+        groupId: groupId,
+        type: NotificationType.listRenamed,
+        message: '$renamerName が「$oldName」を「$newName」に変更しました',
+        metadata: {
+          'listId': listId,
+          'oldName': oldName,
+          'newName': newName,
+          'renamerName': renamerName,
+        },
+      );
+
+      AppLogger.info('✅ [NOTIFICATION] リスト名変更通知送信完了');
+    } catch (e) {
+      AppLogger.error('❌ [NOTIFICATION] リスト名変更通知エラー: $e');
     }
   }
 
