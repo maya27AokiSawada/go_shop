@@ -21,7 +21,8 @@ class SharedListPage extends ConsumerStatefulWidget {
 class _SharedListPageState extends ConsumerState<SharedListPage> {
   String? _previousGroupId; // 前回のグループIDを保存
   DateTime? _selectedDeadline; // 選択された期限
-  DateTime? _selectedRepeatDate; // 繰り返し購入日
+  int _intervalValue = 1; // 購入間隔の数値（1〜30）
+  String _intervalUnit = 'week'; // 購入間隔の単位（day, week, month）
 
   @override
   void initState() {
@@ -235,48 +236,96 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                InkWell(
-                  onTap: () async {
-                    final picked = await _selectRepeatDateForDialog(context);
-                    if (picked != null) {
-                      setDialogState(() {
-                        _selectedRepeatDate = picked;
-                      });
-                    }
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.repeat),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _selectedRepeatDate == null
-                                ? '次回購入予定日（任意）'
-                                : '次回: ${_formatDate(_selectedRepeatDate!)} (${_calculateInterval(_selectedRepeatDate!)}日間隔)',
-                            style: TextStyle(
-                              color: _selectedRepeatDate == null
-                                  ? Colors.grey
-                                  : null,
+                // 購入間隔設定（定期購入）
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.repeat),
+                          SizedBox(width: 8),
+                          Text('購入間隔（任意）'),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          // 数値ドロップダウン
+                          Expanded(
+                            flex: 2,
+                            child: DropdownButtonFormField<int>(
+                              initialValue: _intervalValue,
+                              decoration: const InputDecoration(
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8),
+                                border: OutlineInputBorder(),
+                              ),
+                              items: List.generate(30, (index) => index + 1)
+                                  .map((value) => DropdownMenuItem(
+                                        value: value,
+                                        child: Text('$value'),
+                                      ))
+                                  .toList(),
+                              onChanged: (value) {
+                                if (value != null) {
+                                  setDialogState(() {
+                                    _intervalValue = value;
+                                  });
+                                }
+                              },
                             ),
                           ),
-                        ),
-                        if (_selectedRepeatDate != null)
-                          IconButton(
-                            icon: const Icon(Icons.clear, size: 16),
-                            onPressed: () {
-                              setDialogState(() {
-                                _selectedRepeatDate = null;
-                              });
-                            },
+                          const SizedBox(width: 8),
+                          // 単位ドロップダウン
+                          Expanded(
+                            flex: 3,
+                            child: DropdownButtonFormField<String>(
+                              initialValue: _intervalUnit,
+                              decoration: const InputDecoration(
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8),
+                                border: OutlineInputBorder(),
+                              ),
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'day',
+                                  child: Text('日ごと'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'week',
+                                  child: Text('週ごと'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'month',
+                                  child: Text('ヶ月ごと'),
+                                ),
+                              ],
+                              onChanged: (value) {
+                                if (value != null) {
+                                  setDialogState(() {
+                                    _intervalUnit = value;
+                                  });
+                                }
+                              },
+                            ),
                           ),
-                      ],
-                    ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${_calculateIntervalDays(_intervalValue, _intervalUnit)}日ごとに購入',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -324,9 +373,8 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
                           name: name,
                           quantity: quantity,
                           deadline: _selectedDeadline, // 期限を追加
-                          shoppingInterval: _selectedRepeatDate != null
-                              ? _calculateInterval(_selectedRepeatDate!)
-                              : 0,
+                          shoppingInterval: _calculateIntervalDays(
+                              _intervalValue, _intervalUnit), // 数値+単位から日数計算
                           // itemId: 自動生成される
                         );
 
@@ -344,7 +392,8 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
                         // 期限と定期購入をリセット
                         setState(() {
                           _selectedDeadline = null;
-                          _selectedRepeatDate = null;
+                          _intervalValue = 1;
+                          _intervalUnit = 'week';
                         });
 
                         // ダイアログを閉じる
@@ -414,39 +463,18 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
     return '${date.year}/${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}';
   }
 
-  /// 定期購入日選択ダイアログを表示（ダイアログ内で使用）
-  Future<DateTime?> _selectRepeatDateForDialog(BuildContext context) async {
-    try {
-      final now = DateTime.now();
-      final tomorrow = DateTime(now.year, now.month, now.day + 1);
-      final oneYearLater = DateTime(now.year + 1, now.month, now.day);
-
-      final DateTime? picked = await showDatePicker(
-        context: context,
-        initialDate: _selectedRepeatDate ?? tomorrow,
-        firstDate: tomorrow,
-        lastDate: oneYearLater,
-        helpText: '次回購入予定日を選択',
-      );
-
-      return picked;
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('日付選択エラー: $e')),
-        );
-      }
-      return null;
+  /// 購入間隔（数値+単位）から日数を計算
+  int _calculateIntervalDays(int value, String unit) {
+    switch (unit) {
+      case 'day':
+        return value;
+      case 'week':
+        return value * 7;
+      case 'month':
+        return value * 30; // 月は30日として計算
+      default:
+        return value;
     }
-  }
-
-  /// 次回購入日から購入間隔（日数）を計算
-  int _calculateInterval(DateTime nextPurchaseDate) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final targetDate = DateTime(
-        nextPurchaseDate.year, nextPurchaseDate.month, nextPurchaseDate.day);
-    return targetDate.difference(today).inDays;
   }
 }
 
