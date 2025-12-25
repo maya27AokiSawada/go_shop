@@ -330,13 +330,14 @@ class SelectedGroupNotifier extends AsyncNotifier<SharedGroup?> {
                 await UserPreferencesService.getUserName() ??
                 'ユーザー';
 
-            await ref
-                .read(notificationServiceProvider)
-                .sendGroupDeletedNotification(
-                  groupId: currentGroup.groupId,
-                  groupName: groupName,
-                  deleterName: deleterName,
-                );
+            // 🔥 グループ削除通知を送信
+            final notificationService = _ref.read(notificationServiceProvider);
+            await notificationService.sendGroupDeletedNotification(
+              groupId: currentGroup.groupId,
+              groupName: groupName,
+              deleterName: deleterName,
+            );
+
             Log.info('✅ [DELETE GROUP] グループ削除通知送信完了');
           } catch (e) {
             Log.warning('⚠️ [DELETE GROUP] 通知送信エラー（続行）: $e');
