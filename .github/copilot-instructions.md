@@ -1,5 +1,160 @@
 # Go Shop - AI Coding Agent Instructions
 
+## Recent Implementations (2025-12-25)
+
+### 1. Riverpod ベストプラクティス確立 ✅
+
+**Purpose**: LateInitializationError 対応パターンの文書化と AI Coding Agent 指示書整備
+
+#### docs/riverpod_best_practices.md 拡充
+
+**追加内容**:
+
+- **セクション 4**: build()外での Ref アクセスパターン
+- `late final Ref _ref`の危険性を明記
+- `Ref? _ref` + `_ref ??= ref`パターンの説明
+- 実例（SelectedGroupNotifier）を追加
+- AsyncNotifier.build()の複数回呼び出しリスクを解説
+
+**Key Pattern**:
+
+```dart
+// ❌ 危険: late final Ref → LateInitializationError
+class MyNotifier extends AsyncNotifier<Data> {
+  late final Ref _ref;
+
+  @override
+  Future<Data> build() async {
+    _ref = ref;  // 2回目の呼び出しでエラー
+    return fetchData();
+  }
+}
+
+// ✅ 安全: Ref? + null-aware代入
+class MyNotifier extends AsyncNotifier<Data> {
+  Ref? _ref;
+
+  @override
+  Future<Data> build() async {
+    _ref ??= ref;  // 初回のみ代入
+    return fetchData();
+  }
+}
+```
+
+#### copilot-instructions.md 更新
+
+**追加内容**:
+
+```markdown
+⚠️ **CRITICAL**: Riverpod 関連の修正を行う場合は、必ず以下のドキュメントを参照すること:
+
+- **`docs/riverpod_best_practices.md`** - Riverpod ベストプラクティス＆アンチパターン集
+- 特に`AsyncNotifier.build()`メソッド内での依存性管理に注意
+- `late final Ref`の使用は禁止（LateInitializationError の原因）
+- build()外で ref が必要な場合は`Ref? _ref` + `_ref ??= ref`パターンを使用
+```
+
+**Commits**: `f9da5f5`, `2e12c80`
+
+### 2. 招待受諾バグ完全修正 ✅
+
+**Background**: QR コード招待受諾時に通知送信は成功するが、UI・Firestore に反映されない問題を段階的に修正
+
+#### Phase 1: デバッグログ強化
+
+**File**: `lib/services/notification_service.dart`
+
+- `sendNotification()`に詳細ログ追加
+- `_handleNotification()`に処理追跡ログ追加
+- Firestore 保存成功確認ログ追加
+
+#### Phase 2: 構文エラー修正
+
+**Problem**: if-else ブロックのインデントエラー
+
+**Solution**: UI 更新処理を if ブロック内に移動
+
+**Commit**: `38a1859`
+
+#### Phase 3: permission-denied エラー修正
+
+**Problem**: 受諾者がまだグループメンバーではないのに招待使用回数を更新しようとした
+
+**Solution**:
+
+- **受諾側**: `_updateInvitationUsage()`削除（通知送信のみ）
+- **招待元側**: メンバー追加後に`_updateInvitationUsage()`実行
+- 理由: 受諾者はまだグループメンバーではない → Firestore Rules 違反
+
+**Commit**: `f2be455`
+
+#### Phase 4: Firestore インデックスエラー修正
+
+**Problem**: 通知リスナーが`userId + read + timestamp`の 3 フィールドクエリを実行するが、インデックスが`userId + read`の 2 フィールドしかなかった
+
+**Solution**: `firestore.indexes.json`に`timestamp`フィールドを追加
+
+**Before**:
+
+```json
+{
+  "collectionGroup": "notifications",
+  "fields": [
+    { "fieldPath": "userId", "order": "ASCENDING" },
+    { "fieldPath": "read", "order": "ASCENDING" }
+  ]
+}
+```
+
+**After**:
+
+```json
+{
+  "collectionGroup": "notifications",
+  "fields": [
+    { "fieldPath": "userId", "order": "ASCENDING" },
+    { "fieldPath": "read", "order": "ASCENDING" },
+    { "fieldPath": "timestamp", "order": "DESCENDING" } // ← 追加
+  ]
+}
+```
+
+**Deployment**:
+
+```bash
+$ firebase deploy --only firestore:indexes
+✔ firestore: deployed indexes successfully
+```
+
+**Commit**: `b13c7b7`
+
+#### 修正後の期待動作
+
+```
+1. Pixel（まや）: QRコード受諾
+   ✅ acceptQRInvitation()
+   ✅ sendNotification() → Firestore保存成功
+
+2. SH54D（すもも）: 通知受信 ← 修正後はこれが動作する！
+   ✅ 通知リスナー起動（インデックスエラー解消）
+   ✅ _handleNotification() 実行
+   ✅ SharedGroups更新（allowedUid + members）
+   ✅ _updateInvitationUsage() 実行（招待元権限で）
+   ✅ UI反映（グループメンバー表示）
+```
+
+**Status**: 理論上完全修正 ⏳ 次回セッションで動作確認予定
+
+**検証手順**:
+
+1. 両デバイス再起動（Firestore インデックス反映確認）
+2. 通知リスナー起動確認（SH54D ログ: "✅ [NOTIFICATION] リスナー起動完了！"）
+3. 招待受諾テスト（エンドツーエンド動作確認）
+4. エラーログ確認（問題がないか最終確認）
+
+---
+
 ## 🚀 Quick Start for AI Agents (December 2025)
 
 **Project**: Flutter multi-platform shopping list sharing app (家族・グループ向け買い物リスト共有アプリ)
@@ -812,6 +967,161 @@ Future<void> _cleanupInvalidHiveGroups(
 - Verify debug logs show `onDetect` callbacks
 - Test with v3.1 lightweight QR codes
 - Check barcode detection count
+
+---
+
+## Recent Implementations (2025-12-25)
+
+### 1. Riverpod ベストプラクティス確立 ✅
+
+**Purpose**: LateInitializationError 対応パターンの文書化と AI Coding Agent 指示書整備
+
+#### docs/riverpod_best_practices.md 拡充
+
+**追加内容**:
+
+- **セクション 4**: build()外での Ref アクセスパターン
+- `late final Ref _ref`の危険性を明記
+- `Ref? _ref` + `_ref ??= ref`パターンの説明
+- 実例（SelectedGroupNotifier）を追加
+- AsyncNotifier.build()の複数回呼び出しリスクを解説
+
+**Key Pattern**:
+
+```dart
+// ❌ 危険: late final Ref → LateInitializationError
+class MyNotifier extends AsyncNotifier<Data> {
+  late final Ref _ref;
+
+  @override
+  Future<Data> build() async {
+    _ref = ref;  // 2回目の呼び出しでエラー
+    return fetchData();
+  }
+}
+
+// ✅ 安全: Ref? + null-aware代入
+class MyNotifier extends AsyncNotifier<Data> {
+  Ref? _ref;
+
+  @override
+  Future<Data> build() async {
+    _ref ??= ref;  // 初回のみ代入
+    return fetchData();
+  }
+}
+```
+
+#### copilot-instructions.md 更新
+
+**追加内容**:
+
+```markdown
+⚠️ **CRITICAL**: Riverpod 関連の修正を行う場合は、必ず以下のドキュメントを参照すること:
+
+- **`docs/riverpod_best_practices.md`** - Riverpod ベストプラクティス＆アンチパターン集
+- 特に`AsyncNotifier.build()`メソッド内での依存性管理に注意
+- `late final Ref`の使用は禁止（LateInitializationError の原因）
+- build()外で ref が必要な場合は`Ref? _ref` + `_ref ??= ref`パターンを使用
+```
+
+**Commits**: `f9da5f5`, `2e12c80`
+
+### 2. 招待受諾バグ完全修正 ✅
+
+**Background**: QR コード招待受諾時に通知送信は成功するが、UI・Firestore に反映されない問題を段階的に修正
+
+#### Phase 1: デバッグログ強化
+
+**File**: `lib/services/notification_service.dart`
+
+- `sendNotification()`に詳細ログ追加
+- `_handleNotification()`に処理追跡ログ追加
+- Firestore 保存成功確認ログ追加
+
+#### Phase 2: 構文エラー修正
+
+**Problem**: if-else ブロックのインデントエラー
+
+**Solution**: UI 更新処理を if ブロック内に移動
+
+**Commit**: `38a1859`
+
+#### Phase 3: permission-denied エラー修正
+
+**Problem**: 受諾者がまだグループメンバーではないのに招待使用回数を更新しようとした
+
+**Solution**:
+
+- **受諾側**: `_updateInvitationUsage()`削除（通知送信のみ）
+- **招待元側**: メンバー追加後に`_updateInvitationUsage()`実行
+- 理由: 受諾者はまだグループメンバーではない → Firestore Rules 違反
+
+**Commit**: `f2be455`
+
+#### Phase 4: Firestore インデックスエラー修正
+
+**Problem**: 通知リスナーが`userId + read + timestamp`の 3 フィールドクエリを実行するが、インデックスが`userId + read`の 2 フィールドしかなかった
+
+**Solution**: `firestore.indexes.json`に`timestamp`フィールドを追加
+
+**Before**:
+
+```json
+{
+  "collectionGroup": "notifications",
+  "fields": [
+    { "fieldPath": "userId", "order": "ASCENDING" },
+    { "fieldPath": "read", "order": "ASCENDING" }
+  ]
+}
+```
+
+**After**:
+
+```json
+{
+  "collectionGroup": "notifications",
+  "fields": [
+    { "fieldPath": "userId", "order": "ASCENDING" },
+    { "fieldPath": "read", "order": "ASCENDING" },
+    { "fieldPath": "timestamp", "order": "DESCENDING" } // ← 追加
+  ]
+}
+```
+
+**Deployment**:
+
+```bash
+$ firebase deploy --only firestore:indexes
+✔ firestore: deployed indexes successfully
+```
+
+**Commit**: `b13c7b7`
+
+#### 修正後の期待動作
+
+```
+1. Pixel（まや）: QRコード受諾
+   ✅ acceptQRInvitation()
+   ✅ sendNotification() → Firestore保存成功
+
+2. SH54D（すもも）: 通知受信 ← 修正後はこれが動作する！
+   ✅ 通知リスナー起動（インデックスエラー解消）
+   ✅ _handleNotification() 実行
+   ✅ SharedGroups更新（allowedUid + members）
+   ✅ _updateInvitationUsage() 実行（招待元権限で）
+   ✅ UI反映（グループメンバー表示）
+```
+
+**Status**: 理論上完全修正 ⏳ 次回セッションで動作確認予定
+
+**検証手順**:
+
+1. 両デバイス再起動（Firestore インデックス反映確認）
+2. 通知リスナー起動確認（SH54D ログ: "✅ [NOTIFICATION] リスナー起動完了！"）
+3. 招待受諾テスト（エンドツーエンド動作確認）
+4. エラーログ確認（問題がないか最終確認）
 
 ---
 
