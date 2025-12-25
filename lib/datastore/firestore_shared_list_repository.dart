@@ -470,6 +470,33 @@ class FirestoreSharedListRepository implements SharedListRepository {
     });
 
     developer.log('✅ [FIRESTORE_DIFF] Item added to Firestore');
+
+    // アイテム追加通知を送信
+    try {
+      final listDoc = await _collection(groupId).doc(listId).get();
+      if (listDoc.exists) {
+        final listName =
+            (listDoc.data() as Map<String, dynamic>)['listName'] as String?;
+        final currentUser = _ref.read(authStateProvider).value;
+        final adderName = currentUser?.displayName ??
+            await UserPreferencesService.getUserName() ??
+            'ユーザー';
+
+        if (listName != null) {
+          await _ref
+              .read(notificationServiceProvider)
+              .sendItemAddedNotification(
+                groupId: groupId,
+                listId: listId,
+                listName: listName,
+                itemName: item.name,
+                adderName: adderName,
+              );
+        }
+      }
+    } catch (e) {
+      developer.log('⚠️ アイテム追加通知送信エラー: $e');
+    }
   }
 
   @override
@@ -572,6 +599,36 @@ class FirestoreSharedListRepository implements SharedListRepository {
     });
 
     developer.log('✅ [FIRESTORE_DIFF] Item logically deleted');
+
+    // アイテム削除通知を送信
+    try {
+      final listDoc = await _collection(groupId).doc(listId).get();
+      if (listDoc.exists) {
+        final data = listDoc.data() as Map<String, dynamic>;
+        final listName = data['listName'] as String?;
+        final itemsData = data['items'] as Map<String, dynamic>?;
+        final itemData = itemsData?[itemId] as Map<String, dynamic>?;
+        final itemName = itemData?['name'] as String?;
+
+        if (listName != null && itemName != null) {
+          final removerName = currentUser.displayName ??
+              await UserPreferencesService.getUserName() ??
+              'ユーザー';
+
+          await _ref
+              .read(notificationServiceProvider)
+              .sendItemRemovedNotification(
+                groupId: groupId,
+                listId: listId,
+                listName: listName,
+                itemName: itemName,
+                removerName: removerName,
+              );
+        }
+      }
+    } catch (e) {
+      developer.log('⚠️ アイテム削除通知送信エラー: $e');
+    }
   }
 
   @override
