@@ -1,5 +1,152 @@
 # Go Shop - 買い物リスト共有アプリ
 
+## Recent Implementations (2025-12-25)
+
+### 1. Riverpodベストプラクティス確立 ✅
+
+**Purpose**: LateInitializationError対応パターンの文書化とAI Coding Agent指示書整備
+
+**Implementation Files**:
+
+- **New Document**: `docs/riverpod_best_practices.md` (拡充)
+
+  - セクション4追加: build()外でのRefアクセスパターン
+  - `late final Ref _ref`の危険性を明記
+  - `Ref? _ref` + `_ref ??= ref`パターンの説明
+  - 実例（SelectedGroupNotifier）を追加
+  - AsyncNotifier.build()の複数回呼び出しリスクを解説
+
+- **Modified**: `.github/copilot-instructions.md`
+  - Riverpod修正時の必須参照指示を追加
+  - `docs/riverpod_best_practices.md`参照の強制化
+  - `late final Ref`使用禁止の警告
+
+**Key Pattern**:
+
+```dart
+// ❌ 危険: late final Ref → LateInitializationError
+class MyNotifier extends AsyncNotifier<Data> {
+  late final Ref _ref;
+
+  @override
+  Future<Data> build() async {
+    _ref = ref;  // 2回目の呼び出しでエラー
+    return fetchData();
+  }
+}
+
+// ✅ 安全: Ref? + null-aware代入
+class MyNotifier extends AsyncNotifier<Data> {
+  Ref? _ref;
+
+  @override
+  Future<Data> build() async {
+    _ref ??= ref;  // 初回のみ代入
+    return fetchData();
+  }
+}
+```
+
+**Commits**: `f9da5f5`, `2e12c80`
+
+### 2. 招待受諾バグ完全修正 ✅
+
+**Background**: QRコード招待受諾時に通知送信は成功するが、UI・Firestoreに反映されない問題を段階的に修正
+
+#### Phase 1: デバッグログ強化
+
+**Modified**: `lib/services/notification_service.dart`
+
+- `sendNotification()`に詳細ログ追加
+- `_handleNotification()`に処理追跡ログ追加
+- Firestore保存成功確認ログ追加
+
+#### Phase 2: 構文エラー修正
+
+**Problem**: if-elseブロックのインデントエラー
+
+**Solution**: UI更新処理をifブロック内に移動
+
+**Commit**: `38a1859`
+
+#### Phase 3: permission-deniedエラー修正
+
+**Problem**: 受諾者がまだグループメンバーではないのに招待使用回数を更新しようとした
+
+**Solution**:
+
+- **受諾側**: `_updateInvitationUsage()`削除（通知送信のみ）
+- **招待元側**: メンバー追加後に`_updateInvitationUsage()`実行
+- 理由: 受諾者はまだグループメンバーではない → Firestore Rules違反
+
+**Commit**: `f2be455`
+
+#### Phase 4: Firestoreインデックスエラー修正
+
+**Problem**: 通知リスナーが`userId + read + timestamp`の3フィールドクエリを実行するが、インデックスが`userId + read`の2フィールドしかなかった
+
+**Solution**: `firestore.indexes.json`に`timestamp`フィールドを追加
+
+**Before**:
+
+```json
+{
+  "collectionGroup": "notifications",
+  "fields": [
+    {"fieldPath": "userId", "order": "ASCENDING"},
+    {"fieldPath": "read", "order": "ASCENDING"}
+  ]
+}
+```
+
+**After**:
+
+```json
+{
+  "collectionGroup": "notifications",
+  "fields": [
+    {"fieldPath": "userId", "order": "ASCENDING"},
+    {"fieldPath": "read", "order": "ASCENDING"},
+    {"fieldPath": "timestamp", "order": "DESCENDING"}  // ← 追加
+  ]
+}
+```
+
+**Deployment**:
+
+```bash
+$ firebase deploy --only firestore:indexes
+✔ firestore: deployed indexes successfully
+```
+
+**Commit**: `b13c7b7`
+
+#### 修正後の期待動作
+
+```
+1. Pixel（まや）: QRコード受諾
+   ✅ acceptQRInvitation()
+   ✅ sendNotification() → Firestore保存成功
+
+2. SH54D（すもも）: 通知受信 ← 修正後はこれが動作する！
+   ✅ 通知リスナー起動（インデックスエラー解消）
+   ✅ _handleNotification() 実行
+   ✅ SharedGroups更新（allowedUid + members）
+   ✅ _updateInvitationUsage() 実行（招待元権限で）
+   ✅ UI反映（グループメンバー表示）
+```
+
+**Status**: 理論上完全修正 ⏳ 次回セッションで動作確認予定
+
+**検証手順**:
+
+1. 両デバイス再起動（Firestoreインデックス反映確認）
+2. 通知リスナー起動確認（SH54Dログ: "✅ [NOTIFICATION] リスナー起動完了！"）
+3. 招待受諾テスト（エンドツーエンド動作確認）
+4. エラーログ確認（問題がないか最終確認）
+
+---
+
 ## プロジェクト概要
 
 Go Shop は家族・グループ向けの買い物リスト共有 Flutter アプリです。Firebase Auth（ユーザー認証）と Cloud Firestore（データベース）を使用し、Hive をローカルキャッシュとして併用する**Firestore-first ハイブリッドアーキテクチャ**を採用しています。
