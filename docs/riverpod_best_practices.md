@@ -9,6 +9,7 @@
 ### 1. **AsyncNotifier.build()メソッドでの依存性管理**
 
 #### ❌ 危険なパターン
+
 ```dart
 @override
 Future<List<SharedGroup>> build() async {
@@ -25,6 +26,7 @@ Future<List<SharedGroup>> build() async {
 ```
 
 #### ✅ 正しいパターン
+
 ```dart
 @override
 Future<List<SharedGroup>> build() async {
@@ -60,6 +62,7 @@ Future<List<SharedGroup>> build() async {
 | **AsyncNotifier** | × | `ref.watch()` | 他のNotifierの状態監視 |
 
 #### 具体例
+
 ```dart
 // ✅ 正しい使用法
 final authState = ref.watch(authStateProvider);           // StreamProvider
@@ -71,6 +74,7 @@ final accessControl = ref.read(accessControlServiceProvider);   // Provider<T>
 ### 3. **プライベートメソッドでの依存性注入**
 
 #### ❌ 危険なパターン
+
 ```dart
 Future<SharedGroup> _fixLegacyMemberRoles(SharedGroup group) async {
   // ❌ プライベートメソッド内でのref操作
@@ -80,6 +84,7 @@ Future<SharedGroup> _fixLegacyMemberRoles(SharedGroup group) async {
 ```
 
 #### ✅ 正しいパターン
+
 ```dart
 Future<SharedGroup> _fixLegacyMemberRoles(
   SharedGroup group,
@@ -165,6 +170,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
 ## 🚨 よくある間違いとその対策
 
 ### 1. **非同期処理中の依存性追加**
+
 ```dart
 // ❌ 間違い
 @override
@@ -189,6 +195,7 @@ Future<Data> build() async {
 ```
 
 ### 2. **条件分岐での依存性取得**
+
 ```dart
 // ❌ 間違い
 @override
@@ -217,6 +224,7 @@ Future<Data> build() async {
 ```
 
 ### 3. **エラーハンドリング内での依存性取得**
+
 ```dart
 // ❌ 間違い
 @override
@@ -248,11 +256,109 @@ Future<Data> build() async {
 }
 ```
 
+### 4. **build()外でのRefアクセス（上級パターン）**
+
+通知送信など、`build()`メソッド外で他のプロバイダーにアクセスする必要がある場合の対処法。
+
+#### ❌ 危険なパターン
+
+```dart
+class MyNotifier extends AsyncNotifier<Data> {
+  late final Ref _ref;  // ❌ late finalは複数回初期化できない
+
+  @override
+  Future<Data> build() async {
+    _ref = ref;  // ❌ 2回目の呼び出しでLateInitializationError
+
+    final repo = ref.read(repositoryProvider);
+    return await repo.getData();
+  }
+
+  Future<void> someAction() async {
+    final service = _ref.read(serviceProvider);
+    await service.doSomething();
+  }
+}
+```
+
+**問題点**:
+
+- `AsyncNotifier.build()`は状態変更時に複数回呼ばれる可能性がある
+- `late final`は一度しか初期化できない
+- 2回目の`_ref = ref`で`LateInitializationError`が発生
+
+#### ✅ 正しいパターン
+
+```dart
+class MyNotifier extends AsyncNotifier<Data> {
+  Ref? _ref;  // ✅ nullable化
+
+  @override
+  Future<Data> build() async {
+    _ref ??= ref;  // ✅ null-aware代入（複数回呼ばれても安全）
+
+    // ✅ 最初に全ての依存性を確定する
+    final repo = ref.read(repositoryProvider);
+    return await repo.getData();
+  }
+
+  Future<void> someAction() async {
+    // ✅ build()外での使用にはnullチェック
+    if (_ref != null) {
+      final service = _ref!.read(serviceProvider);
+      await service.doSomething();
+    } else {
+      Log.warning('⚠️ Ref未初期化のため処理スキップ');
+    }
+  }
+}
+```
+
+**実装のポイント**:
+
+1. `Ref?`型で宣言（nullable化）
+2. `_ref ??= ref`でnull-aware代入（nullの場合のみ代入）
+3. 使用時は必ず`if (_ref != null)`でnullチェック
+4. `build()`内で全ての依存性を取得する原則は守る
+
+**実例（Go Shopプロジェクト）**:
+
+```dart
+class SelectedGroupNotifier extends AsyncNotifier<SharedGroup?> {
+  Ref? _ref;
+
+  @override
+  Future<SharedGroup?> build() async {
+    _ref ??= ref;  // Ref保存
+
+    // 最初に全ての依存性を確定
+    final selectedGroupId = ref.watch(selectedGroupIdProvider);
+    final repository = ref.read(SharedGroupRepositoryProvider);
+
+    if (selectedGroupId == null) return null;
+
+    final group = await repository.getGroupById(selectedGroupId);
+    return group;
+  }
+
+  Future<void> deleteCurrentGroup() async {
+    // build()外でのプロバイダーアクセス
+    if (_ref != null) {
+      final notificationService = _ref!.read(notificationServiceProvider);
+      await notificationService.sendGroupDeletedNotification(...);
+    } else {
+      Log.warning('⚠️ Ref未初期化のため通知スキップ');
+    }
+  }
+}
+```
+
 ## 🔧 デバッグとトラブルシューティング
 
 ### abort() called エラーの特定方法
 
 1. **エラーログの確認**
+
    ```
    [ERROR:flutter/runtime/dart_vm_initializer.cc(40)] Unhandled Exception:
    abort() called
@@ -293,10 +399,12 @@ Future<Data> build() async {
 ## 📚 参考資料
 
 ### Riverpod公式ドキュメント
+
 - [AsyncNotifier](https://riverpod.dev/docs/providers/async_notifier)
 - [Provider vs AsyncNotifier](https://riverpod.dev/docs/providers/provider)
 
 ### Go Shop固有のProvider一覧
+
 - `allGroupsProvider` - グループ一覧管理
 - `selectedGroupNotifierProvider` - 選択グループ管理
 - `memberPoolProvider` - メンバープール管理
@@ -314,10 +422,13 @@ Future<Data> build() async {
 - [ ] 非同期処理後に `ref` 操作を行わない
 - [ ] 条件分岐内で `ref` 操作を行わない
 - [ ] エラーハンドリング内で `ref` 操作を行わない
+- [ ] build()外でrefが必要な場合は `Ref? _ref` + `_ref ??= ref` パターンを使用
+- [ ] `late final Ref`は使用しない（LateInitializationErrorの原因）
 - [ ] 適切なログを追加してデバッグしやすくする
 
 ---
 
-**最終更新**: 2025-10-28
+**最終更新**: 2025-12-25
 **作成者**: GitHub Copilot
 **プロジェクト**: Go Shop Flutter App
+**追加内容**: build()外でのRefアクセスパターン（LateInitializationError対策）

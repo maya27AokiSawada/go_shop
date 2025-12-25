@@ -14,6 +14,7 @@ import '../services/access_control_service.dart';
 import '../services/user_preferences_service.dart';
 import '../services/user_initialization_service.dart';
 import '../services/firestore_user_name_service.dart';
+import '../services/notification_service.dart';
 import 'auth_provider.dart';
 import 'user_specific_hive_provider.dart';
 import 'current_list_provider.dart';
@@ -34,8 +35,16 @@ final SharedGroupRepositoryProvider = Provider<SharedGroupRepository>((
 
 // Selected Group Management - 選択されたグループの詳細操作用
 class SelectedGroupNotifier extends AsyncNotifier<SharedGroup?> {
+  // Refフィールド（他のメソッドでプロバイダーアクセスに使用）
+  // ⚠️ nullable + null-aware代入でbuild()の複数回呼び出しに対応
+  Ref? _ref;
+
   @override
   Future<SharedGroup?> build() async {
+    // Refを保存（deleteCurrentGroup等で使用）
+    // ⚠️ 初回のみ代入（複数回build()が呼ばれても安全）
+    _ref ??= ref;
+
     // ✅ 最初に全ての依存性を確定する
     final selectedGroupId = ref.watch(selectedGroupIdProvider);
     final repository = ref.read(SharedGroupRepositoryProvider);
@@ -331,14 +340,18 @@ class SelectedGroupNotifier extends AsyncNotifier<SharedGroup?> {
                 'ユーザー';
 
             // 🔥 グループ削除通知を送信
-            final notificationService = _ref.read(notificationServiceProvider);
-            await notificationService.sendGroupDeletedNotification(
-              groupId: currentGroup.groupId,
-              groupName: groupName,
-              deleterName: deleterName,
-            );
-
-            Log.info('✅ [DELETE GROUP] グループ削除通知送信完了');
+            if (_ref != null) {
+              final notificationService =
+                  _ref!.read(notificationServiceProvider);
+              await notificationService.sendGroupDeletedNotification(
+                groupId: currentGroup.groupId,
+                groupName: groupName,
+                deleterName: deleterName,
+              );
+              Log.info('✅ [DELETE GROUP] グループ削除通知送信完了');
+            } else {
+              Log.warning('⚠️ [DELETE GROUP] Ref未初期化のため通知スキップ');
+            }
           } catch (e) {
             Log.warning('⚠️ [DELETE GROUP] 通知送信エラー（続行）: $e');
           }
