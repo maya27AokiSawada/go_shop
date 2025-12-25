@@ -187,7 +187,8 @@ class NotificationService {
           AppLogger.info('========================================');
           AppLogger.info('👥 [NOTIFICATION] 新メンバー追加通知を受信！');
           AppLogger.info('👥 [NOTIFICATION] 通知ID: ${notification.id}');
-          AppLogger.info('👥 [NOTIFICATION] タイムスタンプ: ${notification.timestamp}');
+          AppLogger.info(
+              '👥 [NOTIFICATION] タイムスタンプ: ${notification.timestamp}');
           AppLogger.info('========================================');
 
           final groupId = notification.groupId; // ← トップレベルから取得
@@ -201,7 +202,8 @@ class NotificationService {
               '👥 [NOTIFICATION] グループID isEmpty: ${groupId.isEmpty}');
           AppLogger.info(
               '👥 [NOTIFICATION] 受諾者UID: ${AppLogger.maskUserId(acceptorUid)}');
-          AppLogger.info('👥 [NOTIFICATION] 受諾者UID == null: ${acceptorUid == null}');
+          AppLogger.info(
+              '👥 [NOTIFICATION] 受諾者UID == null: ${acceptorUid == null}');
           AppLogger.info(
               '👥 [NOTIFICATION] 受諾者名: ${AppLogger.maskName(acceptorName)}');
           AppLogger.info(
@@ -218,11 +220,6 @@ class NotificationService {
               AppLogger.error('❌ [NOTIFICATION] スタックトレース: $stackTrace');
               rethrow;
             }
-          } else {
-            AppLogger.error('❌ [NOTIFICATION] 条件不一致 - メンバー追加処理スキップ');
-            AppLogger.error('   - groupId.isEmpty: ${groupId.isEmpty}');
-            AppLogger.error('   - acceptorUid == null: ${acceptorUid == null}');
-          }
 
             // UI更新（全グループプロバイダーを即座に更新）
             _ref.invalidate(allGroupsProvider);
@@ -249,6 +246,10 @@ class NotificationService {
               },
             );
           } else {
+            AppLogger.error('❌ [NOTIFICATION] 条件不一致 - メンバー追加処理スキップ');
+            AppLogger.error('   - groupId.isEmpty: ${groupId.isEmpty}');
+            AppLogger.error('   - acceptorUid == null: ${acceptorUid == null}');
+
             // groupIdがない場合は全体同期
             final userInitService =
                 _ref.read(userInitializationServiceProvider);
