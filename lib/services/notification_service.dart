@@ -215,6 +215,17 @@ class NotificationService {
               // 受諾者をグループに追加（招待元として実行）
               await _addMemberToGroup(groupId, acceptorUid, acceptorName);
               AppLogger.info('✅ [NOTIFICATION] メンバー追加処理完了');
+
+              // 🔥 招待使用回数を更新（招待元として実行）
+              final invitationId =
+                  notification.metadata?['invitationId'] as String?;
+              if (invitationId != null) {
+                await _updateInvitationUsage(
+                  groupId: groupId,
+                  invitationId: invitationId,
+                  acceptorUid: acceptorUid,
+                );
+              }
             } catch (e, stackTrace) {
               AppLogger.error('❌ [NOTIFICATION] メンバー追加処理エラー: $e');
               AppLogger.error('❌ [NOTIFICATION] スタックトレース: $stackTrace');
@@ -474,6 +485,16 @@ class NotificationService {
         return;
       }
 
+      AppLogger.info('========================================');
+      AppLogger.info('🔔 [NOTIFICATION] 送信処理開始');
+      AppLogger.info('   - type: ${type.value}');
+      AppLogger.info(
+          '   - targetUserId: ${AppLogger.maskUserId(targetUserId)}');
+      AppLogger.info('   - groupId: ${AppLogger.maskGroupId(groupId)}');
+      AppLogger.info('   - message: $message');
+      AppLogger.info('   - metadata: $metadata');
+      AppLogger.info('========================================');
+
       // 🔥 複数デバイス対応: 同じユーザーでも別デバイスに通知を送信する
       // （マルチデバイスUXのため、自分自身への送信制限を削除）
 
@@ -492,14 +513,19 @@ class NotificationService {
         notificationData['metadata'] = metadata;
       }
 
-      AppLogger.info(
-          '🔔 [NOTIFICATION] Firestoreドキュメント作成: type=${type.value}, target=${AppLogger.maskUserId(targetUserId)}');
-      await _firestore.collection('notifications').add(notificationData);
+      AppLogger.info('🔔 [NOTIFICATION] Firestoreドキュメント作成開始: notifications/');
+      AppLogger.info('   - notificationData: $notificationData');
 
+      final docRef =
+          await _firestore.collection('notifications').add(notificationData);
+
+      AppLogger.info('✅ [NOTIFICATION] Firestore保存成功: docId=${docRef.id}');
       AppLogger.info(
           '📤 [NOTIFICATION] 送信完了: ${AppLogger.maskUserId(targetUserId)} - ${type.value}');
-    } catch (e) {
+    } catch (e, stackTrace) {
       AppLogger.error('❌ [NOTIFICATION] 送信エラー: $e');
+      AppLogger.error('❌ [NOTIFICATION] スタックトレース: $stackTrace');
+      rethrow;
     }
   }
 
@@ -859,6 +885,38 @@ class NotificationService {
           '🧹 [NOTIFICATION] 古い通知を削除: ${oldNotifications.docs.length}件');
     } catch (e) {
       AppLogger.error('❌ [NOTIFICATION] クリーンアップエラー: $e');
+    }
+  }
+
+  /// 招待使用回数を更新（招待元として実行）
+  Future<void> _updateInvitationUsage({
+    required String groupId,
+    required String invitationId,
+    required String acceptorUid,
+  }) async {
+    try {
+      AppLogger.info(
+          '📊 [INVITATION] 招待使用回数を更新: invitationId=$invitationId, acceptorUid=${AppLogger.maskUserId(acceptorUid)}');
+
+      // SharedGroups/{groupId}/invitations/{invitationId}サブコレクション
+      final invitationRef = _firestore
+          .collection('SharedGroups')
+          .doc(groupId)
+          .collection('invitations')
+          .doc(invitationId);
+
+      // Atomic update: currentUsesをインクリメント、usedBy配列に追加
+      await invitationRef.update({
+        'currentUses': FieldValue.increment(1),
+        'usedBy': FieldValue.arrayUnion([acceptorUid]),
+        'lastUsedAt': FieldValue.serverTimestamp(),
+        'status': 'accepted',
+      });
+
+      AppLogger.info('✅ [INVITATION] 招待使用回数の更新完了');
+    } catch (e) {
+      AppLogger.error('❌ [INVITATION] 招待使用回数の更新エラー: $e');
+      // エラーが発生してもメイン処理は継続（カウント更新は副次的な処理）
     }
   }
 

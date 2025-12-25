@@ -483,15 +483,7 @@ class QRInvitationService {
       );
 
       Log.info('✅ [ACCEPTOR] 通知送信完了 - 招待元の確認待ち');
-
-      // 招待の使用回数を更新（currentUses + 1, usedBy配列に追加）
-      await _updateInvitationUsage(
-        groupId: groupId,
-        invitationId: invitationData['invitationId'] as String,
-        acceptorUid: acceptorUid,
-      );
-
-      Log.info('✅ 招待受諾処理完了 - バックグラウンド同期開始');
+      Log.info('✅ 招待受諾処理完了 - 招待元がメンバー追加を実施します');
 
       return true;
     } catch (e) {
@@ -1066,12 +1058,11 @@ class QRInvitationService {
   }) async {
     try {
       Log.info(
-          '📊 [INVITATION] 招待使用回数を更新: invitationId=$invitationId, acceptorUid=$acceptorUid');
+          '📊 [INVITATION] 招待使用回数を更新: invitationId=$invitationId, acceptorUid=${AppLogger.maskUserId(acceptorUid)}');
 
+      // 🔥 トップレベルのinvitationsコレクションを使用（サブコレクションではない）
       final invitationRef = _firestore
-          .collection('SharedGroups')
-          .doc(groupId)
-          .collection('invitations')
+          .collection('invitations') // ← トップレベル
           .doc(invitationId);
 
       // Atomic update: currentUsesをインクリメント、usedBy配列に追加
@@ -1079,6 +1070,7 @@ class QRInvitationService {
         'currentUses': FieldValue.increment(1),
         'usedBy': FieldValue.arrayUnion([acceptorUid]),
         'lastUsedAt': FieldValue.serverTimestamp(),
+        'status': 'accepted', // ステータスも更新
       });
 
       Log.info('✅ [INVITATION] 招待使用回数の更新完了');
