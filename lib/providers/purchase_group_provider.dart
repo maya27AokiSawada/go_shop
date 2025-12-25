@@ -311,6 +311,9 @@ class SelectedGroupNotifier extends AsyncNotifier<SharedGroup?> {
     final repository = ref.read(SharedGroupRepositoryProvider);
 
     try {
+      // 削除前にグループ名を取得（通知用）
+      final groupName = currentGroup.groupName;
+
       // ステップ1: Firestoreで削除フラグを立てる（本番環境のみ）
       final currentUser = FirebaseAuth.instance.currentUser;
       if (F.appFlavor == Flavor.prod && currentUser != null) {
@@ -320,6 +323,24 @@ class SelectedGroupNotifier extends AsyncNotifier<SharedGroup?> {
               currentUser, currentGroup.groupId);
           Log.info(
               '✅ [DELETE GROUP] Firestoreで削除フラグ設定: ${currentGroup.groupId}');
+
+          // グループ削除通知を送信
+          try {
+            final deleterName = currentUser.displayName ??
+                await UserPreferencesService.getUserName() ??
+                'ユーザー';
+
+            await ref
+                .read(notificationServiceProvider)
+                .sendGroupDeletedNotification(
+                  groupId: currentGroup.groupId,
+                  groupName: groupName,
+                  deleterName: deleterName,
+                );
+            Log.info('✅ [DELETE GROUP] グループ削除通知送信完了');
+          } catch (e) {
+            Log.warning('⚠️ [DELETE GROUP] 通知送信エラー（続行）: $e');
+          }
         } catch (e) {
           Log.warning('⚠️ [DELETE GROUP] Firestore削除フラグエラー（続行）: $e');
         }

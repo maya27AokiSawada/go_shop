@@ -622,6 +622,118 @@ class NotificationService {
     }
   }
 
+  /// グループ削除通知を送信
+  Future<void> sendGroupDeletedNotification({
+    required String groupId,
+    required String groupName,
+    required String deleterName,
+  }) async {
+    try {
+      AppLogger.info('🗑️ [NOTIFICATION] グループ削除通知送信: $groupName');
+
+      await sendNotificationToGroup(
+        groupId: groupId,
+        type: NotificationType.groupDeleted,
+        message: '$deleterName が「$groupName」を削除しました',
+        metadata: {
+          'groupName': groupName,
+          'deleterName': deleterName,
+        },
+      );
+
+      AppLogger.info('✅ [NOTIFICATION] グループ削除通知送信完了');
+    } catch (e) {
+      AppLogger.error('❌ [NOTIFICATION] グループ削除通知エラー: $e');
+    }
+  }
+
+  /// アイテム追加通知を送信
+  Future<void> sendItemAddedNotification({
+    required String groupId,
+    required String listId,
+    required String listName,
+    required String itemName,
+    required String adderName,
+  }) async {
+    try {
+      AppLogger.info('➕ [NOTIFICATION] アイテム追加通知送信: $itemName');
+
+      await sendNotificationToGroup(
+        groupId: groupId,
+        type: NotificationType.itemAdded,
+        message: '$adderName が「$listName」に「$itemName」を追加しました',
+        metadata: {
+          'listId': listId,
+          'listName': listName,
+          'itemName': itemName,
+          'adderName': adderName,
+        },
+      );
+
+      AppLogger.info('✅ [NOTIFICATION] アイテム追加通知送信完了');
+    } catch (e) {
+      AppLogger.error('❌ [NOTIFICATION] アイテム追加通知エラー: $e');
+    }
+  }
+
+  /// アイテム削除通知を送信
+  Future<void> sendItemRemovedNotification({
+    required String groupId,
+    required String listId,
+    required String listName,
+    required String itemName,
+    required String removerName,
+  }) async {
+    try {
+      AppLogger.info('➖ [NOTIFICATION] アイテム削除通知送信: $itemName');
+
+      await sendNotificationToGroup(
+        groupId: groupId,
+        type: NotificationType.itemRemoved,
+        message: '$removerName が「$listName」から「$itemName」を削除しました',
+        metadata: {
+          'listId': listId,
+          'listName': listName,
+          'itemName': itemName,
+          'removerName': removerName,
+        },
+      );
+
+      AppLogger.info('✅ [NOTIFICATION] アイテム削除通知送信完了');
+    } catch (e) {
+      AppLogger.error('❌ [NOTIFICATION] アイテム削除通知エラー: $e');
+    }
+  }
+
+  /// アイテム購入通知を送信
+  Future<void> sendItemPurchasedNotification({
+    required String groupId,
+    required String listId,
+    required String listName,
+    required String itemName,
+    required String purchaserName,
+  }) async {
+    try {
+      AppLogger.info('✅ [NOTIFICATION] アイテム購入通知送信: $itemName');
+
+      await sendNotificationToGroup(
+        groupId: groupId,
+        type: NotificationType.itemPurchased,
+        message: '$purchaserName が「$listName」の「$itemName」を購入しました',
+        metadata: {
+          'listId': listId,
+          'listName': listName,
+          'itemName': itemName,
+          'purchaserName': purchaserName,
+        },
+      );
+
+      AppLogger.info('✅ [NOTIFICATION] アイテム購入通知送信完了');
+    } catch (e) {
+      AppLogger.error('❌ [NOTIFICATION] アイテム購入通知エラー: $e');
+    }
+  }
+
   /// 通知を既読にする
   Future<void> markAsRead(String notificationId) async {
     try {
