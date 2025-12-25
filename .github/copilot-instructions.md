@@ -91,6 +91,13 @@ if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
 
 ### State Management - Riverpod Patterns
 
+⚠️ **CRITICAL**: Riverpod 関連の修正を行う場合は、必ず以下のドキュメントを参照すること:
+
+- **`docs/riverpod_best_practices.md`** - Riverpod ベストプラクティス＆アンチパターン集
+- 特に`AsyncNotifier.build()`メソッド内での依存性管理に注意
+- `late final Ref`の使用は禁止（LateInitializationError の原因）
+- build()外で ref が必要な場合は`Ref? _ref` + `_ref ??= ref`パターンを使用
+
 ```dart
 // AsyncNotifierProvider pattern (primary)
 final SharedGroupProvider = AsyncNotifierProvider<SharedGroupNotifier, SharedGroup>(
