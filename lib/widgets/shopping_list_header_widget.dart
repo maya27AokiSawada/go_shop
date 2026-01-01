@@ -228,71 +228,93 @@ class SharedListHeaderWidget extends ConsumerWidget {
     final nameController = TextEditingController();
     final descriptionController = TextEditingController();
 
+    // 🔥 二重送信防止フラグ
+    bool isSubmitting = false;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('新しい買い物リストを作成'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'リスト名',
-                hintText: '例: 週末の買い物',
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('新しい買い物リストを作成'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: 'リスト名',
+                  hintText: '例: 週末の買い物',
+                ),
+                autofocus: true,
+                enabled: !isSubmitting,
               ),
-              autofocus: true,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: descriptionController,
-              decoration: const InputDecoration(
-                labelText: '説明（任意）',
-                hintText: '例: 土曜日のスーパーで',
+              const SizedBox(height: 12),
+              TextField(
+                controller: descriptionController,
+                decoration: const InputDecoration(
+                  labelText: '説明（任意）',
+                  hintText: '例: 土曜日のスーパーで',
+                ),
+                maxLines: 2,
+                enabled: !isSubmitting,
               ),
-              maxLines: 2,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('キャンセル'),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () async {
-              final name = nameController.text.trim();
-              if (name.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('リスト名を入力してください')),
-                );
-                return;
-              }
+          actions: [
+            TextButton(
+              onPressed: isSubmitting ? null : () => Navigator.of(context).pop(),
+              child: const Text('キャンセル'),
+            ),
+            ElevatedButton(
+              onPressed: isSubmitting ? null : () async {
+                // 🔥 二重送信チェック
+                if (isSubmitting) return;
 
-              final selectedGroupId = ref.read(selectedGroupIdProvider);
-              if (selectedGroupId == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('グループが選択されていません')),
-                );
-                return;
-              }
+                setDialogState(() {
+                  isSubmitting = true;
+                });
 
-              // allGroupsProviderからcurrentGroupを取得
-              final allGroupsAsync = ref.read(allGroupsProvider);
-              final currentGroup = await allGroupsAsync.when(
-                data: (groups) async => groups
-                    .where((g) => g.groupId == selectedGroupId)
-                    .firstOrNull,
-                loading: () async => null,
-                error: (_, __) async => null,
-              );
+                final name = nameController.text.trim();
+                if (name.isEmpty) {
+                  setDialogState(() {
+                    isSubmitting = false;
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('リスト名を入力してください')),
+                  );
+                  return;
+                }
 
-              if (currentGroup == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('グループ情報の取得に失敗しました')),
+                final selectedGroupId = ref.read(selectedGroupIdProvider);
+                if (selectedGroupId == null) {
+                  setDialogState(() {
+                    isSubmitting = false;
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('グループが選択されていません')),
+                  );
+                  return;
+                }
+
+                // allGroupsProviderからcurrentGroupを取得
+                final allGroupsAsync = ref.read(allGroupsProvider);
+                final currentGroup = await allGroupsAsync.when(
+                  data: (groups) async => groups
+                      .where((g) => g.groupId == selectedGroupId)
+                      .firstOrNull,
+                  loading: () async => null,
+                  error: (_, __) async => null,
                 );
-                return;
-              }
+
+                if (currentGroup == null) {
+                  setDialogState(() {
+                    isSubmitting = false;
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('グループ情報の取得に失敗しました')),
+                  );
+                  return;
+                }
 
               try {
                 // リポジトリから新しいリストを作成
@@ -355,15 +377,29 @@ class SharedListHeaderWidget extends ConsumerWidget {
                 );
               } catch (e, stackTrace) {
                 Log.error('❌ リスト作成エラー: $e', stackTrace);
+                
+                // エラー時は送信フラグをリセット
+                setDialogState(() {
+                  isSubmitting = false;
+                });
+                
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('リスト作成に失敗しました: $e')),
                 );
               }
             },
-            child: const Text('作成'),
+            child: isSubmitting 
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('作成'),
           ),
         ],
       ),
+    ),
     );
   }
 
