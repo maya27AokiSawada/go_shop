@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../services/user_preferences_service.dart';
 import '../models/shared_group.dart';
+import '../pages/notification_history_page.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 /// 同期状態の種類
@@ -60,6 +61,13 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
           icon: const Icon(Icons.more_vert),
           onSelected: (value) {
             switch (value) {
+              case 'notifications':
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const NotificationHistoryPage(),
+                  ),
+                );
+                break;
               case 'help':
                 _showHelpDialog(context);
                 break;
@@ -69,6 +77,18 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
             }
           },
           itemBuilder: (context) => [
+            // 通知履歴（認証済みの場合のみ表示）
+            if (authState.value != null)
+              const PopupMenuItem(
+                value: 'notifications',
+                child: Row(
+                  children: [
+                    Icon(Icons.notifications_outlined, size: 20),
+                    SizedBox(width: 8),
+                    Text('通知履歴'),
+                  ],
+                ),
+              ),
             const PopupMenuItem(
               value: 'help',
               child: Row(

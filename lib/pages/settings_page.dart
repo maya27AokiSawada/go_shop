@@ -20,7 +20,6 @@ import '../widgets/settings/auth_status_panel.dart';
 import '../widgets/settings/firestore_sync_status_panel.dart';
 import '../widgets/settings/app_mode_switcher_panel.dart';
 import '../widgets/settings/privacy_settings_panel.dart';
-import '../widgets/settings/notification_settings_panel.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -98,12 +97,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 // プライバシー設定パネル（認証済み時または開発環境で表示）
                 if (isAuthenticated || true) ...[
                   const PrivacySettingsPanel(),
-                  const SizedBox(height: 20),
-                ],
-
-                // 通知設定パネル（認証済み時のみ表示）
-                if (isAuthenticated) ...[
-                  const NotificationSettingsPanel(),
                   const SizedBox(height: 20),
                 ],
 
