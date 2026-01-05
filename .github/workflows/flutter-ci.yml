@@ -12,6 +12,16 @@ jobs:
         with:
           channel: "stable"
 
+      # GitHub Secretsから必要なファイルを作成
+      - name: Create google-services.json
+        run: echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
+
+      - name: Create firebase_options.dart
+        run: echo '${{ secrets.FIREBASE_OPTIONS_DART }}' > lib/firebase_options.dart
+
+      - name: Create .env file
+        run: echo '${{ secrets.DOT_ENV }}' > .env
+
       - name: Get dependencies
         run: flutter pub get
 
