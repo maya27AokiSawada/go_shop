@@ -1,5 +1,55 @@
 # Go Shop - AI Coding Agent Instructions
 
+## Recent Implementations (2026-01-05)
+
+### 1. GitHub Actions CI/CD 環境構築 🔄
+
+**Purpose**: oneness ブランチへの push 時に自動 Android APK ビルドを実現
+
+**Implementation Files**:
+
+- `.github/workflows/flutter-ci.yml` - CI/CD ワークフロー定義
+
+**Key Changes**:
+
+1. **upload-artifact v4 対応**: 非推奨 v3 から移行
+2. **flutter-action 設定**: `flutter-version: "stable"` → `channel: 'stable'`
+3. **Kotlin 2.0.21 対応**: Gradle バージョン要求に合わせてダウングレード
+4. **FLUTTER_ROOT 環境変数フォールバック**: CI/CD 環境での local.properties 非依存化
+
+**GitHub Secrets Configuration**:
+
+- `FIREBASE_OPTIONS_DART`: Firebase 設定ファイル（dotenv 依存版）
+- `GOOGLE_SERVICES_JSON`: Android 用 Firebase 設定
+- `DOT_ENV`: 環境変数ファイル
+
+**PowerShell Here-String Pattern** (重要):
+
+```yaml
+# ✅ Correct: シングルクォートを正しく保持
+- name: Create firebase_options.dart
+  run: |
+    $content = @'
+    ${{ secrets.FIREBASE_OPTIONS_DART }}
+    '@
+    $content | Out-File -FilePath "lib/firebase_options.dart" -Encoding UTF8
+
+# ❌ Wrong: シングルクォートが破損する
+- name: Create firebase_options.dart
+  run: echo '${{ secrets.FIREBASE_OPTIONS_DART }}' > lib/firebase_options.dart
+```
+
+**Status**: 基盤構築完了、ビルドエラー調査中 ⏳
+
+**Commits**: `bd9e793`, `46ad41f`, `b3758b8`, `a8f2005`, `af06841`, `76c488c`
+
+**Known Issues**:
+
+- ビルドが exit code 1 で失敗（share_plus パッケージ警告が原因の可能性）
+- 詳細エラーログ取得が必要
+
+---
+
 ## Recent Implementations (2025-12-25)
 
 ### 1. Riverpod ベストプラクティス確立 ✅
