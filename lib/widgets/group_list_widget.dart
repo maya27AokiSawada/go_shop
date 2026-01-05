@@ -121,8 +121,21 @@ class GroupListWidget extends ConsumerWidget {
           ),
         ),
 
-        // 招待を受ける
-        const AcceptInvitationWidget(),
+        // 招待を受ける（デフォルトグループのみの場合のみ表示）
+        allGroupsAsync.when(
+          data: (groups) {
+            final currentUser = FirebaseAuth.instance.currentUser;
+            // デフォルトグループ以外のグループが存在する場合は非表示
+            final hasNonDefaultGroups =
+                groups.any((g) => !isDefaultGroup(g, currentUser));
+            if (hasNonDefaultGroups) {
+              return const SizedBox.shrink();
+            }
+            return const AcceptInvitationWidget();
+          },
+          loading: () => const SizedBox.shrink(),
+          error: (_, __) => const SizedBox.shrink(),
+        ),
 
         // グループリスト（スクロール可能に変更）
         Expanded(
