@@ -15,7 +15,7 @@ jobs:
       # Firebase設定ファイルをGitHub Secretsから復元
       # ※ GitHub Secretsが未設定の場合はこのステップをスキップ
       - name: Setup Firebase (if secrets exist)
-        if: ${{ secrets.GOOGLE_SERVICES_JSON != '' && secrets.FIREBASE_OPTIONS_DART != '' }}
+        if: secrets.GOOGLE_SERVICES_JSON != '' && secrets.FIREBASE_OPTIONS_DART != ''
         run: |
           echo "${{ secrets.GOOGLE_SERVICES_JSON }}" > android/app/google-services.json
           echo "${{ secrets.FIREBASE_OPTIONS_DART }}" > lib/firebase_options.dart
@@ -23,7 +23,7 @@ jobs:
 
       # .envファイルをGitHub Secretsから復元
       - name: Setup .env (if secret exists)
-        if: ${{ secrets.DOT_ENV != '' }}
+        if: secrets.DOT_ENV != ''
         run: echo "${{ secrets.DOT_ENV }}" > .env
         shell: bash
 
