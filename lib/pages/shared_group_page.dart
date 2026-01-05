@@ -6,7 +6,7 @@ import '../providers/purchase_group_provider.dart';
 import '../providers/security_provider.dart';
 import '../widgets/group_list_widget.dart';
 import '../widgets/group_creation_with_copy_dialog.dart';
-import '../screens/qr_scan_screen.dart';
+import '../widgets/accept_invitation_widget.dart';
 
 class SharedGroupPage extends ConsumerStatefulWidget {
   const SharedGroupPage({super.key});
@@ -64,7 +64,7 @@ class _SharedGroupPageState extends ConsumerState<SharedGroupPage> {
               Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (context) => const QrScanScreen()));
+                      builder: (context) => const QRScannerScreen()));
             },
             heroTag: 'scan_qr_code',
             child: const Icon(Icons.qr_code_scanner),
