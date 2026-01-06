@@ -39,7 +39,7 @@ Go Shop（以下「本アプリ」）をご利用いただきありがとうご�
 ## 第5条（利用料金）
 
 1. 本アプリは無料でご利用いただけます。
-2. 将来的に有料プランを導入する場合は、事前に通知します。
+2. 将来的に有料プランを導入する場合は、事前に通知します。広告付き無料プランも残します。
 3. 通信料はユーザーの負担となります。
 
 ## 第6条（広告表示）
@@ -122,8 +122,8 @@ Go Shop（以下「本アプリ」）をご利用いただきありがとうご�
 本規約に関するご質問は、以下の連絡先までお願いします。
 
 **開発者**: maya27AokiSawada
-**メールアドレス**: [開発者のメールアドレス]
-**GitHub**: https://github.com/maya27AokiSawada/go_shop
+**メールアドレス**: [maya27aokisawada@maya27AokiSawada.net]
+**GitHub**: <https://github.com/maya27AokiSawada/go_shop>
 
 ---
 
@@ -253,5 +253,5 @@ The Developer may suspend or delete accounts without prior notice if users:
 For questions about these Terms, please contact:
 
 **Developer**: maya27AokiSawada
-**Email**: [Developer's email address]
-**GitHub**: https://github.com/maya27AokiSawada/go_shop
+**Email**: [maya27aokisawada@maya27AokiSawada.net]
+**GitHub**: <https://github.com/maya27AokiSawada/go_shop>

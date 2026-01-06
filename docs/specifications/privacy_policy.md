@@ -7,22 +7,26 @@ Go Shop（以下「本アプリ」）は、maya27AokiSawada（以下「開発者
 ## 1. 収集する情報
 
 ### 1.1 アカウント情報
+
 - メールアドレス
 - パスワード（暗号化して保存）
 - ディスプレイネーム（任意設定）
 
 ### 1.2 アプリ利用情報
+
 - グループ情報（グループ名、メンバー情報）
 - 買い物リスト情報（リスト名、アイテム情報）
 - アプリ設定情報（表示モード、通知設定など）
 
 ### 1.3 デバイス情報
+
 - デバイスモデル
 - OS バージョン
 - アプリバージョン
 - クラッシュレポート（エラー発生時）
 
 ### 1.4 位置情報（任意）
+
 - 概略位置情報（市区町村レベル）
 - 目的: 地域に関連する広告配信の最適化
 - 使用パッケージ: geolocator
@@ -34,50 +38,59 @@ Go Shop（以下「本アプリ」）は、maya27AokiSawada（以下「開発者
 ## 2. 情報の利用目的
 
 ### 2.1 サービス提供
+
 - ユーザー認証
 - 買い物リストの保存・同期
 - グループメンバー間の共有機能
 - 通知配信
 
 ### 2.2 サービス改善
+
 - アプリの安定性向上
 - バグ修正
 - 機能改善
 
 ### 2.3 広告配信
+
 - 地域に関連する広告の表示
 - 広告パフォーマンスの測定
 
 ## 3. 情報の保存場所
 
 ### 3.1 Firebase サービス（Google Cloud Platform）
+
 - 認証情報: Firebase Authentication
 - アプリデータ: Cloud Firestore
 - クラッシュレポート: Firebase Crashlytics
 - データセンター: 東京リージョン（asia-northeast1）
 
 ### 3.2 ローカルストレージ（デバイス内）
+
 - オフライン時のキャッシュデータ
 - アプリ設定情報
 
 ## 4. 情報の共有
 
 ### 4.1 共有する場合
+
 本アプリは以下の場合を除き、個人情報を第三者に提供しません。
 
 - **ユーザーの同意がある場合**: グループ招待機能を利用した場合
 - **法令に基づく場合**: 法的要請がある場合
 
 ### 4.2 第三者サービス
+
 本アプリは以下のサービスを利用しています。
 
 #### Firebase（Google LLC）
+
 - 目的: ユーザー認証、データ保存、クラッシュレポート
-- プライバシーポリシー: https://firebase.google.com/support/privacy
+- プライバシーポリシー: <https://firebase.google.com/support/privacy>
 
 #### AdMob（Google LLC）
+
 - 目的: 広告配信
-- プライバシーポリシー: https://support.google.com/admob/answer/6128543
+- プライバシーポリシー: <https://support.google.com/admob/answer/6128543>
 
 ## 5. データの保持期間
 
@@ -89,6 +102,7 @@ Go Shop（以下「本アプリ」）は、maya27AokiSawada（以下「開発者
 ## 6. データの削除
 
 ### 6.1 アカウント削除
+
 ユーザーはいつでもアカウントを削除できます。アカウント削除後、以下のデータが削除されます。
 
 - アカウント情報
@@ -96,6 +110,7 @@ Go Shop（以下「本アプリ」）は、maya27AokiSawada（以下「開発者
 - グループ情報（オーナーの場合）
 
 ### 6.2 削除方法
+
 1. アプリ内「設定」→「アカウント削除」
 2. または、開発者への直接連絡
 
@@ -130,8 +145,8 @@ Go Shop（以下「本アプリ」）は、maya27AokiSawada（以下「開発者
 本プライバシーポリシーに関するご質問は、以下の連絡先までお願いします。
 
 **開発者**: maya27AokiSawada
-**メールアドレス**: [開発者のメールアドレス]
-**GitHub**: https://github.com/maya27AokiSawada/go_shop
+**メールアドレス**: [maya27aokisawada@maya27AokiSawada.net]
+**GitHub**: <https://github.com/maya27AokiSawada/go_shop>
 
 ---
 
@@ -146,22 +161,26 @@ Go Shop (hereinafter "the App") is a shopping list sharing application provided 
 ## 1. Information We Collect
 
 ### 1.1 Account Information
+
 - Email address
 - Password (encrypted storage)
 - Display name (optional)
 
 ### 1.2 App Usage Information
+
 - Group information (group names, member information)
 - Shopping list information (list names, item information)
 - App settings (display mode, notification settings, etc.)
 
 ### 1.3 Device Information
+
 - Device model
 - OS version
 - App version
 - Crash reports (when errors occur)
 
 ### 1.4 Location Information (Optional)
+
 - Approximate location (city level)
 - Purpose: Optimizing region-related ad delivery
 - Package used: geolocator
@@ -173,50 +192,59 @@ Go Shop (hereinafter "the App") is a shopping list sharing application provided 
 ## 2. How We Use Information
 
 ### 2.1 Service Provision
+
 - User authentication
 - Shopping list storage and synchronization
 - Sharing features among group members
 - Notification delivery
 
 ### 2.2 Service Improvement
+
 - App stability enhancement
 - Bug fixes
 - Feature improvements
 
 ### 2.3 Advertising
+
 - Display of region-related ads
 - Ad performance measurement
 
 ## 3. Where Information Is Stored
 
 ### 3.1 Firebase Services (Google Cloud Platform)
+
 - Authentication: Firebase Authentication
 - App data: Cloud Firestore
 - Crash reports: Firebase Crashlytics
 - Data center: Tokyo region (asia-northeast1)
 
 ### 3.2 Local Storage (On Device)
+
 - Offline cache data
 - App settings
 
 ## 4. Information Sharing
 
 ### 4.1 When We Share
+
 We do not provide personal information to third parties except in the following cases:
 
 - **With user consent**: When using group invitation features
 - **Legal requirements**: When legally required
 
 ### 4.2 Third-Party Services
+
 The App uses the following services:
 
 #### Firebase (Google LLC)
+
 - Purpose: User authentication, data storage, crash reporting
-- Privacy Policy: https://firebase.google.com/support/privacy
+- Privacy Policy: <https://firebase.google.com/support/privacy>
 
 #### AdMob (Google LLC)
+
 - Purpose: Ad delivery
-- Privacy Policy: https://support.google.com/admob/answer/6128543
+- Privacy Policy: <https://support.google.com/admob/answer/6128543>
 
 ## 5. Data Retention Period
 
@@ -228,6 +256,7 @@ The App uses the following services:
 ## 6. Data Deletion
 
 ### 6.1 Account Deletion
+
 Users can delete their account at any time. After account deletion, the following data will be deleted:
 
 - Account information
@@ -235,6 +264,7 @@ Users can delete their account at any time. After account deletion, the followin
 - Group information (if owner)
 
 ### 6.2 Deletion Method
+
 1. In-app "Settings" → "Delete Account"
 2. Or, direct contact with the developer
 
@@ -269,5 +299,5 @@ This Privacy Policy may be changed without notice due to legal changes or servic
 For questions about this Privacy Policy, please contact:
 
 **Developer**: maya27AokiSawada
-**Email**: [Developer's email address]
-**GitHub**: https://github.com/maya27AokiSawada/go_shop
+**Email**: [maya27AokiSawada@maya27AokiSawada.net]
+**GitHub**: <https://github.com/maya27AokiSawada/go_shop>
