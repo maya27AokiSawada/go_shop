@@ -5,10 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../utils/app_logger.dart';
 import '../utils/firestore_helper.dart'; // Firestore操作ヘルパー
 import 'user_initialization_service.dart';
-import '../providers/purchase_group_provider.dart';
-import '../providers/selected_group_provider.dart'; // selectedGroupIdProvider
+import '../providers/purchase_group_provider.dart'; // selectedGroupIdProvider, hiveSharedGroupRepositoryProvider
 import '../providers/hive_provider.dart'; // Hive Box プロバイダー
-import '../datastore/hive_purchase_group_repository.dart'; // hiveSharedGroupRepositoryProvider
 import '../models/shared_group.dart';
 import '../datastore/firestore_purchase_group_repository.dart'; // Repository型チェック用
 
