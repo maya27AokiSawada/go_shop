@@ -38,12 +38,12 @@ jobs:
       # - name: Run tests
       #   run: flutter test
 
-      - name: Build Android APK
-        run: flutter build apk --release
+      - name: Build Android APK (dev flavor)
+        run: flutter build apk --release --flavor dev
 
       # APKをアーティファクトとしてアップロード
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: release-apk-dev
+          path: build/app/outputs/flutter-apk/app-dev-release.apk
