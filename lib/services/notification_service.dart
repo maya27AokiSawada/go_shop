@@ -6,7 +6,9 @@ import '../utils/app_logger.dart';
 import '../utils/firestore_helper.dart'; // Firestore操作ヘルパー
 import 'user_initialization_service.dart';
 import '../providers/purchase_group_provider.dart';
+import '../providers/selected_group_provider.dart'; // selectedGroupIdProvider
 import '../providers/hive_provider.dart'; // Hive Box プロバイダー
+import '../datastore/hive_purchase_group_repository.dart'; // hiveSharedGroupRepositoryProvider
 import '../models/shared_group.dart';
 import '../datastore/firestore_purchase_group_repository.dart'; // Repository型チェック用
 
@@ -297,9 +299,52 @@ class NotificationService {
           break;
 
         case NotificationType.groupDeleted:
-          // グループ削除通知
-          AppLogger.info('🗑️ [NOTIFICATION] グループ削除通知');
-          _ref.invalidate(allGroupsProvider);
+          // グループ削除通知 - メンバー側でローカル削除
+          AppLogger.info('🗑️ [NOTIFICATION] グループ削除通知受信');
+          final deletedGroupId = notification.groupId;
+          final groupName =
+              notification.metadata?['groupName'] as String? ?? 'グループ';
+
+          AppLogger.info(
+              '🗑️ [NOTIFICATION] 削除対象グループ: ${AppLogger.maskGroup(groupName, deletedGroupId)}');
+
+          try {
+            // Hiveからグループを削除
+            final hiveRepository = _ref.read(hiveSharedGroupRepositoryProvider);
+            await hiveRepository.deleteGroup(deletedGroupId);
+            AppLogger.info(
+                '✅ [NOTIFICATION] Hiveからグループ削除完了: ${AppLogger.maskGroupId(deletedGroupId)}');
+
+            // 選択中のグループが削除された場合は別のグループを選択
+            final selectedGroupId = _ref.read(selectedGroupIdProvider);
+            if (selectedGroupId == deletedGroupId) {
+              AppLogger.info('⚠️ [NOTIFICATION] 選択中グループが削除されました - 別のグループを選択');
+
+              // 他のグループがあるか確認
+              final allGroups = await hiveRepository.getAllGroups();
+              if (allGroups.isNotEmpty) {
+                // 最初のグループを選択
+                _ref
+                    .read(selectedGroupIdProvider.notifier)
+                    .selectGroup(allGroups.first.groupId);
+                AppLogger.info(
+                    '✅ [NOTIFICATION] 別のグループに切替: ${AppLogger.maskGroup(allGroups.first.groupName, allGroups.first.groupId)}');
+              } else {
+                // グループがない場合はデフォルトグループを作成
+                AppLogger.info('📝 [NOTIFICATION] デフォルトグループを作成');
+                await _ref
+                    .read(allGroupsProvider.notifier)
+                    .createDefaultGroup(currentUser);
+              }
+            }
+
+            // UI更新
+            _ref.invalidate(allGroupsProvider);
+            _ref.invalidate(selectedGroupProvider);
+            AppLogger.info('✅ [NOTIFICATION] グループ削除通知処理完了');
+          } catch (e) {
+            AppLogger.error('❌ [NOTIFICATION] グループ削除処理エラー: $e');
+          }
           break;
 
         case NotificationType.itemAdded:
