@@ -7,8 +7,7 @@ import '../utils/firestore_helper.dart'; // Firestore操作ヘルパー
 import 'user_initialization_service.dart';
 import '../providers/purchase_group_provider.dart'; // selectedGroupIdProvider, SharedGroupRepositoryProvider
 import '../providers/hive_provider.dart'; // Hive Box プロバイダー
-import '../datastore/hive_shared_group_repository.dart'
-    show hiveSharedGroupRepositoryProvider; // Specific import
+import '../datastore/hive_shared_group_repository.dart'; // hiveSharedGroupRepositoryProvider
 import '../models/shared_group.dart';
 import '../datastore/firestore_purchase_group_repository.dart'; // Repository型チェック用
 

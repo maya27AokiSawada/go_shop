@@ -674,24 +674,5 @@ final hiveSharedGroupRepositoryProvider =
   return HiveSharedGroupRepository(ref);
 });
 
-// 抽象インターフェース用のプロバイダー（フレーバー切り替え対応）
-final SharedGroupRepositoryProvider =
-    Provider<SharedGroupRepository>((ref) {
-  if (F.appFlavor == Flavor.prod) {
-    // 本番環境: 現在はHiveを使用（Firestore連携は将来実装予定）
-    return ref.read(hiveSharedGroupRepositoryProvider);
-  } else {
-    // 開発環境: Hiveのみ
-    return ref.read(hiveSharedGroupRepositoryProvider);
-  }
-});
-
 // 現在のグループIDプロバイダー（デフォルトグループ用）
 final currentGroupIdProvider = Provider<String>((ref) => 'default_group');
-
-// デフォルトグループ保存用のプロバイダー
-final saveDefaultGroupProvider =
-    FutureProvider.family<void, SharedGroup>((ref, group) async {
-  final repository = ref.read(SharedGroupRepositoryProvider);
-  await repository.updateGroup(group.groupId, group);
-});
