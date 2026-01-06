@@ -105,14 +105,12 @@ class _HomePageState extends ConsumerState<HomePage> {
       await ref.read(authProvider).signUp(email, password);
       AppLogger.info('✅ [SIGNUP] 新規ユーザー登録成功');
 
-      // プロバイダーを無効化（UIをリセット）
-      ref.invalidate(allGroupsProvider);
-      ref.invalidate(selectedGroupProvider);
-      ref.invalidate(sharedListProvider);
-      await Future.delayed(const Duration(milliseconds: 300));
-      AppLogger.info('🔄 [SIGNUP] プロバイダー無効化完了');
+      // 4. ディスプレイネームをPreferencesに即座に保存（authStateChanges前）
+      await UserPreferencesService.saveUserName(userName);
+      AppLogger.info(
+          '✅ [SIGNUP] ディスプレイネームをPreferencesに保存: ${AppLogger.maskName(userName)}');
 
-      // Firebase Authのディスプレイネームを更新
+      // 5. Firebase Authのディスプレイネームを更新
       final user = ref.read(authProvider).currentUser;
       if (user != null) {
         await user.updateDisplayName(userName);
@@ -121,18 +119,20 @@ class _HomePageState extends ConsumerState<HomePage> {
             '✅ [SIGNUP] Firebase Authのディスプレイネームを更新: ${AppLogger.maskName(userName)}');
       }
 
-      // Firestoreにユーザープロファイルを作成
+      // 6. Firestoreにユーザープロファイルを作成
       await FirestoreUserNameService.ensureUserProfileExists(
           userName: userName);
       AppLogger.info(
           '✅ [SIGNUP] Firestoreにユーザープロファイル作成: ${AppLogger.maskName(userName)}');
 
-      // ディスプレイネームをPreferencesに保存
-      await UserPreferencesService.saveUserName(userName);
-      AppLogger.info(
-          '✅ [SIGNUP] ディスプレイネームをPreferencesに保存: ${AppLogger.maskName(userName)}');
+      // 7. プロバイダーを無効化（UIをリセット）
+      ref.invalidate(allGroupsProvider);
+      ref.invalidate(selectedGroupProvider);
+      ref.invalidate(sharedListProvider);
+      await Future.delayed(const Duration(milliseconds: 300));
+      AppLogger.info('🔄 [SIGNUP] プロバイダー無効化完了');
 
-      // メールアドレスをPreferencesに保存
+      // 8. メールアドレスをPreferencesに保存
       await UserPreferencesService.saveUserEmail(email);
       AppLogger.info('✅ [SIGNUP] メールアドレスをPreferencesに保存');
 
