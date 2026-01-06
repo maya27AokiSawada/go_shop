@@ -1,52 +1,128 @@
 # Go Shop - AI Coding Agent Instructions
 
-## Recent Implementations (2026-01-05)
+## Recent Implementations (2026-01-06)
 
-### 1. GitHub Actions CI/CD 環境構築 🔄
+### 1. GitHub Actions CI/CD 環境構築完了 ✅
 
-**Purpose**: oneness ブランチへの push 時に自動 Android APK ビルドを実現
+**Purpose**: main ブランチへの push 時に自動 Android APK ビルドを実現
 
 **Implementation Files**:
 
 - `.github/workflows/flutter-ci.yml` - CI/CD ワークフロー定義
+- `docs/knowledge_base/github_actions_ci_cd.md` - セットアップガイド
 
 **Key Changes**:
 
-1. **upload-artifact v4 対応**: 非推奨 v3 から移行
-2. **flutter-action 設定**: `flutter-version: "stable"` → `channel: 'stable'`
-3. **Kotlin 2.0.21 対応**: Gradle バージョン要求に合わせてダウングレード
-4. **FLUTTER_ROOT 環境変数フォールバック**: CI/CD 環境での local.properties 非依存化
+1. **ubuntu-latest 採用**: windows-latest → ubuntu-latest に変更
+2. **bash Here-Document 構文**: PowerShell 構文から移行
+3. **Flavor 指定**: `--flavor dev` 明示、APK パス修正（`app-dev-release.apk`）
+4. **Kotlin 2.1.0 更新**: 非推奨警告対応（2.0.21 → 2.1.0）
+5. **トリガーブランチ変更**: oneness → main のみ（開発ブランチでは実行されない）
 
-**GitHub Secrets Configuration**:
-
-- `FIREBASE_OPTIONS_DART`: Firebase 設定ファイル（dotenv 依存版）
-- `GOOGLE_SERVICES_JSON`: Android 用 Firebase 設定
-- `DOT_ENV`: 環境変数ファイル
-
-**PowerShell Here-String Pattern** (重要):
+**bash Here-Document Pattern** (重要):
 
 ```yaml
-# ✅ Correct: シングルクォートを正しく保持
-- name: Create firebase_options.dart
+# ✅ Correct: bash構文
+- name: Create google-services.json
+  run: |
+    cat << 'EOF' > android/app/google-services.json
+    ${{ secrets.GOOGLE_SERVICES_JSON }}
+    EOF
+
+# ❌ Wrong: PowerShell構文（ubuntu-latestでは動作しない）
+- name: Create google-services.json
   run: |
     $content = @'
-    ${{ secrets.FIREBASE_OPTIONS_DART }}
+    ${{ secrets.GOOGLE_SERVICES_JSON }}
     '@
-    $content | Out-File -FilePath "lib/firebase_options.dart" -Encoding UTF8
-
-# ❌ Wrong: シングルクォートが破損する
-- name: Create firebase_options.dart
-  run: echo '${{ secrets.FIREBASE_OPTIONS_DART }}' > lib/firebase_options.dart
+    $content | Out-File -FilePath "android/app/google-services.json" -Encoding UTF8
 ```
 
-**Status**: 基盤構築完了、ビルドエラー調査中 ⏳
+**Status**: ✅ 完全動作確認済み（APK ビルド成功）
 
-**Commits**: `bd9e793`, `46ad41f`, `b3758b8`, `a8f2005`, `af06841`, `76c488c`
+**Commits**: `bd9e793`, `dbec044`, `06c8a20`, `1e365fa`, `daa7081`, `6514321`
 
-**Known Issues**:
+### 2. ドキュメント整理完了 ✅
 
-- ビルドが exit code 1 で失敗（share_plus パッケージ警告が原因の可能性）
-- 詳細エラーログ取得が必要
+**Purpose**: 77 ファイルの膨大なドキュメントを適切に分類・管理
+
+**Implementation**:
+
+```
+docs/
+├── daily_reports/          # 日報（36ファイル、月別整理）
+│   ├── 2025-10/ (7)
+│   ├── 2025-11/ (13)
+│   ├── 2025-12/ (14)
+│   └── 2026-01/ (3)
+├── knowledge_base/         # ナレッジベース（33ファイル）
+└── specifications/         # プロジェクト仕様（8ファイル）
+```
+
+**Created**: `docs/README.md`（追加ガイドライン付き）
+
+**Commit**: `d00e0a3`
+
+### 3. プライバシーポリシー・利用規約作成 ✅
+
+**Purpose**: Google Play クローズドベータテスト準備
+
+**Created Files**:
+
+- `docs/specifications/privacy_policy.md`（日本語版+英語版）
+- `docs/specifications/terms_of_service.md`（日本語版+英語版）
+
+**Key Points**:
+
+- 位置情報の詳細説明（広告最適化のみ、任意、30km 精度）
+- 有料プラン導入後も広告付き無料プラン継続を明記
+- Firebase/AdMob 利用明記
+
+**Commits**: `5ae957b`, `efe31e2`
+
+### 4. ユーザー名設定バグ修正 ✅
+
+**Problem**: 新規サインアップ時に前ユーザーの名前がデフォルトグループに表示
+
+**Root Cause**: `authStateChanges` 発火時に SharedPreferences がまだ保存されていなかった
+
+**Solution** (`lib/pages/home_page.dart`):
+
+```dart
+// ✅ Correct order
+3. Firebase Auth.signUp()
+4. 👉 UserPreferencesService.saveUserName(userName)  // 即座に保存
+5. user.updateDisplayName(userName)
+6. Firestore.ensureUserProfileExists(userName)
+7. authStateChanges → createDefaultGroup()  // この時点でPreferencesから正しく読み取れる
+```
+
+**Commit**: `1d9df59`
+
+### 5. グループ削除通知機能実装 ✅
+
+**Problem**: オーナーがグループ削除しても参加メンバーの端末から削除されない
+
+**Solution** (`lib/services/notification_service.dart`):
+
+- `NotificationType.groupDeleted` 受信時の処理追加
+- Hive からグループ削除
+- 選択中グループが削除された場合は別のグループに自動切替
+- グループがない場合はデフォルトグループ作成
+
+**Commits**: `2d16fb1`, `87b1c00`, `90eb8ca`, `a4d9bdf`
+
+### 6. プロバイダー重複定義の修正 ✅
+
+**Problem**: `SharedGroupRepositoryProvider` が 2 箇所で定義されていた
+
+**Solution**:
+
+- `hive_shared_group_repository.dart` から重複定義を削除
+- `saveDefaultGroupProvider` も削除（未使用）
+- インポート衝突を完全解消
+
+**Commit**: `485a6b9`
 
 ---
 
