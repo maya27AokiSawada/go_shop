@@ -15,24 +15,21 @@ jobs:
       # GitHub Secretsから必要なファイルを作成
       - name: Create google-services.json
         run: |
-          $content = @'
+          cat << 'EOF' > android/app/google-services.json
           ${{ secrets.GOOGLE_SERVICES_JSON }}
-          '@
-          $content | Out-File -FilePath "android/app/google-services.json" -Encoding UTF8
+          EOF
 
       - name: Create firebase_options.dart
         run: |
-          $content = @'
+          cat << 'EOF' > lib/firebase_options.dart
           ${{ secrets.FIREBASE_OPTIONS_DART }}
-          '@
-          $content | Out-File -FilePath "lib/firebase_options.dart" -Encoding UTF8
+          EOF
 
       - name: Create .env file
         run: |
-          $content = @'
+          cat << 'EOF' > .env
           ${{ secrets.DOT_ENV }}
-          '@
-          $content | Out-File -FilePath ".env" -Encoding UTF8
+          EOF
 
       - name: Get dependencies
         run: flutter pub get
