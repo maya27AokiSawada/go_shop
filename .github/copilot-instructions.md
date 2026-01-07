@@ -1,5 +1,42 @@
 # Go Shop - AI Coding Agent Instructions
 
+## Recent Implementations (2026-01-07)
+
+### 1. エラー履歴機能実装 ✅
+
+**Purpose**: ユーザーの操作エラー履歴を SharedPreferences に保存し、トラブルシューティングを支援
+
+**Key Files**:
+
+- `lib/services/error_log_service.dart` - SharedPreferences ベースのエラーログサービス
+- `lib/pages/error_history_page.dart` - エラー履歴表示画面
+- `lib/widgets/common_app_bar.dart` - 三点メニューに統合
+
+**エラータイプ**: `permission`, `network`, `sync`, `validation`, `operation`
+
+**使用例**:
+
+```dart
+await ErrorLogService.logValidationError('リスト作成', '「〇〇」という名前のリストは既に存在します');
+```
+
+**特徴**: ローカル完結・コストゼロ・最新 20 件自動保存
+
+**Commit**: `7044e0c`
+
+### 2. グループ・リスト重複名チェック＋エラー記録 ✅
+
+**Purpose**: 同じ名前のグループ・リストの作成を防止し、エラー履歴に記録
+
+**Key Files**:
+
+- `lib/widgets/shared_list_header_widget.dart` - リスト重複チェック
+- `lib/widgets/group_creation_with_copy_dialog.dart` - グループ重複チェック（バリデーション失敗時）
+
+**Commits**: `8444977`, `16485de`, `909945f`, `1e4e4cd`, `df84e44`
+
+---
+
 ## Recent Implementations (2026-01-06)
 
 ### 1. GitHub Actions CI/CD 環境構築完了 ✅
