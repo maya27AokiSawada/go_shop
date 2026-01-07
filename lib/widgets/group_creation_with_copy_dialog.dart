@@ -399,6 +399,31 @@ class _GroupCreationWithCopyDialogState
     final hasMembersToAdd = _selectedMembers.values.any((selected) => selected);
 
     try {
+      // 🔥 同じ名前のグループが既に存在しないかチェック
+      final allGroupsAsync = ref.read(allGroupsProvider);
+      final allGroups = allGroupsAsync.when(
+        data: (groups) => groups,
+        loading: () => <SharedGroup>[],
+        error: (_, __) => <SharedGroup>[],
+      );
+
+      final duplicateName =
+          allGroups.any((group) => group.groupName == groupName);
+      if (duplicateName) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('「$groupName」という名前のグループは既に存在します'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
       AppLogger.info('🔄 [CREATE GROUP DIALOG] createNewGroup() 呼び出し');
       // Create new group
       await ref.read(allGroupsProvider.notifier).createNewGroup(groupName);
