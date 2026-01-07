@@ -412,7 +412,6 @@ class _GroupCreationWithCopyDialogState
       AppLogger.info('✅ [CREATE GROUP DIALOG] _isLoading = true に設定');
     });
 
-    final groupName = _groupNameController.text.trim();
     final hasMembersToAdd = _selectedMembers.values.any((selected) => selected);
 
     try {
