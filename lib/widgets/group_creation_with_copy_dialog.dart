@@ -408,14 +408,29 @@ class _GroupCreationWithCopyDialogState
         error: (_, __) async => <SharedGroup>[],
       );
 
+      AppLogger.info('🔍 [CREATE GROUP] グループ数: ${allGroups.length}');
+      for (final g in allGroups) {
+        AppLogger.info('🔍 [CREATE GROUP] 既存グループ: ${g.groupName}');
+      }
+
       final duplicateName =
           allGroups.any((group) => group.groupName == groupName);
+      AppLogger.info(
+          '🔍 [CREATE GROUP] 重複チェック結果: $duplicateName (入力: $groupName)');
+
       if (duplicateName) {
+        AppLogger.info('⚠️ [CREATE GROUP] 重複検出 - エラーログ記録開始');
+
         // エラーログに記録
-        await ErrorLogService.logValidationError(
-          'グループ作成',
-          '「$groupName」という名前のグループは既に存在します',
-        );
+        try {
+          await ErrorLogService.logValidationError(
+            'グループ作成',
+            '「$groupName」という名前のグループは既に存在します',
+          );
+          AppLogger.info('✅ [CREATE GROUP] エラーログ記録完了');
+        } catch (e) {
+          AppLogger.error('❌ [CREATE GROUP] エラーログ記録失敗: $e');
+        }
 
         if (mounted) {
           setState(() {
