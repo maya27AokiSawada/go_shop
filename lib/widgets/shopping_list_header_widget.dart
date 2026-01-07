@@ -329,6 +329,12 @@ class SharedListHeaderWidget extends ConsumerWidget {
                             existingLists.any((list) => list.listName == name);
 
                         if (duplicateName) {
+                          // エラーログに記録
+                          await ErrorLogService.logValidationError(
+                            'リスト作成',
+                            '「$name」という名前のリストは既に存在します',
+                          );
+
                           setDialogState(() {
                             isSubmitting = false;
                           });

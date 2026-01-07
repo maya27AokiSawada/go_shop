@@ -5,6 +5,7 @@ import '../models/shared_group.dart';
 import '../providers/purchase_group_provider.dart';
 import '../utils/app_logger.dart';
 import 'dart:developer' as developer;
+import '../services/error_log_service.dart';
 
 /// Dialog for creating new group with option to copy members from existing group
 class GroupCreationWithCopyDialog extends ConsumerStatefulWidget {
@@ -410,6 +411,12 @@ class _GroupCreationWithCopyDialogState
       final duplicateName =
           allGroups.any((group) => group.groupName == groupName);
       if (duplicateName) {
+        // エラーログに記録
+        await ErrorLogService.logValidationError(
+          'グループ作成',
+          '「$groupName」という名前のグループは既に存在します',
+        );
+
         if (mounted) {
           setState(() {
             _isLoading = false;
