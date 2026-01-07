@@ -2,18 +2,22 @@
 
 ## プロジェクト概要
 
-**アプリケーション名**: Go Shop  
-**説明**: Firebaseバックエンドを使用したFlutter製買い物リストアプリ  
-**作成日**: 2024年  
-**最終更新**: 2025年9月26日  
-**バージョン**: 1.0.0+1  
+**アプリケーション名**: Go Shop
+**説明**: Firebaseバックエンドを使用したFlutter製買い物リストアプリ
+**作成日**: 2024年
+**最終更新**: 2026年1月7日
+**バージョン**: 1.0.0+1
 
 ### 主要機能
-- ユーザー認証（Firebase Auth）
+- ユーザー認証（Firebase Auth）- 必須サインイン仕様
 - グループベースの買い物リスト共有
 - メンバー管理機能
-- ローカル/リモートデータストレージ（Hive/Firestore）
+- **Firestore-first Hybrid Architecture** (Firestore → Hive cache)
 - リアルタイム状態管理（Riverpod）
+- リアルタイム同期（Firestore `snapshots()`）
+- QRコード招待システム（v3.1軽量版）
+- アプリ間通知システム（Firestoreベース）
+- **差分同期** (90%ネットワーク削減達成)
 
 ---
 
@@ -21,21 +25,23 @@
 
 ### フレームワーク・ライブラリ
 - **Flutter**: 3.9.2 (メインフレームワーク)
-- **Firebase**: 
+- **Firebase**:
   - Core: ^4.1.1
-  - Auth: ^6.1.0 
+  - Auth: ^6.1.0
   - Firestore: ^6.0.2
 - **状態管理**: Riverpod ^3.0.0
 - **ローカルDB**: Hive ^2.2.3
-- **コード生成**: 
+- **コード生成**:
   - Freezed ^2.4.1
   - JSON Serializable ^6.7.1
   - Riverpod Generator ^3.0.0-dev.1
 
 ### アーキテクチャパターン
-- **Repository Pattern**: データレイヤーの抽象化
+- **Firestore-first Hybrid Pattern**: Firestore優先読み込み + Hiveキャッシュ (2025-12実装)
+- **Repository Pattern**: データレイヤーの抽象化 (Hybrid/Firestore/Hive)
 - **Provider Pattern**: Riverpodによる状態管理
 - **Layered Architecture**: UI - Provider - Repository - Model
+- **Differential Sync**: Map-based単一アイテム更新（90%ネットワーク削減）
 
 ---
 
@@ -84,35 +90,52 @@ enum SharedGroupRole {
 
 ### 4. SharedList（買い物リスト）
 ```dart
-@HiveType(typeId: 10)
+@HiveType(typeId: 4)
 @freezed
 class SharedList with _$SharedList {
   const factory SharedList({
-    @HiveField(0) required String ownerUid,
-    @HiveField(1) required String groupId,
-    @HiveField(2) required String groupName,
-    @HiveField(3) required List<SharedItem> items,
+    @HiveField(0) required String listId,
+    @HiveField(1) required String listName,
+    @HiveField(2) required String groupId,
+    @HiveField(3) @Default({}) Map<String, SharedItem> items,  // Map型で差分同期対応
+    @HiveField(4) String? ownerUid,
+    @HiveField(5) DateTime? createdAt,
+    @HiveField(6) DateTime? updatedAt,
   }) = _SharedList;
+
+  // Getter for active items (isDeleted = false)
+  List<SharedItem> get activeItems =>
+      items.values.where((item) => !item.isDeleted).toList();
 }
 ```
 
+**重要**: `items`はMap<String, SharedItem>型を使用し、itemIdをキーとして管理。これにより差分同期（単一アイテムの追加・更新・削除）が可能。
+
 ### 5. SharedItem（買い物アイテム）
 ```dart
-@HiveType(typeId: 11)
+@HiveType(typeId: 3)
 @freezed
 class SharedItem with _$SharedItem {
   const factory SharedItem({
-    @HiveField(0) required String itemId,
-    @HiveField(1) required String name,
+    @HiveField(0) required String name,
+    @HiveField(1) @Default(false) bool isPurchased,
     @HiveField(2) @Default(1) int quantity,
-    @HiveField(3) @Default(false) bool isPurchased,
-    @HiveField(4) String? addedBy,
-    @HiveField(5) DateTime? addedAt,
-    @HiveField(6) String? purchasedBy,
-    @HiveField(7) DateTime? purchasedAt,
+    @HiveField(3) String? memberId,  // 登録者のUID
+    @HiveField(4) DateTime? purchaseDate,
+    @HiveField(5) DateTime? deadline,  // 買い物期限（未実装）
+    @HiveField(6) String? memo,
+    @HiveField(7) int? shoppingInterval,  // 定期購入間隔（日数）
+    @HiveField(8) required String itemId,  // UUID v4
+    @HiveField(9) @Default(false) bool isDeleted,  // 論理削除フラグ
+    @HiveField(10) DateTime? deletedAt,  // 削除日時
   }) = _SharedItem;
 }
 ```
+
+**差分同期対応**:
+- `itemId`: UUID v4で一意性保証
+- `isDeleted`: 論理削除（物理削除は30日後に自動実行）
+- Map型と組み合わせて単一アイテムの追加・更新・削除が可能
 
 ---
 
@@ -140,12 +163,14 @@ final authStateProvider = StreamProvider<User?>((ref) {
 **ファイル**: `lib/providers/purchase_group_provider.dart`
 
 ```dart
-// リポジトリプロバイダー
+// リポジトリプロバイダー (Hybrid対応)
 final SharedGroupRepositoryProvider = Provider<SharedGroupRepository>((ref) {
   if (F.appFlavor == Flavor.prod) {
-    throw UnimplementedError('FirestoreSharedGroupRepository is not implemented yet');
+    // Production: Firestore-first with Hive cache
+    return HybridPurchaseGroupRepository(ref);
   } else {
-    return HiveSharedGroupRepository(ref);  
+    // Development: Hive only for faster local testing
+    return HiveSharedGroupRepository(ref);
   }
 });
 
@@ -224,10 +249,68 @@ abstract class SharedGroupRepository {
 - 開発環境用データストレージ
 - オフライン対応
 
-### 3. 今後の拡張: FirestoreSharedGroupRepository
-- Firestore Cloud Database使用
-- 本番環境用データストレージ
-- リアルタイム同期対応
+### 3. HybridSharedGroupRepository (Firestore-first実装) ✅
+**ファイル**: `lib/datastore/hybrid_purchase_group_repository.dart`
+
+**特徴**:
+- **Firestore優先読み込み**: 常に最新データを取得
+- **Hiveキャッシュ**: オフライン時のフォールバック
+- **認証必須**: prod環境では常にFirestore使用
+- **自動切り替え**: Firestoreエラー時は自動的にHiveに切替
+
+**実装パターン** (2025-12実装):
+```dart
+if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
+  try {
+    // 1. Firestoreから最新データ取得
+    final firestoreData = await _firestoreRepo!.getData();
+
+    // 2. Hiveにキャッシュ
+    await _hiveRepo.saveData(firestoreData);
+
+    return firestoreData;
+  } catch (e) {
+    // Firestoreエラー時はHiveフォールバック
+    return await _hiveRepo.getData();
+  }
+}
+```
+
+### 4. FirestoreSharedListRepository (差分同期実装) ✅
+**ファイル**: `lib/datastore/firestore_shared_list_repository.dart`
+
+**差分同期メソッド** (2025-12実装):
+```dart
+// 単一アイテム追加 (~500B)
+Future<void> addSingleItem(String listId, SharedItem item) async {
+  await _collection(groupId).doc(listId).update({
+    'items.${item.itemId}': _itemToFirestore(item),
+    'updatedAt': FieldValue.serverTimestamp(),
+  });
+}
+
+// 単一アイテム更新 (~500B)
+Future<void> updateSingleItem(String listId, SharedItem item) async {
+  await _collection(groupId).doc(listId).update({
+    'items.${item.itemId}': _itemToFirestore(item),
+    'updatedAt': FieldValue.serverTimestamp(),
+  });
+}
+
+// 単一アイテム削除（論理削除） (~200B)
+Future<void> removeSingleItem(String listId, String itemId) async {
+  await _collection(groupId).doc(listId).update({
+    'items.$itemId.isDeleted': true,
+    'items.$itemId.deletedAt': FieldValue.serverTimestamp(),
+    'updatedAt': FieldValue.serverTimestamp(),
+  });
+}
+```
+
+**パフォーマンス向上**:
+- Before: 全リスト送信 (~5KB for 10 items)
+- After: 単一アイテム送信 (~500B per item)
+- **90%ネットワーク削減達成** 🎉
 
 ---
 
@@ -283,34 +366,48 @@ class AuthService {
 }
 ```
 
-### MockAuthService  
+### MockAuthService
 **ファイル**: `lib/helper/mock_auth_service.dart`
 - テスト・開発用モック認証サービス
 - UserMockクラス使用
 
 ---
 
-## エラー状況と対応課題
+## 完了済み実装 (2025-12 ~ 2026-01)
 
-### 現在のエラー
-1. **Riverpod Generator互換性問題**
-   - `FutureProviderRef` 未定義エラー
-   - Generatorバージョン競合
+### 1. Firestore-first Architecture 移行 ✅
+- 全3層（SharedGroup/SharedList/SharedItem）でFirestore優先読み込み実装
+- HybridRepository パターン確立
+- 認証必須アプリケーション化
 
-2. **SharedGroupPage**
-   - `memberID` vs `memberId` プロパティ名不一致
-   - null安全性チェック不足
-   - `updatedGroup` 変数未定義
+### 2. 差分同期実装 ✅
+- Map<String, SharedItem>型への移行完了
+- addSingleItem/updateSingleItem/removeSingleItem実装
+- 90%ネットワーク削減達成
 
-3. **HomePage**
-   - `email` 変数未定義
-   - `saveDefaultGroupProvider` メソッド未実装
+### 3. リアルタイム同期実装 ✅
+- Firestore `snapshots()` による自動UI更新
+- StreamBuilder統合
+- デバイス間同期確認済み
 
-### 対応方針
-1. Riverpod Generatorの使用を一時的に停止
-2. 従来のProvider構文に変更
-3. プロパティ名の統一
-4. Null安全性の強化
+### 4. QR招待システム完全実装 ✅
+- QRコードv3.1（軽量版 - Firestore連携）
+- 通知システム統合
+- グループ削除通知対応
+
+### 5. GitHub Actions CI/CD構築 ✅
+- ubuntu-latest環境でのAndroid APKビルド自動化
+- bash Here-Document構文採用
+- main ブランチpush時の自動ビルド
+
+### 既知の制限事項
+1. **Riverpod Generator無効化**
+   - バージョン競合により従来構文使用
+   - 安定版リリース後に再検討
+
+2. **定期購入機能**
+   - データ構造は実装済み（shoppingInterval）
+   - UI実装は未完了（優先度: LOW）
 
 ---
 
@@ -341,22 +438,28 @@ class F {
 
 ---
 
-## 今後の実装予定
+## 今後の実装予定 (2026年以降)
 
-### 優先度高
-1. エラー修正とビルド安定化
-2. FirestoreRepository実装
-3. リアルタイム同期機能
+### 優先度高 (Q1 2026)
+1. ✅ ~~エラー修正とビルド安定化~~ (完了)
+2. ✅ ~~FirestoreRepository実装~~ (完了)
+3. ✅ ~~リアルタイム同期機能~~ (完了)
+4. Google Playクローズドベータテスト開始
+5. ユーザーフィードバック収集・改善
 
-### 優先度中
-1. UI/UXの改善
-2. エラーハンドリング強化
-3. テストコード追加
+### 優先度中 (Q2 2026)
+1. メンバー伝言メッセージ機能（設計書作成済み）
+2. ホワイトボード機能（スケッチ共有）
+3. UI/UXの改善（ユーザーフィードバック反映）
+4. エラーハンドリング強化
+5. テストコード追加
 
-### 優先度低
-1. 多言語対応
-2. プッシュ通知
+### 優先度低 (Q3-Q4 2026)
+1. 多言語対応（英語版）
+2. プッシュ通知（FCM統合）
 3. データエクスポート機能
+4. 定期購入機能UI実装
+5. カテゴリ・タグ機能
 
 ---
 
@@ -365,7 +468,7 @@ class F {
 ### Hiveデータベース構造
 - TypeID 0: SharedGroupRole (enum)
 - TypeID 1: SharedGroupMember
-- TypeID 2: SharedGroup  
+- TypeID 2: SharedGroup
 - TypeID 10: SharedList
 - TypeID 11: SharedItem
 
