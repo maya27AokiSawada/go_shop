@@ -7,6 +7,7 @@ import '../providers/group_shopping_lists_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/shared_list_provider.dart';
 import '../utils/app_logger.dart';
+import '../services/error_log_service.dart';
 
 /// 買い物リスト画面のヘッダーウィジェット
 /// - カレントグループ表示

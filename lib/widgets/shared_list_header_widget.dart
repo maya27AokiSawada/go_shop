@@ -7,6 +7,7 @@ import '../providers/group_shopping_lists_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/shared_list_provider.dart';
 import '../utils/app_logger.dart';
+import '../services/error_log_service.dart';
 
 /// 買い物リスト画面のヘッダーウィジェット
 /// - カレントグループ表示
@@ -295,8 +296,31 @@ class SharedListHeaderWidget extends ConsumerWidget {
               }
 
               try {
-                // リポジトリから新しいリストを作成
+                // 🔥 同じ名前のリストが既に存在しないかチェック
                 final repository = ref.read(sharedListRepositoryProvider);
+                final existingLists = await repository
+                    .getSharedListsByGroup(currentGroup.groupId);
+                final duplicateName =
+                    existingLists.any((list) => list.listName == name);
+
+                if (duplicateName) {
+                  // エラーログに記録
+                  await ErrorLogService.logValidationError(
+                    'リスト作成',
+                    '「$name」という名前のリストは既に存在します',
+                  );
+
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('「$name」という名前のリストは既に存在します'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                  return;
+                }
+
+                // リポジトリから新しいリストを作成
                 final newList = await repository.createSharedList(
                   ownerUid: currentGroup.members?.isNotEmpty == true
                       ? currentGroup.members!.first.memberId
