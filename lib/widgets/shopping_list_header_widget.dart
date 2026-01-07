@@ -262,144 +262,169 @@ class SharedListHeaderWidget extends ConsumerWidget {
           ),
           actions: [
             TextButton(
-              onPressed: isSubmitting ? null : () => Navigator.of(context).pop(),
+              onPressed:
+                  isSubmitting ? null : () => Navigator.of(context).pop(),
               child: const Text('キャンセル'),
             ),
             ElevatedButton(
-              onPressed: isSubmitting ? null : () async {
-                // 🔥 二重送信チェック
-                if (isSubmitting) return;
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      // 🔥 二重送信チェック
+                      if (isSubmitting) return;
 
-                setDialogState(() {
-                  isSubmitting = true;
-                });
+                      setDialogState(() {
+                        isSubmitting = true;
+                      });
 
-                final name = nameController.text.trim();
-                if (name.isEmpty) {
-                  setDialogState(() {
-                    isSubmitting = false;
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('リスト名を入力してください')),
-                  );
-                  return;
-                }
+                      final name = nameController.text.trim();
+                      if (name.isEmpty) {
+                        setDialogState(() {
+                          isSubmitting = false;
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('リスト名を入力してください')),
+                        );
+                        return;
+                      }
 
-                final selectedGroupId = ref.read(selectedGroupIdProvider);
-                if (selectedGroupId == null) {
-                  setDialogState(() {
-                    isSubmitting = false;
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('グループが選択されていません')),
-                  );
-                  return;
-                }
+                      final selectedGroupId = ref.read(selectedGroupIdProvider);
+                      if (selectedGroupId == null) {
+                        setDialogState(() {
+                          isSubmitting = false;
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('グループが選択されていません')),
+                        );
+                        return;
+                      }
 
-                // allGroupsProviderからcurrentGroupを取得
-                final allGroupsAsync = ref.read(allGroupsProvider);
-                final currentGroup = await allGroupsAsync.when(
-                  data: (groups) async => groups
-                      .where((g) => g.groupId == selectedGroupId)
-                      .firstOrNull,
-                  loading: () async => null,
-                  error: (_, __) async => null,
-                );
-
-                if (currentGroup == null) {
-                  setDialogState(() {
-                    isSubmitting = false;
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('グループ情報の取得に失敗しました')),
-                  );
-                  return;
-                }
-
-              try {
-                // リポジトリから新しいリストを作成
-                final repository = ref.read(sharedListRepositoryProvider);
-                final newList = await repository.createSharedList(
-                  ownerUid: currentGroup.members?.isNotEmpty == true
-                      ? currentGroup.members!.first.memberId
-                      : 'dev_user',
-                  groupId: currentGroup.groupId,
-                  listName: name,
-                  description: descriptionController.text.trim().isEmpty
-                      ? null
-                      : descriptionController.text.trim(),
-                );
-
-                Log.info(
-                    '✅ 新しいリスト作成成功: ${newList.listName} (ID: ${newList.listId})');
-
-                // 作成したリストをカレントリストに設定（Preferencesに保存）
-                await ref.read(currentListProvider.notifier).selectList(
-                      newList,
-                      groupId: currentGroup.groupId,
-                    );
-                Log.info('📝 カレントリストに設定完了: ${newList.listName}');
-
-                if (!context.mounted) return;
-                Navigator.of(context).pop();
-
-                // ダイアログを閉じた後、リスト一覧を更新して完了を待つ
-                ref.invalidate(groupSharedListsProvider);
-
-                // リスト一覧の更新完了を待つ（新しいリストが含まれるまで）
-                try {
-                  final updatedLists =
-                      await ref.read(groupSharedListsProvider.future);
-                  Log.info('✅ リスト一覧更新完了 - ${updatedLists.length}件');
-
-                  // Firestoreから取得したリストの中から、作成したリストを探して再設定
-                  final createdList = updatedLists.firstWhere(
-                    (list) =>
-                        list.listName == newList.listName &&
-                        list.groupId == currentGroup.groupId,
-                    orElse: () => newList, // 見つからない場合は作成時のリストを使用
-                  );
-
-                  // Firestoreから取得した正しいIDでカレントリストを再設定
-                  await ref.read(currentListProvider.notifier).selectList(
-                        createdList,
-                        groupId: currentGroup.groupId,
+                      // allGroupsProviderからcurrentGroupを取得
+                      final allGroupsAsync = ref.read(allGroupsProvider);
+                      final currentGroup = await allGroupsAsync.when(
+                        data: (groups) async => groups
+                            .where((g) => g.groupId == selectedGroupId)
+                            .firstOrNull,
+                        loading: () async => null,
+                        error: (_, __) async => null,
                       );
-                  Log.info(
-                      '✅ Firestore取得後のカレントリスト再設定完了: ${createdList.listName} (${createdList.listId})');
-                } catch (e) {
-                  Log.error('❌ リスト一覧更新エラー: $e');
-                }
 
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('「$name」を作成しました')),
-                );
-              } catch (e, stackTrace) {
-                Log.error('❌ リスト作成エラー: $e', stackTrace);
-                
-                // エラー時は送信フラグをリセット
-                setDialogState(() {
-                  isSubmitting = false;
-                });
-                
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('リスト作成に失敗しました: $e')),
-                );
-              }
-            },
-            child: isSubmitting 
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('作成'),
-          ),
-        ],
+                      if (currentGroup == null) {
+                        setDialogState(() {
+                          isSubmitting = false;
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('グループ情報の取得に失敗しました')),
+                        );
+                        return;
+                      }
+
+                      try {
+                        // 🔥 同じ名前のリストが既に存在しないかチェック
+                        final repository =
+                            ref.read(sharedListRepositoryProvider);
+                        final existingLists = await repository
+                            .getSharedListsByGroup(currentGroup.groupId);
+                        final duplicateName =
+                            existingLists.any((list) => list.listName == name);
+
+                        if (duplicateName) {
+                          setDialogState(() {
+                            isSubmitting = false;
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('「$name」という名前のリストは既に存在します'),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                          return;
+                        }
+
+                        // リポジトリから新しいリストを作成
+                        final newList = await repository.createSharedList(
+                          ownerUid: currentGroup.members?.isNotEmpty == true
+                              ? currentGroup.members!.first.memberId
+                              : 'dev_user',
+                          groupId: currentGroup.groupId,
+                          listName: name,
+                          description: descriptionController.text.trim().isEmpty
+                              ? null
+                              : descriptionController.text.trim(),
+                        );
+
+                        Log.info(
+                            '✅ 新しいリスト作成成功: ${newList.listName} (ID: ${newList.listId})');
+
+                        // 作成したリストをカレントリストに設定（Preferencesに保存）
+                        await ref.read(currentListProvider.notifier).selectList(
+                              newList,
+                              groupId: currentGroup.groupId,
+                            );
+                        Log.info('📝 カレントリストに設定完了: ${newList.listName}');
+
+                        if (!context.mounted) return;
+                        Navigator.of(context).pop();
+
+                        // ダイアログを閉じた後、リスト一覧を更新して完了を待つ
+                        ref.invalidate(groupSharedListsProvider);
+
+                        // リスト一覧の更新完了を待つ（新しいリストが含まれるまで）
+                        try {
+                          final updatedLists =
+                              await ref.read(groupSharedListsProvider.future);
+                          Log.info('✅ リスト一覧更新完了 - ${updatedLists.length}件');
+
+                          // Firestoreから取得したリストの中から、作成したリストを探して再設定
+                          final createdList = updatedLists.firstWhere(
+                            (list) =>
+                                list.listName == newList.listName &&
+                                list.groupId == currentGroup.groupId,
+                            orElse: () => newList, // 見つからない場合は作成時のリストを使用
+                          );
+
+                          // Firestoreから取得した正しいIDでカレントリストを再設定
+                          await ref
+                              .read(currentListProvider.notifier)
+                              .selectList(
+                                createdList,
+                                groupId: currentGroup.groupId,
+                              );
+                          Log.info(
+                              '✅ Firestore取得後のカレントリスト再設定完了: ${createdList.listName} (${createdList.listId})');
+                        } catch (e) {
+                          Log.error('❌ リスト一覧更新エラー: $e');
+                        }
+
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('「$name」を作成しました')),
+                        );
+                      } catch (e, stackTrace) {
+                        Log.error('❌ リスト作成エラー: $e', stackTrace);
+
+                        // エラー時は送信フラグをリセット
+                        setDialogState(() {
+                          isSubmitting = false;
+                        });
+
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('リスト作成に失敗しました: $e')),
+                        );
+                      }
+                    },
+              child: isSubmitting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('作成'),
+            ),
+          ],
+        ),
       ),
-    ),
     );
   }
 
