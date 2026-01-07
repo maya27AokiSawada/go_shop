@@ -391,7 +391,14 @@ class _GroupCreationWithCopyDialogState
     // バリデーションチェック
     if (!_formKey.currentState!.validate()) {
       // バリデーション失敗時に重複チェック
-      final isDuplicate = existingGroups.any(
+      final allGroupsAsync = ref.read(allGroupsProvider);
+      final allGroups = await allGroupsAsync.when(
+        data: (groups) async => groups,
+        loading: () async => <SharedGroup>[],
+        error: (_, __) async => <SharedGroup>[],
+      );
+
+      final isDuplicate = allGroups.any(
           (group) => group.groupName.toLowerCase() == groupName.toLowerCase());
 
       if (isDuplicate && groupName.isNotEmpty) {
