@@ -386,7 +386,23 @@ class _GroupCreationWithCopyDialogState
   }
 
   Future<void> _createGroup() async {
+    final groupName = _groupNameController.text.trim();
+
+    // バリデーションチェック
     if (!_formKey.currentState!.validate()) {
+      // バリデーション失敗時に重複チェック
+      final isDuplicate = existingGroups.any(
+          (group) => group.groupName.toLowerCase() == groupName.toLowerCase());
+
+      if (isDuplicate && groupName.isNotEmpty) {
+        // エラーログに記録
+        AppLogger.info('⚠️ [CREATE GROUP] バリデーション失敗 - 重複グループ名');
+        await ErrorLogService.logValidationError(
+          'グループ作成',
+          '「$groupName」という名前のグループは既に存在します',
+        );
+        AppLogger.info('✅ [CREATE GROUP] エラーログ記録完了（バリデーション失敗）');
+      }
       return;
     }
 
