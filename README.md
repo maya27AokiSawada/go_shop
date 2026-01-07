@@ -1,5 +1,58 @@
 # Go Shop - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-01-07)
+
+### 1. エラー履歴機能実装 ✅
+
+**Purpose**: ユーザーの操作エラー履歴をローカルに保存し、トラブルシューティングを支援
+
+**Implementation Files**:
+
+- **New Service**: `lib/services/error_log_service.dart`
+  - SharedPreferencesベースの軽量エラーログ保存
+  - 最新20件のみ保持（FIFO方式）
+  - 5種類のエラータイプ対応（permission, network, sync, validation, operation）
+  - 既読管理機能
+
+- **New Page**: `lib/pages/error_history_page.dart`
+  - エラー履歴表示画面
+  - エラータイプ別アイコン・色表示
+  - 時間差表示（たった今、3分前、2日前など）
+  - 既読マーク・一括削除機能
+
+- **Modified**: `lib/widgets/common_app_bar.dart`
+  - 三点メニューに「エラー履歴」項目追加
+
+**特徴**:
+- ✅ SharedPreferencesのみ使用（Firestore不使用、コストゼロ）
+- ✅ 最新20件自動保存
+- ✅ ローカル完結（通信なし、即座に表示）
+- ✅ 将来のジャーナリング機能への統合を考慮した設計
+
+**Commit**: `7044e0c`
+
+### 2. グループ・リスト作成時の重複名チェック実装 ✅
+
+**Purpose**: 同じ名前のグループ・リストの作成を防止
+
+**Implementation Files**:
+
+- **Modified**: `lib/widgets/shared_list_header_widget.dart`
+  - リスト作成時に同じグループ内の既存リスト名をチェック
+  - 重複があればエラーログに記録
+
+- **Modified**: `lib/widgets/group_creation_with_copy_dialog.dart`
+  - グループ作成時に既存グループ名をチェック
+  - バリデーション失敗時にエラーログ記録
+
+**エラーメッセージ**:
+- リスト: 「〇〇という名前のリストは既に存在します」
+- グループ: 「〇〇という名前のグループは既に存在します」
+
+**Commits**: `8444977`, `16485de`, `909945f`, `1e4e4cd`, `df84e44`
+
+---
+
 ## Recent Implementations (2025-12-25)
 
 ### 1. Riverpodベストプラクティス確立 ✅
