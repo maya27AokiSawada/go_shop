@@ -402,10 +402,10 @@ class _GroupCreationWithCopyDialogState
     try {
       // 🔥 同じ名前のグループが既に存在しないかチェック
       final allGroupsAsync = ref.read(allGroupsProvider);
-      final allGroups = allGroupsAsync.when(
-        data: (groups) => groups,
-        loading: () => <SharedGroup>[],
-        error: (_, __) => <SharedGroup>[],
+      final allGroups = await allGroupsAsync.when(
+        data: (groups) async => groups,
+        loading: () async => <SharedGroup>[],
+        error: (_, __) async => <SharedGroup>[],
       );
 
       final duplicateName =
