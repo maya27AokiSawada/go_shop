@@ -4,6 +4,7 @@ import '../providers/auth_provider.dart';
 import '../services/user_preferences_service.dart';
 import '../models/shared_group.dart';
 import '../pages/notification_history_page.dart';
+import '../pages/error_history_page.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 /// 同期状態の種類
@@ -68,6 +69,13 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
                   ),
                 );
                 break;
+              case 'errors':
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const ErrorHistoryPage(),
+                  ),
+                );
+                break;
               case 'help':
                 _showHelpDialog(context);
                 break;
@@ -86,6 +94,18 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
                     Icon(Icons.notifications_outlined, size: 20),
                     SizedBox(width: 8),
                     Text('通知履歴'),
+                  ],
+                ),
+              ),
+            // エラー履歴（認証済みの場合のみ表示）
+            if (authState.value != null)
+              const PopupMenuItem(
+                value: 'errors',
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline, size: 20, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('エラー履歴'),
                   ],
                 ),
               ),
