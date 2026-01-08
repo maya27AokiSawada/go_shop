@@ -1,6 +1,8 @@
 {
   "projects": {
-    "default": "gotoshop-572b7"
+    "default": "gotoshop-572b7",
+    "dev": "gotoshop-572b7",
+    "prod": "goshopping-48db9"
   },
   "targets": {},
   "etags": {

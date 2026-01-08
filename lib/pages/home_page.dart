@@ -95,11 +95,32 @@ class _HomePageState extends ConsumerState<HomePage> {
       AppLogger.info('🗑️ [SIGNUP] SharedPreferences 全ユーザー情報をクリア');
 
       // 2. Hiveデータをクリア（Firebase Auth登録前に実行）
+      AppLogger.info('🧹 [SIGNUP] Hiveクリア開始');
       final SharedGroupBox = ref.read(SharedGroupBoxProvider);
       final sharedListBox = ref.read(sharedListBoxProvider);
+
+      // クリア前のデータ数を記録
+      final groupCountBefore = SharedGroupBox.values.length;
+      final listCountBefore = sharedListBox.values.length;
+      AppLogger.info(
+          '🧹 [SIGNUP] クリア前 - グループ: $groupCountBefore件, リスト: $listCountBefore件');
+
+      // Hive boxを確実にクリア
       await SharedGroupBox.clear();
       await sharedListBox.clear();
-      AppLogger.info('🗑️ [SIGNUP] 前ユーザーのHiveデータをクリア完了');
+
+      // クリア後の確認
+      final groupCountAfter = SharedGroupBox.values.length;
+      final listCountAfter = sharedListBox.values.length;
+      AppLogger.info(
+          '🧹 [SIGNUP] クリア後 - グループ: $groupCountAfter件, リスト: $listCountAfter件');
+
+      if (groupCountAfter > 0 || listCountAfter > 0) {
+        AppLogger.warning(
+            '⚠️ [SIGNUP] Hiveクリア失敗検出 - グループ: $groupCountAfter件, リスト: $listCountAfter件が残存');
+      } else {
+        AppLogger.info('✅ [SIGNUP] 前ユーザーのHiveデータをクリア完了');
+      }
 
       // 3. Firebase Auth 新規登録（authStateChanges発火前にHiveクリア完了）
       await ref.read(authProvider).signUp(email, password);
