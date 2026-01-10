@@ -21,7 +21,7 @@ class SharedListPage extends ConsumerStatefulWidget {
 class _SharedListPageState extends ConsumerState<SharedListPage> {
   String? _previousGroupId; // 前回のグループIDを保存
   DateTime? _selectedDeadline; // 選択された期限
-  int _intervalValue = 1; // 購入間隔の数値（1〜30）
+  int _intervalValue = 0; // 購入間隔の数値（0=なし、1〜30）
   String _intervalUnit = 'week'; // 購入間隔の単位（day, week, month）
 
   @override
@@ -266,12 +266,18 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
                                     horizontal: 12, vertical: 8),
                                 border: OutlineInputBorder(),
                               ),
-                              items: List.generate(30, (index) => index + 1)
-                                  .map((value) => DropdownMenuItem(
-                                        value: value,
-                                        child: Text('$value'),
-                                      ))
-                                  .toList(),
+                              items: [
+                                const DropdownMenuItem(
+                                  value: 0,
+                                  child: Text('0 (なし)'),
+                                ),
+                                ...List.generate(30, (index) => index + 1)
+                                    .map((value) => DropdownMenuItem(
+                                          value: value,
+                                          child: Text('$value'),
+                                        ))
+                                    .toList(),
+                              ],
                               onChanged: (value) {
                                 if (value != null) {
                                   setDialogState(() {
@@ -319,7 +325,9 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '${_calculateIntervalDays(_intervalValue, _intervalUnit)}日ごとに購入',
+                        _intervalValue == 0
+                            ? '繰り返し購入なし'
+                            : '${_calculateIntervalDays(_intervalValue, _intervalUnit)}日ごとに購入',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey[600],
