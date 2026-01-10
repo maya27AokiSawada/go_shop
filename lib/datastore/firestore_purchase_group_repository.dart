@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:go_shop/utils/app_logger.dart';
+import 'package:goshopping/utils/app_logger.dart';
 import 'package:uuid/uuid.dart';
 import '../models/shared_group.dart';
 import '../datastore/shared_group_repository.dart';
