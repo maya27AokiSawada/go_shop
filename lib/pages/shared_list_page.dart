@@ -634,45 +634,48 @@ class _SharedItemTile extends ConsumerWidget {
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: ListTile(
-        leading: Checkbox(
-          value: item.isPurchased,
-          // 🔥 購入状態変更は全メンバー可能（権限チェックなし）
-          onChanged: (bool? value) {
-            if (value != null) {
-              _toggleItemPurchased(ref, value);
-            }
-          },
-        ),
-        title: Text(
-          item.name,
-          style: TextStyle(
-            decoration: item.isPurchased ? TextDecoration.lineThrough : null,
-            color: item.isPurchased ? Colors.grey : null,
-            fontSize: 16,
+      child: GestureDetector(
+        onDoubleTap: () => _showEditItemDialog(context, ref),
+        child: ListTile(
+          leading: Checkbox(
+            value: item.isPurchased,
+            // 🔥 購入状態変更は全メンバー可能（権限チェックなし）
+            onChanged: (bool? value) {
+              if (value != null) {
+                _toggleItemPurchased(ref, value);
+              }
+            },
           ),
+          title: Text(
+            item.name,
+            style: TextStyle(
+              decoration: item.isPurchased ? TextDecoration.lineThrough : null,
+              color: item.isPurchased ? Colors.grey : null,
+              fontSize: 16,
+            ),
+          ),
+          subtitle: Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              Text('数量: ${item.quantity}'),
+              if (item.deadline != null) _buildDeadlineBadge(item.deadline!),
+              if (item.shoppingInterval > 0)
+                _buildRepeatBadge(item.shoppingInterval),
+            ],
+          ),
+          trailing: canDelete
+              ? IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                  onPressed: () => _deleteItem(context, ref),
+                  tooltip: '削除',
+                )
+              : Tooltip(
+                  message: 'このアイテムは削除できません',
+                  child:
+                      Icon(Icons.delete, color: Colors.grey.shade400, size: 20),
+                ),
         ),
-        subtitle: Wrap(
-          spacing: 8,
-          runSpacing: 4,
-          children: [
-            Text('数量: ${item.quantity}'),
-            if (item.deadline != null) _buildDeadlineBadge(item.deadline!),
-            if (item.shoppingInterval > 0)
-              _buildRepeatBadge(item.shoppingInterval),
-          ],
-        ),
-        trailing: canDelete
-            ? IconButton(
-                icon: const Icon(Icons.delete, color: Colors.red, size: 20),
-                onPressed: () => _deleteItem(context, ref),
-                tooltip: '削除',
-              )
-            : Tooltip(
-                message: 'このアイテムは削除できません',
-                child:
-                    Icon(Icons.delete, color: Colors.grey.shade400, size: 20),
-              ),
       ),
     );
   }
@@ -839,5 +842,328 @@ class _SharedItemTile extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  void _showEditItemDialog(BuildContext context, WidgetRef ref) {
+    final nameController = TextEditingController(text: item.name);
+    final quantityController =
+        TextEditingController(text: item.quantity.toString());
+    DateTime? selectedDeadline = item.deadline;
+    int intervalValue = item.shoppingInterval;
+    String intervalUnit = 'week';
+
+    // 既存の間隔から単位を逆算
+    if (intervalValue > 0) {
+      if (intervalValue % 30 == 0) {
+        intervalUnit = 'month';
+        intervalValue = intervalValue ~/ 30;
+      } else if (intervalValue % 7 == 0) {
+        intervalUnit = 'week';
+        intervalValue = intervalValue ~/ 7;
+      } else {
+        intervalUnit = 'day';
+      }
+    } else {
+      intervalValue = 0;
+      intervalUnit = 'week';
+    }
+
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('アイテムを編集'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: '商品名',
+                    hintText: '例: 牛乳',
+                  ),
+                  autofocus: true,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: quantityController,
+                  decoration: const InputDecoration(
+                    labelText: '数量',
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 16),
+                // 期限設定
+                InkWell(
+                  onTap: () async {
+                    final picked = await _selectDeadlineForEditDialog(
+                        context, selectedDeadline);
+                    if (picked != null) {
+                      setDialogState(() {
+                        selectedDeadline = picked;
+                      });
+                    }
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.calendar_today),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            selectedDeadline == null
+                                ? '購入期限を選択（任意）'
+                                : '期限: ${_formatDate(selectedDeadline!)}',
+                            style: TextStyle(
+                              color:
+                                  selectedDeadline == null ? Colors.grey : null,
+                            ),
+                          ),
+                        ),
+                        if (selectedDeadline != null)
+                          IconButton(
+                            icon: const Icon(Icons.clear, size: 16),
+                            onPressed: () {
+                              setDialogState(() {
+                                selectedDeadline = null;
+                              });
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // 購入間隔設定
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.repeat),
+                          SizedBox(width: 8),
+                          Text('購入間隔（任意）'),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          // 数値ドロップダウン
+                          Expanded(
+                            flex: 2,
+                            child: DropdownButtonFormField<int>(
+                              initialValue: intervalValue,
+                              decoration: const InputDecoration(
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8),
+                                border: OutlineInputBorder(),
+                              ),
+                              items: [
+                                const DropdownMenuItem(
+                                  value: 0,
+                                  child: Text('0 (なし)'),
+                                ),
+                                ...List.generate(30, (index) => index + 1)
+                                    .map((value) => DropdownMenuItem(
+                                          value: value,
+                                          child: Text('$value'),
+                                        ))
+                                    .toList(),
+                              ],
+                              onChanged: (value) {
+                                if (value != null) {
+                                  setDialogState(() {
+                                    intervalValue = value;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // 単位ドロップダウン
+                          Expanded(
+                            flex: 3,
+                            child: DropdownButtonFormField<String>(
+                              initialValue: intervalUnit,
+                              decoration: const InputDecoration(
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8),
+                                border: OutlineInputBorder(),
+                              ),
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'day',
+                                  child: Text('日ごと'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'week',
+                                  child: Text('週ごと'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'month',
+                                  child: Text('ヶ月ごと'),
+                                ),
+                              ],
+                              onChanged: (value) {
+                                if (value != null) {
+                                  setDialogState(() {
+                                    intervalUnit = value;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        intervalValue == 0
+                            ? '繰り返し購入なし'
+                            : '${_calculateIntervalDays(intervalValue, intervalUnit)}日ごとに購入',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('キャンセル'),
+            ),
+            ElevatedButton(
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      if (isSubmitting) return;
+
+                      final name = nameController.text.trim();
+                      if (name.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('商品名を入力してください')),
+                        );
+                        return;
+                      }
+
+                      final quantity =
+                          int.tryParse(quantityController.text) ?? 1;
+
+                      final currentList = ref.read(currentListProvider);
+                      if (currentList == null) return;
+
+                      setDialogState(() {
+                        isSubmitting = true;
+                      });
+
+                      try {
+                        final updatedItem = item.copyWith(
+                          name: name,
+                          quantity: quantity,
+                          deadline: selectedDeadline,
+                          shoppingInterval: _calculateIntervalDays(
+                              intervalValue, intervalUnit),
+                        );
+
+                        final repository =
+                            ref.read(sharedListRepositoryProvider);
+                        await repository.updateSingleItem(
+                            currentList.listId, updatedItem);
+
+                        Log.info(
+                            '✅ アイテム更新成功: ${AppLogger.maskItem(name, item.itemId)}');
+
+                        if (context.mounted) {
+                          Navigator.of(context).pop();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('「$name」を更新しました')),
+                          );
+                        }
+                      } catch (e, stackTrace) {
+                        Log.error('❌ アイテム更新エラー: $e', stackTrace);
+
+                        setDialogState(() {
+                          isSubmitting = false;
+                        });
+
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('更新に失敗しました: $e')),
+                          );
+                        }
+                      }
+                    },
+              child: isSubmitting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('更新'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<DateTime?> _selectDeadlineForEditDialog(
+      BuildContext context, DateTime? currentDeadline) async {
+    try {
+      final now = DateTime.now();
+      final tomorrow = DateTime(now.year, now.month, now.day + 1);
+      final oneYearLater = DateTime(now.year + 1, now.month, now.day);
+
+      final DateTime? picked = await showDatePicker(
+        context: context,
+        initialDate: currentDeadline ?? tomorrow,
+        firstDate: tomorrow,
+        lastDate: oneYearLater,
+      );
+
+      return picked;
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('日付選択エラー: $e')),
+        );
+      }
+      return null;
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.year}/${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}';
+  }
+
+  int _calculateIntervalDays(int value, String unit) {
+    switch (unit) {
+      case 'day':
+        return value;
+      case 'week':
+        return value * 7;
+      case 'month':
+        return value * 30;
+      default:
+        return value;
+    }
   }
 }
