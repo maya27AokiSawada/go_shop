@@ -1,4 +1,4 @@
-# 開発日報 - 2026年1月7日
+keytool -genkey -v -keystore %USERPROFILE%\upload-keystore.jks -storetype JKS -keyalg RSA -keysize 2048 -validity 10000 -alias uploadkeytool -genkey -v -keystore %USERPROFILE%\upload-keystore.jks -storetype JKS -keyalg RSA -keysize 2048 -validity 10000 -alias uploaddir %USERPROFILE%\upload-keystore.jksdir %USERPROFILE%\upload-keystore.jks# 開発日報 - 2026年1月7日
 
 ## 実装内容
 

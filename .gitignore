@@ -71,6 +71,8 @@ extensions/*.env
 *.p12
 *.jks
 *.keystore
+key.properties
+android/key.properties
 
 # Logs & Debug files
 *.log
