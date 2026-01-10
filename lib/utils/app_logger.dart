@@ -85,9 +85,25 @@ class AppLogger {
   }
 
   /// エラーレベルのログ
+  /// 使い方:
+  /// - Log.error('エラーメッセージ')
+  /// - Log.error('エラーメッセージ', e)
+  /// - Log.error('エラーメッセージ', e, stackTrace)
   static void error(String message, [dynamic error, StackTrace? stackTrace]) {
-    _instance.e(message, error: error, stackTrace: stackTrace);
+    if (error != null && stackTrace != null) {
+      _instance.e(message, error: error, stackTrace: stackTrace);
+    } else if (error != null) {
+      _instance.e(message, error: error);
+    } else {
+      _instance.e(message);
+    }
     debugPrint('❌ $message');
+    if (error != null) {
+      debugPrint('   Error: $error');
+    }
+    if (stackTrace != null) {
+      debugPrint('   StackTrace: $stackTrace');
+    }
   }
 
   /// デバッグレベルのログ

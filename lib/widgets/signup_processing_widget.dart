@@ -112,8 +112,7 @@ class _SignupProcessingWidgetState extends ConsumerState<SignupProcessingWidget>
       await Future.delayed(const Duration(milliseconds: 1500));
       widget.onCompleted?.call();
     } catch (e, stackTrace) {
-      Log.error('❌ [SIGNUP_WIDGET] サインアップ処理エラー: $e');
-      Log.error('❌ [SIGNUP_WIDGET] スタックトレース: $stackTrace');
+      Log.error('❌ [SIGNUP_WIDGET] サインアップ処理エラー: $e', e, stackTrace);
 
       setState(() {
         _isProcessing = false;
@@ -310,8 +309,7 @@ class _SignupProcessingWidgetState extends ConsumerState<SignupProcessingWidget>
   }
 
   /// SharedListの移行
-  Future<void> _migrateSharedLists(
-      String oldGroupId, String newGroupId) async {
+  Future<void> _migrateSharedLists(String oldGroupId, String newGroupId) async {
     try {
       // SharedListの移行は簡略化（基本的なログ記録のみ）
       Log.info('💡 [SIGNUP_WIDGET] SharedList移行をスキップ（今後実装予定）');
