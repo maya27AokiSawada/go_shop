@@ -1660,8 +1660,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         ),
       );
     } catch (e, stack) {
-      AppLogger.error('❌ [HIVE_CLEAR] エラー', e);
-      AppLogger.error('Stack trace:', stack);
+      AppLogger.error('❌ [HIVE_CLEAR] エラー', e, stack);
 
       if (mounted) Navigator.of(context).pop();
 
