@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:logger/logger.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:go_shop/firebase_options.dart';
+import 'package:goshopping/firebase_options.dart';
 
 // Logger instance
 final _logger = Logger();

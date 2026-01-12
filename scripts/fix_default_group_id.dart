@@ -1,8 +1,8 @@
 // fix_default_group_id.dart - デフォルトグループIDをタイムスタンプからUIDに修正
 
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:go_shop/models/shared_group.dart';
-import 'package:go_shop/services/user_specific_hive_service.dart';
+import 'package:goshopping/models/shared_group.dart';
+import 'package:goshopping/services/user_specific_hive_service.dart';
 
 Future<void> main() async {
   await Hive.initFlutter();

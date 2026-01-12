@@ -7,7 +7,6 @@ import '../widgets/user_name_panel_widget.dart';
 import '../widgets/news_and_ads_panel_widget.dart';
 import '../services/user_initialization_service.dart';
 import '../utils/app_logger.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});

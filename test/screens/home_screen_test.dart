@@ -2,15 +2,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_shop/screens/home_screen.dart';
-import 'package:go_shop/providers/page_index_provider.dart';
-import 'package:go_shop/providers/auth_provider.dart';
-import 'package:go_shop/providers/app_mode_notifier_provider.dart';
-import 'package:go_shop/config/app_mode_config.dart';
-import 'package:go_shop/pages/home_page.dart';
-import 'package:go_shop/pages/shared_group_page.dart';
-import 'package:go_shop/pages/shopping_list_page_v2.dart';
-import 'package:go_shop/pages/settings_page.dart';
+import 'package:goshopping/screens/home_screen.dart';
+import 'package:goshopping/providers/page_index_provider.dart';
+import 'package:goshopping/providers/auth_provider.dart';
+import 'package:goshopping/providers/app_mode_notifier_provider.dart';
+import 'package:goshopping/config/app_mode_config.dart';
+import 'package:goshopping/pages/home_page.dart';
+import 'package:goshopping/pages/shared_group_page.dart';
+import 'package:goshopping/pages/shopping_list_page_v2.dart';
+import 'package:goshopping/pages/settings_page.dart';
 
 void main() {
   group('HomeScreen Widget Tests', () {

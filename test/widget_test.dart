@@ -6,7 +6,7 @@
 // tree, read text, and verify that the values of widget properties are correct.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_shop/models/shared_group.dart';
+import 'package:goshopping/models/shared_group.dart';
 
 void main() {
   group('Go Shop Data Structure Tests', () {

@@ -7,48 +7,57 @@
 ## 主要コンポーネント
 
 ### 1. SignupProcessingWidget
-- UIを持つサインアップ処理ウィジェット
+
+- UI を持つサインアップ処理ウィジェット
 - アニメーション付きのプログレス表示
 - ステップバイステップの処理状況表示
 
 ### 2. SignupDialog
+
 - ダイアログ形式でのサインアップ処理表示
 - モーダル表示で処理完了まで待機
 
 ### 3. SignupService
-- UIレスのサインアップ処理サービス
+
+- UI レスのサインアップ処理サービス
 - バックグラウンド処理やテスト用途に適用
 
 ## サインアップ処理内容
 
 ### STEP1: ユーザープロフィール設定
-- Firebase UIDと紐づけ
+
+- Firebase UID と紐づけ
 - ユーザー名の優先順位決定（プリファレンス vs Firebase）
 - メールアドレスのローカル保存
 
 ### STEP2: ローカルデータ検出
-- 既存の`default_group`を検出
-- メンバー情報とSharedListの確認
 
-### STEP3: Firebase形式デフォルトグループ作成
-- `default_{firebase_uid}`形式のグループID
+- 既存の`default_group`を検出
+- メンバー情報と SharedList の確認
+
+### STEP3: Firebase 形式デフォルトグループ作成
+
+- `default_{firebase_uid}`形式のグループ ID
 - 統一された"My Lists"グループ名
 - オーナーロール設定
 
 ### STEP4: データ移行
-- オーナーのmemberIdをFirebase UIDに変更
+
+- オーナーの memberId を Firebase UID に変更
 - ローカルグループの適切な削除
-- SharedListの移行（今後実装）
+- SharedList の移行（今後実装）
 
 ### STEP5: 状態更新
+
 - 全てのプロバイダーのリフレッシュ
-- UIへの反映
+- UI への反映
 
 ## 使用方法
 
 ### 1. ダイアログ表示
+
 ```dart
-import 'package:go_shop/widgets/signup_dialog.dart';
+import 'package:goshopping/widgets/signup_dialog.dart';
 
 // サインアップ成功後に表示
 final result = await showSignupDialog(
@@ -63,8 +72,9 @@ final result = await showSignupDialog(
 ```
 
 ### 2. ウィジェット直接使用
+
 ```dart
-import 'package:go_shop/widgets/signup_processing_widget.dart';
+import 'package:goshopping/widgets/signup_processing_widget.dart';
 
 SignupProcessingWidget(
   user: firebaseUser,
@@ -79,8 +89,9 @@ SignupProcessingWidget(
 ```
 
 ### 3. サービスクラス使用
+
 ```dart
-import 'package:go_shop/services/signup_service.dart';
+import 'package:goshopping/services/signup_service.dart';
 
 final signupService = ref.read(signupServiceProvider);
 final success = await signupService.processSignup(
@@ -153,12 +164,12 @@ class AuthScreen extends ConsumerWidget {
 1. **包括的な処理**: サインアップ時の全ての必要な処理を一箇所で実行
 2. **ユーザーフレンドリー**: 処理状況の可視化とアニメーション
 3. **エラーハンドリング**: 各ステップでの適切なエラー処理
-4. **再利用性**: ダイアログ、ウィジェット、サービスの3つの形式で提供
-5. **テスタビリティ**: UIレスのサービスクラスでテストが容易
+4. **再利用性**: ダイアログ、ウィジェット、サービスの 3 つの形式で提供
+5. **テスタビリティ**: UI レスのサービスクラスでテストが容易
 
 ## 今後の拡張予定
 
-- SharedListの完全移行実装
+- SharedList の完全移行実装
 - より詳細なエラーメッセージ
 - 処理のキャンセル機能
 - オフライン対応

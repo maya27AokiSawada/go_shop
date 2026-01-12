@@ -5,7 +5,6 @@ import '../providers/hive_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/shared_list_provider.dart' hide sharedListBoxProvider;
 import '../services/user_preferences_service.dart';
-import '../services/user_initialization_service.dart';
 import '../services/firestore_user_name_service.dart';
 import '../services/ad_service.dart';
 import '../widgets/user_name_panel_widget.dart';
@@ -95,43 +94,24 @@ class _HomePageState extends ConsumerState<HomePage> {
       AppLogger.info('🗑️ [SIGNUP] SharedPreferences 全ユーザー情報をクリア');
 
       // 2. Hiveデータをクリア（Firebase Auth登録前に実行）
-      AppLogger.info('🧹 [SIGNUP] Hiveクリア開始');
       final SharedGroupBox = ref.read(SharedGroupBoxProvider);
       final sharedListBox = ref.read(sharedListBoxProvider);
-
-      // クリア前のデータ数を記録
-      final groupCountBefore = SharedGroupBox.values.length;
-      final listCountBefore = sharedListBox.values.length;
-      AppLogger.info(
-          '🧹 [SIGNUP] クリア前 - グループ: $groupCountBefore件, リスト: $listCountBefore件');
-
-      // Hive boxを確実にクリア
       await SharedGroupBox.clear();
       await sharedListBox.clear();
-
-      // クリア後の確認
-      final groupCountAfter = SharedGroupBox.values.length;
-      final listCountAfter = sharedListBox.values.length;
-      AppLogger.info(
-          '🧹 [SIGNUP] クリア後 - グループ: $groupCountAfter件, リスト: $listCountAfter件');
-
-      if (groupCountAfter > 0 || listCountAfter > 0) {
-        AppLogger.warning(
-            '⚠️ [SIGNUP] Hiveクリア失敗検出 - グループ: $groupCountAfter件, リスト: $listCountAfter件が残存');
-      } else {
-        AppLogger.info('✅ [SIGNUP] 前ユーザーのHiveデータをクリア完了');
-      }
+      AppLogger.info('🗑️ [SIGNUP] 前ユーザーのHiveデータをクリア完了');
 
       // 3. Firebase Auth 新規登録（authStateChanges発火前にHiveクリア完了）
       await ref.read(authProvider).signUp(email, password);
       AppLogger.info('✅ [SIGNUP] 新規ユーザー登録成功');
 
-      // 4. ディスプレイネームをPreferencesに即座に保存（authStateChanges前）
-      await UserPreferencesService.saveUserName(userName);
-      AppLogger.info(
-          '✅ [SIGNUP] ディスプレイネームをPreferencesに保存: ${AppLogger.maskName(userName)}');
+      // プロバイダーを無効化（UIをリセット）
+      ref.invalidate(allGroupsProvider);
+      ref.invalidate(selectedGroupProvider);
+      ref.invalidate(sharedListProvider);
+      await Future.delayed(const Duration(milliseconds: 300));
+      AppLogger.info('🔄 [SIGNUP] プロバイダー無効化完了');
 
-      // 5. Firebase Authのディスプレイネームを更新
+      // Firebase Authのディスプレイネームを更新
       final user = ref.read(authProvider).currentUser;
       if (user != null) {
         await user.updateDisplayName(userName);
@@ -140,20 +120,18 @@ class _HomePageState extends ConsumerState<HomePage> {
             '✅ [SIGNUP] Firebase Authのディスプレイネームを更新: ${AppLogger.maskName(userName)}');
       }
 
-      // 6. Firestoreにユーザープロファイルを作成
+      // Firestoreにユーザープロファイルを作成
       await FirestoreUserNameService.ensureUserProfileExists(
           userName: userName);
       AppLogger.info(
           '✅ [SIGNUP] Firestoreにユーザープロファイル作成: ${AppLogger.maskName(userName)}');
 
-      // 7. プロバイダーを無効化（UIをリセット）
-      ref.invalidate(allGroupsProvider);
-      ref.invalidate(selectedGroupProvider);
-      ref.invalidate(sharedListProvider);
-      await Future.delayed(const Duration(milliseconds: 300));
-      AppLogger.info('🔄 [SIGNUP] プロバイダー無効化完了');
+      // ディスプレイネームをPreferencesに保存
+      await UserPreferencesService.saveUserName(userName);
+      AppLogger.info(
+          '✅ [SIGNUP] ディスプレイネームをPreferencesに保存: ${AppLogger.maskName(userName)}');
 
-      // 8. メールアドレスをPreferencesに保存
+      // メールアドレスをPreferencesに保存
       await UserPreferencesService.saveUserEmail(email);
       AppLogger.info('✅ [SIGNUP] メールアドレスをPreferencesに保存');
 
