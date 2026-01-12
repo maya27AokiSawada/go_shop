@@ -8,7 +8,7 @@
 
 **対応内容**:
 - `pubspec.yaml`: `name: go_shop` → `name: goshopping`
-- `google-services.json`: 
+- `google-services.json`:
   - prod: `net.sumomo_planning.goshopping`
   - dev: `net.sumomo_planning.go_shop.dev`
 - `build.gradle.kts`: `namespace = "net.sumomo_planning.goshopping"`
@@ -22,7 +22,7 @@
 
 **問題**: 先週実装したダブルタップ編集が動作しなくなっていた
 
-**原因**: 
+**原因**:
 - `GestureDetector`の子要素が`ListTile`だったため、ListTile内部のインタラクティブ要素（Checkbox、IconButton）がタップイベントを優先処理
 - ダブルタップが正しく認識されない
 
