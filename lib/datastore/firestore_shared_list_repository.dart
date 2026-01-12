@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:developer' as developer show log;
 import '../models/shared_list.dart';
-import '../models/shared_group.dart';
 import '../services/notification_service.dart';
 import '../services/user_preferences_service.dart';
 import '../providers/auth_provider.dart';

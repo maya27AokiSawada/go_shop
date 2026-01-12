@@ -1,5 +1,117 @@
 # Go Shop - AI Coding Agent Instructions
 
+## Recent Implementations (2026-01-12)
+
+### 1. Firebase設定のパッケージ名統一 ✅
+
+**Purpose**: プロジェクト名が`go_shop`と`goshopping`で混在していた問題を解消
+
+**Modified Files**:
+
+- `pubspec.yaml`: `name: go_shop` → `name: goshopping`
+- `google-services.json`: 
+  - prod: `net.sumomo_planning.goshopping`
+  - dev: `net.sumomo_planning.go_shop.dev`
+- `android/app/build.gradle.kts`: `namespace = "net.sumomo_planning.goshopping"`
+- `android/app/src/main/AndroidManifest.xml`: パッケージ名とラベルを統一
+- 全importパス修正: `package:go_shop/` → `package:goshopping/` (15ファイル)
+- `android/app/src/main/kotlin/.../MainActivity.kt`: パッケージ名を`goshopping`に統一
+
+**Commit**: `0fe085f` - "fix: Firebase設定のパッケージ名を正式名称に統一"
+
+### 2. アイテムタイル操作機能の改善 ✅
+
+**Problem**: ダブルタップ編集機能が動作しなくなっていた
+
+**Root Cause**: 
+- `GestureDetector`の子要素が`ListTile`だったため、ListTile内部のインタラクティブ要素（Checkbox、IconButton）がタップイベントを優先処理
+
+**Solution**:
+- `GestureDetector` → `InkWell`に変更
+- `onDoubleTap`: アイテム編集ダイアログ表示
+- `onLongPress`: アイテム削除（削除権限がある場合のみ）
+
+**Modified File**: `lib/pages/shared_list_page.dart`
+
+**Pattern**:
+```dart
+// ❌ Wrong: GestureDetectorとListTileの競合
+GestureDetector(
+  onDoubleTap: () => action(),
+  child: ListTile(...),
+)
+
+// ✅ Correct: InkWellを使用
+InkWell(
+  onDoubleTap: () => _showEditItemDialog(),
+  onLongPress: canDelete ? () => _deleteItem() : null,
+  child: ListTile(...),
+)
+```
+
+### 3. Google Play Store公開準備 ✅
+
+**Status**: 70%完了
+
+**Completed**:
+- ✅ プライバシーポリシー: `docs/specifications/privacy_policy.md`
+- ✅ 利用規約: `docs/specifications/terms_of_service.md`
+- ✅ Firebase設定完了
+- ✅ パッケージ名統一: `net.sumomo_planning.goshopping`
+- ✅ `.gitignore`でkeystore保護: `*.jks`, `*.keystore`, `key.properties`
+- ✅ 署名設定実装（`build.gradle.kts`）
+
+**署名設定実装**:
+
+```kotlin
+// keystoreプロパティの読み込み
+val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties = java.util.Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(java.io.FileInputStream(keystorePropertiesFile))
+}
+
+signingConfigs {
+    create("release") {
+        if (keystorePropertiesFile.exists()) {
+            keyAlias = keystoreProperties["keyAlias"] as String
+            keyPassword = keystoreProperties["keyPassword"] as String
+            storeFile = file(keystoreProperties["storeFile"] as String)
+            storePassword = keystoreProperties["storePassword"] as String
+        }
+    }
+}
+
+buildTypes {
+    release {
+        signingConfig = signingConfigs.getByName("release")
+    }
+}
+```
+
+**File Placement**:
+- keystore: `android/app/upload-keystore.jks`
+- properties: `android/key.properties`
+- template: `android/key.properties.template`
+
+**Remaining Tasks**:
+- [ ] `upload-keystore.jks`配置（作業所PCから持ってくる）
+- [ ] `key.properties`作成（実際のパスワード設定）
+- [ ] AABビルドテスト実行
+- [ ] プライバシーポリシー・利用規約の公開URL取得
+- [ ] Play Consoleアプリ情報準備（説明文・スクリーンショット）
+
+**Build Commands**:
+```bash
+# リリースAPK（テスト用）
+flutter build apk --release --flavor prod
+
+# Android App Bundle（Play Store配布用）
+flutter build appbundle --release --flavor prod
+```
+
+---
+
 ## Recent Implementations (2026-01-07)
 
 ### 1. エラー履歴機能実装 ✅

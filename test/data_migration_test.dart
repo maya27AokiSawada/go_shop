@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_shop/widgets/data_migration_widget.dart';
-import 'package:go_shop/services/data_version_service.dart';
+import 'package:goshopping/widgets/data_migration_widget.dart';
+import 'package:goshopping/services/data_version_service.dart';
 
 void main() {
   group('Data Migration Widget Tests', () {

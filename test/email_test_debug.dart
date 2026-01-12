@@ -2,9 +2,9 @@
 import 'package:flutter/material.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_shop/services/email_test_service.dart';
-import 'package:go_shop/widgets/email_test_button.dart';
-import 'package:go_shop/utils/app_logger.dart';
+import 'package:goshopping/services/email_test_service.dart';
+import 'package:goshopping/widgets/email_test_button.dart';
+import 'package:goshopping/utils/app_logger.dart';
 
 void main() {
   runApp(const ProviderScope(child: EmailTestDebugApp()));
@@ -61,17 +61,17 @@ class _EmailTestDebugPageState extends ConsumerState<EmailTestDebugPage> {
               style: TextStyle(fontSize: 14, color: Colors.grey),
             ),
             SizedBox(height: 30),
-            
+
             // メール送信テストボタン
             EmailTestButton(),
-            
+
             SizedBox(height: 30),
-            
+
             // 診断ウィジェット
             EmailDiagnosticsWidget(),
-            
+
             SizedBox(height: 30),
-            
+
             // 手動テストボタン
             ManualEmailTestWidget(),
           ],
@@ -85,7 +85,8 @@ class ManualEmailTestWidget extends ConsumerStatefulWidget {
   const ManualEmailTestWidget({super.key});
 
   @override
-  ConsumerState<ManualEmailTestWidget> createState() => _ManualEmailTestWidgetState();
+  ConsumerState<ManualEmailTestWidget> createState() =>
+      _ManualEmailTestWidgetState();
 }
 
 class _ManualEmailTestWidgetState extends ConsumerState<ManualEmailTestWidget> {
@@ -144,22 +145,23 @@ class _ManualEmailTestWidgetState extends ConsumerState<ManualEmailTestWidget> {
 
     try {
       AppLogger.info('🧪 手動デバッグテスト開始');
-      
+
       final emailTestService = ref.read(emailTestServiceProvider);
-      
+
       // 1. サービス初期化確認
       AppLogger.success('✅ EmailTestService 初期化成功');
-      
+
       // 2. 診断実行
       AppLogger.info('🔍 メール設定診断開始...');
       final diagnostics = await emailTestService.diagnoseEmailSettings();
       AppLogger.info('📊 診断結果: $diagnostics');
-      
+
       // 3. テストメール送信
       AppLogger.info('📧 テストメール送信開始...');
       final success = await emailTestService.sendTestEmail(
         testEmail: 'fatima.sumomo@gmail.com',
-        customSubject: 'Go Shop デバッグテスト - ${DateTime.now().toString().substring(0, 19)}',
+        customSubject:
+            'Go Shop デバッグテスト - ${DateTime.now().toString().substring(0, 19)}',
         customBody: '''
 Go Shop デバッグテストメールです。
 
@@ -173,7 +175,7 @@ Go Shop デバッグテストメールです。
 Go Shop開発チーム
         ''',
       );
-      
+
       final resultText = '''
 🧪 手動デバッグテスト結果
 
@@ -184,13 +186,12 @@ ${diagnostics.entries.map((e) => '  ${e.key}: ${e.value}').join('\n')}
 
 実行時刻: ${DateTime.now().toString()}
       ''';
-      
+
       setState(() {
         _result = resultText;
       });
-      
+
       AppLogger.success('🎊 手動デバッグテスト完了');
-      
     } catch (e) {
       AppLogger.error('❌ 手動デバッグテストエラー: $e');
       setState(() {

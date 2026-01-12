@@ -634,8 +634,9 @@ class _SharedItemTile extends ConsumerWidget {
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: GestureDetector(
+      child: InkWell(
         onDoubleTap: () => _showEditItemDialog(context, ref),
+        onLongPress: canDelete ? () => _deleteItem(context, ref) : null,
         child: ListTile(
           leading: Checkbox(
             value: item.isPurchased,

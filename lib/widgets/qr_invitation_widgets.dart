@@ -339,10 +339,6 @@ class _QRScannerPageState extends ConsumerState<QRScannerPage> {
         final qrService = ref.read(qrInvitationServiceProvider);
         final invitationData = qrService.decodeQRData(qrData);
 
-        if (invitationData == null) {
-          throw Exception('無効なQRコードです');
-        }
-
         // 招待受諾確認ダイアログを表示
         if (mounted) {
           final result = await showDialog<bool>(

@@ -1,5 +1,5 @@
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:go_shop/models/shared_group.dart';
+import 'package:goshopping/models/shared_group.dart';
 
 /// 削除済みHiveデータをクリーンアップするスクリプト
 ///

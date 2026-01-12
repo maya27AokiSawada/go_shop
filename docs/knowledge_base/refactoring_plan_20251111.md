@@ -3,14 +3,16 @@
 ## 🎯 目標
 
 ### 主要目標
-1. **コード削減**: 5,000行 → 4,000行（-20%）
+
+1. **コード削減**: 5,000 行 → 4,000 行（-20%）
 2. **テストカバレッジ**: 0% → 60%
-3. **平均メソッド長**: 40行 → 20行
+3. **平均メソッド長**: 40 行 → 20 行
 4. **重複コード**: 15% → 5%
 
 ### 品質目標
+
 - ✅ メソッドの単一責任原則（SRP）
-- ✅ DRY原則の徹底
+- ✅ DRY 原則の徹底
 - ✅ 型安全性の向上
 - ✅ エラーハンドリングの統一
 
@@ -18,32 +20,37 @@
 
 ## 📅 実施ステップ
 
-### 第1ステップ: 分析とプランニング
+### 第 1 ステップ: 分析とプランニング
+
 - [ ] コード分析ツール実行（dart analyze）
 - [ ] 重複コード検出
 - [ ] 長いメソッドのリストアップ
 - [ ] リファクタリング優先度の決定
 
-### 第2ステップ: 共通ロジックの抽出
+### 第 2 ステップ: 共通ロジックの抽出
+
 - [ ] SyncService の作成
 - [ ] ErrorHandler の作成
 - [ ] RepositoryFactory の作成
 - [ ] 既存コードの移行
 
-### 第3ステップ: 型安全性の向上
+### 第 3 ステップ: 型安全性の向上
+
 - [ ] NotificationMetadata クラス作成
 - [ ] InvitationData クラス作成
-- [ ] Result型の導入（エラーハンドリング）
+- [ ] Result 型の導入（エラーハンドリング）
 - [ ] 既存コードの型変換
 
-### 第4ステップ: テストの追加
+### 第 4 ステップ: テストの追加
+
 - [ ] ユニットテスト（services/）
 - [ ] Widget テスト（widgets/）
 - [ ] 統合テスト（invitation flow）
 - [ ] カバレッジレポート生成
 
-### 第5ステップ: 最適化と仕上げ
-- [ ] Firestoreインデックス追加
+### 第 5 ステップ: 最適化と仕上げ
+
+- [ ] Firestore インデックス追加
 - [ ] キャッシュ戦略の実装
 - [ ] ログ管理の統一
 - [ ] ドキュメント更新
@@ -52,9 +59,10 @@
 
 ## 🔧 詳細タスク
 
-## 第1ステップ: 分析とプランニング
+## 第 1 ステップ: 分析とプランニング
 
 ### Task 1.1: コード分析
+
 ```bash
 # 静的解析
 flutter analyze
@@ -68,7 +76,8 @@ dart run dart_code_metrics:metrics analyze lib/
 
 ### Task 1.2: リファクタリング対象の特定
 
-**長いメソッド（40行以上）:**
+**長いメソッド（40 行以上）:**
+
 ```
 lib/services/qr_invitation_service.dart:
   - acceptQRInvitation() [100行]
@@ -85,6 +94,7 @@ lib/services/user_initialization_service.dart:
 ```
 
 **重複コード:**
+
 ```
 Firestore取得処理:
   - UserInitializationService.syncFromFirestoreToHive()
@@ -99,7 +109,7 @@ Hive操作:
 
 ---
 
-## 第2ステップ: 共通ロジックの抽出
+## 第 2 ステップ: 共通ロジックの抽出
 
 ### Task 2.1: SyncService の作成
 
@@ -190,6 +200,7 @@ class SyncService {
 ```
 
 **移行作業:**
+
 1. `UserInitializationService` の同期処理を `SyncService` に委譲
 2. `NotificationService` の同期処理を `SyncService` に委譲
 3. 重複コード削除
@@ -246,6 +257,7 @@ class ErrorHandler {
 ```
 
 **使用例:**
+
 ```dart
 // Before
 try {
@@ -293,7 +305,7 @@ final SharedGroupRepositoryProvider = Provider<SharedGroupRepository>((ref) {
 
 ---
 
-## 第3ステップ: 型安全性の向上
+## 第 3 ステップ: 型安全性の向上
 
 ### Task 3.1: NotificationMetadata の型定義
 
@@ -323,6 +335,7 @@ class NotificationMetadata with _$NotificationMetadata {
 ```
 
 **使用例:**
+
 ```dart
 // Before
 final groupId = notification.metadata?['groupId'] as String?;
@@ -375,7 +388,7 @@ class InvitationData with _$InvitationData {
 }
 ```
 
-### Task 3.3: Result型の導入
+### Task 3.3: Result 型の導入
 
 **新規ファイル:** `lib/utils/result.dart`
 
@@ -392,6 +405,7 @@ class Result<T> with _$Result<T> {
 ```
 
 **使用例:**
+
 ```dart
 // Before
 Future<bool> acceptQRInvitation(...) async {
@@ -423,7 +437,7 @@ result.when(
 
 ---
 
-## 第4ステップ: テストの追加
+## 第 4 ステップ: テストの追加
 
 ### Task 4.1: セキュリティサービスのテスト
 
@@ -431,7 +445,7 @@ result.when(
 
 ```dart
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_shop/services/invitation_security_service.dart';
+import 'package:goshopping/services/invitation_security_service.dart';
 
 void main() {
   late InvitationSecurityService service;
@@ -472,14 +486,14 @@ void main() {
 }
 ```
 
-### Task 4.2: QR招待サービスのテスト
+### Task 4.2: QR 招待サービスのテスト
 
 **新規ファイル:** `test/services/qr_invitation_service_test.dart`
 
 ```dart
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
-import 'package:go_shop/services/qr_invitation_service.dart';
+import 'package:goshopping/services/qr_invitation_service.dart';
 
 void main() {
   group('QRInvitationService', () {
@@ -515,7 +529,7 @@ void main() {
 ```dart
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:go_shop/main.dart' as app;
+import 'package:goshopping/main.dart' as app;
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -560,6 +574,7 @@ open coverage/html/index.html
 ```
 
 **目標カバレッジ:**
+
 ```
 services/: 70%
 models/: 80%
@@ -570,9 +585,9 @@ widgets/: 50%
 
 ---
 
-## 第5ステップ: 最適化と仕上げ
+## 第 5 ステップ: 最適化と仕上げ
 
-### Task 5.1: Firestoreインデックスの追加
+### Task 5.1: Firestore インデックスの追加
 
 **ファイル:** `firestore.indexes.json`
 
@@ -610,6 +625,7 @@ widgets/: 50%
 ```
 
 **デプロイ:**
+
 ```bash
 firebase deploy --only firestore:indexes
 ```
@@ -729,6 +745,7 @@ class AppLogger {
 ```
 
 **main.dart での設定:**
+
 ```dart
 void main() async {
   // 開発環境: すべてのログを表示
@@ -746,6 +763,7 @@ void main() async {
 ### Task 5.4: ドキュメント更新
 
 **更新対象:**
+
 1. `docs/sync_architecture.md` - SyncService の追加
 2. `docs/invitation_system.md` - 型安全性の改善
 3. `docs/notification_system.md` - エラーハンドリングの統一
@@ -756,45 +774,51 @@ void main() async {
 ## 📊 成果物チェックリスト
 
 ### コード
+
 - [ ] SyncService 実装
 - [ ] ErrorHandler 実装
 - [ ] RepositoryFactory 実装
 - [ ] NotificationMetadata 型定義
 - [ ] InvitationData 型定義
-- [ ] Result型 実装
+- [ ] Result 型 実装
 - [ ] CacheService 実装
 
 ### テスト
+
 - [ ] InvitationSecurityService テスト
 - [ ] QRInvitationService テスト
 - [ ] NotificationService テスト
 - [ ] SyncService テスト
 - [ ] 統合テスト（招待フロー）
-- [ ] カバレッジ60%達成
+- [ ] カバレッジ 60%達成
 
 ### 最適化
-- [ ] Firestoreインデックス追加
+
+- [ ] Firestore インデックス追加
 - [ ] メモリキャッシュ実装
 - [ ] ログレベル管理
 - [ ] 不要なコード削除
 
 ### ドキュメント
+
 - [ ] リファクタリング内容の記録
 - [ ] テスト実行手順の追加
 - [ ] 新しいアーキテクチャの図解
-- [ ] FAQ更新
+- [ ] FAQ 更新
 
 ---
 
 ## 🎉 期待される成果
 
 ### 定量的
+
 - コード行数: 5,000 → 4,000（-20%）
 - テストカバレッジ: 0% → 60%
 - ビルド時間: 変化なし
-- 起動時間: 2秒 → 1.5秒
+- 起動時間: 2 秒 → 1.5 秒
 
 ### 定性的
+
 - コードの可読性向上
 - 保守性の向上
 - バグ検出の容易化
@@ -802,7 +826,7 @@ void main() async {
 
 ---
 
-**作成日:** 2025年11月8日
-**対象期間:** 2025年11月11日〜15日
+**作成日:** 2025 年 11 月 8 日
+**対象期間:** 2025 年 11 月 11 日〜15 日
 **担当:** 開発チーム
 **レビュー:** 金曜日午後

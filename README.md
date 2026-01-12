@@ -1,5 +1,86 @@
 # Go Shop - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-01-12)
+
+### 1. Firebase設定のパッケージ名統一 ✅
+
+**Purpose**: プロジェクト名が`go_shop`と`goshopping`で混在していた問題を解消
+
+**Modified Files**:
+
+- `pubspec.yaml`: `name: go_shop` → `name: goshopping`
+- `google-services.json`: 
+  - prod: `net.sumomo_planning.goshopping`
+  - dev: `net.sumomo_planning.go_shop.dev`
+- `android/app/build.gradle.kts`: `namespace = "net.sumomo_planning.goshopping"`
+- `android/app/src/main/AndroidManifest.xml`: パッケージ名とラベルを統一
+- 全importパス修正: `package:go_shop/` → `package:goshopping/` (15ファイル)
+- `android/app/src/main/kotlin/.../MainActivity.kt`: パッケージ名を`goshopping`に統一
+
+**Commit**: `0fe085f` - "fix: Firebase設定のパッケージ名を正式名称に統一"
+
+### 2. アイテムタイル操作機能の改善 ✅
+
+**Problem**: ダブルタップ編集機能が動作しなくなっていた
+
+**Root Cause**: 
+- `GestureDetector`の子要素が`ListTile`だったため、ListTile内部のインタラクティブ要素（Checkbox、IconButton）がタップイベントを優先処理
+
+**Solution**:
+- `GestureDetector` → `InkWell`に変更
+- `onDoubleTap`: アイテム編集ダイアログ表示
+- `onLongPress`: アイテム削除（削除権限がある場合のみ）
+
+**Modified File**: `lib/pages/shared_list_page.dart`
+
+**Usage Pattern**:
+```dart
+InkWell(
+  onDoubleTap: () => _showEditItemDialog(),
+  onLongPress: canDelete ? () => _deleteItem() : null,
+  child: ListTile(...),
+)
+```
+
+### 3. Google Play Store公開準備 ✅
+
+**Status**: 70%完了
+
+**Completed**:
+- ✅ プライバシーポリシー: `docs/specifications/privacy_policy.md`
+- ✅ 利用規約: `docs/specifications/terms_of_service.md`
+- ✅ Firebase設定完了
+- ✅ パッケージ名統一: `net.sumomo_planning.goshopping`
+- ✅ `.gitignore`でkeystore保護
+- ✅ 署名設定実装
+
+**File Structure**:
+```
+android/
+├── app/
+│   └── upload-keystore.jks  # リリース署名用（未配置）
+├── key.properties           # 署名情報（未作成）
+└── key.properties.template  # テンプレート
+```
+
+**Remaining Tasks**:
+- [ ] keystoreファイル配置（作業所PCから）
+- [ ] key.properties作成
+- [ ] AABビルドテスト
+- [ ] プライバシーポリシー公開URL取得
+- [ ] Play Consoleアプリ情報準備
+
+**Build Commands**:
+```bash
+# リリースAPK
+flutter build apk --release --flavor prod
+
+# Play Store用AAB
+flutter build appbundle --release --flavor prod
+```
+
+---
+
 ## Recent Implementations (2026-01-07)
 
 ### 1. エラー履歴機能実装 ✅

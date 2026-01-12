@@ -1,9 +1,9 @@
 // デバッグ用：現在のグループ状態を確認
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_shop/providers/auth_provider.dart';
-import 'package:go_shop/providers/purchase_group_provider.dart';
-import 'package:go_shop/utils/group_helpers.dart';
+import 'package:goshopping/providers/auth_provider.dart';
+import 'package:goshopping/providers/purchase_group_provider.dart';
+import 'package:goshopping/utils/group_helpers.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
