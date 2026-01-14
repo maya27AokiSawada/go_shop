@@ -78,6 +78,9 @@ dependencies:
   geolocator: ^12.0.0 # 地域広告用の位置情報
   geocoding: ^3.0.0 # 住所変換
 
+  # Drawing / Whiteboard
+  flutter_drawing_board: ^1.0.1+1 # 手書きホワイトボード機能
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

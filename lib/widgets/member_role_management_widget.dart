@@ -8,25 +8,25 @@ import '../providers/purchase_group_provider.dart';
 
 /// メンバーのRole管理ウィジェット（オーナー専用）
 class MemberRoleManagementWidget extends ConsumerWidget {
-  final SharedGroup SharedGroup;
+  final SharedGroup group;
   final String currentUserUid;
 
   const MemberRoleManagementWidget({
     Key? key,
-    required this.SharedGroup,
+    required this.group,
     required this.currentUserUid,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // 現在のユーザーがオーナーかどうかチェック
-    final isOwner = SharedGroup.ownerUid == currentUserUid;
+    final isOwner = group.ownerUid == currentUserUid;
 
     if (!isOwner) {
       return const SizedBox.shrink(); // オーナー以外には表示しない
     }
 
-    final members = SharedGroup.members ?? [];
+    final members = group.members ?? [];
     final nonOwnerMembers = members
         .where((member) => member.role != SharedGroupRole.owner)
         .toList();
@@ -233,16 +233,16 @@ class MemberRoleManagementWidget extends ConsumerWidget {
       final repository = ref.read(SharedGroupRepositoryProvider);
 
       // メンバーのロールを更新
-      final updatedMembers = SharedGroup.members?.map((m) {
+      final updatedMembers = group.members?.map((m) {
         if (m.memberId == member.memberId) {
           return m.copyWith(role: newRole);
         }
         return m;
       }).toList();
 
-      final updatedGroup = SharedGroup.copyWith(members: updatedMembers);
+      final updatedGroup = group.copyWith(members: updatedMembers);
 
-      await repository.updateGroup(SharedGroup.groupId, updatedGroup);
+      await repository.updateGroup(group.groupId, updatedGroup);
 
       // プロバイダーを更新
       ref.invalidate(selectedGroupNotifierProvider);

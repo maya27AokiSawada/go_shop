@@ -6,6 +6,7 @@ import 'dart:io';
 import '../models/shared_group.dart';
 import '../models/shared_list.dart';
 import '../models/user_settings.dart';
+import '../models/whiteboard.dart'; // 🆕 Whiteboard用
 // import '../models/invitation.dart';  // 削除済み - QRコードシステムに移行
 // import '../models/accepted_invitation.dart';  // 削除済み - QRコードシステムに移行
 
@@ -92,11 +93,16 @@ class UserSpecificHiveService {
           SyncStatusAdapter()); // ⚠️ 追加: SharedGroupのsyncStatusフィールド用
       Hive.registerAdapter(GroupTypeAdapter()); // 🆕 GroupType用
       Hive.registerAdapter(ListTypeAdapter()); // 🆕 ListType用
+      // 🆕 Whiteboard用アダプター (typeId 12-14)
+      Hive.registerAdapter(DrawingStrokeAdapter());
+      Hive.registerAdapter(DrawingPointAdapter());
+      Hive.registerAdapter(WhiteboardAdapter());
       // Hive.registerAdapter(InvitationAdapter());  // 削除済み - QRコードシステムに移行
       // Hive.registerAdapter(AcceptedInvitationAdapter());  // 削除済み - QRコードシステムに移行
       // 🔥 UserSettingsAdapter登録をスキップ（main.dartでUserSettingsAdapterOverride使用）
       // Hive.registerAdapter(UserSettingsAdapter()); // デフォルトアダプターは使用しない (typeId=6)
-      Log.info('📝 Hive adapters registered globally (GroupType, ListType追加)');
+      Log.info(
+          '📝 Hive adapters registered globally (GroupType, ListType, Whiteboard追加)');
     }
   }
 
@@ -329,8 +335,7 @@ class UserSpecificHiveService {
 
       // 🔥 SharedList Boxのエラーは特別処理（データフォーマット破損の可能性）
       if (boxName == 'sharedLists') {
-        Log.warning(
-            '⚠️ SharedList box corrupted. Deleting and recreating...');
+        Log.warning('⚠️ SharedList box corrupted. Deleting and recreating...');
         try {
           // 破損したBoxを削除
           await Hive.deleteBoxFromDisk(boxName);

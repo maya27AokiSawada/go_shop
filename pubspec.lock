@@ -390,6 +390,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "5.2.1"
+  flutter_drawing_board:
+    dependency: "direct main"
+    description:
+      name: flutter_drawing_board
+      sha256: "75f303205832de0934d44c80f1b4d91c28cb266987371f271e29dbe3912e8af7"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.1+1"
   flutter_lints:
     dependency: "direct dev"
     description:
