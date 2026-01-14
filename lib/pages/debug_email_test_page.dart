@@ -16,7 +16,7 @@ class DebugEmailTestPage extends StatefulWidget {
 class _DebugEmailTestPageState extends State<DebugEmailTestPage> {
   final _formKey = GlobalKey<FormState>();
   final _toController = TextEditingController();
-  final _subjectController = TextEditingController(text: 'Go Shop テストメール');
+  final _subjectController = TextEditingController(text: 'GoShopping テストメール');
   final _messageController = TextEditingController(
     text: 'これはGo Shopからのテストメールです。',
   );

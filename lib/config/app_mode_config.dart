@@ -191,7 +191,7 @@ class AppModeConfig {
   String get homeTitle {
     switch (mode) {
       case AppMode.shopping:
-        return 'Go Shop';
+        return 'GoShopping';
       case AppMode.todo:
         return 'Go Task';
     }

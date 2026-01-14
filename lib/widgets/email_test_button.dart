@@ -76,9 +76,9 @@ class _EmailTestButtonState extends ConsumerState<EmailTestButton> {
 
       final success = await emailTestService.sendTestEmail(
         testEmail: testEmail,
-        customSubject: 'Go Shop メール送信機能テスト - ${DateTime.now().toString().substring(0, 19)}',
+        customSubject: 'GoShopping メール送信機能テスト - ${DateTime.now().toString().substring(0, 19)}',
         customBody: '''
-Go Shop メール送信機能のテストです。
+GoShopping メール送信機能のテストです。
 
 テスト実行日時: ${DateTime.now().toString()}
 送信先: $testEmail

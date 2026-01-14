@@ -337,7 +337,7 @@ class NewsWidget extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Go Shopへようこそ！現在、最新ニュースを取得できませんが、アプリは正常にご利用いただけます。',
+              'GoShoppingへようこそ！現在、最新ニュースを取得できませんが、アプリは正常にご利用いただけます。',
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey[700],

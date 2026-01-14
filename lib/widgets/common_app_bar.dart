@@ -49,7 +49,7 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
           if (snapshot.hasData) {
             return Text(snapshot.data!);
           }
-          return Text(title ?? 'Go Shop');
+          return Text(title ?? 'GoShopping');
         },
       ),
       actions: [
@@ -153,7 +153,7 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
     }
 
     // デフォルトタイトル
-    return title ?? 'Go Shop';
+    return title ?? 'GoShopping';
   }
 
   /// 同期状態アイコンを構築
@@ -299,7 +299,7 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Go Shop',
+                'GoShopping',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -316,7 +316,7 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
               ),
               const SizedBox(height: 8),
               const Text(
-                '© 2025 Go Shop Team',
+                '© 2025 GoShopping Team',
                 style: TextStyle(color: Colors.grey, fontSize: 12),
               ),
             ],
