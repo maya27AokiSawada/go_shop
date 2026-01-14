@@ -7,6 +7,8 @@ import '../utils/app_logger.dart';
 import '../utils/group_helpers.dart';
 import '../widgets/member_selection_dialog.dart';
 import '../pages/group_invitation_page.dart';
+import '../widgets/whiteboard_preview_widget.dart';
+import '../widgets/member_tile_with_whiteboard.dart';
 
 /// グループのメンバー管理画面
 /// 招待→ユーザー情報セットの流れに対応
@@ -153,6 +155,11 @@ class _GroupMemberManagementPageState
               Text('メンバー数: ${members.length}人'),
               if (group.ownerName?.isNotEmpty == true)
                 Text('オーナー: ${group.ownerName}'),
+              const SizedBox(height: 16),
+              // グループ用ホワイトボードプレビュー
+              WhiteboardPreviewWidget(
+                groupId: group.groupId,
+              ),
             ],
           ),
         ),
@@ -165,7 +172,11 @@ class _GroupMemberManagementPageState
                   itemCount: members.length,
                   itemBuilder: (context, index) {
                     final member = members[index];
-                    return _buildMemberTile(member, group);
+                    // メンバータイルにホワイトボード機能統合
+                    return MemberTileWithWhiteboard(
+                      member: member,
+                      groupId: group.groupId,
+                    );
                   },
                 ),
         ),
@@ -173,67 +184,30 @@ class _GroupMemberManagementPageState
     );
   }
 
-  Widget _buildMemberTile(SharedGroupMember member, SharedGroup group) {
-    final isOwner = member.role == SharedGroupRole.owner;
+  /// メンバー削除権限チェック
+  bool _canRemoveMember(SharedGroup group) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return false;
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor:
-              isOwner ? Colors.amber.shade100 : Colors.blue.shade100,
-          child: Icon(
-            isOwner ? Icons.star : Icons.person,
-            color: isOwner ? Colors.amber.shade700 : Colors.blue.shade700,
-          ),
-        ),
-        title: Text(
-          member.name.isNotEmpty ? member.name : 'Unknown User',
-          style: const TextStyle(fontWeight: FontWeight.w500),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(member.contact),
-            Text(
-              _getRoleDisplayName(member.role),
-              style: TextStyle(
-                color: isOwner ? Colors.amber.shade700 : Colors.blue.shade700,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-        trailing: isOwner
-            ? const Icon(Icons.star, color: Colors.amber)
-            : PopupMenuButton<String>(
-                onSelected: (value) =>
-                    _handleMemberAction(value, member, group),
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'edit_role',
-                    child: Row(
-                      children: [
-                        Icon(Icons.edit, size: 16),
-                        SizedBox(width: 8),
-                        Text('権限を変更'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'remove',
-                    child: Row(
-                      children: [
-                        Icon(Icons.remove_circle, size: 16, color: Colors.red),
-                        SizedBox(width: 8),
-                        Text('メンバーを削除', style: TextStyle(color: Colors.red)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-      ),
-    );
+    // オーナーまたは管理者のみ削除可能
+    return group.ownerUid == currentUser.uid ||
+        group.members?.any((m) =>
+                m.memberId == currentUser.uid &&
+                m.role == SharedGroupRole.manager) ==
+            true;
+  }
+
+  /// メンバー権限編集チェック
+  bool _canEditMemberRole(SharedGroup group) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return false;
+
+    // オーナーまたは管理者のみ編集可能
+    return group.ownerUid == currentUser.uid ||
+        group.members?.any((m) =>
+                m.memberId == currentUser.uid &&
+                m.role == SharedGroupRole.manager) ==
+            true;
   }
 
   Widget _buildEmptyMemberList() {
