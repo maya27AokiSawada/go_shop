@@ -1,8 +1,112 @@
 # Go Shop - AI Coding Agent Instructions
 
+## Recent Implementations (2026-01-14)
+
+### 1. 手書きホワイトボード機能実装（future ブランチ） ✅
+
+**Purpose**: 差別化機能として、グループ共有・個人用ホワイトボードを実装
+
+**Implementation Architecture**:
+
+- **Package**: `flutter_drawing_board: ^1.0.1+1` - 描画 UI
+- **Storage**: Hybrid approach（flutter_drawing_board JSON + カスタムモデルメタデータ）
+- **Sync**: Firestore `whiteboards` collection
+- **Hive TypeID**: 15-17（DrawingStroke, DrawingPoint, Whiteboard）
+
+**Key Files**:
+
+#### Data Models
+
+- `lib/models/whiteboard.dart` - 3 つの Freezed モデル
+  - `DrawingStroke` (typeId: 15) - 1 本の線データ
+  - `DrawingPoint` (typeId: 16) - 座標データ
+  - `Whiteboard` (typeId: 17) - ホワイトボード全体
+- `lib/models/shared_group.dart` - グループ階層フィールド追加
+  - `parentGroupId`, `childGroupIds` (HiveField 20-21)
+  - `memberPermissions`, `defaultPermission`, `inheritParentLists` (HiveField 22-24)
+- `lib/models/permission.dart` - 8 ビット権限システム
+  - Flags: NONE, READ, DONE, COMMENT, ITEM_CREATE, ITEM_EDIT, LIST_CREATE, MEMBER_INVITE, ADMIN
+  - Presets: VIEWER, CONTRIBUTOR, EDITOR, MANAGER, FULL
+
+#### Repository & Provider
+
+- `lib/datastore/whiteboard_repository.dart` - Firestore CRUD
+- `lib/providers/whiteboard_provider.dart` - StreamProvider でリアルタイム更新
+  - `groupWhiteboardProvider(groupId)` - グループ共有
+  - `personalWhiteboardProvider(userId, groupId)` - 個人用
+
+#### UI Components
+
+- `lib/pages/whiteboard_editor_page.dart` - フルスクリーンエディター
+  - カラーピッカー（8 色）、線の太さ調整、Undo/Redo、保存/プライバシー切替
+- `lib/widgets/whiteboard_preview_widget.dart` - プレビュー表示（CustomPainter）
+- `lib/widgets/member_tile_with_whiteboard.dart` - メンバータイル＋個人ホワイトボードアクセス
+
+#### Utility
+
+- `lib/utils/drawing_converter.dart` - JSON ⇄ カスタムモデル変換
+  - **制限**: `DrawingController.setJsonList()`が 1.0.1+1 で未対応
+
+**Technical Challenges Resolved**:
+
+1. **Permission.toString collision**
+
+   - Issue: Conflict with `Object.toString`
+   - Solution: Renamed to `toPermissionString()`
+
+2. **flutter_drawing_board API changes**
+
+   - Issue: `showDefaultActions`/`showDefaultTools` removed in 1.0.1+1
+   - Solution: Removed parameters, implemented custom toolbar
+
+3. **HiveType typeId collision**
+   - Issue: typeId 12 already used by `ListType` in `shared_list.dart`
+   - Solution: Changed whiteboard typeIds from 12-14 to 15-17
+
+**Usage Pattern**:
+
+```dart
+// Group whiteboard preview in header
+WhiteboardPreviewWidget(groupId: group.groupId)
+
+// Personal whiteboard access (double-tap)
+MemberTileWithWhiteboard(
+  member: member,
+  groupId: group.groupId,
+)
+
+// Full-screen editor
+Navigator.push(
+  context,
+  MaterialPageRoute(
+    builder: (_) => WhiteboardEditorPage(
+      groupId: groupId,
+      isPersonal: false, // or true for personal
+      userId: userId, // required if isPersonal=true
+    ),
+  ),
+)
+```
+
+**Commits**:
+
+- `4a6c1e2` - "feat: 手書きホワイトボード機能実装（Hive + Firestore）"
+- `314771a` - "feat: グループメンバー管理ページにホワイトボード機能統合"
+
+**Status**: UI 統合完了、実機テスト未実施
+
+**Next Steps**:
+
+1. 実機でホワイトボード動作確認
+2. Firestore セキュリティルール追加（`whiteboards`コレクション）
+3. 権限システムの UI 実装
+4. グループ階層 UI の実装
+
+---
+
 ## Recent Implementations (2026-01-12)
 
-### 1. Firebase設定のパッケージ名統一 ✅
+### 1. Firebase 設定のパッケージ名統一 ✅
 
 **Purpose**: プロジェクト名が`go_shop`と`goshopping`で混在していた問題を解消
 
@@ -14,19 +118,21 @@
   - dev: `net.sumomo_planning.go_shop.dev`
 - `android/app/build.gradle.kts`: `namespace = "net.sumomo_planning.goshopping"`
 - `android/app/src/main/AndroidManifest.xml`: パッケージ名とラベルを統一
-- 全importパス修正: `package:go_shop/` → `package:goshopping/` (15ファイル)
+- 全 import パス修正: `package:go_shop/` → `package:goshopping/` (15 ファイル)
 - `android/app/src/main/kotlin/.../MainActivity.kt`: パッケージ名を`goshopping`に統一
 
-**Commit**: `0fe085f` - "fix: Firebase設定のパッケージ名を正式名称に統一"
+**Commit**: `0fe085f` - "fix: Firebase 設定のパッケージ名を正式名称に統一"
 
 ### 2. アイテムタイル操作機能の改善 ✅
 
 **Problem**: ダブルタップ編集機能が動作しなくなっていた
 
 **Root Cause**:
-- `GestureDetector`の子要素が`ListTile`だったため、ListTile内部のインタラクティブ要素（Checkbox、IconButton）がタップイベントを優先処理
+
+- `GestureDetector`の子要素が`ListTile`だったため、ListTile 内部のインタラクティブ要素（Checkbox、IconButton）がタップイベントを優先処理
 
 **Solution**:
+
 - `GestureDetector` → `InkWell`に変更
 - `onDoubleTap`: アイテム編集ダイアログ表示
 - `onLongPress`: アイテム削除（削除権限がある場合のみ）
@@ -34,6 +140,7 @@
 **Modified File**: `lib/pages/shared_list_page.dart`
 
 **Pattern**:
+
 ```dart
 // ❌ Wrong: GestureDetectorとListTileの競合
 GestureDetector(
@@ -49,16 +156,17 @@ InkWell(
 )
 ```
 
-### 3. Google Play Store公開準備 ✅
+### 3. Google Play Store 公開準備 ✅
 
 **Status**: 70%完了
 
 **Completed**:
+
 - ✅ プライバシーポリシー: `docs/specifications/privacy_policy.md`
 - ✅ 利用規約: `docs/specifications/terms_of_service.md`
-- ✅ Firebase設定完了
+- ✅ Firebase 設定完了
 - ✅ パッケージ名統一: `net.sumomo_planning.goshopping`
-- ✅ `.gitignore`でkeystore保護: `*.jks`, `*.keystore`, `key.properties`
+- ✅ `.gitignore`で keystore 保護: `*.jks`, `*.keystore`, `key.properties`
 - ✅ 署名設定実装（`build.gradle.kts`）
 
 **署名設定実装**:
@@ -90,18 +198,21 @@ buildTypes {
 ```
 
 **File Placement**:
+
 - keystore: `android/app/upload-keystore.jks`
 - properties: `android/key.properties`
 - template: `android/key.properties.template`
 
 **Remaining Tasks**:
-- [ ] `upload-keystore.jks`配置（作業所PCから持ってくる）
+
+- [ ] `upload-keystore.jks`配置（作業所 PC から持ってくる）
 - [ ] `key.properties`作成（実際のパスワード設定）
-- [ ] AABビルドテスト実行
-- [ ] プライバシーポリシー・利用規約の公開URL取得
-- [ ] Play Consoleアプリ情報準備（説明文・スクリーンショット）
+- [ ] AAB ビルドテスト実行
+- [ ] プライバシーポリシー・利用規約の公開 URL 取得
+- [ ] Play Console アプリ情報準備（説明文・スクリーンショット）
 
 **Build Commands**:
+
 ```bash
 # リリースAPK（テスト用）
 flutter build apk --release --flavor prod
@@ -582,7 +693,14 @@ class SharedGroupMember with _$SharedGroupMember {
 }
 ```
 
-**Hive TypeIDs**: 0=SharedGroupRole, 1=SharedGroupMember, 2=SharedGroup, 3=SharedItem, 4=SharedList
+**Hive TypeIDs**:
+
+- 0=SharedGroupRole, 1=SharedGroupMember, 2=SharedGroup
+- 3=SharedItem, 4=SharedList
+- 7=AcceptedInvitation
+- 8=SyncStatus, 9=GroupType, 10=Permission, 11=GroupStructureConfig
+- 12=ListType
+- 15=DrawingStroke, 16=DrawingPoint, 17=Whiteboard
 
 ### Environment Configuration
 
@@ -617,6 +735,10 @@ void main() async {
 3. **Hive Box Access**: Ensure Boxes are opened in `_initializeHive()` before use
 4. **Riverpod Generator**: DO NOT use - causes build failures
 5. **Data Operations**: Always use differential sync methods for SharedItem operations (see below)
+6. **HiveType TypeID Conflicts**: Always check existing typeIDs before assigning new ones
+   - Use `grep_search` with pattern `@HiveType\(typeId:\s*\d+\)` to find all existing IDs
+   - Refer to the TypeID list above to avoid conflicts
+   - Example: typeId 12 is used by `ListType`, whiteboard models use 15-17
 
 ### ⚡ Differential Sync Pattern (December 2025)
 

@@ -7,7 +7,7 @@ part 'whiteboard.freezed.dart';
 part 'whiteboard.g.dart';
 
 /// 手書きストローク（1本の線）
-@HiveType(typeId: 12)
+@HiveType(typeId: 15)
 @freezed
 class DrawingStroke with _$DrawingStroke {
   const factory DrawingStroke({
@@ -39,7 +39,7 @@ class DrawingStroke with _$DrawingStroke {
 }
 
 /// 描画ポイント（座標）
-@HiveType(typeId: 13)
+@HiveType(typeId: 16)
 @freezed
 class DrawingPoint with _$DrawingPoint {
   const factory DrawingPoint({
@@ -68,7 +68,7 @@ extension DrawingPointExtension on DrawingPoint {
 }
 
 /// ホワイトボード
-@HiveType(typeId: 14)
+@HiveType(typeId: 17)
 @freezed
 class Whiteboard with _$Whiteboard {
   const Whiteboard._();
