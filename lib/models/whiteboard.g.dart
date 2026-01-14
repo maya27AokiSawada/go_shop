@@ -8,7 +8,7 @@ part of 'whiteboard.dart';
 
 class DrawingStrokeAdapter extends TypeAdapter<DrawingStroke> {
   @override
-  final int typeId = 12;
+  final int typeId = 15;
 
   @override
   DrawingStroke read(BinaryReader reader) {
@@ -60,7 +60,7 @@ class DrawingStrokeAdapter extends TypeAdapter<DrawingStroke> {
 
 class DrawingPointAdapter extends TypeAdapter<DrawingPoint> {
   @override
-  final int typeId = 13;
+  final int typeId = 16;
 
   @override
   DrawingPoint read(BinaryReader reader) {
@@ -97,7 +97,7 @@ class DrawingPointAdapter extends TypeAdapter<DrawingPoint> {
 
 class WhiteboardAdapter extends TypeAdapter<Whiteboard> {
   @override
-  final int typeId = 14;
+  final int typeId = 17;
 
   @override
   Whiteboard read(BinaryReader reader) {

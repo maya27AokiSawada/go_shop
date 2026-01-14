@@ -93,7 +93,7 @@ class UserSpecificHiveService {
           SyncStatusAdapter()); // ⚠️ 追加: SharedGroupのsyncStatusフィールド用
       Hive.registerAdapter(GroupTypeAdapter()); // 🆕 GroupType用
       Hive.registerAdapter(ListTypeAdapter()); // 🆕 ListType用
-      // 🆕 Whiteboard用アダプター (typeId 12-14)
+      // 🆕 Whiteboard用アダプター (typeId 15-17)
       Hive.registerAdapter(DrawingStrokeAdapter());
       Hive.registerAdapter(DrawingPointAdapter());
       Hive.registerAdapter(WhiteboardAdapter());
