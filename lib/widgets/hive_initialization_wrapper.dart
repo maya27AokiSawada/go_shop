@@ -101,7 +101,7 @@ class _HiveInitializationWrapperState
 
             // アプリ名
             Text(
-              'Go Shop',
+              'GoShopping',
               style: TextStyle(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,

@@ -11,6 +11,7 @@
 **Go Shop** は、家族やグループで買い物リストをリアルタイム共有できるアプリです。
 
 ### 主な機能
+
 - 📝 **グループ共有**: 家族や友人とリストを共有
 - 🔄 **リアルタイム同期**: 変更が即座に全デバイスに反映
 - 📱 **QRコード招待**: 簡単にメンバーを追加
@@ -45,6 +46,7 @@ class HiveShoppingListRepository {
 ```
 
 **問題点**:
+
 - 複数デバイス間での同期ができない
 - データバックアップがない
 - 端末紛失 = データ全損失
@@ -97,6 +99,7 @@ class HybridSharedListRepository {
 ```
 
 **効果**:
+
 - リスト全体送信（~5KB）→ 単一アイテム（~500B）
 - **データ転送量90%削減**
 
@@ -179,6 +182,7 @@ missingDimensionStrategy("default", "dev")
 → QRコードが複雑すぎてスキャン失敗
 
 **v3.1**: 軽量化（5フィールド、~150文字）
+
 ```json
 {
   "invitationId": "abc123",
@@ -188,6 +192,7 @@ missingDimensionStrategy("default", "dev")
   "version": "3.1"
 }
 ```
+
 → 詳細はFirestoreから取得（75%削減）
 
 ### 5. デフォルトグループの重複問題
@@ -197,6 +202,7 @@ missingDimensionStrategy("default", "dev")
 **原因**: Hive優先チェックでFirestoreの既存グループを見ていなかった
 
 **解決策**: Firestore優先チェック + Hiveクリーンアップ
+
 ```dart
 Future<void> createDefaultGroup() async {
   // 🔥 Firestoreを最初にチェック
@@ -225,6 +231,7 @@ Future<void> createDefaultGroup() async {
 AdMobの地域ターゲティングで位置情報を使うため、詳細な説明が必要でした。
 
 **記載内容**:
+
 - 収集目的: 広告配信の最適化**のみ**
 - 精度: LocationAccuracy.low（約30km範囲）
 - 頻度: 広告読み込み時のみ（1時間キャッシュ）
@@ -374,4 +381,4 @@ Future<void> _resetPeriodicPurchaseItems() async {
 この記事が、Flutterでの個人開発やFirebaseとの連携で悩んでいる方の参考になれば幸いです。
 質問やフィードバックがあれば、コメント欄でお待ちしています！
 
-#Flutter #Firebase #Riverpod #個人開発 #Firestore #Hive #AndroidApp
+# Flutter #Firebase #Riverpod #個人開発 #Firestore #Hive #AndroidApp

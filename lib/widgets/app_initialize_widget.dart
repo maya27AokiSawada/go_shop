@@ -354,7 +354,7 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
 
             // アプリ名
             const Text(
-              'Go Shop',
+              'GoShopping',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,

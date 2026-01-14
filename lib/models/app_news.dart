@@ -52,8 +52,8 @@ class AppNews {
 
   /// 空のニュース（デフォルト表示用）
   static final AppNews empty = AppNews(
-    title: 'Go Shopへようこそ',
-    content: 'Go Shopは家族・グループ向けの買い物リスト共有アプリです。便利な機能をお楽しみください！',
+    title: 'GoShoppingへようこそ',
+    content: 'GoShoppingは家族・グループ向けの買い物リスト共有アプリです。便利な機能をお楽しみください！',
     createdAt: DateTime.now(),
   );
 

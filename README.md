@@ -1,4 +1,4 @@
-# Go Shop - 買い物リスト共有アプリ
+# GoShopping - 買い物リスト共有アプリ
 
 ## Recent Implementations (2026-01-12)
 
@@ -24,9 +24,11 @@
 **Problem**: ダブルタップ編集機能が動作しなくなっていた
 
 **Root Cause**:
+
 - `GestureDetector`の子要素が`ListTile`だったため、ListTile内部のインタラクティブ要素（Checkbox、IconButton）がタップイベントを優先処理
 
 **Solution**:
+
 - `GestureDetector` → `InkWell`に変更
 - `onDoubleTap`: アイテム編集ダイアログ表示
 - `onLongPress`: アイテム削除（削除権限がある場合のみ）
@@ -34,6 +36,7 @@
 **Modified File**: `lib/pages/shared_list_page.dart`
 
 **Usage Pattern**:
+
 ```dart
 InkWell(
   onDoubleTap: () => _showEditItemDialog(),
@@ -47,6 +50,7 @@ InkWell(
 **Status**: 70%完了
 
 **Completed**:
+
 - ✅ プライバシーポリシー: `docs/specifications/privacy_policy.md`
 - ✅ 利用規約: `docs/specifications/terms_of_service.md`
 - ✅ Firebase設定完了
@@ -55,6 +59,7 @@ InkWell(
 - ✅ 署名設定実装
 
 **File Structure**:
+
 ```
 android/
 ├── app/
@@ -64,6 +69,7 @@ android/
 ```
 
 **Remaining Tasks**:
+
 - [ ] keystoreファイル配置（作業所PCから）
 - [ ] key.properties作成
 - [ ] AABビルドテスト
@@ -71,6 +77,7 @@ android/
 - [ ] Play Consoleアプリ情報準備
 
 **Build Commands**:
+
 ```bash
 # リリースAPK
 flutter build apk --release --flavor prod
@@ -105,6 +112,7 @@ flutter build appbundle --release --flavor prod
   - 三点メニューに「エラー履歴」項目追加
 
 **特徴**:
+
 - ✅ SharedPreferencesのみ使用（Firestore不使用、コストゼロ）
 - ✅ 最新20件自動保存
 - ✅ ローカル完結（通信なし、即座に表示）
@@ -127,6 +135,7 @@ flutter build appbundle --release --flavor prod
   - バリデーション失敗時にエラーログ記録
 
 **エラーメッセージ**:
+
 - リスト: 「〇〇という名前のリストは既に存在します」
 - グループ: 「〇〇という名前のグループは既に存在します」
 

@@ -284,7 +284,7 @@ class _QRScannerPageState extends ConsumerState<QRScannerPage> {
                 SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Go Shopの招待QRコードをカメラで読み取ってください',
+                    'GoShoppingの招待QRコードをカメラで読み取ってください',
                     style: TextStyle(color: Colors.green),
                   ),
                 ),

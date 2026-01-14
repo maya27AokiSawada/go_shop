@@ -111,7 +111,7 @@ class _WindowsQRScannerState extends State<WindowsQRScanner> {
             '1. 「設定」を開く\n'
             '2. 「プライバシーとセキュリティ」→「カメラ」\n'
             '3. 「アプリがカメラにアクセスできるようにする」をオン\n'
-            '4. デスクトップアプリの一覧で「Go Shop」を探してオン\n\n'
+            '4. デスクトップアプリの一覧で「GoShopping」を探してオン\n\n'
             '設定変更後、このアプリを再起動してください。';
       }
 
