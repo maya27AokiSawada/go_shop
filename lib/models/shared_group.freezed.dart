@@ -479,7 +479,22 @@ mixin _$SharedGroup {
   @HiveField(18)
   SyncStatus get syncStatus => throw _privateConstructorUsedError;
   @HiveField(19)
-  GroupType get groupType => throw _privateConstructorUsedError;
+  GroupType get groupType => throw _privateConstructorUsedError; // グループタイプ追加
+// 🆕 階層構造管理（HiveField 20-21）
+  @HiveField(20)
+  String? get parentGroupId => throw _privateConstructorUsedError; // 親グループID
+  @HiveField(21)
+  List<String> get childGroupIds =>
+      throw _privateConstructorUsedError; // 子グループIDリスト
+// 🆕 権限管理（HiveField 22-24）
+  @HiveField(22)
+  Map<String, int> get memberPermissions =>
+      throw _privateConstructorUsedError; // userId → permission bits
+  @HiveField(23)
+  int get defaultPermission =>
+      throw _privateConstructorUsedError; // デフォルト権限（READ | DONE）
+  @HiveField(24)
+  bool get inheritParentLists => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
@@ -509,7 +524,12 @@ abstract class $SharedGroupCopyWith<$Res> {
       @HiveField(16) DateTime? createdAt,
       @HiveField(17) DateTime? updatedAt,
       @HiveField(18) SyncStatus syncStatus,
-      @HiveField(19) GroupType groupType});
+      @HiveField(19) GroupType groupType,
+      @HiveField(20) String? parentGroupId,
+      @HiveField(21) List<String> childGroupIds,
+      @HiveField(22) Map<String, int> memberPermissions,
+      @HiveField(23) int defaultPermission,
+      @HiveField(24) bool inheritParentLists});
 }
 
 /// @nodoc
@@ -541,6 +561,11 @@ class _$SharedGroupCopyWithImpl<$Res, $Val extends SharedGroup>
     Object? updatedAt = freezed,
     Object? syncStatus = null,
     Object? groupType = null,
+    Object? parentGroupId = freezed,
+    Object? childGroupIds = null,
+    Object? memberPermissions = null,
+    Object? defaultPermission = null,
+    Object? inheritParentLists = null,
   }) {
     return _then(_value.copyWith(
       groupName: null == groupName
@@ -607,6 +632,26 @@ class _$SharedGroupCopyWithImpl<$Res, $Val extends SharedGroup>
           ? _value.groupType
           : groupType // ignore: cast_nullable_to_non_nullable
               as GroupType,
+      parentGroupId: freezed == parentGroupId
+          ? _value.parentGroupId
+          : parentGroupId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      childGroupIds: null == childGroupIds
+          ? _value.childGroupIds
+          : childGroupIds // ignore: cast_nullable_to_non_nullable
+              as List<String>,
+      memberPermissions: null == memberPermissions
+          ? _value.memberPermissions
+          : memberPermissions // ignore: cast_nullable_to_non_nullable
+              as Map<String, int>,
+      defaultPermission: null == defaultPermission
+          ? _value.defaultPermission
+          : defaultPermission // ignore: cast_nullable_to_non_nullable
+              as int,
+      inheritParentLists: null == inheritParentLists
+          ? _value.inheritParentLists
+          : inheritParentLists // ignore: cast_nullable_to_non_nullable
+              as bool,
     ) as $Val);
   }
 }
@@ -635,7 +680,12 @@ abstract class _$$SharedGroupImplCopyWith<$Res>
       @HiveField(16) DateTime? createdAt,
       @HiveField(17) DateTime? updatedAt,
       @HiveField(18) SyncStatus syncStatus,
-      @HiveField(19) GroupType groupType});
+      @HiveField(19) GroupType groupType,
+      @HiveField(20) String? parentGroupId,
+      @HiveField(21) List<String> childGroupIds,
+      @HiveField(22) Map<String, int> memberPermissions,
+      @HiveField(23) int defaultPermission,
+      @HiveField(24) bool inheritParentLists});
 }
 
 /// @nodoc
@@ -665,6 +715,11 @@ class __$$SharedGroupImplCopyWithImpl<$Res>
     Object? updatedAt = freezed,
     Object? syncStatus = null,
     Object? groupType = null,
+    Object? parentGroupId = freezed,
+    Object? childGroupIds = null,
+    Object? memberPermissions = null,
+    Object? defaultPermission = null,
+    Object? inheritParentLists = null,
   }) {
     return _then(_$SharedGroupImpl(
       groupName: null == groupName
@@ -731,6 +786,26 @@ class __$$SharedGroupImplCopyWithImpl<$Res>
           ? _value.groupType
           : groupType // ignore: cast_nullable_to_non_nullable
               as GroupType,
+      parentGroupId: freezed == parentGroupId
+          ? _value.parentGroupId
+          : parentGroupId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      childGroupIds: null == childGroupIds
+          ? _value._childGroupIds
+          : childGroupIds // ignore: cast_nullable_to_non_nullable
+              as List<String>,
+      memberPermissions: null == memberPermissions
+          ? _value._memberPermissions
+          : memberPermissions // ignore: cast_nullable_to_non_nullable
+              as Map<String, int>,
+      defaultPermission: null == defaultPermission
+          ? _value.defaultPermission
+          : defaultPermission // ignore: cast_nullable_to_non_nullable
+              as int,
+      inheritParentLists: null == inheritParentLists
+          ? _value.inheritParentLists
+          : inheritParentLists // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }
@@ -754,10 +829,17 @@ class _$SharedGroupImpl extends _SharedGroup {
       @HiveField(16) this.createdAt,
       @HiveField(17) this.updatedAt,
       @HiveField(18) this.syncStatus = SyncStatus.synced,
-      @HiveField(19) this.groupType = GroupType.shopping})
+      @HiveField(19) this.groupType = GroupType.shopping,
+      @HiveField(20) this.parentGroupId,
+      @HiveField(21) final List<String> childGroupIds = const [],
+      @HiveField(22) final Map<String, int> memberPermissions = const {},
+      @HiveField(23) this.defaultPermission = 0x03,
+      @HiveField(24) this.inheritParentLists = true})
       : _members = members,
         _allowedUid = allowedUid,
         _acceptedUid = acceptedUid,
+        _childGroupIds = childGroupIds,
+        _memberPermissions = memberPermissions,
         super._();
 
   factory _$SharedGroupImpl.fromJson(Map<String, dynamic> json) =>
@@ -842,10 +924,52 @@ class _$SharedGroupImpl extends _SharedGroup {
   @JsonKey()
   @HiveField(19)
   final GroupType groupType;
+// グループタイプ追加
+// 🆕 階層構造管理（HiveField 20-21）
+  @override
+  @HiveField(20)
+  final String? parentGroupId;
+// 親グループID
+  final List<String> _childGroupIds;
+// 親グループID
+  @override
+  @JsonKey()
+  @HiveField(21)
+  List<String> get childGroupIds {
+    if (_childGroupIds is EqualUnmodifiableListView) return _childGroupIds;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_childGroupIds);
+  }
+
+// 子グループIDリスト
+// 🆕 権限管理（HiveField 22-24）
+  final Map<String, int> _memberPermissions;
+// 子グループIDリスト
+// 🆕 権限管理（HiveField 22-24）
+  @override
+  @JsonKey()
+  @HiveField(22)
+  Map<String, int> get memberPermissions {
+    if (_memberPermissions is EqualUnmodifiableMapView)
+      return _memberPermissions;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableMapView(_memberPermissions);
+  }
+
+// userId → permission bits
+  @override
+  @JsonKey()
+  @HiveField(23)
+  final int defaultPermission;
+// デフォルト権限（READ | DONE）
+  @override
+  @JsonKey()
+  @HiveField(24)
+  final bool inheritParentLists;
 
   @override
   String toString() {
-    return 'SharedGroup(groupName: $groupName, groupId: $groupId, ownerName: $ownerName, ownerEmail: $ownerEmail, ownerUid: $ownerUid, members: $members, ownerMessage: $ownerMessage, allowedUid: $allowedUid, isSecret: $isSecret, acceptedUid: $acceptedUid, isDeleted: $isDeleted, lastAccessedAt: $lastAccessedAt, createdAt: $createdAt, updatedAt: $updatedAt, syncStatus: $syncStatus, groupType: $groupType)';
+    return 'SharedGroup(groupName: $groupName, groupId: $groupId, ownerName: $ownerName, ownerEmail: $ownerEmail, ownerUid: $ownerUid, members: $members, ownerMessage: $ownerMessage, allowedUid: $allowedUid, isSecret: $isSecret, acceptedUid: $acceptedUid, isDeleted: $isDeleted, lastAccessedAt: $lastAccessedAt, createdAt: $createdAt, updatedAt: $updatedAt, syncStatus: $syncStatus, groupType: $groupType, parentGroupId: $parentGroupId, childGroupIds: $childGroupIds, memberPermissions: $memberPermissions, defaultPermission: $defaultPermission, inheritParentLists: $inheritParentLists)';
   }
 
   @override
@@ -882,29 +1006,45 @@ class _$SharedGroupImpl extends _SharedGroup {
             (identical(other.syncStatus, syncStatus) ||
                 other.syncStatus == syncStatus) &&
             (identical(other.groupType, groupType) ||
-                other.groupType == groupType));
+                other.groupType == groupType) &&
+            (identical(other.parentGroupId, parentGroupId) ||
+                other.parentGroupId == parentGroupId) &&
+            const DeepCollectionEquality()
+                .equals(other._childGroupIds, _childGroupIds) &&
+            const DeepCollectionEquality()
+                .equals(other._memberPermissions, _memberPermissions) &&
+            (identical(other.defaultPermission, defaultPermission) ||
+                other.defaultPermission == defaultPermission) &&
+            (identical(other.inheritParentLists, inheritParentLists) ||
+                other.inheritParentLists == inheritParentLists));
   }
 
   @JsonKey(ignore: true)
   @override
-  int get hashCode => Object.hash(
-      runtimeType,
-      groupName,
-      groupId,
-      ownerName,
-      ownerEmail,
-      ownerUid,
-      const DeepCollectionEquality().hash(_members),
-      ownerMessage,
-      const DeepCollectionEquality().hash(_allowedUid),
-      isSecret,
-      const DeepCollectionEquality().hash(_acceptedUid),
-      isDeleted,
-      lastAccessedAt,
-      createdAt,
-      updatedAt,
-      syncStatus,
-      groupType);
+  int get hashCode => Object.hashAll([
+        runtimeType,
+        groupName,
+        groupId,
+        ownerName,
+        ownerEmail,
+        ownerUid,
+        const DeepCollectionEquality().hash(_members),
+        ownerMessage,
+        const DeepCollectionEquality().hash(_allowedUid),
+        isSecret,
+        const DeepCollectionEquality().hash(_acceptedUid),
+        isDeleted,
+        lastAccessedAt,
+        createdAt,
+        updatedAt,
+        syncStatus,
+        groupType,
+        parentGroupId,
+        const DeepCollectionEquality().hash(_childGroupIds),
+        const DeepCollectionEquality().hash(_memberPermissions),
+        defaultPermission,
+        inheritParentLists
+      ]);
 
   @JsonKey(ignore: true)
   @override
@@ -937,7 +1077,12 @@ abstract class _SharedGroup extends SharedGroup {
       @HiveField(16) final DateTime? createdAt,
       @HiveField(17) final DateTime? updatedAt,
       @HiveField(18) final SyncStatus syncStatus,
-      @HiveField(19) final GroupType groupType}) = _$SharedGroupImpl;
+      @HiveField(19) final GroupType groupType,
+      @HiveField(20) final String? parentGroupId,
+      @HiveField(21) final List<String> childGroupIds,
+      @HiveField(22) final Map<String, int> memberPermissions,
+      @HiveField(23) final int defaultPermission,
+      @HiveField(24) final bool inheritParentLists}) = _$SharedGroupImpl;
   const _SharedGroup._() : super._();
 
   factory _SharedGroup.fromJson(Map<String, dynamic> json) =
@@ -991,6 +1136,23 @@ abstract class _SharedGroup extends SharedGroup {
   @override
   @HiveField(19)
   GroupType get groupType;
+  @override // グループタイプ追加
+// 🆕 階層構造管理（HiveField 20-21）
+  @HiveField(20)
+  String? get parentGroupId;
+  @override // 親グループID
+  @HiveField(21)
+  List<String> get childGroupIds;
+  @override // 子グループIDリスト
+// 🆕 権限管理（HiveField 22-24）
+  @HiveField(22)
+  Map<String, int> get memberPermissions;
+  @override // userId → permission bits
+  @HiveField(23)
+  int get defaultPermission;
+  @override // デフォルト権限（READ | DONE）
+  @HiveField(24)
+  bool get inheritParentLists;
   @override
   @JsonKey(ignore: true)
   _$$SharedGroupImplCopyWith<_$SharedGroupImpl> get copyWith =>
