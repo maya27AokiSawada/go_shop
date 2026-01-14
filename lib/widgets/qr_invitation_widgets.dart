@@ -11,7 +11,7 @@ import '../utils/error_handler.dart';
 /// QRコード招待ボタンウィジェット
 class QRInviteButton extends ConsumerWidget {
   final String sharedListId;
-  final String SharedGroupId;
+  final String sharedGroupId;
   final String groupName;
   final String groupOwnerUid;
   final List<String> groupAllowedUids;
@@ -20,7 +20,7 @@ class QRInviteButton extends ConsumerWidget {
   const QRInviteButton({
     super.key,
     required this.sharedListId,
-    required this.SharedGroupId,
+    required this.sharedGroupId,
     required this.groupName,
     required this.groupOwnerUid,
     required this.groupAllowedUids,
@@ -45,8 +45,7 @@ class QRInviteButton extends ConsumerWidget {
       operation: () async {
         final qrService = ref.read(qrInvitationServiceProvider);
         final invitationData = await qrService.createQRInvitationData(
-          sharedListId: sharedListId,
-          SharedGroupId: SharedGroupId,
+          sharedGroupId: sharedGroupId,
           groupName: groupName,
           groupOwnerUid: groupOwnerUid,
           groupAllowedUids: groupAllowedUids,
@@ -337,10 +336,10 @@ class _QRScannerPageState extends ConsumerState<QRScannerPage> {
     await ErrorHandler.handleAsync(
       operation: () async {
         final qrService = ref.read(qrInvitationServiceProvider);
-        final invitationData = qrService.decodeQRData(qrData);
+        final invitationData = await qrService.decodeQRData(qrData);
 
         // 招待受諾確認ダイアログを表示
-        if (mounted) {
+        if (mounted && invitationData != null) {
           final result = await showDialog<bool>(
             context: context,
             builder: (context) => QRInvitationAcceptDialog(

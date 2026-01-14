@@ -68,7 +68,7 @@ class Permission {
   static bool isAdmin(int perm) => hasPermission(perm, ADMIN);
 
   /// 権限を人間可読な文字列に変換
-  static String toString(int perm) {
+  static String toPermissionString(int perm) {
     if (perm == NONE) return 'アクセス不可';
     if (perm == FULL) return '全権限';
 

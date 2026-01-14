@@ -286,7 +286,7 @@ class InvitationMonitorService {
       groupName: data['listName'] ?? data['groupName'] ?? '',
       listName: data['listName'] ?? '',
       description: data['description'] ?? '',
-      items: items,
+      items: {for (var item in items) item.itemId: item},
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
@@ -295,6 +295,7 @@ class InvitationMonitorService {
   /// MapからSharedItemに変換
   SharedItem _sharedItemFromMap(Map<String, dynamic> data) {
     return SharedItem(
+      itemId: data['itemId'] ?? 'item_${DateTime.now().millisecondsSinceEpoch}',
       memberId: data['memberId'] ?? '',
       name: data['name'] ?? '',
       quantity: data['quantity'] ?? 1,

@@ -68,7 +68,7 @@ class _QRCodePanelWidgetState extends ConsumerState<QRCodePanelWidget> {
                       // QRコード招待ボタン（サンプル用）
                       QRInviteButton(
                         sharedListId: 'sample_list_id',
-                        SharedGroupId: 'sample_group_id',
+                        sharedGroupId: 'sample_group_id',
                         groupName: 'サンプルグループ',
                         groupOwnerUid: user.uid,
                         groupAllowedUids: [user.uid],

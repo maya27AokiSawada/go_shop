@@ -746,21 +746,20 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
       final repository = ref.read(sharedListRepositoryProvider);
 
       // テスト用買い物リストを作成
+      final testItem = SharedItem(
+        itemId: 'test_${DateTime.now().millisecondsSinceEpoch}',
+        memberId: 'test',
+        name: 'テスト商品${DateTime.now().millisecondsSinceEpoch % 1000}',
+        quantity: 1,
+        registeredDate: DateTime.now(),
+        isPurchased: false,
+      );
       final testList = SharedList.create(
         ownerUid: testGroup.ownerUid ?? 'test',
         groupId: groupId,
         groupName: testGroup.groupName,
         listName: 'テストリスト',
-        items: [
-          SharedItem(
-            memberId: 'test',
-            name: 'テスト商品${DateTime.now().millisecondsSinceEpoch % 1000}',
-            quantity: 1,
-            registeredDate: DateTime.now(),
-            isPurchased: false,
-            shoppingInterval: 7,
-          ),
-        ],
+        items: {testItem.itemId: testItem},
       );
 
       // Hive + Firestore ハイブリッド保存
