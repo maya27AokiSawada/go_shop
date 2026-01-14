@@ -99,13 +99,18 @@ class SharedGroupAdapter extends TypeAdapter<SharedGroup> {
       updatedAt: fields[17] as DateTime?,
       syncStatus: fields[18] as SyncStatus,
       groupType: fields[19] as GroupType,
+      parentGroupId: fields[20] as String?,
+      childGroupIds: (fields[21] as List).cast<String>(),
+      memberPermissions: (fields[22] as Map).cast<String, int>(),
+      defaultPermission: fields[23] as int,
+      inheritParentLists: fields[24] as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, SharedGroup obj) {
     writer
-      ..writeByte(16)
+      ..writeByte(21)
       ..writeByte(0)
       ..write(obj.groupName)
       ..writeByte(1)
@@ -137,7 +142,17 @@ class SharedGroupAdapter extends TypeAdapter<SharedGroup> {
       ..writeByte(18)
       ..write(obj.syncStatus)
       ..writeByte(19)
-      ..write(obj.groupType);
+      ..write(obj.groupType)
+      ..writeByte(20)
+      ..write(obj.parentGroupId)
+      ..writeByte(21)
+      ..write(obj.childGroupIds)
+      ..writeByte(22)
+      ..write(obj.memberPermissions)
+      ..writeByte(23)
+      ..write(obj.defaultPermission)
+      ..writeByte(24)
+      ..write(obj.inheritParentLists);
   }
 
   @override
@@ -462,6 +477,18 @@ _$SharedGroupImpl _$$SharedGroupImplFromJson(Map<String, dynamic> json) =>
               SyncStatus.synced,
       groupType: $enumDecodeNullable(_$GroupTypeEnumMap, json['groupType']) ??
           GroupType.shopping,
+      parentGroupId: json['parentGroupId'] as String?,
+      childGroupIds: (json['childGroupIds'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const [],
+      memberPermissions:
+          (json['memberPermissions'] as Map<String, dynamic>?)?.map(
+                (k, e) => MapEntry(k, (e as num).toInt()),
+              ) ??
+              const {},
+      defaultPermission: (json['defaultPermission'] as num?)?.toInt() ?? 0x03,
+      inheritParentLists: json['inheritParentLists'] as bool? ?? true,
     );
 
 Map<String, dynamic> _$$SharedGroupImplToJson(_$SharedGroupImpl instance) =>
@@ -482,6 +509,11 @@ Map<String, dynamic> _$$SharedGroupImplToJson(_$SharedGroupImpl instance) =>
       'updatedAt': instance.updatedAt?.toIso8601String(),
       'syncStatus': _$SyncStatusEnumMap[instance.syncStatus]!,
       'groupType': _$GroupTypeEnumMap[instance.groupType]!,
+      'parentGroupId': instance.parentGroupId,
+      'childGroupIds': instance.childGroupIds,
+      'memberPermissions': instance.memberPermissions,
+      'defaultPermission': instance.defaultPermission,
+      'inheritParentLists': instance.inheritParentLists,
     };
 
 const _$SyncStatusEnumMap = {

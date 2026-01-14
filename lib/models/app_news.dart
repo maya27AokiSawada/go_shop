@@ -25,11 +25,11 @@ class AppNews {
       title: map['title'] ?? '',
       content: map['content'] ?? '',
       createdAt: DateTime.fromMillisecondsSinceEpoch(
-        (map['createdAt'] as num?)?.toInt() ?? 0
-      ),
-      updatedAt: map['updatedAt'] != null 
-        ? DateTime.fromMillisecondsSinceEpoch((map['updatedAt'] as num).toInt())
-        : null,
+          (map['createdAt'] as num?)?.toInt() ?? 0),
+      updatedAt: map['updatedAt'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(
+              (map['updatedAt'] as num).toInt())
+          : null,
       isActive: map['isActive'] ?? true,
       imageUrl: map['imageUrl'],
       actionUrl: map['actionUrl'],

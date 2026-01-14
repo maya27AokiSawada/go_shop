@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 part 'shared_group.g.dart';
 part 'shared_group.freezed.dart';
+
 const uuid = Uuid();
 
 // グループの役割を定義するenum
@@ -189,6 +190,17 @@ class SharedGroup with _$SharedGroup {
     @HiveField(19)
     @Default(GroupType.shopping)
     GroupType groupType, // グループタイプ追加
+
+    // 🆕 階層構造管理（HiveField 20-21）
+    @HiveField(20) String? parentGroupId, // 親グループID
+    @HiveField(21) @Default([]) List<String> childGroupIds, // 子グループIDリスト
+
+    // 🆕 権限管理（HiveField 22-24）
+    @HiveField(22)
+    @Default({})
+    Map<String, int> memberPermissions, // userId → permission bits
+    @HiveField(23) @Default(0x03) int defaultPermission, // デフォルト権限（READ | DONE）
+    @HiveField(24) @Default(true) bool inheritParentLists, // 親グループのリストを継承表示するか
   }) = _SharedGroup;
 
   factory SharedGroup.fromJson(Map<String, dynamic> json) =>
@@ -357,6 +369,60 @@ class SharedGroup with _$SharedGroup {
       isDeleted: true,
       updatedAt: DateTime.now(),
     );
+  }
+
+  // 🆕 階層構造関連のヘルパーメソッド
+
+  /// このグループが親グループを持つか
+  bool get hasParent => parentGroupId != null && parentGroupId!.isNotEmpty;
+
+  /// このグループが子グループを持つか
+  bool get hasChildren => childGroupIds.isNotEmpty;
+
+  /// ルートグループか（親を持たない）
+  bool get isRoot => !hasParent;
+
+  /// 階層の深さを取得（ルートは0）
+  int getHierarchyDepth(Map<String, SharedGroup> allGroups) {
+    if (isRoot) return 0;
+    final parent = allGroups[parentGroupId];
+    if (parent == null) return 0;
+    return 1 + parent.getHierarchyDepth(allGroups);
+  }
+
+  // 🆕 権限管理関連のヘルパーメソッド
+
+  /// 指定ユーザーの権限を取得
+  ///
+  /// オーナーは常に全権限、それ以外は設定された権限またはデフォルト権限
+  int getUserPermission(String userId) {
+    // オーナーは全権限
+    if (ownerUid == userId) return 0xFF; // Permission.FULL
+
+    // 直接設定された権限があればそれを返す
+    if (memberPermissions.containsKey(userId)) {
+      return memberPermissions[userId]!;
+    }
+
+    // デフォルト権限を返す
+    return defaultPermission;
+  }
+
+  /// 指定ユーザーが特定の権限を持っているかチェック
+  bool hasPermission(String userId, int requiredPermission) {
+    final userPerm = getUserPermission(userId);
+    return (userPerm & requiredPermission) == requiredPermission;
+  }
+
+  /// グループ階層パスを取得（例: "本部 > 営業部 > 東京支店"）
+  String getHierarchyPath(Map<String, SharedGroup> allGroups,
+      {String separator = ' > '}) {
+    if (isRoot) return groupName;
+
+    final parent = allGroups[parentGroupId];
+    if (parent == null) return groupName;
+
+    return '${parent.getHierarchyPath(allGroups, separator: separator)}$separator$groupName';
   }
 
   // グループが削除されているかチェック

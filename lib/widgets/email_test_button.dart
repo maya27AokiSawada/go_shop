@@ -21,7 +21,7 @@ class _EmailTestButtonState extends ConsumerState<EmailTestButton> {
       children: [
         ElevatedButton.icon(
           onPressed: _isLoading ? null : _sendTestEmail,
-          icon: _isLoading 
+          icon: _isLoading
               ? const SizedBox(
                   width: 16,
                   height: 16,
@@ -40,17 +40,22 @@ class _EmailTestButtonState extends ConsumerState<EmailTestButton> {
             child: Container(
               padding: const EdgeInsets.all(8.0),
               decoration: BoxDecoration(
-                color: _lastResult!.contains('成功') ? Colors.green.shade100 : Colors.red.shade100,
+                color: _lastResult!.contains('成功')
+                    ? Colors.green.shade100
+                    : Colors.red.shade100,
                 borderRadius: BorderRadius.circular(4),
                 border: Border.all(
-                  color: _lastResult!.contains('成功') ? Colors.green : Colors.red,
+                  color:
+                      _lastResult!.contains('成功') ? Colors.green : Colors.red,
                 ),
               ),
               child: Text(
                 _lastResult!,
                 style: TextStyle(
                   fontSize: 12,
-                  color: _lastResult!.contains('成功') ? Colors.green.shade800 : Colors.red.shade800,
+                  color: _lastResult!.contains('成功')
+                      ? Colors.green.shade800
+                      : Colors.red.shade800,
                 ),
               ),
             ),
@@ -67,16 +72,17 @@ class _EmailTestButtonState extends ConsumerState<EmailTestButton> {
 
     try {
       final emailTestService = ref.read(emailTestServiceProvider);
-      
+
       // テスト用のメールアドレス
       const testEmail = 'fatima.sumomo@gmail.com';
-      
+
       Log.info('🧪 メール送信テスト開始');
       Log.info('   対象: $testEmail');
 
       final success = await emailTestService.sendTestEmail(
         testEmail: testEmail,
-        customSubject: 'GoShopping メール送信機能テスト - ${DateTime.now().toString().substring(0, 19)}',
+        customSubject:
+            'GoShopping メール送信機能テスト - ${DateTime.now().toString().substring(0, 19)}',
         customBody: '''
 GoShopping メール送信機能のテストです。
 
@@ -97,7 +103,7 @@ Go Shop 開発チーム
 
       if (mounted) {
         setState(() {
-          _lastResult = success 
+          _lastResult = success
               ? '✅ テストメール送信成功\n宛先: $testEmail'
               : '❌ テストメール送信失敗\n詳細はログを確認してください';
         });
@@ -111,10 +117,9 @@ Go Shop 開発チーム
           ),
         );
       }
-
     } catch (e) {
       Log.error('❌ テストメール送信エラー: $e', e);
-      
+
       if (mounted) {
         setState(() {
           _lastResult = '❌ エラー発生: ${e.toString()}';
@@ -143,10 +148,12 @@ class EmailDiagnosticsWidget extends ConsumerStatefulWidget {
   const EmailDiagnosticsWidget({super.key});
 
   @override
-  ConsumerState<EmailDiagnosticsWidget> createState() => _EmailDiagnosticsWidgetState();
+  ConsumerState<EmailDiagnosticsWidget> createState() =>
+      _EmailDiagnosticsWidgetState();
 }
 
-class _EmailDiagnosticsWidgetState extends ConsumerState<EmailDiagnosticsWidget> {
+class _EmailDiagnosticsWidgetState
+    extends ConsumerState<EmailDiagnosticsWidget> {
   Map<String, dynamic>? _diagnostics;
   bool _isLoading = false;
 
@@ -185,33 +192,33 @@ class _EmailDiagnosticsWidgetState extends ConsumerState<EmailDiagnosticsWidget>
                 Text(
                   '📊 診断結果',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
                 const SizedBox(height: 8),
                 ..._diagnostics!.entries.map((entry) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Row(
-                    children: [
-                      Icon(
-                        entry.value is bool && entry.value == true
-                            ? Icons.check_circle
-                            : Icons.error,
-                        color: entry.value is bool && entry.value == true
-                            ? Colors.green
-                            : Colors.red,
-                        size: 16,
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Row(
+                        children: [
+                          Icon(
+                            entry.value is bool && entry.value == true
+                                ? Icons.check_circle
+                                : Icons.error,
+                            color: entry.value is bool && entry.value == true
+                                ? Colors.green
+                                : Colors.red,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '${entry.key}: ${entry.value}',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          '${entry.key}: ${entry.value}',
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                      ),
-                    ],
-                  ),
-                )),
+                    )),
               ],
             ),
           ),
@@ -229,7 +236,7 @@ class _EmailDiagnosticsWidgetState extends ConsumerState<EmailDiagnosticsWidget>
     try {
       final emailTestService = ref.read(emailTestServiceProvider);
       final diagnostics = await emailTestService.diagnoseEmailSettings();
-      
+
       if (mounted) {
         setState(() {
           _diagnostics = diagnostics;
@@ -237,7 +244,7 @@ class _EmailDiagnosticsWidgetState extends ConsumerState<EmailDiagnosticsWidget>
       }
     } catch (e) {
       Log.error('❌ 診断実行エラー: $e', e);
-      
+
       if (mounted) {
         setState(() {
           _diagnostics = {
