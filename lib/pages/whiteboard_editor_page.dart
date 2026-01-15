@@ -40,9 +40,6 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       color: _selectedColor,
     );
 
-    // ペイントモードを設定
-    _controller.setPaintContent(SimpleLine());
-
     // 既存のストロークを復元
     if (widget.whiteboard.strokes.isNotEmpty) {
       DrawingConverter.restoreToController(
@@ -184,8 +181,8 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                       width: double.infinity,
                       height: double.infinity,
                     ),
-                    boardPanEnabled: true,
-                    boardScaleEnabled: true,
+                    boardPanEnabled: false, // パンを無効化（描画優先）
+                    boardScaleEnabled: false, // スケールを無効化（描画優先）
                   ),
                 ),
               ],
