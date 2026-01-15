@@ -79,7 +79,8 @@ dependencies:
   geocoding: ^3.0.0 # 住所変換
 
   # Drawing / Whiteboard
-  flutter_drawing_board: ^1.0.1+1 # 手書きホワイトボード機能
+  flutter_drawing_board: ^1.0.1+1 # 手書きホワイトボード機能（問題あり - signature移行予定）
+  signature: ^5.5.0 # 手書き署名・描画機能（安定版）
 
 dev_dependencies:
   flutter_test:
