@@ -1,5 +1,41 @@
 # GoShopping - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-01-15)
+
+### 1. 手書きホワイトボード機能完全実装（future ブランチ） ✅
+
+**Purpose**: グループ共有・個人用ホワイトボード機能を差別化機能として実装
+
+**Key Achievements**:
+
+- ✅ signature ^5.5.0 パッケージ統合（flutter_drawing_board から移行）
+- ✅ レイヤーシステム実装（CustomPaint + Signature）
+- ✅ マルチカラー描画対応（8色）
+- ✅ 自動ストローク分割（30px閾値）
+- ✅ 2段構成ツールバー（狭い画面対応）
+- ✅ Firestore + Hive 同期対応
+
+**Implementation Highlights**:
+
+```dart
+// レイヤーシステム
+Stack(
+  children: [
+    CustomPaint(painter: DrawingStrokePainter(_workingStrokes)), // 背景
+    Signature(controller: _controller, backgroundColor: Colors.transparent), // 前景
+  ],
+)
+```
+
+**Files**:
+- `lib/pages/whiteboard_editor_page.dart` - エディター（415行）
+- `lib/utils/drawing_converter.dart` - 変換ロジック
+- `lib/models/whiteboard.dart` - データモデル（Hive typeId: 15-17）
+
+**Commits**: 4a6c1e2, 314771a, 540b835, 67a90a1, 0b4a6c9
+
+---
+
 ## Recent Implementations (2026-01-12)
 
 ### 1. Firebase設定のパッケージ名統一 ✅

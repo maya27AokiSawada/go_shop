@@ -1,15 +1,16 @@
 # Go Shop - AI Coding Agent Instructions
 
-## Recent Implementations (2026-01-14)
+## Recent Implementations (2026-01-15)
 
-### 1. 手書きホワイトボード機能実装（future ブランチ） ✅
+### 1. 手書きホワイトボード機能完全実装（future ブランチ） ✅
 
 **Purpose**: 差別化機能として、グループ共有・個人用ホワイトボードを実装
 
 **Implementation Architecture**:
 
-- **Package**: `flutter_drawing_board: ^1.0.1+1` - 描画 UI
-- **Storage**: Hybrid approach（flutter_drawing_board JSON + カスタムモデルメタデータ）
+- **Package**: `signature: ^5.5.0` - 描画 UI（flutter_drawing_board から移行）
+- **Drawing Engine**: SignatureController + CustomPaint レイヤーシステム
+- **Storage**: Hybrid approach（カスタムモデル + Firestore JSON）
 - **Sync**: Firestore `whiteboards` collection
 - **Hive TypeID**: 15-17（DrawingStroke, DrawingPoint, Whiteboard）
 
@@ -37,15 +38,22 @@
 
 #### UI Components
 
-- `lib/pages/whiteboard_editor_page.dart` - フルスクリーンエディター
-  - カラーピッカー（8 色）、線の太さ調整、Undo/Redo、保存/プライバシー切替
+- `lib/pages/whiteboard_editor_page.dart` - フルスクリーンエディター（415 行）
+  - **レイヤーシステム**: Stack(CustomPaint + Signature)
+    - CustomPaint: 保存済みストローク描画（背景レイヤー）
+    - Signature: 現在の描画セッション（前景レイヤー、透明背景）
+  - **2 段構成ツールバー**: カラーピッカー（8 色上段）＋線幅調整・全消去（下段）
+  - **複数色対応**: 各ストロークが独自の色・線幅を保持
+  - **自動ストローク分割**: 点間距離 30px 以上で別ストローク判定
 - `lib/widgets/whiteboard_preview_widget.dart` - プレビュー表示（CustomPainter）
 - `lib/widgets/member_tile_with_whiteboard.dart` - メンバータイル＋個人ホワイトボードアクセス
 
 #### Utility
 
-- `lib/utils/drawing_converter.dart` - JSON ⇄ カスタムモデル変換
-  - **制限**: `DrawingController.setJsonList()`が 1.0.1+1 で未対応
+- `lib/utils/drawing_converter.dart` - signature ⇄ カスタムモデル変換
+  - `captureFromSignatureController()`: SignatureController から DrawingStroke に変換
+  - 距離ベース自動分割アルゴリズム（30px 閾値）
+  - `strokesToPoints()`: 復元用変換
 
 **Technical Challenges Resolved**:
 
@@ -54,14 +62,35 @@
    - Issue: Conflict with `Object.toString`
    - Solution: Renamed to `toPermissionString()`
 
-2. **flutter_drawing_board API changes**
+2. **flutter_drawing_board 描画不具合（パッケージ移行）**
 
-   - Issue: `showDefaultActions`/`showDefaultTools` removed in 1.0.1+1
-   - Solution: Removed parameters, implemented custom toolbar
+   - Issue: タッチ入力に反応しない、DrawingController 動作不良
+   - Solution: signature ^5.5.0 パッケージに完全移行
 
 3. **HiveType typeId collision**
+
    - Issue: typeId 12 already used by `ListType` in `shared_list.dart`
    - Solution: Changed whiteboard typeIds from 12-14 to 15-17
+
+4. **複数色ストローク対応（レイヤーシステム実装）**
+
+   - Issue: SignatureController は全ポイントが単一色を共有
+   - Solution: CustomPaint（背景）+ Signature（前景）のレイヤーシステム
+   - 色・線幅変更時に現在の描画を保存して新しいコントローラー作成
+
+5. **複数ストローク自動分割**
+
+   - Issue: ペンを離して複数回描いた線が全て繋がる
+   - Solution: 点間距離 30px 以上で自動分割（drawing_converter.dart）
+
+6. **ツールバー UI 改善（2 段構成）**
+
+   - Issue: スマホの横幅が狭い画面でアイコンが見えない
+   - Solution: Column with 2 Rows（上段: 色選択、下段: 線幅＋消去）
+
+7. **Windows 版 Hive データ互換性**
+   - Issue: 新モデル追加により`type 'Null' is not a subtype of type 'List<dynamic>'`
+   - Solution: Hive ディレクトリクリア → Firestore 再同期
 
 **Usage Pattern**:
 
@@ -92,6 +121,9 @@ Navigator.push(
 
 - `4a6c1e2` - "feat: 手書きホワイトボード機能実装（Hive + Firestore）"
 - `314771a` - "feat: グループメンバー管理ページにホワイトボード機能統合"
+- `540b835` - "feat: signature パッケージへの完全移行"
+- `67a90a1` - "fix: 複数色ストローク対応（レイヤーシステム実装）"
+- `0b4a6c9` - "feat: 複数ストローク自動分割＋ツールバー 2 段構成"
 
 **Status**: UI 統合完了、実機テスト未実施
 
@@ -101,6 +133,9 @@ Navigator.push(
 2. Firestore セキュリティルール追加（`whiteboards`コレクション）
 3. 権限システムの UI 実装
 4. グループ階層 UI の実装
+5. Firestore セキュリティルール追加（`whiteboards`コレクション）
+6. 権限システムの UI 実装
+7. グループ階層 UI の実装
 
 ---
 
