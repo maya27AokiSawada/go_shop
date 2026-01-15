@@ -24,10 +24,11 @@ class WhiteboardEditorPage extends ConsumerStatefulWidget {
 }
 
 class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
-  late final SignatureController _controller;
+  SignatureController? _controller;
   bool _isSaving = false;
   Color _selectedColor = Colors.black;
   double _strokeWidth = 3.0;
+  int _controllerKey = 0; // コントローラー再作成カウンター
 
   @override
   void initState() {
@@ -53,7 +54,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
@@ -71,7 +72,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
 
       // 現在の描画をキャプチャ
       final strokes = DrawingConverter.captureFromSignatureController(
-        controller: _controller,
+        controller: _controller!,
         authorId: currentUser.uid,
         authorName: currentUser.displayName ?? 'Unknown',
         strokeColor: _selectedColor,
@@ -186,7 +187,8 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                   child: Container(
                     color: Colors.white,
                     child: Signature(
-                      controller: _controller,
+                      key: ValueKey('signature_$_controllerKey'),
+                      controller: _controller!,
                       backgroundColor: Colors.white,
                     ),
                   ),
@@ -244,13 +246,14 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
               setState(() {
                 _strokeWidth = value;
                 // SignatureControllerは再作成が必要
-                final points = _controller.points;
-                _controller.dispose();
+                final points = _controller!.points;
+                _controller?.dispose();
                 _controller = SignatureController(
                   penStrokeWidth: value,
                   penColor: _selectedColor,
                   points: points,
                 );
+                _controllerKey++; // キー更新でウィジェット再構築
               });
             },
           ),
@@ -258,7 +261,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
           // 消去ボタン
           IconButton(
             icon: const Icon(Icons.delete_outline),
-            onPressed: () => _controller.clear(),
+            onPressed: () => _controller!.clear(),
             tooltip: '全消去',
           ),
         ],
@@ -274,13 +277,14 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         setState(() {
           _selectedColor = color;
           // SignatureControllerは再作成が必要
-          final points = _controller.points;
-          _controller.dispose();
+          final points = _controller!.points;
+          _controller?.dispose();
           _controller = SignatureController(
             penStrokeWidth: _strokeWidth,
             penColor: color,
             points: points,
           );
+          _controllerKey++; // キー更新でウィジェット再構築
         });
       },
       child: Container(
