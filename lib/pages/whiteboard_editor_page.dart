@@ -29,24 +29,23 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   Color _selectedColor = Colors.black;
   double _strokeWidth = 3.0;
   int _controllerKey = 0; // コントローラー再作成カウンター
+  final List<DrawingStroke> _workingStrokes = []; // 作業中のストロークリスト
 
   @override
   void initState() {
     super.initState();
 
-    // 既存のストロークをポイントリストに変換
-    List<Point> initialPoints = [];
+    // 既存のストロークを作業リストに読み込む
     if (widget.whiteboard.strokes.isNotEmpty) {
-      initialPoints =
-          DrawingConverter.strokesToPoints(widget.whiteboard.strokes);
+      _workingStrokes.addAll(widget.whiteboard.strokes);
       AppLogger.info(
-          '🎨 [WHITEBOARD] ${widget.whiteboard.strokes.length}個のストロークを復元 (${initialPoints.length}ポイント)');
+          '🎨 [WHITEBOARD] ${widget.whiteboard.strokes.length}個のストロークを復元');
     }
 
+    // 空のコントローラーでスタート
     _controller = SignatureController(
       penStrokeWidth: _strokeWidth,
       penColor: _selectedColor,
-      points: initialPoints,
     );
 
     AppLogger.info('🎨 [WHITEBOARD] SignatureController初期化完了');
@@ -56,6 +55,36 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   void dispose() {
     _controller?.dispose();
     super.dispose();
+  }
+
+  /// 現在の描画をキャプチャして_workingStrokesに追加
+  void _captureCurrentDrawing() {
+    if (_controller == null || _controller!.isEmpty) {
+      return; // 何も描かれていなければスキップ
+    }
+
+    final currentUser = ref.read(authStateProvider).value;
+    if (currentUser == null) return;
+
+    try {
+      // 現在の描画をキャプチャ
+      final strokes = DrawingConverter.captureFromSignatureController(
+        controller: _controller!,
+        authorId: currentUser.uid,
+        authorName: currentUser.displayName ?? 'Unknown',
+        strokeColor: _selectedColor,
+        strokeWidth: _strokeWidth,
+      );
+
+      // 作業リストに追加
+      if (strokes.isNotEmpty) {
+        _workingStrokes.addAll(strokes);
+        AppLogger.info(
+            '📸 [WHITEBOARD] ${strokes.length}個のストロークをキャプチャ (計${_workingStrokes.length}個)');
+      }
+    } catch (e) {
+      AppLogger.error('❌ [WHITEBOARD] 描画キャプチャエラー: $e');
+    }
   }
 
   /// 保存処理
@@ -71,7 +100,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       }
 
       // 現在の描画をキャプチャ
-      final strokes = DrawingConverter.captureFromSignatureController(
+      final currentStrokes = DrawingConverter.captureFromSignatureController(
         controller: _controller!,
         authorId: currentUser.uid,
         authorName: currentUser.displayName ?? 'Unknown',
@@ -79,9 +108,11 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         strokeWidth: _strokeWidth,
       );
 
-      // 既存のストロークと結合
+      // 作業中のストロークと現在の描画を結合
+      final allStrokes = [..._workingStrokes, ...currentStrokes];
+
       final updatedWhiteboard = widget.whiteboard.copyWith(
-        strokes: [...widget.whiteboard.strokes, ...strokes],
+        strokes: allStrokes,
         updatedAt: DateTime.now(),
       );
 
@@ -186,10 +217,21 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                 Expanded(
                   child: Container(
                     color: Colors.white,
-                    child: Signature(
-                      key: ValueKey('signature_$_controllerKey'),
-                      controller: _controller!,
-                      backgroundColor: Colors.white,
+                    child: Stack(
+                      children: [
+                        // 背景：保存済みストロークを描画
+                        Positioned.fill(
+                          child: CustomPaint(
+                            painter: DrawingStrokePainter(_workingStrokes),
+                          ),
+                        ),
+                        // 前景：現在の描画セッション
+                        Signature(
+                          key: ValueKey('signature_$_controllerKey'),
+                          controller: _controller!,
+                          backgroundColor: Colors.transparent,
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -244,14 +286,15 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
             label: _strokeWidth.toStringAsFixed(0),
             onChanged: (value) {
               setState(() {
+                // 現在の描画を保存
+                _captureCurrentDrawing();
+
                 _strokeWidth = value;
-                // SignatureControllerは再作成が必要
-                final points = _controller!.points;
+                // SignatureControllerは再作成が必要（空でスタート）
                 _controller?.dispose();
                 _controller = SignatureController(
                   penStrokeWidth: value,
                   penColor: _selectedColor,
-                  points: points,
                 );
                 _controllerKey++; // キー更新でウィジェット再構築
               });
@@ -261,7 +304,12 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
           // 消去ボタン
           IconButton(
             icon: const Icon(Icons.delete_outline),
-            onPressed: () => _controller!.clear(),
+            onPressed: () {
+              setState(() {
+                _workingStrokes.clear();
+                _controller!.clear();
+              });
+            },
             tooltip: '全消去',
           ),
         ],
@@ -275,14 +323,15 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     return GestureDetector(
       onTap: () {
         setState(() {
+          // 現在の描画を保存
+          _captureCurrentDrawing();
+
           _selectedColor = color;
-          // SignatureControllerは再作成が必要
-          final points = _controller!.points;
+          // SignatureControllerは再作成が必要（空でスタート）
           _controller?.dispose();
           _controller = SignatureController(
             penStrokeWidth: _strokeWidth,
             penColor: color,
-            points: points,
           );
           _controllerKey++; // キー更新でウィジェット再構築
         });
@@ -301,5 +350,52 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         ),
       ),
     );
+  }
+}
+
+/// 保存済みストロークを描画するCustomPainter
+class DrawingStrokePainter extends CustomPainter {
+  final List<DrawingStroke> strokes;
+
+  DrawingStrokePainter(this.strokes);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final stroke in strokes) {
+      if (stroke.points.isEmpty) continue;
+
+      final paint = Paint()
+        ..color = Color(stroke.colorValue)
+        ..strokeWidth = stroke.strokeWidth
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..style = PaintingStyle.stroke;
+
+      // ストロークの各点を線で結ぶ
+      for (int i = 0; i < stroke.points.length - 1; i++) {
+        final p1 = stroke.points[i];
+        final p2 = stroke.points[i + 1];
+        canvas.drawLine(
+          Offset(p1.x, p1.y),
+          Offset(p2.x, p2.y),
+          paint,
+        );
+      }
+
+      // 単一点の場合は点を描画
+      if (stroke.points.length == 1) {
+        final p = stroke.points[0];
+        canvas.drawCircle(
+          Offset(p.x, p.y),
+          stroke.strokeWidth / 2,
+          paint..style = PaintingStyle.fill,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(DrawingStrokePainter oldDelegate) {
+    return strokes != oldDelegate.strokes;
   }
 }
