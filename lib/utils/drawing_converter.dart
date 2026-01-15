@@ -52,7 +52,8 @@ class DrawingConverter {
       for (final point in stroke.points) {
         allPoints.add(Point(
           Offset(point.x, point.y),
-          PointType.tap, // 連続した線として描画
+          PointType.tap,
+          1.0, // pressure
         ));
       }
     }
@@ -70,6 +71,7 @@ class DrawingConverter {
         allPoints.add(Point(
           Offset(point.x, point.y),
           PointType.tap,
+          1.0, // pressure
         ));
       }
     }
