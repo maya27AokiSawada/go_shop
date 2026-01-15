@@ -189,22 +189,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                 Expanded(
                   child: Container(
                     color: Colors.white,
-                    child: GestureDetector(
-                      onPanStart: (details) {
-                        AppLogger.info(
-                            '✍️ [WHITEBOARD] タッチ開始: ${details.localPosition}');
-                      },
-                      onPanUpdate: (details) {
-                        AppLogger.info(
-                            '✍️ [WHITEBOARD] タッチ移動: ${details.localPosition}');
-                      },
-                      onPanEnd: (details) {
-                        AppLogger.info('✍️ [WHITEBOARD] タッチ終了');
-                      },
-                      child: DrawingBoard(
-                        controller: _controller,
-                        background: Container(color: Colors.white),
-                      ),
+                    child: DrawingBoard(
+                      controller: _controller,
+                      background: Container(color: Colors.white),
                     ),
                   ),
                 ),
