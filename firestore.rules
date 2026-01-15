@@ -140,6 +140,28 @@ service cloud.firestore {
           request.auth.uid in get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.allowedUid
         );
       }
+
+      // whiteboards サブコレクション（ホワイトボード機能）
+      match /whiteboards/{whiteboardId} {
+        // 読み取り：グループメンバーのみ
+        allow read: if request.auth != null && (
+          get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.allowedUid
+        );
+
+        // 作成・更新：グループメンバーのみ
+        // ownerId=nullはグループ共通、ownerId=uidは個人用
+        allow create, update: if request.auth != null && (
+          get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.allowedUid
+        );
+
+        // 削除：グループオーナーまたは個人用ホワイトボードの所有者のみ
+        allow delete: if request.auth != null && (
+          get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid ||
+          (resource.data.ownerId != null && resource.data.ownerId == request.auth.uid)
+        );
+      }
     }
 
     // コレクショングループクエリ用ルール (`collectionGroup('sharedLists')`)

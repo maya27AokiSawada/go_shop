@@ -34,6 +34,15 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     super.initState();
     _controller = DrawingController();
 
+    // 初期スタイル設定（描画できるようにする）
+    _controller.setStyle(
+      strokeWidth: _strokeWidth,
+      color: _selectedColor,
+    );
+
+    // ペイントモードを設定
+    _controller.setPaintContent(SimpleLine());
+
     // 既存のストロークを復元
     if (widget.whiteboard.strokes.isNotEmpty) {
       DrawingConverter.restoreToController(
@@ -170,7 +179,13 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                 Expanded(
                   child: DrawingBoard(
                     controller: _controller,
-                    background: Container(color: Colors.white),
+                    background: Container(
+                      color: Colors.white,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                    boardPanEnabled: true,
+                    boardScaleEnabled: true,
                   ),
                 ),
               ],
