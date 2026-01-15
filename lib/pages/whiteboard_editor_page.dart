@@ -185,14 +185,25 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
               children: [
                 // 描画ツールバー
                 _buildToolbar(),
-                // キャンバス
+                // キャンバス（明示的なサイズ指定）
                 Expanded(
-                  child: Container(
-                    color: Colors.white,
-                    child: DrawingBoard(
-                      controller: _controller,
-                      background: Container(color: Colors.white),
-                    ),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      AppLogger.info(
+                          '🎨 [WHITEBOARD] キャンバスサイズ: ${constraints.maxWidth} x ${constraints.maxHeight}');
+                      return SizedBox(
+                        width: constraints.maxWidth,
+                        height: constraints.maxHeight,
+                        child: DrawingBoard(
+                          controller: _controller,
+                          background: Container(
+                            color: Colors.white,
+                            width: constraints.maxWidth,
+                            height: constraints.maxHeight,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],
