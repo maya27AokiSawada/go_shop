@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_drawing_board/flutter_drawing_board.dart';
+import 'package:signature/signature.dart';
 import '../models/whiteboard.dart';
 import '../providers/whiteboard_provider.dart';
 import '../providers/auth_provider.dart';
@@ -24,37 +24,31 @@ class WhiteboardEditorPage extends ConsumerStatefulWidget {
 }
 
 class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
-  late final DrawingController _controller;
+  late final SignatureController _controller;
   bool _isSaving = false;
-  Color _selectedColor = Colors.red; // 🔴 デバッグ用に赤に変更
-  double _strokeWidth = 5.0; // 太めに設定
+  Color _selectedColor = Colors.black;
+  double _strokeWidth = 3.0;
 
   @override
   void initState() {
     super.initState();
-    _controller = DrawingController();
 
-    AppLogger.info('🎨 [WHITEBOARD] DrawingController初期化完了');
+    // 既存のストロークをポイントリストに変換
+    List<Point> initialPoints = [];
+    if (widget.whiteboard.strokes.isNotEmpty) {
+      initialPoints =
+          DrawingConverter.strokesToPoints(widget.whiteboard.strokes);
+      AppLogger.info(
+          '🎨 [WHITEBOARD] ${widget.whiteboard.strokes.length}個のストロークを復元 (${initialPoints.length}ポイント)');
+    }
 
-    // 初期スタイル設定（描画できるようにする）
-    _controller.setStyle(
-      strokeWidth: _strokeWidth,
-      color: _selectedColor,
+    _controller = SignatureController(
+      penStrokeWidth: _strokeWidth,
+      penColor: _selectedColor,
+      points: initialPoints,
     );
 
-    final colorHex = _selectedColor.value.toRadixString(16).padLeft(8, '0');
-    AppLogger.info(
-        '🎨 [WHITEBOARD] スタイル設定完了 - color: #$colorHex (${_selectedColor.toString()}), width: $_strokeWidth');
-
-    // 既存のストロークを復元
-    if (widget.whiteboard.strokes.isNotEmpty) {
-      DrawingConverter.restoreToController(
-        controller: _controller,
-        strokes: widget.whiteboard.strokes,
-      );
-      AppLogger.info(
-          '🎨 [WHITEBOARD] ${widget.whiteboard.strokes.length}個のストロークを復元');
-    }
+    AppLogger.info('🎨 [WHITEBOARD] SignatureController初期化完了');
   }
 
   @override
@@ -76,10 +70,12 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       }
 
       // 現在の描画をキャプチャ
-      final strokes = DrawingConverter.captureFromController(
+      final strokes = DrawingConverter.captureFromSignatureController(
         controller: _controller,
         authorId: currentUser.uid,
         authorName: currentUser.displayName ?? 'Unknown',
+        strokeColor: _selectedColor,
+        strokeWidth: _strokeWidth,
       );
 
       // 既存のストロークと結合
@@ -185,25 +181,14 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
               children: [
                 // 描画ツールバー
                 _buildToolbar(),
-                // キャンバス（明示的なサイズ指定）
+                // キャンバス
                 Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      AppLogger.info(
-                          '🎨 [WHITEBOARD] キャンバスサイズ: ${constraints.maxWidth} x ${constraints.maxHeight}');
-                      return SizedBox(
-                        width: constraints.maxWidth,
-                        height: constraints.maxHeight,
-                        child: DrawingBoard(
-                          controller: _controller,
-                          background: Container(
-                            color: Colors.white,
-                            width: constraints.maxWidth,
-                            height: constraints.maxHeight,
-                          ),
-                        ),
-                      );
-                    },
+                  child: Container(
+                    color: Colors.white,
+                    child: Signature(
+                      controller: _controller,
+                      backgroundColor: Colors.white,
+                    ),
                   ),
                 ),
               ],
@@ -238,9 +223,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       color: Colors.grey[200],
       child: Row(
         children: [
-          // 色選択（赤を最初に）
-          _buildColorButton(Colors.red),
+          // 色選択
           _buildColorButton(Colors.black),
+          _buildColorButton(Colors.red),
           _buildColorButton(Colors.blue),
           _buildColorButton(Colors.green),
           _buildColorButton(Colors.yellow),
@@ -256,11 +241,17 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
             divisions: 9,
             label: _strokeWidth.toStringAsFixed(0),
             onChanged: (value) {
-              setState(() => _strokeWidth = value);
-              _controller.setStyle(
-                strokeWidth: value,
-                color: _selectedColor,
-              );
+              setState(() {
+                _strokeWidth = value;
+                // SignatureControllerは再作成が必要
+                final points = _controller.points;
+                _controller.dispose();
+                _controller = SignatureController(
+                  penStrokeWidth: value,
+                  penColor: _selectedColor,
+                  points: points,
+                );
+              });
             },
           ),
           const Spacer(),
@@ -269,18 +260,6 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
             icon: const Icon(Icons.delete_outline),
             onPressed: () => _controller.clear(),
             tooltip: '全消去',
-          ),
-          // 取り消しボタン
-          IconButton(
-            icon: const Icon(Icons.undo),
-            onPressed: () => _controller.undo(),
-            tooltip: '取り消し',
-          ),
-          // やり直しボタン
-          IconButton(
-            icon: const Icon(Icons.redo),
-            onPressed: () => _controller.redo(),
-            tooltip: 'やり直し',
           ),
         ],
       ),
@@ -292,11 +271,17 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     final isSelected = _selectedColor == color;
     return GestureDetector(
       onTap: () {
-        setState(() => _selectedColor = color);
-        _controller.setStyle(
-          strokeWidth: _strokeWidth,
-          color: color,
-        );
+        setState(() {
+          _selectedColor = color;
+          // SignatureControllerは再作成が必要
+          final points = _controller.points;
+          _controller.dispose();
+          _controller = SignatureController(
+            penStrokeWidth: _strokeWidth,
+            penColor: color,
+            points: points,
+          );
+        });
       },
       child: Container(
         width: 36,

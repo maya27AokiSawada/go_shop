@@ -1,126 +1,79 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_drawing_board/flutter_drawing_board.dart';
+import 'package:signature/signature.dart';
 import 'package:uuid/uuid.dart';
 import '../models/whiteboard.dart';
 
 const _uuid = Uuid();
 
-/// flutter_drawing_board の JSON と カスタムモデル の変換ユーティリティ
+/// signature パッケージと カスタムモデル の変換ユーティリティ
 class DrawingConverter {
-  /// flutter_drawing_board の DrawConfig JSON から DrawingStroke に変換
-  static DrawingStroke jsonToStroke({
-    required Map<String, dynamic> json,
+  /// SignatureController から DrawingStroke リストを生成
+  static List<DrawingStroke> captureFromSignatureController({
+    required SignatureController controller,
     required String authorId,
     required String authorName,
+    required Color strokeColor,
+    required double strokeWidth,
   }) {
-    final type = json['type'] as String?;
-    final paint = json['paint'] as Map<String, dynamic>?;
-    final points = json['data'] as List<dynamic>?;
+    final points = controller.points;
+    if (points.isEmpty) return [];
 
-    // 色情報取得（デフォルト: 黒）
-    int colorValue = Colors.black.value;
-    if (paint != null && paint.containsKey('color')) {
-      colorValue = paint['color'] as int;
-    }
+    // signature パッケージは List<Point> 形式
+    // 連続した点を1つのストロークとして扱う
+    final drawingPoints = points
+        .map((p) => DrawingPoint(
+              x: p.offset.dx,
+              y: p.offset.dy,
+            ))
+        .toList();
 
-    // 線幅取得（デフォルト: 3.0）
-    double strokeWidth = 3.0;
-    if (paint != null && paint.containsKey('strokeWidth')) {
-      strokeWidth = (paint['strokeWidth'] as num).toDouble();
-    }
+    return [
+      DrawingStroke(
+        strokeId: _uuid.v4(),
+        points: drawingPoints,
+        colorValue: strokeColor.value,
+        strokeWidth: strokeWidth,
+        createdAt: DateTime.now(),
+        authorId: authorId,
+        authorName: authorName,
+      ),
+    ];
+  }
 
-    // 座標データ変換
-    final drawingPoints = <DrawingPoint>[];
-    if (points != null) {
-      for (final point in points) {
-        if (point is Map<String, dynamic>) {
-          final dx = (point['dx'] as num?)?.toDouble() ?? 0.0;
-          final dy = (point['dy'] as num?)?.toDouble() ?? 0.0;
-          drawingPoints.add(DrawingPoint(x: dx, y: dy));
-        }
+  /// DrawingStroke リストを SignatureController に復元
+  static void restoreToSignatureController({
+    required SignatureController controller,
+    required List<DrawingStroke> strokes,
+  }) {
+    // signature パッケージでは、すべてのストロークを1つのポイントリストに結合
+    final allPoints = <Point>[];
+
+    for (final stroke in strokes) {
+      for (final point in stroke.points) {
+        allPoints.add(Point(
+          Offset(point.x, point.y),
+          PointType.tap, // 連続した線として描画
+        ));
       }
     }
 
-    return DrawingStroke(
-      strokeId: _uuid.v4(),
-      points: drawingPoints,
-      colorValue: colorValue,
-      strokeWidth: strokeWidth,
-      createdAt: DateTime.now(),
-      authorId: authorId,
-      authorName: authorName,
-    );
+    // SignatureControllerを再作成してポイントを設定
+    // 注: 既存のコントローラーには直接追加できないため、呼び出し元で対応が必要
   }
 
-  /// DrawingStroke から flutter_drawing_board の DrawConfig JSON に変換
-  static Map<String, dynamic> strokeToJson(DrawingStroke stroke) {
-    return {
-      'type': 'StraightLine', // flutter_drawing_board のデフォルトタイプ
-      'paint': {
-        'blendMode': 3, // BlendMode.srcOver
-        'color': stroke.colorValue,
-        'filterQuality': 3, // FilterQuality.low
-        'invertColors': false,
-        'isAntiAlias': true,
-        'strokeCap': 1, // StrokeCap.round
-        'strokeJoin': 1, // StrokeJoin.round
-        'strokeWidth': stroke.strokeWidth,
-        'style': 1, // PaintingStyle.stroke
-      },
-      'data': stroke.points
-          .map((p) => {
-                'dx': p.x,
-                'dy': p.y,
-              })
-          .toList(),
-    };
-  }
+  /// DrawingStroke リストから List<Point> を生成（SignatureController用）
+  static List<Point> strokesToPoints(List<DrawingStroke> strokes) {
+    final allPoints = <Point>[];
 
-  /// 複数ストロークを一括変換 (DrawingStroke → JSON List)
-  static List<Map<String, dynamic>> strokesToJsonList(
-    List<DrawingStroke> strokes,
-  ) {
-    return strokes.map((s) => strokeToJson(s)).toList();
-  }
+    for (final stroke in strokes) {
+      for (final point in stroke.points) {
+        allPoints.add(Point(
+          Offset(point.x, point.y),
+          PointType.tap,
+        ));
+      }
+    }
 
-  /// 複数ストロークを一括変換 (JSON List → DrawingStroke)
-  static List<DrawingStroke> jsonListToStrokes({
-    required List<Map<String, dynamic>> jsonList,
-    required String authorId,
-    required String authorName,
-  }) {
-    return jsonList
-        .map((json) => jsonToStroke(
-              json: json,
-              authorId: authorId,
-              authorName: authorName,
-            ))
-        .toList();
-  }
-
-  /// DrawingController から現在の描画データを DrawingStroke リストに変換
-  static List<DrawingStroke> captureFromController({
-    required DrawingController controller,
-    required String authorId,
-    required String authorName,
-  }) {
-    final jsonList = controller.getJsonList();
-    return jsonListToStrokes(
-      jsonList: jsonList,
-      authorId: authorId,
-      authorName: authorName,
-    );
-  }
-
-  /// DrawingStroke リストを DrawingController に復元
-  static void restoreToController({
-    required DrawingController controller,
-    required List<DrawingStroke> strokes,
-  }) {
-    final jsonList = strokesToJsonList(strokes);
-    // flutter_drawing_board 1.0.1+1 doesn't support setJsonList
-    // Manual restoration is required
-    controller.clear();
-    // TODO: Implement manual stroke-by-stroke restoration if needed
+    return allPoints;
   }
 }
