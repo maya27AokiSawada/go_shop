@@ -26,13 +26,15 @@ class WhiteboardEditorPage extends ConsumerStatefulWidget {
 class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   late final DrawingController _controller;
   bool _isSaving = false;
-  Color _selectedColor = Colors.black;
-  double _strokeWidth = 3.0;
+  Color _selectedColor = Colors.red; // 🔴 デバッグ用に赤に変更
+  double _strokeWidth = 5.0; // 太めに設定
 
   @override
   void initState() {
     super.initState();
     _controller = DrawingController();
+
+    AppLogger.info('🎨 [WHITEBOARD] DrawingController初期化完了');
 
     // 初期スタイル設定（描画できるようにする）
     _controller.setStyle(
@@ -40,12 +42,18 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       color: _selectedColor,
     );
 
+    final colorHex = _selectedColor.value.toRadixString(16).padLeft(8, '0');
+    AppLogger.info(
+        '🎨 [WHITEBOARD] スタイル設定完了 - color: #$colorHex (${_selectedColor.toString()}), width: $_strokeWidth');
+
     // 既存のストロークを復元
     if (widget.whiteboard.strokes.isNotEmpty) {
       DrawingConverter.restoreToController(
         controller: _controller,
         strokes: widget.whiteboard.strokes,
       );
+      AppLogger.info(
+          '🎨 [WHITEBOARD] ${widget.whiteboard.strokes.length}個のストロークを復元');
     }
   }
 
@@ -133,6 +141,11 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     final canEdit =
         currentUser != null && widget.whiteboard.canEdit(currentUser.uid);
 
+    AppLogger.info(
+        '🎨 [WHITEBOARD] build - canEdit: $canEdit, userId: ${currentUser?.uid}');
+    AppLogger.info(
+        '🎨 [WHITEBOARD] whiteboard - isPrivate: ${widget.whiteboard.isPrivate}, ownerId: ${widget.whiteboard.ownerId}');
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -174,15 +187,25 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                 _buildToolbar(),
                 // キャンバス
                 Expanded(
-                  child: DrawingBoard(
-                    controller: _controller,
-                    background: Container(
-                      color: Colors.white,
-                      width: double.infinity,
-                      height: double.infinity,
+                  child: Container(
+                    color: Colors.white,
+                    child: GestureDetector(
+                      onPanStart: (details) {
+                        AppLogger.info(
+                            '✍️ [WHITEBOARD] タッチ開始: ${details.localPosition}');
+                      },
+                      onPanUpdate: (details) {
+                        AppLogger.info(
+                            '✍️ [WHITEBOARD] タッチ移動: ${details.localPosition}');
+                      },
+                      onPanEnd: (details) {
+                        AppLogger.info('✍️ [WHITEBOARD] タッチ終了');
+                      },
+                      child: DrawingBoard(
+                        controller: _controller,
+                        background: Container(color: Colors.white),
+                      ),
                     ),
-                    boardPanEnabled: false, // パンを無効化（描画優先）
-                    boardScaleEnabled: false, // スケールを無効化（描画優先）
                   ),
                 ),
               ],
@@ -217,9 +240,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       color: Colors.grey[200],
       child: Row(
         children: [
-          // 色選択
-          _buildColorButton(Colors.black),
+          // 色選択（赤を最初に）
           _buildColorButton(Colors.red),
+          _buildColorButton(Colors.black),
           _buildColorButton(Colors.blue),
           _buildColorButton(Colors.green),
           _buildColorButton(Colors.yellow),
