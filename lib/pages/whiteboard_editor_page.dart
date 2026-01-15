@@ -260,57 +260,70 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     );
   }
 
-  /// 描画ツールバー
+  /// 描画ツールバー（2段構成）
   Widget _buildToolbar() {
     return Container(
       padding: const EdgeInsets.all(8),
       color: Colors.grey[200],
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // 色選択
-          _buildColorButton(Colors.black),
-          _buildColorButton(Colors.red),
-          _buildColorButton(Colors.blue),
-          _buildColorButton(Colors.green),
-          _buildColorButton(Colors.yellow),
-          _buildColorButton(Colors.orange),
-          _buildColorButton(Colors.purple),
-          const SizedBox(width: 16),
-          // 線幅選択
-          const Text('太さ:'),
-          Slider(
-            value: _strokeWidth,
-            min: 1.0,
-            max: 10.0,
-            divisions: 9,
-            label: _strokeWidth.toStringAsFixed(0),
-            onChanged: (value) {
-              setState(() {
-                // 現在の描画を保存
-                _captureCurrentDrawing();
-
-                _strokeWidth = value;
-                // SignatureControllerは再作成が必要（空でスタート）
-                _controller?.dispose();
-                _controller = SignatureController(
-                  penStrokeWidth: value,
-                  penColor: _selectedColor,
-                );
-                _controllerKey++; // キー更新でウィジェット再構築
-              });
-            },
+          // 上段：色選択
+          Row(
+            children: [
+              const Text('色:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(width: 8),
+              _buildColorButton(Colors.black),
+              _buildColorButton(Colors.red),
+              _buildColorButton(Colors.blue),
+              _buildColorButton(Colors.green),
+              _buildColorButton(Colors.yellow),
+              _buildColorButton(Colors.orange),
+              _buildColorButton(Colors.purple),
+            ],
           ),
-          const Spacer(),
-          // 消去ボタン
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            onPressed: () {
-              setState(() {
-                _workingStrokes.clear();
-                _controller!.clear();
-              });
-            },
-            tooltip: '全消去',
+          const SizedBox(height: 8),
+          // 下段：線幅 + 消去ボタン
+          Row(
+            children: [
+              const Text('太さ:'),
+              Expanded(
+                child: Slider(
+                  value: _strokeWidth,
+                  min: 1.0,
+                  max: 10.0,
+                  divisions: 9,
+                  label: _strokeWidth.toStringAsFixed(0),
+                  onChanged: (value) {
+                    setState(() {
+                      // 現在の描画を保存
+                      _captureCurrentDrawing();
+
+                      _strokeWidth = value;
+                      // SignatureControllerは再作成が必要（空でスタート）
+                      _controller?.dispose();
+                      _controller = SignatureController(
+                        penStrokeWidth: value,
+                        penColor: _selectedColor,
+                      );
+                      _controllerKey++; // キー更新でウィジェット再構築
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              // 消去ボタン
+              IconButton(
+                icon: const Icon(Icons.delete_outline),
+                onPressed: () {
+                  setState(() {
+                    _workingStrokes.clear();
+                    _controller!.clear();
+                  });
+                },
+                tooltip: '全消去',
+              ),
+            ],
           ),
         ],
       ),
