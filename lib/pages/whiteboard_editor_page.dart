@@ -224,102 +224,106 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
             ),
         ],
       ),
-      body: canEdit
-          ? Column(
-              children: [
-                // 描画ツールバー
-                _buildToolbar(),
-                // キャンバス（スクロール可能）
-                Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      // キャンバスの実際のサイズを計算
-                      final canvasWidth = constraints.maxWidth * _canvasScale;
-                      final canvasHeight = constraints.maxHeight * _canvasScale;
+      body: Column(
+        children: [
+          // 編集可能な場合のみツールバー表示
+          if (canEdit) _buildToolbar(),
 
-                      return Scrollbar(
-                        controller: _horizontalScrollController,
-                        thumbVisibility: true, // 常にスクロールバーを表示
-                        trackVisibility: true,
-                        child: Scrollbar(
-                          controller: _verticalScrollController,
-                          thumbVisibility: true,
-                          trackVisibility: true,
-                          notificationPredicate: (notification) =>
-                              notification.depth == 1,
-                          child: SingleChildScrollView(
-                            controller: _horizontalScrollController,
-                            scrollDirection: Axis.horizontal,
-                            physics: _isScrollLocked
-                                ? const NeverScrollableScrollPhysics()
-                                : const AlwaysScrollableScrollPhysics(),
-                            child: SingleChildScrollView(
-                              controller: _verticalScrollController,
-                              scrollDirection: Axis.vertical,
-                              physics: _isScrollLocked
-                                  ? const NeverScrollableScrollPhysics()
-                                  : const AlwaysScrollableScrollPhysics(),
-                              child: Container(
-                                width: canvasWidth,
-                                height: canvasHeight,
-                                color: Colors.white,
-                                child: Stack(
-                                  children: [
-                                    // グリッド線（最背面）
-                                    _buildGridOverlay(
-                                        canvasWidth, canvasHeight),
-                                    // 背景：保存済みストロークを描画
-                                    Positioned.fill(
-                                      child: CustomPaint(
-                                        painter: DrawingStrokePainter(
-                                            _workingStrokes),
-                                      ),
-                                    ),
-                                    // 前景：現在の描画セッション（最前面）
-                                    Positioned.fill(
-                                      child: IgnorePointer(
-                                        ignoring:
-                                            !_isScrollLocked, // スクロールロック時のみ描画可能
-                                        child: Signature(
-                                          key: ValueKey(
-                                              'signature_$_controllerKey'),
-                                          controller: _controller!,
-                                          backgroundColor: Colors.transparent,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+          // キャンバス（閲覧専用または編集可能）
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // キャンバスの実際のサイズを計算
+                final canvasWidth = constraints.maxWidth * _canvasScale;
+                final canvasHeight = constraints.maxHeight * _canvasScale;
+
+                return Scrollbar(
+                  controller: _horizontalScrollController,
+                  thumbVisibility: true, // 常にスクロールバーを表示
+                  trackVisibility: true,
+                  child: Scrollbar(
+                    controller: _verticalScrollController,
+                    thumbVisibility: true,
+                    trackVisibility: true,
+                    notificationPredicate: (notification) =>
+                        notification.depth == 1,
+                    child: SingleChildScrollView(
+                      controller: _horizontalScrollController,
+                      scrollDirection: Axis.horizontal,
+                      physics: _isScrollLocked && canEdit
+                          ? const NeverScrollableScrollPhysics()
+                          : const AlwaysScrollableScrollPhysics(),
+                      child: SingleChildScrollView(
+                        controller: _verticalScrollController,
+                        scrollDirection: Axis.vertical,
+                        physics: _isScrollLocked && canEdit
+                            ? const NeverScrollableScrollPhysics()
+                            : const AlwaysScrollableScrollPhysics(),
+                        child: Container(
+                          width: canvasWidth,
+                          height: canvasHeight,
+                          color: Colors.white,
+                          child: Stack(
+                            children: [
+                              // グリッド線（最背面）
+                              _buildGridOverlay(canvasWidth, canvasHeight),
+                              // 背景：保存済みストロークを描画
+                              Positioned.fill(
+                                child: CustomPaint(
+                                  painter:
+                                      DrawingStrokePainter(_workingStrokes),
                                 ),
                               ),
-                            ),
+                              // 前景：現在の描画セッション（編集可能な場合のみ）
+                              if (canEdit)
+                                Positioned.fill(
+                                  child: IgnorePointer(
+                                    ignoring:
+                                        !_isScrollLocked, // スクロールロック時のみ描画可能
+                                    child: Signature(
+                                      key:
+                                          ValueKey('signature_$_controllerKey'),
+                                      controller: _controller!,
+                                      backgroundColor: Colors.transparent,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
-                      );
-                    },
+                      ),
+                    ),
                   ),
-                ),
-              ],
-            )
-          : Center(
-              child: Column(
+                );
+              },
+            ),
+          ),
+
+          // 閲覧専用インジケーター
+          if (!canEdit)
+            Container(
+              padding: const EdgeInsets.all(8),
+              color: Colors.orange[100],
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.lock, size: 64, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  Text(
-                    '編集権限がありません',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 8),
+                  Icon(Icons.visibility, size: 16, color: Colors.orange[900]),
+                  const SizedBox(width: 8),
                   Text(
                     widget.whiteboard.isPrivate
-                        ? 'このホワイトボードは${widget.whiteboard.ownerId}さん専用です'
-                        : '閲覧のみ可能です',
-                    style: Theme.of(context).textTheme.bodyMedium,
+                        ? '閲覧専用: このホワイトボードは編集制限されています'
+                        : '閲覧専用',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.orange[900],
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
             ),
+        ],
+      ),
     );
   }
 
