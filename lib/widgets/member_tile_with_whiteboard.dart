@@ -24,8 +24,7 @@ class MemberTileWithWhiteboard extends ConsumerWidget {
     final isCurrentUser = currentUser?.uid == member.memberId;
 
     return InkWell(
-      onDoubleTap:
-          isCurrentUser ? () => _openPersonalWhiteboard(context, ref) : null,
+      onDoubleTap: () => _openPersonalWhiteboard(context, ref),
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: _getRoleColor(member.role),
@@ -54,19 +53,21 @@ class MemberTileWithWhiteboard extends ConsumerWidget {
           ],
         ),
         subtitle: Text(_getRoleLabel(member.role)),
-        trailing: isCurrentUser
-            ? Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.draw, size: 16, color: Colors.grey[600]),
-                  const SizedBox(width: 4),
-                  Text(
-                    'ダブルタップ',
-                    style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-                  ),
-                ],
-              )
-            : null,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isCurrentUser ? Icons.draw : Icons.visibility,
+              size: 16,
+              color: Colors.grey[600],
+            ),
+            const SizedBox(width: 4),
+            Text(
+              isCurrentUser ? 'ダブルタップ' : '閲覧可',
+              style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+            ),
+          ],
+        ),
       ),
     );
   }
