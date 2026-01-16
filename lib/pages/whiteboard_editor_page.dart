@@ -31,6 +31,16 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   int _controllerKey = 0; // コントローラー再作成カウンター
   final List<DrawingStroke> _workingStrokes = []; // 作業中のストロークリスト
 
+  // スクロール用のコントローラー
+  final ScrollController _horizontalScrollController = ScrollController();
+  final ScrollController _verticalScrollController = ScrollController();
+
+  // キャンバスサイズ（デバイス画面サイズの倍数）
+  double _canvasScale = 2.0; // 2倍のキャンバスサイズ
+
+  // スクロールロック（trueでスクロール無効、falseでスクロール有効）
+  bool _isScrollLocked = false;
+
   @override
   void initState() {
     super.initState();
@@ -54,6 +64,8 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   @override
   void dispose() {
     _controller?.dispose();
+    _horizontalScrollController.dispose();
+    _verticalScrollController.dispose();
     super.dispose();
   }
 
@@ -213,26 +225,73 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
               children: [
                 // 描画ツールバー
                 _buildToolbar(),
-                // キャンバス
+                // キャンバス（スクロール可能）
                 Expanded(
-                  child: Container(
-                    color: Colors.white,
-                    child: Stack(
-                      children: [
-                        // 背景：保存済みストロークを描画
-                        Positioned.fill(
-                          child: CustomPaint(
-                            painter: DrawingStrokePainter(_workingStrokes),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      // キャンバスの実際のサイズを計算
+                      final canvasWidth = constraints.maxWidth * _canvasScale;
+                      final canvasHeight = constraints.maxHeight * _canvasScale;
+
+                      return Scrollbar(
+                        controller: _horizontalScrollController,
+                        thumbVisibility: true, // 常にスクロールバーを表示
+                        trackVisibility: true,
+                        child: Scrollbar(
+                          controller: _verticalScrollController,
+                          thumbVisibility: true,
+                          trackVisibility: true,
+                          notificationPredicate: (notification) =>
+                              notification.depth == 1,
+                          child: SingleChildScrollView(
+                            controller: _horizontalScrollController,
+                            scrollDirection: Axis.horizontal,
+                            physics: _isScrollLocked
+                                ? const NeverScrollableScrollPhysics()
+                                : const AlwaysScrollableScrollPhysics(),
+                            child: SingleChildScrollView(
+                              controller: _verticalScrollController,
+                              scrollDirection: Axis.vertical,
+                              physics: _isScrollLocked
+                                  ? const NeverScrollableScrollPhysics()
+                                  : const AlwaysScrollableScrollPhysics(),
+                              child: Container(
+                                width: canvasWidth,
+                                height: canvasHeight,
+                                color: Colors.white,
+                                child: Stack(
+                                  children: [
+                                    // グリッド線（最背面）
+                                    _buildGridOverlay(
+                                        canvasWidth, canvasHeight),
+                                    // 背景：保存済みストロークを描画
+                                    Positioned.fill(
+                                      child: CustomPaint(
+                                        painter: DrawingStrokePainter(
+                                            _workingStrokes),
+                                      ),
+                                    ),
+                                    // 前景：現在の描画セッション（最前面）
+                                    Positioned.fill(
+                                      child: IgnorePointer(
+                                        ignoring:
+                                            !_isScrollLocked, // スクロールロック時のみ描画可能
+                                        child: Signature(
+                                          key: ValueKey(
+                                              'signature_$_controllerKey'),
+                                          controller: _controller!,
+                                          backgroundColor: Colors.transparent,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
                         ),
-                        // 前景：現在の描画セッション
-                        Signature(
-                          key: ValueKey('signature_$_controllerKey'),
-                          controller: _controller!,
-                          backgroundColor: Colors.transparent,
-                        ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
                 ),
               ],
@@ -283,11 +342,12 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
             ],
           ),
           const SizedBox(height: 8),
-          // 下段：線幅 + 消去ボタン
+          // 下段：線幅 + キャンバスサイズ + 消去ボタン
           Row(
             children: [
               const Text('太さ:'),
               Expanded(
+                flex: 2,
                 child: Slider(
                   value: _strokeWidth,
                   min: 1.0,
@@ -298,7 +358,6 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                     setState(() {
                       // 現在の描画を保存
                       _captureCurrentDrawing();
-
                       _strokeWidth = value;
                       // SignatureControllerは再作成が必要（空でスタート）
                       _controller?.dispose();
@@ -310,6 +369,38 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                     });
                   },
                 ),
+              ),
+              const SizedBox(width: 8),
+              // キャンバスサイズ選択
+              DropdownButton<double>(
+                value: _canvasScale,
+                items: const [
+                  DropdownMenuItem(value: 1.0, child: Text('1x')),
+                  DropdownMenuItem(value: 2.0, child: Text('2x')),
+                  DropdownMenuItem(value: 3.0, child: Text('3x')),
+                  DropdownMenuItem(value: 4.0, child: Text('4x')),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      _canvasScale = value;
+                    });
+                  }
+                },
+              ),
+              const SizedBox(width: 8),
+              // スクロールロックボタン
+              IconButton(
+                icon: Icon(
+                  _isScrollLocked ? Icons.lock : Icons.lock_open,
+                  color: _isScrollLocked ? Colors.blue : Colors.grey,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _isScrollLocked = !_isScrollLocked;
+                  });
+                },
+                tooltip: _isScrollLocked ? 'スクロール無効（描画モード）' : 'スクロール有効',
               ),
               const SizedBox(width: 8),
               // 消去ボタン
@@ -326,6 +417,17 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  /// グリッド線オーバーレイ（オプション）
+  Widget _buildGridOverlay(double width, double height) {
+    return CustomPaint(
+      size: Size(width, height),
+      painter: GridPainter(
+        gridSize: 50.0, // 50pxごとにグリッド線
+        color: Colors.grey.withOpacity(0.2),
       ),
     );
   }
@@ -410,5 +512,47 @@ class DrawingStrokePainter extends CustomPainter {
   @override
   bool shouldRepaint(DrawingStrokePainter oldDelegate) {
     return strokes != oldDelegate.strokes;
+  }
+}
+
+/// グリッド線を描画するCustomPainter
+class GridPainter extends CustomPainter {
+  final double gridSize;
+  final Color color;
+
+  GridPainter({
+    required this.gridSize,
+    required this.color,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.0
+      ..style = PaintingStyle.stroke;
+
+    // 縦線
+    for (double x = 0; x <= size.width; x += gridSize) {
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x, size.height),
+        paint,
+      );
+    }
+
+    // 横線
+    for (double y = 0; y <= size.height; y += gridSize) {
+      canvas.drawLine(
+        Offset(0, y),
+        Offset(size.width, y),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(GridPainter oldDelegate) {
+    return gridSize != oldDelegate.gridSize || color != oldDelegate.color;
   }
 }
