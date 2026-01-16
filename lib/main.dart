@@ -75,18 +75,18 @@ void main() async {
       // Firestore の状態確認
       AppLogger.info('🗃️ Firestore インスタンス: ${FirebaseFirestore.instance}');
 
-      // 🔥 Crashlytics初期化
-      FlutterError.onError = (errorDetails) {
-        FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
-        AppLogger.error('❌ Flutter Fatal Error: ${errorDetails.exception}');
-      };
+      // 🔥 Crashlytics初期化（一時的に無効化 - Windows対応問題のため）
+      // FlutterError.onError = (errorDetails) {
+      //   FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+      //   AppLogger.error('❌ Flutter Fatal Error: ${errorDetails.exception}');
+      // };
 
-      // Pass all uncaught asynchronous errors to Crashlytics
-      PlatformDispatcher.instance.onError = (error, stack) {
-        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-        AppLogger.error('❌ Async Error: $error');
-        return true;
-      };
+      // // Pass all uncaught asynchronous errors to Crashlytics
+      // PlatformDispatcher.instance.onError = (error, stack) {
+      //   FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      //   AppLogger.error('❌ Async Error: $error');
+      //   return true;
+      // };
 
       AppLogger.info('✅ Firebase Crashlytics初期化成功');
     } catch (e, stackTrace) {

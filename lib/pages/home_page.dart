@@ -652,6 +652,14 @@ class _HomePageState extends ConsumerState<HomePage> {
         data: (user) {
           final isAuthenticated = user != null;
 
+          // 🔍 デバッグログ: 現在の認証状態とユーザー情報
+          if (isAuthenticated) {
+            AppLogger.info(
+                '🔍 [HOME_BUILD] ログイン中 - UID: ${AppLogger.maskUserId(user.uid)}, Email: ${user.email}, DisplayName: ${AppLogger.maskName(user.displayName)}');
+          } else {
+            AppLogger.info('🔍 [HOME_BUILD] 未ログイン状態');
+          }
+
           // 未認証時はサインイン画面を表示
           if (!isAuthenticated) {
             return _buildSignInScreen();

@@ -481,8 +481,20 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
 
       // 🔥 CRITICAL: allowedUidに現在ユーザーが含まれないグループを除外
       final currentUser = ref.read(authStateProvider).value;
+      Log.info(
+          '🔍 [ALL GROUPS] 現在のユーザー: ${AppLogger.maskUserId(currentUser?.uid)}');
+
       if (currentUser != null) {
         final beforeFilterCount = allGroups.length;
+        Log.info('🔍 [ALL GROUPS] フィルタリング前: $beforeFilterCount グループ');
+
+        // 各グループの詳細をログ出力
+        for (final group in allGroups) {
+          final hasCurrentUser = group.allowedUid.contains(currentUser.uid);
+          Log.info(
+              '  📋 [GROUP] ${AppLogger.maskGroup(group.groupName, group.groupId)} - allowedUid: ${group.allowedUid.map((uid) => AppLogger.maskUserId(uid)).toList()} - 含む: $hasCurrentUser');
+        }
+
         allGroups = allGroups
             .where((g) => g.allowedUid.contains(currentUser.uid))
             .toList();
@@ -491,6 +503,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
           Log.warning(
               '⚠️ [ALL GROUPS] allowedUid不一致グループを除外: $invalidCount グループ');
         }
+        Log.info('🔍 [ALL GROUPS] フィルタリング後: ${allGroups.length} グループ');
       }
 
       Log.info('🔄 [ALL GROUPS] Hive直接取得完了: ${allGroups.length}グループ');

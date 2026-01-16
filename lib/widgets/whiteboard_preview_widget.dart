@@ -32,6 +32,12 @@ class WhiteboardPreviewWidget extends ConsumerWidget {
           return _buildCreateButton(context, ref);
         }
 
+        // 🔍 デバッグログ: プレビュー表示時のホワイトボード情報
+        AppLogger.info(
+            '🎨 [PREVIEW] ホワイトボードプレビュー表示 - whiteboardId: ${whiteboard.whiteboardId}');
+        AppLogger.info(
+            '🎨 [PREVIEW] ownerId: ${AppLogger.maskUserId(whiteboard.ownerId)}, isGroupWhiteboard: ${whiteboard.isGroupWhiteboard}');
+
         // プレビュー表示
         return GestureDetector(
           onDoubleTap: () => _openEditor(context, ref, whiteboard),
@@ -158,10 +164,18 @@ class WhiteboardPreviewWidget extends ConsumerWidget {
   ) async {
     try {
       final repository = ref.read(whiteboardRepositoryProvider);
+      AppLogger.info(
+          '🎨 [CREATE] グループ共通ホワイトボード作成開始 - groupId: $groupId, ownerId: null');
+
       final whiteboard = await repository.createWhiteboard(
         groupId: groupId,
         ownerId: null, // グループ共通
       );
+
+      AppLogger.info(
+          '🎨 [CREATE] 作成完了 - whiteboardId: ${whiteboard.whiteboardId}, ownerId: ${AppLogger.maskUserId(whiteboard.ownerId)}');
+      AppLogger.info(
+          '🎨 [CREATE] isGroupWhiteboard: ${whiteboard.isGroupWhiteboard}');
 
       if (context.mounted) {
         await Navigator.of(context).push(
