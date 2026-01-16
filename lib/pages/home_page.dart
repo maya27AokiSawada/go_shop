@@ -88,10 +88,40 @@ class _HomePageState extends ConsumerState<HomePage> {
       final password = passwordController.text;
       final userName = userNameController.text.trim();
 
+      // 🔍 デバッグ: 入力値確認
+      AppLogger.info(
+          '🔍 [SIGNUP DEBUG] 入力されたユーザー名: "${AppLogger.maskName(userName)}" (長さ: ${userName.length})');
+      AppLogger.info(
+          '🔍 [SIGNUP DEBUG] メールアドレス: ${AppLogger.maskUserId(email)}');
+
+      // ✅ ディスプレイネームが空の場合はエラー（バリデーション通過してもダブルチェック）
+      if (userName.isEmpty) {
+        AppLogger.error('❌ [SIGNUP] ディスプレイネームが空です！');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('ディスプレイネームを入力してください'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        setState(() => _isLoading = false);
+        return;
+      }
+
       // 新規登録前に古いデータをクリア（順序重要！）
       // 1. SharedPreferencesをクリア（古いユーザー名を削除）
       await UserPreferencesService.clearAllUserInfo();
       AppLogger.info('🗑️ [SIGNUP] SharedPreferences 全ユーザー情報をクリア');
+
+      // 🔥 CRITICAL: Firebase Auth登録前にユーザー名を保存（authStateChanges発火時に参照できるように）
+      await UserPreferencesService.saveUserName(userName);
+      AppLogger.info(
+          '✅ [SIGNUP] ディスプレイネームをPreferencesに事前保存: ${AppLogger.maskName(userName)}');
+
+      // メールアドレスもPreferencesに事前保存
+      await UserPreferencesService.saveUserEmail(email);
+      AppLogger.info('✅ [SIGNUP] メールアドレスをPreferencesに事前保存');
 
       // 2. Hiveデータをクリア（Firebase Auth登録前に実行）
       final SharedGroupBox = ref.read(SharedGroupBoxProvider);
@@ -126,14 +156,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       AppLogger.info(
           '✅ [SIGNUP] Firestoreにユーザープロファイル作成: ${AppLogger.maskName(userName)}');
 
-      // ディスプレイネームをPreferencesに保存
-      await UserPreferencesService.saveUserName(userName);
-      AppLogger.info(
-          '✅ [SIGNUP] ディスプレイネームをPreferencesに保存: ${AppLogger.maskName(userName)}');
-
-      // メールアドレスをPreferencesに保存
-      await UserPreferencesService.saveUserEmail(email);
-      AppLogger.info('✅ [SIGNUP] メールアドレスをPreferencesに保存');
+      // 📝 注: ディスプレイネーム・メールアドレスは既にPreferencesに事前保存済み（Firebase Auth登録前）
 
       // Firestoreデータ反映を待つ（書き込み完了まで待機）
       AppLogger.info('⏳ [SIGNUP] Firestoreデータ反映待機中...');

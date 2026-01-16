@@ -174,13 +174,17 @@ class FirestoreUserNameService {
 
       final currentEmail = user.email ?? '';
 
+      // 🔍 デバッグ: パラメータ確認
+      Log.info(
+          '🔍 [PROFILE DEBUG] userNameパラメータ: ${userName != null ? AppLogger.maskName(userName) : "null"} (isEmpty: ${userName?.isEmpty})');
+
       // userNameパラメータが指定されている場合は、必ず使用する（新規作成時も既存更新時も）
-      if (userName != null && userName.isNotEmpty) {
+      if (userName != null && userName.trim().isNotEmpty) {
         Log.info(
             '📝 [PROFILE] 指定されたユーザー名で作成/更新: ${AppLogger.maskName(userName)}');
 
         final dataToSave = {
-          'displayName': userName,
+          'displayName': userName.trim(), // ✅ trim()を追加
           'email': currentEmail,
           'updatedAt': FieldValue.serverTimestamp(),
         };
@@ -204,12 +208,16 @@ class FirestoreUserNameService {
         return;
       }
 
-      // userNameパラメータがない場合のみ、既存データまたはデフォルト値を使用
+      // ⚠️ userNameパラメータがnullまたは空の場合のみ、既存データまたはデフォルト値を使用
+      Log.warning('⚠️ [PROFILE] userNameパラメータが無効です。デフォルト値を使用します。');
+
       if (!docSnapshot.exists) {
         // プロファイルが存在しない場合は作成
         final defaultUserName =
             user.displayName ?? user.email?.split('@').first ?? 'ユーザー';
 
+        Log.warning(
+            '⚠️ [PROFILE] デフォルト値でドキュメント作成: ${AppLogger.maskName(defaultUserName)} (理由: userNameパラメータが空)');
         Log.info(
             '📝 [PROFILE] ドキュメント作成開始（デフォルト値使用）: ${AppLogger.maskName(defaultUserName)}');
 
