@@ -182,9 +182,13 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         currentUser != null && widget.whiteboard.canEdit(currentUser.uid);
 
     AppLogger.info(
-        '🎨 [WHITEBOARD] build - canEdit: $canEdit, userId: ${currentUser?.uid}');
+        '🎨 [WHITEBOARD] build - canEdit: $canEdit, userId: ${AppLogger.maskUserId(currentUser?.uid)}');
     AppLogger.info(
-        '🎨 [WHITEBOARD] whiteboard - isPrivate: ${widget.whiteboard.isPrivate}, ownerId: ${widget.whiteboard.ownerId}');
+        '🎨 [WHITEBOARD] whiteboard - isPrivate: ${widget.whiteboard.isPrivate}, ownerId: ${AppLogger.maskUserId(widget.whiteboard.ownerId)}');
+    AppLogger.info(
+        '🎨 [WHITEBOARD] isGroupWhiteboard: ${widget.whiteboard.isGroupWhiteboard}, isPersonalWhiteboard: ${widget.whiteboard.isPersonalWhiteboard}');
+    AppLogger.info(
+        '🎨 [WHITEBOARD] AppBar title will be: ${widget.whiteboard.isGroupWhiteboard ? "グループ共通" : "個人用"}');
 
     return Scaffold(
       appBar: AppBar(

@@ -23,18 +23,28 @@ class WhiteboardRepository {
   /// グループ共通ホワイトボード取得
   Future<Whiteboard?> getGroupWhiteboard(String groupId) async {
     try {
-      final querySnapshot = await _collection(groupId)
-          .where('ownerId', isEqualTo: null)
-          .limit(1)
-          .get();
+      // 🔥 NOTE: Firestoreでは where('ownerId', isEqualTo: null) が正しく動作しないため、
+      // 全ホワイトボードを取得してフィルタリングする
+      final querySnapshot = await _collection(groupId).get();
 
-      if (querySnapshot.docs.isEmpty) {
-        AppLogger.info('📋 グループ共通ホワイトボード未作成: $groupId');
-        return null;
+      AppLogger.info(
+          '📋 [GET_GROUP_WB] 全ホワイトボード取得: ${querySnapshot.docs.length}件');
+
+      for (final doc in querySnapshot.docs) {
+        final data = doc.data();
+        final ownerId = data['ownerId'];
+        AppLogger.info(
+            '📋 [GET_GROUP_WB] whiteboardId: ${doc.id}, ownerId: ${AppLogger.maskUserId(ownerId)}');
+
+        // ownerIdがnullのものを探す
+        if (ownerId == null) {
+          AppLogger.info('✅ [GET_GROUP_WB] グループ共通ホワイトボード発見: ${doc.id}');
+          return Whiteboard.fromFirestore(data, doc.id);
+        }
       }
 
-      final doc = querySnapshot.docs.first;
-      return Whiteboard.fromFirestore(doc.data(), doc.id);
+      AppLogger.info('📋 [GET_GROUP_WB] グループ共通ホワイトボード未作成: $groupId');
+      return null;
     } catch (e) {
       AppLogger.error('❌ グループ共通ホワイトボード取得エラー: $e');
       return null;
