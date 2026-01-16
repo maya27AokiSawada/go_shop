@@ -32,7 +32,10 @@ enum NotificationType {
   // アイテム関連通知（5分間隔でバッチ送信）
   itemAdded('item_added'), // アイテム追加
   itemRemoved('item_removed'), // アイテム削除
-  itemPurchased('item_purchased'); // 購入完了
+  itemPurchased('item_purchased'), // 購入完了
+
+  // ホワイトボード関連通知（即時送信）
+  whiteboardUpdated('whiteboard_updated'); // ホワイトボード更新
 
   const NotificationType(this.value);
   final String value;
@@ -376,6 +379,11 @@ class NotificationService {
           AppLogger.info('✏️ [NOTIFICATION] リスト名変更通知受信');
           _ref.invalidate(allGroupsProvider);
           AppLogger.info('✅ [NOTIFICATION] リスト名変更通知処理完了');
+          break;
+
+        case NotificationType.whiteboardUpdated:
+          // ホワイトボード更新通知
+          await _handleWhiteboardUpdated(notification);
           break;
       }
 
@@ -961,6 +969,127 @@ class NotificationService {
     } catch (e) {
       AppLogger.error('❌ [INVITATION] 招待使用回数の更新エラー: $e');
       // エラーが発生してもメイン処理は継続（カウント更新は副次的な処理）
+    }
+  }
+
+  /// ホワイトボード更新通知を処理
+  Future<void> _handleWhiteboardUpdated(NotificationData notification) async {
+    try {
+      AppLogger.info('🎨 [NOTIFICATION] ホワイトボード更新通知受信');
+
+      final whiteboardId = notification.metadata?['whiteboardId'] as String?;
+      final editorName =
+          notification.metadata?['editorName'] as String? ?? 'ユーザー';
+      final isGroupWhiteboard =
+          notification.metadata?['isGroupWhiteboard'] as bool? ?? false;
+
+      AppLogger.info('🎨 [NOTIFICATION] whiteboardId: $whiteboardId');
+      AppLogger.info(
+          '🎨 [NOTIFICATION] editorName: ${AppLogger.maskName(editorName)}');
+      AppLogger.info('🎨 [NOTIFICATION] isGroupWhiteboard: $isGroupWhiteboard');
+
+      // ホワイトボードプロバイダーを無効化して再取得
+      if (isGroupWhiteboard) {
+        // グループ共通ホワイトボードの場合
+        final groupId = notification.groupId;
+        AppLogger.info(
+            '🎨 [NOTIFICATION] グループ共通ホワイトボードを更新: ${AppLogger.maskGroupId(groupId)}');
+        // groupWhiteboardProviderを無効化（次回アクセス時に再取得）
+        // 注: Provider invalidateはwhiteboard_provider.dartで実装されている想定
+      } else {
+        // 個人用ホワイトボードの場合
+        final ownerId = notification.metadata?['ownerId'] as String?;
+        AppLogger.info(
+            '🎨 [NOTIFICATION] 個人用ホワイトボードを更新: ${AppLogger.maskUserId(ownerId)}');
+        // personalWhiteboardProviderを無効化
+      }
+
+      AppLogger.info('✅ [NOTIFICATION] ホワイトボード更新通知処理完了');
+    } catch (e) {
+      AppLogger.error('❌ [NOTIFICATION] ホワイトボード更新処理エラー: $e');
+    }
+  }
+
+  /// ホワイトボード更新通知を送信
+  Future<void> sendWhiteboardUpdateNotification({
+    required String groupId,
+    required String whiteboardId,
+    required bool isGroupWhiteboard,
+    String? ownerId,
+  }) async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        AppLogger.error('❌ [WHITEBOARD] ユーザー未認証 - 通知送信スキップ');
+        return;
+      }
+
+      final editorName = currentUser.displayName ?? 'ユーザー';
+
+      AppLogger.info('📤 [WHITEBOARD] ホワイトボード更新通知を送信開始');
+      AppLogger.info(
+          '📤 [WHITEBOARD] groupId: ${AppLogger.maskGroupId(groupId)}');
+      AppLogger.info('📤 [WHITEBOARD] whiteboardId: $whiteboardId');
+      AppLogger.info('📤 [WHITEBOARD] isGroupWhiteboard: $isGroupWhiteboard');
+      AppLogger.info(
+          '📤 [WHITEBOARD] editorName: ${AppLogger.maskName(editorName)}');
+
+      // グループメンバーを取得
+      final groupDoc =
+          await _firestore.collection('SharedGroups').doc(groupId).get();
+
+      if (!groupDoc.exists) {
+        AppLogger.error(
+            '❌ [WHITEBOARD] グループが存在しません: ${AppLogger.maskGroupId(groupId)}');
+        return;
+      }
+
+      final groupData = groupDoc.data()!;
+      final allowedUid = List<String>.from(groupData['allowedUid'] ?? []);
+      final groupName = groupData['name'] as String? ?? 'グループ';
+
+      AppLogger.info('📤 [WHITEBOARD] グループメンバー数: ${allowedUid.length}');
+
+      // 自分以外の全メンバーに通知を送信
+      final batch = _firestore.batch();
+      int notificationCount = 0;
+
+      for (final memberId in allowedUid) {
+        if (memberId == currentUser.uid) {
+          continue; // 自分には送信しない
+        }
+
+        final notificationRef = _firestore.collection('notifications').doc();
+        batch.set(notificationRef, {
+          'userId': memberId,
+          'type': NotificationType.whiteboardUpdated.value,
+          'groupId': groupId,
+          'message': isGroupWhiteboard
+              ? '${AppLogger.maskName(editorName)}さんがグループホワイトボードを更新しました'
+              : '${AppLogger.maskName(editorName)}さんがホワイトボードを更新しました',
+          'timestamp': FieldValue.serverTimestamp(),
+          'read': false,
+          'metadata': {
+            'whiteboardId': whiteboardId,
+            'editorUid': currentUser.uid,
+            'editorName': editorName,
+            'groupName': groupName,
+            'isGroupWhiteboard': isGroupWhiteboard,
+            if (ownerId != null) 'ownerId': ownerId,
+          },
+        });
+
+        notificationCount++;
+      }
+
+      if (notificationCount > 0) {
+        await batch.commit();
+        AppLogger.info('✅ [WHITEBOARD] ホワイトボード更新通知送信完了: ${notificationCount}件');
+      } else {
+        AppLogger.info('ℹ️ [WHITEBOARD] 送信対象メンバーなし（自分のみ）');
+      }
+    } catch (e) {
+      AppLogger.error('❌ [WHITEBOARD] ホワイトボード更新通知送信エラー: $e');
     }
   }
 

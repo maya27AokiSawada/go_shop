@@ -4,6 +4,7 @@ import 'package:signature/signature.dart';
 import '../models/whiteboard.dart';
 import '../providers/whiteboard_provider.dart';
 import '../providers/auth_provider.dart';
+import '../services/notification_service.dart';
 import '../utils/drawing_converter.dart';
 import '../utils/app_logger.dart';
 
@@ -133,6 +134,21 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       await repository.updateWhiteboard(updatedWhiteboard);
 
       AppLogger.info('✅ ホワイトボード保存成功');
+
+      // 🔔 他メンバーに更新通知を送信
+      try {
+        final notificationService = ref.read(notificationServiceProvider);
+        await notificationService.sendWhiteboardUpdateNotification(
+          groupId: widget.groupId,
+          whiteboardId: widget.whiteboard.whiteboardId,
+          isGroupWhiteboard: widget.whiteboard.isGroupWhiteboard,
+          ownerId: widget.whiteboard.ownerId,
+        );
+        AppLogger.info('✅ ホワイトボード更新通知送信完了');
+      } catch (notificationError) {
+        // 通知送信エラーは無視（保存自体は成功している）
+        AppLogger.error('⚠️ 通知送信エラー（保存は成功）: $notificationError');
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
