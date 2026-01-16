@@ -502,3 +502,197 @@ Positioned.fill(
 - ✅ スクロールロック: 正常動作（ロック時のみ描画可能）
 - ✅ 描画制御: 正常動作（スクロール時は描画不可）
 - ✅ タッチ操作: 正常動作（Android実機で確認）
+
+---
+
+## 🔧 午後の追加作業
+
+### 4. ホワイトボード機能バグ修正 ✅
+
+#### 4-1. グループ可視性問題の解決
+**問題**: まやユーザーでログイン時、「まや共有」グループが表示されない
+
+**原因**: 
+- Crashlytics初期化エラー（Windows版）でアプリバー構築が失敗
+- group nullチェックが不十分
+
+**修正内容**:
+- `common_app_bar.dart`: グループ nullチェック強化
+- `main.dart`: Windows版でCrashlytics無効化
+- Firestoreクエリ処理の安定化
+
+**コミット**: 2bae86a
+
+---
+
+#### 4-2. AppBarタイトル表示バグ修正
+**問題**: グループ共有ホワイトボード起動時に「個人用ホワイトボード」と表示される
+
+**原因**: Firestoreの`where`クエリがnull値に対応していない
+
+**修正内容**:
+- `isPersonal`パラメータに基づく条件分岐を追加
+- `where('ownerId', isNull: true)`は非対応のため、クライアント側フィルタリング実装
+- nullチェック処理を強化
+
+**コミット**: d6fe034
+
+---
+
+#### 4-3. 他メンバーのホワイトボード閲覧機能実装
+**問題**: グループ他メンバーのホワイトボードがダブルタップで表示されない
+
+**修正内容**:
+- `member_tile_with_whiteboard.dart`: `isCurrentUser`チェックを削除
+- `whiteboard_editor_page.dart`: 閲覧専用モード実装
+  - `canEdit`がfalseの場合、ツールバー非表示
+  - Signatureウィジェット条件付き表示
+  - オレンジ色の「閲覧専用」バー表示
+  - 実際のキャンバス内容を表示（ロック画面ではなく）
+
+**コミット**: d6fe034
+
+---
+
+### 5. ホワイトボード更新通知機能実装 ✅
+
+**目的**: ホワイトボード保存時にグループメンバーへ自動通知
+
+**実装内容**:
+
+#### 5-1. NotificationServiceの拡張
+```dart
+// 新しい通知タイプ追加
+enum NotificationType {
+  // ... 既存の通知タイプ
+  whiteboardUpdated('whiteboard_updated'), // ⚡ NEW
+}
+
+// 通知送信メソッド
+Future<void> sendWhiteboardUpdateNotification({
+  required String groupId,
+  required String whiteboardId,
+  required bool isGroupWhiteboard,
+  String? ownerId,
+}) async {
+  // グループメンバー全員（編集者以外）に通知送信
+  // バッチ処理で効率的に送信
+}
+
+// 通知受信ハンドラー
+Future<void> _handleWhiteboardUpdated(NotificationData notification) async {
+  // whiteboardId、editorName、isGroupWhiteboardをログ出力
+  // 将来: プロバイダー無効化でリアルタイム更新
+}
+```
+
+#### 5-2. ホワイトボードエディターへの統合
+```dart
+// 保存ボタンタップ時
+await repository.updateWhiteboard(updatedWhiteboard);
+
+// 通知送信（エラーがあっても保存は成功扱い）
+try {
+  final notificationService = ref.read(notificationServiceProvider);
+  await notificationService.sendWhiteboardUpdateNotification(
+    groupId: widget.groupId,
+    whiteboardId: whiteboardId,
+    isGroupWhiteboard: !widget.isPersonal,
+    ownerId: widget.isPersonal ? widget.userId : null,
+  );
+} catch (notificationError) {
+  AppLogger.error('📤 通知送信エラー: $notificationError');
+}
+```
+
+**コミット**: de72177
+
+---
+
+### 6. テストドキュメント更新 ✅
+
+**目的**: ホワイトボード機能・通知システムをテスト手順書に追加
+
+**作成ファイル**:
+
+#### 6-1. test_procedures_v2.md
+- バージョン: v2.0（v1.0から大幅拡張）
+- 合計29テストプロシージャ（v1.0は15項目）
+- 新規セクション:
+  - 3.4 ホワイトボード機能テスト（6項目）
+  - 3.5 通知システムテスト（3項目）
+- 各テストに期待結果チェックボックス付き
+
+#### 6-2. test_checklist_template.md
+- 合計41項目の簡易チェックリスト
+- 1行でテスト項目を記述
+- パフォーマンス測定欄付き
+- 問題記録表・合格率計算テーブル付き
+
+**コミット**: 1825466
+
+---
+
+### 7. サインアップ時のユーザー名保存タイミング修正 ✅
+
+**問題**: ディスプレイ名入力後、メールアドレスの前半が使われる
+
+**原因**:
+- Firebase Auth登録時に`authStateChanges`発火
+- この時点でSharedPreferencesにユーザー名未保存
+- `createDefaultGroup()`がデフォルト値（メールアドレス前半）を使用
+
+**修正内容**:
+- Firebase Auth登録**前**にPreferencesへユーザー名を保存
+- 保存順序の最適化:
+  1. SharedPreferences クリア
+  2. ✅ ユーザー名・メールアドレスを事前保存（NEW）
+  3. Hive クリア
+  4. Firebase Auth 新規登録（authStateChanges発火）
+  5. Firebase Auth displayName更新
+  6. Firestore プロファイル作成
+
+**デバッグログ強化**:
+- 入力値の長さ確認
+- 空文字チェック追加
+- パラメータ追跡ログ追加
+
+**コミット**: e26559f
+
+---
+
+## 📊 本日の成果サマリー
+
+### 実装完了項目
+1. ✅ スクロール可能キャンバス（1x～4x）
+2. ✅ スクロールロック機能
+3. ✅ グリッド線表示
+4. ✅ グループ可視性バグ修正
+5. ✅ AppBarタイトル表示バグ修正
+6. ✅ 他メンバーホワイトボード閲覧機能
+7. ✅ ホワイトボード更新通知システム
+8. ✅ テストドキュメント作成（v2.0）
+9. ✅ ユーザー名保存タイミング修正
+
+### コミット履歴
+- `2bae86a` - グループ可視性・Crashlytics修正
+- `d6fe034` - AppBarタイトル＋閲覧専用モード実装
+- `de72177` - ホワイトボード更新通知機能実装
+- `1825466` - テストドキュメント作成
+- `e26559f` - ユーザー名保存タイミング修正
+
+### テスト準備完了
+- 詳細テスト手順書: 29項目
+- 簡易チェックリスト: 41項目
+- 複数デバイス対応テストケース完備
+
+---
+
+**総作業時間**: 約7時間
+**ブランチ**: future
+**ステータス**: ✅ 週間作業完了・クローズドテスト準備完了
+
+**来週の予定**:
+- futureブランチの総合テスト実施
+- クローズドテスト開始準備
+- 必要に応じてバグ修正
