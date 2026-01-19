@@ -1,8 +1,8 @@
 # 利用規約
 
-**最終更新日: 2026年1月6日**
+**最終更新日: 2026年1月19日**
 
-Go Shop（以下「本アプリ」）をご利用いただきありがとうございます。本利用規約（以下「本規約」）は、maya27AokiSawada（以下「開発者」）が提供する本アプリの利用条件を定めるものです。
+GoShopping（以下「本アプリ」）をご利用いただきありがとうございます。本利用規約（以下「本規約」）は、maya27AokiSawada（以下「開発者」）が提供する本アプリの利用条件を定めるものです。
 
 ## 第1条（適用）
 
@@ -14,7 +14,7 @@ Go Shop（以下「本アプリ」）をご利用いただきありがとうご�
 
 本規約において使用する用語の定義は、以下のとおりとします。
 
-1. **本アプリ**: 「Go Shop」という名称の買い物リスト共有アプリケーション
+1. **本アプリ**: 「GoShopping」という名称の買い物リスト共有アプリケーション
 2. **ユーザー**: 本アプリを利用するすべての個人
 3. **グループ**: 複数のユーザーが買い物リストを共有するための機能
 4. **コンテンツ**: ユーザーが本アプリ上に投稿、送信、または保存するテキスト、画像、その他の情報
@@ -131,9 +131,9 @@ Go Shop（以下「本アプリ」）をご利用いただきありがとうご�
 
 # Terms of Service
 
-**Last Updated: January 6, 2026**
+**Last Updated: January 19, 2026**
 
-Thank you for using Go Shop (hereinafter "the App"). These Terms of Service (hereinafter "the Terms") set forth the conditions for using the App provided by maya27AokiSawada (hereinafter "the Developer").
+Thank you for using GoShopping (hereinafter "the App"). These Terms of Service (hereinafter "the Terms") set forth the conditions for using the App provided by maya27AokiSawada (hereinafter "the Developer").
 
 ## Article 1 (Application)
 
@@ -145,7 +145,7 @@ Thank you for using Go Shop (hereinafter "the App"). These Terms of Service (her
 
 Terms used in these Terms are defined as follows:
 
-1. **The App**: The shopping list sharing application named "Go Shop"
+1. **The App**: The shopping list sharing application named "GoShopping"
 2. **User**: Any individual who uses the App
 3. **Group**: A feature that allows multiple users to share shopping lists
 4. **Content**: Text, images, and other information posted, transmitted, or stored by users in the App
