@@ -2,6 +2,172 @@
 
 ## Recent Implementations (2026-01-19)
 
+### 1. ホワイトボードエディターUI大幅改善 ✅
+
+**Purpose**: スマホ縦画面での操作性を向上させ、全てのツールバーアイコンを表示可能に
+
+**Background**:
+
+- 従来のツールバーが横幅を超え、スクロール/描画モード切替アイコンが画面外に
+- ズーム機能が視覚的に動作しない（Transform.scaleのみではスクロール範囲が変わらない）
+
+**Implementation**:
+
+#### ツールバー2段構成の最適化
+
+**上段**: 色選択（4色） + Spacer + モード切替アイコン
+
+```dart
+Row(
+  children: [
+    const Text('色:'),
+    _buildColorButton(Colors.black),
+    _buildColorButton(Colors.red),
+    _buildColorButton(Colors.green),
+    _buildColorButton(Colors.yellow),
+    const Spacer(),
+    IconButton(
+      icon: Icon(_isScrollLocked ? Icons.brush : Icons.open_with),
+      // ...
+    ),
+  ],
+)
+```
+
+**下段**: 線幅5段階 + ズーム（±ボタン） + Spacer + 消去
+
+```dart
+Row(
+  children: [
+    _buildStrokeWidthButton(1.0, 1),
+    _buildStrokeWidthButton(2.0, 2),
+    _buildStrokeWidthButton(4.0, 3),
+    _buildStrokeWidthButton(6.0, 4),
+    _buildStrokeWidthButton(8.0, 5),
+    IconButton(icon: Icon(Icons.zoom_out), onPressed: () { /* -0.5 */ }),
+    Text('${_canvasScale.toStringAsFixed(1)}x'),
+    IconButton(icon: Icon(Icons.zoom_in), onPressed: () { /* +0.5 */ }),
+    const Spacer(),
+    IconButton(icon: Icon(Icons.delete_outline), /* ... */),
+  ],
+)
+```
+
+#### アイコンデザイン改善
+
+**Before**: `Icons.lock` / `Icons.lock_open` (スクロールロック)
+**After**: `Icons.brush` / `Icons.open_with` (モード別アイコン)
+
+- 描画モード（`_isScrollLocked = true`）: 青色の筆アイコン
+- スクロールモード（`_isScrollLocked = false`）: 灰色のパンアイコン
+
+#### ペン太さUI改善
+
+**Before**: Slider（1.0～10.0の連続値、9 divisions）
+**After**: 5段階ボタン（1.0, 2.0, 4.0, 6.0, 8.0）
+
+```dart
+Widget _buildStrokeWidthButton(double width, int level) {
+  return IconButton(
+    icon: Container(
+      width: 8.0 + (level * 2),
+      height: 8.0 + (level * 2),
+      decoration: BoxDecoration(
+        color: isSelected ? Colors.blue : Colors.grey,
+        shape: BoxShape.circle,
+      ),
+    ),
+    onPressed: () {
+      _captureCurrentDrawing();
+      _strokeWidth = width;
+      // SignatureController再作成
+    },
+  );
+}
+```
+
+#### ズーム機能の実装改善
+
+**Before**: DropdownButton（1x～4x）+ Container width/height のみ変更
+
+- 問題: Transform.scaleは視覚的にのみ拡大、レイアウトサイズは変わらない
+- 結果: SingleChildScrollViewがスクロール不要と判断
+
+**After**: SizedBox + Transform.scale の組み合わせ
+
+```dart
+SizedBox(
+  width: constraints.maxWidth * _canvasScale,
+  height: constraints.maxHeight * _canvasScale,
+  child: Transform.scale(
+    scale: _canvasScale,
+    alignment: Alignment.topLeft,
+    child: Container(
+      width: constraints.maxWidth,
+      height: constraints.maxHeight,
+      // ...
+    ),
+  ),
+)
+```
+
+**Key Points**:
+
+- `SizedBox`: スクロール可能な範囲を確保（実際のレイアウトサイズ）
+- `Transform.scale`: 描画内容を拡大（視覚的な拡大）
+- `alignment: Alignment.topLeft`: 左上基準のズーム
+
+#### 色選択の削減
+
+**Before**: 8色（黒、赤、青、緑、黄、オレンジ、パープル、カラーピッカー）
+**After**: 4色（黒、赤、緑、黄）
+
+**理由**: スペース効率＋十分な色バリエーション
+
+#### SignatureController再作成パターン
+
+色・太さ変更時のベストプラクティス:
+
+```dart
+setState(() {
+  // 1. 現在の描画を保存
+  _captureCurrentDrawing();
+
+  // 2. プロパティ更新
+  _selectedColor = newColor;
+
+  // 3. SignatureController再作成
+  _controller?.dispose();
+  _controller = SignatureController(
+    penStrokeWidth: _strokeWidth,
+    penColor: _selectedColor,
+  );
+
+  // 4. ウィジェット強制再構築
+  _controllerKey++;
+});
+```
+
+**Modified Files**:
+
+- `lib/pages/whiteboard_editor_page.dart` (607→613 lines)
+  - Lines 352-383: ツールバー2段構成
+  - Lines 276-283: SizedBox + Transform.scale
+  - Lines 488-518: `_buildStrokeWidthButton()`
+
+**Test Results**:
+
+- ✅ Android実機（縦画面）で全アイコン表示確認
+- ✅ 描画/スクロールモード切替正常動作
+- ✅ ズーム機能正常動作（スクロール範囲も拡大）
+- ✅ 5段階ペン太さ正常動作
+
+**Commit**: `d202aa3` - "docs: 利用規約のアプリ名をGoShoppingに変更、ホワイトボードツールバーUI改善"
+
+---
+
+## Recent Implementations (2026-01-19 午前)
+
 ### 1. アカウント削除機能完全実装 ✅
 
 **Purpose**: Google Play Data Safetyに準拠した完全なアカウント削除機能を実装

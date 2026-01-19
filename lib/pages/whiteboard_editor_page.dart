@@ -275,40 +275,44 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                         physics: _isScrollLocked && canEdit
                             ? const NeverScrollableScrollPhysics()
                             : const AlwaysScrollableScrollPhysics(),
-                        child: Transform.scale(
-                          scale: _canvasScale,
-                          alignment: Alignment.topLeft,
-                          child: Container(
-                            width: constraints.maxWidth,
-                            height: constraints.maxHeight,
-                            color: Colors.white,
-                            child: Stack(
-                              children: [
-                                // グリッド線（最背面）
-                                _buildGridOverlay(constraints.maxWidth,
-                                    constraints.maxHeight),
-                                // 背景：保存済みストロークを描画
-                                Positioned.fill(
-                                  child: CustomPaint(
-                                    painter:
-                                        DrawingStrokePainter(_workingStrokes),
-                                  ),
-                                ),
-                                // 前景：現在の描画セッション（編集可能な場合のみ）
-                                if (canEdit)
+                        child: SizedBox(
+                          width: constraints.maxWidth * _canvasScale,
+                          height: constraints.maxHeight * _canvasScale,
+                          child: Transform.scale(
+                            scale: _canvasScale,
+                            alignment: Alignment.topLeft,
+                            child: Container(
+                              width: constraints.maxWidth,
+                              height: constraints.maxHeight,
+                              color: Colors.white,
+                              child: Stack(
+                                children: [
+                                  // グリッド線（最背面）
+                                  _buildGridOverlay(constraints.maxWidth,
+                                      constraints.maxHeight),
+                                  // 背景：保存済みストロークを描画
                                   Positioned.fill(
-                                    child: IgnorePointer(
-                                      ignoring:
-                                          !_isScrollLocked, // スクロールロック時のみ描画可能
-                                      child: Signature(
-                                        key: ValueKey(
-                                            'signature_$_controllerKey'),
-                                        controller: _controller!,
-                                        backgroundColor: Colors.transparent,
-                                      ),
+                                    child: CustomPaint(
+                                      painter:
+                                          DrawingStrokePainter(_workingStrokes),
                                     ),
                                   ),
-                              ],
+                                  // 前景：現在の描画セッション（編集可能な場合のみ）
+                                  if (canEdit)
+                                    Positioned.fill(
+                                      child: IgnorePointer(
+                                        ignoring:
+                                            !_isScrollLocked, // スクロールロック時のみ描画可能
+                                        child: Signature(
+                                          key: ValueKey(
+                                              'signature_$_controllerKey'),
+                                          controller: _controller!,
+                                          backgroundColor: Colors.transparent,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
