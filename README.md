@@ -1,5 +1,71 @@
 # GoShopping - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-01-19)
+
+### 1. ホワイトボードエディターUI大幅改善 ✅
+
+**Purpose**: スマホ縦画面でのツールバー表示問題を解決し、操作性を向上
+
+**Problem**:
+
+- 縦画面（スマホ）でツールバーアイコンが画面外に隠れて見えない
+- スクロール/描画モード切替アイコンが見えず、描画不可能に見える
+- ズーム機能が視覚的に動作しない（スクロール範囲が変わらない）
+
+**Solution**:
+
+#### ツールバー2段構成の最適化
+
+- **上段**: 色選択（4色）+ Spacer + モード切替アイコン
+  - 色削減: 黒、赤、緑、黄色のみ（青、オレンジ、パープル削除）
+  - モード切替を右端配置→縦画面でも常に見える
+- **下段**: 線幅5段階 + ズーム（±ボタン） + Spacer + 消去
+
+#### アイコンデザイン改善
+
+- スクロールロック → モード別アイコンに変更
+  - 描画モード: `Icons.brush`（青）
+  - スクロールモード: `Icons.open_with`（灰）
+- 直感的なUI/UX実現
+
+#### ペン太さUI改善
+
+- スライダー（連続値） → 5段階ボタン（1.0, 2.0, 4.0, 6.0, 8.0）
+- 円形アイコン、サイズで太さを視覚化
+- タッチ操作に最適化
+
+#### ズーム機能の実装改善
+
+- ドロップダウン → ±ボタン（0.5刻み調整）
+- **SizedBox + Transform.scale** による正しいスクロール実装
+  ```dart
+  SizedBox(
+    width: screenWidth * _canvasScale,
+    height: screenHeight * _canvasScale,
+    child: Transform.scale(
+      scale: _canvasScale,
+      alignment: Alignment.topLeft,
+      child: Container(...),
+    ),
+  )
+  ```
+
+**Test Results**:
+
+- ✅ 縦画面で全アイコン表示確認
+- ✅ 描画/スクロールモード切替正常動作
+- ✅ ズーム機能正常動作（スクロール範囲も拡大）
+- ✅ 5段階ペン太さ正常動作
+
+**Modified Files**:
+
+- `lib/pages/whiteboard_editor_page.dart` (607→613行)
+- `docs/specifications/terms_of_service.md` (Go Shop → GoShopping)
+
+**Commits**: `d202aa3`
+
+---
+
 ## Recent Implementations (2026-01-16)
 
 ### 1. ホワイトボード機能完全実装＋バグ修正 ✅
@@ -9,34 +75,40 @@
 **Completed Features**:
 
 #### スクロール可能キャンバス
+
 - ✅ 拡張可能なキャンバスサイズ（1x～4x）
 - ✅ 縦横両方向のスクロールバー
 - ✅ スクロールロック機能（描画モード⇄スクロールモード切替）
 - ✅ グリッド線表示（50px間隔）
 
 #### マルチカラー描画
+
 - ✅ 8色カラーピッカー
 - ✅ 線幅調整スライダー（1.0～10.0）
 - ✅ レイヤーシステム（CustomPaint + Signature）
 - ✅ 自動ストローク分割（30px閾値）
 
 #### 閲覧・編集権限
+
 - ✅ グループ共有ホワイトボード
 - ✅ 個人用ホワイトボード
 - ✅ 閲覧専用モード（他メンバーのホワイトボード）
 - ✅ 編集可能/不可の視覚的フィードバック
 
 #### 通知システム
+
 - ✅ ホワイトボード更新通知
 - ✅ バッチ通知送信（グループメンバー全員）
 - ✅ 通知受信ハンドラー（将来のリアルタイム更新用）
 
 **Bug Fixes**:
+
 - ✅ グループ可視性問題（Crashlytics無効化）
 - ✅ AppBarタイトル表示バグ（Firestore nullクエリ対応）
 - ✅ サインアップ時のユーザー名保存タイミング修正
 
 **Test Documentation**:
+
 - ✅ `test_procedures_v2.md` - 29テストプロシージャ
 - ✅ `test_checklist_template.md` - 41項目チェックリスト
 
@@ -74,6 +146,7 @@ Stack(
 ```
 
 **Files**:
+
 - `lib/pages/whiteboard_editor_page.dart` - エディター（415行）
 - `lib/utils/drawing_converter.dart` - 変換ロジック
 - `lib/models/whiteboard.dart` - データモデル（Hive typeId: 15-17）
@@ -234,7 +307,6 @@ flutter build appbundle --release --flavor prod
 **Implementation Files**:
 
 - **New Document**: `docs/riverpod_best_practices.md` (拡充)
-
   - セクション4追加: build()外でのRefアクセスパターン
   - `late final Ref _ref`の危険性を明記
   - `Ref? _ref` + `_ref ??= ref`パターンの説明
@@ -318,8 +390,8 @@ class MyNotifier extends AsyncNotifier<Data> {
 {
   "collectionGroup": "notifications",
   "fields": [
-    {"fieldPath": "userId", "order": "ASCENDING"},
-    {"fieldPath": "read", "order": "ASCENDING"}
+    { "fieldPath": "userId", "order": "ASCENDING" },
+    { "fieldPath": "read", "order": "ASCENDING" }
   ]
 }
 ```
@@ -330,9 +402,9 @@ class MyNotifier extends AsyncNotifier<Data> {
 {
   "collectionGroup": "notifications",
   "fields": [
-    {"fieldPath": "userId", "order": "ASCENDING"},
-    {"fieldPath": "read", "order": "ASCENDING"},
-    {"fieldPath": "timestamp", "order": "DESCENDING"}  // ← 追加
+    { "fieldPath": "userId", "order": "ASCENDING" },
+    { "fieldPath": "read", "order": "ASCENDING" },
+    { "fieldPath": "timestamp", "order": "DESCENDING" } // ← 追加
   ]
 }
 ```
@@ -383,18 +455,15 @@ Go Shop は家族・グループ向けの買い物リスト共有 Flutter アプ
 ### ✅ 実装済み機能
 
 1. **グループ管理**
-
    - グループ作成・編集・削除
    - メンバー招待（QR コード）
    - デフォルトグループ（個人専用）
 
 2. **リスト管理**
-
    - リスト作成・編集・削除
    - リアルタイム同期
 
 3. **アイテム管理**
-
    - アイテム追加・編集・削除
    - 購入状態トグル（全メンバー可能）
    - 削除権限チェック（登録者・オーナーのみ）
