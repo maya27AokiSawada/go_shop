@@ -275,36 +275,41 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                         physics: _isScrollLocked && canEdit
                             ? const NeverScrollableScrollPhysics()
                             : const AlwaysScrollableScrollPhysics(),
-                        child: Container(
-                          width: canvasWidth,
-                          height: canvasHeight,
-                          color: Colors.white,
-                          child: Stack(
-                            children: [
-                              // グリッド線（最背面）
-                              _buildGridOverlay(canvasWidth, canvasHeight),
-                              // 背景：保存済みストロークを描画
-                              Positioned.fill(
-                                child: CustomPaint(
-                                  painter:
-                                      DrawingStrokePainter(_workingStrokes),
-                                ),
-                              ),
-                              // 前景：現在の描画セッション（編集可能な場合のみ）
-                              if (canEdit)
+                        child: Transform.scale(
+                          scale: _canvasScale,
+                          alignment: Alignment.topLeft,
+                          child: Container(
+                            width: constraints.maxWidth,
+                            height: constraints.maxHeight,
+                            color: Colors.white,
+                            child: Stack(
+                              children: [
+                                // グリッド線（最背面）
+                                _buildGridOverlay(constraints.maxWidth,
+                                    constraints.maxHeight),
+                                // 背景：保存済みストロークを描画
                                 Positioned.fill(
-                                  child: IgnorePointer(
-                                    ignoring:
-                                        !_isScrollLocked, // スクロールロック時のみ描画可能
-                                    child: Signature(
-                                      key:
-                                          ValueKey('signature_$_controllerKey'),
-                                      controller: _controller!,
-                                      backgroundColor: Colors.transparent,
-                                    ),
+                                  child: CustomPaint(
+                                    painter:
+                                        DrawingStrokePainter(_workingStrokes),
                                   ),
                                 ),
-                            ],
+                                // 前景：現在の描画セッション（編集可能な場合のみ）
+                                if (canEdit)
+                                  Positioned.fill(
+                                    child: IgnorePointer(
+                                      ignoring:
+                                          !_isScrollLocked, // スクロールロック時のみ描画可能
+                                      child: Signature(
+                                        key: ValueKey(
+                                            'signature_$_controllerKey'),
+                                        controller: _controller!,
+                                        backgroundColor: Colors.transparent,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -351,72 +356,20 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 上段：色選択
+          // 上段：色選択 + スクロール/描画モード切り替え
           Row(
             children: [
               const Text('色:', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(width: 8),
               _buildColorButton(Colors.black),
               _buildColorButton(Colors.red),
-              _buildColorButton(Colors.blue),
               _buildColorButton(Colors.green),
               _buildColorButton(Colors.yellow),
-              _buildColorButton(Colors.orange),
-              _buildColorButton(Colors.purple),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // 下段：線幅 + キャンバスサイズ + 消去ボタン
-          Row(
-            children: [
-              const Text('太さ:'),
-              Expanded(
-                flex: 2,
-                child: Slider(
-                  value: _strokeWidth,
-                  min: 1.0,
-                  max: 10.0,
-                  divisions: 9,
-                  label: _strokeWidth.toStringAsFixed(0),
-                  onChanged: (value) {
-                    setState(() {
-                      // 現在の描画を保存
-                      _captureCurrentDrawing();
-                      _strokeWidth = value;
-                      // SignatureControllerは再作成が必要（空でスタート）
-                      _controller?.dispose();
-                      _controller = SignatureController(
-                        penStrokeWidth: value,
-                        penColor: _selectedColor,
-                      );
-                      _controllerKey++; // キー更新でウィジェット再構築
-                    });
-                  },
-                ),
-              ),
-              const SizedBox(width: 8),
-              // キャンバスサイズ選択
-              DropdownButton<double>(
-                value: _canvasScale,
-                items: const [
-                  DropdownMenuItem(value: 1.0, child: Text('1x')),
-                  DropdownMenuItem(value: 2.0, child: Text('2x')),
-                  DropdownMenuItem(value: 3.0, child: Text('3x')),
-                  DropdownMenuItem(value: 4.0, child: Text('4x')),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      _canvasScale = value;
-                    });
-                  }
-                },
-              ),
-              const SizedBox(width: 8),
-              // スクロールロックボタン
+              const Spacer(),
+              // スクロール/描画モード切り替えボタン
               IconButton(
                 icon: Icon(
-                  _isScrollLocked ? Icons.lock : Icons.lock_open,
+                  _isScrollLocked ? Icons.brush : Icons.open_with,
                   color: _isScrollLocked ? Colors.blue : Colors.grey,
                 ),
                 onPressed: () {
@@ -424,9 +377,50 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                     _isScrollLocked = !_isScrollLocked;
                   });
                 },
-                tooltip: _isScrollLocked ? 'スクロール無効（描画モード）' : 'スクロール有効',
+                tooltip: _isScrollLocked ? '描画モード（筆）' : 'スクロールモード（十字）',
               ),
-              const SizedBox(width: 8),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // 下段：線幅5段階 + ズーム + 消去
+          Row(
+            children: [
+              // ペン太さ5段階
+              _buildStrokeWidthButton(1.0, 1),
+              _buildStrokeWidthButton(2.0, 2),
+              _buildStrokeWidthButton(4.0, 3),
+              _buildStrokeWidthButton(6.0, 4),
+              _buildStrokeWidthButton(8.0, 5),
+              const SizedBox(width: 16),
+              // ズームアウト
+              IconButton(
+                icon: const Icon(Icons.zoom_out, size: 20),
+                onPressed: () {
+                  setState(() {
+                    if (_canvasScale > 0.5) {
+                      _canvasScale -= 0.5;
+                      print('🔍 ズームアウト: ${_canvasScale}x');
+                    }
+                  });
+                },
+                tooltip: 'ズームアウト',
+              ),
+              // ズーム倍率表示
+              Text('${_canvasScale.toStringAsFixed(1)}x'),
+              // ズームイン
+              IconButton(
+                icon: const Icon(Icons.zoom_in, size: 20),
+                onPressed: () {
+                  setState(() {
+                    if (_canvasScale < 4.0) {
+                      _canvasScale += 0.5;
+                      print('🔍 ズームイン: ${_canvasScale}x');
+                    }
+                  });
+                },
+                tooltip: 'ズームイン',
+              ),
+              const Spacer(),
               // 消去ボタン
               IconButton(
                 icon: const Icon(Icons.delete_outline),
@@ -488,6 +482,36 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
           ),
         ),
       ),
+    );
+  }
+
+  /// ペン太さボタン（5段階）
+  Widget _buildStrokeWidthButton(double width, int level) {
+    final isSelected = _strokeWidth == width;
+    return IconButton(
+      icon: Container(
+        width: 8.0 + (level * 2),
+        height: 8.0 + (level * 2),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blue : Colors.grey,
+          shape: BoxShape.circle,
+        ),
+      ),
+      onPressed: () {
+        setState(() {
+          // 現在の描画を保存
+          _captureCurrentDrawing();
+          _strokeWidth = width;
+          // SignatureControllerは再作成が必要（空でスタート）
+          _controller?.dispose();
+          _controller = SignatureController(
+            penStrokeWidth: width,
+            penColor: _selectedColor,
+          );
+          _controllerKey++; // キー更新でウィジェット再構築
+        });
+      },
+      tooltip: '太さ $level',
     );
   }
 }
