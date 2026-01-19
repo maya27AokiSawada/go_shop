@@ -1,4 +1,8 @@
 rules_version = '2';
+
+// Go Shop - Firestore Security Rules
+// Last Updated: 2026-01-19 - Fixed batch delete permission_denied issue
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -33,7 +37,7 @@ service cloud.firestore {
       // 認証済みユーザーは通知を作成可能
       allow create: if request.auth != null;
 
-      // 自分宛の通知のみ更新・削除可能
+      // 自分宛の通知のみ更新・削除可能（アカウント削除時の一括削除含む）
       allow update, delete: if request.auth != null &&
                                resource.data.userId == request.auth.uid;
     }
@@ -57,7 +61,8 @@ service cloud.firestore {
 
     // ユーザードキュメント（displayName, email, createdAt, updatedAt）
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // 自分のプロファイルのみ読み書き可能（アカウント削除含む）
+      allow read, write, delete: if request.auth != null && request.auth.uid == userId;
 
       // 受諾招待コレクション：誰でも書き込み可能（招待受諾用）
       match /acceptedInvitations/{acceptorUid} {
@@ -89,7 +94,13 @@ service cloud.firestore {
 
       // 読み取り権限を get と list に分離
       allow get: if request.auth != null;
-      allow list: if request.auth != null && request.auth.uid in resource.data.allowedUid;
+
+      // list（クエリ）：自分がメンバーのグループのみ取得可能
+      // アカウント削除時に ownerUid でクエリするため、ownerUid もチェック
+      allow list: if request.auth != null && (
+        resource.data.ownerUid == request.auth.uid ||
+        request.auth.uid in resource.data.allowedUid
+      );
 
       // 🔥 TEMPORARY: テスト用に緩和（本番環境では戻すこと）
       allow create: if request.auth != null;
@@ -99,6 +110,7 @@ service cloud.firestore {
 
       allow update: if isGroupMember();
 
+      // 削除：グループオーナーのみ（アカウント削除時も含む）
       allow delete: if request.auth != null &&
         resource.data.ownerUid == request.auth.uid;
 
@@ -134,8 +146,10 @@ service cloud.firestore {
           request.auth.uid in get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.allowedUid
         );
 
-        // 削除：グループメンバーのみ
+        // 削除：グループメンバーのみ（アカウント削除時の一括削除含む）
+        // 注意：batch削除時は親グループが存在しても検証できないため、exists()チェックを追加
         allow delete: if request.auth != null && (
+          !exists(/databases/$(database)/documents/SharedGroups/$(groupId)) ||
           get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid ||
           request.auth.uid in get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.allowedUid
         );
@@ -157,7 +171,9 @@ service cloud.firestore {
         );
 
         // 削除：グループオーナーまたは個人用ホワイトボードの所有者のみ
+        // 注意：batch削除時は親グループが存在しても検証できないため、exists()チェックを追加
         allow delete: if request.auth != null && (
+          !exists(/databases/$(database)/documents/SharedGroups/$(groupId)) ||
           get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid ||
           (resource.data.ownerId != null && resource.data.ownerId == request.auth.uid)
         );

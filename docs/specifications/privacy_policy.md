@@ -111,8 +111,22 @@ Go Shop（以下「本アプリ」）は、maya27AokiSawada（以下「開発者
 
 ### 6.2 削除方法
 
-1. アプリ内「設定」→「アカウント削除」
-2. または、開発者への直接連絡
+#### アプリ内からの削除（推奨）
+
+1. アプリ内「設定」→「アカウント削除」を選択
+2. 削除確認ダイアログで「削除する」を選択
+3. 最終確認で「完全に削除」を選択
+4. 即座にアカウントとデータが削除されます
+
+#### メールでの削除依頼
+
+アプリにアクセスできない場合は、以下の方法でもお問い合わせいただけます:
+
+1. **メール**: [maya27aokisawada@maya27AokiSawada.net] にアカウント削除のご依頼を送信
+2. **件名**: 「Go Shop アカウント削除依頼」
+3. **記載事項**: 登録メールアドレス
+
+通常、ご連絡から3営業日以内にアカウントとデータを削除いたします。
 
 ## 7. セキュリティ
 
@@ -265,8 +279,22 @@ Users can delete their account at any time. After account deletion, the followin
 
 ### 6.2 Deletion Method
 
-1. In-app "Settings" → "Delete Account"
-2. Or, direct contact with the developer
+#### In-App Deletion (Recommended)
+
+1. Go to "Settings" → "Delete Account" in the app
+2. Select "Delete" in the confirmation dialog
+3. Select "Complete Deletion" in the final confirmation
+4. Your account and data will be deleted immediately
+
+#### Deletion Request by Email
+
+If you cannot access the app, you can also contact us using the following method:
+
+1. **Email**: Send an account deletion request to [maya27aokisawada@maya27AokiSawada.net]
+2. **Subject**: "Go Shop Account Deletion Request"
+3. **Required Information**: Your registered email address
+
+We will delete your account and data within 3 business days of receiving your request.
 
 ## 7. Security
 

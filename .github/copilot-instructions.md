@@ -1,5 +1,100 @@
 # Go Shop - AI Coding Agent Instructions
 
+## Recent Implementations (2026-01-19)
+
+### 1. アカウント削除機能完全実装 ✅
+
+**Purpose**: Google Play Data Safetyに準拠した完全なアカウント削除機能を実装
+
+**Implementation Architecture**:
+
+- **2段階確認UI**: ダイアログ→最終警告ダイアログ
+- **Firebase再認証**: パスワード再入力による`requires-recent-login`エラー対応
+- **2段階Batch削除**: サブコレクション削除→親データ削除で権限エラー回避
+- **メンバーグループ離脱**: オーナーグループは削除、メンバーグループはallowedUidから離脱
+
+**Key Files**:
+
+#### UI Components
+
+- `lib/pages/settings_page.dart` (2247 lines)
+  - `_showReauthDialog()` (lines 1760-1830): パスワード再入力ダイアログ
+  - `_deleteAccount()` (lines 1832-2150): メインアカウント削除処理
+  - 2段階Batch実装:
+    - Batch 1: サブコレクション（sharedLists, whiteboards）削除
+    - Batch 2: 親グループ + メンバー離脱 + 通知 + 招待 + ユーザープロファイル削除
+
+#### Firestore Security Rules
+
+- `firestore.rules` (192 lines)
+  - Line 96-102: SharedGroups list権限修正
+    - `allow list: if resource.data.ownerUid == request.auth.uid || request.auth.uid in resource.data.allowedUid`
+    - `where('ownerUid', isEqualTo: uid)`クエリとルールの整合性確保
+  - Lines 142-149: sharedListsサブコレクション削除権限（`!exists()`チェック）
+  - Lines 166-173: whiteboardsサブコレクション削除権限（`!exists()`チェック）
+
+#### Privacy Policy
+
+- `docs/specifications/privacy_policy.md`
+  - Section 6.2: アカウント削除方法の詳細記載（日本語・英語）
+  - In-app deletion: 4ステップ手順
+  - Email deletion fallback: 3営業日以内対応
+
+**Technical Challenges Resolved**:
+
+1. **Batch削除の権限エラー**
+   - Issue: 親グループとサブコレクションを同一Batchで削除すると、サブコレクション削除時に`get()`で親を参照できない
+   - Solution: Batch 1でサブコレクション削除→commit→Batch 2で親削除
+
+2. **requires-recent-login エラー**
+   - Issue: Firebase Authアカウント削除時に「最近ログインしていない」エラー
+   - Solution: パスワード再入力ダイアログ→`EmailAuthProvider.credential()`で再認証
+
+3. **Firestoreルールとクエリの不一致**
+   - Issue: `where('ownerUid', isEqualTo: uid)`クエリが`allow list: if ... in allowedUid`ルールと整合しない
+   - Solution: `allow list`に`resource.data.ownerUid == request.auth.uid`条件追加
+
+4. **Widget disposed後のref使用エラー**
+   - Issue: サインアップ処理中にユーザーがページ遷移→`Cannot use "ref" after the widget was disposed.`
+   - Solution: `mounted`チェックを追加（`home_page.dart` lines 165, 175, 181）
+
+**Usage Pattern**:
+
+```dart
+// Batch 1: サブコレクション削除
+for (var group in ownerGroups) {
+  final lists = await group.collection('sharedLists').get();
+  for (var list in lists) { batch1.delete(list.reference); }
+}
+await batch1.commit();
+
+// Batch 2: 親グループ削除 + メンバー離脱
+for (var group in ownerGroups) {
+  batch2.delete(group.reference); // オーナーグループ削除
+}
+for (var group in memberGroups) {
+  if (group.ownerUid != currentUser.uid) {
+    batch2.update(group.reference, {
+      'allowedUid': FieldValue.arrayRemove([currentUser.uid]),
+    }); // メンバーグループから離脱
+  }
+}
+await batch2.commit();
+```
+
+**Commits**:
+
+- Multiple commits during session (firestore.rules, settings_page.dart, home_page.dart, privacy_policy.md)
+
+**Status**: 完全動作確認済み（実機テスト成功）
+
+**Next Steps**:
+
+1. Google Play Data Safety質問項目の回答確定
+2. クローズドベータテストへの登録準備
+
+---
+
 ## Recent Implementations (2026-01-15)
 
 ### 1. 手書きホワイトボード機能完全実装（future ブランチ） ✅
@@ -58,33 +153,27 @@
 **Technical Challenges Resolved**:
 
 1. **Permission.toString collision**
-
    - Issue: Conflict with `Object.toString`
    - Solution: Renamed to `toPermissionString()`
 
 2. **flutter_drawing_board 描画不具合（パッケージ移行）**
-
    - Issue: タッチ入力に反応しない、DrawingController 動作不良
    - Solution: signature ^5.5.0 パッケージに完全移行
 
 3. **HiveType typeId collision**
-
    - Issue: typeId 12 already used by `ListType` in `shared_list.dart`
    - Solution: Changed whiteboard typeIds from 12-14 to 15-17
 
 4. **複数色ストローク対応（レイヤーシステム実装）**
-
    - Issue: SignatureController は全ポイントが単一色を共有
    - Solution: CustomPaint（背景）+ Signature（前景）のレイヤーシステム
    - 色・線幅変更時に現在の描画を保存して新しいコントローラー作成
 
 5. **複数ストローク自動分割**
-
    - Issue: ペンを離して複数回描いた線が全て繋がる
    - Solution: 点間距離 30px 以上で自動分割（drawing_converter.dart）
 
 6. **ツールバー UI 改善（2 段構成）**
-
    - Issue: スマホの横幅が狭い画面でアイコンが見えない
    - Solution: Column with 2 Rows（上段: 色選択、下段: 線幅＋消去）
 
@@ -878,14 +967,12 @@ Firestore: `/invitations/{invitationId}`
 #### Key Files
 
 - **Service**: `lib/services/qr_invitation_service.dart`
-
   - `createQRInvitationData()`: Create invitation in Firestore
   - `acceptQRInvitation()`: Process invitation acceptance
   - `_updateInvitationUsage()`: Increment currentUses, add to usedBy
   - `_validateInvitationSecurity()`: Validate with securityKey
 
 - **UI**: `lib/widgets/group_invitation_dialog.dart`
-
   - StreamBuilder for real-time invitation list
   - Display remainingUses (maxUses - currentUses)
   - QR code generation with `qr_flutter`
@@ -1113,12 +1200,10 @@ Text(AppModeSettings.config.groupName)  // 'グループ' or 'チーム'
 #### Key Components
 
 - **Config Provider**: `lib/providers/app_mode_notifier_provider.dart`
-
   - `appModeNotifierProvider`: StateProvider for triggering UI rebuilds
   - Watch this provider in screens that need immediate updates
 
 - **Mode Switcher UI**: `lib/pages/home_page.dart` (lines 560-600)
-
   - SegmentedButton with shopping/todo options
   - Saves to Hive + updates AppModeSettings + invalidates providers
 
@@ -1566,7 +1651,6 @@ $ firebase deploy --only firestore:indexes
 **Implementation Files**:
 
 - **New Page**: `lib/pages/notification_history_page.dart` (332 lines)
-
   - Firestore `notifications`コレクションからリアルタイムデータ取得
   - StreamBuilder でリアルタイム更新
   - 未読/既読管理機能
@@ -2024,7 +2108,6 @@ Future<void> _cleanupInvalidHiveGroups(
 **Implementation**:
 
 - **File**: `lib/widgets/accept_invitation_widget.dart` (Lines 220-245)
-
   - Added member check logic immediately after QR scan
   - Check if `user.uid` exists in `existingGroup.allowedUid`
   - Show "すでに「○○」に参加しています" message for duplicate invitations
@@ -2821,17 +2904,14 @@ Container(
 #### Critical Implementation Points
 
 1. **ディスプレイネーム必須化** (アカウント作成時のみ)
-
    - バリデーションで空文字をブロック
    - SharedPreferences + Firebase Auth 両方に保存
 
 2. **サインイン時の自動反映**
-
    - Firebase Auth の displayName が存在すれば Preferences に反映
    - 未設定でもサインイン可能（後から設定可能）
 
 3. **モード切り替え**
-
    - `_isSignUpMode`フラグで動的に UI 切り替え
    - フォームリセットで入力内容をクリア
 
@@ -3257,7 +3337,6 @@ final bannerAd = await adService.createBannerAd(
 #### Home Page Banner Ad Implementation
 
 - **New Widget**: `HomeBannerAdWidget`
-
   - Hidden until ad loaded
   - White background with light gray border
   - "広告" label display
@@ -3580,17 +3659,14 @@ static String maskGroupId(String? groupId, {String? currentUserId}) {
 **Possible Causes**:
 
 1. **Firebase Configuration Mismatch**:
-
    - `google-services.json` appId may differ between Windows and Android
    - Firebase project settings not properly configured for Android flavor
 
 2. **Network Permissions**:
-
    - Internet permission may be missing in AndroidManifest.xml
    - Firestore connection timeout issues
 
 3. **Authentication State**:
-
    - Auth credentials not properly saved/restored on Android
    - SharedPreferences or Hive data path issues on Android
 
@@ -4132,13 +4208,11 @@ Unable to resolve host "firestore.googleapis.com": No address associated with ho
 ### Technical Learnings
 
 1. **Firestore 差分同期の重要性**
-
    - Map 形式のデータ構造だけでは不十分
    - Firestore の更新 API も対応させる必要がある
    - `items.{itemId}`フィールド単位の更新で大幅な効率化
 
 2. **Repository 層の役割分担**
-
    - **FirestoreRepository**: 差分同期メソッド提供（既に実装済み）
    - **HybridRepository**: それらを活用する（今回実装）
 

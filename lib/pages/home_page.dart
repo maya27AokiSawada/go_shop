@@ -162,10 +162,27 @@ class _HomePageState extends ConsumerState<HomePage> {
       AppLogger.info('⏳ [SIGNUP] Firestoreデータ反映待機中...');
       await Future.delayed(const Duration(seconds: 2));
 
+      // ⚠️ ウィジェットが破棄されていないか確認
+      if (!mounted) {
+        AppLogger.warning('⚠️ [SIGNUP] ウィジェットが破棄されたため処理中断');
+        return;
+      }
+
       // Firestore→Hiveの同期を実行（デフォルトグループをHiveに反映）
       AppLogger.info('🔄 [SIGNUP] Firestore→Hive同期開始...');
-      await ref.read(forceSyncProvider.future);
-      AppLogger.info('✅ [SIGNUP] Firestore→Hive同期完了');
+      try {
+        await ref.read(forceSyncProvider.future);
+        AppLogger.info('✅ [SIGNUP] Firestore→Hive同期完了');
+      } catch (e) {
+        AppLogger.error('❌ [SIGNUP] 同期エラー（継続）', e);
+        // 同期エラーでも処理は継続（UI更新は行う）
+      }
+
+      // ⚠️ ウィジェットが破棄されていないか確認
+      if (!mounted) {
+        AppLogger.warning('⚠️ [SIGNUP] ウィジェットが破棄されたため処理中断');
+        return;
+      }
 
       // プロバイダーを再読み込み（グループリストを更新）
       ref.invalidate(allGroupsProvider);
