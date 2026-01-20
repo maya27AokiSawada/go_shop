@@ -753,6 +753,12 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
   /// デフォルトグループを作成（groupId = user.uid）
   /// user_initialization_serviceから呼び出される
   Future<void> createDefaultGroup(User? user) async {
+    // ⚠️ CRITICAL: サインイン必須 - 未認証時は何もしない
+    if (user == null) {
+      Log.info('⚠️ [CREATE DEFAULT] 未認証状態のためデフォルトグループ作成をスキップ');
+      return;
+    }
+
     // ⚠️ CRITICAL: ref.read()を全てメソッド開始時に取得（async処理前）
     final hiveReady = ref.read(hiveInitializationStatusProvider);
     final hiveInitFuture = ref.read(hiveUserInitializationProvider.future);
@@ -762,9 +768,9 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
       Log.info('🆕 [CREATE DEFAULT] デフォルトグループ作成開始（AllGroupsNotifier）');
 
       // デフォルトグループIDはユーザーのuidをそのまま使用
-      final defaultGroupId = user?.uid ?? 'local_default';
+      final defaultGroupId = user.uid ?? 'local_default';
       Log.info(
-          '🆔 [CREATE DEFAULT] グループID: ${AppLogger.maskGroupId(defaultGroupId, currentUserId: user?.uid)}');
+          '🆔 [CREATE DEFAULT] グループID: ${AppLogger.maskGroupId(defaultGroupId, currentUserId: user.uid)}');
 
       // プリファレンスからユーザー名を取得
       String displayName = 'ユーザー';
@@ -793,11 +799,11 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
 
       // 3. Preferencesでも取得できなかった場合、Firebase Authから取得
       if (displayName == 'ユーザー') {
-        if (user?.displayName?.isNotEmpty == true) {
-          displayName = user!.displayName!;
+        if (user.displayName?.isNotEmpty == true) {
+          displayName = user.displayName!;
           Log.info('✅ [CREATE DEFAULT] Firebase Authからユーザー名取得: $displayName');
-        } else if (user?.email != null) {
-          displayName = user!.email!.split('@').first;
+        } else if (user.email != null) {
+          displayName = user.email!.split('@').first;
           Log.info('✅ [CREATE DEFAULT] メールアドレスからユーザー名生成: $displayName');
         }
       }
@@ -806,7 +812,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
           '👤 [CREATE DEFAULT] 最終決定ユーザー名: ${AppLogger.maskName(displayName)}');
 
       // メールアドレスをSharedPreferencesに保存
-      if (user?.email != null && user!.email!.isNotEmpty) {
+      if (user.email != null && user.email!.isNotEmpty) {
         await UserPreferencesService.saveUserEmail(user.email!);
         Log.info('📧 [CREATE DEFAULT] メール保存: ${user.email}');
       }
@@ -823,7 +829,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
       }
 
       // 🔥 CRITICAL: サインイン状態ではFirestoreを優先チェック
-      if (user != null && F.appFlavor == Flavor.prod) {
+      if (F.appFlavor == Flavor.prod) {
         Log.info('🔥 [CREATE DEFAULT] サインイン状態 - Firestoreから既存グループ確認');
 
         try {
@@ -903,9 +909,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
             '💡 [CREATE DEFAULT] 既存グループのsyncStatus: ${existingGroup.syncStatus}');
 
         // 🔥 CRITICAL: Hiveクリーンアップ - allowedUidに含まれないグループを削除
-        if (user != null) {
-          await _cleanupInvalidHiveGroupsInternal(user.uid, hiveRepository);
-        }
+        await _cleanupInvalidHiveGroupsInternal(user.uid, hiveRepository);
 
         // 🔥 グループ名とメンバー名の更新チェック（ユーザー名が変わった場合に対応）
         final defaultGroupName = '$displayNameグループ';
@@ -953,7 +957,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
           await hiveRepository.saveGroup(updatedGroup);
 
           // Firestoreにも同期（サインイン状態の場合）
-          if (user != null && F.appFlavor == Flavor.prod) {
+          if (F.appFlavor == Flavor.prod) {
             try {
               final firestore = FirebaseFirestore.instance;
               final updateData = <String, dynamic>{
@@ -1002,7 +1006,6 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
 
         // 🔥 CHANGED: syncStatus=localの場合、Firestoreに同期
         if (existingGroup.syncStatus == models.SyncStatus.local &&
-            user != null &&
             F.appFlavor == Flavor.prod) {
           Log.info('🔄 [CREATE DEFAULT] 既存ローカルグループをFirestoreに同期開始');
 
@@ -1060,7 +1063,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
           final defaultGroupExists = allGroups.any((group) {
             // group.groupIdがdefault_group固定文字列、またはuser.uidと一致
             return group.groupId == 'default_group' ||
-                group.groupId == user?.uid;
+                group.groupId == user.uid;
           });
 
           if (defaultGroupExists) {
@@ -1076,9 +1079,9 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
 
       // オーナーメンバーを作成（memberIdにFirebase UIDを使用）
       final ownerMember = SharedGroupMember.create(
-        memberId: user?.uid, // 🔥 CRITICAL: Firebase UIDを明示的に指定
+        memberId: user.uid, // 🔥 CRITICAL: Firebase UIDを明示的に指定
         name: displayName,
-        contact: user?.email ?? '',
+        contact: user.email ?? '',
         role: SharedGroupRole.owner,
         isSignedIn: user != null,
         isInvited: false,
@@ -1098,7 +1101,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
       // 🔥 CHANGED: デフォルトグループもFirestoreに同期する
       // 理由: 複数端末で同じユーザーがログインした場合、デフォルトグループも共有されるべき
       //       groupId = user.uidなので、Firestoreでも衝突しない（ユーザーごとに一意）
-      if (user != null && F.appFlavor == Flavor.prod) {
+      if (F.appFlavor == Flavor.prod) {
         try {
           final createdGroup =
               await hiveRepository.getGroupById(defaultGroupId);
