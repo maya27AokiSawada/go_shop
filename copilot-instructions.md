@@ -1,5 +1,73 @@
 # Go Shop - AI Coding Agent Instructions
 
+## Recent Implementations (2026-01-20)
+
+### 1. UI/UX改善とサインイン必須仕様への最適化 ✅
+
+**Purpose**: ユーザビリティ向上と認証必須アプリとしての最適化
+
+**Key Changes**:
+
+#### ホワイトボードUI改善
+
+- **ツールバーコンパクト化**: 縦幅を約40%削減
+  - パディング: `all(8)` → `symmetric(horizontal: 8, vertical: 4)`
+  - 段間スペース: 8 → 4
+  - 色ボタン: 36×36 → 32×32
+  - IconButton: `padding: EdgeInsets.zero` + `size: 20`
+- **色プリセット削減**: 8色 → 6色（teal、brownを削除）
+- **横向き対応**: 十分なスペースがある場合は全アイコンを表示
+
+#### 認証フロー最適化
+
+- **未認証時の無駄な処理を削除**:
+  - `createDefaultGroup()`に未認証チェック追加
+  - `user == null`の場合は早期リターン
+  - Firestore接続試行、Hive初期化待機を回避
+- **アプリバー表示改善**:
+  - 未認証時: 「未サインイン」と表示
+  - 認証済み時: 「○○ さん」と表示
+
+#### ホーム画面改善
+
+- **アプリ名統一**: 「Go Shop」 → 「GoShopping」
+- **パスワードリセット復活**: サインイン画面にリンク追加
+
+**Modified Files**:
+
+- `lib/pages/whiteboard_editor_page.dart` (ツールバーコンパクト化)
+- `lib/pages/settings_page.dart` (プロバイダーimport追加)
+- `lib/providers/purchase_group_provider.dart` (未認証チェック)
+- `lib/pages/home_page.dart` (タイトル変更、パスワードリセット)
+- `lib/widgets/common_app_bar.dart` (認証状態表示)
+
+**Pattern**:
+
+```dart
+// ✅ 未認証チェックパターン
+Future<void> createDefaultGroup(User? user) async {
+  if (user == null) {
+    Log.info('⚠️ 未認証状態のためデフォルトグループ作成をスキップ');
+    return;
+  }
+  // 以降の処理...
+}
+
+// ✅ アプリバー表示パターン
+Future<String> _buildTitle(user) async {
+  if (showUserName) {
+    if (user == null) {
+      return '未サインイン';
+    }
+    final userName = await UserPreferencesService.getUserName();
+    return userName != null ? '$userName さん' : 'ホーム';
+  }
+  // ...
+}
+```
+
+---
+
 ## Recent Implementations (2026-01-16)
 
 ### 1. 手書きホワイトボード機能完全実装（future ブランチ） ✅

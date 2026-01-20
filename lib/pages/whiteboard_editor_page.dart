@@ -394,7 +394,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   /// 描画ツールバー（2段構成）
   Widget _buildToolbar() {
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       color: Colors.grey[200],
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -402,8 +402,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
           // 上段：色選択 + スクロール/描画モード切り替え
           Row(
             children: [
-              const Text('色:', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(width: 8),
+              const Text('色:',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+              const SizedBox(width: 4),
               _buildColorButton(Colors.black),
               _buildColorButton(Colors.red),
               _buildColorButton(Colors.green),
@@ -413,9 +414,12 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
               const Spacer(),
               // スクロール/描画モード切り替えボタン
               IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
                 icon: Icon(
                   _isScrollLocked ? Icons.brush : Icons.open_with,
                   color: _isScrollLocked ? Colors.blue : Colors.grey,
+                  size: 20,
                 ),
                 onPressed: () {
                   setState(() {
@@ -426,7 +430,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           // 下段：線幅5段階 + ズーム + 消去
           Row(
             children: [
@@ -468,7 +472,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
               const Spacer(),
               // 消去ボタン
               IconButton(
-                icon: const Icon(Icons.delete_outline),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                icon: const Icon(Icons.delete_outline, size: 20),
                 onPressed: () {
                   setState(() {
                     _workingStrokes.clear();
@@ -533,9 +539,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         });
       },
       child: Container(
-        width: 36,
-        height: 36,
-        margin: const EdgeInsets.symmetric(horizontal: 4),
+        width: 32,
+        height: 32,
+        margin: const EdgeInsets.symmetric(horizontal: 2),
         decoration: BoxDecoration(
           color: color,
           shape: BoxShape.circle,

@@ -1,5 +1,51 @@
 # GoShopping - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-01-20)
+
+### 1. UI/UX改善とサインイン必須仕様への最適化 ✅
+
+**Purpose**: アプリの使いやすさ向上と未認証時の無駄な処理削除
+
+**Completed**:
+
+#### ホワイトボード設定パネルの修正
+
+- ✅ `userSettingsProvider`と`userSettingsRepositoryProvider`のimport追加
+- ✅ 色プリセット数を8色→6色に削減（画面からはみ出し解消）
+- ✅ ツールバーの縦幅をコンパクト化
+  - パディング削減: `all(8)` → `symmetric(horizontal: 8, vertical: 4)`
+  - 段間スペース削減: 8 → 4
+  - 色ボタンサイズ縮小: 36×36 → 32×32
+  - IconButtonコンパクト化: `padding: EdgeInsets.zero` + `size: 20`
+
+#### 未認証時の処理最適化
+
+- ✅ `createDefaultGroup()`に未認証チェック追加
+- ✅ `user == null`の場合は早期リターン
+- ✅ 無駄なFirestore接続試行を回避
+
+#### ホーム画面の改善
+
+- ✅ アプリタイトルを「GoShopping」に統一
+- ✅ パスワードリセットリンクを復活
+  - サインイン時にパスワード入力欄下に配置
+  - メールアドレス入力済みでリセットメール送信可能
+- ✅ アプリバーで認証状態を表示
+  - 未認証時: 「未サインイン」
+  - 認証済み時: 「○○ さん」
+
+**Modified Files**:
+
+- `lib/pages/settings_page.dart`
+- `lib/providers/purchase_group_provider.dart`
+- `lib/pages/home_page.dart`
+- `lib/widgets/common_app_bar.dart`
+- `lib/pages/whiteboard_editor_page.dart`
+
+**Commits**: `23dda63`, `a88d1f6`
+
+---
+
 ## Recent Implementations (2026-01-19)
 
 ### 1. ホワイトボードエディターUI大幅改善 ✅
