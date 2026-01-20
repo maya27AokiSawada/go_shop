@@ -20,6 +20,8 @@ import '../widgets/settings/auth_status_panel.dart';
 import '../widgets/settings/firestore_sync_status_panel.dart';
 import '../widgets/settings/app_mode_switcher_panel.dart';
 import '../widgets/settings/privacy_settings_panel.dart';
+import '../providers/user_settings_provider.dart';
+import '../datastore/user_settings_repository.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -2344,8 +2346,6 @@ class WhiteboardSettingsPanel extends ConsumerWidget {
       Colors.orange,
       Colors.purple,
       Colors.pink,
-      Colors.teal,
-      Colors.brown,
       Colors.indigo,
       Colors.cyan,
     ];
