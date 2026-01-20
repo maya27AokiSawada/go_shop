@@ -6,6 +6,7 @@ import '../providers/purchase_group_provider.dart';
 import '../providers/shared_list_provider.dart' hide sharedListBoxProvider;
 import '../services/user_preferences_service.dart';
 import '../services/firestore_user_name_service.dart';
+import '../services/password_reset_service.dart';
 import '../services/ad_service.dart';
 import '../widgets/user_name_panel_widget.dart';
 import '../widgets/news_and_ads_panel_widget.dart';
@@ -338,7 +339,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               ),
               const SizedBox(height: 16),
               const Text(
-                'Go Shop',
+                'GoShopping',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 32,
@@ -561,7 +562,48 @@ class _HomePageState extends ConsumerState<HomePage> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 8),
+
+                      // パスワードリセットリンク（サインイン時のみ）
+                      if (!_isSignUpMode)
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () async {
+                              final email = emailController.text.trim();
+                              if (email.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('メールアドレスを入力してください'),
+                                    backgroundColor: Colors.orange,
+                                  ),
+                                );
+                                return;
+                              }
+
+                              // パスワードリセットメール送信
+                              final service = PasswordResetService();
+                              final result =
+                                  await service.sendPasswordResetEmail(email);
+
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(result.message),
+                                    backgroundColor: result.success
+                                        ? Colors.green
+                                        : Colors.red,
+                                  ),
+                                );
+                              }
+                            },
+                            child: const Text(
+                              'パスワードを忘れた場合',
+                              style: TextStyle(fontSize: 13),
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 8),
 
                       // メールアドレス保存チェックボックス（サインイン時のみ）
                       if (!_isSignUpMode)
