@@ -44,7 +44,7 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
 
     return AppBar(
       title: FutureBuilder<String>(
-        future: _buildTitle(),
+        future: _buildTitle(authState.value),
         builder: (context, snapshot) {
           if (snapshot.hasData) {
             return Text(snapshot.data!);
@@ -137,9 +137,14 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
   }
 
   /// タイトルを構築
-  Future<String> _buildTitle() async {
+  Future<String> _buildTitle(user) async {
     // ユーザー名表示（ホーム画面）
     if (showUserName) {
+      // 未認証の場合は「未サインイン」を表示
+      if (user == null) {
+        return '未サインイン';
+      }
+
       final userName = await UserPreferencesService.getUserName();
       if (userName != null && userName.isNotEmpty) {
         return '$userName さん';
