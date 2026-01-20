@@ -5,6 +5,7 @@ import 'package:signature/signature.dart';
 import '../models/whiteboard.dart';
 import '../providers/whiteboard_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/user_settings_provider.dart';
 import '../services/notification_service.dart';
 import '../utils/drawing_converter.dart';
 import '../utils/app_logger.dart';
@@ -407,6 +408,8 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
               _buildColorButton(Colors.red),
               _buildColorButton(Colors.green),
               _buildColorButton(Colors.yellow),
+              _buildColorButton(_getCustomColor5()),
+              _buildColorButton(_getCustomColor6()),
               const Spacer(),
               // スクロール/描画モード切り替えボタン
               IconButton(
@@ -490,6 +493,24 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         color: Colors.grey.withOpacity(0.2),
       ),
     );
+  }
+
+  /// カスタム色5を取得（設定から）
+  Color _getCustomColor5() {
+    final settings = ref.watch(userSettingsProvider).value;
+    if (settings != null && settings.whiteboardColor5 != 0) {
+      return Color(settings.whiteboardColor5);
+    }
+    return Colors.blue; // デフォルト：青
+  }
+
+  /// カスタム色6を取得（設定から）
+  Color _getCustomColor6() {
+    final settings = ref.watch(userSettingsProvider).value;
+    if (settings != null && settings.whiteboardColor6 != 0) {
+      return Color(settings.whiteboardColor6);
+    }
+    return Colors.orange; // デフォルト：オレンジ
   }
 
   /// 色選択ボタン
