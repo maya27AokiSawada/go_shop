@@ -24,13 +24,15 @@ class UserSettingsAdapter extends TypeAdapter<UserSettings> {
       userEmail: fields[4] as String,
       appMode: fields[5] as int,
       enableListNotifications: fields[6] as bool,
+      whiteboardColor5: fields[7] as int,
+      whiteboardColor6: fields[8] as int,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserSettings obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.userName)
       ..writeByte(1)
@@ -44,7 +46,11 @@ class UserSettingsAdapter extends TypeAdapter<UserSettings> {
       ..writeByte(5)
       ..write(obj.appMode)
       ..writeByte(6)
-      ..write(obj.enableListNotifications);
+      ..write(obj.enableListNotifications)
+      ..writeByte(7)
+      ..write(obj.whiteboardColor5)
+      ..writeByte(8)
+      ..write(obj.whiteboardColor6);
   }
 
   @override
@@ -71,6 +77,10 @@ _$UserSettingsImpl _$$UserSettingsImplFromJson(Map<String, dynamic> json) =>
       userEmail: json['userEmail'] as String? ?? '',
       appMode: (json['appMode'] as num?)?.toInt() ?? 0,
       enableListNotifications: json['enableListNotifications'] as bool? ?? true,
+      whiteboardColor5:
+          (json['whiteboardColor5'] as num?)?.toInt() ?? 0xFF2196F3,
+      whiteboardColor6:
+          (json['whiteboardColor6'] as num?)?.toInt() ?? 0xFFFF9800,
     );
 
 Map<String, dynamic> _$$UserSettingsImplToJson(_$UserSettingsImpl instance) =>
@@ -82,4 +92,6 @@ Map<String, dynamic> _$$UserSettingsImplToJson(_$UserSettingsImpl instance) =>
       'userEmail': instance.userEmail,
       'appMode': instance.appMode,
       'enableListNotifications': instance.enableListNotifications,
+      'whiteboardColor5': instance.whiteboardColor5,
+      'whiteboardColor6': instance.whiteboardColor6,
     };
