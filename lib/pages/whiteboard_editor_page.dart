@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:signature/signature.dart';
 import '../models/whiteboard.dart';
@@ -25,6 +26,10 @@ class WhiteboardEditorPage extends ConsumerStatefulWidget {
 }
 
 class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
+  // 固定キャンバスサイズ（16:9比率 - 横長）
+  static const double _fixedCanvasWidth = 1280.0;
+  static const double _fixedCanvasHeight = 720.0;
+
   SignatureController? _controller;
   bool _isSaving = false;
   Color _selectedColor = Colors.black;
@@ -36,8 +41,8 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   final ScrollController _horizontalScrollController = ScrollController();
   final ScrollController _verticalScrollController = ScrollController();
 
-  // キャンバスサイズ（デバイス画面サイズの倍数）
-  double _canvasScale = 2.0; // 2倍のキャンバスサイズ
+  // キャンバスズーム倍率
+  double _canvasScale = 1.0; // デフォルト等倍
 
   // スクロールロック（trueでスクロール無効、falseでスクロール有効）
   bool _isScrollLocked = false;
@@ -59,6 +64,11 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       penColor: _selectedColor,
     );
 
+    // 初期スクロール位置を中央に設定（画面構築後に実行）
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToCenter();
+    });
+
     AppLogger.info('🎨 [WHITEBOARD] SignatureController初期化完了');
   }
 
@@ -68,6 +78,34 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     _horizontalScrollController.dispose();
     _verticalScrollController.dispose();
     super.dispose();
+  }
+
+  /// スクロール位置を中央に移動
+  void _scrollToCenter() {
+    if (!_horizontalScrollController.hasClients ||
+        !_verticalScrollController.hasClients) {
+      return;
+    }
+
+    try {
+      // 横スクロールを中央に
+      final maxHorizontalScroll =
+          _horizontalScrollController.position.maxScrollExtent;
+      if (maxHorizontalScroll > 0) {
+        _horizontalScrollController.jumpTo(maxHorizontalScroll / 2);
+      }
+
+      // 縦スクロールを中央に
+      final maxVerticalScroll =
+          _verticalScrollController.position.maxScrollExtent;
+      if (maxVerticalScroll > 0) {
+        _verticalScrollController.jumpTo(maxVerticalScroll / 2);
+      }
+
+      AppLogger.info('📍 [WHITEBOARD] スクロール位置を中央に設定');
+    } catch (e) {
+      AppLogger.error('❌ [WHITEBOARD] スクロール中央設定エラー: $e');
+    }
   }
 
   /// 現在の描画をキャプチャして_workingStrokesに追加
@@ -276,14 +314,14 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                             ? const NeverScrollableScrollPhysics()
                             : const AlwaysScrollableScrollPhysics(),
                         child: SizedBox(
-                          width: constraints.maxWidth * _canvasScale,
-                          height: constraints.maxHeight * _canvasScale,
+                          width: _fixedCanvasWidth * _canvasScale,
+                          height: _fixedCanvasHeight * _canvasScale,
                           child: Transform.scale(
                             scale: _canvasScale,
                             alignment: Alignment.topLeft,
                             child: Container(
-                              width: constraints.maxWidth,
-                              height: constraints.maxHeight,
+                              width: _fixedCanvasWidth,
+                              height: _fixedCanvasHeight,
                               color: Colors.white,
                               child: Stack(
                                 children: [
