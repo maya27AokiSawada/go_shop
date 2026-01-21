@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 /// Firestoreニュースの表示モデル
 class AppNews {
   final String title;
@@ -24,17 +26,36 @@ class AppNews {
     return AppNews(
       title: map['title'] ?? '',
       content: map['content'] ?? '',
-      createdAt: DateTime.fromMillisecondsSinceEpoch(
-          (map['createdAt'] as num?)?.toInt() ?? 0),
-      updatedAt: map['updatedAt'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(
-              (map['updatedAt'] as num).toInt())
-          : null,
+      createdAt: _parseDateTime(map['createdAt']) ?? DateTime.now(),
+      updatedAt:
+          map['updatedAt'] != null ? _parseDateTime(map['updatedAt']) : null,
       isActive: map['isActive'] ?? true,
       imageUrl: map['imageUrl'],
       actionUrl: map['actionUrl'],
       actionText: map['actionText'],
     );
+  }
+
+  /// Firestore Timestamp または ミリ秒を DateTime に変換
+  static DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+
+    // Firestore Timestamp型の場合
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+
+    // ミリ秒（num型）の場合
+    if (value is num) {
+      return DateTime.fromMillisecondsSinceEpoch(value.toInt());
+    }
+
+    // DateTime型の場合（そのまま返す）
+    if (value is DateTime) {
+      return value;
+    }
+
+    return null;
   }
 
   Map<String, dynamic> toMap() {

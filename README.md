@@ -492,7 +492,7 @@ $ firebase deploy --only firestore:indexes
 
 ## プロジェクト概要
 
-Go Shop は家族・グループ向けの買い物リスト共有 Flutter アプリです。Firebase Auth（ユーザー認証）と Cloud Firestore（データベース）を使用し、Hive をローカルキャッシュとして併用する**Firestore-first ハイブリッドアーキテクチャ**を採用しています。
+GoShopping は家族・グループ向けの買い物リスト共有 Flutter アプリです。Firebase Auth（ユーザー認証）と Cloud Firestore（データベース）を使用し、Hive をローカルキャッシュとして併用する**Firestore-first ハイブリッドアーキテクチャ**を採用しています。
 
 **Current Status (December 2025)**: 認証必須アプリとして、全データレイヤー（Group/List/Item）で Firestore 優先＋効率的な差分同期を実現。
 
