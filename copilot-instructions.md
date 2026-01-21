@@ -1,4 +1,4 @@
-# Go Shop - AI Coding Agent Instructions
+# GoShopping - AI Coding Agent Instructions
 
 ## Recent Implementations (2026-01-20)
 

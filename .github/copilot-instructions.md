@@ -1,4 +1,4 @@
-# Go Shop - AI Coding Agent Instructions
+# GoShopping - AI Coding Agent Instructions
 
 ## Recent Implementations (2026-01-19)
 
@@ -879,7 +879,7 @@ $ firebase deploy --only firestore:indexes
 
 ## Project Overview
 
-Go Shop は家族・グループ向けの買い物リスト共有 Flutter アプリです。Firebase Auth（ユーザー認証）と Cloud Firestore（データベース）を使用し、Hive をローカルキャッシュとして併用するハイブリッド構成です。
+GoShopping は家族・グループ向けの買い物リスト共有 Flutter アプリです。Firebase Auth（ユーザー認証）と Cloud Firestore（データベース）を使用し、Hive をローカルキャッシュとして併用するハイブリッド構成です。
 
 **Current Status (December 2025)**: Authentication-required app with Firestore-first architecture for all CRUD operations.
 
@@ -2975,7 +2975,7 @@ print('Needs cleanup: ${currentList.needsCleanup}');
 ```
 Initial Screen:
 ┌─────────────────────────────────┐
-│   🎒 Go Shop                    │
+│   🎒 GoShopping                 │
 │   買い物リスト共有アプリ          │
 ├─────────────────────────────────┤
 │   📋 プライバシー情報             │
