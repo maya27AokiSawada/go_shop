@@ -1,5 +1,97 @@
 # GoShopping - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-01-21)
+
+### 1. ホワイトボードツールバーUI完全改善 ✅
+
+**Purpose**: スマホ縦横両方で全ツールバーアイコンを表示可能にする
+
+**Problem**:
+
+- 縦画面・横画面で一部アイコンが画面外に隠れる
+- ゴミ箱アイコン（下段右端）が見えない
+- 設定ページの色プリセット（色5・色6）が反映されない
+
+**Solution**:
+
+#### 上段ツールバー（色選択）
+
+- ✅ **6色対応**: 黒、赤、緑、黄、色5カスタム、色6カスタム
+- ✅ **設定連携**: `_getCustomColor5()`, `_getCustomColor6()`で設定ページの色プリセット反映
+- ✅ **横スクロール対応**: `SingleChildScrollView`でラップ
+- ✅ **左寄せ**: `mainAxisAlignment: MainAxisAlignment.start`
+- ✅ **固定幅スペース**: `Spacer()` → `SizedBox(width: 16)`
+
+#### 下段ツールバー（太さ・ズーム・消去）
+
+- ✅ **横スクロール対応**: `SingleChildScrollView`でラップ
+- ✅ **左寄せ**: `mainAxisAlignment: MainAxisAlignment.start`
+- ✅ **固定幅スペース**: `Spacer()` → `SizedBox(width: 16)`
+- ✅ **ゴミ箱アイコン常時表示**: 狭い画面でもスクロールで到達可能
+
+#### 実装パターン
+
+```dart
+// 共通パターン（上段・下段）
+SingleChildScrollView(
+  scrollDirection: Axis.horizontal,
+  child: Row(
+    mainAxisSize: MainAxisSize.min,
+    mainAxisAlignment: MainAxisAlignment.start, // 左寄せ
+    children: [
+      // ボタン群
+      _buildColorButton(Colors.black),
+      _buildColorButton(Colors.red),
+      _buildColorButton(Colors.green),
+      _buildColorButton(Colors.yellow),
+      _buildColorButton(_getCustomColor5()), // 設定から取得
+      _buildColorButton(_getCustomColor6()), // 設定から取得
+      const SizedBox(width: 16), // Spacerの代わりに固定幅
+      // モード切替アイコン
+    ],
+  ),
+)
+```
+
+#### 色プリセット連携
+
+```dart
+// 設定ページから色5・色6を取得
+Color _getCustomColor5() {
+  final settings = ref.watch(userSettingsProvider).value;
+  if (settings != null && settings.whiteboardColor5 != 0) {
+    return Color(settings.whiteboardColor5);
+  }
+  return Colors.blue; // デフォルト
+}
+
+Color _getCustomColor6() {
+  final settings = ref.watch(userSettingsProvider).value;
+  if (settings != null && settings.whiteboardColor6 != 0) {
+    return Color(settings.whiteboardColor6);
+  }
+  return Colors.orange; // デフォルト
+}
+```
+
+**Test Results**:
+
+- ✅ AIWAタブレット（横長）: 全アイコン表示確認
+- ✅ SH54D横持ち: ゴミ箱アイコン表示確認
+- ✅ SH54D縦持ち: モード切替アイコン表示確認
+- ✅ 色プリセット連携動作確認
+
+**Modified Files**:
+
+- `lib/pages/whiteboard_editor_page.dart` (683行)
+  - Lines 404-421: 上段ツールバー（6色＋左寄せ＋横スクロール）
+  - Lines 441-493: 下段ツールバー（左寄せ＋横スクロール）
+  - Lines 516-530: 色プリセット取得メソッド
+
+**Commits**: 本セッションでコミット予定
+
+---
+
 ## Recent Implementations (2026-01-20)
 
 ### 1. UI/UX改善とサインイン必須仕様への最適化 ✅
@@ -84,6 +176,7 @@
 
 - ドロップダウン → ±ボタン（0.5刻み調整）
 - **SizedBox + Transform.scale** による正しいスクロール実装
+
   ```dart
   SizedBox(
     width: screenWidth * _canvasScale,

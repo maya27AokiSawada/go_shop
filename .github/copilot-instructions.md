@@ -1,5 +1,52 @@
 # GoShopping - AI Coding Agent Instructions
 
+## Recent Implementations (2026-01-21)
+
+### 1. ホワイトボードツールバーUI完全改善 ✅
+
+**Purpose**: スマホ縦横両方向で全ツールバーアイコンを表示可能にする
+
+**Implementation**:
+
+#### 上段ツールバー（色選択）
+
+- ✅ 6色対応（黒、赤、緑、黄、色5カスタム、色6カスタム）
+- ✅ 設定ページの色プリセット連携（`_getCustomColor5()`, `_getCustomColor6()`）
+- ✅ SingleChildScrollView横スクロール対応
+- ✅ mainAxisAlignment.start で左寄せ
+- ✅ Spacer削除、SizedBox(width: 16)使用
+
+#### 下段ツールバー（太さ・ズーム・消去）
+
+- ✅ SingleChildScrollView横スクロール対応
+- ✅ mainAxisAlignment.start で左寄せ
+- ✅ Spacer削除、SizedBox(width: 16)使用
+- ✅ ゴミ箱アイコン常時表示対応
+
+**Key Pattern**:
+
+```dart
+SingleChildScrollView(
+  scrollDirection: Axis.horizontal,
+  child: Row(
+    mainAxisSize: MainAxisSize.min,
+    mainAxisAlignment: MainAxisAlignment.start, // 左寄せ
+    children: [
+      _buildColorButton(_getCustomColor5()), // 設定連携
+      const SizedBox(width: 16), // 固定幅
+    ],
+  ),
+)
+```
+
+**Modified Files**:
+
+- `lib/pages/whiteboard_editor_page.dart` (Lines 404-421, 441-493, 516-530)
+
+**Commits**: 本セッション
+
+---
+
 ## Recent Implementations (2026-01-19)
 
 ### 1. ホワイトボードエディターUI大幅改善 ✅

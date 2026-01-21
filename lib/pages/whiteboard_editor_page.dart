@@ -394,96 +394,108 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   /// 描画ツールバー（2段構成）
   Widget _buildToolbar() {
     return Container(
+      width: double.infinity, // 親の幅いっぱいに広げる
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       color: Colors.grey[200],
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 上段：色選択 + スクロール/描画モード切り替え
-          Row(
-            children: [
-              const Text('色:',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-              const SizedBox(width: 4),
-              _buildColorButton(Colors.black),
-              _buildColorButton(Colors.red),
-              _buildColorButton(Colors.green),
-              _buildColorButton(Colors.yellow),
-              _buildColorButton(_getCustomColor5()),
-              _buildColorButton(_getCustomColor6()),
-              const Spacer(),
-              // スクロール/描画モード切り替えボタン
-              IconButton(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                icon: Icon(
-                  _isScrollLocked ? Icons.brush : Icons.open_with,
-                  color: _isScrollLocked ? Colors.blue : Colors.grey,
-                  size: 20,
+          // 上段：色選択（6色） + スクロール/描画モード切り替え
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.start, // 左寄せ
+              children: [
+                const Text('色:',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                const SizedBox(width: 4),
+                _buildColorButton(Colors.black),
+                _buildColorButton(Colors.red),
+                _buildColorButton(Colors.green),
+                _buildColorButton(Colors.yellow),
+                _buildColorButton(_getCustomColor5()), // 設定から取得
+                _buildColorButton(_getCustomColor6()), // 設定から取得
+                const SizedBox(width: 16), // Spacerの代わりに固定幅
+                // スクロール/描画モード切り替えボタン
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  icon: Icon(
+                    _isScrollLocked ? Icons.brush : Icons.open_with,
+                    color: _isScrollLocked ? Colors.blue : Colors.grey,
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _isScrollLocked = !_isScrollLocked;
+                    });
+                  },
+                  tooltip: _isScrollLocked ? '描画モード（筆）' : 'スクロールモード（十字）',
                 ),
-                onPressed: () {
-                  setState(() {
-                    _isScrollLocked = !_isScrollLocked;
-                  });
-                },
-                tooltip: _isScrollLocked ? '描画モード（筆）' : 'スクロールモード（十字）',
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 4),
           // 下段：線幅5段階 + ズーム + 消去
-          Row(
-            children: [
-              // ペン太さ5段階
-              _buildStrokeWidthButton(1.0, 1),
-              _buildStrokeWidthButton(2.0, 2),
-              _buildStrokeWidthButton(4.0, 3),
-              _buildStrokeWidthButton(6.0, 4),
-              _buildStrokeWidthButton(8.0, 5),
-              const SizedBox(width: 16),
-              // ズームアウト
-              IconButton(
-                icon: const Icon(Icons.zoom_out, size: 20),
-                onPressed: () {
-                  setState(() {
-                    if (_canvasScale > 0.5) {
-                      _canvasScale -= 0.5;
-                      print('🔍 ズームアウト: ${_canvasScale}x');
-                    }
-                  });
-                },
-                tooltip: 'ズームアウト',
-              ),
-              // ズーム倍率表示
-              Text('${_canvasScale.toStringAsFixed(1)}x'),
-              // ズームイン
-              IconButton(
-                icon: const Icon(Icons.zoom_in, size: 20),
-                onPressed: () {
-                  setState(() {
-                    if (_canvasScale < 4.0) {
-                      _canvasScale += 0.5;
-                      print('🔍 ズームイン: ${_canvasScale}x');
-                    }
-                  });
-                },
-                tooltip: 'ズームイン',
-              ),
-              const Spacer(),
-              // 消去ボタン
-              IconButton(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                icon: const Icon(Icons.delete_outline, size: 20),
-                onPressed: () {
-                  setState(() {
-                    _workingStrokes.clear();
-                    _controller!.clear();
-                  });
-                },
-                tooltip: '全消去',
-              ),
-            ],
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.start, // 左寄せ
+              children: [
+                // ペン太さ5段階
+                _buildStrokeWidthButton(1.0, 1),
+                _buildStrokeWidthButton(2.0, 2),
+                _buildStrokeWidthButton(4.0, 3),
+                _buildStrokeWidthButton(6.0, 4),
+                _buildStrokeWidthButton(8.0, 5),
+                const SizedBox(width: 16),
+                // ズームアウト
+                IconButton(
+                  icon: const Icon(Icons.zoom_out, size: 20),
+                  onPressed: () {
+                    setState(() {
+                      if (_canvasScale > 0.5) {
+                        _canvasScale -= 0.5;
+                        print('🔍 ズームアウト: ${_canvasScale}x');
+                      }
+                    });
+                  },
+                  tooltip: 'ズームアウト',
+                ),
+                // ズーム倍率表示
+                Text('${_canvasScale.toStringAsFixed(1)}x'),
+                // ズームイン
+                IconButton(
+                  icon: const Icon(Icons.zoom_in, size: 20),
+                  onPressed: () {
+                    setState(() {
+                      if (_canvasScale < 4.0) {
+                        _canvasScale += 0.5;
+                        print('🔍 ズームイン: ${_canvasScale}x');
+                      }
+                    });
+                  },
+                  tooltip: 'ズームイン',
+                ),
+                const SizedBox(width: 16), // Spacerの代わりに固定幅
+                // 消去ボタン
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  icon: const Icon(Icons.delete_outline, size: 20),
+                  onPressed: () {
+                    setState(() {
+                      _workingStrokes.clear();
+                      _controller!.clear();
+                    });
+                  },
+                  tooltip: '全消去',
+                ),
+              ],
+            ),
           ),
         ],
       ),
