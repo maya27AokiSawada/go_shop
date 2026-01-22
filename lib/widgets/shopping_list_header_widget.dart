@@ -370,16 +370,28 @@ class SharedListHeaderWidget extends ConsumerWidget {
                             );
                         Log.info('📝 カレントリストに設定完了: ${newList.listName}');
 
+                        // 🔥 成功時にスピナーをリセット（ダイアログを閉じる前に）
+                        setDialogState(() {
+                          isSubmitting = false;
+                        });
+
                         if (!context.mounted) return;
                         Navigator.of(context).pop();
 
-                        // ダイアログを閉じた後、リスト一覧を更新して完了を待つ
+                        // 🔥 ダイアログを閉じた後、非同期でリスト一覧を更新（UIブロックしない）
                         ref.invalidate(groupSharedListsProvider);
 
-                        // リスト一覧の更新完了を待つ（新しいリストが含まれるまで）
+                        // 🔥 タイムアウト付きでリスト一覧更新を待つ（最大3秒）
                         try {
-                          final updatedLists =
-                              await ref.read(groupSharedListsProvider.future);
+                          final updatedLists = await ref
+                              .read(groupSharedListsProvider.future)
+                              .timeout(
+                            const Duration(seconds: 3),
+                            onTimeout: () {
+                              Log.warning('⚠️ リスト一覧更新タイムアウト - 既存リストを使用');
+                              return [newList]; // タイムアウト時は作成したリストを返す
+                            },
+                          );
                           Log.info('✅ リスト一覧更新完了 - ${updatedLists.length}件');
 
                           // Firestoreから取得したリストの中から、作成したリストを探して再設定
@@ -401,6 +413,7 @@ class SharedListHeaderWidget extends ConsumerWidget {
                               '✅ Firestore取得後のカレントリスト再設定完了: ${createdList.listName} (${createdList.listId})');
                         } catch (e) {
                           Log.error('❌ リスト一覧更新エラー: $e');
+                          // エラーでも作成したリストは使用可能
                         }
 
                         if (!context.mounted) return;
