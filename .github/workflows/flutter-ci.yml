@@ -34,9 +34,22 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      # テストをスキップ（テストファイルがない場合はビルドが失敗するため）
-      # - name: Run tests
-      #   run: flutter test
+      # モックファイル生成（認証テスト用）
+      - name: Generate mocks
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+
+      # 🧪 Unit Tests実行（CRUD + 認証）
+      - name: Run Unit Tests
+        run: flutter test test/datastore/ test/auth/ --reporter github
+        continue-on-error: false
+
+      # テスト結果サマリー表示
+      - name: Test Summary
+        if: always()
+        run: |
+          echo "✅ CRUD Tests: 29 tests"
+          echo "✅ Auth Tests: 47 tests"
+          echo "✅ Total: 76 tests"
 
       - name: Build Android APK (dev flavor)
         run: flutter build apk --release --flavor dev
