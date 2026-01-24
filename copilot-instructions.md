@@ -1,5 +1,174 @@
 # GoShopping - AI Coding Agent Instructions
 
+## Recent Implementations (2026-01-24)
+
+### 1. 共有グループ同期問題修正とホワイトボードUI改善 ✅
+
+**Purpose**: Firestore全グループ同期とズーム機能の座標変換実装
+
+#### 共有グループ同期問題の修正
+
+**Problem**: しんやさんのPixel9に「すもも共有グループ」が表示されない
+
+- Firebaseコンソールでは存在し、allowedUidにしんやのUIDが含まれている
+- 原因: `createDefaultGroup()`がデフォルトグループのみFirestoreから同期
+
+**Solution**: 全グループを同期
+
+```dart
+// ❌ Before: デフォルトグループのみ同期
+final defaultGroupDoc = groupsSnapshot.docs.firstWhere(
+  (doc) => doc.id == defaultGroupId,
+  orElse: () => throw Exception('デフォルトグループなし'),
+);
+await hiveRepository.saveGroup(firestoreGroup);
+
+// ✅ After: 全グループをループで同期
+bool defaultGroupExists = false;
+for (final doc in groupsSnapshot.docs) {
+  final firestoreGroup = SharedGroup(...);
+  await hiveRepository.saveGroup(firestoreGroup);
+
+  if (doc.id == defaultGroupId) {
+    defaultGroupExists = true;
+  }
+}
+```
+
+#### ホワイトボードグリッド表示修正
+
+**Problem**: グリッドが画面サイズ分しか表示されない
+
+**Solution**: キャンバス固定サイズ（1280x720）に変更
+
+```dart
+// ❌ Before: 画面サイズ依存
+_buildGridOverlay(constraints.maxWidth, constraints.maxHeight)
+
+// ✅ After: キャンバスサイズ + ズーム対応
+CustomPaint(
+  painter: GridPainter(
+    gridSize: 50.0 * _canvasScale,
+    color: Colors.grey.withOpacity(0.2),
+  ),
+)
+```
+
+#### ズーム機能の座標変換実装
+
+**Problem**: ズーム0.5で描画領域が左上のみ
+
+**Solution**: 座標変換処理実装
+
+1. **Container直接サイズ指定**（Transform.scale削除）
+
+```dart
+Container(
+  width: _fixedCanvasWidth * _canvasScale,
+  height: _fixedCanvasHeight * _canvasScale,
+  child: Stack(
+    children: [
+      // 背景レイヤー
+      Transform.scale(
+        scale: _canvasScale,
+        alignment: Alignment.topLeft,
+        child: CustomPaint(
+          size: const Size(_fixedCanvasWidth, _fixedCanvasHeight),
+          painter: DrawingStrokePainter(_workingStrokes),
+        ),
+      ),
+      // 前景レイヤー
+      SizedBox(
+        width: _fixedCanvasWidth * _canvasScale,
+        height: _fixedCanvasHeight * _canvasScale,
+        child: Signature(controller: _controller!),
+      ),
+    ],
+  ),
+)
+```
+
+2. **ペン幅のスケーリング対応**
+
+```dart
+_controller = SignatureController(
+  penStrokeWidth: _strokeWidth * _canvasScale, // スケーリング考慮
+  penColor: _selectedColor,
+);
+```
+
+3. **座標変換処理** (`drawing_converter.dart`)
+
+```dart
+static List<DrawingStroke> captureFromSignatureController({
+  double scale = 1.0, // スケーリング係数
+}) {
+  // 座標をスケーリング前の座標系に変換
+  currentStrokePoints.add(DrawingPoint(
+    x: point.offset.dx / scale,
+    y: point.offset.dy / scale,
+  ));
+}
+```
+
+#### ホワイトボードプレビューのアスペクト比対応
+
+**Problem**: 固定height: 120でアスペクト比が無視される
+
+**Solution**: AspectRatio + ConstrainedBox
+
+```dart
+ConstrainedBox(
+  constraints: const BoxConstraints(maxHeight: 200),
+  child: AspectRatio(
+    aspectRatio: 16 / 9, // 1280:720
+    child: Stack(...),
+  ),
+)
+```
+
+#### カスタム色設定の不具合修正
+
+**Problem**: 設定変更時に色が初期値に戻る（ref.watch()使用）
+
+**Solution**: initStateでキャッシュ
+
+```dart
+// ❌ Before: ref.watch()で都度取得
+Color _getCustomColor5() {
+  final settings = ref.watch(userSettingsProvider).value;
+  return Color(settings.whiteboardColor5);
+}
+
+// ✅ After: initStateで1回のみ読み込み
+late Color _customColor5;
+
+@override
+void initState() {
+  super.initState();
+  _customColor5 = _loadCustomColor5();
+}
+
+Color _loadCustomColor5() {
+  final settings = ref.read(userSettingsProvider).value;
+  return Color(settings?.whiteboardColor5 ?? 0xFF2196F3);
+}
+
+Color _getCustomColor5() => _customColor5;
+```
+
+**Modified Files**:
+
+- `lib/providers/purchase_group_provider.dart` (全グループ同期)
+- `lib/pages/whiteboard_editor_page.dart` (ズーム座標変換、カスタム色キャッシュ)
+- `lib/utils/drawing_converter.dart` (スケーリング係数追加)
+- `lib/widgets/whiteboard_preview_widget.dart` (アスペクト比16:9)
+- `debug_shinya_groups.dart` (デバッグスクリプト追加)
+
+**Commit**: `2bc2fe1` - "fix: 共有グループ同期とホワイトボードUI改善"
+
+---
+
 ## Recent Implementations (2026-01-20)
 
 ### 1. UI/UX改善とサインイン必須仕様への最適化 ✅

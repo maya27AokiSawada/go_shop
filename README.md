@@ -1,5 +1,81 @@
 # GoShopping - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-01-24)
+
+### 1. 共有グループ同期問題修正とホワイトボードUI改善 ✅
+
+**Purpose**: Firestore全グループ同期とズーム機能の座標変換実装
+
+#### 共有グループ同期問題の修正
+
+**Problem**: しんやさんのPixel9に「すもも共有グループ」が表示されない
+
+**Root Cause**: `createDefaultGroup()`がデフォルトグループのみFirestoreから同期
+
+**Solution**: 全グループをループで同期
+
+```dart
+// 🔥 FIX: 全てのグループをHiveに同期
+bool defaultGroupExists = false;
+for (final doc in groupsSnapshot.docs) {
+  final firestoreGroup = SharedGroup(...);
+  await hiveRepository.saveGroup(firestoreGroup);
+
+  if (doc.id == defaultGroupId) {
+    defaultGroupExists = true;
+  }
+}
+```
+
+**Result**: allowedUidに含まれる全グループが初回サインイン時に同期される
+
+#### ホワイトボード機能改善
+
+**1. グリッド表示修正**
+
+- 画面サイズ依存 → キャンバス固定サイズ（1280x720）
+- ズーム倍率対応（`gridSize: 50.0 * _canvasScale`）
+
+**2. ズーム機能の座標変換実装**
+
+**Problem**: ズーム0.5で描画領域が左上のみ
+
+**Solution**:
+
+- Container直接サイズ指定（Transform.scale削除）
+- ペン幅スケーリング対応（`_strokeWidth * _canvasScale`）
+- 座標変換処理実装（`drawing_converter.dart`に`scale`パラメータ追加）
+
+```dart
+// 座標をスケーリング前の座標系に変換
+currentStrokePoints.add(DrawingPoint(
+  x: point.offset.dx / scale,
+  y: point.offset.dy / scale,
+));
+```
+
+**3. プレビューのアスペクト比対応**
+
+- 固定height: 120 → AspectRatio(16/9)
+- タブレット対応（maxHeight: 200px）
+
+**4. カスタム色設定の不具合修正**
+
+- ref.watch() → ref.read()（initStateでキャッシュ）
+- 色比較ロジック修正（インスタンス比較 → 色値比較）
+
+**Modified Files**:
+
+- `lib/providers/purchase_group_provider.dart`
+- `lib/pages/whiteboard_editor_page.dart`
+- `lib/utils/drawing_converter.dart`
+- `lib/widgets/whiteboard_preview_widget.dart`
+- `debug_shinya_groups.dart` (new)
+
+**Commit**: `2bc2fe1`
+
+---
+
 ## Recent Implementations (2026-01-21)
 
 ### 1. ホワイトボードツールバーUI完全改善 ✅
