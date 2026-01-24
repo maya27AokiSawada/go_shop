@@ -105,83 +105,135 @@ class _GroupMemberManagementPageState
   Widget _buildMemberList(SharedGroup group) {
     final members = group.members ?? [];
 
-    return Column(
-      children: [
-        // グループ情報ヘッダー
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: _isDefaultGroup(group)
-                ? Colors.green.shade50
-                : Colors.blue.shade50,
-            border: Border(
-              bottom: BorderSide(color: Colors.grey.shade200),
+    // グループ情報ヘッダーウィジェット
+    final headerWidget = Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color:
+            _isDefaultGroup(group) ? Colors.green.shade50 : Colors.blue.shade50,
+        border: Border(
+          bottom: BorderSide(color: Colors.grey.shade200),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'グループ情報',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: _isDefaultGroup(group)
+                  ? Colors.green.shade700
+                  : Colors.blue.shade700,
             ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(height: 8),
+          // グループ名編集TextField
+          Row(
             children: [
-              Text(
-                'グループ情報',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: _isDefaultGroup(group)
-                      ? Colors.green.shade700
-                      : Colors.blue.shade700,
-                ),
-              ),
-              const SizedBox(height: 8),
-              // グループ名編集TextField
-              Row(
-                children: [
-                  const Text('グループ名: '),
-                  Expanded(
-                    child: TextField(
-                      controller: TextEditingController(text: group.groupName),
-                      decoration: const InputDecoration(
-                        isDense: true,
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        border: OutlineInputBorder(),
-                      ),
-                      onSubmitted: (value) => _updateGroupName(group, value),
-                    ),
+              const Text('グループ名: '),
+              Expanded(
+                child: TextField(
+                  controller: TextEditingController(text: group.groupName),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    border: OutlineInputBorder(),
                   ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text('メンバー数: ${members.length}人'),
-              if (group.ownerName?.isNotEmpty == true)
-                Text('オーナー: ${group.ownerName}'),
-              const SizedBox(height: 16),
-              // グループ用ホワイトボードプレビュー
-              WhiteboardPreviewWidget(
-                groupId: group.groupId,
+                  onSubmitted: (value) => _updateGroupName(group, value),
+                ),
               ),
             ],
           ),
-        ),
-
-        // メンバーリスト
-        Expanded(
-          child: members.isEmpty
-              ? _buildEmptyMemberList()
-              : ListView.builder(
-                  itemCount: members.length,
-                  itemBuilder: (context, index) {
-                    final member = members[index];
-                    // メンバータイルにホワイトボード機能統合
-                    return MemberTileWithWhiteboard(
-                      member: member,
-                      groupId: group.groupId,
-                    );
-                  },
-                ),
-        ),
-      ],
+          const SizedBox(height: 8),
+          Text('メンバー数: ${members.length}人'),
+          if (group.ownerName?.isNotEmpty == true)
+            Text('オーナー: ${group.ownerName}'),
+          const SizedBox(height: 16),
+          // グループ用ホワイトボードプレビュー
+          WhiteboardPreviewWidget(
+            groupId: group.groupId,
+          ),
+        ],
+      ),
     );
+
+    // メンバーリストウィジェット
+    final memberListWidget = members.isEmpty
+        ? _buildEmptyMemberList()
+        : ListView.builder(
+            itemCount: members.length,
+            itemBuilder: (context, index) {
+              final member = members[index];
+              // メンバータイルにホワイトボード機能統合
+              return MemberTileWithWhiteboard(
+                member: member,
+                groupId: group.groupId,
+              );
+            },
+          );
+
+    // 画面幅を取得
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isWideScreen = screenWidth >= 1000;
+
+    if (isWideScreen) {
+      // 横長画面: 左右分割レイアウト
+      return Row(
+        children: [
+          // 左側: グループ情報＋ホワイトボードプレビュー
+          Expanded(
+            flex: 1,
+            child: SingleChildScrollView(
+              child: headerWidget,
+            ),
+          ),
+          // 仕切り線
+          VerticalDivider(
+            width: 1,
+            color: Colors.grey.shade200,
+          ),
+          // 右側: メンバーリスト
+          Expanded(
+            flex: 1,
+            child: Column(
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    border: Border(
+                      bottom: BorderSide(color: Colors.grey.shade200),
+                    ),
+                  ),
+                  child: Text(
+                    'メンバーリスト',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                ),
+                Expanded(child: memberListWidget),
+              ],
+            ),
+          ),
+        ],
+      );
+    } else {
+      // 縦長画面: 従来のColumn レイアウト
+      return Column(
+        children: [
+          headerWidget,
+          Expanded(child: memberListWidget),
+        ],
+      );
+    }
   }
 
   /// メンバー削除権限チェック
