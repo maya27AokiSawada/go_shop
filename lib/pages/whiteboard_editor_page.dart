@@ -48,9 +48,17 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   // スクロールロック（trueでスクロール無効、falseでスクロール有効）
   bool _isScrollLocked = false;
 
+  // カスタム色（設定から読み込み、キャッシュする）
+  late Color _customColor5;
+  late Color _customColor6;
+
   @override
   void initState() {
     super.initState();
+
+    // カスタム色を初期化（設定から読み込み）
+    _customColor5 = _loadCustomColor5();
+    _customColor6 = _loadCustomColor6();
 
     // 既存のストロークを作業リストに読み込む
     if (widget.whiteboard.strokes.isNotEmpty) {
@@ -126,6 +134,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         authorName: currentUser.displayName ?? 'Unknown',
         strokeColor: _selectedColor,
         strokeWidth: _strokeWidth,
+        scale: _canvasScale, // スケーリング係数を渡す
       );
 
       // 作業リストに追加
@@ -158,6 +167,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         authorName: currentUser.displayName ?? 'Unknown',
         strokeColor: _selectedColor,
         strokeWidth: _strokeWidth,
+        scale: _canvasScale, // スケーリング係数を渡す
       );
 
       // 作業中のストロークと現在の描画を結合
@@ -288,10 +298,6 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                // キャンバスの実際のサイズを計算
-                final canvasWidth = constraints.maxWidth * _canvasScale;
-                final canvasHeight = constraints.maxHeight * _canvasScale;
-
                 return Scrollbar(
                   controller: _horizontalScrollController,
                   thumbVisibility: true, // 常にスクロールバーを表示
@@ -314,45 +320,54 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                         physics: _isScrollLocked && canEdit
                             ? const NeverScrollableScrollPhysics()
                             : const AlwaysScrollableScrollPhysics(),
-                        child: SizedBox(
+                        child: Container(
                           width: _fixedCanvasWidth * _canvasScale,
                           height: _fixedCanvasHeight * _canvasScale,
-                          child: Transform.scale(
-                            scale: _canvasScale,
-                            alignment: Alignment.topLeft,
-                            child: Container(
-                              width: _fixedCanvasWidth,
-                              height: _fixedCanvasHeight,
-                              color: Colors.white,
-                              child: Stack(
-                                children: [
-                                  // グリッド線（最背面）
-                                  _buildGridOverlay(constraints.maxWidth,
-                                      constraints.maxHeight),
-                                  // 背景：保存済みストロークを描画
-                                  Positioned.fill(
-                                    child: CustomPaint(
-                                      painter:
-                                          DrawingStrokePainter(_workingStrokes),
-                                    ),
+                          color: Colors.white,
+                          child: Stack(
+                            children: [
+                              // グリッド線（最背面）- スケーリングされたサイズに合わせる
+                              Positioned.fill(
+                                child: CustomPaint(
+                                  painter: GridPainter(
+                                    gridSize: 50.0 *
+                                        _canvasScale, // ズームに応じてグリッドサイズも変更
+                                    color: Colors.grey.withOpacity(0.2),
                                   ),
-                                  // 前景：現在の描画セッション（編集可能な場合のみ）
-                                  if (canEdit)
-                                    Positioned.fill(
-                                      child: IgnorePointer(
-                                        ignoring:
-                                            !_isScrollLocked, // スクロールロック時のみ描画可能
-                                        child: Signature(
-                                          key: ValueKey(
-                                              'signature_$_controllerKey'),
-                                          controller: _controller!,
-                                          backgroundColor: Colors.transparent,
-                                        ),
+                                ),
+                              ),
+                              // 背景：保存済みストロークを描画（スケーリング付き）
+                              Positioned.fill(
+                                child: Transform.scale(
+                                  scale: _canvasScale,
+                                  alignment: Alignment.topLeft,
+                                  child: CustomPaint(
+                                    size: const Size(
+                                        _fixedCanvasWidth, _fixedCanvasHeight),
+                                    painter:
+                                        DrawingStrokePainter(_workingStrokes),
+                                  ),
+                                ),
+                              ),
+                              // 前景：現在の描画セッション（編集可能な場合のみ）
+                              if (canEdit)
+                                Positioned.fill(
+                                  child: IgnorePointer(
+                                    ignoring:
+                                        !_isScrollLocked, // スクロールロック時のみ描画可能
+                                    child: SizedBox(
+                                      width: _fixedCanvasWidth * _canvasScale,
+                                      height: _fixedCanvasHeight * _canvasScale,
+                                      child: Signature(
+                                        key: ValueKey(
+                                            'signature_$_controllerKey'),
+                                        controller: _controller!,
+                                        backgroundColor: Colors.transparent,
                                       ),
                                     ),
-                                ],
-                              ),
-                            ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       ),
@@ -456,12 +471,23 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                 IconButton(
                   icon: const Icon(Icons.zoom_out, size: 20),
                   onPressed: () {
-                    setState(() {
-                      if (_canvasScale > 0.5) {
+                    if (_canvasScale > 0.5) {
+                      // 現在の描画を保存
+                      _captureCurrentDrawing();
+
+                      setState(() {
                         _canvasScale -= 0.5;
                         print('🔍 ズームアウト: ${_canvasScale}x');
-                      }
-                    });
+
+                        // コントローラーを再作成（ペン幅をスケーリングに合わせる）
+                        _controller?.dispose();
+                        _controller = SignatureController(
+                          penStrokeWidth: _strokeWidth * _canvasScale,
+                          penColor: _selectedColor,
+                        );
+                        _controllerKey++;
+                      });
+                    }
                   },
                   tooltip: 'ズームアウト',
                 ),
@@ -471,12 +497,23 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                 IconButton(
                   icon: const Icon(Icons.zoom_in, size: 20),
                   onPressed: () {
-                    setState(() {
-                      if (_canvasScale < 4.0) {
+                    if (_canvasScale < 4.0) {
+                      // 現在の描画を保存
+                      _captureCurrentDrawing();
+
+                      setState(() {
                         _canvasScale += 0.5;
                         print('🔍 ズームイン: ${_canvasScale}x');
-                      }
-                    });
+
+                        // コントローラーを再作成（ペン幅をスケーリングに合わせる）
+                        _controller?.dispose();
+                        _controller = SignatureController(
+                          penStrokeWidth: _strokeWidth * _canvasScale,
+                          penColor: _selectedColor,
+                        );
+                        _controllerKey++;
+                      });
+                    }
                   },
                   tooltip: 'ズームイン',
                 ),
@@ -513,27 +550,34 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     );
   }
 
-  /// カスタム色5を取得（設定から）
-  Color _getCustomColor5() {
-    final settings = ref.watch(userSettingsProvider).value;
+  /// カスタム色5を読み込み（初期化時のみ）
+  Color _loadCustomColor5() {
+    final settings = ref.read(userSettingsProvider).value;
     if (settings != null && settings.whiteboardColor5 != 0) {
       return Color(settings.whiteboardColor5);
     }
     return Colors.blue; // デフォルト：青
   }
 
-  /// カスタム色6を取得（設定から）
-  Color _getCustomColor6() {
-    final settings = ref.watch(userSettingsProvider).value;
+  /// カスタム色6を読み込み（初期化時のみ）
+  Color _loadCustomColor6() {
+    final settings = ref.read(userSettingsProvider).value;
     if (settings != null && settings.whiteboardColor6 != 0) {
       return Color(settings.whiteboardColor6);
     }
     return Colors.orange; // デフォルト：オレンジ
   }
 
+  /// カスタム色5を取得（キャッシュから）
+  Color _getCustomColor5() => _customColor5;
+
+  /// カスタム色6を取得（キャッシュから）
+  Color _getCustomColor6() => _customColor6;
+
   /// 色選択ボタン
   Widget _buildColorButton(Color color) {
-    final isSelected = _selectedColor == color;
+    // 色の比較はvalueで行う（インスタンスではなく色値で比較）
+    final isSelected = _selectedColor.value == color.value;
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -542,9 +586,10 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
 
           _selectedColor = color;
           // SignatureControllerは再作成が必要（空でスタート）
+          // ペン幅はスケーリングを考慮
           _controller?.dispose();
           _controller = SignatureController(
-            penStrokeWidth: _strokeWidth,
+            penStrokeWidth: _strokeWidth * _canvasScale,
             penColor: color,
           );
           _controllerKey++; // キー更新でウィジェット再構築
@@ -584,9 +629,10 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
           _captureCurrentDrawing();
           _strokeWidth = width;
           // SignatureControllerは再作成が必要（空でスタート）
+          // ペン幅はスケーリングを考慮
           _controller?.dispose();
           _controller = SignatureController(
-            penStrokeWidth: width,
+            penStrokeWidth: width * _canvasScale,
             penColor: _selectedColor,
           );
           _controllerKey++; // キー更新でウィジェット再構築
