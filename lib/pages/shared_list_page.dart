@@ -7,6 +7,7 @@ import '../providers/purchase_group_provider.dart';
 import '../providers/shared_list_provider.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/shopping_list_header_widget.dart';
+import '../widgets/shared_item_edit_modal.dart';
 import '../utils/app_logger.dart';
 
 /// 共有リスト画面
@@ -161,6 +162,21 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
   }
 
   void _showAddItemDialog(BuildContext context, WidgetRef ref) {
+    final currentList = ref.read(currentListProvider);
+    if (currentList == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => SharedItemEditModal(
+        listId: currentList.listId,
+        item: null, // 新規作成モード
+      ),
+    );
+  }
+
+  // 以下は不要になったが、古いコードを一時的に残す
+  void _showAddItemDialog_OLD_BACKUP(BuildContext context, WidgetRef ref) {
     final nameController = TextEditingController();
     final quantityController = TextEditingController(text: '1');
     bool isSubmitting = false; // 🔥 二重送信防止フラグ
@@ -635,7 +651,7 @@ class _SharedItemTile extends ConsumerWidget {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: InkWell(
-        onDoubleTap: () => _showEditItemDialog(context, ref),
+        onDoubleTap: () => _showEditModal(context, ref),
         onLongPress: canDelete ? () => _deleteItem(context, ref) : null,
         child: ListTile(
           leading: Checkbox(
@@ -767,6 +783,20 @@ class _SharedItemTile extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showEditModal(BuildContext context, WidgetRef ref) {
+    final currentList = ref.read(currentListProvider);
+    if (currentList == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => SharedItemEditModal(
+        listId: currentList.listId,
+        item: item, // 編集モード：該当アイテムを渡す
       ),
     );
   }
