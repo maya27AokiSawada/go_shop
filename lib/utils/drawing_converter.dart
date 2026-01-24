@@ -15,6 +15,7 @@ class DrawingConverter {
     required String authorName,
     required Color strokeColor,
     required double strokeWidth,
+    double scale = 1.0, // スケーリング係数（デフォルトは等倍）
   }) {
     final points = controller.points;
     if (points.isEmpty) return [];
@@ -41,7 +42,7 @@ class DrawingConverter {
               strokeId: _uuid.v4(),
               points: currentStrokePoints,
               colorValue: strokeColor.value,
-              strokeWidth: strokeWidth,
+              strokeWidth: strokeWidth, // 元のストローク幅（スケーリング前）
               createdAt: DateTime.now(),
               authorId: authorId,
               authorName: authorName,
@@ -52,9 +53,10 @@ class DrawingConverter {
         }
       }
 
+      // 座標をスケーリング前の座標系に変換
       currentStrokePoints.add(DrawingPoint(
-        x: point.offset.dx,
-        y: point.offset.dy,
+        x: point.offset.dx / scale,
+        y: point.offset.dy / scale,
       ));
     }
 
@@ -64,7 +66,7 @@ class DrawingConverter {
         strokeId: _uuid.v4(),
         points: currentStrokePoints,
         colorValue: strokeColor.value,
-        strokeWidth: strokeWidth,
+        strokeWidth: strokeWidth, // 元のストローク幅（スケーリング前）
         createdAt: DateTime.now(),
         authorId: authorId,
         authorName: authorName,

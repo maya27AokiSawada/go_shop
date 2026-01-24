@@ -42,72 +42,80 @@ class WhiteboardPreviewWidget extends ConsumerWidget {
         return GestureDetector(
           onDoubleTap: () => _openEditor(context, ref, whiteboard),
           child: Container(
-            height: 120,
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               color: Colors.grey[100],
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.grey[300]!),
             ),
-            child: Stack(
-              children: [
-                // プレビュー画像（簡易版）
-                Center(
-                  child: whiteboard.strokes.isEmpty
-                      ? Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.draw, size: 40, color: Colors.grey[400]),
-                            const SizedBox(height: 8),
-                            Text(
-                              'グループ共通ホワイトボード',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 12,
-                              ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxHeight: 200, // タブレット対応：最大高さ200px
+              ),
+              child: AspectRatio(
+                aspectRatio: 16 / 9, // 1280:720 = 16:9
+                child: Stack(
+                  children: [
+                    // プレビュー画像（簡易版）
+                    Center(
+                      child: whiteboard.strokes.isEmpty
+                          ? Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.draw,
+                                    size: 40, color: Colors.grey[400]),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'グループ共通ホワイトボード',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'ダブルタップで編集',
+                                  style: TextStyle(
+                                    color: Colors.grey[500],
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : CustomPaint(
+                              size: Size.infinite,
+                              painter: _WhiteboardPreviewPainter(whiteboard),
                             ),
-                            const SizedBox(height: 4),
+                    ),
+                    // 右上に編集アイコン
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.edit, size: 16, color: Colors.blue[700]),
+                            const SizedBox(width: 4),
                             Text(
-                              'ダブルタップで編集',
+                              '${whiteboard.strokes.length}',
                               style: TextStyle(
-                                color: Colors.grey[500],
-                                fontSize: 10,
+                                fontSize: 12,
+                                color: Colors.blue[700],
                               ),
                             ),
                           ],
-                        )
-                      : CustomPaint(
-                          size: Size.infinite,
-                          painter: _WhiteboardPreviewPainter(whiteboard),
                         ),
-                ),
-                // 右上に編集アイコン
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(4),
+                      ),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.edit, size: 16, color: Colors.blue[700]),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${whiteboard.strokes.length}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.blue[700],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         );
@@ -120,7 +128,6 @@ class WhiteboardPreviewWidget extends ConsumerWidget {
     return GestureDetector(
       onDoubleTap: () => _createAndOpenWhiteboard(context, ref),
       child: Container(
-        height: 120,
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: Colors.blue[50],
@@ -128,29 +135,38 @@ class WhiteboardPreviewWidget extends ConsumerWidget {
           border: Border.all(
               color: Colors.blue[200]!, width: 2, style: BorderStyle.solid),
         ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.add_circle_outline, size: 40, color: Colors.blue[700]),
-              const SizedBox(height: 8),
-              Text(
-                'グループ共通ホワイトボードを作成',
-                style: TextStyle(
-                  color: Colors.blue[700],
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxHeight: 200, // タブレット対応：最大高さ200px
+          ),
+          child: AspectRatio(
+            aspectRatio: 16 / 9, // 1280:720 = 16:9
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.add_circle_outline,
+                      size: 40, color: Colors.blue[700]),
+                  const SizedBox(height: 8),
+                  Text(
+                    'グループ共通ホワイトボードを作成',
+                    style: TextStyle(
+                      color: Colors.blue[700],
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'ダブルタップで作成',
+                    style: TextStyle(
+                      color: Colors.blue[600],
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                'ダブルタップで作成',
-                style: TextStyle(
-                  color: Colors.blue[600],
-                  fontSize: 10,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

@@ -843,54 +843,68 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
           Log.info(
               '📊 [CREATE DEFAULT] Firestoreに${groupsSnapshot.docs.length}グループ存在');
 
-          // デフォルトグループ（groupId = user.uid）が存在するか確認
-          final defaultGroupDoc = groupsSnapshot.docs.firstWhere(
-            (doc) => doc.id == defaultGroupId,
-            orElse: () => throw Exception('デフォルトグループなし'),
-          );
+          // 🔥 FIX: 全てのグループをHiveに同期（デフォルトグループだけでなく共有グループも）
+          bool defaultGroupExists = false;
+          for (final doc in groupsSnapshot.docs) {
+            final data = doc.data();
 
-          // Firestoreにデフォルトグループが存在する！
-          Log.info('✅ [CREATE DEFAULT] Firestoreにデフォルトグループ存在 - Hiveに同期');
+            // グループ情報をログ出力
+            final groupName = data['groupName'] as String;
+            Log.info(
+                '📋 [CREATE DEFAULT] Firestore→Hive同期: ${AppLogger.maskGroup(groupName, doc.id)}');
 
-          // FirestoreからSharedGroupモデルに変換
-          final data = defaultGroupDoc.data();
-          final firestoreGroup = SharedGroup(
-            groupId: data['groupId'] as String,
-            groupName: data['groupName'] as String,
-            ownerUid: data['ownerUid'] as String,
-            allowedUid: (data['allowedUid'] as List<dynamic>?)
-                    ?.map((e) => e.toString())
-                    .toList() ??
-                [],
-            members: (data['members'] as List<dynamic>?)?.map((m) {
-                  final memberData = m as Map<String, dynamic>;
-                  return SharedGroupMember(
-                    memberId: memberData['memberId'] as String,
-                    name: memberData['name'] as String,
-                    contact: memberData['contact'] as String? ?? '',
-                    role: _parseRole(memberData['role'] as String?),
-                    isSignedIn: memberData['isSignedIn'] as bool? ?? false,
-                    isInvited: memberData['isInvited'] as bool? ?? false,
-                    isInvitationAccepted:
-                        memberData['isInvitationAccepted'] as bool? ?? false,
-                  );
-                }).toList() ??
-                [],
-            syncStatus: models.SyncStatus.synced,
-            isDeleted: false,
-          );
+            final firestoreGroup = SharedGroup(
+              groupId: data['groupId'] as String,
+              groupName: groupName,
+              ownerUid: data['ownerUid'] as String,
+              allowedUid: (data['allowedUid'] as List<dynamic>?)
+                      ?.map((e) => e.toString())
+                      .toList() ??
+                  [],
+              members: (data['members'] as List<dynamic>?)?.map((m) {
+                    final memberData = m as Map<String, dynamic>;
+                    return SharedGroupMember(
+                      memberId: memberData['memberId'] as String,
+                      name: memberData['name'] as String,
+                      contact: memberData['contact'] as String? ?? '',
+                      role: _parseRole(memberData['role'] as String?),
+                      isSignedIn: memberData['isSignedIn'] as bool? ?? false,
+                      isInvited: memberData['isInvited'] as bool? ?? false,
+                      isInvitationAccepted:
+                          memberData['isInvitationAccepted'] as bool? ?? false,
+                    );
+                  }).toList() ??
+                  [],
+              syncStatus: models.SyncStatus.synced,
+              isDeleted: false,
+            );
 
-          // Hiveに保存
-          await hiveRepository.saveGroup(firestoreGroup);
-          Log.info('✅ [CREATE DEFAULT] FirestoreグループをHiveに保存完了');
+            // Hiveに保存
+            await hiveRepository.saveGroup(firestoreGroup);
+
+            // デフォルトグループかチェック
+            if (doc.id == defaultGroupId) {
+              defaultGroupExists = true;
+              Log.info(
+                  '✅ [CREATE DEFAULT] デフォルトグループ発見: ${AppLogger.maskGroup(groupName, doc.id)}');
+            }
+          }
+
+          Log.info(
+              '✅ [CREATE DEFAULT] ${groupsSnapshot.docs.length}グループをHiveに同期完了');
 
           // 🔥 CRITICAL: Hiveクリーンアップ - allowedUidに含まれないグループを削除
           await _cleanupInvalidHiveGroupsInternal(user.uid, hiveRepository);
 
-          Log.info('✅ [CREATE DEFAULT] 初期化完了 - 作成不要');
-          return;
+          if (defaultGroupExists) {
+            Log.info('✅ [CREATE DEFAULT] デフォルトグループ存在 - 作成不要');
+            return;
+          } else {
+            Log.info('💡 [CREATE DEFAULT] デフォルトグループなし - 新規作成');
+            // 新規作成を続行（下のコードで実行）
+          }
         } catch (e) {
-          Log.info('💡 [CREATE DEFAULT] Firestoreにデフォルトグループなし: $e');
+          Log.error('❌ [CREATE DEFAULT] Firestore取得エラー: $e');
           Log.info('📝 [CREATE DEFAULT] 新規作成を続行');
 
           // 🔥 CRITICAL: 新規作成前にもHiveクリーンアップ
