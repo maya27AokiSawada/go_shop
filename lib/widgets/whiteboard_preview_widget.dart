@@ -17,7 +17,8 @@ class WhiteboardPreviewWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final whiteboardAsync = ref.watch(groupWhiteboardProvider(groupId));
+    // 🔥 StreamProviderに変更してリアルタイム同期を実現
+    final whiteboardAsync = ref.watch(watchGroupWhiteboardProvider(groupId));
     final currentUser = ref.watch(authStateProvider).value;
 
     return whiteboardAsync.when(
@@ -34,9 +35,9 @@ class WhiteboardPreviewWidget extends ConsumerWidget {
 
         // 🔍 デバッグログ: プレビュー表示時のホワイトボード情報
         AppLogger.info(
-            '🎨 [PREVIEW] ホワイトボードプレビュー表示 - whiteboardId: ${whiteboard.whiteboardId}');
+            '🎨 [PREVIEW] ホワイトボードプレビューリアルタイム更新 - whiteboardId: ${whiteboard.whiteboardId}');
         AppLogger.info(
-            '🎨 [PREVIEW] ownerId: ${AppLogger.maskUserId(whiteboard.ownerId)}, isGroupWhiteboard: ${whiteboard.isGroupWhiteboard}');
+            '🎨 [PREVIEW] ownerId: ${AppLogger.maskUserId(whiteboard.ownerId)}, strokes: ${whiteboard.strokes.length}件');
 
         // プレビュー表示
         return GestureDetector(
@@ -204,7 +205,8 @@ class WhiteboardPreviewWidget extends ConsumerWidget {
         );
 
         // 画面から戻ったらプロバイダーを更新
-        ref.invalidate(groupWhiteboardProvider(groupId));
+        // 🔥 StreamProviderを使用しているため、自動的に新規ホワイトボードが検知される
+        AppLogger.info('✅ [PREVIEW] ホワイトボード作成完了 - リアルタイム同期開始');
       }
     } catch (e) {
       AppLogger.error('❌ ホワイトボード作成エラー: $e');
@@ -231,8 +233,9 @@ class WhiteboardPreviewWidget extends ConsumerWidget {
       ),
     );
 
-    // 画面から戻ったらプロバイダーを更新
-    ref.invalidate(groupWhiteboardProvider(groupId));
+    // 🔥 StreamProviderを使用しているため、手動でinvalidateは不要
+    // Firestore snapshotsが自動的に変更を検知してUIを更新する
+    AppLogger.info('✅ [PREVIEW] エディターから戻りました - リアルタイム同期継続中');
   }
 }
 
@@ -244,10 +247,36 @@ class _WhiteboardPreviewPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // スケール計算（キャンバスサイズに合わせる）
+    // 🔥 修正: プレビューサイズに合わせたスケール計算
+    // キャンバスサイズ（1280x720）をプレビューサイズに正確にフィット
     final scaleX = size.width / whiteboard.canvasWidth;
     final scaleY = size.height / whiteboard.canvasHeight;
+
+    // 🔥 重要: プレビューは16:9のアスペクト比で表示されるため
+    // X軸とY軸で同じスケール値を使用（アスペクト比維持）
     final scale = scaleX < scaleY ? scaleX : scaleY;
+
+    // 🔥 中央配置のためのオフセット計算
+    final scaledCanvasWidth = whiteboard.canvasWidth * scale;
+    final scaledCanvasHeight = whiteboard.canvasHeight * scale;
+    final offsetX = (size.width - scaledCanvasWidth) / 2;
+    final offsetY = (size.height - scaledCanvasHeight) / 2;
+
+    // 🔥 デバッグログ: スケール情報
+    AppLogger.info('🎨 [PREVIEW_PAINT] size: ${size.width}x${size.height}');
+    AppLogger.info(
+        '🎨 [PREVIEW_PAINT] canvas: ${whiteboard.canvasWidth}x${whiteboard.canvasHeight}');
+    AppLogger.info(
+        '🎨 [PREVIEW_PAINT] scale: $scale, offset: ($offsetX, $offsetY)');
+
+    // 🔥 クリッピング: 描画がプレビュー範囲を超えないよう制限
+    canvas.clipRect(Rect.fromLTWH(0, 0, size.width, size.height));
+
+    // 🔥 背景を白で塗りつぶし（キャンバスと同じ）
+    canvas.drawRect(
+      Rect.fromLTWH(offsetX, offsetY, scaledCanvasWidth, scaledCanvasHeight),
+      Paint()..color = Colors.white,
+    );
 
     for (final stroke in whiteboard.strokes) {
       final paint = Paint()
@@ -256,8 +285,10 @@ class _WhiteboardPreviewPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round
         ..style = PaintingStyle.stroke;
 
-      final points =
-          stroke.points.map((p) => Offset(p.x * scale, p.y * scale)).toList();
+      // 🔥 座標変換: オフセットを適用して中央配置
+      final points = stroke.points
+          .map((p) => Offset(p.x * scale + offsetX, p.y * scale + offsetY))
+          .toList();
 
       if (points.length < 2) continue;
 

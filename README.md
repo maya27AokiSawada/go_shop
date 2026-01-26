@@ -1,5 +1,74 @@
 # GoShopping - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-01-26)
+
+### 1. ホワイトボード競合解決システム実装 ✅
+
+**Purpose**: マルチユーザー環境での安全な同時編集を実現
+
+#### 差分ストローク追加機能
+
+**Problem**: 複数ユーザー同時編集でlast-writer-winsによるデータロス
+
+**Solution**: Firestore transactionベースの差分追加
+
+- `WhiteboardRepository.addStrokesToWhiteboard()`: 新規ストロークのみ追加
+- 重複検出・排除（ストロークIDベース）
+- 編集時の自動差分保存
+
+**Key Code**:
+
+```dart
+await _firestore.runTransaction((transaction) async {
+  final existingStrokes = List<DrawingStroke>.from(doc.data()['strokes']);
+  final filteredStrokes = newStrokes.where((stroke) =>
+    !existingStrokes.any((existing) => existing.id == stroke.id)
+  ).toList();
+
+  transaction.update(whiteboardRef, {
+    'strokes': [...existingStrokes, ...filteredStrokes],
+  });
+});
+```
+
+#### 編集ロック機能統合
+
+**Architecture Change**: editLocksコレクション → whiteboardドキュメント内統合
+
+- **Before**: `/SharedGroups/{groupId}/editLocks/{whiteboardId}`
+- **After**: `/SharedGroups/{groupId}/whiteboards/{whiteboardId}` 内の `editLock` フィールド
+
+**Benefits**:
+
+- Firestore読み取り回数削減（1回でホワイトボード+ロック情報取得）
+- セキュリティルール統一・データ一貫性向上
+- 1時間自動期限切れ・リアルタイム監視
+
+#### 強制ロッククリア機能
+
+**Purpose**: 古い編集ロック表示問題の解決
+
+- `forceReleaseEditLock()`: 緊急時の強制ロック削除
+- 2段階確認ダイアログ・自動マイグレーション処理
+- 古いeditLocksコレクション完全クリーンアップ
+
+#### キャンバスサイズ統一
+
+- **統一サイズ**: 1280×720（16:9比率）
+- 全コンポーネント対応（エディター・プレビュー・モデル）
+- Transform.scale による拡大縮小対応
+
+**Status**: 基盤機能完成、編集制限機能は次回実装予定
+
+**Modified Files**:
+
+- `lib/services/whiteboard_edit_lock_service.dart` (編集ロック統合)
+- `lib/datastore/whiteboard_repository.dart` (差分追加)
+- `lib/pages/whiteboard_editor_page.dart` (UI統合・強制クリア)
+- `lib/models/whiteboard.dart` (キャンバスサイズ統一)
+
+---
+
 ## Recent Implementations (2026-01-24)
 
 ### 1. 共有グループ同期問題修正とホワイトボードUI改善 ✅

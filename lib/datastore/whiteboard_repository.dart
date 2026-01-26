@@ -79,8 +79,8 @@ class WhiteboardRepository {
   Future<Whiteboard> createWhiteboard({
     required String groupId,
     String? ownerId, // null = グループ共通
-    double canvasWidth = 800.0,
-    double canvasHeight = 600.0,
+    double canvasWidth = 1280.0,
+    double canvasHeight = 720.0,
   }) async {
     final whiteboardId = _uuid.v4();
     final now = DateTime.now();
@@ -118,6 +118,72 @@ class WhiteboardRepository {
       AppLogger.info('✅ ホワイトボード更新: ${whiteboard.whiteboardId}');
     } catch (e) {
       AppLogger.error('❌ ホワイトボード更新エラー: $e');
+      rethrow;
+    }
+  }
+
+  /// 🔥 改善案1: 差分ストローク追加（安全な同時編集対応）
+  /// 新しいストロークのみをFirestoreに追加する
+  Future<void> addStrokesToWhiteboard({
+    required String groupId,
+    required String whiteboardId,
+    required List<DrawingStroke> newStrokes,
+  }) async {
+    if (newStrokes.isEmpty) return;
+
+    try {
+      // Firestoreトランザクションで安全に追加
+      await _firestore.runTransaction((transaction) async {
+        final docRef = _collection(groupId).doc(whiteboardId);
+
+        // 現在のホワイトボードを取得
+        final snapshot = await transaction.get(docRef);
+        if (!snapshot.exists) {
+          throw Exception('ホワイトボードが存在しません');
+        }
+
+        final currentData = snapshot.data()!;
+        final currentStrokes = (currentData['strokes'] as List<dynamic>?)
+                ?.map((s) =>
+                    DrawingStroke.fromFirestore(s as Map<String, dynamic>))
+                .toList() ??
+            [];
+
+        // 🔥 重複チェック: strokeIdが既に存在するストロークは除外
+        final existingStrokeIds = currentStrokes.map((s) => s.strokeId).toSet();
+        final uniqueNewStrokes = newStrokes
+            .where((stroke) => !existingStrokeIds.contains(stroke.strokeId))
+            .toList();
+
+        if (uniqueNewStrokes.isEmpty) {
+          AppLogger.info('📋 [CONFLICT] 重複ストローク検出、追加をスキップ');
+          return;
+        }
+
+        // 新しいストロークを追加
+        final mergedStrokes = [...currentStrokes, ...uniqueNewStrokes];
+
+        // ドキュメントを更新
+        transaction.update(docRef, {
+          'strokes': mergedStrokes
+              .map((s) => {
+                    'strokeId': s.strokeId,
+                    'points': s.points.map((p) => p.toMap()).toList(),
+                    'colorValue': s.colorValue,
+                    'strokeWidth': s.strokeWidth,
+                    'createdAt': Timestamp.fromDate(s.createdAt),
+                    'authorId': s.authorId,
+                    'authorName': s.authorName,
+                  })
+              .toList(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        AppLogger.info(
+            '✅ [CONFLICT] ${uniqueNewStrokes.length}個のストロークを安全に追加（計${mergedStrokes.length}個）');
+      });
+    } catch (e) {
+      AppLogger.error('❌ [CONFLICT] ストローク追加エラー: $e');
       rethrow;
     }
   }

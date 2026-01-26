@@ -28,6 +28,11 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
   int _intervalValue = 0;
   String _intervalUnit = 'week';
   bool _isSubmitting = false;
+  String? _validationError;
+
+  // バリデーション定数
+  static const int maxQuantity = 999;
+  static const int maxNameLength = 50;
 
   @override
   void initState() {
@@ -106,23 +111,33 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
             // 商品名
             TextField(
               controller: _nameController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: '商品名',
                 hintText: '例: 牛乳',
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
+                errorText: _validationError?.contains('商品名') == true
+                    ? _validationError
+                    : null,
+                counterText: '${_nameController.text.length}/$maxNameLength',
               ),
+              maxLength: maxNameLength,
               autofocus: !isEditMode,
+              onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 12),
 
             // 数量
             TextField(
               controller: _quantityController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: '数量',
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
+                errorText: _validationError?.contains('数量') == true
+                    ? _validationError
+                    : null,
               ),
               keyboardType: TextInputType.number,
+              onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 16),
 
@@ -266,12 +281,43 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
             ),
             const SizedBox(height: 16),
 
+            // エラーメッセージ表示
+            if (_validationError != null &&
+                !_validationError!.contains('商品名') &&
+                !_validationError!.contains('数量'))
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: Colors.red.shade300),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.red.shade700),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _validationError!,
+                        style:
+                            TextStyle(color: Colors.red.shade700, fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            if (_validationError != null &&
+                !_validationError!.contains('商品名') &&
+                !_validationError!.contains('数量'))
+              const SizedBox(height: 12),
+
             // ボタン
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed:
+                      _isSubmitting ? null : () => Navigator.of(context).pop(),
                   child: const Text('キャンセル'),
                 ),
                 const SizedBox(width: 8),
@@ -342,14 +388,16 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
   Future<void> _submitItem() async {
     if (_isSubmitting) return;
 
-    final name = _nameController.text.trim();
-    if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('商品名を入力してください')),
-      );
+    // バリデーション実行
+    final validationError = _validateInput();
+    if (validationError != null) {
+      setState(() {
+        _validationError = validationError;
+      });
       return;
     }
 
+    final name = _nameController.text.trim();
     final quantity = int.tryParse(_quantityController.text) ?? 1;
 
     setState(() {
@@ -408,13 +456,66 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
 
       setState(() {
         _isSubmitting = false;
+        _validationError = null;
       });
 
       if (mounted && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('保存に失敗しました: $e')),
+          SnackBar(
+            content: Text('保存に失敗しました: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
+  }
+
+  /// 入力値のバリデーション
+  String? _validateInput() {
+    final name = _nameController.text.trim();
+
+    // 商品名チェック
+    if (name.isEmpty) {
+      return '商品名を入力してください';
+    }
+    if (name.length > maxNameLength) {
+      return '商品名は$maxNameLength文字以内です';
+    }
+
+    // 数量チェック
+    final quantityStr = _quantityController.text.trim();
+    if (quantityStr.isEmpty) {
+      return '数量を入力してください';
+    }
+
+    final quantity = int.tryParse(quantityStr);
+    if (quantity == null || quantity <= 0) {
+      return '数量は1以上の数値を入力してください';
+    }
+    if (quantity > maxQuantity) {
+      return '数量は$maxQuantity以下にしてください';
+    }
+
+    // 期限チェック（期限が過去でないか）
+    if (_selectedDeadline != null) {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final deadlineDate = DateTime(
+        _selectedDeadline!.year,
+        _selectedDeadline!.month,
+        _selectedDeadline!.day,
+      );
+
+      if (deadlineDate.isBefore(today)) {
+        return '期限は本日以降の日付を選択してください';
+      }
+    }
+
+    // 購入間隔チェック
+    if (_intervalValue > 30) {
+      return '購入間隔は30以下にしてください';
+    }
+
+    return null; // バリデーション成功
   }
 }

@@ -81,8 +81,8 @@ class Whiteboard with _$Whiteboard {
     @HiveField(4) @Default(false) bool isPrivate, // 自分以外編集不可
     @HiveField(5) required DateTime createdAt,
     @HiveField(6) required DateTime updatedAt,
-    @HiveField(7) @Default(800.0) double canvasWidth,
-    @HiveField(8) @Default(600.0) double canvasHeight,
+    @HiveField(7) @Default(1280.0) double canvasWidth,
+    @HiveField(8) @Default(720.0) double canvasHeight,
   }) = _Whiteboard;
 
   factory Whiteboard.fromJson(Map<String, dynamic> json) =>
@@ -104,8 +104,8 @@ class Whiteboard with _$Whiteboard {
       isPrivate: data['isPrivate'] as bool? ?? false,
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       updatedAt: (data['updatedAt'] as Timestamp).toDate(),
-      canvasWidth: (data['canvasWidth'] as num?)?.toDouble() ?? 800.0,
-      canvasHeight: (data['canvasHeight'] as num?)?.toDouble() ?? 600.0,
+      canvasWidth: (data['canvasWidth'] as num?)?.toDouble() ?? 1280.0,
+      canvasHeight: (data['canvasHeight'] as num?)?.toDouble() ?? 720.0,
     );
   }
 
