@@ -14,6 +14,22 @@ final groupWhiteboardProvider =
   return await repository.getGroupWhiteboard(groupId);
 });
 
+/// 🔥 NEW: グループ共通ホワイトボードリアルタイム監視プロバイダー
+final watchGroupWhiteboardProvider =
+    StreamProvider.family<Whiteboard?, String>((ref, groupId) async* {
+  final repository = ref.read(whiteboardRepositoryProvider);
+
+  // まず現在のホワイトボードを取得
+  final currentWhiteboard = await repository.getGroupWhiteboard(groupId);
+  if (currentWhiteboard == null) {
+    yield null;
+    return;
+  }
+
+  // whiteboardIdが分かったのでリアルタイム監視開始
+  yield* repository.watchWhiteboard(groupId, currentWhiteboard.whiteboardId);
+});
+
 /// 個人用ホワイトボードプロバイダー
 final personalWhiteboardProvider =
     FutureProvider.family<Whiteboard?, ({String groupId, String userId})>(

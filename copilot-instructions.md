@@ -1,5 +1,230 @@
 # GoShopping - AI Coding Agent Instructions
 
+## Recent Implementations (2026-01-26)
+
+### 1. ホワイトボード競合解決システム完全実装 ✅
+
+**Purpose**: マルチユーザー環境での安全な同時編集システム構築
+
+**Critical Pattern**: Firestore-first + Transaction-based differential updates
+
+#### 差分ストローク追加システム
+
+**Problem**: 複数ユーザー同時編集でlast-writer-winsによるデータロス発生
+
+**Solution**: Transaction-based differential stroke addition
+
+**Key Implementation**:
+
+```dart
+// lib/datastore/whiteboard_repository.dart
+Future<void> addStrokesToWhiteboard(String groupId, String whiteboardId, List<DrawingStroke> newStrokes) async {
+  await _firestore.runTransaction((transaction) async {
+    final whiteboardRef = _whiteboardsCollection(groupId).doc(whiteboardId);
+    final snapshot = await transaction.get(whiteboardRef);
+
+    final existingStrokes = List<DrawingStroke>.from(snapshot.data()!['strokes']);
+
+    // 重複ストローク除外（IDベース）
+    final filteredStrokes = newStrokes.where((stroke) =>
+      !existingStrokes.any((existing) => existing.id == stroke.id)
+    ).toList();
+
+    // 差分のみ追加
+    transaction.update(whiteboardRef, {
+      'strokes': [...existingStrokes, ...filteredStrokes],
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  });
+}
+```
+
+**Usage in Editor**:
+
+```dart
+// lib/pages/whiteboard_editor_page.dart
+Future<void> _captureCurrentDrawing() async {
+  final newStrokes = DrawingConverter.captureFromSignatureController(...);
+
+  if (newStrokes.isNotEmpty) {
+    // 差分追加（全ストローク置き換えではない）
+    await repository.addStrokesToWhiteboard(
+      widget.groupId,
+      widget.whiteboard.whiteboardId,
+      newStrokes,
+    );
+  }
+}
+```
+
+#### 編集ロック機能の統合実装
+
+**Architecture Change**: Separate collection → Document field integration
+
+**Before**: `/SharedGroups/{groupId}/editLocks/{whiteboardId}` (separate collection)
+**After**: `/SharedGroups/{groupId}/whiteboards/{whiteboardId}` 内の `editLock` field
+
+**Benefits**:
+
+- ✅ Firestore読み取り回数削減（1回でホワイトボード+ロック情報取得）
+- ✅ セキュリティルール統一（既存whiteboardsルール適用）
+- ✅ データ一貫性向上（同一ドキュメント内管理）
+
+**New Document Structure**:
+
+```json
+{
+  "groupId": "...",
+  "strokes": [...],
+  "canvasWidth": 1280,
+  "canvasHeight": 720,
+  "editLock": {
+    "userId": "abc123",
+    "userName": "すもも",
+    "createdAt": "2026-01-26T10:30:00Z",
+    "expiresAt": "2026-01-26T11:30:00Z"
+  }
+}
+```
+
+**Key Service Methods**:
+
+```dart
+// lib/services/whiteboard_edit_lock_service.dart
+
+// ロック取得（1時間有効）
+Future<bool> acquireEditLock({
+  required String groupId,
+  required String whiteboardId,
+  required String userId,
+  required String userName,
+}) async {
+  return await _firestore.runTransaction<bool>((transaction) async {
+    final whiteboardDocRef = _whiteboardsCollection(groupId).doc(whiteboardId);
+
+    transaction.update(whiteboardDocRef, {
+      'editLock': {
+        'userId': userId,
+        'userName': userName,
+        'createdAt': FieldValue.serverTimestamp(),
+        'expiresAt': Timestamp.fromDate(DateTime.now().add(Duration(hours: 1))),
+      },
+    });
+  });
+}
+
+// リアルタイム監視
+Stream<EditLockInfo?> watchEditLock({
+  required String groupId,
+  required String whiteboardId,
+}) {
+  return _whiteboardsCollection(groupId).doc(whiteboardId).snapshots().map((snapshot) {
+    final editLock = snapshot.data()?['editLock'] as Map<String, dynamic>?;
+    return editLock != null ? EditLockInfo.fromMap(editLock) : null;
+  });
+}
+```
+
+#### 強制ロッククリア機能
+
+**Purpose**: 古い編集ロック表示問題の緊急解決
+
+**UI Integration**:
+
+```dart
+// ツールバーに統合
+Widget _buildEditLockStatus() {
+  return Row(
+    children: [
+      // ロック状態表示
+      Container(...),
+      // 強制クリアボタン
+      if (_currentEditor != null)
+        IconButton(
+          icon: Icon(Icons.close, size: 12),
+          onPressed: _forceReleaseEditLock,
+        ),
+    ],
+  );
+}
+
+Future<void> _forceReleaseEditLock() async {
+  // 2段階確認ダイアログ
+  final confirmed = await showDialog<bool>(...);
+
+  if (confirmed == true) {
+    await lockService.forceReleaseEditLock(...);
+    // 新旧両方のロック情報をクリア
+  }
+}
+```
+
+**Migration Support**:
+
+```dart
+// 古いeditLocksコレクションの完全削除
+Future<int> cleanupLegacyEditLocks({required String groupId}) async {
+  final legacyCollection = _firestore.collection('SharedGroups').doc(groupId).collection('editLocks');
+  final allLocks = await legacyCollection.get();
+
+  for (final doc in allLocks.docs) {
+    await doc.reference.delete();
+  }
+
+  return allLocks.docs.length;
+}
+```
+
+#### キャンバスサイズ完全統一
+
+**Standard Size**: 1280×720（16:9比率）
+
+**Components Updated**:
+
+- `lib/models/whiteboard.dart`: Default canvas size
+- `lib/pages/whiteboard_editor_page.dart`: Fixed canvas constants
+- `lib/widgets/whiteboard_preview_widget.dart`: AspectRatio compliance
+- `lib/utils/drawing_converter.dart`: Scale-aware coordinate transformation
+
+**Critical Pattern**:
+
+```dart
+// 固定キャンバスサイズ（全コンポーネント統一）
+static const double _fixedCanvasWidth = 1280.0;
+static const double _fixedCanvasHeight = 720.0;
+
+// Transform.scale + SizedBoxによる拡大縮小
+SizedBox(
+  width: _fixedCanvasWidth * _canvasScale,
+  height: _fixedCanvasHeight * _canvasScale,
+  child: Transform.scale(
+    scale: _canvasScale,
+    alignment: Alignment.topLeft,
+    child: Container(
+      width: _fixedCanvasWidth,
+      height: _fixedCanvasHeight,
+      // ...
+    ),
+  ),
+)
+```
+
+#### Known Issues (継続対応必要)
+
+**⚠️ 編集制限機能未完成**:
+
+- ロック取得は成功するが実際の描画制限が動作しない
+- SignatureController.onDrawStartが期待通りに機能していない
+- 要調査: 描画イベント阻止の適切な実装方法
+
+**Next Implementation Priority**:
+
+1. onDrawStartコールバックの詳細調査
+2. SignatureController無効化手法の実装
+3. 制限中の視覚的フィードバック強化
+
+---
+
 ## Recent Implementations (2026-01-24)
 
 ### 1. 共有グループ同期問題修正とホワイトボードUI改善 ✅
