@@ -84,16 +84,21 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       penColor: _selectedColor,
     );
 
-    // 🔒 描画開始時に編集ロックをチェック
-    _controller?.onDrawStart = () async {
-      await _onDrawingStart();
-    };
+    AppLogger.info('✅ [INIT] SignatureController初期化完了 - モード切り替えによるロック制御');
 
-    // 🔒 編集ロック状態を監視
-    _watchEditLock();
+    // 🔒 編集ロック状態を監視（グループ共有ボードのみ）
+    AppLogger.info(
+        '🎨 [WHITEBOARD] ボードタイプ: isGroupWhiteboard=${widget.whiteboard.isGroupWhiteboard}, isPersonalWhiteboard=${widget.whiteboard.isPersonalWhiteboard}');
 
-    // 🗑️ 古いeditLocksコレクションをクリーンアップ（マイグレーション対応）
-    _cleanupLegacyLocks();
+    if (widget.whiteboard.isGroupWhiteboard) {
+      AppLogger.info('🔒 [LOCK] グループ共有ボード - 編集ロック機能を初期化');
+      _watchEditLock();
+
+      // 🗑️ 古いeditLocksコレクションをクリーンアップ（マイグレーション対応）
+      _cleanupLegacyLocks();
+    } else {
+      AppLogger.info('👤 [PERSONAL] 個人ボード - 編集ロック機能をスキップ');
+    }
 
     // 初期スクロール位置を中央に設定（画面構築後に実行）
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -143,8 +148,10 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     }
   }
 
-  /// 🔒 編集ロック状態をリアルタイム監視
+  /// 🔒 編集ロック状態をリアルタイム監視（グループ共有ボードのみ）
   void _watchEditLock() {
+    AppLogger.info('🔒 [LOCK] 編集ロック監視開始 - グループ共有ボード');
+
     final lockService = ref.read(whiteboardEditLockProvider);
     lockService
         .watchEditLock(
@@ -154,6 +161,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         .listen((lockInfo) {
       if (!mounted) return;
 
+      AppLogger.info(
+          '🔒 [LOCK] ロック状態更新: ${lockInfo != null ? AppLogger.maskName(lockInfo.userName) : "ロックなし"}');
+
       setState(() {
         _currentEditor = lockInfo;
 
@@ -162,6 +172,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
 
         _isEditingLocked = lockInfo != null && !isMyLock;
         _hasEditLock = lockInfo != null && isMyLock;
+
+        AppLogger.info(
+            '🔒 [LOCK] 状態: isEditingLocked=$_isEditingLocked, hasEditLock=$_hasEditLock');
       });
 
       if (lockInfo != null && !_isEditingLocked) {
@@ -171,10 +184,18 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     });
   }
 
-  /// 🔒 編集ロックを取得
+  /// 🔒 編集ロックを取得（グループ共有ボードのみ）
   Future<bool> _acquireEditLock() async {
+    // 個人ボードでは編集ロックをスキップ
+    if (widget.whiteboard.isPersonalWhiteboard) {
+      return true;
+    }
+
     final currentUser = ref.read(authStateProvider).value;
     if (currentUser == null) return false;
+
+    AppLogger.info(
+        '🔒 [LOCK] 編集ロック取得開始 - ${AppLogger.maskUserId(currentUser.uid)}');
 
     final lockService = ref.read(whiteboardEditLockProvider);
     final success = await lockService.acquireEditLock(
@@ -183,6 +204,8 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       userId: currentUser.uid,
       userName: currentUser.displayName ?? 'Unknown',
     );
+
+    AppLogger.info('🔒 [LOCK] 編集ロック取得結果: $success');
 
     if (success) {
       setState(() {
@@ -196,7 +219,8 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
 
   /// 🔓 編集ロックを解除
   Future<void> _releaseEditLock() async {
-    if (!_hasEditLock) return;
+    // グループ共有ボードのみ編集ロック解除
+    if (!widget.whiteboard.isGroupWhiteboard || !_hasEditLock) return;
 
     final currentUser = ref.read(authStateProvider).value;
     if (currentUser == null) return;
@@ -222,7 +246,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       );
 
       if (deletedCount > 0) {
-        AppLogger.info('🗑️ [WHITEBOARD] 古いロック${deletedCount}件を削除');
+        AppLogger.info('🗑️ [WHITEBOARD] 古いロック$deletedCount件を削除');
       }
     } catch (e) {
       AppLogger.error('❌ [WHITEBOARD] 古いロッククリーンアップエラー: $e');
@@ -308,21 +332,56 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     }
   }
 
-  /// �📱 編集開始時にロック取得を試行
-  Future<void> _onDrawingStart() async {
-    if (_hasEditLock) return; // 既にロック保持中
+  /// 📱 編集開始時にロック取得を試行
+  Future<bool> _onDrawingStart() async {
+    AppLogger.info(
+        '🎨 [ON_DRAW_START] 編集開始処理 - ボードタイプ: isPersonal=${widget.whiteboard.isPersonalWhiteboard}, isGroup=${widget.whiteboard.isGroupWhiteboard}');
 
-    final success = await _acquireEditLock();
-    if (!success && _isEditingLocked) {
-      // 編集中ユーザーがいる場合はダイアログ表示
-      _showEditingInProgressDialog();
+    // 個人ボードでは編集ロックをスキップ
+    if (widget.whiteboard.isPersonalWhiteboard) {
+      AppLogger.info('👤 [ON_DRAW_START] 個人ボード - 編集ロックスキップ');
+      return true;
     }
+
+    AppLogger.info(
+        '🔒 [ON_DRAW_START] グループボード - 編集ロック状態: hasLock=$_hasEditLock, isLocked=$_isEditingLocked');
+
+    if (_hasEditLock) {
+      AppLogger.info('✅ [ON_DRAW_START] 既にロック保持中 - 描画許可');
+      return true; // 既にロック保持中
+    }
+
+    AppLogger.info('🔄 [ON_DRAW_START] 編集ロック取得開始');
+    final success = await _acquireEditLock();
+    AppLogger.info('🔒 [ON_DRAW_START] 編集ロック取得結果: $success');
+
+    if (!success) {
+      // ロック取得に失敗した場合
+      if (_isEditingLocked && _currentEditor != null) {
+        // 編集中ユーザーがいる場合はダイアログ表示
+        AppLogger.warning('⚠️ [ON_DRAW_START] 他ユーザー編集中 - ダイアログ表示');
+        _showEditingInProgressDialog();
+      } else {
+        // その他のエラー（Firestore接続問題など）
+        AppLogger.error('❌ [ON_DRAW_START] ロック取得エラー - スナックバー表示');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('編集ロックの取得に失敗しました'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+      return false; // 描画をブロック
+    }
+
+    return true; // 描画を許可
   }
 
   /// ⚠️ 編集中ダイアログ表示
   void _showEditingInProgressDialog() {
     final editorName = _currentEditor?.userName ?? '他のユーザー';
-    final remainingTime = _currentEditor?.remainingTimeText ?? '';
 
     showDialog(
       context: context,
@@ -339,11 +398,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('${AppLogger.maskName(editorName)} が編集中です'),
-            const SizedBox(height: 8),
-            Text('編集ロック: $remainingTime'),
             const SizedBox(height: 16),
             const Text(
-              '他のユーザーが編集を完了するまでお待ちください。',
+              '編集が終わるまでお待ちください。',
               style: TextStyle(color: Colors.grey),
             ),
           ],
@@ -510,6 +567,15 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
           widget.whiteboard.isGroupWhiteboard ? 'グループ共通ホワイトボード' : '個人用ホワイトボード',
         ),
         actions: [
+          // 編集ロック状態アイコン（グループ共有ボードのみ）
+          if (widget.whiteboard.isGroupWhiteboard && _isEditingLocked)
+            IconButton(
+              icon: const Icon(Icons.lock, color: Colors.orange),
+              onPressed: () => _showEditingInProgressDialog(),
+              tooltip: '編集中: ${_currentEditor?.userName ?? "Unknown"}',
+            )
+          else if (widget.whiteboard.isGroupWhiteboard && _hasEditLock)
+            const Icon(Icons.lock_open, color: Colors.green),
           // プライベート設定スイッチ（個人用のみ）
           if (widget.whiteboard.isPersonalWhiteboard &&
               widget.whiteboard.ownerId == currentUser?.uid)
@@ -601,18 +667,48 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                               // 前景：現在の描画セッション（編集可能な場合のみ）
                               if (canEdit)
                                 Positioned.fill(
-                                  child: IgnorePointer(
-                                    ignoring:
-                                        !_isScrollLocked, // スクロールロック時のみ描画可能
-                                    child: SizedBox(
-                                      width: _fixedCanvasWidth * _canvasScale,
-                                      height: _fixedCanvasHeight * _canvasScale,
-                                      child: Signature(
-                                        key: ValueKey(
-                                            'signature_$_controllerKey'),
-                                        controller: _controller!,
-                                        backgroundColor: Colors.transparent,
-                                      ),
+                                  child: _buildDrawingArea(),
+                                ),
+
+                              // 編集ロック中のオーバーレイ（グループ共有ボードのみ）
+                              if (widget.whiteboard.isGroupWhiteboard &&
+                                  _isEditingLocked &&
+                                  canEdit)
+                                Positioned(
+                                  top: 60,
+                                  right: 16,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange.withOpacity(0.85),
+                                      borderRadius: BorderRadius.circular(20),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.2),
+                                          blurRadius: 3,
+                                          offset: const Offset(0, 1),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.edit,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          '${AppLogger.maskName(_currentEditor?.userName ?? '他のユーザー')} 編集中',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),
@@ -683,9 +779,10 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                 _buildColorButton(_getCustomColor6()), // 設定から取得
                 const SizedBox(width: 16),
 
-                // 🔒 編集ロック状態表示
-                _buildEditLockStatus(),
-                const SizedBox(width: 16),
+                // 🔒 編集ロック状態表示（グループ共有ボードのみ）
+                if (widget.whiteboard.isGroupWhiteboard) _buildEditLockStatus(),
+                if (widget.whiteboard.isGroupWhiteboard)
+                  const SizedBox(width: 16),
 
                 // スクロール/描画モード切り替えボタン
                 IconButton(
@@ -696,10 +793,39 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                     color: _isScrollLocked ? Colors.blue : Colors.grey,
                     size: 20,
                   ),
-                  onPressed: () {
+                  onPressed: () async {
+                    AppLogger.info(
+                        '🎨 [MODE_TOGGLE] モード切り替え: ${_isScrollLocked ? 'スクロールモード' : '描画モード'}へ');
+
+                    if (_isScrollLocked) {
+                      // 描画モード → スクロールモード: ロック解除
+                      AppLogger.info('🔓 [MODE_TOGGLE] 描画モード終了 - ロック解除');
+                      await _releaseEditLock();
+                    } else {
+                      // スクロールモード → 描画モード: ロック取得
+                      AppLogger.info('🔒 [MODE_TOGGLE] 描画モード開始 - ロック取得試行');
+                      if (widget.whiteboard.isGroupWhiteboard) {
+                        final success = await _acquireEditLock();
+                        if (!success && mounted) {
+                          AppLogger.warning(
+                              '❌ [MODE_TOGGLE] ロック取得失敗 - モード切り替えをキャンセル');
+                          if (_isEditingLocked && _currentEditor != null) {
+                            _showEditingInProgressDialog();
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('編集ロックの取得に失敗しました')),
+                            );
+                          }
+                          return; // モード切り替えをキャンセル
+                        }
+                      }
+                    }
+
                     setState(() {
                       _isScrollLocked = !_isScrollLocked;
                     });
+                    AppLogger.info(
+                        '✅ [MODE_TOGGLE] モード切り替え完了: ${_isScrollLocked ? '描画モード' : 'スクロールモード'}');
                   },
                   tooltip: _isScrollLocked ? '描画モード（筆）' : 'スクロールモード（十字）',
                 ),
@@ -724,60 +850,78 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                 // ズームアウト
                 IconButton(
                   icon: const Icon(Icons.zoom_out, size: 20),
-                  onPressed: () {
-                    if (_canvasScale > 0.5) {
-                      // 現在の描画を保存
-                      _captureCurrentDrawing();
+                  onPressed:
+                      (widget.whiteboard.isGroupWhiteboard && _isEditingLocked)
+                          ? null
+                          : () {
+                              if (_canvasScale > 0.5) {
+                                // 現在の描画を保存
+                                _captureCurrentDrawing();
 
-                      setState(() {
-                        _canvasScale -= 0.5;
-                        print('🔍 ズームアウト: ${_canvasScale}x');
+                                setState(() {
+                                  _canvasScale -= 0.5;
+                                  print('🔍 ズームアウト: ${_canvasScale}x');
 
-                        // コントローラーを再作成（ペン幅をスケーリングに合わせる）
-                        _controller?.dispose();
-                        _controller = SignatureController(
-                          penStrokeWidth: _strokeWidth * _canvasScale,
-                          penColor: _selectedColor,
-                        );
-                        // 🔒 描画開始時に編集ロックをチェック
-                        _controller?.onDrawStart = () async {
-                          await _onDrawingStart();
-                        };
-                        _controllerKey++;
-                      });
-                    }
-                  },
-                  tooltip: 'ズームアウト',
+                                  // コントローラーを再作成（ペン幅をスケーリングに合わせる）
+                                  _controller?.dispose();
+                                  _controller = SignatureController(
+                                    penStrokeWidth: _strokeWidth * _canvasScale,
+                                    penColor: _selectedColor,
+                                  );
+                                  // 🔒 描画開始時に編集ロックをチェック
+                                  _controller?.onDrawStart = () async {
+                                    final canDraw = await _onDrawingStart();
+                                    if (!canDraw && mounted) {
+                                      _controller?.clear();
+                                    }
+                                  };
+                                  _controllerKey++;
+                                });
+                              }
+                            },
+                  tooltip:
+                      (widget.whiteboard.isGroupWhiteboard && _isEditingLocked)
+                          ? '編集ロック中'
+                          : 'ズームアウト',
                 ),
                 // ズーム倍率表示
                 Text('${_canvasScale.toStringAsFixed(1)}x'),
                 // ズームイン
                 IconButton(
                   icon: const Icon(Icons.zoom_in, size: 20),
-                  onPressed: () {
-                    if (_canvasScale < 4.0) {
-                      // 現在の描画を保存
-                      _captureCurrentDrawing();
+                  onPressed:
+                      (widget.whiteboard.isGroupWhiteboard && _isEditingLocked)
+                          ? null
+                          : () {
+                              if (_canvasScale < 4.0) {
+                                // 現在の描画を保存
+                                _captureCurrentDrawing();
 
-                      setState(() {
-                        _canvasScale += 0.5;
-                        print('🔍 ズームイン: ${_canvasScale}x');
+                                setState(() {
+                                  _canvasScale += 0.5;
+                                  print('🔍 ズームイン: ${_canvasScale}x');
 
-                        // コントローラーを再作成（ペン幅をスケーリングに合わせる）
-                        _controller?.dispose();
-                        _controller = SignatureController(
-                          penStrokeWidth: _strokeWidth * _canvasScale,
-                          penColor: _selectedColor,
-                        );
-                        // 🔒 描画開始時に編集ロックをチェック
-                        _controller?.onDrawStart = () async {
-                          await _onDrawingStart();
-                        };
-                        _controllerKey++;
-                      });
-                    }
-                  },
-                  tooltip: 'ズームイン',
+                                  // コントローラーを再作成（ペン幅をスケーリングに合わせる）
+                                  _controller?.dispose();
+                                  _controller = SignatureController(
+                                    penStrokeWidth: _strokeWidth * _canvasScale,
+                                    penColor: _selectedColor,
+                                  );
+                                  // 🔒 描画開始時に編集ロックをチェック
+                                  _controller?.onDrawStart = () async {
+                                    final canDraw = await _onDrawingStart();
+                                    if (!canDraw && mounted) {
+                                      _controller?.clear();
+                                    }
+                                  };
+                                  _controllerKey++;
+                                });
+                              }
+                            },
+                  tooltip:
+                      (widget.whiteboard.isGroupWhiteboard && _isEditingLocked)
+                          ? '編集ロック中'
+                          : 'ズームイン',
                 ),
                 const SizedBox(width: 16), // Spacerの代わりに固定幅
                 // 消去ボタン
@@ -785,13 +929,19 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                   icon: const Icon(Icons.delete_outline, size: 20),
-                  onPressed: () {
-                    setState(() {
-                      _workingStrokes.clear();
-                      _controller!.clear();
-                    });
-                  },
-                  tooltip: '全消去',
+                  onPressed:
+                      (widget.whiteboard.isGroupWhiteboard && _isEditingLocked)
+                          ? null
+                          : () {
+                              setState(() {
+                                _workingStrokes.clear();
+                                _controller!.clear();
+                              });
+                            },
+                  tooltip:
+                      (widget.whiteboard.isGroupWhiteboard && _isEditingLocked)
+                          ? '編集ロック中'
+                          : '全消去',
                 ),
               ],
             ),
@@ -812,8 +962,13 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     );
   }
 
-  /// 🔒 編集ロック状態表示ウィジェット
+  /// 🔒 編集ロック状態表示ウィジェット（グループ共有ボードのみ）
   Widget _buildEditLockStatus() {
+    // 個人ボードでは編集ロック状態を表示しない
+    if (widget.whiteboard.isPersonalWhiteboard) {
+      return const SizedBox.shrink();
+    }
+
     if (_currentEditor == null) {
       return const SizedBox.shrink();
     }
@@ -909,37 +1064,42 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   Widget _buildColorButton(Color color) {
     // 色の比較はvalueで行う（インスタンスではなく色値で比較）
     final isSelected = _selectedColor.value == color.value;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          // 現在の描画を保存
-          _captureCurrentDrawing();
+    final isEnabled = widget.whiteboard.isGroupWhiteboard
+        ? !_isEditingLocked
+        : true; // 🔒 個人ボードは常に有効、グループ共有ボードのみ編集ロックチェック
 
-          _selectedColor = color;
-          // SignatureControllerは再作成が必要（空でスタート）
-          // ペン幅はスケーリングを考慮
-          _controller?.dispose();
-          _controller = SignatureController(
-            penStrokeWidth: _strokeWidth * _canvasScale,
-            penColor: color,
-          );
-          // 🔒 描画開始時に編集ロックをチェック
-          _controller?.onDrawStart = () async {
-            await _onDrawingStart();
-          };
-          _controllerKey++; // キー更新でウィジェット再構築
-        });
-      },
-      child: Container(
-        width: 32,
-        height: 32,
-        margin: const EdgeInsets.symmetric(horizontal: 2),
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: isSelected ? Colors.blue : Colors.grey,
-            width: isSelected ? 3 : 1,
+    return Opacity(
+      opacity: isEnabled ? 1.0 : 0.5,
+      child: GestureDetector(
+        onTap: isEnabled
+            ? () {
+                setState(() {
+                  // 現在の描画を保存
+                  _captureCurrentDrawing();
+
+                  _selectedColor = color;
+                  // SignatureControllerは再作成が必要（空でスタート）
+                  // ペン幅はスケーリングを考慮
+                  _controller?.dispose();
+                  _controller = SignatureController(
+                    penStrokeWidth: _strokeWidth * _canvasScale,
+                    penColor: color,
+                  );
+                  _controllerKey++; // キー更新でウィジェット再構築
+                });
+              }
+            : null, // 編集ロック中はタップ無効
+        child: Container(
+          width: 32,
+          height: 32,
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: isSelected ? Colors.blue : Colors.grey,
+              width: isSelected ? 3 : 1,
+            ),
           ),
         ),
       ),
@@ -949,35 +1109,137 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   /// ペン太さボタン（5段階）
   Widget _buildStrokeWidthButton(double width, int level) {
     final isSelected = _strokeWidth == width;
-    return IconButton(
-      icon: Container(
-        width: 8.0 + (level * 2),
-        height: 8.0 + (level * 2),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.blue : Colors.grey,
-          shape: BoxShape.circle,
+    final isEnabled = widget.whiteboard.isGroupWhiteboard
+        ? !_isEditingLocked
+        : true; // 🔒 個人ボードは常に有効、グループ共有ボードのみ編集ロックチェック
+
+    return Opacity(
+      opacity: isEnabled ? 1.0 : 0.5,
+      child: IconButton(
+        icon: Container(
+          width: 8.0 + (level * 2),
+          height: 8.0 + (level * 2),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.blue : Colors.grey,
+            shape: BoxShape.circle,
+          ),
+        ),
+        onPressed: isEnabled
+            ? () {
+                setState(() {
+                  // 現在の描画を保存
+                  _captureCurrentDrawing();
+                  _strokeWidth = width;
+                  // SignatureControllerは再作成が必要（空でスタート）
+                  // ペン幅はスケーリングを考慮
+                  _controller?.dispose();
+                  _controller = SignatureController(
+                    penStrokeWidth: width * _canvasScale,
+                    penColor: _selectedColor,
+                  );
+                  // 🔒 描画開始時に編集ロックをチェック
+                  _controller?.onDrawStart = () async {
+                    final canDraw = await _onDrawingStart();
+                    if (!canDraw && mounted) {
+                      _controller?.clear();
+                    }
+                  };
+                  _controllerKey++; // キー更新でウィジェット再構築
+                });
+              }
+            : null, // 編集ロック中はタップ無効
+        tooltip: isEnabled ? '太さ $level' : '編集ロック中',
+      ),
+    );
+  }
+
+  /// 描画エリアをビルド（編集ロック状態を考慮）
+  Widget _buildDrawingArea() {
+    AppLogger.info(
+        '🏗️ [BUILD_DRAWING_AREA] 状態: isGroup=${widget.whiteboard.isGroupWhiteboard}, isLocked=$_isEditingLocked, hasLock=$_hasEditLock, scrollLocked=$_isScrollLocked');
+    AppLogger.info(
+        '🏗️ [BUILD_DRAWING_AREA] 現在の編集者: ${_currentEditor?.userName ?? "なし"}');
+
+    // 🔒 編集ロック中の場合（グループボードのみ）
+    if (widget.whiteboard.isGroupWhiteboard &&
+        _isEditingLocked &&
+        !_hasEditLock) {
+      AppLogger.warning('🔒 [DRAWING_AREA] 編集ロック中 - ロックアイコン表示');
+      return Container(
+        width: _fixedCanvasWidth * _canvasScale,
+        height: _fixedCanvasHeight * _canvasScale,
+        color: Colors.red.withOpacity(0.2), // 🔥 目立つ背景色
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.lock,
+                size: 64,
+                color: Colors.red,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                '🔒 編集ロック中',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              if (_currentEditor != null)
+                Text(
+                  '編集者: ${_currentEditor!.userName}',
+                  style: TextStyle(
+                    color: Colors.red.shade700,
+                    fontSize: 14,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // 🎨 通常の描画モード
+    if (_isScrollLocked) {
+      AppLogger.info('🎨 [DRAWING_AREA] 描画モード有効 - Signatureウィジェット配置');
+      return Container(
+        width: _fixedCanvasWidth * _canvasScale,
+        height: _fixedCanvasHeight * _canvasScale,
+        color: Colors.green.withOpacity(0.1), // 🔥 デバッグ用背景色
+        child: GestureDetector(
+          onPanStart: (details) async {
+            AppLogger.info('🎨 [GESTURE] 描画開始検出 - onPanStart');
+            // 描画開始時の編集ロックチェックを実行
+            final canDraw = await _onDrawingStart();
+            if (!canDraw && mounted) {
+              _controller?.clear();
+              return;
+            }
+          },
+          child: Signature(
+            key: ValueKey('signature_$_controllerKey'),
+            controller: _controller!,
+            backgroundColor: Colors.transparent,
+          ),
+        ),
+      );
+    }
+
+    // 📱 スクロールモード
+    AppLogger.info('📱 [DRAWING_AREA] スクロールモード - 描画無効');
+    return Container(
+      width: _fixedCanvasWidth * _canvasScale,
+      height: _fixedCanvasHeight * _canvasScale,
+      color: Colors.blue.withOpacity(0.1), // 🔥 デバッグ用背景色
+      child: Center(
+        child: Icon(
+          Icons.pan_tool,
+          color: Colors.grey.withOpacity(0.5),
+          size: 32,
         ),
       ),
-      onPressed: () {
-        setState(() {
-          // 現在の描画を保存
-          _captureCurrentDrawing();
-          _strokeWidth = width;
-          // SignatureControllerは再作成が必要（空でスタート）
-          // ペン幅はスケーリングを考慮
-          _controller?.dispose();
-          _controller = SignatureController(
-            penStrokeWidth: width * _canvasScale,
-            penColor: _selectedColor,
-          );
-          // 🔒 描画開始時に編集ロックをチェック
-          _controller?.onDrawStart = () async {
-            await _onDrawingStart();
-          };
-          _controllerKey++; // キー更新でウィジェット再構築
-        });
-      },
-      tooltip: '太さ $level',
     );
   }
 }
