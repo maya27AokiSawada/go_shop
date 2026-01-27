@@ -51,6 +51,25 @@ class WhiteboardRepository {
     }
   }
 
+  /// whiteboardIdを指定してホワイトボードを取得
+  Future<Whiteboard?> getWhiteboardById(
+    String groupId,
+    String whiteboardId,
+  ) async {
+    try {
+      final doc = await _collection(groupId).doc(whiteboardId).get();
+      if (!doc.exists) {
+        AppLogger.warning('📋 [GET_WB_BY_ID] ホワイトボードが存在しません: $whiteboardId');
+        return null;
+      }
+
+      return Whiteboard.fromFirestore(doc.data()!, doc.id);
+    } catch (e) {
+      AppLogger.error('❌ [GET_WB_BY_ID] ホワイトボード取得エラー: $e');
+      return null;
+    }
+  }
+
   /// 個人用ホワイトボード取得
   Future<Whiteboard?> getPersonalWhiteboard(
     String groupId,
