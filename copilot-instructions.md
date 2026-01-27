@@ -1,5 +1,122 @@
 # GoShopping - AI Coding Agent Instructions
 
+## Recent Implementations (2026-01-27)
+
+### 1. ホワイトボード編集ロック機能 UI/UX改善 ✅
+
+**Purpose**: 編集ロック機能のユーザビリティ向上とお絵描きチャット対応
+
+#### 🔍 Critical Issue Resolution
+
+**Problem**: 編集ロック機能が完全に動作しない報告
+
+- ロックアイコンが表示されない
+- 複数端末での同時描画が可能
+- UI上でロック状態が見えない
+
+**Root Cause Analysis**: テスト環境の問題
+
+- Pixel・SH54D両端末が同一ユーザーでログイン
+- システム仕様: 同一ユーザーの複数端末間では編集ロックは適用されない（セルフロック防止）
+
+**Resolution**: 異なるユーザーでテスト → 編集ロック機能正常動作確認
+
+#### 🎨 UI/UX Major Improvements
+
+**1. Lock Error Dialog Simplification**
+
+**Before**:
+
+```dart
+content: Column(children: [
+  Text('${editorName} が編集中です'),
+  Text('編集ロック: $remainingTime'),  // ❌ 技術詳細
+  Text('他のユーザーが編集を完了するまでお待ちください。'),
+]),
+```
+
+**After**:
+
+```dart
+content: Column(children: [
+  Text('${editorName} が編集中です'),
+  // ❌ 残り時間表示削除
+  Text('編集が終わるまでお待ちください。'),  // ✅ シンプル
+]),
+```
+
+**Rationale**: ロック有効時間は万が一の保険機能。正常時は描画終了で自動解除されるため、残り時間は不要
+
+**2. Canvas Overlay Redesign**
+
+**Before**: 画面全体を覆う大きなオーバーレイ
+
+```dart
+Positioned.fill(
+  child: Container(
+    color: Colors.black.withOpacity(0.1),  // 全画面背景
+    child: Center(
+      child: Container(
+        padding: EdgeInsets.all(16),
+        child: Column(children: [
+          Icon(Icons.lock, size: 32),  // 大きなロックアイコン
+          Text('編集中', fontSize: 16),
+          Text('${userName} が編集中です'),
+          Text(remainingTimeText),  // 残り時間表示
+        ]),
+      ),
+    ),
+  ),
+)
+```
+
+**After**: 右上角の軽量バッジ
+
+```dart
+Positioned(
+  top: 60, right: 16,  // ✅ 右上角のみ
+  child: Container(
+    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    decoration: BoxDecoration(
+      color: Colors.orange.withOpacity(0.85),  // ✅ 透明度調整
+      borderRadius: BorderRadius.circular(20),  // ✅ ピル型
+    ),
+    child: Row(children: [
+      Icon(Icons.edit, size: 16),  // ✅ 小さな編集アイコン
+      Text('${userName} 編集中', fontSize: 12),  // ✅ 簡潔
+    ]),
+  ),
+)
+```
+
+#### 🎯 Critical Pattern for AI Agents
+
+**Edit Lock Testing**: 同一ユーザー複数端末では機能しない
+
+```dart
+// ❌ Wrong: Same user testing
+Device1: user123@example.com
+Device2: user123@example.com
+// Result: No lock applied (by design)
+
+// ✅ Correct: Different users testing
+Device1: user123@example.com
+Device2: user456@example.com
+// Result: Lock applied correctly
+```
+
+**UI Philosophy**:
+
+- 技術詳細 < ユーザー体験
+- 全画面オーバーレイ < 控えめな通知
+- 単機能ツール < 多目的対応（お絵描きチャット）
+
+**Modified Files**:
+
+- `lib/pages/whiteboard_editor_page.dart`:
+  - `_showEditingInProgressDialog()`: 残り時間削除、メッセージ簡潔化
+  - Canvas overlay: `Positioned.fill` → `Positioned(top: 60, right: 16)`
+
 ## Recent Implementations (2026-01-26)
 
 ### 1. ホワイトボード競合解決システム完全実装 ✅
