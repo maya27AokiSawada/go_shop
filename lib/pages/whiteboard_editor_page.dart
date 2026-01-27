@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -63,6 +65,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   late Color _customColor5;
   late Color _customColor6;
 
+  // Firestoreリアルタイム監視
+  StreamSubscription<Whiteboard?>? _whiteboardSubscription;
+
   @override
   void initState() {
     super.initState();
@@ -85,6 +90,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     );
 
     AppLogger.info('✅ [INIT] SignatureController初期化完了 - モード切り替えによるロック制御');
+
+    // Firestoreリアルタイム監視を開始（他端末更新の即時反映）
+    _startWhiteboardListener();
 
     // 🔒 編集ロック状態を監視（グループ共有ボードのみ）
     AppLogger.info(
@@ -110,6 +118,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
 
   @override
   void dispose() {
+    _whiteboardSubscription?.cancel();
     _controller?.dispose();
     _horizontalScrollController.dispose();
     _verticalScrollController.dispose();
@@ -148,6 +157,56 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     }
   }
 
+  /// Firestoreのホワイトボードをリアルタイム監視してUIに反映
+  void _startWhiteboardListener() {
+    _whiteboardSubscription?.cancel();
+
+    final repository = ref.read(whiteboardRepositoryProvider);
+
+    _whiteboardSubscription = repository
+        .watchWhiteboard(widget.groupId, widget.whiteboard.whiteboardId)
+        .listen((latest) {
+      if (!mounted || latest == null) return;
+
+      // 自分が編集中（ロック保持中）の場合は上書きしない
+      if (_hasEditLock) return;
+
+      setState(() {
+        _workingStrokes
+          ..clear()
+          ..addAll(latest.strokes);
+      });
+
+      AppLogger.info(
+          '🛰️ [WHITEBOARD] Firestore最新ストロークを反映: ${latest.strokes.length}本');
+    });
+  }
+
+  /// Firestoreから最新のホワイトボードを再取得（ロック解除直後などの明示的リロード用）
+  Future<void> _reloadWhiteboardFromFirestore({String reason = ''}) async {
+    try {
+      final repository = ref.read(whiteboardRepositoryProvider);
+      final latest = await repository.getWhiteboardById(
+        widget.groupId,
+        widget.whiteboard.whiteboardId,
+      );
+
+      if (latest == null) return;
+      if (_hasEditLock) return; // 自分が編集中なら上書きしない
+
+      setState(() {
+        _workingStrokes
+          ..clear()
+          ..addAll(latest.strokes);
+      });
+
+      AppLogger.info(
+          '🔄 [WHITEBOARD] Firestoreから再取得して反映: ${latest.strokes.length}本 ${reason.isNotEmpty ? '($reason)' : ''}');
+    } catch (e) {
+      AppLogger.error('❌ [WHITEBOARD] Firestore再取得エラー: $e');
+    }
+  }
+
   /// 🔒 編集ロック状態をリアルタイム監視（グループ共有ボードのみ）
   void _watchEditLock() {
     AppLogger.info('🔒 [LOCK] 編集ロック監視開始 - グループ共有ボード');
@@ -160,6 +219,8 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     )
         .listen((lockInfo) {
       if (!mounted) return;
+
+      final wasLockedByOthers = _isEditingLocked;
 
       AppLogger.info(
           '🔒 [LOCK] ロック状態更新: ${lockInfo != null ? AppLogger.maskName(lockInfo.userName) : "ロックなし"}');
@@ -180,6 +241,11 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       if (lockInfo != null && !_isEditingLocked) {
         AppLogger.info(
             '🔒 [LOCK] 編集ロック検出: ${AppLogger.maskName(lockInfo.userName)}');
+      }
+
+      // 他ユーザーのロックが解除されたタイミングで最新データを明示的に取得
+      if (wasLockedByOthers && !_isEditingLocked) {
+        _reloadWhiteboardFromFirestore(reason: 'lock released');
       }
     });
   }
@@ -486,9 +552,19 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
 
       AppLogger.info('✅ ホワイトボード差分保存成功: ${newStrokes.length}個のストローク');
 
-      // 🔥 保存成功後は作業ストロークをクリア & SignatureControllerをリセット
+      // 🔥 保存成功後の処理
+      // 1. 新しく保存されたストロークをworkingStrokesに保存（UIで表示するため）
       _workingStrokes.clear();
+      _workingStrokes.addAll(newStrokes);
+      AppLogger.info('📐 [SAVE] ${newStrokes.length}個のストロークをworkingStrokesに復元');
+
+      // 2. SignatureControllerのみクリア（新規描画開始のため）
       _controller?.clear();
+
+      // 3. 変更を反映
+      if (mounted) {
+        setState(() {});
+      }
 
       // 🔔 他メンバーに更新通知を送信
       try {
@@ -561,7 +637,13 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     AppLogger.info(
         '🎨 [WHITEBOARD] AppBar title will be: ${widget.whiteboard.isGroupWhiteboard ? "グループ共通" : "個人用"}');
 
-    return Scaffold(
+    return WillPopScope(
+      onWillPop: () async {
+        // ページ離脱時に編集ロックを解除（保持中のみ）
+        await _releaseEditLock();
+        return true;
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: Text(
           widget.whiteboard.isGroupWhiteboard ? 'グループ共通ホワイトボード' : '個人用ホワイトボード',
@@ -767,24 +849,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.start, // 左寄せ
               children: [
-                const Text('色:',
-                    style:
-                        TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                const SizedBox(width: 4),
-                _buildColorButton(Colors.black),
-                _buildColorButton(Colors.red),
-                _buildColorButton(Colors.green),
-                _buildColorButton(Colors.yellow),
-                _buildColorButton(_getCustomColor5()), // 設定から取得
-                _buildColorButton(_getCustomColor6()), // 設定から取得
-                const SizedBox(width: 16),
-
-                // 🔒 編集ロック状態表示（グループ共有ボードのみ）
-                if (widget.whiteboard.isGroupWhiteboard) _buildEditLockStatus(),
-                if (widget.whiteboard.isGroupWhiteboard)
-                  const SizedBox(width: 16),
-
-                // スクロール/描画モード切り替えボタン
+                // 🔄 モード切り替えボタン（左側に配置して常に見えるように）
                 IconButton(
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -798,8 +863,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                         '🎨 [MODE_TOGGLE] モード切り替え: ${_isScrollLocked ? 'スクロールモード' : '描画モード'}へ');
 
                     if (_isScrollLocked) {
-                      // 描画モード → スクロールモード: ロック解除
-                      AppLogger.info('🔓 [MODE_TOGGLE] 描画モード終了 - ロック解除');
+                      // 描画モード → スクロールモード: 現在の描画を保存 → ロック解除
+                      AppLogger.info('🔓 [MODE_TOGGLE] 描画モード終了 - 描画保存');
+                      _captureCurrentDrawing(); // 🔥 モード切り替え前にコントローラーの内容を保存
                       await _releaseEditLock();
                     } else {
                       // スクロールモード → 描画モード: ロック取得
@@ -829,6 +895,23 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                   },
                   tooltip: _isScrollLocked ? '描画モード（筆）' : 'スクロールモード（十字）',
                 ),
+                const SizedBox(width: 12),
+                const Text('色:',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                const SizedBox(width: 4),
+                _buildColorButton(Colors.black),
+                _buildColorButton(Colors.red),
+                _buildColorButton(Colors.green),
+                _buildColorButton(Colors.yellow),
+                _buildColorButton(_getCustomColor5()), // 設定から取得
+                _buildColorButton(_getCustomColor6()), // 設定から取得
+                const SizedBox(width: 16),
+
+                // 🔒 編集ロック状態表示（グループ共有ボードのみ）
+                if (widget.whiteboard.isGroupWhiteboard) _buildEditLockStatus(),
+                if (widget.whiteboard.isGroupWhiteboard)
+                  const SizedBox(width: 16),
               ],
             ),
           ),
@@ -948,7 +1031,8 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
           ),
         ],
       ),
-    );
+      ),
+    )
   }
 
   /// グリッド線オーバーレイ（オプション）
@@ -1074,7 +1158,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         onTap: isEnabled
             ? () {
                 setState(() {
-                  // 現在の描画を保存
+                  // 🔥 色変更前に現在の描画を保存
                   _captureCurrentDrawing();
 
                   _selectedColor = color;
@@ -1127,7 +1211,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         onPressed: isEnabled
             ? () {
                 setState(() {
-                  // 現在の描画を保存
+                  // 🔥 太さ変更前に現在の描画を保存
                   _captureCurrentDrawing();
                   _strokeWidth = width;
                   // SignatureControllerは再作成が必要（空でスタート）
@@ -1165,38 +1249,13 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         _isEditingLocked &&
         !_hasEditLock) {
       AppLogger.warning('🔒 [DRAWING_AREA] 編集ロック中 - ロックアイコン表示');
-      return Container(
-        width: _fixedCanvasWidth * _canvasScale,
-        height: _fixedCanvasHeight * _canvasScale,
-        color: Colors.red.withOpacity(0.2), // 🔥 目立つ背景色
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.lock,
-                size: 64,
-                color: Colors.red,
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                '🔒 編集ロック中',
-                style: TextStyle(
-                  color: Colors.red,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-              if (_currentEditor != null)
-                Text(
-                  '編集者: ${_currentEditor!.userName}',
-                  style: TextStyle(
-                    color: Colors.red.shade700,
-                    fontSize: 14,
-                  ),
-                ),
-            ],
-          ),
+      // 描画エリアはそのまま表示しつつタップのみ無効化（控えめな挙動に）
+      return AbsorbPointer(
+        absorbing: true,
+        child: Container(
+          width: _fixedCanvasWidth * _canvasScale,
+          height: _fixedCanvasHeight * _canvasScale,
+          color: Colors.transparent,
         ),
       );
     }

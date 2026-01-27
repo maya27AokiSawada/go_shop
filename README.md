@@ -2,61 +2,118 @@
 
 ## Recent Implementations (2026-01-27)
 
-### 1. ホワイトボード編集ロック機能 UI/UX改善 ✅
+### 1. ホワイトボード編集ロック機能 UI/UX完全改善 ✅
 
-**Purpose**: より使いやすい編集ロック体験とお絵描きチャット対応
+**Purpose**: ユーザーフレンドリーな編集ロック体験とお絵描きチャット機能対応
 
-#### 問題解決とテスト環境改善
+#### 問題解決：テスト環境改善
 
 **Problem**: 編集ロック機能が動作しない（ロックアイコン非表示、同時描画可能）
 
-**Root Cause**: 同一ユーザーでの複数端末テストによりセルフロック防止機能が動作
+**Root Cause**:
 
-- Pixel・SH54D両方が同じユーザーでログイン
-- システム仕様上、同一ユーザーの複数端末間では編集ロックは適用されない
+- 同一ユーザー（fatima.sumomo）で Pixel・SH54D 両端末ログイン
+- システム仕様：同一ユーザー複数端末間では編集ロック非適用
+- テスト環境設定不適切
 
-**Solution**: 別ユーザーでのテストにより正常動作確認
+**Solution**: 別ユーザーでのマルチアカウント テスト環境構築 → ✅ 正常動作確認
 
 #### UI/UX大幅改善
 
-**1. ロックエラーダイアログの簡潔化**
+**1. ロックエラーダイアログ簡潔化**
 
 ```diff
-- 編集ロック残り時間表示（技術詳細）
-+ 「編集が終わるまでお待ちください」（ユーザーフレンドリー）
+- 「編集中です」 + 残り時間表示 + 有効期限表示（技術詳細）
++ 「編集中です」 + 「編集が終わるまでお待ちください」（ユーザーフレンドリー）
 ```
 
-**Rationale**: ロック有効時間は万が一の保険機能で、正常時は描画終了で自動解除
+**Rationale**: ロック有効期限は万が一の保険機能。正常系は描画終了で自動解除
 
-**2. キャンバスオーバーレイの控えめ化**
+**2. キャンバスオーバーレイ控えめ化**
 
 ```diff
-- 画面全体を覆う大きなオーバーレイ
-+ 右上角の軽量なバッジ表示
+- 画面全体を覆う大きなオーバーレイ（視覚的負荷大）
++ 右上角の軽量なバッジ表示（視覚的負荷小）
 
-- Icons.lock + 複数行テキスト
-+ Icons.edit + 「○○○ 編集中」
+- Icons.lock（ロックイメージ）
++ Icons.edit（編集イメージ、アクティブ感）
+
+- 複数行テキスト（技術詳細）
++ 「○○○ 編集中」（シンプル）
 ```
+
+**Design Details**:
+
+- Background: `Colors.orange.withOpacity(0.85)` ピル型
+- Border Radius: `BorderRadius.circular(20)` 角丸ピル
+- Position: `top: 60, right: 16` 右上隅（キャンバス邪魔しない）
+- Shadow: `blurRadius: 3` 軽い影で奥行き表現
 
 **Benefits**:
 
-- お絵描きチャット機能対応（描画エリアを遮らない）
-- 視覚的負荷軽減
-- 協調編集環境での使いやすさ向上
+- ✅ お絵描きチャット機能対応（描画エリア遮蔽なし）
+- ✅ 視覚的負荷軽減（ユーザー集中度向上）
+- ✅ 協調編集環境での使いやすさ向上
+- ✅ モバイル画面対応（右上は邪魔しない位置）
 
 #### Technical Implementation
 
 **Modified File**: `lib/pages/whiteboard_editor_page.dart`
 
-- `_showEditingInProgressDialog()`: 残り時間表示削除、メッセージ簡潔化
-- Canvas overlay: `Positioned.fill` → `Positioned(top: 60, right: 16)`
-- Design: 透明度・サイズ調整、角丸ピル型デザイン
+**1. モード切り替え時のロック制御**
+
+```dart
+// スクロールモード → 描画モード: ロック取得
+if (!_isScrollLocked) {
+  if (widget.whiteboard.isGroupWhiteboard) {
+    final success = await _acquireEditLock();
+    if (!success && mounted) {
+      AppLogger.warning('❌ [MODE_TOGGLE] ロック取得失敗 - モード切り替えをキャンセル');
+      if (_isEditingLocked && _currentEditor != null) {
+        _showEditingInProgressDialog();
+      }
+      return; // モード切り替えをキャンセル
+    }
+  }
+}
+
+// 描画モード → スクロールモード: ロック解除
+if (_isScrollLocked) {
+  _captureCurrentDrawing(); // 現在の描画を保存
+  await _releaseEditLock();
+}
+```
+
+**2. ロック状態バッジ表示**
+
+```dart
+Positioned(
+  top: 60,
+  right: 16,
+  child: Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    decoration: BoxDecoration(
+      color: Colors.orange.withOpacity(0.85),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.edit, color: Colors.white, size: 16),
+        Text('${editorName} 編集中', style: TextStyle(fontSize: 12)),
+      ],
+    ),
+  ),
+)
+```
 
 **Test Results**:
 
-- ✅ 別ユーザーログインで編集ロック正常動作
-- ✅ モード切り替え（パン⇄描画）でロック制御
-- ✅ 控えめなUI表示でチャット機能対応
+- ✅ 別ユーザーログインで編集ロック正常動作確認
+- ✅ モード切り替え（パン⇄描画）でロック制御正常
+- ✅ 控えめなUI表示でチャット機能対応確認
+- ✅ キャンバス描画エリア遮蔽なし確認
+- ✅ マルチユーザー同時編集環境で正常動作
 
 ## Recent Implementations (2026-01-26)
 
