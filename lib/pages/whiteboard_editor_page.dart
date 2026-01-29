@@ -622,6 +622,64 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     }
   }
 
+  /// 全消去確認ダイアログ
+  void _showDeleteConfirmationDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('全消去確認'),
+        content: const Text('ボードのすべての描画を削除します。この操作は元に戻せません。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('キャンセル'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _clearWhiteboard();
+            },
+            child: const Text('削除', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 全消去処理（Firestore保存）
+  Future<void> _clearWhiteboard() async {
+    try {
+      final repository = ref.read(whiteboardRepositoryProvider);
+
+      // 🔥 Firestoreから全ストロークを削除（本質的には空の状態で保存）
+      await repository.clearWhiteboard(
+        groupId: widget.groupId,
+        whiteboardId: widget.whiteboard.whiteboardId,
+      );
+
+      // ローカルも消去
+      setState(() {
+        _workingStrokes.clear();
+        _controller?.clear();
+      });
+
+      AppLogger.info('✅ [DELETE] ホワイトボード全消去成功');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('全消去しました')),
+        );
+      }
+    } catch (e) {
+      AppLogger.error('❌ [DELETE] 全消去エラー: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('全消去に失敗しました: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentUser = ref.watch(authStateProvider).value;
@@ -644,191 +702,195 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         return true;
       },
       child: Scaffold(
-      appBar: AppBar(
-        title: Text(
-          widget.whiteboard.isGroupWhiteboard ? 'グループ共通ホワイトボード' : '個人用ホワイトボード',
+        appBar: AppBar(
+          title: Text(
+            widget.whiteboard.isGroupWhiteboard
+                ? 'グループ共通ホワイトボード'
+                : '個人用ホワイトボード',
+          ),
+          actions: [
+            // 編集ロック状態アイコン（グループ共有ボードのみ）
+            if (widget.whiteboard.isGroupWhiteboard && _isEditingLocked)
+              IconButton(
+                icon: const Icon(Icons.lock, color: Colors.orange),
+                onPressed: () => _showEditingInProgressDialog(),
+                tooltip: '編集中: ${_currentEditor?.userName ?? "Unknown"}',
+              )
+            else if (widget.whiteboard.isGroupWhiteboard && _hasEditLock)
+              const Icon(Icons.lock_open, color: Colors.green),
+            // プライベート設定スイッチ（個人用のみ）
+            if (widget.whiteboard.isPersonalWhiteboard &&
+                widget.whiteboard.ownerId == currentUser?.uid)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('編集制限', style: TextStyle(fontSize: 12)),
+                  Switch(
+                    value: widget.whiteboard.isPrivate,
+                    onChanged: (_) => _togglePrivate(),
+                  ),
+                ],
+              ),
+            // 保存ボタン
+            if (canEdit)
+              IconButton(
+                icon: _isSaving
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save),
+                onPressed: _isSaving ? null : _saveWhiteboard,
+                tooltip: '保存',
+              ),
+          ],
         ),
-        actions: [
-          // 編集ロック状態アイコン（グループ共有ボードのみ）
-          if (widget.whiteboard.isGroupWhiteboard && _isEditingLocked)
-            IconButton(
-              icon: const Icon(Icons.lock, color: Colors.orange),
-              onPressed: () => _showEditingInProgressDialog(),
-              tooltip: '編集中: ${_currentEditor?.userName ?? "Unknown"}',
-            )
-          else if (widget.whiteboard.isGroupWhiteboard && _hasEditLock)
-            const Icon(Icons.lock_open, color: Colors.green),
-          // プライベート設定スイッチ（個人用のみ）
-          if (widget.whiteboard.isPersonalWhiteboard &&
-              widget.whiteboard.ownerId == currentUser?.uid)
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('編集制限', style: TextStyle(fontSize: 12)),
-                Switch(
-                  value: widget.whiteboard.isPrivate,
-                  onChanged: (_) => _togglePrivate(),
-                ),
-              ],
-            ),
-          // 保存ボタン
-          if (canEdit)
-            IconButton(
-              icon: _isSaving
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.save),
-              onPressed: _isSaving ? null : _saveWhiteboard,
-              tooltip: '保存',
-            ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // 編集可能な場合のみツールバー表示
-          if (canEdit) _buildToolbar(),
+        body: Column(
+          children: [
+            // 編集可能な場合のみツールバー表示
+            if (canEdit) _buildToolbar(),
 
-          // キャンバス（閲覧専用または編集可能）
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return Scrollbar(
-                  controller: _horizontalScrollController,
-                  thumbVisibility: true, // 常にスクロールバーを表示
-                  trackVisibility: true,
-                  child: Scrollbar(
-                    controller: _verticalScrollController,
-                    thumbVisibility: true,
+            // キャンバス（閲覧専用または編集可能）
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return Scrollbar(
+                    controller: _horizontalScrollController,
+                    thumbVisibility: true, // 常にスクロールバーを表示
                     trackVisibility: true,
-                    notificationPredicate: (notification) =>
-                        notification.depth == 1,
-                    child: SingleChildScrollView(
-                      controller: _horizontalScrollController,
-                      scrollDirection: Axis.horizontal,
-                      physics: _isScrollLocked && canEdit
-                          ? const NeverScrollableScrollPhysics()
-                          : const AlwaysScrollableScrollPhysics(),
+                    child: Scrollbar(
+                      controller: _verticalScrollController,
+                      thumbVisibility: true,
+                      trackVisibility: true,
+                      notificationPredicate: (notification) =>
+                          notification.depth == 1,
                       child: SingleChildScrollView(
-                        controller: _verticalScrollController,
-                        scrollDirection: Axis.vertical,
+                        controller: _horizontalScrollController,
+                        scrollDirection: Axis.horizontal,
                         physics: _isScrollLocked && canEdit
                             ? const NeverScrollableScrollPhysics()
                             : const AlwaysScrollableScrollPhysics(),
-                        child: Container(
-                          width: _fixedCanvasWidth * _canvasScale,
-                          height: _fixedCanvasHeight * _canvasScale,
-                          color: Colors.white,
-                          child: Stack(
-                            children: [
-                              // グリッド線（最背面）- スケーリングされたサイズに合わせる
-                              Positioned.fill(
-                                child: CustomPaint(
-                                  painter: GridPainter(
-                                    gridSize: 50.0 *
-                                        _canvasScale, // ズームに応じてグリッドサイズも変更
-                                    color: Colors.grey.withOpacity(0.2),
-                                  ),
-                                ),
-                              ),
-                              // 背景：保存済みストロークを描画（スケーリング付き）
-                              Positioned.fill(
-                                child: Transform.scale(
-                                  scale: _canvasScale,
-                                  alignment: Alignment.topLeft,
-                                  child: CustomPaint(
-                                    size: const Size(
-                                        _fixedCanvasWidth, _fixedCanvasHeight),
-                                    painter:
-                                        DrawingStrokePainter(_workingStrokes),
-                                  ),
-                                ),
-                              ),
-                              // 前景：現在の描画セッション（編集可能な場合のみ）
-                              if (canEdit)
+                        child: SingleChildScrollView(
+                          controller: _verticalScrollController,
+                          scrollDirection: Axis.vertical,
+                          physics: _isScrollLocked && canEdit
+                              ? const NeverScrollableScrollPhysics()
+                              : const AlwaysScrollableScrollPhysics(),
+                          child: Container(
+                            width: _fixedCanvasWidth * _canvasScale,
+                            height: _fixedCanvasHeight * _canvasScale,
+                            color: Colors.white,
+                            child: Stack(
+                              children: [
+                                // グリッド線（最背面）- スケーリングされたサイズに合わせる
                                 Positioned.fill(
-                                  child: _buildDrawingArea(),
-                                ),
-
-                              // 編集ロック中のオーバーレイ（グループ共有ボードのみ）
-                              if (widget.whiteboard.isGroupWhiteboard &&
-                                  _isEditingLocked &&
-                                  canEdit)
-                                Positioned(
-                                  top: 60,
-                                  right: 16,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: Colors.orange.withOpacity(0.85),
-                                      borderRadius: BorderRadius.circular(20),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.2),
-                                          blurRadius: 3,
-                                          offset: const Offset(0, 1),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(
-                                          Icons.edit,
-                                          color: Colors.white,
-                                          size: 16,
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          '${AppLogger.maskName(_currentEditor?.userName ?? '他のユーザー')} 編集中',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ],
+                                  child: CustomPaint(
+                                    painter: GridPainter(
+                                      gridSize: 50.0 *
+                                          _canvasScale, // ズームに応じてグリッドサイズも変更
+                                      color: Colors.grey.withOpacity(0.2),
                                     ),
                                   ),
                                 ),
-                            ],
+                                // 背景：保存済みストロークを描画（スケーリング付き）
+                                Positioned.fill(
+                                  child: Transform.scale(
+                                    scale: _canvasScale,
+                                    alignment: Alignment.topLeft,
+                                    child: CustomPaint(
+                                      size: const Size(_fixedCanvasWidth,
+                                          _fixedCanvasHeight),
+                                      painter:
+                                          DrawingStrokePainter(_workingStrokes),
+                                    ),
+                                  ),
+                                ),
+                                // 前景：現在の描画セッション（編集可能な場合のみ）
+                                if (canEdit)
+                                  Positioned.fill(
+                                    child: _buildDrawingArea(),
+                                  ),
+
+                                // 編集ロック中のオーバーレイ（グループ共有ボードのみ）
+                                if (widget.whiteboard.isGroupWhiteboard &&
+                                    _isEditingLocked &&
+                                    canEdit)
+                                  Positioned(
+                                    top: 60,
+                                    right: 16,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.orange.withOpacity(0.85),
+                                        borderRadius: BorderRadius.circular(20),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color:
+                                                Colors.black.withOpacity(0.2),
+                                            blurRadius: 3,
+                                            offset: const Offset(0, 1),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(
+                                            Icons.edit,
+                                            color: Colors.white,
+                                            size: 16,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            '${AppLogger.maskName(_currentEditor?.userName ?? '他のユーザー')} 編集中',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                );
-              },
-            ),
-          ),
-
-          // 閲覧専用インジケーター
-          if (!canEdit)
-            Container(
-              padding: const EdgeInsets.all(8),
-              color: Colors.orange[100],
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.visibility, size: 16, color: Colors.orange[900]),
-                  const SizedBox(width: 8),
-                  Text(
-                    widget.whiteboard.isPrivate
-                        ? '閲覧専用: このホワイトボードは編集制限されています'
-                        : '閲覧専用',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.orange[900],
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
+                  );
+                },
               ),
             ),
-        ],
+
+            // 閲覧専用インジケーター
+            if (!canEdit)
+              Container(
+                padding: const EdgeInsets.all(8),
+                color: Colors.orange[100],
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.visibility, size: 16, color: Colors.orange[900]),
+                    const SizedBox(width: 8),
+                    Text(
+                      widget.whiteboard.isPrivate
+                          ? '閲覧専用: このホワイトボードは編集制限されています'
+                          : '閲覧専用',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.orange[900],
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -865,7 +927,14 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                     if (_isScrollLocked) {
                       // 描画モード → スクロールモード: 現在の描画を保存 → ロック解除
                       AppLogger.info('🔓 [MODE_TOGGLE] 描画モード終了 - 描画保存');
-                      _captureCurrentDrawing(); // 🔥 モード切り替え前にコントローラーの内容を保存
+
+                      // 🔥 CRITICAL: 描画データをFirestoreに保存してから終了
+                      if (_controller != null && !_controller!.isEmpty) {
+                        await _saveWhiteboard();
+                      } else {
+                        _captureCurrentDrawing(); // コントローラーが空でもworkingStrokesは保存
+                      }
+
                       await _releaseEditLock();
                     } else {
                       // スクロールモード → 描画モード: ロック取得
@@ -1015,11 +1084,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                   onPressed:
                       (widget.whiteboard.isGroupWhiteboard && _isEditingLocked)
                           ? null
-                          : () {
-                              setState(() {
-                                _workingStrokes.clear();
-                                _controller!.clear();
-                              });
+                          : () async {
+                              // 全消去ボタン押下時の処理
+                              _showDeleteConfirmationDialog();
                             },
                   tooltip:
                       (widget.whiteboard.isGroupWhiteboard && _isEditingLocked)
@@ -1031,8 +1098,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
           ),
         ],
       ),
-      ),
-    )
+    );
   }
 
   /// グリッド線オーバーレイ（オプション）
