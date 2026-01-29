@@ -5,6 +5,10 @@ import '../models/app_news.dart';
 import '../providers/news_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../pages/premium_page.dart';
+import '../services/app_launch_service.dart';
+import '../services/feedback_status_service.dart';
+import '../services/feedback_prompt_service.dart';
+import '../utils/app_logger.dart';
 
 /// ホーム画面用ニュース表示ウィジェット
 class NewsWidget extends ConsumerWidget {
@@ -21,12 +25,185 @@ class NewsWidget extends ConsumerWidget {
       return _buildPaymentReminderCard(context, ref);
     }
 
-    // 通常のニュース表示
-    final newsAsync = ref.watch(newsStreamProvider);
-    return newsAsync.when(
-      data: (news) => _buildNewsCard(context, news),
-      loading: () => _buildLoadingCard(),
-      error: (error, stack) => _buildErrorCard(error.toString()),
+    // 🔥 フィードバック催促ロジック
+    return FutureBuilder<bool>(
+      future: _shouldShowFeedbackPrompt(),
+      builder: (context, promptSnapshot) {
+        // フィードバック催促を表示すべき場合
+        if (promptSnapshot.connectionState == ConnectionState.done &&
+            promptSnapshot.hasData &&
+            promptSnapshot.data == true) {
+          return _buildFeedbackPromptCard(context);
+        }
+
+        // 通常のニュース表示
+        final newsAsync = ref.watch(newsStreamProvider);
+        return newsAsync.when(
+          data: (news) => _buildNewsCard(context, news),
+          loading: () => _buildLoadingCard(),
+          error: (error, stack) => _buildErrorCard(error.toString()),
+        );
+      },
+    );
+  }
+
+  /// フィードバック催促を表示すべきか判定
+  Future<bool> _shouldShowFeedbackPrompt() async {
+    try {
+      final launchCount = await AppLaunchService.getLaunchCount();
+      final isFeedbackSubmitted =
+          await FeedbackStatusService.isFeedbackSubmitted();
+
+      AppLogger.info('🔍 [NEWS] フィードバック催促判定開始');
+      AppLogger.info('📱 [NEWS] 起動回数: $launchCount 回');
+      AppLogger.info('📝 [NEWS] フィードバック送信済み: $isFeedbackSubmitted');
+
+      final shouldShow = await FeedbackPromptService.shouldShowFeedbackPrompt(
+        launchCount: launchCount,
+        isFeedbackSubmitted: isFeedbackSubmitted,
+      );
+
+      AppLogger.info('🎯 [NEWS] 催促表示判定結果: $shouldShow');
+
+      return shouldShow;
+    } catch (e) {
+      AppLogger.error('❌ [NEWS] フィードバック催促判定エラー: $e');
+      return false;
+    }
+  }
+
+  /// フィードバック催促カード
+  Widget _buildFeedbackPromptCard(BuildContext context) {
+    // Google フォームのリンク（クローズドテスト用）
+    const String feedbackFormUrl = 'https://forms.gle/wTvWG2EZ4p1HQcST7';
+
+    return Card(
+      margin: const EdgeInsets.all(16.0),
+      elevation: 2,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.purple[50]!,
+              Colors.purple[100]!,
+            ],
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ヘッダー
+              Row(
+                children: [
+                  Icon(
+                    Icons.feedback,
+                    color: Colors.purple[700],
+                    size: 28,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'ご意見・ご感想をお聞かせください',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.purple[800],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // メッセージ
+              Text(
+                'ユーザーの皆様からのご意見は、アプリの改善に役立てさせていただきます。'
+                'わずか1分程度で答えられるアンケートです。',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.purple[700],
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // ボタン
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        try {
+                          if (await canLaunchUrl(Uri.parse(feedbackFormUrl))) {
+                            await launchUrl(
+                              Uri.parse(feedbackFormUrl),
+                              mode: LaunchMode.externalApplication,
+                            );
+
+                            // フィードバック送信済みにマーク
+                            await FeedbackStatusService.markFeedbackSubmitted();
+                            AppLogger.info('✅ [FEEDBACK] フィードバック送信済みにマーク');
+
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('ご協力ありがとうございます！'),
+                                  backgroundColor: Colors.green,
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          }
+                        } catch (e) {
+                          AppLogger.error('❌ [FEEDBACK] フォーム開封エラー: $e');
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('フォームを開けませんでした: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      icon: const Icon(Icons.open_in_new),
+                      label: const Text('アンケートに答える'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.purple[600],
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () {
+                        AppLogger.info('⏭️ [FEEDBACK] 催促をスキップ');
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('後でお願いします'),
+                            duration: Duration(seconds: 1),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        '後で',
+                        style: TextStyle(color: Colors.purple[700]),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

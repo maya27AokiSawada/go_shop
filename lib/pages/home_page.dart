@@ -8,6 +8,8 @@ import '../services/user_preferences_service.dart';
 import '../services/firestore_user_name_service.dart';
 import '../services/password_reset_service.dart';
 import '../services/ad_service.dart';
+import '../services/app_launch_service.dart';
+import '../services/feedback_status_service.dart';
 import '../widgets/user_name_panel_widget.dart';
 import '../widgets/news_and_ads_panel_widget.dart';
 import '../utils/app_logger.dart';
@@ -37,6 +39,17 @@ class _HomePageState extends ConsumerState<HomePage> {
     AppLogger.info('HomePage初期化開始');
     _loadUserName();
     _loadSavedEmail();
+    _incrementAppLaunchCount(); // 🔥 アプリ起動カウント
+  }
+
+  /// アプリ起動回数をインクリメント
+  Future<void> _incrementAppLaunchCount() async {
+    try {
+      final launchCount = await AppLaunchService.incrementLaunchCount();
+      AppLogger.info('📱 [HOME] アプリ起動回数: $launchCount 回');
+    } catch (e) {
+      AppLogger.error('❌ [HOME] アプリ起動カウントエラー: $e');
+    }
   }
 
   /// ユーザー名をSharedPreferencesからロード
