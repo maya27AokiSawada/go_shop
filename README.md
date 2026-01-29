@@ -1,5 +1,44 @@
 # GoShopping - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-01-29)
+
+### 1. フィードバック催促機能の実装 ✅
+
+**Purpose**: クローズドテスト版アプリにユーザーフィードバック機能を追加
+
+**Implementation**:
+
+#### サービス層
+
+- **AppLaunchService** - アプリ起動回数を SharedPreferences で記録
+- **FeedbackStatusService** - フィードバック送信済み状態を SharedPreferences で管理
+- **FeedbackPromptService** - Firestore の `isTestingActive` フラグと起動回数から催促表示判定
+
+#### UI 統合
+
+- **HomePage**: initState で起動回数をインクリメント
+- **NewsWidget**: 条件満たした場合に紫色グラデーション催促カードを表示
+- **SettingsPage**: フィードバック送信セクション（全ユーザー・全環境で表示）＋デバッグパネル
+
+#### Google Forms 連携
+
+- フォーム URL: `https://forms.gle/wTvWG2EZ4p1HQcST7`
+- 催促表示条件: `(isTestingActive && launchCount >= 5 && !isFeedbackSubmitted) OR (launchCount >= 20)`
+
+#### Firestore セキュリティルール
+
+- `/testingStatus/{document=**}` コレクション追加
+- 認証済みユーザーのみ読み取り・書き込み許可
+
+**Next Steps**:
+1. `firebase deploy --only firestore:rules` でルールをデプロイ
+2. Firebase Console で `/testingStatus/active` ドキュメント作成: `isTestingActive: true`
+3. アプリ再起動して動作確認
+
+**Status**: ✅ 実装完了 | ⏳ デプロイ・動作確認保留中
+
+---
+
 ## Recent Implementations (2026-01-27)
 
 ### 1. ホワイトボード編集ロック機能 UI/UX完全改善 ✅
