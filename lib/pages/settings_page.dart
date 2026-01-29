@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/user_specific_hive_provider.dart';
@@ -12,6 +13,9 @@ import '../services/list_cleanup_service.dart';
 import '../services/shopping_list_data_migration_service.dart';
 import '../services/periodic_purchase_service.dart';
 import '../services/user_profile_migration_service.dart';
+import '../services/app_launch_service.dart';
+import '../services/feedback_status_service.dart';
+import '../services/feedback_prompt_service.dart';
 import '../widgets/test_scenario_widget.dart';
 import '../debug/fix_maya_group.dart';
 import '../utils/app_logger.dart';
@@ -496,6 +500,201 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   ),
                   const SizedBox(height: 20),
 
+                  // 🔥 フィードバック関連デバッグ（開発環境のみ）
+                  if (F.appFlavor == Flavor.dev)
+                    Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.bug_report,
+                                    color: Colors.orange.shade700),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'フィードバック催促（デバッグ）',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.orange.shade700,
+                                      ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+
+                            // 起動回数表示
+                            FutureBuilder<int>(
+                              future: AppLaunchService.getLaunchCount(),
+                              builder: (context, snapshot) {
+                                final launchCount = snapshot.data ?? 0;
+                                return Text(
+                                  '起動回数: $launchCount 回',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.orange.shade900,
+                                  ),
+                                );
+                              },
+                            ),
+
+                            // フィードバック送信状態表示
+                            const SizedBox(height: 8),
+                            FutureBuilder<bool>(
+                              future:
+                                  FeedbackStatusService.isFeedbackSubmitted(),
+                              builder: (context, snapshot) {
+                                final isSubmitted = snapshot.data ?? false;
+                                return Text(
+                                  'フィードバック送信済み: ${isSubmitted ? '✅はい' : '❌いいえ'}',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: isSubmitted
+                                        ? Colors.green.shade600
+                                        : Colors.red.shade600,
+                                  ),
+                                );
+                              },
+                            ),
+
+                            // テスト状態表示
+                            const SizedBox(height: 8),
+                            FutureBuilder<bool>(
+                              future: FeedbackPromptService.isTestingActive(),
+                              builder: (context, snapshot) {
+                                final isActive = snapshot.data ?? false;
+                                return Text(
+                                  'テスト実施中: ${isActive ? '✅はい' : '❌いいえ'}',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: isActive
+                                        ? Colors.green.shade600
+                                        : Colors.red.shade600,
+                                  ),
+                                );
+                              },
+                            ),
+
+                            const SizedBox(height: 16),
+                            const Divider(),
+                            const SizedBox(height: 12),
+
+                            // ボタン群
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                // 起動回数をリセット
+                                ElevatedButton.icon(
+                                  onPressed: () async {
+                                    await AppLaunchService.resetLaunchCount();
+                                    setState(() {});
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('起動回数をリセットしました'),
+                                        backgroundColor: Colors.blue,
+                                      ),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.refresh, size: 16),
+                                  label: const Text('起動回数リセット'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blue.shade100,
+                                    foregroundColor: Colors.blue.shade800,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 8),
+                                  ),
+                                ),
+
+                                // フィードバック状態をリセット
+                                ElevatedButton.icon(
+                                  onPressed: () async {
+                                    await FeedbackStatusService
+                                        .resetFeedbackStatus();
+                                    setState(() {});
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('フィードバック状態をリセットしました'),
+                                        backgroundColor: Colors.blue,
+                                      ),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.refresh, size: 16),
+                                  label: const Text('FB状態リセット'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blue.shade100,
+                                    foregroundColor: Colors.blue.shade800,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 8),
+                                  ),
+                                ),
+
+                                // テスト状態を ON に設定
+                                ElevatedButton.icon(
+                                  onPressed: () async {
+                                    await FeedbackPromptService
+                                        .setTestingActive(true);
+                                    setState(() {});
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('テスト状態を ON に設定しました'),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
+                                  },
+                                  icon:
+                                      const Icon(Icons.check_circle, size: 16),
+                                  label: const Text('テスト ON'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green.shade100,
+                                    foregroundColor: Colors.green.shade800,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 8),
+                                  ),
+                                ),
+
+                                // テスト状態を OFF に設定
+                                ElevatedButton.icon(
+                                  onPressed: () async {
+                                    await FeedbackPromptService
+                                        .setTestingActive(false);
+                                    setState(() {});
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('テスト状態を OFF に設定しました'),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.cancel, size: 16),
+                                  label: const Text('テスト OFF'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red.shade100,
+                                    foregroundColor: Colors.red.shade800,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 8),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                  const SizedBox(height: 20),
+
                   // 🆕 データメンテナンス（開発環境のみ）
                   if (F.appFlavor == Flavor.dev)
                     Card(
@@ -758,6 +957,68 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   const SizedBox(height: 20),
                 ],
 
+                // 🔥 フィードバック送信セクション（全ユーザー表示）
+                Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.feedback, color: Colors.purple.shade700),
+                            const SizedBox(width: 8),
+                            Text(
+                              'フィードバック送信',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.purple.shade700,
+                                  ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'ご意見・ご感想をお聞かせください',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'テスト版の改善にご協力いただきます。わずか1分程度です。',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(color: Colors.grey.shade600),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () async {
+                              await _openFeedbackForm();
+                            },
+                            icon: const Icon(Icons.open_in_new, size: 18),
+                            label: const Text('アンケートに答える'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.purple.shade600,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
                 // 🆕 アカウント削除セクション（認証済みユーザー向け）
                 if (isAuthenticated) ...[
                   Card(
@@ -902,6 +1163,58 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 
   /// クリーンアップ実行メソッド
+  /// フィードバックフォームを開く
+  Future<void> _openFeedbackForm() async {
+    try {
+      // Google フォームのリンク（クローズドテスト用）
+      const String feedbackFormUrl = 'https://forms.gle/wTvWG2EZ4p1HQcST7';
+
+      if (!await canLaunchUrl(Uri.parse(feedbackFormUrl))) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('フォームを開くことができませんでした'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      // フォームを開く
+      await launchUrl(
+        Uri.parse(feedbackFormUrl),
+        mode: LaunchMode.externalApplication,
+      );
+
+      AppLogger.info('✅ [SETTINGS] フィードバックフォームを開きました');
+
+      // フィードバック送信済みにマーク
+      await FeedbackStatusService.markFeedbackSubmitted();
+      AppLogger.info('✅ [SETTINGS] フィードバック送信済みにマーク');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('ご協力ありがとうございます！'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      AppLogger.error('❌ [SETTINGS] フィードバックフォーム開封エラー: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('エラーが発生しました: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _performCleanup() async {
     try {
       // 確認ダイアログ表示
