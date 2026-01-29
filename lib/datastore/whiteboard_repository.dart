@@ -224,6 +224,24 @@ class WhiteboardRepository {
     }
   }
 
+  /// ホワイトボード全消去（ストロークをクリア）
+  Future<void> clearWhiteboard({
+    required String groupId,
+    required String whiteboardId,
+  }) async {
+    try {
+      await _collection(groupId).doc(whiteboardId).update({
+        'strokes': [], // ストローク全削除
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      AppLogger.info('✅ ホワイトボード全消去: $whiteboardId');
+    } catch (e) {
+      AppLogger.error('❌ ホワイトボード全消去エラー: $e');
+      rethrow;
+    }
+  }
+
   /// ホワイトボードをリアルタイム監視
   Stream<Whiteboard?> watchWhiteboard(String groupId, String whiteboardId) {
     return _collection(groupId).doc(whiteboardId).snapshots().map((snapshot) {
