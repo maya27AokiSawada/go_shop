@@ -1,5 +1,115 @@
 # GoShopping - AI Coding Agent Instructions
 
+## Recent Implementations (2026-01-29)
+
+### 1. フィードバック催促機能の実装 ✅
+
+**Purpose**: クローズドテスト版でユーザーフィードバックを簡単に収集
+
+**Architecture**:
+
+#### 3つのサービス層
+
+1. **AppLaunchService** (`lib/services/app_launch_service.dart`)
+   - SharedPreferences でアプリ起動回数を記録
+   - `incrementLaunchCount()`, `getLaunchCount()`, `resetLaunchCount()`
+   - 起動回数は累積（リセット時のみ初期化）
+
+2. **FeedbackStatusService** (`lib/services/feedback_status_service.dart`)
+   - SharedPreferences でユーザーのフィードバック送信済み状態を管理
+   - `markFeedbackSubmitted()`: フォーム開封時に true 設定
+   - `isFeedbackSubmitted()`: 催促表示判定時に参照
+   - `resetFeedbackStatus()`: デバッグ用リセット
+
+3. **FeedbackPromptService** (`lib/services/feedback_prompt_service.dart`)
+   - Firestore `/testingStatus/active` から `isTestingActive` フラグを読み込み
+   - 表示条件をまとめて管理
+   - **表示ロジック**:
+     ```
+     shouldShow = (isTestingActive && launchCount >= 5 && !isFeedbackSubmitted)
+              OR (launchCount >= 20)
+     ```
+
+#### UI 統合
+
+**HomePage** (`lib/pages/home_page.dart`)
+```dart
+@override
+void initState() {
+  super.initState();
+  _incrementAppLaunchCount(); // 毎起動時に カウント
+}
+```
+
+**NewsWidget** (`lib/widgets/news_widget.dart`)
+```dart
+FutureBuilder<bool>(
+  future: FeedbackPromptService.shouldShowFeedbackPrompt(),
+  builder: (context, snapshot) {
+    if (snapshot.data == true) {
+      return _buildFeedbackPromptCard(); // 紫色グラデーション催促カード
+    }
+    // その他の news/ads 表示
+  },
+)
+```
+
+**SettingsPage** (`lib/pages/settings_page.dart`)
+```dart
+// フィードバック送信セクション（全ユーザー・全環境で表示）
+Card(
+  child: ElevatedButton.icon(
+    onPressed: _openFeedbackForm, // Google Forms URL を開く
+    label: Text('アンケートに答える'),
+  ),
+)
+
+// 開発環境のみ：デバッグパネル
+if (F.appFlavor == Flavor.dev) {
+  // 起動回数表示・リセット
+  // フィードバック送信状態表示・リセット
+  // テスト実施フラグ表示・トグル
+}
+```
+
+#### Firestore セキュリティルール
+
+**firestore.rules** に追加:
+```javascript
+match /testingStatus/{document=**} {
+  allow read: if request.auth != null;
+  allow write: if request.auth != null;
+}
+```
+
+#### デバッグ・テスト方法
+
+**1. Firestore ルールデプロイ**
+```bash
+firebase deploy --only firestore:rules
+```
+
+**2. テスト用フラグ有効化（Firebase Console で手動作成）**
+```
+Collection: testingStatus
+Document: active
+Field: isTestingActive (boolean) = true
+```
+
+**3. またはアプリ内デバッグ（dev flavor）**
+- Settings → 開発者ツール → フィードバック催促（デバッグ）
+- 「Test ON」ボタンで Firestore に `isTestingActive: true` を設定
+
+**4. 起動回数カウント**
+- 5 回起動でテスト中に催促表示
+- 20 回起動で常に催促表示
+
+**Known Issues**:
+- ⏳ フィードバック催促表示が表示されていない（Firestore ルール未デプロイが原因の可能性）
+- 次のステップ: ルールデプロイ → テストフラグ有効化 → アプリ再起動
+
+---
+
 ## Recent Implementations (2026-01-30)
 
 ### 1. 買い物リスト削除時のUI同期バグ修正 ✅
