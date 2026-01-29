@@ -1,5 +1,136 @@
 # GoShopping - AI Coding Agent Instructions
 
+## Recent Implementations (2026-01-30)
+
+### 1. 買い物リスト削除時のUI同期バグ修正 ✅
+
+**Purpose**: リスト削除時に、削除されたリストが他ユーザーのUIに残る問題を解決
+
+**Background**: リスト削除通知受信後、リスト一覧は削除されるが、削除されたリスト内のアイテムが1つUIに残る現象が発生
+
+**Root Cause**:
+
+- `NotificationType.listDeleted`ハンドラが`allGroupsProvider`のみを無効化
+- 削除されたリストが現在選択中の場合、`currentListProvider`がクリアされない
+- 結果: リスト一覧は更新されるが、UI表示の`currentListProvider`は古い値のまま
+
+#### 修正内容
+
+**1. 削除されたリストIDの取得と比較**
+
+```dart
+// lib/services/notification_service.dart
+case NotificationType.listDeleted:
+  AppLogger.info('🗑️ [NOTIFICATION] リスト削除通知受信');
+
+  // 削除されたリストのIDを取得
+  final deletedListId = notification.metadata?['listId'] as String?;
+  AppLogger.info('🗑️ [NOTIFICATION] 削除されたリストID: $deletedListId');
+
+  // 削除されたリストが現在選択中の場合、currentListProviderをクリア
+  if (deletedListId != null) {
+    final currentList = _ref.read(currentListProvider);
+    if (currentList?.listId == deletedListId) {
+      AppLogger.info('🗑️ [NOTIFICATION] 選択中のリストが削除されたため、クリア実行');
+      await _ref.read(currentListProvider.notifier).clearListForGroup(
+            notification.groupId,
+          );
+    }
+  }
+
+  // グループのリスト一覧を更新
+  _ref.invalidate(allGroupsProvider);
+  break;
+```
+
+**2. インポート追加**
+
+```dart
+import '../providers/current_list_provider.dart'; // currentListProvider
+```
+
+#### 修正ポイント
+
+- **リストID比較**: `currentList?.listId == deletedListId`で削除リストが選択中か確認
+- **StateNotifier呼び出し**: `clearListForGroup()`メソッドで SharedPreferences＋state をクリア
+- **順序**: リストクリア → プロバイダー無効化で確実なUI更新
+
+#### 動作確認予定
+
+- リスト削除時に他ユーザー端末のUIから完全に削除されるか確認
+- リスト削除後の自動リスト選択機能が動作するか確認
+
+---
+
+## Recent Implementations (2026-01-29)
+
+### 1. ホワイトボードFirestore保存の完全修正 ✅
+
+**Purpose**: 描画データの永続化とマルチデバイス同期の確実な動作
+
+**Background**: ゴミ箱アイコン（全消去）や描画モード切り替え時にFirestore保存がなく、ボードが消えたり復活したりする問題が発生
+
+#### 修正内容
+
+**1. ゴミ箱アイコン全消去のFirestore保存実装**
+
+- 従来: ローカル`_workingStrokes.clear()`のみ → Firestoreに反映されない
+- 修正: 確認ダイアログ → `clearWhiteboard()` → Firestore空配列保存
+- `WhiteboardRepository.clearWhiteboard()`メソッド実装
+
+**2. 描画モード切り替え時の自動保存**
+
+- 従来: `_captureCurrentDrawing()`のみ（ローカルキャッシュ）
+- 修正: `_saveWhiteboard()`呼び出しでFirestore保存
+- 描画モード → スクロールモード時に確実にデータ永続化
+
+**3. リポジトリメソッド追加**
+
+```dart
+// lib/datastore/whiteboard_repository.dart
+Future<void> clearWhiteboard({
+  required String groupId,
+  required String whiteboardId,
+}) async {
+  await _collection(groupId).doc(whiteboardId).update({
+    'strokes': [],  // ストローク全削除
+    'updatedAt': FieldValue.serverTimestamp(),
+  });
+}
+```
+
+#### 動作確認結果
+
+- ✅ Pixel9 ⇄ SH54D 双方向同期正常動作
+- ✅ ゴミ箱全消去が両端末に即座に反映
+- ✅ 描画モード切り替え後も描画データ保持
+- ✅ 編集ロック機能正常動作（異なるユーザー間）
+
+#### 今後の改善案（Future Enhancements）
+
+1. **ストロークごとのリアルタイム同期**
+   - 現状: 保存ボタン押下時またはモード切り替え時に一括同期
+   - 改善案: 各ストローク描画完了時に即座にFirestore送信
+   - メリット: よりリアルタイムな「お絵描きチャット」体験
+
+2. **Undo/Redo機能実装**
+   - ストロークごとの履歴管理
+   - Ctrl+Z / Ctrl+Shift+Z ショートカット対応
+   - UI上に戻る/進むボタン配置
+
+**Modified Files**:
+
+- `lib/pages/whiteboard_editor_page.dart` (+58 lines)
+  - `_showDeleteConfirmationDialog()`: 全消去確認ダイアログ
+  - `_clearWhiteboard()`: Firestore全消去処理
+  - モード切り替え時の`_saveWhiteboard()`呼び出し
+- `lib/datastore/whiteboard_repository.dart` (+18 lines)
+  - `clearWhiteboard()`: ストローク全削除メソッド
+
+**Commits**: `47f978a` - "fix: ホワイトボードFirestore保存の改善（ゴミ箱全消去・描画モード切り替え時保存）"
+
+---
+
 ## Recent Implementations (2026-01-27)
 
 ### 1. ホワイトボード編集ロック機能 UI/UX改善 ✅

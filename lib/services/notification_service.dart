@@ -6,6 +6,7 @@ import '../utils/app_logger.dart';
 import '../utils/firestore_helper.dart'; // Firestore操作ヘルパー
 import 'user_initialization_service.dart';
 import '../providers/purchase_group_provider.dart'; // selectedGroupIdProvider, SharedGroupRepositoryProvider
+import '../providers/current_list_provider.dart'; // currentListProvider
 import '../providers/hive_provider.dart'; // Hive Box プロバイダー
 import '../datastore/hive_shared_group_repository.dart'; // hiveSharedGroupRepositoryProvider
 import '../models/shared_group.dart';
@@ -370,6 +371,23 @@ class NotificationService {
         case NotificationType.listDeleted:
           // リスト削除通知
           AppLogger.info('🗑️ [NOTIFICATION] リスト削除通知受信');
+
+          // 削除されたリストのIDを取得
+          final deletedListId = notification.metadata?['listId'] as String?;
+          AppLogger.info('🗑️ [NOTIFICATION] 削除されたリストID: $deletedListId');
+
+          // 削除されたリストが現在選択中の場合、currentListProviderをクリア
+          if (deletedListId != null) {
+            final currentList = _ref.read(currentListProvider);
+            if (currentList?.listId == deletedListId) {
+              AppLogger.info('🗑️ [NOTIFICATION] 選択中のリストが削除されたため、クリア実行');
+              await _ref.read(currentListProvider.notifier).clearListForGroup(
+                    notification.groupId,
+                  );
+            }
+          }
+
+          // グループのリスト一覧を更新
           _ref.invalidate(allGroupsProvider);
           AppLogger.info('✅ [NOTIFICATION] リスト削除通知処理完了');
           break;
