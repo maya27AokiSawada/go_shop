@@ -33,6 +33,7 @@
 #### UI 統合
 
 **HomePage** (`lib/pages/home_page.dart`)
+
 ```dart
 @override
 void initState() {
@@ -42,6 +43,7 @@ void initState() {
 ```
 
 **NewsWidget** (`lib/widgets/news_widget.dart`)
+
 ```dart
 FutureBuilder<bool>(
   future: FeedbackPromptService.shouldShowFeedbackPrompt(),
@@ -55,6 +57,7 @@ FutureBuilder<bool>(
 ```
 
 **SettingsPage** (`lib/pages/settings_page.dart`)
+
 ```dart
 // フィードバック送信セクション（全ユーザー・全環境で表示）
 Card(
@@ -75,6 +78,7 @@ if (F.appFlavor == Flavor.dev) {
 #### Firestore セキュリティルール
 
 **firestore.rules** に追加:
+
 ```javascript
 match /testingStatus/{document=**} {
   allow read: if request.auth != null;
@@ -85,11 +89,13 @@ match /testingStatus/{document=**} {
 #### デバッグ・テスト方法
 
 **1. Firestore ルールデプロイ**
+
 ```bash
 firebase deploy --only firestore:rules
 ```
 
 **2. テスト用フラグ有効化（Firebase Console で手動作成）**
+
 ```
 Collection: testingStatus
 Document: active
@@ -97,14 +103,17 @@ Field: isTestingActive (boolean) = true
 ```
 
 **3. またはアプリ内デバッグ（dev flavor）**
+
 - Settings → 開発者ツール → フィードバック催促（デバッグ）
 - 「Test ON」ボタンで Firestore に `isTestingActive: true` を設定
 
 **4. 起動回数カウント**
+
 - 5 回起動でテスト中に催促表示
 - 20 回起動で常に催促表示
 
 **Known Issues**:
+
 - ⏳ フィードバック催促表示が表示されていない（Firestore ルール未デプロイが原因の可能性）
 - 次のステップ: ルールデプロイ → テストフラグ有効化 → アプリ再起動
 
