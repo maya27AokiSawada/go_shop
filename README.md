@@ -31,6 +31,7 @@
 - 認証済みユーザーのみ読み取り・書き込み許可
 
 **Next Steps**:
+
 1. `firebase deploy --only firestore:rules` でルールをデプロイ
 2. Firebase Console で `/testingStatus/active` ドキュメント作成: `isTestingActive: true`
 3. アプリ再起動して動作確認
