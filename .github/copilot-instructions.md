@@ -1,5 +1,69 @@
 # GoShopping - AI Coding Agent Instructions
 
+## Recent Implementations (2026-01-30)
+
+### 🔥 CRITICAL BUG修正: 3番目メンバー招待時の既存メンバー同期バグ ✅
+
+**Background**: 実機テスト中にユーザーが発見した重大バグ - グループに3人目のメンバーを招待すると既存メンバーの端末で新メンバーが表示されない
+
+#### 根本原因の特定
+
+**問題1: `groupMemberAdded`通知ハンドラーが欠落**
+
+`lib/services/notification_service.dart`の`_handleNotification`メソッドで、`groupMemberAdded`のcaseが未実装だった：
+
+```dart
+// ❌ Before: groupMemberAddedケースなし
+case NotificationType.invitationAccepted:
+case NotificationType.groupUpdated:
+  await userInitService.syncFromFirestoreToHive(currentUser);
+  break;
+
+// ✅ After: groupMemberAddedケース追加
+case NotificationType.invitationAccepted:
+case NotificationType.groupUpdated:
+case NotificationType.groupMemberAdded:  // 🔥 追加
+  await userInitService.syncFromFirestoreToHive(currentUser);
+  _ref.invalidate(allGroupsProvider);
+  _ref.invalidate(selectedGroupProvider);
+  break;
+```
+
+**問題2: 既存メンバーへの通知送信が欠落**
+
+`_addMemberToGroup`メソッドで、新メンバー追加後に既存メンバー全員に通知を送信していなかった：
+
+```dart
+// ✅ 追加した処理
+final existingMemberIds = currentGroup.allowedUid
+    .where((uid) => uid != acceptorUid) // 新メンバーを除外
+    .toList();
+
+for (final memberId in existingMemberIds) {
+  await sendNotification(
+    targetUserId: memberId,
+    groupId: groupId,
+    type: NotificationType.groupMemberAdded,
+    message: '$finalAcceptorName さんが「${currentGroup.groupName}」に参加しました',
+    metadata: {...},
+  );
+}
+```
+
+#### 期待される動作フロー（修正後）
+
+```
+1. まや（受諾者）: QRコード受諾 → すももに通知送信
+2. すもも（招待元）: 通知受信 → メンバー追加 → 🔥 既存メンバー（しんや）に通知送信
+3. しんや（既存メンバー）: 🔥 通知受信 → 同期 → まやが表示される
+```
+
+**Modified Files**: `lib/services/notification_service.dart` (Lines 283-295, 505-530)
+**Commits**: `14155c2` + (本コミット)
+**Status**: ✅ 修正完了 | ⏳ 実機テスト待ち
+
+---
+
 ## Recent Implementations (2026-01-21)
 
 ### 1. ホワイトボードツールバーUI完全改善 ✅

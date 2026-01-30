@@ -1,5 +1,72 @@
 # GoShopping - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-01-30)
+
+### 🔥 CRITICAL BUG修正: 3番目メンバー招待時の既存メンバー同期バグ ✅
+
+**Problem**: グループに3人目のメンバーを招待した際、既存メンバーの端末で新メンバーが表示されない重大バグ
+
+**Root Cause**:
+
+1. `notification_service.dart`の`_handleNotification`メソッドで`groupMemberAdded`通知のcaseが欠落
+2. `_addMemberToGroup`メソッドで既存メンバー全員への通知送信が未実装
+
+**Solution Implemented**:
+
+#### 1. `groupMemberAdded`通知ハンドラー追加
+
+```dart
+case NotificationType.invitationAccepted:
+case NotificationType.groupUpdated:
+case NotificationType.groupMemberAdded:  // 🔥 追加
+  await userInitService.syncFromFirestoreToHive(currentUser);
+  _ref.invalidate(allGroupsProvider);
+  break;
+```
+
+#### 2. 既存メンバー全員への通知送信
+
+```dart
+// 新メンバー追加後、既存メンバー全員に通知
+final existingMemberIds = currentGroup.allowedUid
+    .where((uid) => uid != acceptorUid)
+    .toList();
+
+for (final memberId in existingMemberIds) {
+  await sendNotification(
+    targetUserId: memberId,
+    type: NotificationType.groupMemberAdded,
+    message: '$finalAcceptorName さんが「${currentGroup.groupName}」に参加しました',
+  );
+}
+```
+
+**Expected Flow (After Fix)**:
+
+```
+すもも（招待元）→ まや（3人目）を招待
+  ↓
+まや: QR受諾 → すももに通知送信
+  ↓
+すもも: メンバー追加処理 → しんや（既存メンバー）に通知送信 ← 🔥 追加
+  ↓
+しんや: 通知受信 → Firestore同期 → まやが表示される ← 🔥 修正完了
+```
+
+**Modified Files**:
+
+- `lib/services/notification_service.dart` - 通知ハンドラー＋既存メンバー通知送信追加
+- `docs/daily_reports/2026-01/20260130_bug_fix_third_member_sync.md` - 完全な修正レポート
+
+**Test Status**: ⏳ 次回セッションで実機テスト予定
+
+**Commits**:
+
+- `14155c2` - "fix: 3番目メンバー招待時の既存メンバー同期バグ修正"
+- (本コミット) - "fix: groupName変数未定義エラー修正 & 日報更新"
+
+---
+
 ## Recent Implementations (2026-01-29)
 
 ### 1. フィードバック催促機能の実装 ✅
