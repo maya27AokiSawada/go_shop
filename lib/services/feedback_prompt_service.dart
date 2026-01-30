@@ -29,8 +29,8 @@ class FeedbackPromptService {
 
   /// 催促メッセージを表示すべきかを判定
   /// - isTestingActive が false → 催促なし
-  /// - 5回起動＆未フィードバック → 催促表示
-  /// - 20回起動 → 全員に催促表示
+  /// - 5回起動 → 初回催促
+  /// - その後は20回ごとに催促（25回、45回、65回...）
   static Future<bool> shouldShowFeedbackPrompt({
     required int launchCount,
     required bool isFeedbackSubmitted,
@@ -47,20 +47,19 @@ class FeedbackPromptService {
 
     AppLogger.info('🧪 [FEEDBACK] テスト実施中 - 催促条件をチェック');
 
-    // 20回起動：全員に催促
-    if (launchCount >= 20) {
-      AppLogger.info('🔔 [FEEDBACK] 20回起動達成：全員に催促表示');
+    // 5回目で初回催促
+    if (launchCount == 5) {
+      AppLogger.info('🔔 [FEEDBACK] 5回起動達成：初回催促表示');
       return true;
     }
 
-    // 5回起動＆未フィードバック：未送信ユーザーに催促
-    if (launchCount >= 5 && !isFeedbackSubmitted) {
-      AppLogger.info('🔔 [FEEDBACK] 5回起動達成＆未フィードバック：催促表示');
+    // 5回以降は20回ごとに催促（25回、45回、65回...）
+    if (launchCount > 5 && (launchCount - 5) % 20 == 0) {
+      AppLogger.info('🔔 [FEEDBACK] $launchCount回起動達成：定期催促表示（20回ごと）');
       return true;
     }
 
-    AppLogger.info(
-        '⏭️ [FEEDBACK] 催促条件未達成 - 催促なし (起動回数: $launchCount < 5 または 送信済み: $isFeedbackSubmitted)');
+    AppLogger.info('⏭️ [FEEDBACK] 催促条件未達成 - 催促なし (起動回数: $launchCount)');
     return false;
   }
 
