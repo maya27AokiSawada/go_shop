@@ -129,8 +129,11 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     _horizontalScrollController.dispose();
     _verticalScrollController.dispose();
 
-    // 🔒 編集ロックを解除
-    _releaseEditLock();
+    // 🔒 編集ロックを解除（非同期だがdisposeでは待機しない）
+    // WillPopScopeで事前に解除済みのはず
+    if (_hasEditLock) {
+      _releaseEditLock(); // Fire-and-forget（Windows版クラッシュ防止）
+    }
 
     super.dispose();
   }
@@ -275,24 +278,29 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     AppLogger.info(
         '🔒 [LOCK] 編集ロック取得開始 - ${AppLogger.maskUserId(currentUser.uid)}');
 
-    final lockService = ref.read(whiteboardEditLockProvider);
-    final success = await lockService.acquireEditLock(
-      groupId: widget.groupId,
-      whiteboardId: _currentWhiteboard.whiteboardId,
-      userId: currentUser.uid,
-      userName: currentUser.displayName ?? 'Unknown',
-    );
+    try {
+      final lockService = ref.read(whiteboardEditLockProvider);
+      final success = await lockService.acquireEditLock(
+        groupId: widget.groupId,
+        whiteboardId: _currentWhiteboard.whiteboardId,
+        userId: currentUser.uid,
+        userName: currentUser.displayName ?? 'Unknown',
+      );
 
-    AppLogger.info('🔒 [LOCK] 編集ロック取得結果: $success');
+      AppLogger.info('🔒 [LOCK] 編集ロック取得結果: $success');
 
-    if (success) {
-      setState(() {
-        _hasEditLock = true;
-        _isEditingLocked = false;
-      });
+      if (success && mounted) {
+        setState(() {
+          _hasEditLock = true;
+          _isEditingLocked = false;
+        });
+      }
+
+      return success;
+    } catch (e) {
+      AppLogger.error('❌ [LOCK] 編集ロック取得エラー: $e');
+      return false;
     }
-
-    return success;
   }
 
   /// 🔓 編集ロックを解除
@@ -303,16 +311,23 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     final currentUser = ref.read(authStateProvider).value;
     if (currentUser == null) return;
 
-    final lockService = ref.read(whiteboardEditLockProvider);
-    await lockService.releaseEditLock(
-      groupId: widget.groupId,
-      whiteboardId: _currentWhiteboard.whiteboardId,
-      userId: currentUser.uid,
-    );
+    try {
+      final lockService = ref.read(whiteboardEditLockProvider);
+      await lockService.releaseEditLock(
+        groupId: widget.groupId,
+        whiteboardId: _currentWhiteboard.whiteboardId,
+        userId: currentUser.uid,
+      );
 
-    setState(() {
-      _hasEditLock = false;
-    });
+      // 🔥 CRITICAL: mountedチェック（dispose後のsetState呼び出し防止）
+      if (mounted) {
+        setState(() {
+          _hasEditLock = false;
+        });
+      }
+    } catch (e) {
+      AppLogger.error('❌ [LOCK] 編集ロック解除エラー: $e');
+    }
   }
 
   /// �️ 古いeditLocksコレクションをクリーンアップ（マイグレーション対応）
@@ -948,12 +963,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                       // 描画モード → スクロールモード: 現在の描画を保存 → ロック解除
                       AppLogger.info('🔓 [MODE_TOGGLE] 描画モード終了 - 描画保存');
 
-                      // 🔥 CRITICAL: 描画データをFirestoreに保存してから終了
-                      if (_controller != null && _controller!.isNotEmpty) {
-                        await _saveWhiteboard();
-                      } else {
-                        _captureCurrentDrawing(); // コントローラーが空でもworkingStrokesは保存
-                      }
+                      // 🔥 CRITICAL: 描画データを一時保存（Firestoreには保存しない）
+                      // Windows版でのクラッシュ防止のため、明示的な保存ボタンでのみFirestore保存
+                      _captureCurrentDrawing();
 
                       await _releaseEditLock();
                     } else {
