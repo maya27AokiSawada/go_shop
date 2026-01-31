@@ -259,8 +259,8 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
       // 🆕 定期購入アイテムの自動リセット（アプリ起動時）
       _resetPeriodicPurchaseItems();
 
-      // 論理削除アイテムのクリーンアップ（30日以上経過したもの）
-      _cleanupDeletedItems();
+      // 🔥 論理削除アイテムのクリーンアップは無効化（クラッシュ対策）
+      // _cleanupDeletedItems();
 
       Log.info('✅ 基本初期化完了 - 各ページで必要な初期化を実行します');
     } catch (e) {

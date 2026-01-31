@@ -1,5 +1,54 @@
 # GoShopping - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-01-31)
+
+### Windows版ホワイトボード保存クラッシュ完全解決 ✅
+
+**Problem**: Windows版でホワイトボード保存時に`abort()`によるC++ネイティブクラッシュが発生
+
+**Root Cause**: Firestore Windows SDKの`runTransaction()`に重大なバグ（`abort()`呼び出し）
+
+**Solution Implemented**:
+
+#### Platform-Specific Save Strategy
+
+```dart
+// whiteboard_repository.dart
+if (Platform.isWindows) {
+  // Windows: 通常のupdate()（トランザクションなし）
+  await _addStrokesWithoutTransaction(...);
+} else {
+  // Android/iOS: runTransaction()（同時編集対応）
+  await _firestore.runTransaction((transaction) async { ... });
+}
+```
+
+**Benefits**:
+
+- ✅ Windows版でクラッシュしない（トランザクション回避）
+- ✅ Android/iOS版は従来通り（トランザクションで同時編集対応）
+- ✅ 重複チェックは全プラットフォームで維持
+
+**Additional Fixes**:
+
+- 古い`editLocks`コレクション削除処理を無効化（permission-denied回避）
+- 論理削除アイテムクリーンアップを無効化（クラッシュ対策）
+- 詳細デバッグログ追加（問題箇所の特定）
+
+**Modified Files**:
+
+- `lib/datastore/whiteboard_repository.dart` - Windows専用保存メソッド追加
+- `lib/services/whiteboard_edit_lock_service.dart` - レガシークリーンアップ無効化
+- `lib/widgets/app_initialize_widget.dart` - アイテムクリーンアップ無効化
+- `lib/utils/drawing_converter.dart` - エラーハンドリング強化
+- `lib/pages/whiteboard_editor_page.dart` - デバッグログ追加
+
+**Commits**:
+
+- TBD（本日退勤前にコミット予定）
+
+---
+
 ## Recent Implementations (2026-01-30)
 
 ### 🔥 CRITICAL BUG修正: 3番目メンバー招待時の既存メンバー同期バグ ✅
