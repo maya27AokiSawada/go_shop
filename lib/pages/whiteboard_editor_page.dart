@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -331,19 +332,11 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   }
 
   /// �️ 古いeditLocksコレクションをクリーンアップ（マイグレーション対応）
+  /// 🔥 DEPRECATED: 権限不足のため無効化
   Future<void> _cleanupLegacyLocks() async {
-    try {
-      final lockService = ref.read(whiteboardEditLockProvider);
-      final deletedCount = await lockService.cleanupLegacyEditLocks(
-        groupId: widget.groupId,
-      );
-
-      if (deletedCount > 0) {
-        AppLogger.info('🗑️ [WHITEBOARD] 古いロック$deletedCount件を削除');
-      }
-    } catch (e) {
-      AppLogger.error('❌ [WHITEBOARD] 古いロッククリーンアップエラー: $e');
-    }
+    // 🔥 古いeditLocksコレクションのクリーンアップは不要
+    // permission-deniedエラーを避けるため処理をスキップ
+    AppLogger.info('⏭️ [WHITEBOARD] 古いロッククリーンアップはスキップ');
   }
 
   /// 💀 編集ロックを強制クリア（緊急時用）
@@ -542,6 +535,10 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   Future<void> _saveWhiteboard() async {
     if (_isSaving) return;
 
+    // 🔥 CRITICAL: Windows版クラッシュ対策 - mounted チェックを徹底
+    if (!mounted) return;
+
+    AppLogger.info('💾 [SAVE] 保存処理開始');
     setState(() => _isSaving = true);
 
     try {
@@ -549,6 +546,17 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       if (currentUser == null) {
         throw Exception('ユーザーが認証されていません');
       }
+
+      AppLogger.info('💾 [SAVE] ユーザー認証OK: ${currentUser.uid}');
+
+      // 🔥 Windows版対策：controller null チェック
+      if (_controller == null) {
+        AppLogger.error('❌ [SAVE] SignatureController が null です');
+        if (mounted) setState(() => _isSaving = false);
+        return;
+      }
+
+      AppLogger.info('💾 [SAVE] 描画キャプチャ開始');
 
       // 現在の描画をキャプチャ
       final currentStrokes = DrawingConverter.captureFromSignatureController(
@@ -560,14 +568,21 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         scale: _canvasScale, // スケーリング係数を渡す
       );
 
+      AppLogger.info('💾 [SAVE] キャプチャ完了: ${currentStrokes.length}個のストローク');
+
       // 🔥 新しいストローク = 作業中ストローク + 現在の描画
       final newStrokes = [..._workingStrokes, ...currentStrokes];
 
+      AppLogger.info(
+          '💾 [SAVE] 合計ストローク数: ${newStrokes.length} (作業中: ${_workingStrokes.length}, 新規: ${currentStrokes.length})');
+
       if (newStrokes.isEmpty) {
         AppLogger.info('📋 [SAVE] 新しいストロークなし、保存をスキップ');
-        setState(() => _isSaving = false);
+        if (mounted) setState(() => _isSaving = false);
         return;
       }
+
+      AppLogger.info('💾 [SAVE] Firestore保存開始...');
 
       // 🔥 差分ストローク追加でFirestoreに安全に保存
       final repository = ref.read(whiteboardRepositoryProvider);
@@ -577,7 +592,10 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         newStrokes: newStrokes,
       );
 
-      AppLogger.info('✅ ホワイトボード差分保存成功: ${newStrokes.length}個のストローク');
+      AppLogger.info('✅ [SAVE] Firestore保存完了: ${newStrokes.length}個のストローク');
+
+      // 🔥 Windows版対策: Firestore保存後にmountedチェック
+      if (!mounted) return;
 
       // 🔥 保存成功後の処理
       // 1. 新しく保存されたストロークをworkingStrokesに保存（UIで表示するため）
@@ -588,24 +606,26 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       // 2. SignatureControllerのみクリア（新規描画開始のため）
       _controller?.clear();
 
-      // 3. 変更を反映
-      if (mounted) {
-        setState(() {});
-      }
+      // 3. 変更を反映（mounted チェック済み）
+      setState(() {});
 
-      // 🔔 他メンバーに更新通知を送信
-      try {
-        final notificationService = ref.read(notificationServiceProvider);
-        await notificationService.sendWhiteboardUpdateNotification(
-          groupId: widget.groupId,
-          whiteboardId: _currentWhiteboard.whiteboardId,
-          isGroupWhiteboard: _currentWhiteboard.isGroupWhiteboard,
-          ownerId: _currentWhiteboard.ownerId,
-        );
-        AppLogger.info('✅ ホワイトボード更新通知送信完了');
-      } catch (notificationError) {
-        // 通知送信エラーは無視（保存自体は成功している）
-        AppLogger.error('⚠️ 通知送信エラー（保存は成功）: $notificationError');
+      // 🔔 他メンバーに更新通知を送信（Windows版ではスキップ）
+      if (!Platform.isWindows) {
+        try {
+          final notificationService = ref.read(notificationServiceProvider);
+          await notificationService.sendWhiteboardUpdateNotification(
+            groupId: widget.groupId,
+            whiteboardId: _currentWhiteboard.whiteboardId,
+            isGroupWhiteboard: _currentWhiteboard.isGroupWhiteboard,
+            ownerId: _currentWhiteboard.ownerId,
+          );
+          AppLogger.info('✅ ホワイトボード更新通知送信完了');
+        } catch (notificationError) {
+          // 通知送信エラーは無視（保存自体は成功している）
+          AppLogger.error('⚠️ 通知送信エラー（保存は成功）: $notificationError');
+        }
+      } else {
+        AppLogger.info('💻 [WINDOWS] 通知送信をスキップ（クラッシュ防止）');
       }
 
       if (mounted) {
@@ -959,38 +979,72 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                     AppLogger.info(
                         '🎨 [MODE_TOGGLE] モード切り替え: ${_isScrollLocked ? 'スクロールモード' : '描画モード'}へ');
 
-                    if (_isScrollLocked) {
-                      // 描画モード → スクロールモード: 現在の描画を保存 → ロック解除
-                      AppLogger.info('🔓 [MODE_TOGGLE] 描画モード終了 - 描画保存');
+                    // 🔥 CRITICAL: Windows版クラッシュ対策
+                    // Windowsのみ編集ロック処理をスキップ、Android/iOSは従来通り
+                    final isWindows = Platform.isWindows;
 
-                      // 🔥 CRITICAL: 描画データを一時保存（Firestoreには保存しない）
-                      // Windows版でのクラッシュ防止のため、明示的な保存ボタンでのみFirestore保存
-                      _captureCurrentDrawing();
+                    if (isWindows) {
+                      // ===== Windows版: 編集ロック処理なし（クラッシュ防止） =====
+                      AppLogger.info('💻 [WINDOWS] 編集ロック処理をスキップ');
 
-                      await _releaseEditLock();
+                      // 1. まず状態を切り替え
+                      if (!mounted) return;
+                      setState(() {
+                        _isScrollLocked = !_isScrollLocked;
+                      });
+
+                      // 2. 描画データのキャプチャ（非同期処理なし）
+                      if (!_isScrollLocked) {
+                        AppLogger.info('🔓 [MODE_TOGGLE] 描画モード終了 - 描画データキャプチャ');
+                        try {
+                          _captureCurrentDrawing();
+                        } catch (e) {
+                          AppLogger.error('❌ [MODE_TOGGLE] 描画キャプチャエラー: $e');
+                        }
+                      } else {
+                        AppLogger.info('🔒 [MODE_TOGGLE] 描画モード開始');
+                      }
                     } else {
-                      // スクロールモード → 描画モード: ロック取得
-                      AppLogger.info('🔒 [MODE_TOGGLE] 描画モード開始 - ロック取得試行');
-                      if (_currentWhiteboard.isGroupWhiteboard) {
-                        final success = await _acquireEditLock();
-                        if (!success && mounted) {
-                          AppLogger.warning(
-                              '❌ [MODE_TOGGLE] ロック取得失敗 - モード切り替えをキャンセル');
-                          if (_isEditingLocked && _currentEditor != null) {
-                            _showEditingInProgressDialog();
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('編集ロックの取得に失敗しました')),
-                            );
+                      // ===== Android/iOS版: 従来通り編集ロック処理あり =====
+                      if (_isScrollLocked) {
+                        // 描画モード → スクロールモード: 現在の描画を保存 → ロック解除
+                        AppLogger.info('🔓 [MODE_TOGGLE] 描画モード終了 - 描画保存');
+
+                        // 描画データを一時保存（Firestoreには保存しない）
+                        try {
+                          _captureCurrentDrawing();
+                        } catch (e) {
+                          AppLogger.error('❌ [MODE_TOGGLE] 描画キャプチャエラー: $e');
+                        }
+
+                        await _releaseEditLock();
+                      } else {
+                        // スクロールモード → 描画モード: ロック取得
+                        AppLogger.info('🔒 [MODE_TOGGLE] 描画モード開始 - ロック取得試行');
+                        if (_currentWhiteboard.isGroupWhiteboard) {
+                          final success = await _acquireEditLock();
+                          if (!success && mounted) {
+                            AppLogger.warning(
+                                '❌ [MODE_TOGGLE] ロック取得失敗 - モード切り替えをキャンセル');
+                            if (_isEditingLocked && _currentEditor != null) {
+                              _showEditingInProgressDialog();
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text('編集ロックの取得に失敗しました')),
+                              );
+                            }
+                            return; // モード切り替えをキャンセル
                           }
-                          return; // モード切り替えをキャンセル
                         }
                       }
+
+                      if (!mounted) return;
+                      setState(() {
+                        _isScrollLocked = !_isScrollLocked;
+                      });
                     }
 
-                    setState(() {
-                      _isScrollLocked = !_isScrollLocked;
-                    });
                     AppLogger.info(
                         '✅ [MODE_TOGGLE] モード切り替え完了: ${_isScrollLocked ? '描画モード' : 'スクロールモード'}');
                   },

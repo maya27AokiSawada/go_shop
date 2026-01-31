@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 import '../models/whiteboard.dart';
@@ -151,28 +153,54 @@ class WhiteboardRepository {
     if (newStrokes.isEmpty) return;
 
     try {
+      // 🔥 Windows版対策: runTransactionでクラッシュするため通常のupdateを使用
+      if (Platform.isWindows) {
+        AppLogger.info('💻 [WINDOWS] 通常のupdate処理を使用（トランザクション回避）');
+        await _addStrokesWithoutTransaction(
+          groupId: groupId,
+          whiteboardId: whiteboardId,
+          newStrokes: newStrokes,
+        );
+        return;
+      }
+
+      AppLogger.info('🔄 [REPO] Firestoreトランザクション開始...');
+
       // Firestoreトランザクションで安全に追加
       await _firestore.runTransaction((transaction) async {
+        AppLogger.info('🔄 [REPO] トランザクション内部処理開始');
+
         final docRef = _collection(groupId).doc(whiteboardId);
 
+        AppLogger.info('🔄 [REPO] ドキュメント取得中...');
         // 現在のホワイトボードを取得
         final snapshot = await transaction.get(docRef);
+
+        AppLogger.info('🔄 [REPO] ドキュメント取得完了 - exists: ${snapshot.exists}');
+
         if (!snapshot.exists) {
           throw Exception('ホワイトボードが存在しません');
         }
 
         final currentData = snapshot.data()!;
+
+        AppLogger.info('🔄 [REPO] 既存ストローク解析中...');
         final currentStrokes = (currentData['strokes'] as List<dynamic>?)
                 ?.map((s) =>
                     DrawingStroke.fromFirestore(s as Map<String, dynamic>))
                 .toList() ??
             [];
 
+        AppLogger.info('🔄 [REPO] 既存ストローク数: ${currentStrokes.length}');
+
         // 🔥 重複チェック: strokeIdが既に存在するストロークは除外
+        AppLogger.info('🔄 [REPO] 重複チェック開始...');
         final existingStrokeIds = currentStrokes.map((s) => s.strokeId).toSet();
         final uniqueNewStrokes = newStrokes
             .where((stroke) => !existingStrokeIds.contains(stroke.strokeId))
             .toList();
+
+        AppLogger.info('🔄 [REPO] ユニークな新規ストローク数: ${uniqueNewStrokes.length}');
 
         if (uniqueNewStrokes.isEmpty) {
           AppLogger.info('📋 [CONFLICT] 重複ストローク検出、追加をスキップ');
@@ -180,10 +208,12 @@ class WhiteboardRepository {
         }
 
         // 新しいストロークを追加
+        AppLogger.info('🔄 [REPO] ストロークマージ開始...');
         final mergedStrokes = [...currentStrokes, ...uniqueNewStrokes];
 
+        AppLogger.info('🔄 [REPO] Firestoreデータ変換開始...');
         // ドキュメントを更新
-        transaction.update(docRef, {
+        final updateData = {
           'strokes': mergedStrokes
               .map((s) => {
                     'strokeId': s.strokeId,
@@ -196,13 +226,85 @@ class WhiteboardRepository {
                   })
               .toList(),
           'updatedAt': FieldValue.serverTimestamp(),
-        });
+        };
+
+        AppLogger.info('🔄 [REPO] トランザクション更新実行中...');
+        transaction.update(docRef, updateData);
 
         AppLogger.info(
-            '✅ [CONFLICT] ${uniqueNewStrokes.length}個のストロークを安全に追加（計${mergedStrokes.length}個）');
+            '✅ [REPO] トランザクション内部処理完了: ${uniqueNewStrokes.length}個のストロークを追加（計${mergedStrokes.length}個）');
       });
-    } catch (e) {
-      AppLogger.error('❌ [CONFLICT] ストローク追加エラー: $e');
+
+      AppLogger.info('✅ [REPO] Firestoreトランザクション完了');
+    } catch (e, stackTrace) {
+      AppLogger.error('❌ [REPO] ストローク追加エラー: $e');
+      AppLogger.error('📍 [REPO] スタックトレース: $stackTrace');
+      rethrow;
+    }
+  }
+
+  /// Windows版専用: トランザクションを使わない保存処理
+  Future<void> _addStrokesWithoutTransaction({
+    required String groupId,
+    required String whiteboardId,
+    required List<DrawingStroke> newStrokes,
+  }) async {
+    try {
+      final docRef = _collection(groupId).doc(whiteboardId);
+
+      AppLogger.info('💻 [WINDOWS] ドキュメント取得中...');
+      // 現在のホワイトボードを取得
+      final snapshot = await docRef.get();
+
+      if (!snapshot.exists) {
+        throw Exception('ホワイトボードが存在しません');
+      }
+
+      final currentData = snapshot.data()!;
+      final currentStrokes = (currentData['strokes'] as List<dynamic>?)
+              ?.map(
+                  (s) => DrawingStroke.fromFirestore(s as Map<String, dynamic>))
+              .toList() ??
+          [];
+
+      AppLogger.info('💻 [WINDOWS] 既存ストローク数: ${currentStrokes.length}');
+
+      // 🔥 重複チェック
+      final existingStrokeIds = currentStrokes.map((s) => s.strokeId).toSet();
+      final uniqueNewStrokes = newStrokes
+          .where((stroke) => !existingStrokeIds.contains(stroke.strokeId))
+          .toList();
+
+      if (uniqueNewStrokes.isEmpty) {
+        AppLogger.info('💻 [WINDOWS] 重複ストローク検出、追加をスキップ');
+        return;
+      }
+
+      // 新しいストロークを追加
+      final mergedStrokes = [...currentStrokes, ...uniqueNewStrokes];
+
+      AppLogger.info('💻 [WINDOWS] Firestore更新中...');
+      // 直接update（トランザクションなし）
+      await docRef.update({
+        'strokes': mergedStrokes
+            .map((s) => {
+                  'strokeId': s.strokeId,
+                  'points': s.points.map((p) => p.toMap()).toList(),
+                  'colorValue': s.colorValue,
+                  'strokeWidth': s.strokeWidth,
+                  'createdAt': Timestamp.fromDate(s.createdAt),
+                  'authorId': s.authorId,
+                  'authorName': s.authorName,
+                })
+            .toList(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      AppLogger.info(
+          '✅ [WINDOWS] Firestore更新完了: ${uniqueNewStrokes.length}個のストロークを追加（計${mergedStrokes.length}個）');
+    } catch (e, stackTrace) {
+      AppLogger.error('❌ [WINDOWS] ストローク追加エラー: $e');
+      AppLogger.error('📍 [WINDOWS] スタックトレース: $stackTrace');
       rethrow;
     }
   }

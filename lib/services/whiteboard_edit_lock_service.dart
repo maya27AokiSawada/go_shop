@@ -230,33 +230,14 @@ class WhiteboardEditLock {
   }
 
   /// 🗑️ 古いeditLocksコレクションを完全削除（マイグレーション用）
+  /// 🔥 DEPRECATED: Firestoreルール権限不足のため無効化
   Future<int> cleanupLegacyEditLocks({
     required String groupId,
   }) async {
-    try {
-      final legacyLocksCollection = _firestore
-          .collection('SharedGroups')
-          .doc(groupId)
-          .collection('editLocks');
-
-      final allLocks = await legacyLocksCollection.get();
-      int deletedCount = 0;
-
-      for (final doc in allLocks.docs) {
-        await doc.reference.delete();
-        deletedCount++;
-        AppLogger.info('🗑️ [LOCK] 古いロック削除: ${doc.id}');
-      }
-
-      if (deletedCount > 0) {
-        AppLogger.info('🧹 [LOCK] 古いeditLocksコレクション完全削除: $deletedCount件');
-      }
-
-      return deletedCount;
-    } catch (e) {
-      AppLogger.error('❌ [LOCK] 古いeditLocksクリーンアップエラー: $e');
-      return 0;
-    }
+    // 🔥 古いeditLocksコレクションのクリーンアップは不要
+    // permission-deniedエラーを避けるため処理をスキップ
+    AppLogger.info('⏭️ [LOCK] 古いeditLocksクリーンアップはスキップ（権限不足）');
+    return 0;
   }
 
   /// 💀 編集ロックを強制クリア（緊急時用）
@@ -276,8 +257,8 @@ class WhiteboardEditLock {
         AppLogger.info('💀 [LOCK] 編集ロック強制削除: $whiteboardId');
       });
 
-      // 古いeditLocksコレクションも同時にクリーンアップ
-      await cleanupLegacyEditLocks(groupId: groupId);
+      // 🔥 古いeditLocksコレクションのクリーンアップはスキップ（権限不足）
+      // await cleanupLegacyEditLocks(groupId: groupId);
 
       return true;
     } catch (e) {
