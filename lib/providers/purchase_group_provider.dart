@@ -717,26 +717,18 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
         Log.warning('⚠️ [CREATE GROUP] グループ選択エラー（続行）: $e');
       }
 
-      // ✅ 楽観的更新: 新しいグループを既存リストに追加
-      // repository.getAllGroups()を再度呼ぶのではなく、
-      // 既存のstateに新しいグループを追加することで、build()の再トリガーを回避
+      // ✅ プロバイダーを無効化してUIを確実に更新
+      // Windows環境では楽観的更新が反映されない問題があるため、
+      // repository.getAllGroups()を再度呼び出して最新のグループリストを取得
       try {
-        final currentState = state;
-        if (currentState is AsyncData<List<SharedGroup>>) {
-          final currentGroups = currentState.value;
-          final updatedGroups = [...currentGroups, newGroup];
-          state = AsyncData(updatedGroups);
-          Log.info('✅ [CREATE GROUP] 楽観的更新完了: ${updatedGroups.length}グループ');
-        } else {
-          Log.warning(
-              '⚠️ [CREATE GROUP] stateがAsyncDataではない: ${currentState.runtimeType}');
-          ref.invalidateSelf();
-        }
-      } catch (e) {
-        Log.warning('⚠️ [CREATE GROUP] 楽観的更新エラー: $e');
-        Log.warning('⚠️ [CREATE GROUP] stateを再構築します');
-        // 失敗した場合はbuild()を再実行
+        Log.info('🔄 [CREATE GROUP] allGroupsProviderを無効化してUI更新');
         ref.invalidateSelf();
+
+        // 🆕 Windows対策: プロバイダーの再構築完了を待機
+        await Future.delayed(const Duration(milliseconds: 200));
+        Log.info('✅ [CREATE GROUP] プロバイダー再構築待機完了');
+      } catch (e) {
+        Log.warning('⚠️ [CREATE GROUP] プロバイダー無効化エラー: $e');
       }
 
       // ✅ メンバープール更新は不要

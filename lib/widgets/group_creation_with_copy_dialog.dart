@@ -473,6 +473,17 @@ class _GroupCreationWithCopyDialogState
       await ref.read(allGroupsProvider.notifier).createNewGroup(groupName);
       AppLogger.info('✅ [CREATE GROUP DIALOG] createNewGroup() 完了');
 
+      // 🆕 Windows対策: allGroupsProviderの再構築完了を待機
+      AppLogger.info('⏳ [CREATE GROUP DIALOG] allGroupsProvider更新待機中...');
+      try {
+        await ref.read(allGroupsProvider.future);
+        AppLogger.info('✅ [CREATE GROUP DIALOG] allGroupsProvider更新完了');
+      } catch (e) {
+        AppLogger.warning(
+            '⚠️ [CREATE GROUP DIALOG] allGroupsProvider更新エラー: $e');
+        // エラーでも続行
+      }
+
       // Add members BEFORE closing dialog (if needed)
       if (hasMembersToAdd) {
         AppLogger.info('🔄 [CREATE GROUP DIALOG] メンバー追加開始');
@@ -499,11 +510,11 @@ class _GroupCreationWithCopyDialogState
         AppLogger.info('✅ [CREATE GROUP DIALOG] ローディング解除完了');
       }
 
-      // 🆕 Firestoreの非同期処理が完全に完了するまで十分な時間待機
-      // Windowsプラグインのスレッド問題を回避するため、長めの遅延を設定
-      AppLogger.info('⏳ [CREATE GROUP DIALOG] Firestore処理の完全な完了を待機中...');
-      await Future.delayed(const Duration(milliseconds: 1500));
-      AppLogger.info('✅ [CREATE GROUP DIALOG] 待機完了');
+      // 🆕 Windowsでのプロバイダー反映待機
+      // 楽観的更新から実際のUI反映まで時間がかかることがあるため
+      AppLogger.info('⏳ [CREATE GROUP DIALOG] UI反映完了を待機中...');
+      await Future.delayed(const Duration(milliseconds: 500));
+      AppLogger.info('✅ [CREATE GROUP DIALOG] UI反映待機完了');
 
       if (mounted) {
         AppLogger.info('🔄 [CREATE GROUP DIALOG] Navigator.pop(true)を呼び出します');
