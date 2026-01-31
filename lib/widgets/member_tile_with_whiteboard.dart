@@ -23,6 +23,11 @@ class MemberTileWithWhiteboard extends ConsumerWidget {
     final currentUser = ref.watch(authStateProvider).value;
     final isCurrentUser = currentUser?.uid == member.memberId;
 
+    // 個人用ホワイトボードの状態を監視
+    final whiteboardAsync = ref.watch(
+      personalWhiteboardProvider((groupId: groupId, userId: member.memberId)),
+    );
+
     return InkWell(
       onDoubleTap: () => _openPersonalWhiteboard(context, ref),
       child: ListTile(
@@ -53,20 +58,93 @@ class MemberTileWithWhiteboard extends ConsumerWidget {
           ],
         ),
         subtitle: Text(_getRoleLabel(member.role)),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isCurrentUser ? Icons.draw : Icons.visibility,
-              size: 16,
-              color: Colors.grey[600],
-            ),
-            const SizedBox(width: 4),
-            Text(
-              isCurrentUser ? 'ダブルタップ' : '閲覧可',
-              style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-            ),
-          ],
+        trailing: whiteboardAsync.when(
+          data: (whiteboard) {
+            // ホワイトボードが存在する場合、isPrivateに応じた表示
+            if (whiteboard != null) {
+              if (isCurrentUser) {
+                // 自分のホワイトボード
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.draw,
+                      size: 16,
+                      color: Colors.grey[600],
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'ダブルタップ',
+                      style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                    ),
+                  ],
+                );
+              } else {
+                // 他人のホワイトボード
+                final canEdit = !whiteboard.isPrivate;
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      canEdit ? Icons.edit : Icons.visibility,
+                      size: 16,
+                      color: canEdit ? Colors.green[600] : Colors.orange[600],
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      canEdit ? '編集可' : '編集不可',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: canEdit ? Colors.green[600] : Colors.orange[600],
+                      ),
+                    ),
+                  ],
+                );
+              }
+            }
+
+            // ホワイトボードが未作成の場合
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isCurrentUser ? Icons.draw : Icons.visibility,
+                  size: 16,
+                  color: Colors.grey[600],
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  isCurrentUser ? 'ダブルタップ' : '編集可',
+                  style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                ),
+              ],
+            );
+          },
+          loading: () => const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 12,
+                height: 12,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ],
+          ),
+          error: (_, __) => Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isCurrentUser ? Icons.draw : Icons.visibility,
+                size: 16,
+                color: Colors.grey[600],
+              ),
+              const SizedBox(width: 4),
+              Text(
+                isCurrentUser ? 'ダブルタップ' : '編集可',
+                style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+              ),
+            ],
+          ),
         ),
       ),
     );
