@@ -46,7 +46,10 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   int _controllerKey = 0; // コントローラー再作成カウンター
   final List<DrawingStroke> _workingStrokes = []; // 作業中のストロークリスト
 
-  // 🔒 編集ロック状態
+  // � CRITICAL: 最新のホワイトボードデータをStateで管理（isPrivate更新対応）
+  late Whiteboard _currentWhiteboard;
+
+  // �🔒 編集ロック状態
   bool _isEditingLocked = false; // 他ユーザーが編集中
   EditLockInfo? _currentEditor; // 現在の編集中ユーザー情報
   bool _hasEditLock = false; // 自分が編集ロックを保持中
@@ -72,15 +75,18 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   void initState() {
     super.initState();
 
+    // 🔥 CRITICAL: Stateにホワイトボードデータを保持
+    _currentWhiteboard = widget.whiteboard;
+
     // カスタム色を初期化（設定から読み込み）
     _customColor5 = _loadCustomColor5();
     _customColor6 = _loadCustomColor6();
 
     // 既存のストロークを作業リストに読み込む
-    if (widget.whiteboard.strokes.isNotEmpty) {
-      _workingStrokes.addAll(widget.whiteboard.strokes);
+    if (_currentWhiteboard.strokes.isNotEmpty) {
+      _workingStrokes.addAll(_currentWhiteboard.strokes);
       AppLogger.info(
-          '🎨 [WHITEBOARD] ${widget.whiteboard.strokes.length}個のストロークを復元');
+          '🎨 [WHITEBOARD] ${_currentWhiteboard.strokes.length}個のストロークを復元');
     }
 
     // 空のコントローラーでスタート
@@ -96,9 +102,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
 
     // 🔒 編集ロック状態を監視（グループ共有ボードのみ）
     AppLogger.info(
-        '🎨 [WHITEBOARD] ボードタイプ: isGroupWhiteboard=${widget.whiteboard.isGroupWhiteboard}, isPersonalWhiteboard=${widget.whiteboard.isPersonalWhiteboard}');
+        '🎨 [WHITEBOARD] ボードタイプ: isGroupWhiteboard=${_currentWhiteboard.isGroupWhiteboard}, isPersonalWhiteboard=${_currentWhiteboard.isPersonalWhiteboard}');
 
-    if (widget.whiteboard.isGroupWhiteboard) {
+    if (_currentWhiteboard.isGroupWhiteboard) {
       AppLogger.info('🔒 [LOCK] グループ共有ボード - 編集ロック機能を初期化');
       _watchEditLock();
 
@@ -164,7 +170,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     final repository = ref.read(whiteboardRepositoryProvider);
 
     _whiteboardSubscription = repository
-        .watchWhiteboard(widget.groupId, widget.whiteboard.whiteboardId)
+        .watchWhiteboard(widget.groupId, _currentWhiteboard.whiteboardId)
         .listen((latest) {
       if (!mounted || latest == null) return;
 
@@ -172,6 +178,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       if (_hasEditLock) return;
 
       setState(() {
+        // 🔥 CRITICAL: ホワイトボード全体を更新（isPrivateなどのプロパティも含む）
+        _currentWhiteboard = latest;
+
         _workingStrokes
           ..clear()
           ..addAll(latest.strokes);
@@ -188,13 +197,16 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       final repository = ref.read(whiteboardRepositoryProvider);
       final latest = await repository.getWhiteboardById(
         widget.groupId,
-        widget.whiteboard.whiteboardId,
+        _currentWhiteboard.whiteboardId,
       );
 
       if (latest == null) return;
       if (_hasEditLock) return; // 自分が編集中なら上書きしない
 
       setState(() {
+        // 🔥 CRITICAL: ホワイトボード全体を更新（isPrivateも含む）
+        _currentWhiteboard = latest;
+
         _workingStrokes
           ..clear()
           ..addAll(latest.strokes);
@@ -215,7 +227,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     lockService
         .watchEditLock(
       groupId: widget.groupId,
-      whiteboardId: widget.whiteboard.whiteboardId,
+      whiteboardId: _currentWhiteboard.whiteboardId,
     )
         .listen((lockInfo) {
       if (!mounted) return;
@@ -253,7 +265,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   /// 🔒 編集ロックを取得（グループ共有ボードのみ）
   Future<bool> _acquireEditLock() async {
     // 個人ボードでは編集ロックをスキップ
-    if (widget.whiteboard.isPersonalWhiteboard) {
+    if (_currentWhiteboard.isPersonalWhiteboard) {
       return true;
     }
 
@@ -266,7 +278,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     final lockService = ref.read(whiteboardEditLockProvider);
     final success = await lockService.acquireEditLock(
       groupId: widget.groupId,
-      whiteboardId: widget.whiteboard.whiteboardId,
+      whiteboardId: _currentWhiteboard.whiteboardId,
       userId: currentUser.uid,
       userName: currentUser.displayName ?? 'Unknown',
     );
@@ -286,7 +298,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   /// 🔓 編集ロックを解除
   Future<void> _releaseEditLock() async {
     // グループ共有ボードのみ編集ロック解除
-    if (!widget.whiteboard.isGroupWhiteboard || !_hasEditLock) return;
+    if (!_currentWhiteboard.isGroupWhiteboard || !_hasEditLock) return;
 
     final currentUser = ref.read(authStateProvider).value;
     if (currentUser == null) return;
@@ -294,7 +306,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     final lockService = ref.read(whiteboardEditLockProvider);
     await lockService.releaseEditLock(
       groupId: widget.groupId,
-      whiteboardId: widget.whiteboard.whiteboardId,
+      whiteboardId: _currentWhiteboard.whiteboardId,
       userId: currentUser.uid,
     );
 
@@ -359,7 +371,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       final lockService = ref.read(whiteboardEditLockProvider);
       final success = await lockService.forceReleaseEditLock(
         groupId: widget.groupId,
-        whiteboardId: widget.whiteboard.whiteboardId,
+        whiteboardId: _currentWhiteboard.whiteboardId,
       );
 
       if (success) {
@@ -401,10 +413,10 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   /// 📱 編集開始時にロック取得を試行
   Future<bool> _onDrawingStart() async {
     AppLogger.info(
-        '🎨 [ON_DRAW_START] 編集開始処理 - ボードタイプ: isPersonal=${widget.whiteboard.isPersonalWhiteboard}, isGroup=${widget.whiteboard.isGroupWhiteboard}');
+        '🎨 [ON_DRAW_START] 編集開始処理 - ボードタイプ: isPersonal=${_currentWhiteboard.isPersonalWhiteboard}, isGroup=${_currentWhiteboard.isGroupWhiteboard}');
 
     // 個人ボードでは編集ロックをスキップ
-    if (widget.whiteboard.isPersonalWhiteboard) {
+    if (_currentWhiteboard.isPersonalWhiteboard) {
       AppLogger.info('👤 [ON_DRAW_START] 個人ボード - 編集ロックスキップ');
       return true;
     }
@@ -546,7 +558,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       final repository = ref.read(whiteboardRepositoryProvider);
       await repository.addStrokesToWhiteboard(
         groupId: widget.groupId,
-        whiteboardId: widget.whiteboard.whiteboardId,
+        whiteboardId: _currentWhiteboard.whiteboardId,
         newStrokes: newStrokes,
       );
 
@@ -571,9 +583,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         final notificationService = ref.read(notificationServiceProvider);
         await notificationService.sendWhiteboardUpdateNotification(
           groupId: widget.groupId,
-          whiteboardId: widget.whiteboard.whiteboardId,
-          isGroupWhiteboard: widget.whiteboard.isGroupWhiteboard,
-          ownerId: widget.whiteboard.ownerId,
+          whiteboardId: _currentWhiteboard.whiteboardId,
+          isGroupWhiteboard: _currentWhiteboard.isGroupWhiteboard,
+          ownerId: _currentWhiteboard.ownerId,
         );
         AppLogger.info('✅ ホワイトボード更新通知送信完了');
       } catch (notificationError) {
@@ -604,19 +616,27 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   Future<void> _togglePrivate() async {
     try {
       final repository = ref.read(whiteboardRepositoryProvider);
-      await repository.togglePrivate(widget.whiteboard);
+
+      // 現在の状態を保存（メッセージ表示用）
+      final wasPrivate = _currentWhiteboard.isPrivate;
+
+      // Firestoreで更新
+      await repository.togglePrivate(_currentWhiteboard);
+
+      // 🔥 CRITICAL: Firestoreから最新データを明示的に取得してUIを更新
+      await _reloadWhiteboardFromFirestore(reason: 'privacy toggle');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              widget.whiteboard.isPrivate
-                  ? '他の人も編集できるようになりました'
-                  : '自分だけ編集できるようになりました',
+              wasPrivate ? '他の人も編集できるようになりました' : '自分だけ編集できるようになりました',
             ),
           ),
         );
       }
+
+      AppLogger.info('✅ [PRIVATE] プライベート設定変更完了: $wasPrivate → ${!wasPrivate}');
     } catch (e) {
       AppLogger.error('❌ プライベート設定エラー: $e');
     }
@@ -654,7 +674,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       // 🔥 Firestoreから全ストロークを削除（本質的には空の状態で保存）
       await repository.clearWhiteboard(
         groupId: widget.groupId,
-        whiteboardId: widget.whiteboard.whiteboardId,
+        whiteboardId: _currentWhiteboard.whiteboardId,
       );
 
       // ローカルも消去
@@ -684,16 +704,16 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   Widget build(BuildContext context) {
     final currentUser = ref.watch(authStateProvider).value;
     final canEdit =
-        currentUser != null && widget.whiteboard.canEdit(currentUser.uid);
+        currentUser != null && _currentWhiteboard.canEdit(currentUser.uid);
 
     AppLogger.info(
         '🎨 [WHITEBOARD] build - canEdit: $canEdit, userId: ${AppLogger.maskUserId(currentUser?.uid)}');
     AppLogger.info(
-        '🎨 [WHITEBOARD] whiteboard - isPrivate: ${widget.whiteboard.isPrivate}, ownerId: ${AppLogger.maskUserId(widget.whiteboard.ownerId)}');
+        '🎨 [WHITEBOARD] whiteboard - isPrivate: ${_currentWhiteboard.isPrivate}, ownerId: ${AppLogger.maskUserId(_currentWhiteboard.ownerId)}');
     AppLogger.info(
-        '🎨 [WHITEBOARD] isGroupWhiteboard: ${widget.whiteboard.isGroupWhiteboard}, isPersonalWhiteboard: ${widget.whiteboard.isPersonalWhiteboard}');
+        '🎨 [WHITEBOARD] isGroupWhiteboard: ${_currentWhiteboard.isGroupWhiteboard}, isPersonalWhiteboard: ${_currentWhiteboard.isPersonalWhiteboard}');
     AppLogger.info(
-        '🎨 [WHITEBOARD] AppBar title will be: ${widget.whiteboard.isGroupWhiteboard ? "グループ共通" : "個人用"}');
+        '🎨 [WHITEBOARD] AppBar title will be: ${_currentWhiteboard.isGroupWhiteboard ? "グループ共通" : "個人用"}');
 
     return WillPopScope(
       onWillPop: () async {
@@ -704,29 +724,29 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       child: Scaffold(
         appBar: AppBar(
           title: Text(
-            widget.whiteboard.isGroupWhiteboard
+            _currentWhiteboard.isGroupWhiteboard
                 ? 'グループ共通ホワイトボード'
                 : '個人用ホワイトボード',
           ),
           actions: [
             // 編集ロック状態アイコン（グループ共有ボードのみ）
-            if (widget.whiteboard.isGroupWhiteboard && _isEditingLocked)
+            if (_currentWhiteboard.isGroupWhiteboard && _isEditingLocked)
               IconButton(
                 icon: const Icon(Icons.lock, color: Colors.orange),
                 onPressed: () => _showEditingInProgressDialog(),
                 tooltip: '編集中: ${_currentEditor?.userName ?? "Unknown"}',
               )
-            else if (widget.whiteboard.isGroupWhiteboard && _hasEditLock)
+            else if (_currentWhiteboard.isGroupWhiteboard && _hasEditLock)
               const Icon(Icons.lock_open, color: Colors.green),
             // プライベート設定スイッチ（個人用のみ）
-            if (widget.whiteboard.isPersonalWhiteboard &&
-                widget.whiteboard.ownerId == currentUser?.uid)
+            if (_currentWhiteboard.isPersonalWhiteboard &&
+                _currentWhiteboard.ownerId == currentUser?.uid)
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text('編集制限', style: TextStyle(fontSize: 12)),
                   Switch(
-                    value: widget.whiteboard.isPrivate,
+                    value: _currentWhiteboard.isPrivate,
                     onChanged: (_) => _togglePrivate(),
                   ),
                 ],
@@ -813,7 +833,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                                   ),
 
                                 // 編集ロック中のオーバーレイ（グループ共有ボードのみ）
-                                if (widget.whiteboard.isGroupWhiteboard &&
+                                if (_currentWhiteboard.isGroupWhiteboard &&
                                     _isEditingLocked &&
                                     canEdit)
                                   Positioned(
@@ -877,7 +897,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                     Icon(Icons.visibility, size: 16, color: Colors.orange[900]),
                     const SizedBox(width: 8),
                     Text(
-                      widget.whiteboard.isPrivate
+                      _currentWhiteboard.isPrivate
                           ? '閲覧専用: このホワイトボードは編集制限されています'
                           : '閲覧専用',
                       style: TextStyle(
@@ -929,7 +949,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                       AppLogger.info('🔓 [MODE_TOGGLE] 描画モード終了 - 描画保存');
 
                       // 🔥 CRITICAL: 描画データをFirestoreに保存してから終了
-                      if (_controller != null && !_controller!.isEmpty) {
+                      if (_controller != null && _controller!.isNotEmpty) {
                         await _saveWhiteboard();
                       } else {
                         _captureCurrentDrawing(); // コントローラーが空でもworkingStrokesは保存
@@ -939,7 +959,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                     } else {
                       // スクロールモード → 描画モード: ロック取得
                       AppLogger.info('🔒 [MODE_TOGGLE] 描画モード開始 - ロック取得試行');
-                      if (widget.whiteboard.isGroupWhiteboard) {
+                      if (_currentWhiteboard.isGroupWhiteboard) {
                         final success = await _acquireEditLock();
                         if (!success && mounted) {
                           AppLogger.warning(
@@ -978,8 +998,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                 const SizedBox(width: 16),
 
                 // 🔒 編集ロック状態表示（グループ共有ボードのみ）
-                if (widget.whiteboard.isGroupWhiteboard) _buildEditLockStatus(),
-                if (widget.whiteboard.isGroupWhiteboard)
+                if (_currentWhiteboard.isGroupWhiteboard)
+                  _buildEditLockStatus(),
+                if (_currentWhiteboard.isGroupWhiteboard)
                   const SizedBox(width: 16),
               ],
             ),
@@ -1003,7 +1024,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                 IconButton(
                   icon: const Icon(Icons.zoom_out, size: 20),
                   onPressed:
-                      (widget.whiteboard.isGroupWhiteboard && _isEditingLocked)
+                      (_currentWhiteboard.isGroupWhiteboard && _isEditingLocked)
                           ? null
                           : () {
                               if (_canvasScale > 0.5) {
@@ -1032,7 +1053,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                               }
                             },
                   tooltip:
-                      (widget.whiteboard.isGroupWhiteboard && _isEditingLocked)
+                      (_currentWhiteboard.isGroupWhiteboard && _isEditingLocked)
                           ? '編集ロック中'
                           : 'ズームアウト',
                 ),
@@ -1042,7 +1063,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                 IconButton(
                   icon: const Icon(Icons.zoom_in, size: 20),
                   onPressed:
-                      (widget.whiteboard.isGroupWhiteboard && _isEditingLocked)
+                      (_currentWhiteboard.isGroupWhiteboard && _isEditingLocked)
                           ? null
                           : () {
                               if (_canvasScale < 4.0) {
@@ -1071,7 +1092,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                               }
                             },
                   tooltip:
-                      (widget.whiteboard.isGroupWhiteboard && _isEditingLocked)
+                      (_currentWhiteboard.isGroupWhiteboard && _isEditingLocked)
                           ? '編集ロック中'
                           : 'ズームイン',
                 ),
@@ -1082,14 +1103,14 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                   constraints: const BoxConstraints(),
                   icon: const Icon(Icons.delete_outline, size: 20),
                   onPressed:
-                      (widget.whiteboard.isGroupWhiteboard && _isEditingLocked)
+                      (_currentWhiteboard.isGroupWhiteboard && _isEditingLocked)
                           ? null
                           : () async {
                               // 全消去ボタン押下時の処理
                               _showDeleteConfirmationDialog();
                             },
                   tooltip:
-                      (widget.whiteboard.isGroupWhiteboard && _isEditingLocked)
+                      (_currentWhiteboard.isGroupWhiteboard && _isEditingLocked)
                           ? '編集ロック中'
                           : '全消去',
                 ),
@@ -1115,7 +1136,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   /// 🔒 編集ロック状態表示ウィジェット（グループ共有ボードのみ）
   Widget _buildEditLockStatus() {
     // 個人ボードでは編集ロック状態を表示しない
-    if (widget.whiteboard.isPersonalWhiteboard) {
+    if (_currentWhiteboard.isPersonalWhiteboard) {
       return const SizedBox.shrink();
     }
 
@@ -1214,7 +1235,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   Widget _buildColorButton(Color color) {
     // 色の比較はvalueで行う（インスタンスではなく色値で比較）
     final isSelected = _selectedColor.value == color.value;
-    final isEnabled = widget.whiteboard.isGroupWhiteboard
+    final isEnabled = _currentWhiteboard.isGroupWhiteboard
         ? !_isEditingLocked
         : true; // 🔒 個人ボードは常に有効、グループ共有ボードのみ編集ロックチェック
 
@@ -1259,7 +1280,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   /// ペン太さボタン（5段階）
   Widget _buildStrokeWidthButton(double width, int level) {
     final isSelected = _strokeWidth == width;
-    final isEnabled = widget.whiteboard.isGroupWhiteboard
+    final isEnabled = _currentWhiteboard.isGroupWhiteboard
         ? !_isEditingLocked
         : true; // 🔒 個人ボードは常に有効、グループ共有ボードのみ編集ロックチェック
 
@@ -1306,12 +1327,12 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   /// 描画エリアをビルド（編集ロック状態を考慮）
   Widget _buildDrawingArea() {
     AppLogger.info(
-        '🏗️ [BUILD_DRAWING_AREA] 状態: isGroup=${widget.whiteboard.isGroupWhiteboard}, isLocked=$_isEditingLocked, hasLock=$_hasEditLock, scrollLocked=$_isScrollLocked');
+        '🏗️ [BUILD_DRAWING_AREA] 状態: isGroup=${_currentWhiteboard.isGroupWhiteboard}, isLocked=$_isEditingLocked, hasLock=$_hasEditLock, scrollLocked=$_isScrollLocked');
     AppLogger.info(
         '🏗️ [BUILD_DRAWING_AREA] 現在の編集者: ${_currentEditor?.userName ?? "なし"}');
 
     // 🔒 編集ロック中の場合（グループボードのみ）
-    if (widget.whiteboard.isGroupWhiteboard &&
+    if (_currentWhiteboard.isGroupWhiteboard &&
         _isEditingLocked &&
         !_hasEditLock) {
       AppLogger.warning('🔒 [DRAWING_AREA] 編集ロック中 - ロックアイコン表示');
