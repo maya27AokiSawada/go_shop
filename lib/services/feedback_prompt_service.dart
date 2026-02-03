@@ -10,6 +10,7 @@ class FeedbackPromptService {
   /// Firestore の /testingStatus/active ドキュメントから isTestingActive フラグを取得
   static Future<bool> isTestingActive() async {
     try {
+      AppLogger.info('🧪 [FEEDBACK] isTestingActive() 呼び出し');
       final doc = await _firestore.doc(_testStatusPath).get();
 
       if (!doc.exists) {
@@ -17,8 +18,11 @@ class FeedbackPromptService {
         return false;
       }
 
-      final isActive = doc.data()?['isTestingActive'] as bool? ?? false;
-      AppLogger.info('🧪 [FEEDBACK] テスト実施中フラグ: $isActive');
+      final data = doc.data();
+      AppLogger.info('🧪 [FEEDBACK] Firestoreから取得したデータ: $data');
+
+      final isActive = data?['isTestingActive'] as bool? ?? false;
+      AppLogger.info('🧪 [FEEDBACK] isTestingActive フラグの値: $isActive');
 
       return isActive;
     } catch (e) {
