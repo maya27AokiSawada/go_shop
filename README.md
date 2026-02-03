@@ -2,7 +2,7 @@
 
 ## Recent Implementations (2026-02-03)
 
-### フィードバック催促機能の動作確認と原因調査 ✅
+### 1. フィードバック催促機能の動作確認と原因調査 ✅
 
 **Background**: ユーザーより「フィードバック催促機能が動作しない」との報告を受け、詳細調査を実施
 
@@ -29,21 +29,187 @@
 - テスト実行時の起動回数が**14回**であり、次の催促タイミング（25回目）まで未達
 - 機能実装とFirebase設定は**すべて正常**に動作している
 
-**Solution**:
+**Modified Files**: `lib/services/feedback_prompt_service.dart`
 
-- デバッグログ追加により、リモート環境での問題特定が可能になった
-- **提案**: 設定画面に「アプリ起動回数をリセットする」デバッグボタンを追加し、テスト効率を向上
+**Status**: ✅ 調査完了 | 機能は正常動作
 
-**Technical Learning**:
+---
 
-- 機能不全を疑う前に、まず動作の**前提条件**をすべて確認することの重要性
-- 詳細なデバッグログがリモート環境での問題解決を加速
+### 2. ホワイトボードUndo/Redo機能実装 ✅
+
+**Purpose**: 手書きホワイトボードに履歴スタックベースのundo/redo機能を追加
+
+**Implementation**:
+
+#### 履歴スタックアーキテクチャ
+
+- **Max History**: 50ステップ
+- **Data Structure**: `List<List<DrawingStroke>> _history`
+- **Index Tracking**: `int _historyIndex` (現在位置を管理)
+
+```dart
+void _saveToHistory() {
+  if (_historyIndex < _history.length - 1) {
+    _history.removeRange(_historyIndex + 1, _history.length);  // 未来の履歴削除
+  }
+  _history.add(List<DrawingStroke>.from(_workingStrokes));
+  _historyIndex = _history.length - 1;
+  if (_history.length > 50) {
+    _history.removeAt(0);  // 古い履歴削除
+    _historyIndex--;
+  }
+}
+```
+
+#### UI改善
+
+**ペン太さ**: 5段階 → 3段階に簡素化
+
+- 細（2.0px）
+- 中（4.0px）
+- 太（6.0px）
+
+**ツールバー追加**:
+
+- Undoボタン（Icons.undo）- `_canUndo()`で無効化制御
+- Redoボタン（Icons.redo）- `_canRedo()`で無効化制御
+
+#### Critical Bug Fixes
+
+**Problem**: 描画→保存を繰り返すとundo/redoが効かなくなる
+
+**Root Cause**: Firestore保存後やリアルタイム更新時に`_workingStrokes`更新されるが、履歴スタックが同期されていなかった
+
+**Solution**: 3箇所に`_saveToHistory()`呼び出しを追加
+
+1. `_saveWhiteboard()` 完了後
+2. `_startWhiteboardListener()`: Firestoreリアルタイム更新時
+3. `_clearWhiteboard()`: 全クリア時に履歴リセット
 
 **Modified Files**:
 
-- `lib/services/feedback_prompt_service.dart` - デバッグログ追加（Firestoreデータ出力強化）
+- `lib/pages/whiteboard_editor_page.dart` - undo/redo実装、履歴保存バグ修正
 
-**Status**: ✅ 調査完了 | 機能は正常動作
+**Status**: ✅ 実装完了 | ⏳ 実機テスト待ち
+
+---
+
+### 3. Windows版Timestampクラッシュ修正 ✅
+
+**Problem**: Windows版でホワイトボード描画中、10手順以上でクラッシュ（複数回発生）
+
+**Error**:
+
+```
+type 'Null' is not a subtype of type 'Timestamp' in type cast
+#0 new Whiteboard.fromFirestore (whiteboard.dart:106)
+```
+
+**Root Cause**: Firestoreから取得したホワイトボードデータに`createdAt`/`updatedAt`がnullの場合、Timestamp型キャストに失敗
+
+**Solution**:
+
+```dart
+// ❌ Before: nullの場合クラッシュ
+createdAt: (data['createdAt'] as Timestamp).toDate(),
+
+// ✅ After: nullセーフ、デフォルト値設定
+createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+```
+
+**Modified Files**:
+
+- `lib/models/whiteboard.dart` - Timestamp nullチェック追加
+
+**Status**: ✅ 修正完了 | ⏳ 実機テスト待ち
+
+---
+
+### 4. Sentry統合実装（Windows/Linux/macOS対応クラッシュレポート） ✅
+
+**Background**: Firebase CrashlyticsはWindows/Linux/macOS非対応のため、代替クラッシュレポートシステムを構築
+
+**Implementation**:
+
+#### Platform-Specific Crash Reporting
+
+```dart
+// lib/main.dart
+void main() async {
+  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    // デスクトップ: Sentry
+    await SentryFlutter.init((options) {
+      options.dsn = 'https://...@o4510820521738240.ingest.us.sentry.io/...';
+      options.attachScreenshot = true;
+      options.beforeSend = (event, hint) {
+        // 個人情報マスキング
+        if (event.user?.id != null) {
+          event = event.copyWith(
+            user: event.user?.copyWith(
+              id: AppLogger.maskUserId(event.user?.id),
+            ),
+          );
+        }
+        return event;
+      };
+    }, appRunner: () => _initializeApp());
+  } else {
+    // モバイル: Firebase Crashlytics（既存）
+    await _initializeApp();
+  }
+}
+```
+
+#### Error Capture with Context
+
+```dart
+// lib/pages/whiteboard_editor_page.dart
+try {
+  // ホワイトボード保存処理
+} catch (e, stackTrace) {
+  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    await Sentry.captureException(e, stackTrace: stackTrace, hint: Hint.withMap({
+      'whiteboard_id': _currentWhiteboard.whiteboardId,
+      'group_id': widget.groupId,
+      'stroke_count': _workingStrokes.length,
+      'platform': Platform.operatingSystem,
+    }));
+  } else {
+    FirebaseCrashlytics.instance.recordError(e, stackTrace);
+  }
+}
+```
+
+#### Privacy Protection
+
+- ユーザーID自動マスキング（`abc***`形式）
+- デバッグモードでは自動無効化
+- スクリーンショット添付（中品質）
+
+**Benefits**:
+
+- ✅ 全プラットフォーム対応（Android/iOS/Windows/Linux/macOS）
+- ✅ Firebase設定不要（独立サービス）
+- ✅ 無料プラン月5,000イベント
+- ✅ リアルタイムエラー通知
+
+**Modified Files**:
+
+- `pubspec.yaml` - `sentry_flutter: ^8.9.0`追加
+- `lib/main.dart` - Sentry初期化、Platform判定実装
+- `lib/pages/whiteboard_editor_page.dart` - エラー送信実装
+- `docs/sentry_setup.md` - セットアップガイド作成
+
+**Status**: ✅ 実装完了 | ⏳ 実機クラッシュ待ち
+
+---
+
+**Technical Learning**:
+
+- Firestoreデータの**nullセーフティ**は必須（`as Timestamp?`パターン）
+- Undo/Redo実装では**全ての状態変更箇所**で履歴保存が必要
+- Platform判定により、サービスを自動切り替え可能
+- Sentryはデスクトップ向けクラッシュレポートの決定版
 
 ---
 
