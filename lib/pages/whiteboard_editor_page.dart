@@ -47,6 +47,10 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   int _controllerKey = 0; // コントローラー再作成カウンター
   final List<DrawingStroke> _workingStrokes = []; // 作業中のストロークリスト
 
+  // ↩️ Undo/Redo履歴管理
+  final List<List<DrawingStroke>> _history = []; // 履歴スタック
+  int _historyIndex = -1; // 現在の履歴位置
+
   // � CRITICAL: 最新のホワイトボードデータをStateで管理（isPrivate更新対応）
   late Whiteboard _currentWhiteboard;
 
@@ -89,6 +93,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       AppLogger.info(
           '🎨 [WHITEBOARD] ${_currentWhiteboard.strokes.length}個のストロークを復元');
     }
+
+    // 📚 初期状態を履歴に保存
+    _saveToHistory();
 
     // 空のコントローラーでスタート
     _controller = SignatureController(
@@ -188,6 +195,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         _workingStrokes
           ..clear()
           ..addAll(latest.strokes);
+
+        // 📚 Firestore更新後の状態を履歴に記録（他ユーザーの変更も履歴に含める）
+        _saveToHistory();
       });
 
       AppLogger.info(
@@ -210,6 +220,13 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       setState(() {
         // 🔥 CRITICAL: ホワイトボード全体を更新（isPrivateも含む）
         _currentWhiteboard = latest;
+
+        _workingStrokes
+          ..clear()
+          ..addAll(latest.strokes);
+
+        // 📚 リロード後の状態を履歴に記録
+        _saveToHistory();
 
         _workingStrokes
           ..clear()
@@ -525,11 +542,94 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         _workingStrokes.addAll(strokes);
         AppLogger.info(
             '📸 [WHITEBOARD] ${strokes.length}個のストロークをキャプチャ (計${_workingStrokes.length}個)');
+
+        // 📚 履歴に保存
+        _saveToHistory();
       }
     } catch (e) {
       AppLogger.error('❌ [WHITEBOARD] 描画キャプチャエラー: $e');
     }
   }
+
+  /// 📚 現在の状態を履歴に保存
+  void _saveToHistory() {
+    // 現在位置より後ろの履歴を削除（新しい分岐を作る）
+    if (_historyIndex < _history.length - 1) {
+      _history.removeRange(_historyIndex + 1, _history.length);
+    }
+
+    // 現在の状態を履歴に追加
+    _history.add(List<DrawingStroke>.from(_workingStrokes));
+    _historyIndex = _history.length - 1;
+
+    // 履歴が多すぎる場合は古いものを削除（メモリ節約）
+    if (_history.length > 50) {
+      _history.removeAt(0);
+      _historyIndex--;
+    }
+
+    AppLogger.info(
+        '📚 [HISTORY] 履歴保存: ${_history.length}個 (現在位置: $_historyIndex)');
+  }
+
+  /// ↩️ Undo: 1つ前の状態に戻る
+  void _undo() {
+    if (!_canUndo()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('これ以上戻せません'), duration: Duration(milliseconds: 500)),
+      );
+      return;
+    }
+
+    // 現在の描画を保存してからUndoを実行
+    if (_controller != null && _controller!.isNotEmpty) {
+      _captureCurrentDrawing();
+    }
+
+    setState(() {
+      _historyIndex--;
+      _workingStrokes
+        ..clear()
+        ..addAll(_history[_historyIndex]);
+
+      // SignatureControllerをクリア
+      _controller?.clear();
+    });
+
+    AppLogger.info(
+        '↩️ [UNDO] 履歴位置: $_historyIndex/${_history.length - 1}, ストローク数: ${_workingStrokes.length}');
+  }
+
+  /// ↪️ Redo: 1つ先の状態に進む
+  void _redo() {
+    if (!_canRedo()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('これ以上進めません'), duration: Duration(milliseconds: 500)),
+      );
+      return;
+    }
+
+    setState(() {
+      _historyIndex++;
+      _workingStrokes
+        ..clear()
+        ..addAll(_history[_historyIndex]);
+
+      // SignatureControllerをクリア
+      _controller?.clear();
+    });
+
+    AppLogger.info(
+        '↪️ [REDO] 履歴位置: $_historyIndex/${_history.length - 1}, ストローク数: ${_workingStrokes.length}');
+  }
+
+  /// Undoが可能かチェック
+  bool _canUndo() => _historyIndex > 0;
+
+  /// Redoが可能かチェック
+  bool _canRedo() => _historyIndex < _history.length - 1;
 
   /// 保存処理（🔥 差分ストローク追加方式）
   Future<void> _saveWhiteboard() async {
@@ -602,6 +702,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       _workingStrokes.clear();
       _workingStrokes.addAll(newStrokes);
       AppLogger.info('📐 [SAVE] ${newStrokes.length}個のストロークをworkingStrokesに復元');
+
+      // 📚 保存後の状態を履歴に記録
+      _saveToHistory();
 
       // 2. SignatureControllerのみクリア（新規描画開始のため）
       _controller?.clear();
@@ -716,6 +819,11 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       setState(() {
         _workingStrokes.clear();
         _controller?.clear();
+
+        // 📚 履歴をリセット
+        _history.clear();
+        _historyIndex = -1;
+        _saveToHistory(); // 空の状態を履歴に保存
       });
 
       AppLogger.info('✅ [DELETE] ホワイトボード全消去成功');
@@ -1072,19 +1180,48 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
             ),
           ),
           const SizedBox(height: 4),
-          // 下段：線幅5段階 + ズーム + 消去
+          // 下段：線幅3段階 + Undo/Redo + ズーム + 消去
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.start, // 左寄せ
               children: [
-                // ペン太さ5段階
-                _buildStrokeWidthButton(1.0, 1),
-                _buildStrokeWidthButton(2.0, 2),
-                _buildStrokeWidthButton(4.0, 3),
-                _buildStrokeWidthButton(6.0, 4),
-                _buildStrokeWidthButton(8.0, 5),
+                // ペン太さ3段階（細・中・太）
+                _buildStrokeWidthButton(2.0, 1, label: '細'),
+                _buildStrokeWidthButton(4.0, 2, label: '中'),
+                _buildStrokeWidthButton(6.0, 3, label: '太'),
+                const SizedBox(width: 16),
+                // Undoボタン
+                IconButton(
+                  icon: const Icon(Icons.undo, size: 20),
+                  onPressed: (_canUndo() &&
+                          !(_currentWhiteboard.isGroupWhiteboard &&
+                              _isEditingLocked))
+                      ? _undo
+                      : null,
+                  tooltip: !_canUndo()
+                      ? 'これ以上戻せません'
+                      : (_currentWhiteboard.isGroupWhiteboard &&
+                              _isEditingLocked)
+                          ? '編集ロック中'
+                          : '元に戻す',
+                ),
+                // Redoボタン
+                IconButton(
+                  icon: const Icon(Icons.redo, size: 20),
+                  onPressed: (_canRedo() &&
+                          !(_currentWhiteboard.isGroupWhiteboard &&
+                              _isEditingLocked))
+                      ? _redo
+                      : null,
+                  tooltip: !_canRedo()
+                      ? 'これ以上進めません'
+                      : (_currentWhiteboard.isGroupWhiteboard &&
+                              _isEditingLocked)
+                          ? '編集ロック中'
+                          : 'やり直す',
+                ),
                 const SizedBox(width: 16),
                 // ズームアウト
                 IconButton(
@@ -1343,8 +1480,8 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     );
   }
 
-  /// ペン太さボタン（5段階）
-  Widget _buildStrokeWidthButton(double width, int level) {
+  /// ペン太さボタン（3段階：細・中・太）
+  Widget _buildStrokeWidthButton(double width, int level, {String? label}) {
     final isSelected = _strokeWidth == width;
     final isEnabled = _currentWhiteboard.isGroupWhiteboard
         ? !_isEditingLocked
@@ -1352,40 +1489,59 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
 
     return Opacity(
       opacity: isEnabled ? 1.0 : 0.5,
-      child: IconButton(
-        icon: Container(
-          width: 8.0 + (level * 2),
-          height: 8.0 + (level * 2),
-          decoration: BoxDecoration(
-            color: isSelected ? Colors.blue : Colors.grey,
-            shape: BoxShape.circle,
-          ),
-        ),
-        onPressed: isEnabled
-            ? () {
-                setState(() {
-                  // 🔥 太さ変更前に現在の描画を保存
-                  _captureCurrentDrawing();
-                  _strokeWidth = width;
-                  // SignatureControllerは再作成が必要（空でスタート）
-                  // ペン幅はスケーリングを考慮
-                  _controller?.dispose();
-                  _controller = SignatureController(
-                    penStrokeWidth: width * _canvasScale,
-                    penColor: _selectedColor,
-                  );
-                  // 🔒 描画開始時に編集ロックをチェック
-                  _controller?.onDrawStart = () async {
-                    final canDraw = await _onDrawingStart();
-                    if (!canDraw && mounted) {
-                      _controller?.clear();
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              icon: Container(
+                width: 8.0 + (level * 3), // レベルに応じてサイズ変更
+                height: 8.0 + (level * 3),
+                decoration: BoxDecoration(
+                  color: isSelected ? Colors.blue : Colors.grey,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              onPressed: isEnabled
+                  ? () {
+                      setState(() {
+                        // 🔥 太さ変更前に現在の描画を保存
+                        _captureCurrentDrawing();
+                        _strokeWidth = width;
+                        // SignatureControllerは再作成が必要（空でスタート）
+                        // ペン幅はスケーリングを考慮
+                        _controller?.dispose();
+                        _controller = SignatureController(
+                          penStrokeWidth: width * _canvasScale,
+                          penColor: _selectedColor,
+                        );
+                        // 🔒 描画開始時に編集ロックをチェック
+                        _controller?.onDrawStart = () async {
+                          final canDraw = await _onDrawingStart();
+                          if (!canDraw && mounted) {
+                            _controller?.clear();
+                          }
+                        };
+                        _controllerKey++; // キー更新でウィジェット再構築
+                      });
                     }
-                  };
-                  _controllerKey++; // キー更新でウィジェット再構築
-                });
-              }
-            : null, // 編集ロック中はタップ無効
-        tooltip: isEnabled ? '太さ $level' : '編集ロック中',
+                  : null, // 編集ロック中はタップ無効
+              tooltip: isEnabled ? '太さ $level' : '編集ロック中',
+            ),
+            if (label != null)
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: isSelected ? Colors.blue : Colors.grey,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

@@ -102,8 +102,8 @@ class Whiteboard with _$Whiteboard {
               .toList() ??
           [],
       isPrivate: data['isPrivate'] as bool? ?? false,
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      updatedAt: (data['updatedAt'] as Timestamp).toDate(),
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       canvasWidth: (data['canvasWidth'] as num?)?.toDouble() ?? 1280.0,
       canvasHeight: (data['canvasHeight'] as num?)?.toDouble() ?? 720.0,
     );

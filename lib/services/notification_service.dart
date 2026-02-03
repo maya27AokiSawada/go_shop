@@ -3,14 +3,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../utils/app_logger.dart';
-import '../utils/firestore_helper.dart'; // Firestore操作ヘルパー
 import 'user_initialization_service.dart';
 import '../providers/purchase_group_provider.dart'; // selectedGroupIdProvider, SharedGroupRepositoryProvider
 import '../providers/current_list_provider.dart'; // currentListProvider
-import '../providers/hive_provider.dart'; // Hive Box プロバイダー
 import '../datastore/hive_shared_group_repository.dart'; // hiveSharedGroupRepositoryProvider
 import '../models/shared_group.dart';
-import '../datastore/firestore_purchase_group_repository.dart'; // Repository型チェック用
 
 /// 通知サービスプロバイダー
 final notificationServiceProvider = Provider<NotificationService>((ref) {
@@ -188,100 +185,52 @@ class NotificationService {
       // 通知タイプによって処理を分岐
       switch (notification.type) {
         case NotificationType.groupMemberAdded:
-          // 新メンバー追加通知 - 招待元が受諾者をグループに追加
-          AppLogger.info('========================================');
-          AppLogger.info('👥 [NOTIFICATION] 新メンバー追加通知を受信！');
-          AppLogger.info('👥 [NOTIFICATION] 通知ID: ${notification.id}');
-          AppLogger.info(
-              '👥 [NOTIFICATION] タイムスタンプ: ${notification.timestamp}');
-          AppLogger.info('========================================');
+          // metadataにacceptorUidがある場合は招待元、なければ既存メンバー
+          if (notification.metadata?['acceptorUid'] != null) {
+            // 招待元: 新メンバー追加処理
+            AppLogger.info('========================================');
+            AppLogger.info('👥 [NOTIFICATION] 招待元として新メンバー追加通知を受信！');
+            AppLogger.info('========================================');
 
-          final groupId = notification.groupId; // ← トップレベルから取得
-          final acceptorUid = notification.metadata?['acceptorUid'] as String?;
-          final acceptorName =
-              notification.metadata?['acceptorName'] as String? ?? 'ユーザー';
+            final groupId = notification.groupId;
+            final acceptorUid = notification.metadata?['acceptorUid'] as String?;
+            final acceptorName =
+                notification.metadata?['acceptorName'] as String? ?? 'ユーザー';
 
-          AppLogger.info(
-              '👥 [NOTIFICATION] グループID: ${AppLogger.maskGroupId(groupId)}');
-          AppLogger.info(
-              '👥 [NOTIFICATION] グループID isEmpty: ${groupId.isEmpty}');
-          AppLogger.info(
-              '👥 [NOTIFICATION] 受諾者UID: ${AppLogger.maskUserId(acceptorUid)}');
-          AppLogger.info(
-              '👥 [NOTIFICATION] 受諾者UID == null: ${acceptorUid == null}');
-          AppLogger.info(
-              '👥 [NOTIFICATION] 受諾者名: ${AppLogger.maskName(acceptorName)}');
-          AppLogger.info(
-              '👥 [NOTIFICATION] metadata全体: ${notification.metadata}');
-
-          if (groupId.isNotEmpty && acceptorUid != null) {
-            AppLogger.info('✅ [NOTIFICATION] 条件クリア - メンバー追加処理開始');
-            try {
-              // 受諾者をグループに追加（招待元として実行）
+            if (groupId.isNotEmpty && acceptorUid != null) {
               await _addMemberToGroup(groupId, acceptorUid, acceptorName);
-              AppLogger.info('✅ [NOTIFICATION] メンバー追加処理完了');
-
-              // 🔥 招待使用回数を更新（招待元として実行）
               final invitationId =
                   notification.metadata?['invitationId'] as String?;
               if (invitationId != null) {
                 await _updateInvitationUsage(
-                  groupId: groupId,
-                  invitationId: invitationId,
-                  acceptorUid: acceptorUid,
-                );
+                    groupId: groupId,
+                    invitationId: invitationId,
+                    acceptorUid: acceptorUid);
               }
-            } catch (e, stackTrace) {
-              AppLogger.error('❌ [NOTIFICATION] メンバー追加処理エラー: $e');
-              AppLogger.error('❌ [NOTIFICATION] スタックトレース: $stackTrace');
-              rethrow;
+              await sendNotification(
+                  targetUserId: acceptorUid,
+                  type: NotificationType.syncConfirmation,
+                  groupId: groupId,
+                  message: 'グループへの参加が承認されました',
+                  metadata: {
+                    'confirmedBy': currentUser.uid,
+                    'groupName': notification.metadata?['groupName']
+                  });
             }
-
-            // UI更新（全グループプロバイダーを即座に更新）
-            _ref.invalidate(allGroupsProvider);
-
-            // 現在選択中のグループIDを確認
-            final selectedGroupId = _ref.read(selectedGroupIdProvider);
-            if (selectedGroupId == groupId) {
-              // 対象グループが現在選択中の場合、selectedGroupProviderも更新
-              _ref.invalidate(selectedGroupProvider);
-              AppLogger.info(
-                  '✅ [NOTIFICATION] 選択中グループも更新: ${AppLogger.maskGroupId(groupId)}');
-            }
-
-            // 受諾者に確認通知を送信
-            AppLogger.info('📤 [NOTIFICATION] 確認通知を送信: $acceptorUid');
-            await sendNotification(
-              targetUserId: acceptorUid,
-              type: NotificationType.syncConfirmation,
-              groupId: groupId,
-              message: 'グループへの参加が承認されました',
-              metadata: {
-                'confirmedBy': currentUser.uid,
-                'groupName': notification.metadata?['groupName']
-              },
-            );
           } else {
-            AppLogger.error('❌ [NOTIFICATION] 条件不一致 - メンバー追加処理スキップ');
-            AppLogger.error('   - groupId.isEmpty: ${groupId.isEmpty}');
-            AppLogger.error('   - acceptorUid == null: ${acceptorUid == null}');
-
-            // groupIdがない場合は全体同期
+            // 既存メンバー: 同期処理
+            AppLogger.info('👥 [NOTIFICATION] 既存メンバーとして同期通知を受信！');
             final userInitService =
                 _ref.read(userInitializationServiceProvider);
             await userInitService.syncFromFirestoreToHive(currentUser);
-
-            // UI更新
-            _ref.invalidate(allGroupsProvider);
-            _ref.invalidate(selectedGroupProvider);
           }
-
-          AppLogger.info('✅ [NOTIFICATION] 同期完了 - UI更新');
+          // UI更新
+          _ref.invalidate(allGroupsProvider);
+          _ref.invalidate(selectedGroupProvider);
           break;
 
         case NotificationType.invitationAccepted:
         case NotificationType.groupUpdated:
-        case NotificationType.groupMemberAdded: // 🔥 新規追加：3番目メンバー招待対応
           // Firestore→Hive同期
           AppLogger.info('🔄 [NOTIFICATION] Firestore→Hive同期開始');
           final userInitService = _ref.read(userInitializationServiceProvider);
@@ -299,6 +248,7 @@ class NotificationService {
           final userInitService = _ref.read(userInitializationServiceProvider);
           await userInitService.syncFromFirestoreToHive(currentUser);
           _ref.invalidate(allGroupsProvider);
+  
           AppLogger.info('✅ [NOTIFICATION] 確認通知による同期完了');
           break;
 
@@ -531,43 +481,6 @@ class NotificationService {
     } catch (e) {
       AppLogger.error('❌ [OWNER] グループ更新エラー: $e');
       rethrow;
-    }
-  }
-
-  /// 特定グループをFirestoreから取得してHiveに同期
-  Future<void> _syncSpecificGroupFromFirestore(String groupId) async {
-    try {
-      AppLogger.info(
-          '🔄 [NOTIFICATION] グループ同期開始: ${AppLogger.maskGroupId(groupId)}');
-
-      // 🔥 共通ユーティリティでFirestoreから取得
-      final group = await FirestoreHelper.fetchGroup(groupId);
-
-      if (group == null) {
-        AppLogger.warning(
-            '⚠️ [NOTIFICATION] グループが存在しません: ${AppLogger.maskGroupId(groupId)}');
-        return;
-      }
-
-      AppLogger.info('🔍 [NOTIFICATION] 同期グループallowedUid: ${group.allowedUid}');
-
-      // 🔥 CRITICAL FIX: Hiveにのみ保存（Firestoreへの逆書き込みを防ぐ）
-      final repository = _ref.read(SharedGroupRepositoryProvider);
-
-      // FirestoreRepositoryの場合は、Hive Boxに直接書き込む
-      if (repository is FirestoreSharedGroupRepository) {
-        final SharedGroupBox = _ref.read(SharedGroupBoxProvider);
-        await SharedGroupBox.put(groupId, group);
-        AppLogger.info(
-            '✅ [NOTIFICATION] HiveのみにGroup保存（Firestore書き戻し回避）: ${group.groupName}');
-      } else {
-        // HiveRepositoryの場合は通常のupdateを使用
-        await repository.updateGroup(groupId, group);
-        AppLogger.info(
-            '✅ [NOTIFICATION] グループ同期完了: ${AppLogger.maskGroup(group.groupName, group.groupId)}');
-      }
-    } catch (e) {
-      AppLogger.error('❌ [NOTIFICATION] グループ同期エラー: $e');
     }
   }
 
