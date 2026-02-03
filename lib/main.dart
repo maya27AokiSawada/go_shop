@@ -28,8 +28,9 @@ void main() async {
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     await SentryFlutter.init(
       (options) {
-        // 🔥 DSN設定（環境変数から取得、なければ空文字）
-        options.dsn = ''; // TODO: Sentry.ioでプロジェクト作成後、DSNを設定
+        // 🔥 DSN設定
+        options.dsn =
+            'https://9aa7459e94ab157f830e81c9f1a585b3@o4510820521738240.ingest.us.sentry.io/4510820522786816';
 
         // デバッグモードではSentryを無効化
         options.debug = kDebugMode;
