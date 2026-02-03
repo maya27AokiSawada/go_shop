@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:signature/signature.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import '../models/whiteboard.dart';
 import '../providers/whiteboard_provider.dart';
 import '../providers/auth_provider.dart';
@@ -736,8 +738,34 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
           const SnackBar(content: Text('保存しました')),
         );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       AppLogger.error('❌ ホワイトボード保存エラー: $e');
+
+      // 🔥 Sentry/Crashlyticsにエラー送信（Platform判定）
+      if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+        // Windows/Linux/macOS: Sentry
+        try {
+          await Sentry.captureException(
+            e,
+            stackTrace: stackTrace,
+            hint: Hint.withMap({
+              'whiteboard_id': _currentWhiteboard.whiteboardId,
+              'group_id': widget.groupId,
+              'stroke_count': _workingStrokes.length,
+              'is_group_whiteboard': _currentWhiteboard.isGroupWhiteboard,
+              'platform': Platform.operatingSystem,
+            }),
+          );
+          AppLogger.info('📤 [Sentry] エラーレポート送信完了');
+        } catch (sentryError) {
+          AppLogger.error('⚠️ [Sentry] レポート送信失敗: $sentryError');
+        }
+      } else {
+        // Android/iOS: Firebase Crashlytics
+        FirebaseCrashlytics.instance.recordError(e, stackTrace);
+        AppLogger.info('📤 [Crashlytics] エラーレポート送信完了');
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('保存に失敗しました: $e')),

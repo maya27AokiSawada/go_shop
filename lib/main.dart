@@ -5,8 +5,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:hive/hive.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'dart:io' show Platform;
 import 'firebase_options.dart';
 import 'screens/home_screen.dart';
 // QRコード招待機能
@@ -22,6 +24,47 @@ import 'adapters/user_settings_adapter_override.dart';
 import 'utils/app_logger.dart';
 
 void main() async {
+  // 🔥 Windows/Linux/macOS用 Sentry初期化
+  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    await SentryFlutter.init(
+      (options) {
+        // 🔥 DSN設定（環境変数から取得、なければ空文字）
+        options.dsn = ''; // TODO: Sentry.ioでプロジェクト作成後、DSNを設定
+
+        // デバッグモードではSentryを無効化
+        options.debug = kDebugMode;
+        options.environment = kDebugMode ? 'development' : 'production';
+
+        // パフォーマンス監視設定
+        options.tracesSampleRate = kDebugMode ? 1.0 : 0.5;
+        options.enableAutoPerformanceTracing = true;
+
+        // クラッシュ時スクリーンショット（Windows版でも動作）
+        options.attachScreenshot = true;
+        options.screenshotQuality = SentryScreenshotQuality.medium;
+
+        // プライバシー保護：個人情報マスキング
+        options.beforeSend = (event, hint) {
+          // ユーザーIDマスキング
+          if (event.user?.id != null) {
+            event = event.copyWith(
+              user: event.user?.copyWith(
+                id: AppLogger.maskUserId(event.user?.id),
+              ),
+            );
+          }
+          return event;
+        };
+      },
+      appRunner: () => _initializeApp(),
+    );
+  } else {
+    // Android/iOS: Sentryなしで直接初期化
+    await _initializeApp();
+  }
+}
+
+Future<void> _initializeApp() async {
   AppLogger.info('▶️ main() 開始');
   WidgetsFlutterBinding.ensureInitialized();
   AppLogger.info('✅ WidgetsFlutterBinding.ensureInitialized() 完了');
@@ -75,20 +118,27 @@ void main() async {
       // Firestore の状態確認
       AppLogger.info('🗃️ Firestore インスタンス: ${FirebaseFirestore.instance}');
 
-      // 🔥 Crashlytics初期化（一時的に無効化 - Windows対応問題のため）
-      // FlutterError.onError = (errorDetails) {
-      //   FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
-      //   AppLogger.error('❌ Flutter Fatal Error: ${errorDetails.exception}');
-      // };
+      // 🔥 クラッシュレポート初期化（Platform判定で分岐）
+      if (Platform.isAndroid || Platform.isIOS) {
+        // Android/iOS: Firebase Crashlytics
+        FlutterError.onError = (errorDetails) {
+          FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+          AppLogger.error(
+              '❌ [Crashlytics] Flutter Fatal Error: ${errorDetails.exception}');
+        };
 
-      // // Pass all uncaught asynchronous errors to Crashlytics
-      // PlatformDispatcher.instance.onError = (error, stack) {
-      //   FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-      //   AppLogger.error('❌ Async Error: $error');
-      //   return true;
-      // };
+        PlatformDispatcher.instance.onError = (error, stack) {
+          FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+          AppLogger.error('❌ [Crashlytics] Async Error: $error');
+          return true;
+        };
 
-      AppLogger.info('✅ Firebase Crashlytics初期化成功');
+        AppLogger.info('✅ Firebase Crashlytics初期化成功（Android/iOS）');
+      } else {
+        // Windows/Linux/macOS: Sentry
+        // Sentry初期化はmain()で実行済み
+        AppLogger.info('✅ Sentry初期化完了（Windows/Linux/macOS）');
+      }
     } catch (e, stackTrace) {
       AppLogger.error('❌ Firebase初期化エラー詳細: $e');
       AppLogger.error('📚 エラータイプ: ${e.runtimeType}');
