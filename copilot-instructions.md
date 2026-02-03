@@ -2,7 +2,7 @@
 
 ## Recent Implementations (2026-02-03)
 
-### フィードバック催促機能の動作確認と原因調査 ✅
+### 1. フィードバック催促機能の動作確認と原因調査 ✅
 
 **Purpose**: 「フィードバック催促機能が動作しない」報告を受け、原因を特定
 
@@ -47,47 +47,6 @@ static Future<bool> isTestingActive() async {
 }
 ```
 
-#### 3. ログ分析と原因特定
-
-**ユーザー提供のログ**:
-
-```
-I/flutter (27716): 🧪 [FEEDBACK] テスト実施中フラグ: true
-I/flutter (27716): 🧪 [FEEDBACK] テスト実施中 - 催促条件をチェック
-I/flutter (27716): ⏭️ [FEEDBACK] 催促条件未達成 - 催促なし (起動回数: 14)
-I/flutter (27716): 🎯 [NEWS] 催促表示判定結果: false
-```
-
-**分析結果**:
-
-- `isTestingActive`フラグは`true` → **Firestore読み込み成功**
-- 現在の起動回数: **14回** → 次の催促タイミング（25回目）未達
-- **結論**: 機能は正常動作、単に条件未達
-
-#### 4. 改善提案
-
-**テスト効率化**: 設定画面に「アプリ起動回数リセット」ボタンを追加
-
-- いつでも初回催促（5回目）の条件を再現可能
-- クローズドテストの効率向上
-
-**実装例**:
-
-```dart
-// lib/pages/settings_page.dart（開発環境のみ）
-if (F.appFlavor == Flavor.dev) {
-  ElevatedButton(
-    onPressed: () async {
-      await AppLaunchService.resetLaunchCount();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('起動回数をリセットしました')),
-      );
-    },
-    child: Text('起動回数リセット'),
-  );
-}
-```
-
 **Key Patterns**:
 
 1. **前提条件の完全確認**: 機能不全を疑う前に、動作条件をすべて確認
@@ -97,6 +56,385 @@ if (F.appFlavor == Flavor.dev) {
 **Modified Files**:
 
 - `lib/services/feedback_prompt_service.dart` - デバッグログ追加
+
+---
+
+### 2. ホワイトボードUndo/Redo機能実装 ✅
+
+**Purpose**: 手書きホワイトボードに履歴スタックベースのundo/redo機能を追加
+
+**Architecture**:
+
+#### 履歴スタック実装
+
+```dart
+// lib/pages/whiteboard_editor_page.dart
+class _WhiteboardEditorPageState extends ConsumerStatefulWidget {
+  final List<List<DrawingStroke>> _history = [];
+  int _historyIndex = -1;
+
+  void _saveToHistory() {
+    // Redo用の未来の履歴削除
+    if (_historyIndex < _history.length - 1) {
+      _history.removeRange(_historyIndex + 1, _history.length);
+    }
+
+    // 現在の状態を保存
+    _history.add(List<DrawingStroke>.from(_workingStrokes));
+    _historyIndex = _history.length - 1;
+
+    // 履歴サイズ制限（最大50ステップ）
+    if (_history.length > 50) {
+      _history.removeAt(0);
+      _historyIndex--;
+    }
+  }
+
+  void _undo() {
+    if (!_canUndo()) return;
+    _historyIndex--;
+    _workingStrokes.clear();
+    _workingStrokes.addAll(_history[_historyIndex]);
+    setState(() {});
+  }
+
+  void _redo() {
+    if (!_canRedo()) return;
+    _historyIndex++;
+    _workingStrokes.clear();
+    _workingStrokes.addAll(_history[_historyIndex]);
+    setState(() {});
+  }
+
+  bool _canUndo() => _historyIndex > 0;
+  bool _canRedo() => _historyIndex < _history.length - 1;
+}
+```
+
+#### Critical Pattern: 履歴保存のタイミング
+
+**⚠️ CRITICAL**: 以下の**すべての箇所**で`_saveToHistory()`を呼び出す必要がある
+
+```dart
+// 1. ホワイトボード保存完了後
+Future<void> _saveWhiteboard() async {
+  try {
+    // Firestore保存処理...
+    _workingStrokes.clear();
+    _workingStrokes.addAll(newStrokes);
+    _saveToHistory(); // ← 必須！
+  } catch (e) {
+    // エラーハンドリング
+  }
+}
+
+// 2. Firestoreリアルタイム更新時
+void _startWhiteboardListener() {
+  _whiteboardSubscription = repository
+      .watchWhiteboard(widget.groupId, widget.whiteboardId)
+      .listen((latest) {
+    if (latest != null) {
+      _currentWhiteboard = latest;
+      _workingStrokes..clear()..addAll(latest.strokes);
+      _saveToHistory(); // ← 必須！
+    }
+  });
+}
+
+// 3. 全クリア時
+void _clearWhiteboard() {
+  _workingStrokes.clear();
+  _history.clear();
+  _historyIndex = -1;
+  setState(() {});
+}
+```
+
+**Anti-Pattern**: 履歴保存忘れ
+
+```dart
+// ❌ Wrong: 状態変更後に履歴保存しない
+_workingStrokes.clear();
+_workingStrokes.addAll(newStrokes);
+setState(() {}); // Undo/Redoが壊れる
+
+// ✅ Correct: 状態変更とセットで履歴保存
+_workingStrokes.clear();
+_workingStrokes.addAll(newStrokes);
+_saveToHistory(); // 必須
+setState(() {});
+```
+
+#### UI改善パターン
+
+**ペン太さボタン**: 5段階 → 3段階に簡素化
+
+```dart
+// Before: 5レベル（1.0, 2.0, 4.0, 6.0, 8.0）
+_buildStrokeWidthButton(1.0, 1),
+_buildStrokeWidthButton(2.0, 2),
+_buildStrokeWidthButton(4.0, 3),
+_buildStrokeWidthButton(6.0, 4),
+_buildStrokeWidthButton(8.0, 5),
+
+// After: 3レベル（2.0, 4.0, 6.0）with ラベル
+_buildStrokeWidthButton(2.0, 1, label: '細'),
+_buildStrokeWidthButton(4.0, 2, label: '中'),
+_buildStrokeWidthButton(6.0, 3, label: '太'),
+```
+
+**Undo/Redoボタン**: 有効/無効切り替え
+
+```dart
+IconButton(
+  icon: Icon(Icons.undo),
+  onPressed: _canUndo() ? _undo : null, // ← null時は無効化
+  tooltip: 'Undo',
+),
+IconButton(
+  icon: Icon(Icons.redo),
+  onPressed: _canRedo() ? _redo : null, // ← null時は無効化
+  tooltip: 'Redo',
+),
+```
+
+**Modified Files**:
+
+- `lib/pages/whiteboard_editor_page.dart` - undo/redo実装、履歴保存バグ修正
+
+---
+
+### 3. Timestampクラッシュ修正（Firestoreデータnullセーフティ）✅
+
+**Problem**: Windows版でホワイトボード描画中にクラッシュ
+
+**Error Message**:
+
+```
+type 'Null' is not a subtype of type 'Timestamp' in type cast
+#0 new Whiteboard.fromFirestore (whiteboard.dart:106)
+```
+
+**Root Cause**: Firestoreから取得したホワイトボードデータに`createdAt`/`updatedAt`がnullの場合があった
+
+**Critical Pattern**: Firestore Timestampのnullセーフ処理
+
+```dart
+// ❌ Wrong: nullの場合クラッシュ
+createdAt: (data['createdAt'] as Timestamp).toDate(),
+updatedAt: (data['updatedAt'] as Timestamp).toDate(),
+
+// ✅ Correct: nullable型 + null coalescing
+createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+```
+
+**General Pattern**: Firestore型キャスト
+
+```dart
+// String型
+final name = data['name'] as String? ?? '';
+
+// int型
+final count = data['count'] as int? ?? 0;
+
+// bool型
+final isActive = data['isActive'] as bool? ?? false;
+
+// List型
+final items = (data['items'] as List<dynamic>?)?.cast<String>() ?? [];
+
+// Map型
+final metadata = data['metadata'] as Map<String, dynamic>? ?? {};
+
+// Timestamp型（最も重要）
+final timestamp = (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+```
+
+**Modified Files**:
+
+- `lib/models/whiteboard.dart` - Timestamp nullチェック追加（`as Timestamp?`パターン）
+
+---
+
+### 4. Sentry統合実装（Windows/Linux/macOS対応クラッシュレポート）✅
+
+**Purpose**: Firebase Crashlytics非対応のデスクトッププラットフォームにクラッシュレポート機能を追加
+
+**Architecture**: Platform-Specific Crash Reporting
+
+```dart
+// lib/main.dart
+import 'dart:io' show Platform;
+import 'package:sentry_flutter/sentry_flutter.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Platform判定による初期化分岐
+  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    // デスクトップ: Sentry統合
+    await SentryFlutter.init(
+      (options) {
+        options.dsn = 'https://9aa7459e94ab157f830e81c9f1a585b3@o4510820521738240.ingest.us.sentry.io/4510820522786816';
+        options.debug = kDebugMode;
+        options.environment = kDebugMode ? 'development' : 'production';
+
+        // パフォーマンストレース（50%サンプリング）
+        options.tracesSampleRate = kDebugMode ? 1.0 : 0.5;
+        options.enableAutoPerformanceTracing = true;
+
+        // スクリーンショット自動添付
+        options.attachScreenshot = true;
+        options.screenshotQuality = SentryScreenshotQuality.medium;
+
+        // プライバシー保護: ユーザーID自動マスキング
+        options.beforeSend = (event, hint) {
+          if (event.user?.id != null) {
+            event = event.copyWith(
+              user: event.user?.copyWith(
+                id: AppLogger.maskUserId(event.user?.id), // abc*** 形式
+              ),
+            );
+          }
+          return event;
+        };
+      },
+      appRunner: () => _initializeApp(),
+    );
+  } else {
+    // モバイル: Firebase Crashlytics（既存コード維持）
+    await _initializeApp();
+  }
+}
+
+Future<void> _initializeApp() async {
+  // 既存の初期化コード...
+
+  // Platform別クラッシュハンドラー設定
+  if (Platform.isAndroid || Platform.isIOS) {
+    FlutterError.onError = (errorDetails) {
+      FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+    };
+    PlatformDispatcher.instance.onError = (error, stack) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      return true;
+    };
+  }
+  // Windows/Linux/macOS: Sentryがmain()で初期化済み
+
+  runApp(const ProviderScope(child: MyApp()));
+}
+```
+
+#### エラー送信パターン（コンテキスト情報付き）
+
+```dart
+// lib/pages/whiteboard_editor_page.dart
+try {
+  // ホワイトボード保存処理
+} catch (e, stackTrace) {
+  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    // Desktop: Sentryにエラー送信
+    await Sentry.captureException(
+      e,
+      stackTrace: stackTrace,
+      hint: Hint.withMap({
+        'whiteboard_id': _currentWhiteboard.whiteboardId,
+        'group_id': widget.groupId,
+        'stroke_count': _workingStrokes.length,
+        'is_group_whiteboard': _currentWhiteboard.isGroupWhiteboard,
+        'platform': Platform.operatingSystem,
+      }),
+    );
+  } else {
+    // Mobile: Firebase Crashlyticsにエラー送信
+    FirebaseCrashlytics.instance.recordError(e, stackTrace);
+  }
+
+  AppLogger.error('❌ [WHITEBOARD] 保存エラー: $e');
+  rethrow;
+}
+```
+
+#### プライバシー保護パターン
+
+**ユーザーID自動マスキング**:
+
+```dart
+// lib/main.dart (beforeSendフック)
+options.beforeSend = (event, hint) {
+  if (event.user?.id != null) {
+    event = event.copyWith(
+      user: event.user?.copyWith(
+        id: AppLogger.maskUserId(event.user?.id), // abc123def456 → abc***
+      ),
+    );
+  }
+  return event;
+};
+```
+
+**AppLogger.maskUserId()実装** (`lib/utils/app_logger.dart`):
+
+```dart
+static String maskUserId(String? userId) {
+  if (userId == null || userId.isEmpty) return '***';
+  if (userId.length <= 3) return '***';
+  return '${userId.substring(0, 3)}***';
+}
+```
+
+#### Sentry DSN設定
+
+**pubspec.yaml**:
+
+```yaml
+dependencies:
+  sentry_flutter: ^8.9.0 # Windows/Linux/macOS対応
+```
+
+**DSN取得手順**:
+
+1. [sentry.io](https://sentry.io/)でアカウント作成
+2. プロジェクト作成（Flutter選択）
+3. DSN（Data Source Name）をコピー
+4. `lib/main.dart`の`options.dsn`に設定
+
+**動作確認**:
+
+```dart
+// テスト用クラッシュ
+ElevatedButton(
+  onPressed: () {
+    throw Exception('Sentry動作確認テスト');
+  },
+  child: Text('テストクラッシュ'),
+);
+```
+
+#### Critical Patterns
+
+1. **Platform判定は初期化時に行う**（main()関数で分岐）
+2. **Firebase不要**（Sentryは独立したサービス）
+3. **プライバシー優先**（beforeSendフックで自動マスキング）
+4. **コンテキスト情報を豊富に**（Hint.withMapでメタデータ追加）
+
+**Modified Files**:
+
+- `pubspec.yaml` - `sentry_flutter: ^8.9.0`追加
+- `lib/main.dart` - Sentry初期化、Platform判定実装
+- `lib/pages/whiteboard_editor_page.dart` - エラー送信実装
+- `docs/sentry_setup.md` - セットアップガイド作成
+
+---
+
+**Key Learnings**:
+
+1. **Firestore nullセーフティ**: すべてのデータ取得で`as Type?`パターンを使用
+2. **Undo/Redo実装**: 状態変更の**全箇所**で履歴保存必須
+3. **Platform判定**: `dart:io Platform`で自動サービス切り替え
+4. **Sentry活用**: デスクトップ向けクラッシュレポートの決定版
 
 **Status**: ✅ 調査完了 | 機能正常動作確認済み
 
