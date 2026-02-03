@@ -1,5 +1,107 @@
 # GoShopping - AI Coding Agent Instructions
 
+## Recent Implementations (2026-02-03)
+
+### フィードバック催促機能の動作確認と原因調査 ✅
+
+**Purpose**: 「フィードバック催促機能が動作しない」報告を受け、原因を特定
+
+**Investigation Process**:
+
+#### 1. コードレビュー結果
+
+**✅ すべて正常に実装されていることを確認**:
+
+- `home_page.dart`: `initState`で`_incrementAppLaunchCount`が正しく呼び出し
+- `AppLaunchService.dart`: SharedPreferencesで起動回数を正確にカウント
+- `FeedbackPromptService.dart`: 催促表示条件ロジックが正確に実装
+  - 条件1: Firestore `testingStatus/active`の`isTestingActive`が`true`
+  - 条件2: 起動回数が5回、または20回ごと（25回、45回...）
+
+#### 2. デバッグログ強化
+
+**追加したログ** (`lib/services/feedback_prompt_service.dart`):
+
+```dart
+static Future<bool> isTestingActive() async {
+  try {
+    AppLogger.info('🧪 [FEEDBACK] isTestingActive() 呼び出し');
+    final doc = await _firestore.doc(_testStatusPath).get();
+
+    if (!doc.exists) {
+      AppLogger.warning('⚠️ [FEEDBACK] testingStatus/active ドキュメントが見つかりません');
+      return false;
+    }
+
+    final data = doc.data();
+    AppLogger.info('🧪 [FEEDBACK] Firestoreから取得したデータ: $data'); // 🔥 追加
+
+    final isActive = data?['isTestingActive'] as bool? ?? false;
+    AppLogger.info('🧪 [FEEDBACK] isTestingActive フラグの値: $isActive'); // 🔥 追加
+
+    return isActive;
+  } catch (e) {
+    AppLogger.error('❌ [FEEDBACK] テストステータス確認エラー: $e');
+    return false;
+  }
+}
+```
+
+#### 3. ログ分析と原因特定
+
+**ユーザー提供のログ**:
+
+```
+I/flutter (27716): 🧪 [FEEDBACK] テスト実施中フラグ: true
+I/flutter (27716): 🧪 [FEEDBACK] テスト実施中 - 催促条件をチェック
+I/flutter (27716): ⏭️ [FEEDBACK] 催促条件未達成 - 催促なし (起動回数: 14)
+I/flutter (27716): 🎯 [NEWS] 催促表示判定結果: false
+```
+
+**分析結果**:
+
+- `isTestingActive`フラグは`true` → **Firestore読み込み成功**
+- 現在の起動回数: **14回** → 次の催促タイミング（25回目）未達
+- **結論**: 機能は正常動作、単に条件未達
+
+#### 4. 改善提案
+
+**テスト効率化**: 設定画面に「アプリ起動回数リセット」ボタンを追加
+
+- いつでも初回催促（5回目）の条件を再現可能
+- クローズドテストの効率向上
+
+**実装例**:
+
+```dart
+// lib/pages/settings_page.dart（開発環境のみ）
+if (F.appFlavor == Flavor.dev) {
+  ElevatedButton(
+    onPressed: () async {
+      await AppLaunchService.resetLaunchCount();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('起動回数をリセットしました')),
+      );
+    },
+    child: Text('起動回数リセット'),
+  );
+}
+```
+
+**Key Patterns**:
+
+1. **前提条件の完全確認**: 機能不全を疑う前に、動作条件をすべて確認
+2. **詳細デバッグログ**: リモート環境での問題特定を加速
+3. **段階的ログ出力**: Firestoreデータ取得→解析→判定のすべてをログに記録
+
+**Modified Files**:
+
+- `lib/services/feedback_prompt_service.dart` - デバッグログ追加
+
+**Status**: ✅ 調査完了 | 機能正常動作確認済み
+
+---
+
 ## Recent Implementations (2026-01-29)
 
 ### 1. フィードバック催促機能の実装 ✅
