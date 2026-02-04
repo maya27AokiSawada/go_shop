@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/app_logger.dart';
 
@@ -26,6 +27,16 @@ class WhiteboardEditLock {
     required String userName,
   }) async {
     try {
+      // 🔥 Windows版対策: runTransactionでクラッシュするため通常の処理を使用
+      if (Platform.isWindows) {
+        return await _acquireEditLockWithoutTransaction(
+          groupId: groupId,
+          whiteboardId: whiteboardId,
+          userId: userId,
+          userName: userName,
+        );
+      }
+
       return await _firestore.runTransaction<bool>((transaction) async {
         final whiteboardDocRef =
             _whiteboardsCollection(groupId).doc(whiteboardId);
@@ -98,6 +109,16 @@ class WhiteboardEditLock {
     required String userId,
   }) async {
     try {
+      // 🔥 Windows版対策: runTransactionでクラッシュするため通常の処理を使用
+      if (Platform.isWindows) {
+        await _releaseEditLockWithoutTransaction(
+          groupId: groupId,
+          whiteboardId: whiteboardId,
+          userId: userId,
+        );
+        return;
+      }
+
       await _firestore.runTransaction((transaction) async {
         final whiteboardDocRef =
             _whiteboardsCollection(groupId).doc(whiteboardId);
@@ -246,6 +267,15 @@ class WhiteboardEditLock {
     required String whiteboardId,
   }) async {
     try {
+      // 🔥 Windows版対策: runTransactionでクラッシュするため通常の処理を使用
+      if (Platform.isWindows) {
+        await _forceReleaseEditLockWithoutTransaction(
+          groupId: groupId,
+          whiteboardId: whiteboardId,
+        );
+        return true;
+      }
+
       await _firestore.runTransaction((transaction) async {
         final whiteboardDocRef =
             _whiteboardsCollection(groupId).doc(whiteboardId);
@@ -264,6 +294,131 @@ class WhiteboardEditLock {
     } catch (e) {
       AppLogger.error('❌ [LOCK] 編集ロック強制削除エラー: $e');
       return false;
+    }
+  }
+
+  /// 💻 Windows版専用: トランザクションを使わない編集ロック取得
+  Future<bool> _acquireEditLockWithoutTransaction({
+    required String groupId,
+    required String whiteboardId,
+    required String userId,
+    required String userName,
+  }) async {
+    try {
+      final whiteboardDocRef =
+          _whiteboardsCollection(groupId).doc(whiteboardId);
+      final snapshot = await whiteboardDocRef.get();
+
+      if (!snapshot.exists) {
+        throw Exception('ホワイトボードが存在しません');
+      }
+
+      final whiteboardData = snapshot.data()!;
+      final editLock = whiteboardData['editLock'] as Map<String, dynamic>?;
+      final now = DateTime.now();
+      final lockExpiry = now.add(const Duration(hours: 1));
+
+      if (editLock != null) {
+        final currentUserId = editLock['userId'] as String?;
+        final createdAt = (editLock['createdAt'] as Timestamp?)?.toDate();
+
+        // 同じユーザーの場合は延長
+        if (currentUserId == userId) {
+          await whiteboardDocRef.update({
+            'editLock.expiresAt': Timestamp.fromDate(lockExpiry),
+            'editLock.updatedAt': FieldValue.serverTimestamp(),
+          });
+          AppLogger.info(
+              '🔒 [WINDOWS] 編集ロック延長: ${AppLogger.maskUserId(userId)}');
+          return true;
+        }
+
+        // ロックが有効期限内かチェック（1時間）
+        if (createdAt != null && now.difference(createdAt).inHours < 1) {
+          final currentUserName = editLock['userName'] as String? ?? 'Unknown';
+          AppLogger.warning(
+              '⚠️ [WINDOWS] 編集中ユーザー存在: ${AppLogger.maskName(currentUserName)}');
+          return false;
+        }
+
+        AppLogger.info(
+            '🗑️ [WINDOWS] 期限切れロック削除: ${AppLogger.maskUserId(currentUserId)}');
+      }
+
+      // 新しい編集ロックを作成
+      await whiteboardDocRef.update({
+        'editLock': {
+          'userId': userId,
+          'userName': userName,
+          'groupId': groupId,
+          'whiteboardId': whiteboardId,
+          'createdAt': FieldValue.serverTimestamp(),
+          'expiresAt': Timestamp.fromDate(lockExpiry),
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+      });
+
+      AppLogger.info('✅ [WINDOWS] 編集ロック取得成功: ${AppLogger.maskName(userName)}');
+      return true;
+    } catch (e) {
+      AppLogger.error('❌ [WINDOWS] 編集ロック取得エラー: $e');
+      return false;
+    }
+  }
+
+  /// 💻 Windows版専用: トランザクションを使わない編集ロック解除
+  Future<void> _releaseEditLockWithoutTransaction({
+    required String groupId,
+    required String whiteboardId,
+    required String userId,
+  }) async {
+    try {
+      final whiteboardDocRef =
+          _whiteboardsCollection(groupId).doc(whiteboardId);
+      final snapshot = await whiteboardDocRef.get();
+
+      if (!snapshot.exists) return;
+
+      final whiteboardData = snapshot.data()!;
+      final editLock = whiteboardData['editLock'] as Map<String, dynamic>?;
+
+      if (editLock != null) {
+        final currentUserId = editLock['userId'] as String?;
+
+        // 自分のロックの場合のみ削除
+        if (currentUserId == userId) {
+          await whiteboardDocRef.update({
+            'editLock': FieldValue.delete(),
+          });
+          AppLogger.info(
+              '🔓 [WINDOWS] 編集ロック解除: ${AppLogger.maskUserId(userId)}');
+        } else {
+          AppLogger.warning(
+              '⚠️ [WINDOWS] 他ユーザーのロック解除試行: ${AppLogger.maskUserId(userId)}');
+        }
+      }
+    } catch (e) {
+      AppLogger.error('❌ [WINDOWS] 編集ロック解除エラー: $e');
+    }
+  }
+
+  /// 💻 Windows版専用: トランザクションを使わない編集ロック強制解除
+  Future<void> _forceReleaseEditLockWithoutTransaction({
+    required String groupId,
+    required String whiteboardId,
+  }) async {
+    try {
+      final whiteboardDocRef =
+          _whiteboardsCollection(groupId).doc(whiteboardId);
+
+      await whiteboardDocRef.update({
+        'editLock': FieldValue.delete(),
+      });
+
+      AppLogger.info('💀 [WINDOWS] 編集ロック強制削除: $whiteboardId');
+    } catch (e) {
+      AppLogger.error('❌ [WINDOWS] 編集ロック強制削除エラー: $e');
+      rethrow;
     }
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/whiteboard.dart';
 import '../utils/app_logger.dart';
@@ -19,6 +20,16 @@ class WhiteboardConflictResolver {
     if (newStrokes.isEmpty) return;
 
     try {
+      // 🔥 Windows版対策: runTransactionでクラッシュするため通常の処理を使用
+      if (Platform.isWindows) {
+        await _addStrokesWithoutTransaction(
+          groupId: groupId,
+          whiteboardId: whiteboardId,
+          newStrokes: newStrokes,
+        );
+        return;
+      }
+
       // Firestoreトランザクションで安全に追加
       await _firestore.runTransaction((transaction) async {
         final docRef = _firestore
@@ -89,6 +100,17 @@ class WhiteboardConflictResolver {
     if (strokeIds.isEmpty) return;
 
     try {
+      // 🔥 Windows版対策: runTransactionでクラッシュするため通常の処理を使用
+      if (Platform.isWindows) {
+        await _markStrokesAsDeletedWithoutTransaction(
+          groupId: groupId,
+          whiteboardId: whiteboardId,
+          strokeIds: strokeIds,
+          deletedBy: deletedBy,
+        );
+        return;
+      }
+
       await _firestore.runTransaction((transaction) async {
         final docRef = _firestore
             .collection('SharedGroups')
@@ -137,6 +159,16 @@ class WhiteboardConflictResolver {
     required int expectedVersion,
   }) async {
     try {
+      // 🔥 Windows版対策: runTransactionでクラッシュするため通常の処理を使用
+      if (Platform.isWindows) {
+        return await _updateWithVersionCheckWithoutTransaction(
+          groupId: groupId,
+          whiteboardId: whiteboardId,
+          updatedWhiteboard: updatedWhiteboard,
+          expectedVersion: expectedVersion,
+        );
+      }
+
       return await _firestore.runTransaction<bool>((transaction) async {
         final docRef = _firestore
             .collection('SharedGroups')
@@ -175,7 +207,152 @@ class WhiteboardConflictResolver {
     }
   }
 
-  /// 🔥 改善案4: リアルタイム競合検知
+  /// � Windows版専用: トランザクションを使わないストローク追加
+  Future<void> _addStrokesWithoutTransaction({
+    required String groupId,
+    required String whiteboardId,
+    required List<DrawingStroke> newStrokes,
+  }) async {
+    try {
+      final docRef = _firestore
+          .collection('SharedGroups')
+          .doc(groupId)
+          .collection('whiteboards')
+          .doc(whiteboardId);
+
+      final snapshot = await docRef.get();
+      if (!snapshot.exists) {
+        throw Exception('ホワイトボードが存在しません');
+      }
+
+      final currentData = snapshot.data()!;
+      final currentStrokes = (currentData['strokes'] as List<dynamic>?)
+              ?.map(
+                  (s) => DrawingStroke.fromFirestore(s as Map<String, dynamic>))
+              .toList() ??
+          [];
+
+      final existingStrokeIds = currentStrokes.map((s) => s.strokeId).toSet();
+      final uniqueNewStrokes = newStrokes
+          .where((stroke) => !existingStrokeIds.contains(stroke.strokeId))
+          .toList();
+
+      if (uniqueNewStrokes.isEmpty) {
+        AppLogger.info('📋 [WINDOWS] 重複ストローク検出、追加をスキップ');
+        return;
+      }
+
+      final mergedStrokes = [...currentStrokes, ...uniqueNewStrokes];
+
+      await docRef.update({
+        'strokes': mergedStrokes
+            .map((s) => {
+                  'strokeId': s.strokeId,
+                  'points': s.points.map((p) => p.toMap()).toList(),
+                  'colorValue': s.colorValue,
+                  'strokeWidth': s.strokeWidth,
+                  'createdAt': Timestamp.fromDate(s.createdAt),
+                  'authorId': s.authorId,
+                  'authorName': s.authorName,
+                })
+            .toList(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      AppLogger.info('✅ [WINDOWS] ${uniqueNewStrokes.length}個のストロークを安全に追加');
+    } catch (e) {
+      AppLogger.error('❌ [WINDOWS] ストローク追加エラー: $e');
+      rethrow;
+    }
+  }
+
+  /// 💻 Windows版専用: トランザクションを使わないストローク削除
+  Future<void> _markStrokesAsDeletedWithoutTransaction({
+    required String groupId,
+    required String whiteboardId,
+    required List<String> strokeIds,
+    required String deletedBy,
+  }) async {
+    try {
+      final docRef = _firestore
+          .collection('SharedGroups')
+          .doc(groupId)
+          .collection('whiteboards')
+          .doc(whiteboardId);
+
+      final snapshot = await docRef.get();
+      if (!snapshot.exists) return;
+
+      final currentData = snapshot.data()!;
+      final strokes = (currentData['strokes'] as List<dynamic>?)
+              ?.map((s) => s as Map<String, dynamic>)
+              .toList() ??
+          [];
+
+      for (var stroke in strokes) {
+        final strokeId = stroke['strokeId'] as String;
+        if (strokeIds.contains(strokeId)) {
+          stroke['isDeleted'] = true;
+          stroke['deletedAt'] = FieldValue.serverTimestamp();
+          stroke['deletedBy'] = deletedBy;
+        }
+      }
+
+      await docRef.update({
+        'strokes': strokes,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      AppLogger.info('✅ [WINDOWS] ${strokeIds.length}個のストロークを削除マーク');
+    } catch (e) {
+      AppLogger.error('❌ [WINDOWS] ストローク削除エラー: $e');
+      rethrow;
+    }
+  }
+
+  /// 💻 Windows版専用: トランザクションを使わないバージョン更新
+  Future<bool> _updateWithVersionCheckWithoutTransaction({
+    required String groupId,
+    required String whiteboardId,
+    required Whiteboard updatedWhiteboard,
+    required int expectedVersion,
+  }) async {
+    try {
+      final docRef = _firestore
+          .collection('SharedGroups')
+          .doc(groupId)
+          .collection('whiteboards')
+          .doc(whiteboardId);
+
+      final snapshot = await docRef.get();
+      if (!snapshot.exists) {
+        throw Exception('ホワイトボードが存在しません');
+      }
+
+      final currentData = snapshot.data()!;
+      final currentVersion = currentData['version'] as int? ?? 0;
+
+      if (currentVersion != expectedVersion) {
+        AppLogger.warning(
+            '⚠️ [WINDOWS] バージョン競合検出: expected=$expectedVersion, current=$currentVersion');
+        return false;
+      }
+
+      final newData = updatedWhiteboard.toFirestore();
+      newData['version'] = currentVersion + 1;
+      newData['updatedAt'] = FieldValue.serverTimestamp();
+
+      await docRef.set(newData);
+
+      AppLogger.info('✅ [WINDOWS] バージョン更新成功: v${currentVersion + 1}');
+      return true;
+    } catch (e) {
+      AppLogger.error('❌ [WINDOWS] バージョン更新エラー: $e');
+      return false;
+    }
+  }
+
+  /// �🔥 改善案4: リアルタイム競合検知
   /// 他ユーザーの編集中状態を監視
   Stream<List<String>> watchActiveEditors(String groupId, String whiteboardId) {
     return _firestore
