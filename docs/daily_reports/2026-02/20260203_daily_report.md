@@ -100,6 +100,7 @@ I/flutter (27716): 🎯 [NEWS] 催促表示判定結果: false
 ### 1. 機能要件の整理
 
 **ユーザーリクエスト**:
+
 - ホワイトボードにundo機能を追加したい
 - 最後のストロークを取り消す機能
 - ペンの太さは3段階で十分
@@ -145,11 +146,13 @@ void _redo() {
 #### UI改善
 
 **ペン太さ**: 5段階 → 3段階に簡素化
+
 - 細（2.0px）
 - 中（4.0px）
 - 太（6.0px）
 
 **ツールバー追加**:
+
 - Undoボタン（Icons.undo）
 - Redoボタン（Icons.redo）
 - ボタン無効化: `_canUndo()`/`_canRedo()`で制御
@@ -159,15 +162,18 @@ void _redo() {
 **問題**: 描画→保存を繰り返すとundo/redoが効かなくなる
 
 **原因**:
+
 - Firestore保存後に`_workingStrokes`更新時、履歴スタックが同期されていなかった
 - Firestoreリアルタイム更新時も同様の問題
 
 **修正箇所**:
+
 1. `_saveWhiteboard()` 完了後: `_saveToHistory()`追加
 2. `_startWhiteboardListener()`: Firestore更新時に`_saveToHistory()`追加
 3. `_clearWhiteboard()`: 履歴リセット追加
 
 **修正後の動作**:
+
 ```dart
 // 保存処理完了後
 _workingStrokes.clear();
@@ -188,8 +194,9 @@ _saveToHistory(); // ← 追加（他ユーザーの変更も履歴に含める�
 **症状**: ホワイトボード描画中、10手順以上でWindows版がクラッシュ（2回発生）
 
 **エラーログ**:
+
 ```
-[ERROR:flutter/runtime/dart_vm_initializer.cc(40)] Unhandled Exception: 
+[ERROR:flutter/runtime/dart_vm_initializer.cc(40)] Unhandled Exception:
 type 'Null' is not a subtype of type 'Timestamp' in type cast
 #0 new Whiteboard.fromFirestore (package:goshopping/models/whiteboard.dart:106)
 ```
@@ -197,6 +204,7 @@ type 'Null' is not a subtype of type 'Timestamp' in type cast
 ### 2. 根本原因の特定
 
 **問題箇所** (`lib/models/whiteboard.dart`):
+
 ```dart
 // ❌ Before: nullの場合クラッシュ
 createdAt: (data['createdAt'] as Timestamp).toDate(),
@@ -220,12 +228,14 @@ updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
 **実装内容**:
 
 #### パッケージ追加
+
 ```yaml
 # pubspec.yaml
-sentry_flutter: ^8.9.0  # Windows/Linux/macOS対応
+sentry_flutter: ^8.9.0 # Windows/Linux/macOS対応
 ```
 
 #### Platform判定による自動切り替え
+
 ```dart
 // lib/main.dart
 void main() async {
@@ -257,6 +267,7 @@ void main() async {
 ```
 
 #### エラー送信実装
+
 ```dart
 // lib/pages/whiteboard_editor_page.dart
 try {
@@ -276,12 +287,14 @@ try {
 ```
 
 #### プライバシー保護
+
 - ユーザーID自動マスキング（`abc***`形式）
 - デバッグモードでは自動無効化
 
 ### 5. セットアップガイド作成
 
 `docs/sentry_setup.md` を作成:
+
 - Sentry.ioプロジェクト作成手順
 - DSN設定方法
 - 動作確認方法
@@ -335,6 +348,7 @@ Flutterの`dart:io Platform`クラスを使用すれば、クラッシュレポ�
 ## 変更ファイル
 
 ### コミット1: undo/redo＋Timestampクラッシュ修正
+
 - `lib/pages/whiteboard_editor_page.dart`: undo/redo実装、履歴保存バグ修正
 - `lib/models/whiteboard.dart`: Timestampのnullチェック追加
 - `lib/services/feedback_prompt_service.dart`: デバッグログ追加
@@ -342,12 +356,14 @@ Flutterの`dart:io Platform`クラスを使用すれば、クラッシュレポ�
 - `docs/daily_reports/2026-02/20260203_daily_report.md`: 本日報ファイル作成
 
 ### コミット2: Sentry統合実装
+
 - `pubspec.yaml`: sentry_flutter パッケージ追加
 - `lib/main.dart`: Sentry初期化、Platform判定実装
 - `lib/pages/whiteboard_editor_page.dart`: Sentryエラー送信実装
 - `docs/sentry_setup.md`: セットアップガイド作成
 
 ### コミット3: Sentry DSN設定
+
 - `lib/main.dart`: DSN設定完了
 
 ---

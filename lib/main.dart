@@ -32,13 +32,17 @@ void main() async {
         options.dsn =
             'https://9aa7459e94ab157f830e81c9f1a585b3@o4510820521738240.ingest.us.sentry.io/4510820522786816';
 
-        // デバッグモードではSentryを無効化
-        options.debug = kDebugMode;
+        // 🔥 CRITICAL: リリースモードでもSentryを有効化
+        options.debug = false; // リリースでは詳細ログなし（パフォーマンス重視）
         options.environment = kDebugMode ? 'development' : 'production';
 
         // パフォーマンス監視設定
-        options.tracesSampleRate = kDebugMode ? 1.0 : 0.5;
+        options.tracesSampleRate = kDebugMode ? 1.0 : 0.2; // リリースは20%サンプリング
         options.enableAutoPerformanceTracing = true;
+
+        // 🔥 ネイティブSDK統合（C++クラッシュも捕捉）
+        options.enableNativeCrashHandling = true; // C++レベルのクラッシュも捕捉
+        options.enableAutoSessionTracking = true; // セッション追跡
 
         // クラッシュ時スクリーンショット（Windows版でも動作）
         options.attachScreenshot = true;
