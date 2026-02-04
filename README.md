@@ -1,5 +1,73 @@
 # GoShopping - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-02-04)
+
+### 1. Windows版ホワイトボード保存安定化対策 ✅
+
+**Purpose**: Windows版でのホワイトボード保存時のクラッシュリスク軽減
+
+**Implementation**:
+
+#### 保存ボタンの条件付き非表示
+
+```dart
+// Windows版: 保存ボタン非表示 → 「自動保存」テキスト表示
+if (canEdit && !Platform.isWindows)
+  IconButton(icon: Icon(Icons.save), onPressed: _saveWhiteboard),
+if (canEdit && Platform.isWindows)
+  const Text('自動保存', style: TextStyle(fontSize: 12, color: Colors.grey)),
+```
+
+#### エディター終了時の自動保存
+
+```dart
+WillPopScope(
+  onWillPop: () async {
+    // Windows版安定化: エディター終了時に自動保存
+    if (Platform.isWindows && canEdit && !_isSaving) {
+      await _saveWhiteboard();
+    }
+    await _releaseEditLock();
+    return true;
+  },
+```
+
+**Benefits**:
+
+- ✅ 頻繁な保存呼び出しを回避（Windows Firestore SDK負荷軽減）
+- ✅ エディター終了時の1回だけ保存（安定性向上）
+- ✅ Android版は従来通り手動保存可能
+
+**Modified Files**: `lib/pages/whiteboard_editor_page.dart`
+
+### 2. Undo/Redo履歴破壊バグ修正 ✅
+
+**Problem**: Redoを実行すると直前のストロークではなく古いストロークが復活
+
+**Root Cause**: `_undo()`メソッド内で`_captureCurrentDrawing()`を呼び、履歴に新しいエントリを追加していた
+
+**Solution**: 履歴操作時の現在状態キャプチャを削除
+
+```dart
+void _undo() {
+  // 🔥 FIX: _captureCurrentDrawing()を呼ばない（履歴破壊の原因）
+  // 履歴システムが既に状態を管理しているため、現在の描画キャプチャは不要
+
+  setState(() {
+    _historyIndex--;
+    _workingStrokes.clear();
+    _workingStrokes.addAll(_history[_historyIndex]);
+    _controller?.clear();
+  });
+}
+```
+
+**Key Learning**: Undo/Redoシステムでは履歴スタックが唯一の真実の情報源（Single Source of Truth）
+
+**Modified Files**: `lib/pages/whiteboard_editor_page.dart`
+
+---
+
 ## Recent Implementations (2026-02-03)
 
 ### 1. フィードバック催促機能の動作確認と原因調査 ✅

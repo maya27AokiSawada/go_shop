@@ -1,5 +1,68 @@
 # GoShopping - AI Coding Agent Instructions
 
+## Recent Implementations (2026-02-04)
+
+### 1. Windows版ホワイトボード保存安定化対策 ✅
+
+**Purpose**: 頻繁な保存呼び出しによるWindows Firestore SDK負荷を軽減
+
+**Implementation**:
+
+- **保存ボタンの条件付き非表示**: Windows版のみ保存ボタンを非表示に
+- **エディター終了時の自動保存**: `WillPopScope`でエディター終了時に自動保存
+
+**Key Pattern**:
+
+```dart
+// Windows版: 保存ボタン非表示 + 自動保存テキスト表示
+if (canEdit && !Platform.isWindows)
+  IconButton(icon: Icon(Icons.save), onPressed: _saveWhiteboard);
+if (canEdit && Platform.isWindows)
+  const Text('自動保存');
+
+// エディター終了時の自動保存
+WillPopScope(
+  onWillPop: () async {
+    if (Platform.isWindows && canEdit && !_isSaving) {
+      await _saveWhiteboard();  // 終了時に1回だけ保存
+    }
+    return true;
+  },
+```
+
+**Benefits**:
+
+- Windows版: 頻繁な保存回避、エディター終了時のみ保存
+- Android版: 従来通り手動保存可能（ユーザー選択）
+
+### 2. Undo/Redo履歴破壊バグ修正 ✅
+
+**Problem**: Redoで古いストロークが復活する
+
+**Root Cause**: `_undo()`内で`_captureCurrentDrawing()`呼び出し → 履歴に新エントリ追加 → 履歴汚染
+
+**Solution**: 履歴操作時の現在状態キャプチャを削除
+
+```dart
+void _undo() {
+  // ❌ Before: _captureCurrentDrawing(); → 履歴破壊
+  // ✅ After: 履歴スタックをナビゲートするだけ
+
+  setState(() {
+    _historyIndex--;
+    _workingStrokes = _history[_historyIndex];  // 履歴から復元
+  });
+}
+```
+
+**Critical Rule**: Undo/Redoシステムでは履歴スタックが**唯一の真実の情報源**。現在の状態を履歴に追加しない。
+
+**Modified Files**: `lib/pages/whiteboard_editor_page.dart` (Lines 577-598, 887-937)
+
+**Status**: ✅ 実装完了 | ⏳ Android 3台同時テスト待ち
+
+---
+
 ## Recent Implementations (2026-01-31)
 
 ### Windows版ホワイトボード保存クラッシュ完全解決 ✅

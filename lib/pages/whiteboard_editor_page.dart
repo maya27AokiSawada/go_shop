@@ -584,10 +584,8 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       return;
     }
 
-    // 現在の描画を保存してからUndoを実行
-    if (_controller != null && _controller!.isNotEmpty) {
-      _captureCurrentDrawing();
-    }
+    // 🔥 FIX: _captureCurrentDrawing()を呼ばない（履歴破壊の原因）
+    // 履歴システムが既に状態を管理しているため、現在の描画キャプチャは不要
 
     setState(() {
       _historyIndex--;
@@ -888,6 +886,12 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
 
     return WillPopScope(
       onWillPop: () async {
+        // 🔥 Windows版安定化: エディター終了時に自動保存
+        if (Platform.isWindows && canEdit && !_isSaving) {
+          AppLogger.info('🪟 [WINDOWS] エディター終了時に自動保存実行');
+          await _saveWhiteboard();
+        }
+
         // ページ離脱時に編集ロックを解除（保持中のみ）
         await _releaseEditLock();
         return true;
@@ -922,8 +926,8 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                   ),
                 ],
               ),
-            // 保存ボタン
-            if (canEdit)
+            // 保存ボタン（🪟 Windows版は非表示 - エディター終了時に自動保存）
+            if (canEdit && !Platform.isWindows)
               IconButton(
                 icon: _isSaving
                     ? const SizedBox(
@@ -934,6 +938,15 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                     : const Icon(Icons.save),
                 onPressed: _isSaving ? null : _saveWhiteboard,
                 tooltip: '保存',
+              ),
+            // 🪟 Windows版: 自動保存情報表示
+            if (canEdit && Platform.isWindows)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8.0),
+                child: Text(
+                  '自動保存',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
               ),
           ],
         ),
@@ -1108,7 +1121,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                   constraints: const BoxConstraints(),
                   icon: Icon(
                     _isScrollLocked ? Icons.brush : Icons.open_with,
-                    color: _isScrollLocked ? Colors.blue : Colors.grey,
+                    color: _isScrollLocked
+                        ? Colors.blue
+                        : Colors.red.shade600, // 🎨 スクロールモードは赤系（ペンモードの青と対比）
                     size: 20,
                   ),
                   onPressed: () async {
@@ -1529,7 +1544,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                 width: 8.0 + (level * 3), // レベルに応じてサイズ変更
                 height: 8.0 + (level * 3),
                 decoration: BoxDecoration(
-                  color: isSelected ? Colors.blue : Colors.grey,
+                  color: isSelected
+                      ? Colors.blue.shade700
+                      : Colors.grey.shade400, // 🎨 選択時は濃い青、非選択時は薄いグレー
                   shape: BoxShape.circle,
                 ),
               ),
