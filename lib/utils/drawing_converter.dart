@@ -22,7 +22,8 @@ class DrawingConverter {
       if (points.isEmpty) return [];
 
       // 点間の距離が大きい場合は別のストロークとして分割
-      const double breakThreshold = 30.0; // 30ピクセル以上離れていたら別ストローク
+      // 🔥 閾値を200pxに変更（Androidタブレットの高速タッチ対応）
+      const double breakThreshold = 200.0; // 200ピクセル以上離れていたら別ストローク
 
       final List<DrawingStroke> strokes = [];
       List<DrawingPoint> currentStrokePoints = [];
