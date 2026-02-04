@@ -45,7 +45,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   SignatureController? _controller;
   bool _isSaving = false;
   Color _selectedColor = Colors.black;
-  double _strokeWidth = 3.0;
+  double _strokeWidth = 4.0; // 🎨 初期値は「中」の太さ
   int _controllerKey = 0; // コントローラー再作成カウンター
   final List<DrawingStroke> _workingStrokes = []; // 作業中のストロークリスト
 
