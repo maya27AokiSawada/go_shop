@@ -547,6 +547,11 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
 
         // 📚 履歴に保存
         _saveToHistory();
+
+        // 🔥 CRITICAL: キャプチャ後はSignatureControllerをクリア
+        // これにより次回描画時に前の点と繋がらない
+        _controller?.clear();
+        AppLogger.info('🧹 [WHITEBOARD] SignatureControllerクリア完了');
       }
     } catch (e) {
       AppLogger.error('❌ [WHITEBOARD] 描画キャプチャエラー: $e');
@@ -1149,6 +1154,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                         AppLogger.info('🔓 [MODE_TOGGLE] 描画モード終了 - 描画データキャプチャ');
                         try {
                           _captureCurrentDrawing();
+                          // 🔥 _captureCurrentDrawing()内でクリア済み
                         } catch (e) {
                           AppLogger.error('❌ [MODE_TOGGLE] 描画キャプチャエラー: $e');
                         }
@@ -1164,6 +1170,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                         // 描画データを一時保存（Firestoreには保存しない）
                         try {
                           _captureCurrentDrawing();
+                          // 🔥 _captureCurrentDrawing()内でクリア済み
                         } catch (e) {
                           AppLogger.error('❌ [MODE_TOGGLE] 描画キャプチャエラー: $e');
                         }
