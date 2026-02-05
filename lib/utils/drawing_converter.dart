@@ -21,9 +21,9 @@ class DrawingConverter {
       final points = controller.points;
       if (points.isEmpty) return [];
 
-      // 点間の距離が大きい場合は別のストロークとして分割
-      // 🔥 閾値を200pxに変更（Androidタブレットの高速タッチ対応）
-      const double breakThreshold = 200.0; // 200ピクセル以上離れていたら別ストローク
+      // 🔥 ペンアップ検出のための距離ベース分割
+      // 閾値を50pxに設定：ペンを離して別の場所に描いた場合に分割
+      const double breakThreshold = 50.0;
 
       final List<DrawingStroke> strokes = [];
       List<DrawingPoint> currentStrokePoints = [];
@@ -31,25 +31,23 @@ class DrawingConverter {
       for (int i = 0; i < points.length; i++) {
         final point = points[i];
 
-        if (currentStrokePoints.isNotEmpty) {
+        if (currentStrokePoints.isNotEmpty && i > 0) {
           // 前の点との距離を計算
           final prevPoint = points[i - 1];
           final distance = (point.offset - prevPoint.offset).distance;
 
-          // 距離が大きい場合は別のストロークとして保存
+          // 距離が50px以上離れていたら別ストローク（ペンアップした可能性）
           if (distance > breakThreshold) {
             // 現在のストロークを保存
-            if (currentStrokePoints.isNotEmpty) {
-              strokes.add(DrawingStroke(
-                strokeId: _uuid.v4(),
-                points: currentStrokePoints,
-                colorValue: strokeColor.value,
-                strokeWidth: strokeWidth, // 元のストローク幅（スケーリング前）
-                createdAt: DateTime.now(),
-                authorId: authorId,
-                authorName: authorName,
-              ));
-            }
+            strokes.add(DrawingStroke(
+              strokeId: _uuid.v4(),
+              points: List.from(currentStrokePoints),
+              colorValue: strokeColor.value,
+              strokeWidth: strokeWidth,
+              createdAt: DateTime.now(),
+              authorId: authorId,
+              authorName: authorName,
+            ));
             // 新しいストローク開始
             currentStrokePoints = [];
           }
@@ -68,7 +66,7 @@ class DrawingConverter {
           strokeId: _uuid.v4(),
           points: currentStrokePoints,
           colorValue: strokeColor.value,
-          strokeWidth: strokeWidth, // 元のストローク幅（スケーリング前）
+          strokeWidth: strokeWidth,
           createdAt: DateTime.now(),
           authorId: authorId,
           authorName: authorName,

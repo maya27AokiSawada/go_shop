@@ -1,5 +1,146 @@
 # GoShopping - AI Coding Agent Instructions
 
+## Recent Implementations (2026-02-05 午前)
+
+### 1. ホワイトボードストローク保存ロジック完全修正 ✅
+
+**Background**: 「あ」などの複数ストローク文字を描いて保存すると、画面では正しく表示されるが保存後に全ストロークが繋がってしまう問題
+
+**Root Cause Analysis**:
+
+1. **signature packageの設計思想**: 英語の連続署名を想定（文化的制約）
+   - SignatureControllerは全ポイントを単一Listで保持
+   - ストローク境界情報なし
+   - onDrawEndコールバック非対応（v5.5.0）
+
+2. **保存時の問題**: `_saveWhiteboard()`が`captureFromSignatureController()`を再実行
+   - 既に`_workingStrokes`に分離済みのストロークを無視
+   - SignatureController内の全ポイントを再キャプチャ
+   - 距離ベース分割が誤った位置で実行される
+
+**Solution Implemented**:
+
+#### Phase 1: onPanStartでの前ストローク自動キャプチャ
+
+```dart
+// lib/pages/whiteboard_editor_page.dart (L1663-1678)
+onPanStart: (details) async {
+  // 🔥 新しい描画を開始する前に、前回の描画をキャプチャ
+  if (_controller != null && _controller!.isNotEmpty) {
+    AppLogger.info('✋ [PEN_DOWN] 新しい描画開始 - 前回の描画をキャプチャ');
+    _captureCurrentStroke();
+  }
+
+  // 描画開始時の編集ロックチェック
+  final canDraw = await _onDrawingStart();
+  if (!canDraw && mounted) {
+    _controller?.clear();
+    return;
+  }
+},
+```
+
+#### Phase 2: 保存時ロジック修正
+
+```dart
+// _saveWhiteboard() (L680-720)
+Future<void> _saveWhiteboard() async {
+  // 🔥 SignatureControllerに残っている最後のストロークをキャプチャ
+  if (_controller!.isNotEmpty) {
+    _captureCurrentStroke();
+  }
+
+  // ✅ 既にキャプチャ済みの_workingStrokesを使用（再キャプチャしない）
+  final newStrokes = List<DrawingStroke>.from(_workingStrokes);
+
+  // Firestoreに保存
+  await repository.addStrokesToWhiteboard(...);
+}
+```
+
+**Key Pattern**:
+
+- 描画時: 各ペンアップで`_workingStrokes`に追加、SignatureControllerクリア
+- 保存時: `_workingStrokes`を直接使用、`captureFromSignatureController()`は呼ばない
+
+**Benefits**:
+
+- ✅ 複数ストローク文字（「あ」など）が正しく分離して保存される
+- ✅ 全クリア後に画面遷移不要（即座にクリアされる）
+- ✅ 距離ベース分割（50px）をフォールバックとして維持
+
+---
+
+### 2. Undo単位の最適化 ✅
+
+**Problem**: 次の描画を開始するまで履歴に記録されないため、複数ストローク描いてUndoすると大きな単位で戻ってしまう
+
+**Issue Analysis**:
+
+- `onPanStart`で`_captureCurrentStroke()`呼び出し → 履歴保存まで実行
+- 次のペンダウンまで履歴に記録されない
+- 結果: 「あ」の3画を描いた後、Undoで3画全部消える
+
+**Solution**: 履歴保存タイミングの分離
+
+#### 新メソッド追加
+
+```dart
+/// ✋ ストロークを確定するが履歴には保存しない（onPanStart用）
+void _captureCurrentStrokeWithoutHistory() {
+  if (_controller == null || _controller!.isEmpty) return;
+
+  final strokes = DrawingConverter.captureFromSignatureController(...);
+
+  if (strokes.isNotEmpty) {
+    _workingStrokes.addAll(strokes);
+    AppLogger.info('✋ [PEN_DOWN] ${strokes.length}個のストロークを確定（履歴保存なし、計${_workingStrokes.length}個）');
+
+    // SignatureControllerをクリア（履歴には保存しない）
+    _controller?.clear();
+  }
+}
+```
+
+#### onPanStart処理順序の改善
+
+```dart
+onPanStart: (details) async {
+  // 1️⃣ _workingStrokesが空でなければ履歴に保存（前回の状態を記録）
+  if (_workingStrokes.isNotEmpty) {
+    AppLogger.info('📚 [HISTORY] 新しい描画開始 - 前回の状態を履歴に保存');
+    _saveToHistory();
+  }
+
+  // 2️⃣ SignatureControllerに残っている描画をキャプチャ（履歴なし）
+  if (_controller != null && _controller!.isNotEmpty) {
+    AppLogger.info('✋ [PEN_DOWN] 新しい描画開始 - 前回の描画をキャプチャ（履歴なし）');
+    _captureCurrentStrokeWithoutHistory();
+  }
+
+  // 3️⃣ 新しい描画開始
+  final canDraw = await _onDrawingStart();
+},
+```
+
+**Undo Flow Improvement**:
+
+- **Before**: 次の描画まで履歴に記録されない → 大きな単位でUndo
+- **After**: 各ペンダウン時に前回の状態を履歴に保存 → **1ストローク単位でUndo可能**
+
+**Result**: 「あ」の3画を描いた場合、各画ごとに個別にUndoできる 🎉
+
+**Modified Files**:
+
+- `lib/pages/whiteboard_editor_page.dart`:
+  - Lines 523-560: `_captureCurrentStroke()` (履歴保存あり)
+  - Lines 562-597: `_captureCurrentStrokeWithoutHistory()` (新規、履歴保存なし)
+  - Lines 1663-1678: `onPanStart`処理順序変更
+
+**Status**: 実装完了 | ⏳ 午後に実機テスト予定
+
+---
+
 ## Recent Implementations (2026-02-03)
 
 ### 1. フィードバック催促機能の動作確認と原因調査 ✅

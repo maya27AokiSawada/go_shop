@@ -47,7 +47,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   Color _selectedColor = Colors.black;
   double _strokeWidth = 4.0; // 🎨 初期値は「中」の太さ
   int _controllerKey = 0; // コントローラー再作成カウンター
-  final List<DrawingStroke> _workingStrokes = []; // 作業中のストロークリスト
+  List<DrawingStroke> _workingStrokes = []; // 作業中のストロークリスト（finalを削除）
 
   // ↩️ Undo/Redo履歴管理
   final List<List<DrawingStroke>> _history = []; // 履歴スタック
@@ -77,6 +77,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
 
   // Firestoreリアルタイム監視
   StreamSubscription<Whiteboard?>? _whiteboardSubscription;
+
+  // 🗑️ 全クリア処理中フラグ（Firestoreリスナーの上書きを防ぐ）
+  bool _isClearing = false;
 
   @override
   void initState() {
@@ -189,6 +192,13 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
 
       // 自分が編集中（ロック保持中）の場合は上書きしない
       if (_hasEditLock) return;
+
+      // 全クリア処理中はFirestoreリスナーからの更新を無視
+      if (_isClearing) {
+        AppLogger.info(
+            '[LISTENER] 全クリア処理中 - Firestore更新を無視（strokes=${latest.strokes.length}）');
+        return;
+      }
 
       setState(() {
         // 🔥 CRITICAL: ホワイトボード全体を更新（isPrivateなどのプロパティも含む）
@@ -520,6 +530,81 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     );
   }
 
+  /// ✋ ペンアップ時に現在のストロークを確定（履歴保存あり）
+  void _captureCurrentStroke() {
+    if (_controller == null || _controller!.isEmpty) {
+      return; // 何も描かれていなければスキップ
+    }
+
+    final currentUser = ref.read(authStateProvider).value;
+    if (currentUser == null) return;
+
+    try {
+      // 現在の描画をキャプチャ（ペンアップで1ストローク確定）
+      final strokes = DrawingConverter.captureFromSignatureController(
+        controller: _controller!,
+        authorId: currentUser.uid,
+        authorName: currentUser.displayName ?? 'Unknown',
+        strokeColor: _selectedColor,
+        strokeWidth: _strokeWidth,
+        scale: _canvasScale,
+      );
+
+      // 作業リストに追加
+      if (strokes.isNotEmpty) {
+        _workingStrokes.addAll(strokes);
+        AppLogger.info(
+            '✋ [PEN_UP] ${strokes.length}個のストロークを確定 (計${_workingStrokes.length}個)');
+
+        // 📚 履歴に保存
+        _saveToHistory();
+
+        // 🔥 CRITICAL: ペンアップ後はSignatureControllerをクリア
+        // 次回描画時に新しいストロークとして開始
+        _controller?.clear();
+        AppLogger.info('🧹 [PEN_UP] SignatureControllerクリア完了');
+      }
+    } catch (e) {
+      AppLogger.error('❌ [PEN_UP] ストローク確定エラー: $e');
+    }
+  }
+
+  /// ✋ ストロークを確定するが履歴には保存しない（onPanStart用）
+  void _captureCurrentStrokeWithoutHistory() {
+    if (_controller == null || _controller!.isEmpty) {
+      return; // 何も描かれていなければスキップ
+    }
+
+    final currentUser = ref.read(authStateProvider).value;
+    if (currentUser == null) return;
+
+    try {
+      // 現在の描画をキャプチャ（ペンダウンで前回のストローク確定）
+      final strokes = DrawingConverter.captureFromSignatureController(
+        controller: _controller!,
+        authorId: currentUser.uid,
+        authorName: currentUser.displayName ?? 'Unknown',
+        strokeColor: _selectedColor,
+        strokeWidth: _strokeWidth,
+        scale: _canvasScale,
+      );
+
+      // 作業リストに追加（履歴には保存しない）
+      if (strokes.isNotEmpty) {
+        _workingStrokes.addAll(strokes);
+        AppLogger.info(
+            '✋ [PEN_DOWN] ${strokes.length}個のストロークを確定（履歴保存なし、計${_workingStrokes.length}個）');
+
+        // 🔥 CRITICAL: SignatureControllerをクリア
+        _controller?.clear();
+        AppLogger.info('🧹 [PEN_DOWN] SignatureControllerクリア完了');
+      }
+    } catch (e) {
+      AppLogger.error('❌ [PEN_DOWN] ストローク確定エラー: $e');
+    }
+  }
+
+  /// 📸 モード切り替え時に現在の描画をキャプチャ（バックアップ用）
   void _captureCurrentDrawing() {
     if (_controller == null || _controller!.isEmpty) {
       return; // 何も描かれていなければスキップ
@@ -529,32 +614,31 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     if (currentUser == null) return;
 
     try {
-      // 現在の描画をキャプチャ
+      // モード切り替え時のキャプチャ（主にペンアップを逃した場合の安全策）
       final strokes = DrawingConverter.captureFromSignatureController(
         controller: _controller!,
         authorId: currentUser.uid,
         authorName: currentUser.displayName ?? 'Unknown',
         strokeColor: _selectedColor,
         strokeWidth: _strokeWidth,
-        scale: _canvasScale, // スケーリング係数を渡す
+        scale: _canvasScale,
       );
 
       // 作業リストに追加
       if (strokes.isNotEmpty) {
         _workingStrokes.addAll(strokes);
         AppLogger.info(
-            '📸 [WHITEBOARD] ${strokes.length}個のストロークをキャプチャ (計${_workingStrokes.length}個)');
+            '📸 [MODE_TOGGLE] ${strokes.length}個のストロークをキャプチャ (計${_workingStrokes.length}個)');
 
         // 📚 履歴に保存
         _saveToHistory();
 
         // 🔥 CRITICAL: キャプチャ後はSignatureControllerをクリア
-        // これにより次回描画時に前の点と繋がらない
         _controller?.clear();
-        AppLogger.info('🧹 [WHITEBOARD] SignatureControllerクリア完了');
+        AppLogger.info('🧹 [MODE_TOGGLE] SignatureControllerクリア完了');
       }
     } catch (e) {
-      AppLogger.error('❌ [WHITEBOARD] 描画キャプチャエラー: $e');
+      AppLogger.error('❌ [MODE_TOGGLE] 描画キャプチャエラー: $e');
     }
   }
 
@@ -661,25 +745,17 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         return;
       }
 
-      AppLogger.info('💾 [SAVE] 描画キャプチャ開始');
+      AppLogger.info('💾 [SAVE] 保存前に最後の描画をキャプチャ');
 
-      // 現在の描画をキャプチャ
-      final currentStrokes = DrawingConverter.captureFromSignatureController(
-        controller: _controller!,
-        authorId: currentUser.uid,
-        authorName: currentUser.displayName ?? 'Unknown',
-        strokeColor: _selectedColor,
-        strokeWidth: _strokeWidth,
-        scale: _canvasScale, // スケーリング係数を渡す
-      );
+      // 🔥 保存前に最後の描画をキャプチャ（ペンダウン時と同じ処理）
+      if (_controller!.isNotEmpty) {
+        _captureCurrentStroke();
+      }
 
-      AppLogger.info('💾 [SAVE] キャプチャ完了: ${currentStrokes.length}個のストローク');
+      // 🔥 新しいストローク = 作業中ストロークのみ（既にキャプチャ済み）
+      final newStrokes = List<DrawingStroke>.from(_workingStrokes);
 
-      // 🔥 新しいストローク = 作業中ストローク + 現在の描画
-      final newStrokes = [..._workingStrokes, ...currentStrokes];
-
-      AppLogger.info(
-          '💾 [SAVE] 合計ストローク数: ${newStrokes.length} (作業中: ${_workingStrokes.length}, 新規: ${currentStrokes.length})');
+      AppLogger.info('💾 [SAVE] 合計ストローク数: ${newStrokes.length}個');
 
       if (newStrokes.isEmpty) {
         AppLogger.info('📋 [SAVE] 新しいストロークなし、保存をスキップ');
@@ -838,17 +914,15 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   /// 全消去処理（Firestore保存）
   Future<void> _clearWhiteboard() async {
     try {
-      final repository = ref.read(whiteboardRepositoryProvider);
+      AppLogger.info('[DELETE] 全クリア開始');
 
-      // 🔥 Firestoreから全ストロークを削除（本質的には空の状態で保存）
-      await repository.clearWhiteboard(
-        groupId: widget.groupId,
-        whiteboardId: _currentWhiteboard.whiteboardId,
-      );
-
-      // ローカルも消去
+      // まずローカルUIを即座にクリア（スクロールモードでも即座に反映）
       setState(() {
-        _workingStrokes.clear();
+        // 全クリア処理フラグを立てる（Firestoreリスナーの上書きを防ぐ）
+        _isClearing = true;
+
+        // 🔥 CRITICAL: 新しいリストを作成してCustomPaintの再描画をトリガー
+        _workingStrokes = [];
         _controller?.clear();
 
         // 📚 履歴をリセット
@@ -857,7 +931,27 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         _saveToHistory(); // 空の状態を履歴に保存
       });
 
-      AppLogger.info('✅ [DELETE] ホワイトボード全消去成功');
+      AppLogger.info('[DELETE] setState完了');
+
+      // 次にFirestoreに保存（非同期）
+      final repository = ref.read(whiteboardRepositoryProvider);
+      await repository.clearWhiteboard(
+        groupId: widget.groupId,
+        whiteboardId: _currentWhiteboard.whiteboardId,
+      );
+
+      AppLogger.info('✅ [DELETE] Firestoreホワイトボード全消去成功');
+
+      // 🔥 Firestoreへの保存完了後、少し待ってからフラグを解除
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // setState内でフラグを解除してUI再描画をトリガー
+      if (mounted) {
+        setState(() {
+          _isClearing = false;
+        });
+      }
+      AppLogger.info('✅ [DELETE] 全クリア処理完了 - Firestoreリスナー再開');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -865,6 +959,12 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         );
       }
     } catch (e) {
+      // エラー時もsetState内でフラグをリセット
+      if (mounted) {
+        setState(() {
+          _isClearing = false;
+        });
+      }
       AppLogger.error('❌ [DELETE] 全消去エラー: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1631,6 +1731,13 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         child: GestureDetector(
           onPanStart: (details) async {
             AppLogger.info('🎨 [GESTURE] 描画開始検出 - onPanStart');
+
+            // 🔥 SignatureControllerに残っている描画があればキャプチャ（履歴保存なし）
+            if (_controller != null && _controller!.isNotEmpty) {
+              AppLogger.info('✋ [PEN_DOWN] 新しい描画開始 - 前回の描画をキャプチャ（履歴なし）');
+              _captureCurrentStrokeWithoutHistory();
+            }
+
             // 描画開始時の編集ロックチェックを実行
             final canDraw = await _onDrawingStart();
             if (!canDraw && mounted) {
@@ -1643,7 +1750,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
             controller: _controller!,
             backgroundColor: Colors.transparent,
           ),
-        ),
+                flutter build appbundle --release --flavor prod),
       );
     }
 
