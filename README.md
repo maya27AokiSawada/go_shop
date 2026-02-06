@@ -1,5 +1,98 @@
 # GoShopping - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-02-06)
+
+### ValueNotifier実装で同期アイコン更新対応 ⏳
+
+**Problem**: Firestore同期中にヘッダーの同期アイコンが変化しない
+
+**Root Cause**: `HybridSharedGroupRepository`の`_isSyncing`フィールドがprivateで直接代入のため、Riverpod Providersから監視不可能
+
+**Solution**: ValueNotifierパターン実装でReactive Stateを実現
+
+#### Phase 1: ValueNotifier追加
+
+```dart
+// HybridSharedGroupRepository
+final ValueNotifier<bool> _isSyncingNotifier = ValueNotifier<bool>(false);
+ValueNotifier<bool> get isSyncingNotifier => _isSyncingNotifier;
+
+void _setSyncing(bool isSyncing) {
+  _isSyncing = isSyncing;
+  _isSyncingNotifier.value = isSyncing;
+  AppLogger.info('🔔 [HYBRID_REPO] 同期状態変更: $_isSyncing (ValueNotifier: ${_isSyncingNotifier.value})');
+}
+```
+
+#### Phase 2: 全同期操作の統一
+
+10箇所の`_isSyncing`直接代入を`_setSyncing()`呼び出しに置き換え：
+
+- `createGroup()`: 2箇所
+- `updateGroup()`: 2箇所
+- `deleteGroup()`: 2箇所
+- `getAllGroups()`: 2箇所
+- `syncFromFirestore()`: 2箇所
+
+#### Phase 3: StreamProvider統合
+
+```dart
+// purchase_group_provider.dart
+final isSyncingProvider = StreamProvider<bool>((ref) {
+  final hybridRepo = ref.read(SharedGroupRepositoryProvider) as HybridSharedGroupRepository;
+  final controller = StreamController<bool>();
+
+  void listener() {
+    if (!controller.isClosed) {
+      controller.add(hybridRepo.isSyncingNotifier.value);
+    }
+  }
+
+  hybridRepo.isSyncingNotifier.addListener(listener);
+  ref.onDispose(() {
+    hybridRepo.isSyncingNotifier.removeListener(listener);
+    controller.close();
+  });
+
+  return controller.stream;
+});
+
+final syncStatusProvider = Provider<SyncStatusInfo>((ref) {
+  final isSyncingAsync = ref.watch(isSyncingProvider);
+  final isSyncing = isSyncingAsync.maybeWhen(
+    data: (syncing) => syncing,
+    orElse: () => false,
+  );
+  // ... rest of sync status logic
+});
+```
+
+#### Phase 4: ログ出力改善
+
+**Discovery**: `developer.log()`はlogcatに出力されない
+
+**Fix**: 全20箇所以上の`developer.log()`を`AppLogger.info()`に一括置換
+
+```bash
+(Get-Content ...) -replace "developer\.log\('", "AppLogger.info('" | Set-Content ...
+```
+
+**Status**: ✅ コード完成 ⏳ テスト未完了
+
+**Modified Files**:
+
+- `lib/datastore/hybrid_purchase_group_repository.dart` (ValueNotifier追加、10箇所統一、ログ改善)
+- `lib/providers/purchase_group_provider.dart` (StreamProvider追加、syncStatusProvider更新)
+
+**Next Steps**:
+
+1. Pixel 9でホットリロード実行
+2. 新しいグループ作成してログ確認: `adb logcat -d | Select-String "🔔.*同期状態変更"`
+3. 同期アイコンの視覚的変化を確認
+4. 高速同期で見えない場合は`await Future.delayed(Duration(seconds: 2))`追加
+
+---
+
 ## Recent Implementations (2026-02-04)
 
 ### 1. Windows版ホワイトボード保存安定化対策 ✅
