@@ -1,5 +1,134 @@
 # GoShopping - AI Coding Agent Instructions
 
+## Recent Implementations (2026-02-06)
+
+### 1. ValueNotifier実装で同期アイコン更新対応 ⏳（テスト未完了）
+
+**Purpose**: Firestore同期中にヘッダーの同期アイコンが変化しない問題を解決
+
+**Background**:
+
+- ユーザー報告: "同期中のアイコンには変化しない"
+- 原因: `_isSyncing`フィールドがprivateでProviderから観測不可能
+
+**Implementation**:
+
+#### Phase 1: ValueNotifier追加 (lib/datastore/hybrid_purchase_group_repository.dart)
+
+```dart
+// L42-50: ValueNotifier宣言
+final ValueNotifier<bool> _isSyncingNotifier = ValueNotifier<bool>(false);
+ValueNotifier<bool> get isSyncingNotifier => _isSyncingNotifier;
+
+// L95-103: _setSyncing()ヘルパーメソッド
+void _setSyncing(bool isSyncing) {
+  _isSyncing = isSyncing;
+  _isSyncingNotifier.value = isSyncing;
+  AppLogger.info('🔔 [HYBRID_REPO] 同期状態変更: $_isSyncing (ValueNotifier: ${_isSyncingNotifier.value})');
+}
+```
+
+#### Phase 2: 全同期操作を\_setSyncing()に統一
+
+**Modified Locations** (全10箇所):
+
+- `createGroup()`: L400, L422
+- `updateGroup()`: L517, L530
+- `deleteGroup()`: L673, L692
+- `getAllGroups()`: L460, L476
+- `syncFromFirestore()`: L792, L820
+
+**Pattern**:
+
+```dart
+// ❌ Before
+_isSyncing = true;
+try {
+  await _firestoreRepo!.createGroup(...);
+} finally {
+  _isSyncing = false;
+}
+
+// ✅ After
+_setSyncing(true);
+try {
+  await _firestoreRepo!.createGroup(...);
+} finally {
+  _setSyncing(false);
+}
+```
+
+#### Phase 3: StreamProvider統合 (lib/providers/purchase_group_provider.dart)
+
+```dart
+// L1535-1570: ValueNotifier → Stream変換
+final isSyncingProvider = StreamProvider<bool>((ref) {
+  final hybridRepo = ref.read(SharedGroupRepositoryProvider) as HybridSharedGroupRepository;
+  final controller = StreamController<bool>();
+
+  void listener() {
+    if (!controller.isClosed) {
+      controller.add(hybridRepo.isSyncingNotifier.value);
+    }
+  }
+
+  hybridRepo.isSyncingNotifier.addListener(listener);
+  ref.onDispose(() {
+    hybridRepo.isSyncingNotifier.removeListener(listener);
+    controller.close();
+  });
+
+  return controller.stream;
+});
+
+// L1572-1610: syncStatusProvider更新
+final syncStatusProvider = Provider<SyncStatusInfo>((ref) {
+  final isSyncingAsync = ref.watch(isSyncingProvider);
+  final isSyncing = isSyncingAsync.maybeWhen(
+    data: (syncing) => syncing,
+    orElse: () => false,
+  );
+  // ... 同期ステータス判定ロジック
+});
+```
+
+#### Phase 4: ログ出力改善
+
+**Problem**: `developer.log()`がlogcatに出力されない
+
+**Solution**: 一括置換で`AppLogger.info()`に変更
+
+- `dart:developer`インポート削除
+- 全`developer.log()`を`AppLogger.info()`に変更（20箇所以上）
+
+**Modified Files**:
+
+- `lib/datastore/hybrid_purchase_group_repository.dart` (L1-13: import修正, L68-177: 初期化ログ修正)
+- `lib/providers/purchase_group_provider.dart` (L1535-1610: StreamProvider/syncStatusProvider追加)
+
+**Status**:
+
+- ✅ コード実装完了
+- ⏳ テスト未完了（時間切れ）
+- ⚠️ AS10L: Firestore接続エラー（既知問題: `Unable to resolve host firestore.googleapis.com`）
+- ⏳ Pixel 9: ホットリロード→グループ作成→ログ確認の手順が未実施
+
+**Next Steps**:
+
+1. Pixel 9でホットリロード実行
+2. 新しいグループ作成（例: ファーティマ共有TEST）
+3. logcatで`🔔 [HYBRID_REPO] 同期状態変更`ログ確認
+4. 同期アイコンの視覚的変化を確認
+5. 高速同期でアイコン変化が見えない場合は遅延追加を検討
+
+**Technical Notes**:
+
+- ValueNotifierパターンにより、Providerが同期状態の変化をリアクティブに検知
+- StreamControllerでValueNotifierをRiverpod互換Streamに変換
+- try-finallyブロックで確実に`_setSyncing(false)`が実行される設計
+
+---
+
 ## Recent Implementations (2026-02-05 午前)
 
 ### 1. ホワイトボードストローク保存ロジック完全修正 ✅
