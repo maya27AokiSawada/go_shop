@@ -1,0 +1,17 @@
+Connected devices:
+sdk gphone64 x86 64 (mobile) • emulator-5554 • android-x64    • Android 16 (API 36) (emulator)
+sdk gphone64 x86 64 (mobile) • emulator-5556 • android-x64    • Android 16 (API 36) (emulator)
+Windows (desktop)            • windows       • windows-x64    • Microsoft Windows [Version 10.0.26200.7705]
+Chrome (web)                 • chrome        • web-javascript • Google Chrome 144.0.7559.133
+Edge (web)                   • edge          • web-javascript • Microsoft Edge 144.0.3719.115
+
+Wirelessly connected devices:
+Pixel 9 (wireless) (mobile) • adb-51040DLAQ001K0-JamWam._adb-tls-connect._tcp • android-arm64 • Android 16 (API 36)
+
+[1]: sdk gphone64 x86 64 (emulator-5554)
+[2]: sdk gphone64 x86 64 (emulator-5556)
+[3]: Windows (windows)
+[4]: Chrome (chrome)
+[5]: Edge (edge)
+[6]: Pixel 9 (wireless) (adb-51040DLAQ001K0-JamWam._adb-tls-connect._tcp)
+Please choose one (or "q" to quit): 

@@ -27,7 +27,8 @@ class PasswordResetService {
     }
 
     try {
-      // Firebase Auth パスワードリセット {
+      // Firebase Auth パスワードリセット
+      if (F.appFlavor == Flavor.prod) {
         await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
       } else {
         // Dev環境では模擬処理

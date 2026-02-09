@@ -222,35 +222,34 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _buildHelpSection(
-                '基本的な使い方',
-                [
-                  'グループを作成して、メンバーを招待できます',
-                  '買い物リストを共有して、リアルタイムで同期します',
-                  'アイテムを追加・購入完了マークで管理できます',
-                ],
-              ),
-              const SizedBox(height: 16),
-              _buildHelpSection(
-                'グループ招待',
-                [
-                  'QRコードを表示してメンバーを招待',
-                  'QRコードをスキャンしてグループに参加',
-                  '招待は24時間有効、最大5名まで',
-                ],
-              ),
-              const SizedBox(height: 16),
-              _buildHelpSection(
-                '同期状態アイコン',
-                [
-                  '🟢 緑: 同期完了',
-                  '🟠 オレンジ: 同期中',
-                  '🔴 赤: 接続断',
-                  '⚪ グレー: 未ログイン',
-                ],
-              ),
-            ],
-          ),
-        ),
+                  '基本的な使い方',
+                  [
+                    'グループを作成して、メンバーを招待できます',
+                    '買い物リストを共有して、リアルタイムで同期します',
+                    'アイテムを追加・購入完了マークで管理できます',
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _buildHelpSection(
+                  'グループ招待',
+                  [
+                    'QRコードを表示してメンバーを招待',
+                    'QRコードをスキャンしてグループに参加',
+                    '招待は24時間有効、最大5名まで',
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _buildHelpSection(
+                  '同期状態アイコン',
+                  [
+                    '🟢 緑: 同期完了',
+                    '🟠 オレンジ: 同期中',
+                    '🔴 赤: 接続断',
+                    '⚪ グレー: 未ログイン',
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
         actions: [
@@ -260,7 +259,7 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
           ),
         ],
       ),
-    )
+    );
   }
 
   /// ヘルプセクションを構築
@@ -314,29 +313,28 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-              const Text(
-                'GoShopping',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              _buildVersionRow('バージョン', packageInfo.version),
-              _buildVersionRow('ビルド番号', packageInfo.buildNumber),
-              _buildVersionRow('パッケージ名', packageInfo.packageName),
-              const SizedBox(height: 16),
-              const Text(
-                '買い物リスト共有アプリ',
-                style: TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                '© 2025 GoShopping Team',
-                style: TextStyle(color: Colors.grey, fontSize: 12),
-              ),
-            ],
-          ),
+                  const Text(
+                    'GoShopping',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildVersionRow('バージョン', packageInfo.version),
+                  _buildVersionRow('ビルド番号', packageInfo.buildNumber),
+                  _buildVersionRow('パッケージ名', packageInfo.packageName),
+                  const SizedBox(height: 16),
+                  const Text(
+                    '買い物リスト共有アプリ',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    '© 2025 GoShopping Team',
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                ],
               ),
             ),
           ),
@@ -347,7 +345,7 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
             ),
           ],
         ),
-      )
+      );
     }
   }
 

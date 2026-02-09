@@ -110,40 +110,37 @@ class AuthenticationService {
         await UserPreferencesService.saveUserEmail(user.email!);
       }
 
-      // 2. Firestoreデータマイグレーション実行（本番環境のみ） {
-        // データバージョンをチェックしてマイグレーションが必要か確認
-        final dataVersionService = DataVersionService();
-        final savedVersion = await dataVersionService.getSavedDataVersion();
-        final currentVersion = DataVersionService.currentDataVersion;
+      // 2. Firestoreデータマイグレーション実行（本番環境のみ）
+      // データバージョンをチェックしてマイグレーションが必要か確認
+      final dataVersionService = DataVersionService();
+      final savedVersion = await dataVersionService.getSavedDataVersion();
+      final currentVersion = DataVersionService.currentDataVersion;
 
-        if (savedVersion < currentVersion) {
-          Log.info(
-              '🔄 [サインイン時] Firestoreマイグレーション実行: v$savedVersion → v$currentVersion');
-          try {
-            final migrationService = FirestoreDataMigrationService();
-            await migrationService.migrateToVersion3();
+      if (savedVersion < currentVersion) {
+        Log.info(
+            '🔄 [サインイン時] Firestoreマイグレーション実行: v$savedVersion → v$currentVersion');
+        try {
+          final migrationService = FirestoreDataMigrationService();
+          await migrationService.migrateToVersion3();
 
-            // マイグレーション成功後にバージョンを更新
-            await dataVersionService.saveDataVersion(currentVersion);
-            Log.info('✅ [サインイン時] Firestoreマイグレーション完了');
-          } catch (e) {
-            Log.error('❌ [サインイン時] Firestoreマイグレーションエラー: $e');
-            // マイグレーションエラーでもサインインは継続
-          }
+          // マイグレーション成功後にバージョンを更新
+          await dataVersionService.saveDataVersion(currentVersion);
+          Log.info('✅ [サインイン時] Firestoreマイグレーション完了');
+        } catch (e) {
+          Log.error('❌ [サインイン時] Firestoreマイグレーションエラー: $e');
+          // マイグレーションエラーでもサインインは継続
         }
       }
 
-      // 3. Firestoreからグループデータを同期（本番環境のみ） {
-        final groups = await FirestoreGroupSyncService.syncGroupsOnSignIn();
-        Log.info('📦 Firestoreから${groups.length}件のグループを同期');
-      }
+      // 3. Firestoreからグループデータを同期（本番環境のみ）
+      final groups = await FirestoreGroupSyncService.syncGroupsOnSignIn();
+      Log.info('📦 Firestoreから${groups.length}件のグループを同期');
 
-      // 4. Firestoreからユーザー名を復帰（本番環境のみ） {
-        final firestoreName = await FirestoreUserNameService.getUserName();
-        if (firestoreName != null && firestoreName.isNotEmpty) {
-          await UserPreferencesService.saveUserName(firestoreName);
-          Log.info('👤 Firestoreからユーザー名を復帰: $firestoreName');
-        }
+      // 4. Firestoreからユーザー名を復帰（本番環境のみ）
+      final firestoreName = await FirestoreUserNameService.getUserName();
+      if (firestoreName != null && firestoreName.isNotEmpty) {
+        await UserPreferencesService.saveUserName(firestoreName);
+        Log.info('👤 Firestoreからユーザー名を復帰: $firestoreName');
       }
 
       Log.info('✅ サインイン後処理完了');

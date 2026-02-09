@@ -1,4 +1,3 @@
-import 'dart:developer' as developer;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +6,7 @@ import '../models/shared_list.dart';
 import '../providers/shared_list_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../flavors.dart';
+import '../utils/app_logger.dart';
 
 /// 買い物リストデータ移行サービス
 ///
@@ -32,7 +32,7 @@ class SharedListDataMigrationService {
   ///
   /// **戻り値**: 移行されたリスト数
   Future<int> migrateAllData() async {
-    developer.log('🔄 [MIGRATION] データ移行開始');
+    AppLogger.info('🔄 [MIGRATION] データ移行開始');
 
     int totalMigrated = 0;
 
@@ -40,7 +40,8 @@ class SharedListDataMigrationService {
     final hiveMigrated = await _migrateHiveData();
     totalMigrated += hiveMigrated;
 
-    // 2. Firestore移行（認証済みの場合のみ） {
+    // 2. Firestore移行（認証済みの場合のみ）
+    if (F.appFlavor == Flavor.prod) {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
         final firestoreMigrated = await _migrateFirestoreData(user);
@@ -317,7 +318,7 @@ class SharedListDataMigrationService {
 
       for (final group in allGroups) {
         final lists = await repository.getSharedListsByGroup(group.groupId);
-        total += lists.length;
+        total = total + lists.length;
 
         for (final list in lists) {
           if (_needsMigration(list)) {
