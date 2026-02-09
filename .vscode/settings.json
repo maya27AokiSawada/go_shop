@@ -64,5 +64,12 @@
         "git reset": false,
         "flutter build": false,
         "firebase deploy": false
+    },
+    "mcpServers": {
+        "firebase": {
+            "type": "stdio",
+            "command": "npx",
+            "args": ["-y", "firebase-tools@latest", "mcp"]
+        }
     }
 }

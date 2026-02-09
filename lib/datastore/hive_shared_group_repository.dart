@@ -334,8 +334,15 @@ class HiveSharedGroupRepository implements SharedGroupRepository {
       if (groupId != 'default_group') {
         developer.log('🔍 [HIVE_REPO] グループ名重複チェック開始');
         final allGroupsFromBox = box.values.toList();
+
+        // 🔥 論理削除されたグループを除外して重複チェック
+        final activeGroups =
+            allGroupsFromBox.where((g) => !g.isDeleted).toList();
+        developer.log(
+            '🔍 [HIVE_REPO] アクティブグループ数: ${activeGroups.length} (削除済み除外前: ${allGroupsFromBox.length})');
+
         final validation =
-            ValidationService.validateGroupName(groupName, allGroupsFromBox);
+            ValidationService.validateGroupName(groupName, activeGroups);
         if (validation.hasError) {
           developer.log('❌ [HIVE_REPO] グループ名重複エラー: ${validation.errorMessage}');
           throw Exception(validation.errorMessage);

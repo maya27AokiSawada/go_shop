@@ -49,6 +49,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   int _controllerKey = 0; // コントローラー再作成カウンター
   List<DrawingStroke> _workingStrokes = []; // 作業中のストロークリスト（finalを削除）
 
+  // 🔥 新機能: 未保存ストローク追跡（差分保存用）
+  final Set<String> _unsavedStrokeIds = {}; // まだFirestoreに保存されていないstrokeIdのセット
+
   // ↩️ Undo/Redo履歴管理
   final List<List<DrawingStroke>> _history = []; // 履歴スタック
   int _historyIndex = -1; // 現在の履歴位置
@@ -95,8 +98,10 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     // 既存のストロークを作業リストに読み込む
     if (_currentWhiteboard.strokes.isNotEmpty) {
       _workingStrokes.addAll(_currentWhiteboard.strokes);
+      // 🔥 既存ストロークは保存済みなので、未保存リストには追加しない
+      _unsavedStrokeIds.clear();
       AppLogger.info(
-          '🎨 [WHITEBOARD] ${_currentWhiteboard.strokes.length}個のストロークを復元');
+          '🎨 [WHITEBOARD] ${_currentWhiteboard.strokes.length}個のストロークを復元（全て保存済み）');
     }
 
     // 📚 初期状態を履歴に保存
@@ -204,17 +209,49 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         // 🔥 CRITICAL: ホワイトボード全体を更新（isPrivateなどのプロパティも含む）
         _currentWhiteboard = latest;
 
-        _workingStrokes
-          ..clear()
-          ..addAll(latest.strokes);
+        // 🔥 改善: ストロークをインテリジェントにマージ（strokeIdベース）
+        _mergeStrokesFromFirestore(latest.strokes);
 
         // 📚 Firestore更新後の状態を履歴に記録（他ユーザーの変更も履歴に含める）
         _saveToHistory();
       });
 
       AppLogger.info(
-          '🛰️ [WHITEBOARD] Firestore最新ストロークを反映: ${latest.strokes.length}本');
+          '🛰️ [WHITEBOARD] Firestore最新ストロークを反映: ${latest.strokes.length}本（ローカル${_workingStrokes.length}本）');
     });
+  }
+
+  /// 🔥 新機能: Firestoreストロークとローカルストロークをインテリジェントにマージ
+  void _mergeStrokesFromFirestore(List<DrawingStroke> firestoreStrokes) {
+    // strokeIdでストロークをマップ化
+    final firestoreMap = {for (var s in firestoreStrokes) s.strokeId: s};
+    final localMap = {for (var s in _workingStrokes) s.strokeId: s};
+
+    // マージ結果
+    final mergedMap = <String, DrawingStroke>{};
+
+    // 1. Firestoreのストロークを追加（保存済みストローク）
+    for (final entry in firestoreMap.entries) {
+      mergedMap[entry.key] = entry.value;
+      // Firestoreに存在するストロークは保存済みなので、未保存リストから削除
+      _unsavedStrokeIds.remove(entry.key);
+    }
+
+    // 2. ローカルの未保存ストロークを追加（Firestoreにまだないもの）
+    for (final entry in localMap.entries) {
+      if (!firestoreMap.containsKey(entry.key)) {
+        mergedMap[entry.key] = entry.value;
+        // まだFirestoreにないので、未保存リストに保持
+        _unsavedStrokeIds.add(entry.key);
+      }
+    }
+
+    // 3. ストロークリストを更新（createdAt順にソート）
+    _workingStrokes = mergedMap.values.toList()
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+    AppLogger.info('🔄 [MERGE] マージ完了: Firestore=${firestoreStrokes.length}本, '
+        'ローカル=${localMap.length}本, 結果=${_workingStrokes.length}本, 未保存=${_unsavedStrokeIds.length}本');
   }
 
   /// Firestoreから最新のホワイトボードを再取得（ロック解除直後などの明示的リロード用）
@@ -553,8 +590,14 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       // 作業リストに追加
       if (strokes.isNotEmpty) {
         _workingStrokes.addAll(strokes);
+
+        // 🔥 新機能: 新規ストロークを未保存リストに追加
+        for (final stroke in strokes) {
+          _unsavedStrokeIds.add(stroke.strokeId);
+        }
+
         AppLogger.info(
-            '✋ [PEN_UP] ${strokes.length}個のストロークを確定 (計${_workingStrokes.length}個)');
+            '✋ [PEN_UP] ${strokes.length}個のストロークを確定 (計${_workingStrokes.length}個、未保存${_unsavedStrokeIds.length}個)');
 
         // 📚 履歴に保存
         _saveToHistory();
@@ -592,8 +635,14 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       // 作業リストに追加（履歴には保存しない）
       if (strokes.isNotEmpty) {
         _workingStrokes.addAll(strokes);
+
+        // 🔥 新機能: 新規ストロークを未保存リストに追加
+        for (final stroke in strokes) {
+          _unsavedStrokeIds.add(stroke.strokeId);
+        }
+
         AppLogger.info(
-            '✋ [PEN_DOWN] ${strokes.length}個のストロークを確定（履歴保存なし、計${_workingStrokes.length}個）');
+            '✋ [PEN_DOWN] ${strokes.length}個のストロークを確定（履歴保存なし、計${_workingStrokes.length}個、未保存${_unsavedStrokeIds.length}個）');
 
         // 🔥 CRITICAL: SignatureControllerをクリア
         _controller?.clear();
@@ -627,8 +676,14 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       // 作業リストに追加
       if (strokes.isNotEmpty) {
         _workingStrokes.addAll(strokes);
+
+        // 🔥 新機能: 新規ストロークを未保存リストに追加
+        for (final stroke in strokes) {
+          _unsavedStrokeIds.add(stroke.strokeId);
+        }
+
         AppLogger.info(
-            '📸 [MODE_TOGGLE] ${strokes.length}個のストロークをキャプチャ (計${_workingStrokes.length}個)');
+            '📸 [MODE_TOGGLE] ${strokes.length}個のストロークをキャプチャ (計${_workingStrokes.length}個、未保存${_unsavedStrokeIds.length}個)');
 
         // 📚 履歴に保存
         _saveToHistory();
@@ -752,10 +807,13 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         _captureCurrentStroke();
       }
 
-      // 🔥 新しいストローク = 作業中ストロークのみ（既にキャプチャ済み）
-      final newStrokes = List<DrawingStroke>.from(_workingStrokes);
+      // 🔥 改善: 未保存のストロークのみを抽出（差分保存）
+      final newStrokes = _workingStrokes
+          .where((stroke) => _unsavedStrokeIds.contains(stroke.strokeId))
+          .toList();
 
-      AppLogger.info('💾 [SAVE] 合計ストローク数: ${newStrokes.length}個');
+      AppLogger.info(
+          '💾 [SAVE] 未保存ストローク数: ${newStrokes.length}個（全体${_workingStrokes.length}個）');
 
       if (newStrokes.isEmpty) {
         AppLogger.info('📋 [SAVE] 新しいストロークなし、保存をスキップ');
@@ -778,19 +836,19 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       // 🔥 Windows版対策: Firestore保存後にmountedチェック
       if (!mounted) return;
 
-      // 🔥 保存成功後の処理
-      // 1. 新しく保存されたストロークをworkingStrokesに保存（UIで表示するため）
-      _workingStrokes.clear();
-      _workingStrokes.addAll(newStrokes);
-      AppLogger.info('📐 [SAVE] ${newStrokes.length}個のストロークをworkingStrokesに復元');
+      // 🔥 改善: 保存成功後、未保存リストから削除
+      for (final stroke in newStrokes) {
+        _unsavedStrokeIds.remove(stroke.strokeId);
+      }
+      AppLogger.info('📐 [SAVE] 未保存リストから削除: 残り${_unsavedStrokeIds.length}個');
 
       // 📚 保存後の状態を履歴に記録
       _saveToHistory();
 
-      // 2. SignatureControllerのみクリア（新規描画開始のため）
+      // SignatureControllerのみクリア（新規描画開始のため）
       _controller?.clear();
 
-      // 3. 変更を反映（mounted チェック済み）
+      // 変更を反映（mounted チェック済み）
       setState(() {});
 
       // 🔔 他メンバーに更新通知を送信（Windows版ではスキップ）
@@ -924,6 +982,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         // 🔥 CRITICAL: 新しいリストを作成してCustomPaintの再描画をトリガー
         _workingStrokes = [];
         _controller?.clear();
+
+        // 🔥 改善: 未保存リストもクリア
+        _unsavedStrokeIds.clear();
 
         // 📚 履歴をリセット
         _history.clear();
@@ -1750,7 +1811,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
             controller: _controller!,
             backgroundColor: Colors.transparent,
           ),
-                flutter build appbundle --release --flavor prod),
+        ),
       );
     }
 

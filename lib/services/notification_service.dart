@@ -138,15 +138,18 @@ class NotificationService {
           if (change.type == DocumentChangeType.added) {
             final notification = NotificationData.fromFirestore(change.doc);
 
-            // リスナー起動前の既存通知はスキップ（既読化しない）
+            // 🔥 CRITICAL FIX: リスナー起動前の既存通知も処理する（招待受諾漏れ防止）
+            // リスナー起動前の通知は、アプリが閉じていた間に届いた重要な通知
+            // （招待受諾、メンバー追加など）のため、必ず処理する必要がある
             if (notification.timestamp.isBefore(listenerStartTime)) {
               AppLogger.info(
-                  '⏭️ [NOTIFICATION] 既存通知をスキップ: ${notification.id} (${notification.timestamp})');
-              continue;
+                  '📬 [NOTIFICATION] リスナー起動前の通知を処理: ${notification.id} (${notification.timestamp})');
+              AppLogger.info(
+                  '   → type=${notification.type.value}, groupId=${notification.groupId}');
             }
 
             AppLogger.info(
-                '🔔 [NOTIFICATION] 新規通知検出: type=${notification.type}, groupId=${notification.groupId}');
+                '🔔 [NOTIFICATION] 通知検出: type=${notification.type}, groupId=${notification.groupId}');
             _handleNotification(notification);
           }
         }
@@ -193,7 +196,8 @@ class NotificationService {
             AppLogger.info('========================================');
 
             final groupId = notification.groupId;
-            final acceptorUid = notification.metadata?['acceptorUid'] as String?;
+            final acceptorUid =
+                notification.metadata?['acceptorUid'] as String?;
             final acceptorName =
                 notification.metadata?['acceptorName'] as String? ?? 'ユーザー';
 
@@ -248,7 +252,7 @@ class NotificationService {
           final userInitService = _ref.read(userInitializationServiceProvider);
           await userInitService.syncFromFirestoreToHive(currentUser);
           _ref.invalidate(allGroupsProvider);
-  
+
           AppLogger.info('✅ [NOTIFICATION] 確認通知による同期完了');
           break;
 

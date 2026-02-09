@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -680,24 +681,13 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
 
       Log.info('✅ [CREATE GROUP] グループ作成完了: ${newGroup.groupName}');
 
-      // Hive→Firestoreへの同期（本番環境のみ）
-      // 🔥 CRITICAL FIX: Firestore同期を再有効化（招待機能に必須）
-      if (F.appFlavor == Flavor.prod && currentUser != null) {
-        try {
-          Log.info('🔄 [CREATE GROUP] Firestoreへグループを同期中...');
-          final repository = ref.read(SharedGroupRepositoryProvider);
-          await repository.updateGroup(newGroup.groupId, newGroup);
-          Log.info('✅ [CREATE GROUP] Firestore同期完了');
+      // 🔥 CRITICAL: HybridRepositoryのcreateGroup()は既にFirestore同期済み
+      // 二重のupdateGroup()呼び出しは不要（削除済み）
 
-          // 🆕 Firestoreプラグインの内部処理が完全に完了するまで追加待機
-          // Windowsプラグインのスレッド問題対策
-          await Future.delayed(const Duration(milliseconds: 300));
-          Log.info('✅ [CREATE GROUP] Firestore内部処理完了待機完了');
-        } catch (e) {
-          Log.error('❌ [CREATE GROUP] Firestore同期エラー: $e');
-          // エラーでも続行（ローカルには保存済み）
-        }
-      }
+      // 🆕 Firestoreプラグインの内部処理が完全に完了するまで追加待機
+      // Windowsプラグインのスレッド問題対策
+      await Future.delayed(const Duration(milliseconds: 300));
+      Log.info('✅ [CREATE GROUP] Firestore内部処理完了待機完了');
 
       // 作成したグループを選択状態にする
       try {
@@ -1531,22 +1521,82 @@ final forceSyncProvider = FutureProvider<void>((ref) async {
   }
 });
 
-/// 同期状態プロバイダー
-final syncStatusProvider = Provider<SyncStatus>((ref) {
-  final hybridRepo = ref.read(hybridRepositoryProvider);
+/// 同期状態を監視するためのStreamProvider
+/// HybridRepositoryのValueNotifierから状態をStreamとして公開
+final isSyncingProvider = StreamProvider<bool>((ref) {
+  final hybridRepo = ref.watch(hybridRepositoryProvider);
   if (hybridRepo == null) {
-    return SyncStatus.localOnly;
+    return Stream.value(false);
   }
 
-  if (!hybridRepo.isOnline) {
-    return SyncStatus.offline;
-  }
+  // ValueNotifierをStreamに変換
+  final notifier = hybridRepo.isSyncingNotifier;
 
-  if (hybridRepo.isSyncing) {
-    return SyncStatus.syncing;
-  }
+  // StreamControllerを作成
+  late final StreamController<bool> controller;
+  controller = StreamController<bool>(
+    onListen: () {
+      // 初期値を送信
+      controller.add(notifier.value);
 
-  return SyncStatus.synced;
+      // ValueNotifierのリスナーを登録
+      void listener() {
+        if (!controller.isClosed) {
+          controller.add(notifier.value);
+        }
+      }
+
+      notifier.addListener(listener);
+
+      // クリーンアップ
+      ref.onDispose(() {
+        notifier.removeListener(listener);
+        controller.close();
+      });
+    },
+  );
+
+  return controller.stream;
+});
+
+/// ValueNotifierベースの同期状態プロバイダー
+/// HybridRepositoryのisSyncingNotifierを監視して即座にUI更新
+final syncStatusProvider = Provider<SyncStatus>((ref) {
+  // allGroupsProviderの状態を監視して同期状態を判定
+  final allGroupsAsync = ref.watch(allGroupsProvider);
+
+  // HybridRepositoryを取得
+  final hybridRepo = ref.read(hybridRepositoryProvider);
+
+  // 🔥 StreamProviderからisSyncingを取得
+  final isSyncingAsync = ref.watch(isSyncingProvider);
+  final isSyncing = isSyncingAsync.maybeWhen(
+    data: (value) => value,
+    orElse: () => false,
+  );
+
+  // AsyncValueの状態から同期状態を判定
+  return allGroupsAsync.when(
+    data: (_) {
+      // データ取得完了 - hybridRepoの状態で判定
+      if (hybridRepo == null) {
+        return SyncStatus.localOnly;
+      }
+
+      if (!hybridRepo.isOnline) {
+        return SyncStatus.offline;
+      }
+
+      // 🔥 StreamProviderから取得したisSyncingを使用
+      if (isSyncing) {
+        return SyncStatus.syncing;
+      }
+
+      return SyncStatus.synced;
+    },
+    loading: () => SyncStatus.syncing, // ローディング中は同期中とみなす
+    error: (_, __) => SyncStatus.offline, // エラー時はオフラインとみなす
+  );
 });
 
 /// 同期状態enum
