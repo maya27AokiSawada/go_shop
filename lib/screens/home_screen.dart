@@ -95,7 +95,9 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: appBar,
-      body: pages[pageIndex],
+      body: SafeArea(
+        child: pages[pageIndex],
+      ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: pageIndex,

@@ -212,12 +212,16 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
             Text('ヘルプ'),
           ],
         ),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildHelpSection(
+        content: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.8,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildHelpSection(
                 '基本的な使い方',
                 [
                   'グループを作成して、メンバーを招待できます',
@@ -247,6 +251,8 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
             ],
           ),
         ),
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -254,7 +260,7 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
           ),
         ],
       ),
-    );
+    )
   }
 
   /// ヘルプセクションを構築
@@ -299,10 +305,15 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
               Text('バージョン情報'),
             ],
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          content: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.8,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
               const Text(
                 'GoShopping',
                 style: TextStyle(
@@ -326,6 +337,9 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
               ),
             ],
           ),
+              ),
+            ),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -333,7 +347,7 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
             ),
           ],
         ),
-      );
+      )
     }
   }
 
