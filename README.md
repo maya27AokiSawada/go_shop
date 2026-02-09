@@ -1,5 +1,120 @@
 # GoShopping - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-02-09)
+
+### Crashlytics対応とデータ移行バグ修正 ✅
+
+**完了タスク**:
+
+1. **Hive後方互換性対応** - CastError解消
+2. **新規インストール誤検出修正** - マイグレーション画面表示回避
+3. **Firestore permission-denied修正** - ホワイトボードリスナーエラー対応
+
+#### 1. Hive後方互換性対応
+
+**問題**: Crashlytics報告 - `SharedGroupAdapter.read` で CastError
+
+**原因**: 古いデータスキーマに field[11]〜[19] が存在せず、nullをcastしようとしてエラー
+
+**解決策**:
+
+```dart
+// shared_group.dart
+@HiveField(11, defaultValue: <String>[]) @Default([]) List<String> allowedUid,
+@HiveField(12, defaultValue: false) @Default(false) bool isSecret,
+@HiveField(13, defaultValue: <Map<String, String>>[]) @Default([]) List<Map<String, String>> acceptedUid,
+@HiveField(14, defaultValue: false) @Default(false) bool isDeleted,
+@HiveField(18, defaultValue: SyncStatus.synced) @Default(SyncStatus.synced) SyncStatus syncStatus,
+@HiveField(19, defaultValue: GroupType.shopping) @Default(GroupType.shopping) GroupType groupType,
+```
+
+**生成結果** (shared_group.g.dart):
+
+```dart
+allowedUid: fields[11] == null ? [] : (fields[11] as List).cast<String>(),
+isSecret: fields[12] == null ? false : fields[12] as bool,
+```
+
+#### 2. 新規インストール誤検出修正
+
+**問題**: エミュレータ初回起動でもv1→v3マイグレーション画面が表示
+
+**原因**: `getDataVersion()` が `?? 1` でデフォルト値返却、初回起動をv1と誤判定
+
+**解決策**:
+
+```dart
+// data_version_service.dart
+Future<int?> getSavedDataVersion() async {
+  if (!prefs.containsKey(_dataVersionKey)) {
+    return null; // 初回起動はnullを返す
+  }
+  return prefs.getInt(_dataVersionKey)!;
+}
+
+Future<bool> checkAndMigrateData() async {
+  final savedVersion = await getSavedDataVersion();
+
+  if (savedVersion == null) {
+    // ユーザーデータ存在チェック
+    if (userId == null && userName == null && userEmail == null) {
+      // 新規インストール - マイグレーションスキップ
+      await saveDataVersion(currentVersion);
+      return false;
+    }
+  }
+  // v1→v3マイグレーション実行...
+}
+```
+
+#### 3. Firestore permission-denied修正
+
+**問題**: `[cloud_firestore/permission-denied]` グループ削除時にクラッシュ
+
+**原因**: ホワイトボードリスナーが `get(SharedGroups/$(groupId))` 実行、親グループ不在でエラー
+
+**解決策**:
+
+```plaintext
+// firestore.rules
+match /whiteboards/{whiteboardId} {
+  allow read: if request.auth != null &&
+    exists(/databases/$(database)/documents/SharedGroups/$(groupId)) && (
+      get(...).data.ownerUid == request.auth.uid ||
+      request.auth.uid in get(...).data.allowedUid
+    );
+}
+```
+
+```dart
+// whiteboard_editor_page.dart
+_whiteboardSubscription = repository.watchWhiteboard(...).listen(
+  (latest) { /* 通常処理 */ },
+  onError: (error) {
+    if (error.toString().contains('permission-denied')) {
+      _whiteboardSubscription?.cancel();
+      Navigator.of(context).pop();
+      // SnackBar表示
+    }
+  },
+  cancelOnError: false,
+);
+```
+
+**デプロイ**: `firebase deploy --only firestore:rules` ✅
+
+**Modified Files**:
+
+- `lib/models/shared_group.dart` - HiveField defaultValue追加
+- `lib/services/data_version_service.dart` - 新規インストール判定
+- `lib/services/user_preferences_service.dart` - int? 対応
+- `lib/services/authentication_service.dart` - null-safe比較
+- `lib/pages/whiteboard_editor_page.dart` - エラーハンドリング
+- `lib/datastore/hybrid_purchase_group_repository.dart` - import追加
+- `firestore.rules` - exists()チェック追加
+
+---
+
 ## Recent Implementations (2026-02-06)
 
 ### ValueNotifier実装で同期アイコン更新対応 ⏳

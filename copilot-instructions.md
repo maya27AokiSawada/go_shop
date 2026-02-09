@@ -42,6 +42,277 @@ flutterfire configure --project=gotoshop-572b7
 
 ---
 
+## Recent Implementations (2026-02-09)
+
+### 1. Hive後方互換性対応 - CastError解消 ✅
+
+**Purpose**: 古いデータスキーマを持つユーザーがアップデート後にクラッシュする問題を解決
+
+**Problem**: Crashlytics報告 `SharedGroupAdapter.read (shared_group.g.dart:103)` - CastError
+
+**Root Cause**:
+
+- 旧データには HiveField 11〜19 が存在しない
+- 生成コードが `(fields[11] as List).cast<String>()` を実行
+- nullをcastしようとしてCastError発生
+
+**Solution**: HiveType defaultValue パラメータを使用
+
+```dart
+// lib/models/shared_group.dart
+@HiveField(11, defaultValue: <String>[]) @Default([]) List<String> allowedUid,
+@HiveField(12, defaultValue: false) @Default(false) bool isSecret,
+@HiveField(13, defaultValue: <Map<String, String>>[]) @Default([]) List<Map<String, String>> acceptedUid,
+@HiveField(14, defaultValue: false) @Default(false) bool isDeleted,
+@HiveField(18, defaultValue: SyncStatus.synced) @Default(SyncStatus.synced) SyncStatus syncStatus,
+@HiveField(19, defaultValue: GroupType.shopping) @Default(GroupType.shopping) GroupType groupType,
+```
+
+**Generated Code** (shared_group.g.dart):
+
+```dart
+allowedUid: fields[11] == null ? [] : (fields[11] as List).cast<String>(),
+isSecret: fields[12] == null ? false : fields[12] as bool,
+isDeleted: fields[14] == null ? false : fields[14] as bool,
+syncStatus: fields[18] == null ? SyncStatus.synced : fields[18] as SyncStatus,
+groupType: fields[19] == null ? GroupType.shopping : fields[19] as GroupType,
+```
+
+**Code Generation**: `flutter pub run build_runner build --delete-conflicting-outputs`
+
+**Critical Pattern**: Hive Schema Evolution Best Practice
+
+```dart
+// ✅ Correct: Always add defaultValue for new fields
+@HiveField(N, defaultValue: <appropriate_default>) @Default(<value>) Type field,
+
+// ❌ Wrong: Missing defaultValue causes CastError on old data
+@HiveField(N) @Default(<value>) Type field,
+```
+
+### 2. 新規インストール誤検出修正 ✅
+
+**Purpose**: 初回インストール時にv1→v3マイグレーション画面が表示される問題を解決
+
+**Problem**: エミュレータで初めてアプリを動かしたのにマイグレーション画面が出る
+
+**Root Cause**:
+
+- `getDataVersion()` が `?? 1` でデフォルト値を返却
+- SharedPreferencesに\_dataVersionKeyが存在しない → 1を返す
+- システムが「v1からアップデート」と誤判定
+
+**Solution**: Nullable返却＋ユーザーデータ存在確認
+
+```dart
+// lib/services/data_version_service.dart
+Future<int?> getSavedDataVersion() async {
+  final prefs = await SharedPreferences.getInstance();
+  if (!prefs.containsKey(_dataVersionKey)) {
+    return null; // 初回起動はnullを返す
+  }
+  return prefs.getInt(_dataVersionKey)!;
+}
+
+Future<bool> checkAndMigrateData() async {
+  final savedVersion = await getSavedDataVersion();
+
+  // 🔥 新規インストール判定
+  if (savedVersion == null) {
+    final userId = await UserPreferencesService.getUserId();
+    final userName = await UserPreferencesService.getUserName();
+    final userEmail = await UserPreferencesService.getUserEmail();
+
+    if (userId == null && userName == null && userEmail == null) {
+      // 完全な新規インストール → currentVersion保存、マイグレーションスキップ
+      await UserPreferencesService.saveDataVersion(currentVersion);
+      return false;
+    }
+    // ユーザーデータ存在 → v1と判定、マイグレーション実行
+  }
+  // 以降、通常のマイグレーション処理...
+}
+```
+
+**Type Consistency**:
+
+```dart
+// lib/services/user_preferences_service.dart
+static Future<int?> getDataVersion() async {
+  return await ErrorHandler.handleAsync<int?>( // 🔥 Generic type指定
+    operation: () async {
+      if (!prefs.containsKey(_keyDataVersion)) return null;
+      return prefs.getInt(_keyDataVersion);
+    },
+    defaultValue: null, // nullを明示的に返す
+  );
+}
+
+// lib/services/authentication_service.dart
+if (savedVersion != null && savedVersion < currentVersion) { // 🔥 null-safe比較
+  await DataVersionService.checkAndMigrateData();
+}
+```
+
+**Critical Pattern**: データバージョン管理のベストプラクティス
+
+```dart
+// ✅ Correct: nullで「データなし」を表現
+Future<int?> getVersion() async {
+  if (!exists) return null;
+  return value;
+}
+
+// ❌ Wrong: デフォルト値で「データあり」と誤判定
+Future<int> getVersion() async {
+  return value ?? 1; // 初回起動もv1と判定される
+}
+```
+
+### 3. Firestore permission-denied修正 ✅
+
+**Purpose**: グループ削除時にホワイトボード画面でクラッシュする問題を解決
+
+**Problem**: Crashlytics報告 `[cloud_firestore/permission-denied]`
+
+**Root Cause**:
+
+- ホワイトボードリスナーが `get(/databases/.../SharedGroups/$(groupId))` 実行
+- グループ削除後、親ドキュメントが存在しない
+- `get()` が失敗してpermission-deniedエラー
+
+**Solution**: Firestore Security Rules - exists()チェック追加
+
+```plaintext
+// firestore.rules
+match /SharedGroups/{groupId}/whiteboards/{whiteboardId} {
+  allow read: if request.auth != null &&
+    exists(/databases/$(database)/documents/SharedGroups/$(groupId)) && ( // 🔥 exists()追加
+      get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid ||
+      request.auth.uid in get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.allowedUid
+    );
+
+  allow create, update: if request.auth != null &&
+    exists(/databases/$(database)/documents/SharedGroups/$(groupId)) && (
+      get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid ||
+      request.auth.uid in get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.allowedUid
+    );
+
+  allow delete: if request.auth != null &&
+    exists(/databases/$(database)/documents/SharedGroups/$(groupId)) &&
+    get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid;
+}
+```
+
+**Deployment**: `firebase deploy --only firestore:rules` ✅
+
+**UI Error Handling**:
+
+```dart
+// lib/pages/whiteboard_editor_page.dart
+void _startWhiteboardListener() {
+  _whiteboardSubscription = _whiteboardRepository
+      .watchWhiteboard(widget.groupId, whiteboardId)
+      .listen(
+        (latest) {
+          // 通常処理...
+        },
+        onError: (error) {
+          AppLogger.error('❌ [WHITEBOARD] リスナーエラー: $error');
+
+          // 🔥 permission-deniedハンドリング
+          if (error.toString().contains('permission-denied')) {
+            _whiteboardSubscription?.cancel();
+
+            if (mounted) {
+              Navigator.of(context).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('グループアクセス権限がありません。画面を閉じます。'),
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+          }
+        },
+        cancelOnError: false, // エラー後もリスナー継続
+      );
+}
+```
+
+**Critical Pattern**: Firestore Security Rules ベストプラクティス
+
+```dart
+// ✅ Correct: exists()チェックしてからget()
+allow read: if request.auth != null &&
+  exists(/path/to/parent) && (
+    get(/path/to/parent).data.field == value
+  );
+
+// ❌ Wrong: 親が存在しない場合get()がエラー
+allow read: if request.auth != null && (
+  get(/path/to/parent).data.field == value // 親削除後にpermission-denied
+);
+```
+
+**Critical Pattern**: Stream Error Handling ベストプラクティス
+
+```dart
+// ✅ Correct: 包括的なonErrorハンドラー
+stream.listen(
+  (data) { /* 処理 */ },
+  onError: (error) {
+    // エラーログ
+    // 特定エラーの対処（permission-denied等）
+    // UI更新（画面閉じる、SnackBar表示）
+  },
+  cancelOnError: false, // エラー後も継続
+);
+
+// ❌ Wrong: onErrorなし、クラッシュの原因
+stream.listen((data) { /* 処理 */ });
+```
+
+### 4. ビルドエラー修正 ✅
+
+**Type Errors**:
+
+```dart
+// user_preferences_service.dart L137-141
+// ❌ Error: A value of type 'Null' can't be returned from async function with return type 'Future<int>'
+// ✅ Fix: ErrorHandler.handleAsync<int?> - Generic type指定
+
+// authentication_service.dart L119
+// ❌ Error: Operator '<' cannot be called on 'int?' because it is potentially null
+// ✅ Fix: if (savedVersion != null && savedVersion < currentVersion)
+```
+
+**Import Errors**:
+
+```dart
+// hybrid_purchase_group_repository.dart
+// ❌ Error: Getter 'log' isn't defined for the type (6 occurrences)
+// ✅ Fix: import 'dart:developer' as developer;
+```
+
+**Modified Files** (2026-02-09):
+
+- `lib/models/shared_group.dart` - HiveField defaultValue追加
+- `lib/models/shared_group.g.dart` - build_runnerで再生成
+- `lib/services/data_version_service.dart` - 新規インストール判定ロジック
+- `lib/services/user_preferences_service.dart` - int? 型対応
+- `lib/services/authentication_service.dart` - null-safe比較
+- `lib/pages/whiteboard_editor_page.dart` - Stream onError追加
+- `lib/datastore/hybrid_purchase_group_repository.dart` - dart:developer import
+- `firestore.rules` - exists()チェック追加
+
+**Commits**:
+
+- `d369a16` - "fix: Helpダイアログスクロール対応 + Pixel9動作確認"
+- (待機中) - "fix: Crashlytics対応（Hive後方互換性、新規インストール判定、Firestore permission-denied）"
+
+---
+
 ## Recent Implementations (2026-02-06)
 
 ### 1. ValueNotifier実装で同期アイコン更新対応 ⏳（テスト未完了）
