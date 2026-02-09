@@ -1,5 +1,47 @@
 # GoShopping - AI Coding Agent Instructions
 
+## 🔥 Firebase Project Configuration
+
+**CRITICAL**: GoShoppingアプリは2つのFirebaseプロジェクトを使用します：
+
+### 本番環境 (Production)
+
+- **Project ID**: `goshopping-48db9`
+- **Project Number**: `101786579290`
+- **Usage**: `Flavor.prod` フレーバー専用
+- **Purpose**: 実際のユーザーデータ、本番リリース用
+
+### 開発環境 (Development)
+
+- **Project ID**: `gotoshop-572b7`
+- **Project Number**: `895658199748`
+- **Usage**: `Flavor.dev` フレーバー専用
+- **Purpose**: 開発・テスト・デバッグ用
+
+**Configuration Files**:
+
+- `lib/firebase_options.dart` - 動的プロジェクト切替実装済み
+- `F.appFlavor == Flavor.prod` → goshopping-48db9
+- `F.appFlavor == Flavor.dev` → gotoshop-572b7
+
+**FlutterFire CLI Commands**:
+
+```bash
+# Production setup
+flutterfire configure --project=goshopping-48db9
+
+# Development setup
+flutterfire configure --project=gotoshop-572b7
+```
+
+**Firebase MCP Server**:
+
+- VSCode設定済み (`.vscode/settings.json`)
+- コマンド: `npx -y firebase-tools@latest mcp`
+- プロジェクト一覧確認: Firebase MCPでプロジェクト管理可能
+
+---
+
 ## Recent Implementations (2026-02-06)
 
 ### 1. ValueNotifier実装で同期アイコン更新対応 ⏳（テスト未完了）
@@ -1664,6 +1706,9 @@ Future<String> _buildTitle(user) async {
 **Solution**:
 
 - FlutterFire CLI で自動生成: `flutterfire configure --project=gotoshop-572b7`
+  - ⚠️ **Note**: これは開発環境（dev flavor）の初期設定時の記録です
+  - 現在は `lib/firebase_options.dart` で prod/dev の動的切り替えを実装済み
+  - 本番環境は `goshopping-48db9` を使用（詳細は冒頭の「Firebase Project Configuration」参照）
 - 全プラットフォーム対応の Firebase App ID を登録
 
 **Registered Platforms**:
