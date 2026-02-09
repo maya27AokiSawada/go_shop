@@ -26,12 +26,9 @@ import 'current_list_provider.dart';
 final SharedGroupRepositoryProvider = Provider<SharedGroupRepository>((
   ref,
 ) {
-  // � 一時的にdevではHiveのみに戻す（クラッシュ原因調査のため）
-  if (F.appFlavor == Flavor.prod) {
-    return HybridSharedGroupRepository(ref);
-  } else {
-    return HiveSharedGroupRepository(ref);
-  }
+  // 🔥 devフレーバーもprodフレーバーも同じ機能（Firestore + Hive）を使用
+  // 違いはFirebaseプロジェクトのみ（gotoshop-572b7 vs goshopping-48db9）
+  return HybridSharedGroupRepository(ref);
 });
 
 // Selected Group Management - 選択されたグループの詳細操作用

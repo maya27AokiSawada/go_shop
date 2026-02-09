@@ -76,7 +76,7 @@ class GroupListWidget extends ConsumerWidget {
                           }
 
                           // 1. Hive→Firestore同期（ローカルの最新データをアップロード）
-                          if (F.appFlavor == Flavor.prod) {
+                          {
                             final initService =
                                 ref.read(userInitializationServiceProvider);
                             AppLogger.info('⬆️ [DEBUG] Hive→Firestore同期開始...');
@@ -481,7 +481,7 @@ class GroupListWidget extends ConsumerWidget {
     // 現在のユーザー情報を安全に取得
     final currentUser = ErrorHandler.handleSync<User?>(
       operation: () {
-        if (F.appFlavor == Flavor.prod) {
+        {
           return FirebaseAuth.instance.currentUser;
         }
         return null;
@@ -505,7 +505,7 @@ class GroupListWidget extends ConsumerWidget {
       return;
     }
 
-    if (currentUser == null && F.appFlavor == Flavor.prod) {
+    if (currentUser == null) {
       AppLogger.warning('⚠️  [GROUP_OPTIONS] ユーザーが認証されていません');
       return;
     }

@@ -63,7 +63,7 @@ class HybridSharedListRepository implements SharedListRepository {
       // 1. まずHiveから取得（高速）
       final cachedList = await _hiveRepo.getSharedList(groupId);
 
-      if (F.appFlavor == Flavor.dev || !_isOnline) {
+      if (!_isOnline) {
         // Dev環境またはオフライン時はHiveのみ
         developer.log('📦 Cache-only: SharedList取得 (groupId: $groupId)');
         return cachedList;
@@ -88,7 +88,7 @@ class HybridSharedListRepository implements SharedListRepository {
       await _hiveRepo.addItem(list);
       developer.log('✅ Hive保存完了: ${list.groupName}');
 
-      if (F.appFlavor == Flavor.dev || !_isOnline) {
+      if (!_isOnline) {
         return; // Dev環境またはオフライン時はHiveのみ
       }
 
@@ -138,7 +138,7 @@ class HybridSharedListRepository implements SharedListRepository {
       // 1. まずHiveをクリア
       await _hiveRepo.clearSharedList(groupId);
 
-      if (F.appFlavor == Flavor.dev || !_isOnline || _firestoreRepo == null) {
+      if (!_isOnline || _firestoreRepo == null) {
         return;
       }
 
@@ -156,7 +156,7 @@ class HybridSharedListRepository implements SharedListRepository {
       // 1. Hiveに追加
       await _hiveRepo.addSharedItem(groupId, item);
 
-      if (F.appFlavor == Flavor.dev || !_isOnline) {
+      if (!_isOnline) {
         return;
       }
 
@@ -225,7 +225,7 @@ class HybridSharedListRepository implements SharedListRepository {
       // 1. Hiveから削除
       await _hiveRepo.removeSharedItem(groupId, item);
 
-      if (F.appFlavor == Flavor.dev || !_isOnline) {
+      if (!_isOnline) {
         return;
       }
 
@@ -246,7 +246,7 @@ class HybridSharedListRepository implements SharedListRepository {
       await _hiveRepo.updateSharedItemStatus(groupId, item,
           isPurchased: isPurchased);
 
-      if (F.appFlavor == Flavor.dev || !_isOnline) {
+      if (!_isOnline) {
         return;
       }
 
@@ -266,7 +266,7 @@ class HybridSharedListRepository implements SharedListRepository {
       // 1. まずHiveから取得を試行
       final existingList = await _hiveRepo.getOrCreateList(groupId, groupName);
 
-      if (F.appFlavor == Flavor.dev || !_isOnline) {
+      if (!_isOnline) {
         return existingList;
       }
 
@@ -358,7 +358,7 @@ class HybridSharedListRepository implements SharedListRepository {
   }) async {
     try {
       // 🔥 サインイン必須仕様: Firestore優先
-      if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
+      if (_firestoreRepo != null) {
         developer.log('🔥 [HYBRID_LIST] Firestore優先モード - Firestoreに作成');
 
         // 1. Firestoreに作成
@@ -398,7 +398,7 @@ class HybridSharedListRepository implements SharedListRepository {
   Future<SharedList?> getSharedListById(String listId) async {
     try {
       // 🔥 サインイン必須仕様: Firestore優先
-      if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
+      if (_firestoreRepo != null) {
         developer
             .log('🔥 [HYBRID_LIST] Firestore優先モード - Firestoreから取得: $listId');
 
@@ -438,7 +438,7 @@ class HybridSharedListRepository implements SharedListRepository {
   Future<List<SharedList>> getSharedListsByGroup(String groupId) async {
     try {
       // 🔥 サインイン必須仕様: Firestore優先（条件簡素化）
-      if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
+      if (_firestoreRepo != null) {
         developer
             .log('🔥 [HYBRID_LIST] Firestore優先モード - Firestoreから取得: $groupId');
 
@@ -477,7 +477,7 @@ class HybridSharedListRepository implements SharedListRepository {
   Future<void> updateSharedList(SharedList list) async {
     try {
       // 🔥 サインイン必須仕様: Firestore優先（条件簡素化）
-      if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
+      if (_firestoreRepo != null) {
         developer.log('🔥 [HYBRID_LIST] Firestore優先モード - Firestoreに更新');
 
         // 1. Firestoreに更新
@@ -503,7 +503,7 @@ class HybridSharedListRepository implements SharedListRepository {
   Future<void> deleteSharedList(String groupId, String listId) async {
     try {
       // 🔥 サインイン必須仕様: Firestore優先（条件簡素化）
-      if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
+      if (_firestoreRepo != null) {
         developer.log('🔥 [HYBRID_LIST] Firestore優先モード - Firestoreから削除');
 
         // 1. Firestoreから削除
@@ -542,7 +542,7 @@ class HybridSharedListRepository implements SharedListRepository {
         );
       }
 
-      if (F.appFlavor == Flavor.dev || !_isOnline) {
+      if (!_isOnline) {
         return;
       }
 
@@ -572,7 +572,7 @@ class HybridSharedListRepository implements SharedListRepository {
         );
       }
 
-      if (F.appFlavor == Flavor.dev || !_isOnline) {
+      if (!_isOnline) {
         return;
       }
 
@@ -606,7 +606,7 @@ class HybridSharedListRepository implements SharedListRepository {
         }
       }
 
-      if (F.appFlavor == Flavor.dev || !_isOnline) {
+      if (!_isOnline) {
         return;
       }
 
@@ -772,7 +772,7 @@ class HybridSharedListRepository implements SharedListRepository {
   Future<void> addSingleItem(String listId, SharedItem item) async {
     try {
       // 🔥 サインイン必須仕様: Firestore優先＋差分同期
-      if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
+      if (_firestoreRepo != null) {
         developer.log('🔥 [HYBRID_DIFF] Firestore優先モード - アイテム追加');
 
         // ⚠️ 重要: まずHiveからgroupIdを取得（コレクショングループクエリを避ける）
@@ -825,7 +825,7 @@ class HybridSharedListRepository implements SharedListRepository {
   Future<void> removeSingleItem(String listId, String itemId) async {
     try {
       // 🔥 サインイン必須仕様: Firestore優先＋差分同期（論理削除）
-      if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
+      if (_firestoreRepo != null) {
         developer.log('🔥 [HYBRID_DIFF] Firestore優先モード - アイテム削除');
 
         // ⚠️ 重要: まずHiveからgroupIdを取得
@@ -889,7 +889,7 @@ class HybridSharedListRepository implements SharedListRepository {
   Future<void> updateSingleItem(String listId, SharedItem item) async {
     try {
       // 🔥 サインイン必須仕様: Firestore優先＋差分同期
-      if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
+      if (_firestoreRepo != null) {
         developer.log('🔥 [HYBRID_DIFF] Firestore優先モード - アイテム更新');
 
         // ⚠️ 重要: まずHiveからgroupIdを取得
@@ -967,7 +967,7 @@ class HybridSharedListRepository implements SharedListRepository {
           .log('🧹 [HYBRID_CLEANUP] Removed $removedCount items from Hive');
 
       // Firestore同期
-      if (F.appFlavor == Flavor.dev || !_isOnline) return;
+      if (!_isOnline) return;
 
       // バックグラウンド同期（エラーは無視）
       _firestoreRepo?.updateSharedList(cleanedList).then((_) {
@@ -1018,7 +1018,7 @@ class HybridSharedListRepository implements SharedListRepository {
         .log('🔴 [HYBRID_REALTIME] Stream開始: groupId=$groupId, listId=$listId');
 
     // Dev環境またはオフライン時はポーリング方式にフォールバック
-    if (F.appFlavor == Flavor.dev || !_isOnline || _firestoreRepo == null) {
+    if (!_isOnline || _firestoreRepo == null) {
       developer.log('⚠️ [HYBRID_REALTIME] ポーリングモード（30秒間隔）');
 
       // 初回データ取得してからポーリング

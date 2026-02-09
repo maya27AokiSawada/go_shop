@@ -11,9 +11,8 @@ class AccessControlService {
   final Ref _ref;
   static const String _secretModeKey = 'secret_mode';
 
-  // DEV環境ではnull
-  FirebaseAuth? get _auth =>
-      F.appFlavor == Flavor.prod ? FirebaseAuth.instance : null;
+  // Firebase Authを使用
+  FirebaseAuth get _auth => FirebaseAuth.instance;
 
   AccessControlService(this._ref);
 
@@ -21,11 +20,7 @@ class AccessControlService {
   bool canCreateGroup() {
     Log.info('🔄 [ACCESS_CONTROL_SERVICE] canCreateGroup() 開始');
 
-    if (F.appFlavor == Flavor.dev) {
-      return true; // 開発環境では制限なし
-    }
-
-    final user = _auth?.currentUser;
+    final user = _auth.currentUser;
     if (user != null) {
       Log.info('🔒 グループ作成許可: 認証済みユーザー ${user.email}');
       return true;
@@ -39,16 +34,12 @@ class AccessControlService {
   bool canEditGroup(String groupId) {
     Log.info('🔄 [ACCESS_CONTROL_SERVICE] canEditGroup($groupId) 開始');
 
-    if (F.appFlavor == Flavor.dev) {
-      return true; // 開発環境では制限なし
-    }
-
     // デフォルトグループは常に編集可能（ローカルのみ）
     if (groupId == 'default_group') {
       return true;
     }
 
-    final user = _auth?.currentUser;
+    final user = _auth.currentUser;
     if (user != null) {
       Log.info('🔒 グループ編集許可: 認証済みユーザー ${user.email}');
       return true;
@@ -60,17 +51,13 @@ class AccessControlService {
 
   /// 現在のユーザーがメンバー招待可能かチェック
   bool canInviteMembers(String groupId) {
-    if (F.appFlavor == Flavor.dev) {
-      return true; // 開発環境では制限なし
-    }
-
     // デフォルトグループは招待不可（個人用）
     if (groupId == 'default_group') {
       Log.info('🔒 メンバー招待拒否: デフォルトグループは個人用');
       return false;
     }
 
-    final user = _auth?.currentUser;
+    final user = _auth.currentUser;
     if (user != null) {
       Log.info('🔒 メンバー招待許可: 認証済みユーザー ${user.email}');
       return true;
@@ -84,7 +71,7 @@ class AccessControlService {
   Future<GroupVisibilityMode> getGroupVisibilityMode() async {
     Log.info('🔄 [ACCESS_CONTROL_SERVICE] getGroupVisibilityMode() 開始');
 
-    final user = _auth?.currentUser;
+    final user = _auth.currentUser;
     final isSecretMode = await _isSecretModeEnabled();
 
     Log.info('🔒 [VISIBILITY] シークレットモード状態: $isSecretMode');
@@ -127,7 +114,7 @@ class AccessControlService {
 
   /// シークレットモードの切り替え（認証済みユーザーまたは開発環境）
   Future<bool> toggleSecretMode() async {
-    final user = _auth?.currentUser;
+    final user = _auth.currentUser;
     Log.info('🔒 [TOGGLE] 現在のユーザー: ${user?.email ?? "未サインイン"}');
     Log.info('🔒 [TOGGLE] 環境: ${F.appFlavor}');
 

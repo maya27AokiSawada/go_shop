@@ -15,13 +15,9 @@ final sharedListBoxProvider = Provider<Box<SharedList>>((ref) {
 
 // SharedListRepositoryのプロバイダー - ハイブリッド構成に統一
 final sharedListRepositoryProvider = Provider<SharedListRepository>((ref) {
-  if (F.appFlavor == Flavor.prod) {
-    // 本番環境: ハイブリッド（Hive + Firestore）を使用
-    return HybridSharedListRepository(ref);
-  } else {
-    // 開発環境: Hiveリポジトリを使用（ローカルのみ）
-    return HiveSharedListRepository(ref);
-  }
+  // 🔥 devフレーバーもprodフレーバーも同じ機能（Firestore + Hive）を使用
+  // 違いはFirebaseプロジェクトのみ（gotoshop-572b7 vs goshopping-48db9）
+  return HybridSharedListRepository(ref);
 });
 
 // SharedListの状態管理
@@ -384,8 +380,7 @@ class SharedListForGroupNotifier
 
       // リポジトリに保存
       await repository.addItem(updatedList);
-      Log.info(
-          '🛍️ SharedListForGroupNotifier: アイテム「${item.name}」の購入状態を切り替え');
+      Log.info('🛍️ SharedListForGroupNotifier: アイテム「${item.name}」の購入状態を切り替え');
 
       // 状態を更新
       state = AsyncValue.data(updatedList);

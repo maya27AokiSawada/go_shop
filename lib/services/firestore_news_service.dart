@@ -11,20 +11,7 @@ class FirestoreNewsService {
   /// 現在のニュースを取得
   static Future<AppNews> getCurrentNews() async {
     try {
-      // DEV環境ではダミーデータを返す
-      if (F.appFlavor == Flavor.dev) {
-        Log.info('📰 DEV環境: ダミーニュースを返します');
-        return AppNews(
-          title: '🎉 GoShopping v2.0 リリース！',
-          content:
-              'GoShoppingが大幅にアップデートされました！新機能として招待システム、プレミアムプラン、ハイブリッド同期機能が追加されました。ぜひお試しください！',
-          createdAt: DateTime.now().subtract(const Duration(days: 1)),
-          actionText: '詳細を見る',
-          actionUrl: 'https://example.com/news',
-        );
-      }
-
-      // PROD環境ではFirestoreから取得
+      // Firestoreから取得
       Log.info('📰 Firestoreからニュースを取得中...');
       final doc = await FirebaseFirestore.instance
           .collection(_collectionName)

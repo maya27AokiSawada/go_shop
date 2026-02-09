@@ -40,8 +40,7 @@ class SharedListDataMigrationService {
     final hiveMigrated = await _migrateHiveData();
     totalMigrated += hiveMigrated;
 
-    // 2. Firestore移行（認証済みの場合のみ）
-    if (F.appFlavor == Flavor.prod) {
+    // 2. Firestore移行（認証済みの場合のみ） {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
         final firestoreMigrated = await _migrateFirestoreData(user);

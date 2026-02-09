@@ -164,7 +164,7 @@ class _UserNamePanelWidgetState extends ConsumerState<UserNamePanelWidget> {
       }
 
       // Firestoreにも保存（認証済みの場合）
-      if (F.appFlavor == Flavor.prod) {
+      {
         final user = FirebaseAuth.instance.currentUser;
         if (user != null) {
           final firestoreSuccess =

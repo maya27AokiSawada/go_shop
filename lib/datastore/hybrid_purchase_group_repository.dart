@@ -276,7 +276,7 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
         '🔍 [HYBRID] _getAllGroupsInternal開始 - Flavor: ${F.appFlavor}, Online: $_isOnline');
     try {
       // 🔥 サインイン必須仕様: Firestore優先
-      if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
+      if (_firestoreRepo != null) {
         try {
           developer.log('🔥 [HYBRID_REPO] Firestore優先モード - Firestoreから全グループ取得');
           AppLogger.info('🔥 [HYBRID] Firestore優先モード - 全グループ取得開始');
@@ -347,7 +347,7 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
   @override
   Future<SharedGroup> getGroupById(String groupId) async {
     // 🔥 サインイン必須仕様: Firestore優先
-    if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
+    if (_firestoreRepo != null) {
       try {
         developer
             .log('🔥 [HYBRID_REPO] Firestore優先モード - Firestoreから取得: $groupId');
@@ -368,8 +368,8 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
         return await _hiveRepo.getGroupById(groupId);
       }
     } else {
-      // dev環境またはFirestore未初期化の場合のみHive
-      developer.log('📝 [HYBRID_REPO] dev環境 - Hiveから取得: $groupId');
+      // Firestore未初期化の場合のみHive
+      developer.log('📝 [HYBRID_REPO] Firestore未初期化 - Hiveから取得: $groupId');
       return await _hiveRepo.getGroupById(groupId);
     }
   }
@@ -403,7 +403,7 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
       developer.log(
           '🔍 [HYBRID_REPO] Firestore repo check: _firestoreRepo = ${_firestoreRepo != null ? "initialized" : "NULL"}');
 
-      if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
+      if (_firestoreRepo != null) {
         developer.log('🔥 [HYBRID_REPO] Firestore優先モード - Firestoreに作成');
 
         // 🔄 同期開始を通知
@@ -547,8 +547,8 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
       SharedGroup group) async {
     developer.log('🔍 [HYBRID_REPO] Firestore同期的書き込み開始: ${group.groupName}');
 
-    if (F.appFlavor == Flavor.dev || _firestoreRepo == null) {
-      developer.log('⚠️ [HYBRID_REPO] DEV環境またはFirestore無効 - Hiveのみ');
+    if (_firestoreRepo == null) {
+      developer.log('⚠️ [HYBRID_REPO] Firestore無効 - Hiveのみ');
       return;
     }
 
@@ -629,9 +629,8 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
       await _hiveRepo.saveGroup(group);
       developer.log('✅ [HYBRID UPDATE] Hive保存完了');
 
-      if (F.appFlavor == Flavor.dev || !_isOnline || _firestoreRepo == null) {
-        developer.log(
-            '💡 [HYBRID UPDATE] Firestore同期スキップ (dev=${F.appFlavor == Flavor.dev}, online=$_isOnline)');
+      if (!_isOnline || _firestoreRepo == null) {
+        developer.log('💡 [HYBRID UPDATE] Firestore同期スキップ (online=$_isOnline)');
         return group;
       }
 
@@ -681,12 +680,11 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
 
       // Firestore削除の前提条件チェック
       Log.info('🔍 [DELETE] Firestore削除条件チェック:');
-      Log.info('  - Flavor: ${F.appFlavor} (prod必須)');
       Log.info('  - _isOnline: $_isOnline');
       Log.info(
           '  - _firestoreRepo: ${_firestoreRepo != null ? "初期化済み" : "null"}');
 
-      if (F.appFlavor == Flavor.dev || !_isOnline || _firestoreRepo == null) {
+      if (!_isOnline || _firestoreRepo == null) {
         Log.warning('⚠️ [DELETE] Firestore削除スキップ (条件未満たず)');
         return deletedGroup;
       }
@@ -823,7 +821,7 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
 
   /// Firestoreから全グループを非同期で同期
   void _syncFromFirestoreInBackground() {
-    if (_isSyncing || F.appFlavor == Flavor.dev || _firestoreRepo == null) {
+    if (_isSyncing || _firestoreRepo == null) {
       return;
     }
 
@@ -857,7 +855,7 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
 
   /// 特定グループをFirestoreから同期
   void _syncGroupFromFirestoreInBackground(String groupId) {
-    if (F.appFlavor == Flavor.dev || !_isOnline || _firestoreRepo == null) {
+    if (!_isOnline || _firestoreRepo == null) {
       return;
     }
 
@@ -888,8 +886,8 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
 
   /// 手動でFirestoreからフル同期
   Future<void> forceSyncFromFirestore() async {
-    if (F.appFlavor == Flavor.dev || _firestoreRepo == null) {
-      developer.log('🔧 Force sync skipped in dev mode');
+    if (_firestoreRepo == null) {
+      developer.log('🔧 Force sync skipped - Firestore not initialized');
       return;
     }
 
@@ -915,7 +913,7 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
 
   /// 未同期のローカル変更をFirestoreにプッシュ
   Future<void> pushLocalChangesToFirestore() async {
-    if (F.appFlavor == Flavor.dev || _firestoreRepo == null) return;
+    if (_firestoreRepo == null) return;
 
     try {
       final localGroups = await _hiveRepo.getAllGroups();
@@ -955,8 +953,8 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
   /// Firestoreから強制的に同期してHiveを更新
   /// Firebase認証済みユーザーのデータ復旧時に使用
   Future<void> syncFromFirestore() async {
-    if (!_isOnline || F.appFlavor == Flavor.dev || _firestoreRepo == null) {
-      developer.log('💡 Firestore同期スキップ (オフラインまたはDEV環境)');
+    if (!_isOnline || _firestoreRepo == null) {
+      developer.log('💡 Firestore同期スキップ (オフライン)');
       return;
     }
 

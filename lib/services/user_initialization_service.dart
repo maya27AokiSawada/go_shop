@@ -35,8 +35,7 @@ class UserInitializationService {
   FirebaseAuth? _auth;
 
   UserInitializationService(this._ref) {
-    // 本番環境のみFirebase Authを初期化
-    if (F.appFlavor == Flavor.prod) {
+    // 本番環境のみFirebase Authを初期化 {
       _auth = FirebaseAuth.instance;
     }
   }
