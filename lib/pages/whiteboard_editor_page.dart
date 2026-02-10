@@ -1806,6 +1806,16 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
               return;
             }
           },
+          onPanEnd: (details) {
+            AppLogger.info('🎨 [GESTURE] 描画完了検出 - onPanEnd');
+
+            // 🔥 NEW: ペンアップ時に現在のストロークを履歴に保存
+            // これによりスクロールモードでもすぐにundo可能になる
+            if (_controller != null && _controller!.isNotEmpty) {
+              AppLogger.info('✋ [PEN_UP] 描画完了 - ストロークをキャプチャして履歴に保存');
+              _captureCurrentDrawing();
+            }
+          },
           child: Signature(
             key: ValueKey('signature_$_controllerKey'),
             controller: _controller!,
