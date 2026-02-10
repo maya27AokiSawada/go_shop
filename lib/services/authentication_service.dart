@@ -6,7 +6,6 @@ import 'firestore_group_sync_service.dart';
 import 'firestore_user_name_service.dart';
 import 'firestore_migration_service.dart';
 import 'data_version_service.dart';
-import '../flavors.dart';
 
 /// 認証関連の処理を統合管理するサービス
 class AuthenticationService {

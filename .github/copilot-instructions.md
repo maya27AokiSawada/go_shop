@@ -1496,6 +1496,32 @@ $ firebase deploy --only firestore:indexes
 
 **Reasoning**: `oneness` branch is for active development and testing. `main` branch receives stable, tested changes only when explicitly approved by the user.
 
+### Method Signature Changes Policy
+
+⚠️ **CRITICAL - NEVER CHANGE METHOD SIGNATURES WITHOUT USER APPROVAL**:
+
+**IMPORTANT**: メソッドやコンストラクタの呼び出しシグネチャ（引数の追加・削除・型変更・順序変更など）を変更する場合は、**必ずユーザーに確認を求めること**。
+
+**禁止事項**:
+
+- ❌ AIの判断で勝手にメソッドシグネチャを変更する
+- ❌ 「既存の呼び出し箇所を全て更新します」と提案せずに実装する
+- ❌ リファクタリング名目でシグネチャを変更する
+
+**必須手順**:
+
+1. ✅ シグネチャ変更が必要な理由を明確に説明する
+2. ✅ 影響を受けるファイルと呼び出し箇所を列挙する
+3. ✅ ユーザーの承認を得てから実装する
+4. ✅ 変更後は必ず全ての呼び出し箇所を更新する
+
+**例外**:
+
+- 新規作成するメソッドやクラス（既存コードに影響なし）
+- ユーザーが明示的に「シグネチャを変更してください」と指示した場合
+
+**Reasoning**: シグネチャ変更は広範囲に影響し、コンパイルエラーやランタイムエラーの原因となるため、ユーザーの明示的な承認が必要です。
+
 ---
 
 ## Project Overview

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart'; // ValueNotifier用
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:math' as math;
 import '../models/shared_group.dart';
 import '../datastore/shared_group_repository.dart';
@@ -275,7 +276,8 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
       // 🔥 サインイン必須仕様: Firestore優先
       if (_firestoreRepo != null) {
         try {
-          AppLogger.info('🔥 [HYBRID_REPO] Firestore優先モード - Firestoreから全グループ取得');
+          AppLogger.info(
+              '🔥 [HYBRID_REPO] Firestore優先モード - Firestoreから全グループ取得');
           AppLogger.info('🔥 [HYBRID] Firestore優先モード - 全グループ取得開始');
 
           // 1. Firestoreから取得（常に最新）
@@ -395,7 +397,8 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
       }
 
       // 🔥 サインイン必須仕様: Firestore優先
-      AppLogger.info('🔍 [HYBRID_REPO] Flavor check: F.appFlavor = ${F.appFlavor}');
+      AppLogger.info(
+          '🔍 [HYBRID_REPO] Flavor check: F.appFlavor = ${F.appFlavor}');
       AppLogger.info(
           '🔍 [HYBRID_REPO] Firestore repo check: _firestoreRepo = ${_firestoreRepo != null ? "initialized" : "NULL"}');
 
@@ -626,7 +629,8 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
       AppLogger.info('✅ [HYBRID UPDATE] Hive保存完了');
 
       if (!_isOnline || _firestoreRepo == null) {
-        AppLogger.info('💡 [HYBRID UPDATE] Firestore同期スキップ (online=$_isOnline)');
+        AppLogger.info(
+            '💡 [HYBRID UPDATE] Firestore同期スキップ (online=$_isOnline)');
         return group;
       }
 
@@ -896,7 +900,8 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
         await _hiveRepo.saveGroup(group);
       }
 
-      AppLogger.info('✅ Force sync completed: ${firestoreGroups.length} groups');
+      AppLogger.info(
+          '✅ Force sync completed: ${firestoreGroups.length} groups');
       _isOnline = true;
     } catch (e) {
       AppLogger.info('❌ Force sync failed: $e');

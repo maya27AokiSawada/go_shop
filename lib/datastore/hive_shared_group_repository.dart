@@ -8,7 +8,7 @@ import '../models/user_settings.dart';
 import '../datastore/shared_group_repository.dart';
 import '../providers/hive_provider.dart';
 import '../providers/user_specific_hive_provider.dart';
-import '../flavors.dart';
+
 import '../helpers/validation_service.dart';
 import '../utils/app_logger.dart';
 
