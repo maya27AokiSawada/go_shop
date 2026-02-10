@@ -29,6 +29,8 @@ void main() async {
     await SentryFlutter.init(
       (options) {
         // 🔥 DSN設定
+        // NOTE: Sentry DSNは公開情報として設計されています（書き込み専用、読み取り不可）
+        // セキュリティはSentry管理画面の「Allowed Domains」設定で保護してください
         options.dsn =
             'https://9aa7459e94ab157f830e81c9f1a585b3@o4510820521738240.ingest.us.sentry.io/4510820522786816';
 
