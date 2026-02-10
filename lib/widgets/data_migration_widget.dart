@@ -174,184 +174,188 @@ class _DataMigrationWidgetState extends ConsumerState<DataMigrationWidget>
                 ),
               ],
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // アイコン
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: _migrationComplete
-                        ? Colors.green[100]
-                        : Colors.blue[100],
-                    borderRadius: BorderRadius.circular(40),
-                  ),
-                  child: Icon(
-                    _migrationComplete ? Icons.check_circle : Icons.upgrade,
-                    size: 48,
-                    color: _migrationComplete
-                        ? Colors.green[700]
-                        : Colors.blue[700],
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // タイトル
-                Text(
-                  _migrationComplete ? 'アップデート完了' : 'データアップデート',
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // バージョン情報
-                if (widget.oldVersion != null && widget.newVersion != null) ...[
+            // 🔥 タブレットランドスケープモード対応: スクロール可能にする
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // アイコン
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    width: 80,
+                    height: 80,
                     decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(8),
+                      color: _migrationComplete
+                          ? Colors.green[100]
+                          : Colors.blue[100],
+                      borderRadius: BorderRadius.circular(40),
                     ),
-                    child: Text(
-                      'v${widget.oldVersion} → v${widget.newVersion}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                        fontWeight: FontWeight.w500,
+                    child: Icon(
+                      _migrationComplete ? Icons.check_circle : Icons.upgrade,
+                      size: 48,
+                      color: _migrationComplete
+                          ? Colors.green[700]
+                          : Colors.blue[700],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // タイトル
+                  Text(
+                    _migrationComplete ? 'アップデート完了' : 'データアップデート',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // バージョン情報
+                  if (widget.oldVersion != null &&
+                      widget.newVersion != null) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'v${widget.oldVersion} → v${widget.newVersion}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // 説明文
+                  Text(
+                    _migrationComplete
+                        ? 'Firestoreデータ構造のアップデートが完了しました。\n新しい効率的なデータ構造により、\nより高速にグループデータを取得できます。'
+                        : 'Firestoreデータ構造が改善されました。\n\n【改善内容】\n• より効率的なグループデータ取得\n• メンバーシップ管理の最適化\n• データ整合性の向上\n\nアップデートを開始してください。',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey[700],
+                      height: 1.4,
+                    ),
                   ),
-                  const SizedBox(height: 16),
-                ],
 
-                // 説明文
-                Text(
-                  _migrationComplete
-                      ? 'Firestoreデータ構造のアップデートが完了しました。\n新しい効率的なデータ構造により、\nより高速にグループデータを取得できます。'
-                      : 'Firestoreデータ構造が改善されました。\n\n【改善内容】\n• より効率的なグループデータ取得\n• メンバーシップ管理の最適化\n• データ整合性の向上\n\nアップデートを開始してください。',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey[700],
-                    height: 1.4,
-                  ),
-                ),
+                  const SizedBox(height: 32),
 
-                const SizedBox(height: 32),
+                  // 進捗表示
+                  if (_isMigrating) ...[
+                    AnimatedBuilder(
+                      animation: _progressAnimation,
+                      builder: (context, child) {
+                        return Column(
+                          children: [
+                            LinearProgressIndicator(
+                              value: _progressAnimation.value,
+                              backgroundColor: Colors.grey[300],
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.blue[600]!,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              _currentStep,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '${(_progressAnimation.value * 100).toInt()}%',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[500],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ] else if (!_migrationComplete) ...[
+                    // 開始ボタン
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _performMigration,
+                        icon: const Icon(Icons.upgrade),
+                        label: const Text('データを更新する'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue[600],
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
 
-                // 進捗表示
-                if (_isMigrating) ...[
-                  AnimatedBuilder(
-                    animation: _progressAnimation,
-                    builder: (context, child) {
-                      return Column(
+                    const SizedBox(height: 16),
+
+                    // 注意書き
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.amber[50],
+                        border: Border.all(color: Colors.amber[200]!),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
                         children: [
-                          LinearProgressIndicator(
-                            value: _progressAnimation.value,
-                            backgroundColor: Colors.grey[300],
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.blue[600]!,
-                            ),
+                          Icon(
+                            Icons.info_outline,
+                            color: Colors.amber[700],
+                            size: 20,
                           ),
-                          const SizedBox(height: 16),
-                          Text(
-                            _currentStep,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            '${(_progressAnimation.value * 100).toInt()}%',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[500],
-                              fontWeight: FontWeight.w500,
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '現在のデータは削除され、\n新しい形式で初期化されます',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.amber[800],
+                                height: 1.3,
+                              ),
                             ),
                           ),
                         ],
-                      );
-                    },
-                  ),
-                ] else if (!_migrationComplete) ...[
-                  // 開始ボタン
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _performMigration,
-                      icon: const Icon(Icons.upgrade),
-                      label: const Text('データを更新する'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue[600],
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
                       ),
                     ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // 注意書き
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.amber[50],
-                      border: Border.all(color: Colors.amber[200]!),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          color: Colors.amber[700],
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            '現在のデータは削除され、\n新しい形式で初期化されます',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.amber[800],
-                              height: 1.3,
-                            ),
+                  ] else ...[
+                    // 完了ボタン
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: widget.onMigrationComplete,
+                        icon: const Icon(Icons.arrow_forward),
+                        label: const Text('アプリを開始'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green[600],
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ] else ...[
-                  // 完了ボタン
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: widget.onMigrationComplete,
-                      icon: const Icon(Icons.arrow_forward),
-                      label: const Text('アプリを開始'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green[600],
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
-              ],
-            ),
+              ),
+            ), // SingleChildScrollView
           ),
         ),
       ),
