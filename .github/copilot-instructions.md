@@ -42,6 +42,78 @@ flutterfire configure --project=gotoshop-572b7
 
 ---
 
+## Recent Implementations (2026-02-10)
+
+### 1. Firestoreユーザー情報構造簡素化完了 ✅
+
+**Purpose**: サインイン必須アプリとして、シンプルなFirestoreユーザー情報構造を実現
+
+**実装内容**:
+
+#### Before（旧構造）:
+
+```
+/users/{uid}/profile/profile  ← 無駄に深い階層
+```
+
+#### After（新構造）:
+
+```
+/users/{uid}
+  ├─ displayName: string
+  ├─ email: string
+  ├─ createdAt: Timestamp
+  └─ updatedAt: Timestamp
+```
+
+#### 修正対象ファイル:
+
+**1. firestore_user_name_service.dart**
+
+```dart
+/// コレクション構造:
+/// users/{uid} -> { displayName: string, email: string, createdAt: timestamp, updatedAt: timestamp }
+class FirestoreUserNameService {
+  static Future<String?> getUserName() async {
+    final docRef = _firestore.collection('users').doc(user.uid);
+    final docSnapshot = await docRef.get();
+    // ...
+  }
+}
+```
+
+**2. qr_invitation_service.dart**
+
+- 招待受諾時のユーザー名取得も新構造に対応
+- `/users/{uid}`から直接displayNameを取得
+
+**3. firestore.rules**
+
+```javascript
+// ユーザードキュメント（displayName, email, createdAt, updatedAt）
+match /users/{userId} {
+  // 自分のプロファイルのみ読み書き可能（アカウント削除含む）
+  allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+}
+```
+
+#### 技術的メリット:
+
+- ✅ 読み書きパフォーマンス向上（1回のドキュメント操作で完結）
+- ✅ セキュリティルールがシンプルに
+- ✅ サブコレクション不要（ユーザー情報は単一ドキュメントで十分）
+- ✅ マイグレーション不要（新規登録ユーザーのみ新構造使用）
+
+**Status**: ✅ 実装完了・動作確認済み
+
+**Modified Files**:
+
+- `lib/services/firestore_user_name_service.dart` - 新構造対応
+- `lib/services/qr_invitation_service.dart` - ユーザー名取得ロジック更新
+- `firestore.rules` - ユーザードキュメントルール簡素化
+
+---
+
 ## Recent Implementations (2026-02-09)
 
 ### 1. ホワイトボード同時編集対応完全実装 ✅
@@ -2160,7 +2232,7 @@ Future<void> _cleanupInvalidHiveGroups(
 
 **⚠️ CRITICAL**: Never delete from Firestore during cleanup - other users may still need those groups!
 
-## Known Issues (As of 2025-12-15)
+## Known Issues (As of 2026-02-10)
 
 ### 1. TBA1011 Firestore Sync Error (Unresolved) ⚠️
 
@@ -2183,177 +2255,6 @@ Future<void> _cleanupInvalidHiveGroups(
 - Firestore SDK timing issues
 
 **Workaround**: Use TBA1011 for local operations only, rely on other devices for Firestore sync
-
-### 2. QR Code Scan Non-Responsiveness (Investigation) 🔍
-
-**Symptom**: SH 54D doesn't respond when scanning QR codes from TBA1011
-
-**Implemented Diagnostics**:
-
-- MobileScanner debug logging added
-- QR code size increased to 250px
-- QR data reduced to 5 fields (v3.1 lightweight)
-
-**Next Steps**:
-
-- Verify debug logs show `onDetect` callbacks
-- Test with v3.1 lightweight QR codes
-- Check barcode detection count
-
----
-
-## Recent Implementations (2025-12-25)
-
-### 1. Riverpod ベストプラクティス確立 ✅
-
-**Purpose**: LateInitializationError 対応パターンの文書化と AI Coding Agent 指示書整備
-
-#### docs/riverpod_best_practices.md 拡充
-
-**追加内容**:
-
-- **セクション 4**: build()外での Ref アクセスパターン
-- `late final Ref _ref`の危険性を明記
-- `Ref? _ref` + `_ref ??= ref`パターンの説明
-- 実例（SelectedGroupNotifier）を追加
-- AsyncNotifier.build()の複数回呼び出しリスクを解説
-
-**Key Pattern**:
-
-```dart
-// ❌ 危険: late final Ref → LateInitializationError
-class MyNotifier extends AsyncNotifier<Data> {
-  late final Ref _ref;
-
-  @override
-  Future<Data> build() async {
-    _ref = ref;  // 2回目の呼び出しでエラー
-    return fetchData();
-  }
-}
-
-// ✅ 安全: Ref? + null-aware代入
-class MyNotifier extends AsyncNotifier<Data> {
-  Ref? _ref;
-
-  @override
-  Future<Data> build() async {
-    _ref ??= ref;  // 初回のみ代入
-    return fetchData();
-  }
-}
-```
-
-#### copilot-instructions.md 更新
-
-**追加内容**:
-
-```markdown
-⚠️ **CRITICAL**: Riverpod 関連の修正を行う場合は、必ず以下のドキュメントを参照すること:
-
-- **`docs/riverpod_best_practices.md`** - Riverpod ベストプラクティス＆アンチパターン集
-- 特に`AsyncNotifier.build()`メソッド内での依存性管理に注意
-- `late final Ref`の使用は禁止（LateInitializationError の原因）
-- build()外で ref が必要な場合は`Ref? _ref` + `_ref ??= ref`パターンを使用
-```
-
-**Commits**: `f9da5f5`, `2e12c80`
-
-### 2. 招待受諾バグ完全修正 ✅
-
-**Background**: QR コード招待受諾時に通知送信は成功するが、UI・Firestore に反映されない問題を段階的に修正
-
-#### Phase 1: デバッグログ強化
-
-**File**: `lib/services/notification_service.dart`
-
-- `sendNotification()`に詳細ログ追加
-- `_handleNotification()`に処理追跡ログ追加
-- Firestore 保存成功確認ログ追加
-
-#### Phase 2: 構文エラー修正
-
-**Problem**: if-else ブロックのインデントエラー
-
-**Solution**: UI 更新処理を if ブロック内に移動
-
-**Commit**: `38a1859`
-
-#### Phase 3: permission-denied エラー修正
-
-**Problem**: 受諾者がまだグループメンバーではないのに招待使用回数を更新しようとした
-
-**Solution**:
-
-- **受諾側**: `_updateInvitationUsage()`削除（通知送信のみ）
-- **招待元側**: メンバー追加後に`_updateInvitationUsage()`実行
-- 理由: 受諾者はまだグループメンバーではない → Firestore Rules 違反
-
-**Commit**: `f2be455`
-
-#### Phase 4: Firestore インデックスエラー修正
-
-**Problem**: 通知リスナーが`userId + read + timestamp`の 3 フィールドクエリを実行するが、インデックスが`userId + read`の 2 フィールドしかなかった
-
-**Solution**: `firestore.indexes.json`に`timestamp`フィールドを追加
-
-**Before**:
-
-```json
-{
-  "collectionGroup": "notifications",
-  "fields": [
-    { "fieldPath": "userId", "order": "ASCENDING" },
-    { "fieldPath": "read", "order": "ASCENDING" }
-  ]
-}
-```
-
-**After**:
-
-```json
-{
-  "collectionGroup": "notifications",
-  "fields": [
-    { "fieldPath": "userId", "order": "ASCENDING" },
-    { "fieldPath": "read", "order": "ASCENDING" },
-    { "fieldPath": "timestamp", "order": "DESCENDING" } // ← 追加
-  ]
-}
-```
-
-**Deployment**:
-
-```bash
-$ firebase deploy --only firestore:indexes
-✔ firestore: deployed indexes successfully
-```
-
-**Commit**: `b13c7b7`
-
-#### 修正後の期待動作
-
-```
-1. Pixel（まや）: QRコード受諾
-   ✅ acceptQRInvitation()
-   ✅ sendNotification() → Firestore保存成功
-
-2. SH54D（すもも）: 通知受信 ← 修正後はこれが動作する！
-   ✅ 通知リスナー起動（インデックスエラー解消）
-   ✅ _handleNotification() 実行
-   ✅ SharedGroups更新（allowedUid + members）
-   ✅ _updateInvitationUsage() 実行（招待元権限で）
-   ✅ UI反映（グループメンバー表示）
-```
-
-**Status**: 理論上完全修正 ⏳ 次回セッションで動作確認予定
-
-**検証手順**:
-
-1. 両デバイス再起動（Firestore インデックス反映確認）
-2. 通知リスナー起動確認（SH54D ログ: "✅ [NOTIFICATION] リスナー起動完了！"）
-3. 招待受諾テスト（エンドツーエンド動作確認）
-4. エラーログ確認（問題がないか最終確認）
 
 ---
 
@@ -2902,36 +2803,6 @@ Future<void> _cleanupInvalidHiveGroups(
 
 **Commit**: 7c332d6
 
----
-
-## Known Issues (As of 2025-12-16)
-
-### User Name Setting Logic Bug (Under Investigation) ⚠️
-
-**Symptom**: UI text input ignored, email prefix used instead
-
-**Occurrence**: New account creation on Android device
-
-**Status**:
-
-- firestore_user_name_service.dart modified
-- SetOptions(merge: true) implementation added
-- Test execution pending (requires complete app restart)
-
-**Suspected Causes**:
-
-- home_page.dart signUp process may not pass userName parameter correctly
-- Firebase Auth displayName update timing issue
-- Hot reload not reflecting code changes
-
-**Next Steps**:
-
-- Debug home_page.dart signUp process
-- Verify Firestore actual write content
-- Test after complete app restart
-
----
-
 ## Recent Implementations (2025-12-15)
 
 ### 1. Android Gradle Build System Root Fix ✅
@@ -3171,7 +3042,7 @@ return _firestoreRepo!.watchSharedList(groupId, listId).map((firestoreList) {
 - Phase 2: Optimization (pending)
 - Phase 3: Performance tuning (pending)
 
-## Next Implementation (Planned for 2025-11-25+)
+## Future Enhancements (Planned)
 
 ### Shopping Item UI Enhancements
 
@@ -3765,9 +3636,7 @@ Future<void> _loadUserName() async {
 2. サインイン時: Firebase Auth → SharedPreferences 反映
 3. アプリ起動時: SharedPreferences から自動ロード
 
-## Known Issues (As of 2025-12-08)
-
-- None currently
+---
 
 ## Recent Implementations (2025-12-06)
 
@@ -4361,44 +4230,7 @@ static String maskGroupId(String? groupId, {String? currentUserId}) {
 }
 ```
 
----
-
-## Known Issues (As of 2025-12-13)
-
-### Android Firestore Sync Error (Unresolved)
-
-**Symptom**: Android app shows red cloud icon with X mark (network disconnected state)
-
-**Occurrence**: After successful APK installation on Android device (SH 54D, Android 15)
-
-**Possible Causes**:
-
-1. **Firebase Configuration Mismatch**:
-   - `google-services.json` appId may differ between Windows and Android
-   - Firebase project settings not properly configured for Android flavor
-
-2. **Network Permissions**:
-   - Internet permission may be missing in AndroidManifest.xml
-   - Firestore connection timeout issues
-
-3. **Authentication State**:
-   - Auth credentials not properly saved/restored on Android
-   - SharedPreferences or Hive data path issues on Android
-
-4. **Firestore Security Rules**:
-   - Android device ID or auth token not matching security rules
-
-**Investigation Plan** (Next Session):
-
-- Check Android logs with `flutter logs -d <device-id>`
-- Verify Firebase Console error logs
-- Confirm `firebase_options.dart` configuration
-- Verify `google-services.json` appId
-- Add Firestore connection debug logging
-
----
-
-## Recent Implementations (2025-12-13)
+## Recent Implementations (2025-12-06)
 
 ### Android Build System Troubleshooting ✅
 
@@ -4749,24 +4581,6 @@ for (var doc in groupsSnapshot.docs) {
 - `09246b5` - "feat: グループ画面ローディングスピナー追加"
 - `1a869a3` - "fix: サインイン時の Firestore 優先読み込みと Hive クリーンアップ実装"
 
-### Next Steps (2025-12-18 予定)
-
-**優先タスク**: サインイン必須仕様への完全対応確認
-
-**確認項目**:
-
-1. グループ操作（作成/削除/メンバー管理）
-2. リスト操作（作成/削除/選択）
-3. アイテム操作（追加/削除/更新/購入状態トグル）
-4. 招待機能（QR 作成/受諾）
-5. 同期機能（Firestore→Hive、バックグラウンド同期）
-
-**確認方法**:
-
-- 各操作の冒頭で`currentUser`チェック
-- `currentUser == null`の場合はエラーメッセージ or ログイン画面誘導
-- UI 側でもサインアウト状態では操作ボタン無効化
-
 ---
 
 ## Recent Implementations (2025-12-18)
@@ -4937,38 +4751,7 @@ Unable to resolve host "firestore.googleapis.com": No address associated with ho
 
 ### Next Session Tasks（優先度順）
 
-#### 1. Firestore ユーザー情報構造簡素化 📝
-
-**現状**:
-
-```
-/users/{uid}/profile/profile  ← 無駄に深い
-```
-
-**改善案**:
-
-```
-/users/{uid}  ← シンプル
-  ├─ displayName
-  ├─ email
-  ├─ createdAt
-  └─ updatedAt
-```
-
-**理由**:
-
-- ユーザー情報は増える可能性が低い
-- サブコレクション不要（プロファイル 1 つだけ）
-- 読み書きのパフォーマンス向上
-
-**影響範囲**:
-
-- `firestore_user_name_service.dart`
-- `qr_invitation_service.dart`
-- `firestore.rules`
-- マイグレーション処理
-
-#### 2. Firestore 同期時のローディング表示確認 🔄
+#### 1. Firestore 同期時のローディング表示確認 🔄
 
 **確認箇所**:
 
