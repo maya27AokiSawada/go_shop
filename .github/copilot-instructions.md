@@ -44,6 +44,253 @@ flutterfire configure --project=gotoshop-572b7
 
 ## Recent Implementations (2026-02-10)
 
+### 1. ホワイトボードスクロールモードでundo/redo機能有効化 ✅
+
+**Purpose**: スクロールモードでもundo/redoが直感的に動作するUX改善
+
+**Problem**:
+
+- スクロールモードに切り替えるとundo/redoボタンが効かない
+- 描画後すぐにundoできない（モード切り替え時のみ履歴保存）
+
+**Root Cause**:
+
+- 描画完了時（ペンアップ）に履歴が保存されていなかった
+- 履歴保存タイミングが「スクロールモード切り替え時」のみだった
+
+**Solution**: ペンアップ時に自動的に履歴保存を実行
+
+**Implementation** (`lib/pages/whiteboard_editor_page.dart` lines 1785-1825):
+
+```dart
+Widget _buildDrawingArea() {
+  if (_isScrollLocked) {
+    return Container(
+      child: GestureDetector(
+        onPanStart: (details) async {
+          // 描画開始時の処理
+          if (_controller != null && _controller!.isNotEmpty) {
+            _captureCurrentStrokeWithoutHistory();
+          }
+        },
+        // 🔥 NEW: ペンアップ時に履歴保存を追加
+        onPanEnd: (details) {
+          AppLogger.info('🎨 [GESTURE] 描画完了検出 - onPanEnd');
+
+          // ペンアップ時に現在のストロークを履歴に保存
+          // これによりスクロールモードでもすぐにundo可能になる
+          if (_controller != null && _controller!.isNotEmpty) {
+            AppLogger.info('✋ [PEN_UP] 描画完了 - ストロークをキャプチャして履歴に保存');
+            _captureCurrentDrawing();
+          }
+        },
+        child: Signature(
+          key: ValueKey('signature_$_controllerKey'),
+          controller: _controller!,
+          backgroundColor: Colors.transparent,
+        ),
+      ),
+    );
+  }
+}
+```
+
+**Benefits**:
+
+- ✅ **描画直後にundoが可能**（モード切り替え不要）
+- ✅ **スクロールモードでもundoが効く**
+- ✅ **描画モードでもundoが効く**
+- ✅ ペンアップのたびに履歴に保存されるため、直感的な動作
+
+**Testing**:
+
+1. ホワイトボードエディターを開く
+2. 描画モード（青い筆アイコン）で何か描く
+3. ペンを離す（ここで履歴自動保存）
+4. スクロールモードに切り替える（赤い十字アイコン）
+5. Undoボタンを押す → 描いたストロークが消える✅
+6. Redoボタンを押す → ストロークが復活✅
+
+**Commit**: `29d157e` - "fix: ホワイトボードスクロールモードでundo/redo機能を有効化"
+
+**Modified Files**:
+
+- `lib/pages/whiteboard_editor_page.dart` (1 line added: onPanEnd callback)
+
+**Status**: ✅ 実装完了 | ⏳ 実機テスト待ち
+
+---
+
+### 2. 🚨 緊急セキュリティ対策 - 機密情報のGit管理除外 ✅
+
+**Background**: 外部からの指摘により、Git管理下に機密情報が含まれていることが判明
+
+**Identified Issues**:
+
+1. **🔥 最高優先度**: Gmail SMTP認証情報（アプリパスワード）
+   - File: `extensions/firestore-send-email.env`
+   - Content: `SMTP_CONNECTION_URI=smtps://ansize.oneness@gmail.com:hlcptkurwoftnple@smtp.gmail.com:465`
+   - Risk: 第三者がなりすましメール送信可能
+
+2. **⚠️ 高優先度**: Firebase API Key
+   - File: `lib/firebase_options_goshopping.dart`
+   - Content: `apiKey: 'AIzaSyCOrH6NiWn6nUhpdgnZ328hQ9Yel-ECFf4'`
+   - Risk: API Key制限なしで第三者が利用可能
+
+3. **📋 中優先度**: Sentry DSN
+   - Files: `lib/main.dart`, `lib/main_dev.dart`, `lib/main_prod.dart`
+   - Content: `https://9aa7459e94ab157f830e81c9f1a585b3@o4510820521738240.ingest.us.sentry.io/4510820522786816`
+   - Note: 公開情報として設計されているが説明不足
+
+#### Actions Taken (Automated)
+
+**1. Git管理からの機密ファイル除外**
+
+```bash
+# ファイルは保持しつつGit管理から除外
+git rm --cached lib/firebase_options_goshopping.dart
+git rm --cached extensions/firestore-send-email.env
+```
+
+**2. .gitignore更新**
+
+```gitignore
+# Firebase & Google Services (機密情報)
+google-services.json
+lib/firebase_options.dart
+lib/firebase_options_goshopping.dart  # ← 追加
+firebase-debug.log
+.firebase/
+
+# Environment files (機密情報)
+*.env
+.env
+.env.*
+extensions/*.env  # 既存（これで保護されるはずだったが漏れていた）
+```
+
+**3. Sentry DSN説明コメント追加**
+
+```dart
+// lib/main.dart, main_dev.dart, main_prod.dart
+// NOTE: Sentry DSNは公開情報として設計されています（書き込み専用、読み取り不可）
+// セキュリティはSentry管理画面の「Allowed Domains」設定で保護してください
+options.dsn = 'https://9aa7459e94ab157f830e81c9f1a585b3@o4510820521738240.ingest.us.sentry.io/4510820522786816';
+```
+
+**4. セキュリティ対応ガイド作成**
+
+- **File**: `docs/SECURITY_ACTION_REQUIRED.md` (203 lines)
+- **Content**:
+  - 緊急対応手順（優先度付き）
+  - Gmailアプリパスワード再発行手順
+  - Firebase API Key制限設定手順
+  - Sentry Allowed Domains設定手順
+  - Git履歴からの完全削除手順（BFG Repo-Cleaner）
+
+**Commits**:
+
+- `2279996` - "security: 機密情報をGit管理から除外＋Sentry DSN説明追加"
+- `cdae8ab` - "docs: セキュリティ対応ガイド追加"
+
+**Modified Files**:
+
+- `.gitignore` - 機密ファイルパターン追加
+- `lib/main.dart` - Sentry DSN説明コメント追加
+- `docs/SECURITY_ACTION_REQUIRED.md` - 新規作成
+
+**Status**: ✅ 自動対応完了 | ⚠️ 手動対応が必要
+
+#### ⚠️ Manual Actions Required
+
+**🔥 最優先（緊急度：最高）**
+
+**Gmailアプリパスワードの無効化と再発行**
+
+1. Google アカウント管理画面にアクセス: https://myaccount.google.com/apppasswords
+2. アカウント `ansize.oneness@gmail.com` で既存のアプリパスワード削除
+3. 新しいアプリパスワードを発行
+4. `extensions/firestore-send-email.env`に新しいパスワードを記録（Git管理外）
+5. Firebase Extension設定を更新
+
+**現在の使用状況**: Authのパスワードリセットメール送信のみ
+
+---
+
+**⚠️ 高優先度**
+
+**Firebase API Key制限設定**
+
+1. Google Cloud Console にアクセス: https://console.cloud.google.com/
+2. プロジェクト選択: `goshopping-48db9`（prod）と `gotoshop-572b7`（dev）
+3. 「認証情報」→「APIキー」で該当キーを検索
+4. **APIキー制限**を設定:
+   - Androidアプリ制限: `net.sumomo_planning.goshopping`
+   - iOSアプリ制限: バンドルID設定
+   - HTTP referer制限（Web版）: 許可ドメイン設定
+5. **API制限**を設定: 使用するFirebase APIのみ許可
+
+**効果**: 第三者による不正利用を防止
+
+---
+
+**📋 推奨**
+
+**Git履歴からの完全削除**
+
+**現状**: 最新コミットでは削除済みだが、過去のGit履歴に機密情報が残存
+
+**対応ツール**: BFG Repo-Cleaner または git filter-branch
+
+```bash
+# BFG Repo-Cleanerで履歴から完全削除
+java -jar bfg.jar --delete-files firebase_options_goshopping.dart
+java -jar bfg.jar --delete-files firestore-send-email.env
+git reflog expire --expire=now --all
+git gc --prune=now --aggressive
+git push --force --all
+```
+
+**詳細手順**: `docs/SECURITY_ACTION_REQUIRED.md` 参照
+
+**注意**: `git push --force`は他の開発者に影響を与えるため、チームメンバーへの事前通知が必須
+
+---
+
+### Technical Learnings
+
+**1. GestureDetectorのライフサイクルイベント**
+
+```dart
+onPanStart   // タッチ開始
+onPanUpdate  // ドラッグ中（連続呼び出し）
+onPanEnd     // タッチ終了（ペンアップ）
+```
+
+描画アプリでは、`onPanEnd`で現在のストローク確定＋履歴保存が基本パターン。
+
+**2. git rm --cached の動作**
+
+```bash
+git rm --cached <file>  # Git管理から除外、ファイルは保持
+git rm <file>           # Git管理から除外 + ファイル削除
+```
+
+機密情報対応では`--cached`を使用してローカルファイルを保持。
+
+**3. セキュリティ設計の基本**
+
+**公開情報と秘密情報の区別**:
+
+- **秘密情報**: 認証情報、APIシークレット、パスワード → Git管理外
+- **公開情報**: API Key（制限設定必須）、DSN（書き込み専用） → コード内配置OK（制限設定必須）
+
+公開情報は「意図的にクライアントコードに含める必要がある」が、必ず**制限設定**でセキュリティを確保する。
+
+---
+
+## Recent Implementations (2026-02-09)
+
 ### 1. Firestoreユーザー情報構造簡素化完了 ✅
 
 **Purpose**: サインイン必須アプリとして、シンプルなFirestoreユーザー情報構造を実現

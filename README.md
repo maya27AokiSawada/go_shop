@@ -1,5 +1,70 @@
 # GoShopping - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-02-10)
+
+### 1. ホワイトボードスクロールモードでundo/redo機能有効化 ✅
+
+**Purpose**: スクロールモードでもundo/redoが直感的に動作するUX改善
+
+**Problem**: 描画後すぐにundoできない（スクロールモード切り替え時のみ履歴保存）
+
+**Solution**: ペンアップ時に自動的に履歴保存を実行
+
+```dart
+// whiteboard_editor_page.dart
+GestureDetector(
+  onPanStart: (details) async { /* 描画開始処理 */ },
+  onPanEnd: (details) {
+    // 🔥 NEW: ペンアップ時に履歴保存
+    if (_controller != null && _controller!.isNotEmpty) {
+      _captureCurrentDrawing(); // 履歴に自動保存
+    }
+  },
+  child: Signature(...),
+)
+```
+
+**Benefits**:
+
+- ✅ 描画直後にundoが可能（モード切り替え不要）
+- ✅ スクロールモードでもundo/redo可能
+- ✅ 直感的な操作性
+
+**Commit**: `29d157e`
+
+---
+
+### 2. 🚨 緊急セキュリティ対策 - 機密情報のGit管理除外 ✅
+
+**Issue**: Git管理下に機密情報が残存（Gmail SMTPパスワード、Firebase API Key）
+
+**Actions Taken**:
+
+1. **Git管理除外**:
+
+   ```bash
+   git rm --cached lib/firebase_options_goshopping.dart
+   git rm --cached extensions/firestore-send-email.env
+   ```
+
+2. **.gitignore更新**: `lib/firebase_options_goshopping.dart`を追加
+
+3. **説明コメント追加**: Sentry DSNは公開情報として設計されている旨を明記
+
+4. **セキュリティガイド作成**: `docs/SECURITY_ACTION_REQUIRED.md`
+
+**Commits**: `2279996`, `cdae8ab`
+
+**⚠️ Manual Actions Required**:
+
+- 🔥 **最優先**: Gmailアプリパスワード無効化・再発行
+- ⚠️ **高**: Firebase API Key制限設定
+- 📋 **推奨**: Git履歴からの完全削除（BFG Repo-Cleaner）
+
+詳細: [docs/SECURITY_ACTION_REQUIRED.md](docs/SECURITY_ACTION_REQUIRED.md)
+
+---
+
 ## Recent Implementations (2026-02-09)
 
 ### Crashlytics対応とデータ移行バグ修正 ✅
