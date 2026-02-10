@@ -162,7 +162,7 @@ options.dsn = 'https://9aa7459e94ab157f830e81c9f1a585b3@o4510820521738240.ingest
 
 **対応手順**:
 
-1. Google アカウント管理画面にアクセス: https://myaccount.google.com/apppasswords
+1. Google アカウント管理画面にアクセス: <https://myaccount.google.com/apppasswords>
 2. アカウント `ansize.oneness@gmail.com` で既存のアプリパスワード削除
 3. 新しいアプリパスワードを発行
 4. `extensions/firestore-send-email.env`に新しいパスワードを記録（Git管理外）
@@ -178,7 +178,7 @@ options.dsn = 'https://9aa7459e94ab157f830e81c9f1a585b3@o4510820521738240.ingest
 
 **対応手順**:
 
-1. Google Cloud Console にアクセス: https://console.cloud.google.com/
+1. Google Cloud Console にアクセス: <https://console.cloud.google.com/>
 2. プロジェクト選択: `goshopping-48db9`（prod）と `gotoshop-572b7`（dev）
 3. 「認証情報」→「APIキー」で該当キーを検索
 4. **APIキー制限**を設定:
@@ -258,6 +258,46 @@ git rm <file>           # Git管理から除外 + ファイル削除
 
 - devフレーバー環境での総合テスト（3人招待、CRUD操作など）
 - mainブランチへのマージ準備
+
+### 新規タスク（2月11日以降）
+
+#### 1. 機能レベルのテスト自動化
+
+**目的**: コア機能の回帰テスト自動化により、リファクタリングの安全性を確保
+
+**対象機能**:
+
+- 認証フロー（サインアップ/サインイン/サインアウト）
+- グループCRUD操作
+- リストCRUD操作
+- アイテムCRUD操作
+- QR招待フロー
+- ホワイトボード基本操作
+
+**技術スタック（候補）**:
+
+- `flutter_test`: Widget/Integration Test
+- `integration_test`: E2Eテスト
+- `mockito`: モック作成（Firestore, Auth）
+
+#### 2. 肥大化モジュールのリファクタリング
+
+**目的**: コードの可読性・保守性向上
+
+**対象候補**:
+
+- `lib/pages/home_page.dart` - 認証UI分離
+- `lib/pages/settings_page.dart` - 設定カテゴリ別分割
+- `lib/pages/whiteboard_editor_page.dart` - ツールバーWidget化
+- `lib/services/notification_service.dart` - 通知タイプ別ハンドラ分離
+- `lib/providers/purchase_group_provider.dart` - デフォルトグループ処理分離
+
+**リファクタリング方針**:
+
+- Extract Widget: UIコンポーネントの分離
+- Extract Method: 長いメソッドの分割
+- Extract Class: 責任の分離
+- テスト追加: リファクタリング前後で動作確認
 
 ---
 
