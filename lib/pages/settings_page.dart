@@ -412,40 +412,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                               Navigator.pop(context),
                                           child: const Text('閉じる'),
                                         ),
-                                        if (groups.isEmpty && user != null)
-                                          TextButton(
-                                            onPressed: () async {
-                                              Navigator.pop(context);
-                                              // デフォルトグループを作成
-                                              try {
-                                                final groupNotifier = ref.read(
-                                                    allGroupsProvider.notifier);
-                                                await groupNotifier
-                                                    .createDefaultGroup(user);
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
-                                                        'デフォルトグループを作成しました'),
-                                                    backgroundColor:
-                                                        Colors.green,
-                                                  ),
-                                                );
-                                                // グループ一覧を更新
-                                                ref.invalidate(
-                                                    allGroupsProvider);
-                                              } catch (e) {
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(
-                                                  SnackBar(
-                                                    content: Text('エラー: $e'),
-                                                    backgroundColor: Colors.red,
-                                                  ),
-                                                );
-                                              }
-                                            },
-                                            child: const Text('デフォルトグループ作成'),
-                                          ),
+                                        // 🔥 REMOVED: デフォルトグループ機能廃止
+                                        // グループが0個の場合は初回セットアップ画面でグループ作成
                                       ],
                                     ),
                                   );

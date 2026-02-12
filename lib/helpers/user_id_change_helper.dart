@@ -99,12 +99,9 @@ class UserIdChangeHelper {
       await userSettings.updateUserId(newUserId);
       Log.info('💾 [AUTO_CLEAR] 新UID保存完了: $newUserId');
 
-      // デフォルトグループの作成（Firestoreに同期済みグループがない場合）
+      // 🔥 REMOVED: デフォルトグループ機能廃止
       if (syncedGroups.isEmpty) {
-        Log.info('🆕 [AUTO_CLEAR] デフォルトグループを作成');
-        final user = FirebaseAuth.instance.currentUser;
-        await ref.read(allGroupsProvider.notifier).createDefaultGroup(user);
-        Log.info('✅ [AUTO_CLEAR] デフォルトグループ作成完了');
+        Log.info('📝 [AUTO_CLEAR] グループが0個→初回セットアップ画面表示');
       }
 
       // プロバイダーを最終更新
@@ -234,25 +231,8 @@ class UserIdChangeHelper {
             // デフォルトグループの存在確認（groupId == user.uid のグループ）
             final user = FirebaseAuth.instance.currentUser;
             if (user != null) {
-              final hasDefaultGroup = syncedGroups.any(
-                (group) => group.groupId == user.uid,
-              );
-
-              if (!hasDefaultGroup) {
-                Log.info(
-                    '🆕 [UID変更] デフォルトグループ(groupId=${user.uid})が存在しない - 作成します');
-                final groupNotifier = ref.read(allGroupsProvider.notifier);
-                await groupNotifier.createDefaultGroup(user);
-                Log.info('✅ [UID変更] デフォルトグループ作成完了');
-
-                // デフォルトグループ作成後にもう一度プロバイダーを無効化
-                Log.info('🔄 [UID変更] デフォルトグループ作成後のUI更新');
-                ref.invalidate(allGroupsProvider);
-                await Future.delayed(const Duration(milliseconds: 200));
-              } else {
-                Log.info(
-                    '💡 [UID変更] デフォルトグループ(groupId=${user.uid})は既に存在 - 作成スキップ');
-              }
+              // 🔥 REMOVED: デフォルトグループ機能廃止
+              Log.info('📝 [UID変更] グループが0個→初回セットアップ画面表示');
 
               // 旧デフォルトグループのリストをマイグレーション（グループが存在する場合）
               if (oldUserId.isNotEmpty && !_isTemporaryUid(oldUserId)) {

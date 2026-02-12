@@ -202,27 +202,8 @@ class UserInitializationService {
 
       // STEP2-2: デフォルトグループが存在しない場合は作成
       if (!defaultGroupExists) {
-        Log.info(
-            '🆕 [INIT] デフォルトグループを作成: ${AppLogger.maskGroupId(defaultGroupId, currentUserId: user.uid)}');
-
-        try {
-          final groupNotifier = _ref.read(allGroupsProvider.notifier);
-          await groupNotifier.createDefaultGroup(user);
-
-          // 作成後の確認（500ms待機してHive書き込み完了を待つ）
-          await Future.delayed(const Duration(milliseconds: 500));
-
-          final createdGroup =
-              await hiveRepository.getGroupById(defaultGroupId);
-          Log.info('✅ [INIT] デフォルトグループ作成確認: ${createdGroup.groupName}');
-        } catch (createError) {
-          Log.error('❌ [INIT] デフォルトグループ作成失敗: $createError');
-
-          // 最終手段：もう一度試行
-          Log.warning('⚠️ [INIT] デフォルトグループ作成を再試行...');
-          final groupNotifier = _ref.read(allGroupsProvider.notifier);
-          await groupNotifier.createDefaultGroup(user);
-        }
+        Log.info('🆕 [INIT] グループが0個→初回セットアップ画面表示');
+        // 初回セットアップウィジェットでグループ作成またはQRコード参加を選択
       }
 
       // STEP3: Firestore同期
@@ -356,14 +337,8 @@ class UserInitializationService {
       // 広告サービス無効化（AdMob未設定のため）
       Log.info('💡 広告サービスは無効化されています');
 
-      // デフォルトグループをAllGroupsNotifierで作成
-      // ⚠️ 注意: Hive初期化は AllGroupsNotifier.build() 内で完了される
-      Log.info('🔄 [INIT] AllGroupsNotifierでデフォルトグループを作成');
-      final groupNotifier = _ref.read(allGroupsProvider.notifier);
-      await groupNotifier.createDefaultGroup(user);
-
-      // 🔥 CHANGED: デフォルトグループもFirestoreに同期する（groupId = user.uid で一意）
-      Log.info('✅ [INIT] デフォルトグループ作成完了 - Firestore同期済み');
+      // 🔥 REMOVED: デフォルトグループ機能廃止 - 初回セットアップ画面表示
+      Log.info('✅ [INIT] 初回セットアップ画面へ');
 
       Log.info('✅ ユーザーデフォルト初期化完了');
     } catch (e) {

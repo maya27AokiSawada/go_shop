@@ -7,7 +7,7 @@ import '../providers/current_list_provider.dart';
 import '../providers/group_shopping_lists_provider.dart';
 import '../utils/app_logger.dart';
 import '../utils/error_handler.dart';
-import '../utils/group_helpers.dart';
+// 🔥 REMOVED: import '../utils/group_helpers.dart'; デフォルトグループ機能削除
 import '../pages/group_member_management_page.dart';
 import '../services/user_initialization_service.dart';
 import '../flavors.dart';
@@ -121,21 +121,9 @@ class GroupListWidget extends ConsumerWidget {
           ),
         ),
 
-        // 招待を受ける（デフォルトグループのみの場合のみ表示）
-        allGroupsAsync.when(
-          data: (groups) {
-            final currentUser = FirebaseAuth.instance.currentUser;
-            // デフォルトグループ以外のグループが存在する場合は非表示
-            final hasNonDefaultGroups =
-                groups.any((g) => !isDefaultGroup(g, currentUser));
-            if (hasNonDefaultGroups) {
-              return const SizedBox.shrink();
-            }
-            return const AcceptInvitationWidget();
-          },
-          loading: () => const SizedBox.shrink(),
-          error: (_, __) => const SizedBox.shrink(),
-        ),
+        // 🔥 REMOVED: デフォルトグループ機能廃止
+        // 招待ウィジェットは常に表示
+        const AcceptInvitationWidget(),
 
         // グループリスト（スクロール可能に変更）
         Expanded(
@@ -170,8 +158,6 @@ class GroupListWidget extends ConsumerWidget {
 
   Widget _buildGroupTile(BuildContext context, WidgetRef ref, SharedGroup group,
       String selectedGroupId) {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    final isDefGroup = isDefaultGroup(group, currentUser);
     final memberCount = group.members?.length ?? 0;
     final isCurrentGroup = selectedGroupId == group.groupId;
 
@@ -195,12 +181,12 @@ class GroupListWidget extends ConsumerWidget {
           leading: CircleAvatar(
             backgroundColor: isCurrentGroup
                 ? Colors.blue.shade200
-                : (isDefGroup ? Colors.green.shade100 : Colors.blue.shade100),
+                : Colors.blue.shade100, // 🔥 REMOVED: デフォルトグループ判定削除
             child: isCurrentGroup
                 ? const Icon(Icons.check_circle, color: Colors.white, size: 20)
-                : Icon(
-                    isDefGroup ? Icons.person : Icons.group,
-                    color: isDefGroup ? Colors.green.shade700 : Colors.blue,
+                : const Icon(
+                    Icons.group, // 🔥 REMOVED: デフォルトグループ判定削除
+                    color: Colors.blue,
                   ),
           ),
           title: Row(
@@ -238,7 +224,8 @@ class GroupListWidget extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('メンバー: $memberCount人'),
-              if (!isDefGroup && (group.ownerUid?.isNotEmpty ?? false))
+              // 🔥 REMOVED: デフォルトグループ判定削除 - 全グループでオーナー表示
+              if (group.ownerUid?.isNotEmpty ?? false)
                 Text(
                   'オーナー: ${group.ownerName ?? '（不明）'}',
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
@@ -492,18 +479,8 @@ class GroupListWidget extends ConsumerWidget {
 
     final currentUserId = currentUser?.uid ?? '';
 
-    // デフォルトグループ（groupIdがuidと同じもの）は削除不可
-    final isProtectedGroup = isDefaultGroup(group, currentUser);
-    if (isProtectedGroup) {
-      AppLogger.info('🔒 [GROUP_OPTIONS] デフォルトグループは削除できません');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('デフォルトグループは削除できません'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
+    // 🔥 REMOVED: デフォルトグループ削除保護廃止
+    // 全てのグループが削除可能
 
     if (currentUser == null) {
       AppLogger.warning('⚠️  [GROUP_OPTIONS] ユーザーが認証されていません');

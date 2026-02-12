@@ -89,8 +89,8 @@ class FirestoreSharedGroupAdapter implements SharedGroupRepository {
     try {
       final currentUser = _auth.currentUser;
       if (currentUser == null) {
-        // 認証されていない場合はデフォルトグループを作成
-        return [await _createDefaultGroup()];
+        // 🔥 CHANGED: 認証されていない場合は空配列を返す（初回セットアップ画面へ）
+        return [];
       }
 
       // ユーザーが参加しているグループを取得
@@ -100,17 +100,14 @@ class FirestoreSharedGroupAdapter implements SharedGroupRepository {
 
       final groups = querySnapshot.docs.map((doc) => _docToGroup(doc)).toList();
 
-      if (groups.isEmpty) {
-        // グループがない場合はデフォルトグループを作成
-        groups.add(await _createDefaultGroup());
-      }
+      // 🔥 CHANGED: グループがない場合も空配列を返す（初回セットアップ画面へ）
 
       developer.log('📋 Firestore: グループ取得: ${groups.length}個');
       return groups;
     } catch (e) {
       developer.log('❌ Firestore: グループ取得エラー: $e');
-      // エラー時はデフォルトグループを返す
-      return [await _createDefaultGroup()];
+      // 🔥 CHANGED: エラー時も空配列を返す（初回セットアップ画面へ）
+      return [];
     }
   }
 
@@ -248,29 +245,7 @@ class FirestoreSharedGroupAdapter implements SharedGroupRepository {
     return null;
   }
 
-  // ヘルパーメソッド
-  Future<SharedGroup> _createDefaultGroup() async {
-    final currentUser = _auth.currentUser;
-    const groupId = 'default_group';
-
-    final defaultMember = SharedGroupMember(
-      memberId: currentUser?.uid ?? 'defaultUser',
-      name: currentUser?.displayName ?? 'ユーザー',
-      contact: currentUser?.email ?? '',
-      role: SharedGroupRole.owner,
-      invitedAt: DateTime.now(),
-      acceptedAt: DateTime.now(),
-    );
-
-    return SharedGroup(
-      groupId: groupId,
-      groupName: 'あなたのグループ',
-      ownerUid: currentUser?.uid ?? 'defaultUser',
-      members: [defaultMember],
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    );
-  }
+  // 🔥 REMOVED: _createDefaultGroup() - デフォルトグループ機能削除
 
   SharedGroup _docToGroup(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;

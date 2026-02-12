@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/shared_group.dart';
 import '../providers/purchase_group_provider.dart';
 import '../utils/app_logger.dart';
-import '../utils/group_helpers.dart';
+// 🔥 REMOVED: import '../utils/group_helpers.dart'; デフォルトグループ機能削除
 import '../widgets/member_selection_dialog.dart';
 import '../pages/group_invitation_page.dart';
 import '../widgets/whiteboard_preview_widget.dart';
@@ -27,10 +27,7 @@ class GroupMemberManagementPage extends ConsumerStatefulWidget {
 
 class _GroupMemberManagementPageState
     extends ConsumerState<GroupMemberManagementPage> {
-  bool _isDefaultGroup(SharedGroup group) {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    return isDefaultGroup(group, currentUser);
-  }
+  // 🔥 REMOVED: デフォルトグループ機能廃止
 
   @override
   Widget build(BuildContext context) {
@@ -110,8 +107,7 @@ class _GroupMemberManagementPageState
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color:
-            _isDefaultGroup(group) ? Colors.green.shade50 : Colors.blue.shade50,
+        color: Colors.blue.shade50, // 🔥 REMOVED: デフォルトグループ判定削除
         border: Border(
           bottom: BorderSide(color: Colors.grey.shade200),
         ),
@@ -124,9 +120,7 @@ class _GroupMemberManagementPageState
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: _isDefaultGroup(group)
-                  ? Colors.green.shade700
-                  : Colors.blue.shade700,
+              color: Colors.blue.shade700, // 🔥 REMOVED: デフォルトグループ判定削除
             ),
           ),
           const SizedBox(height: 8),

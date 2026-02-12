@@ -194,49 +194,11 @@ class HiveSharedGroupRepository implements SharedGroupRepository {
 
     developer.log('❌ [HIVE] グループが見つかりません: $groupId');
 
-    // デフォルトグループが存在しない場合は作成
-    if (groupId == 'default_group') {
-      return await _createDefaultGroup();
-    }
-
+    // 🔥 REMOVED: デフォルトグループ作成機能削除
     throw Exception('Group not found');
   }
 
-  // デフォルトグループを作成
-  Future<SharedGroup> _createDefaultGroup() async {
-    // UserSettingsから現在のユーザー情報を取得
-    final userSettingsBox = Hive.box<UserSettings>('userSettings');
-    final userSettings = userSettingsBox.get('settings');
-
-    final userName = (userSettings?.userName.isNotEmpty == true)
-        ? userSettings!.userName
-        : 'デフォルトユーザー';
-    final userEmail = (userSettings?.userEmail.isNotEmpty == true)
-        ? userSettings!.userEmail
-        : 'default@example.com';
-
-    final defaultGroup = SharedGroup(
-      groupId: 'default_group',
-      groupName: 'デフォルトグループ',
-      ownerName: userName,
-      ownerEmail: userEmail,
-      ownerUid: 'defaultUser',
-      members: [
-        SharedGroupMember(
-          memberId: 'defaultUser',
-          name: userName,
-          contact: userEmail,
-          role: SharedGroupRole.owner,
-          isSignedIn: true,
-        ),
-      ],
-    );
-
-    // 安全なBox取得（再試行機能付き）
-    final box = await _boxAsync;
-    await box.put('default_group', defaultGroup);
-    return defaultGroup;
-  }
+  // 🔥 REMOVED: _createDefaultGroup() - デフォルトグループ機能削除
 
   @override
   Future<SharedGroup> updateGroup(String groupId, SharedGroup group) async {

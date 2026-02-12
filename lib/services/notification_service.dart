@@ -288,11 +288,8 @@ class NotificationService {
                 AppLogger.info(
                     '✅ [NOTIFICATION] 別のグループに切替: ${AppLogger.maskGroup(allGroups.first.groupName, allGroups.first.groupId)}');
               } else {
-                // グループがない場合はデフォルトグループを作成
-                AppLogger.info('📝 [NOTIFICATION] デフォルトグループを作成');
-                await _ref
-                    .read(allGroupsProvider.notifier)
-                    .createDefaultGroup(currentUser);
+                // 🔥 REMOVED: デフォルトグループ機能廃止
+                AppLogger.info('📝 [NOTIFICATION] グループが0個→初回セットアップ画面表示');
               }
             }
 
