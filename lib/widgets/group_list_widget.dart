@@ -13,6 +13,7 @@ import '../services/user_initialization_service.dart';
 import '../flavors.dart';
 import 'group_invitation_dialog.dart';
 import 'accept_invitation_widget.dart';
+import 'initial_setup_widget.dart'; // 🆕 初回セットアップ画面
 
 /// グループをリスト表示するウィジェット
 /// タップでメンバー管理画面に遷移
@@ -142,8 +143,9 @@ class GroupListWidget extends ConsumerWidget {
       List<SharedGroup> groups, String selectedGroupId) {
     AppLogger.info('📋 [GROUP_LIST] グループ数: ${groups.length}');
 
+    // 🆕 グループが0個の場合は初回セットアップ画面を表示
     if (groups.isEmpty) {
-      return _buildEmptyState(context);
+      return const InitialSetupWidget();
     }
 
     return ListView.builder(
