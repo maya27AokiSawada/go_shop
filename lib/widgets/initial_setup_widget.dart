@@ -180,8 +180,7 @@ class InitialSetupWidget extends ConsumerWidget {
       BuildContext context, WidgetRef ref, String groupName) async {
     Log.info('🆕 [INITIAL_SETUP] グループ作成: $groupName');
 
-    // ローディングダイアログのBuildContextを保存
-    BuildContext? dialogContext;
+    bool dialogShown = false;
 
     try {
       // ローディング表示
@@ -190,12 +189,15 @@ class InitialSetupWidget extends ConsumerWidget {
           context: context,
           barrierDismissible: false,
           builder: (BuildContext ctx) {
-            dialogContext = ctx; // ダイアログのcontextを保存
             return const Center(
               child: CircularProgressIndicator(),
             );
           },
         );
+        dialogShown = true;
+
+        // ダイアログが表示されるのを少し待つ
+        await Future.delayed(const Duration(milliseconds: 100));
       }
 
       // グループ作成
@@ -203,12 +205,17 @@ class InitialSetupWidget extends ConsumerWidget {
 
       Log.info('✅ [INITIAL_SETUP] グループ作成完了');
 
-      // ローディング閉じる（ダイアログのcontextを使用）
-      if (dialogContext != null && dialogContext!.mounted) {
-        Navigator.pop(dialogContext!);
+      // ローディング閉じる（プロバイダー無効化前に実行）
+      if (dialogShown && context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
       }
 
-      // 成功メッセージ（元のcontextで表示できる場合のみ）
+      // プロバイダーを無効化してUIを確実に更新
+      // ダイアログを閉じた後に実行することで、BuildContextの無効化を防ぐ
+      ref.invalidate(allGroupsProvider);
+      Log.info('🔄 [INITIAL_SETUP] allGroupsProvider無効化完了');
+
+      // 成功メッセージ
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -217,12 +224,13 @@ class InitialSetupWidget extends ConsumerWidget {
           ),
         );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       Log.error('❌ [INITIAL_SETUP] グループ作成エラー: $e');
+      Log.error('スタックトレース: $stackTrace');
 
-      // ローディング閉じる（ダイアログのcontextを使用）
-      if (dialogContext != null && dialogContext!.mounted) {
-        Navigator.pop(dialogContext!);
+      // ローディング閉じる
+      if (dialogShown && context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
       }
 
       // エラーメッセージ
@@ -231,6 +239,7 @@ class InitialSetupWidget extends ConsumerWidget {
           SnackBar(
             content: Text('グループ作成に失敗しました: ${e.toString()}'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }

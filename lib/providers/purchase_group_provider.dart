@@ -294,7 +294,7 @@ class SelectedGroupNotifier extends AsyncNotifier<SharedGroup?> {
     } catch (e, stackTrace) {
       Log.error('❌ [DELETE MEMBER] エラー発生: $e');
       Log.error('❌ [DELETE MEMBER] スタックトレース: $stackTrace');
-      state = AsyncError(e, stackTrace);
+      stat      git push origin future      git push origin futuree = AsyncError(e, stackTrace);
       rethrow;
     }
   }
