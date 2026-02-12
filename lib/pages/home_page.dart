@@ -4,6 +4,7 @@ import '../providers/auth_provider.dart';
 import '../providers/hive_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/shared_list_provider.dart' hide sharedListBoxProvider;
+import '../providers/page_index_provider.dart';
 import '../services/user_preferences_service.dart';
 import '../services/firestore_user_name_service.dart';
 import '../services/password_reset_service.dart';
@@ -202,6 +203,14 @@ class _HomePageState extends ConsumerState<HomePage> {
       ref.invalidate(allGroupsProvider);
       await Future.delayed(const Duration(milliseconds: 500));
       AppLogger.info('🔄 [SIGNUP] allGroupsProvider再読み込み完了');
+
+      // グループ数を確認して初期セットアップ画面に遷移
+      final allGroupsAsync = await ref.read(allGroupsProvider.future);
+      if (allGroupsAsync.isEmpty) {
+        AppLogger.info('📋 [SIGNUP] グループ0個 - グループタブに自動遷移');
+        // グループタブ（pageIndex=1）に切り替え
+        ref.read(pageIndexProvider.notifier).setPage(1);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

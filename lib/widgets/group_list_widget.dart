@@ -11,8 +11,6 @@ import '../utils/error_handler.dart';
 import '../pages/group_member_management_page.dart';
 import '../services/user_initialization_service.dart';
 import '../flavors.dart';
-import 'group_invitation_dialog.dart';
-import 'accept_invitation_widget.dart';
 import 'initial_setup_widget.dart'; // 🆕 初回セットアップ画面
 
 /// グループをリスト表示するウィジェット
@@ -121,10 +119,6 @@ class GroupListWidget extends ConsumerWidget {
             ],
           ),
         ),
-
-        // 🔥 REMOVED: デフォルトグループ機能廃止
-        // 招待ウィジェットは常に表示
-        const AcceptInvitationWidget(),
 
         // グループリスト（スクロール可能に変更）
         Expanded(
@@ -629,14 +623,5 @@ class GroupListWidget extends ConsumerWidget {
         );
       }
     }
-  }
-
-  /// QR招待ダイアログを表示
-  Future<void> _showInvitationDialog(
-      BuildContext context, WidgetRef ref, SharedGroup group) async {
-    showDialog(
-      context: context,
-      builder: (context) => GroupInvitationDialog(group: group),
-    );
   }
 }
