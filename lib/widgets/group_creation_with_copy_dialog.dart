@@ -386,10 +386,14 @@ class _GroupCreationWithCopyDialogState
   }
 
   Future<void> _createGroup() async {
+    AppLogger.info('🔵 [CREATE GROUP DIALOG] _createGroup() メソッド開始');
     final groupName = _groupNameController.text.trim();
+    AppLogger.info('🔵 [CREATE GROUP DIALOG] 入力されたグループ名: $groupName');
 
     // バリデーションチェック
+    AppLogger.info('🔵 [CREATE GROUP DIALOG] バリデーション開始');
     if (!_formKey.currentState!.validate()) {
+      AppLogger.info('🔴 [CREATE GROUP DIALOG] バリデーション失敗');
       // バリデーション失敗時に重複チェック
       final allGroupsAsync = ref.read(allGroupsProvider);
       final allGroups = await allGroupsAsync.when(
@@ -413,6 +417,7 @@ class _GroupCreationWithCopyDialogState
       return;
     }
 
+    AppLogger.info('✅ [CREATE GROUP DIALOG] バリデーション成功');
     AppLogger.info('🔄 [CREATE GROUP DIALOG] グループ作成開始');
     setState(() {
       _isLoading = true;
@@ -472,6 +477,10 @@ class _GroupCreationWithCopyDialogState
       // Create new group
       await ref.read(allGroupsProvider.notifier).createNewGroup(groupName);
       AppLogger.info('✅ [CREATE GROUP DIALOG] createNewGroup() 完了');
+
+      // 🔥 CRITICAL: allGroupsProviderを無効化してFirestoreから再取得
+      AppLogger.info('🔄 [CREATE GROUP DIALOG] allGroupsProviderを無効化');
+      ref.invalidate(allGroupsProvider);
 
       // 🆕 Windows対策: allGroupsProviderの再構築完了を待機
       AppLogger.info('⏳ [CREATE GROUP DIALOG] allGroupsProvider更新待機中...');

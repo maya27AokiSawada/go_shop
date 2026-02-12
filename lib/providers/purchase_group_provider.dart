@@ -470,7 +470,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
       }
 
       // 🔥 CRITICAL: allowedUidに現在ユーザーが含まれないグループを除外
-      final currentUser = ref.read(authStateProvider).value;
+      final currentUser = ref.watch(authStateProvider).value;
       Log.info(
           '🔍 [ALL GROUPS] 現在のユーザー: ${AppLogger.maskUserId(currentUser?.uid)}');
 
@@ -696,19 +696,10 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
         Log.warning('⚠️ [CREATE GROUP] グループ選択エラー（続行）: $e');
       }
 
-      // ✅ プロバイダーを無効化してUIを確実に更新
-      // Windows環境では楽観的更新が反映されない問題があるため、
-      // repository.getAllGroups()を再度呼び出して最新のグループリストを取得
-      try {
-        Log.info('🔄 [CREATE GROUP] allGroupsProviderを無効化してUI更新');
-        ref.invalidateSelf();
-
-        // 🆕 Windows対策: プロバイダーの再構築完了を待機
-        await Future.delayed(const Duration(milliseconds: 200));
-        Log.info('✅ [CREATE GROUP] プロバイダー再構築待機完了');
-      } catch (e) {
-        Log.warning('⚠️ [CREATE GROUP] プロバイダー無効化エラー: $e');
-      }
+      // ✅ プロバイダー無効化は呼び出し側で実施
+      // ここでinvalidateSelf()を呼ぶと、watchしているウィジェットが再ビルドされ、
+      // 呼び出し側のBuildContextが無効になってダイアログが閉じられなくなる
+      Log.info('✅ [CREATE GROUP] グループ作成処理完了（プロバイダー無効化は呼び出し側で実施）');
 
       // ✅ メンバープール更新は不要
       // グループ作成時はオーナー（自分）のみ追加され、既にメンバープールに存在
