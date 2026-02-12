@@ -180,15 +180,21 @@ class InitialSetupWidget extends ConsumerWidget {
       BuildContext context, WidgetRef ref, String groupName) async {
     Log.info('🆕 [INITIAL_SETUP] グループ作成: $groupName');
 
+    // ローディングダイアログのBuildContextを保存
+    BuildContext? dialogContext;
+
     try {
       // ローディング表示
       if (context.mounted) {
         showDialog(
           context: context,
           barrierDismissible: false,
-          builder: (context) => const Center(
-            child: CircularProgressIndicator(),
-          ),
+          builder: (BuildContext ctx) {
+            dialogContext = ctx; // ダイアログのcontextを保存
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          },
         );
       }
 
@@ -197,11 +203,13 @@ class InitialSetupWidget extends ConsumerWidget {
 
       Log.info('✅ [INITIAL_SETUP] グループ作成完了');
 
-      // ローディング閉じる
-      if (context.mounted) {
-        Navigator.pop(context);
+      // ローディング閉じる（ダイアログのcontextを使用）
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
 
-        // 成功メッセージ
+      // 成功メッセージ（元のcontextで表示できる場合のみ）
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('「$groupName」を作成しました'),
@@ -212,11 +220,13 @@ class InitialSetupWidget extends ConsumerWidget {
     } catch (e) {
       Log.error('❌ [INITIAL_SETUP] グループ作成エラー: $e');
 
-      // ローディング閉じる
-      if (context.mounted) {
-        Navigator.pop(context);
+      // ローディング閉じる（ダイアログのcontextを使用）
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
 
-        // エラーメッセージ
+      // エラーメッセージ
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('グループ作成に失敗しました: ${e.toString()}'),
