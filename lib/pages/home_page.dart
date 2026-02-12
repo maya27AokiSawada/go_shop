@@ -209,7 +209,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       if (allGroupsAsync.isEmpty) {
         AppLogger.info('📋 [SIGNUP] グループ0個 - グループタブに自動遷移');
         // グループタブ（pageIndex=1）に切り替え
-        ref.read(pageIndexProvider.notifier).setPage(1);
+        ref.read(pageIndexProvider.notifier).setPageIndex(1);
       }
 
       if (mounted) {
