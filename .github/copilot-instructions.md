@@ -42,6 +42,159 @@ flutterfire configure --project=gotoshop-572b7
 
 ---
 
+## Recent Implementations (2026-02-12)
+
+### 1. グループ作成後のUI自動反映修正 ✅
+
+**Purpose**: グループ作成後、手動同期なしで即座にUIに反映させる
+
+**Problem**: グループ作成後、Firestoreには保存されるがUIに反映されない（手動同期ボタンでのみ表示）
+
+**Root Cause**: `createNewGroup()`完了後に`allGroupsProvider`を無効化していなかった
+
+**Solution** (`lib/widgets/group_creation_with_copy_dialog.dart` Line 480):
+
+```dart
+await ref.read(allGroupsProvider.notifier).createNewGroup(groupName);
+ref.invalidate(allGroupsProvider);  // ✅ 追加
+```
+
+**Benefits**:
+
+- ✅ Firestore保存 → Hiveキャッシュ更新 → UI即時反映
+- ✅ 手動同期不要
+- ✅ ユーザー体験向上
+
+**Modified Files**:
+
+- `lib/widgets/group_creation_with_copy_dialog.dart` (Line 480)
+- `lib/providers/purchase_group_provider.dart` (Line 473: ref.read → ref.watch修正)
+
+**Commit**: `ac7d03e` - "fix: グループ作成後のUI自動反映を実装"
+
+**Status**: ✅ 実装完了・動作確認済み
+
+### 2. Riverpod AsyncNotifier Assertion Error修正 ✅
+
+**Problem**: `_dependents.isEmpty is not true` エラーがAsyncNotifier.build()内で発生
+
+**Root Cause**: `AsyncNotifier.build()`内で`ref.read(authStateProvider)`を使用
+
+**Solution**: `ref.read()` → `ref.watch()`に変更
+
+```dart
+// ❌ Wrong: AsyncNotifier.build()内でref.read()使用
+final currentUser = ref.read(authStateProvider).value;
+
+// ✅ Correct: ref.watch()で依存関係追跡
+final currentUser = ref.watch(authStateProvider).value;
+```
+
+**Critical Rule**: AsyncNotifier.build()内では常に`ref.watch()`を使用（依存関係追跡のため）
+
+**Modified Files**: `lib/providers/purchase_group_provider.dart` (Line 473)
+
+**Status**: ✅ 修正完了・Windows版で動作確認済み
+
+### 3. 多言語対応システム実装（日本語モジュール完成） ✅
+
+**Purpose**: 世界展開（英語・中国語・スペイン語）を見据えたUIテキストの国際化
+
+**Implementation**:
+
+#### Architecture
+
+```
+lib/l10n/
+├── app_texts.dart              # 抽象基底クラス（全言語共通インターフェース）
+├── app_texts_ja.dart           # 日本語実装 ✅ (160項目)
+├── app_texts_en.dart           # 英語実装 ⏳ (未実装)
+├── app_texts_zh.dart           # 中国語実装 ⏳ (未実装)
+├── app_texts_es.dart           # スペイン語実装 ⏳ (未実装)
+├── app_localizations.dart      # グローバル管理クラス
+├── l10n.dart                   # エクスポート＋ショートカット
+├── USAGE_EXAMPLES.dart         # 使用例集（7パターン）
+└── README.md                   # 完全ドキュメント
+```
+
+#### Usage Pattern
+
+```dart
+import 'package:goshopping/l10n/l10n.dart';
+
+// 従来
+Text('グループ名')
+
+// 新方式（多言語対応）
+Text(texts.groupName)  // グローバルショートカット
+```
+
+#### Text Categories (約160項目)
+
+- 共通 (16): appName, ok, cancel, save, delete...
+- 認証 (16): signIn, signUp, email, password...
+- グループ (20): group, createGroup, groupMembers...
+- リスト (16): list, createList, listName...
+- アイテム (16): item, addItem, quantity...
+- QR招待 (10): invitation, scanQRCode...
+- 設定 (14): settings, profile, language...
+- 通知 (7): notification, markAsRead...
+- ホワイトボード (14): whiteboard, penColor, undo...
+- 同期 (10): sync, syncing, manualSync...
+- エラー (7): networkError, serverError...
+- 日時 (8): today, yesterday, daysAgo...
+- 確認 (4): areYouSure, cannotBeUndone...
+
+#### Implementation Status
+
+| 言語       | コード | ファイル            | ステータス             |
+| ---------- | ------ | ------------------- | ---------------------- |
+| 日本語     | `ja`   | `app_texts_ja.dart` | ✅ 実装完了（160項目） |
+| 英語       | `en`   | `app_texts_en.dart` | ⏳ 未実装              |
+| 中国語     | `zh`   | `app_texts_zh.dart` | ⏳ 未実装              |
+| スペイン語 | `es`   | `app_texts_es.dart` | ⏳ 未実装              |
+
+#### Language Switching
+
+```dart
+// 言語切り替え
+AppLocalizations.setLanguage('ja');  // 日本語
+AppLocalizations.setLanguage('en');  // 英語（未実装）
+
+// 現在の言語確認
+String current = AppLocalizations.currentLanguageCode;  // 'ja'
+```
+
+#### Adding New Language
+
+1. Create `lib/l10n/app_texts_XX.dart` (XX = language code)
+2. Extend `AppTexts` and implement all 160 properties
+3. Register in `app_localizations.dart` setLanguage() method
+4. Add to `supportedLanguages` list
+
+**Created Files** (6 files, 1,292 lines):
+
+- `lib/l10n/app_texts.dart` - Abstract base class
+- `lib/l10n/app_texts_ja.dart` - Japanese implementation
+- `lib/l10n/app_localizations.dart` - Global manager
+- `lib/l10n/l10n.dart` - Export + shortcut
+- `lib/l10n/USAGE_EXAMPLES.dart` - 7 usage examples
+- `lib/l10n/README.md` - Complete documentation
+
+**Commit**: `f135083` - "feat: 多言語対応システム実装（日本語モジュール完成）"
+
+**Status**: ✅ 日本語実装完了 | ⏳ 既存コード移行待ち | ⏳ 英中西未実装
+
+**Next Steps**:
+
+1. 既存UIコードを`texts.*`に移行（home_page.dart, settings_page.dart等）
+2. 英語実装 (`app_texts_en.dart`)
+3. 中国語・スペイン語実装
+4. 言語切り替えUI追加（settings_page.dart）
+5. SharedPreferencesに設定保存
+
+---
+
 ## Recent Implementations (2026-02-10)
 
 ### 1. ホワイトボードスクロールモードでundo/redo機能有効化 ✅

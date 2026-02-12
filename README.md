@@ -1,5 +1,96 @@
 # GoShopping - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-02-12)
+
+### 1. グループ作成後のUI自動反映修正 ✅
+
+**Purpose**: グループ作成後、手動同期なしで即座にUIに反映させる
+
+**Problem**: グループ作成後、Firestoreには保存されるがUIに反映されない（手動同期ボタンでのみ表示）
+
+**Root Cause**: `createNewGroup()`完了後に`allGroupsProvider`を無効化していなかった
+
+**Solution** (`lib/widgets/group_creation_with_copy_dialog.dart` Line 480):
+
+```dart
+await ref.read(allGroupsProvider.notifier).createNewGroup(groupName);
+ref.invalidate(allGroupsProvider);  // ✅ 追加
+```
+
+**Benefits**:
+
+- ✅ Firestore保存 → Hiveキャッシュ更新 → UI即時反映
+- ✅ 手動同期不要
+- ✅ ユーザー体験向上
+
+**Commit**: `ac7d03e`
+
+---
+
+### 2. Riverpod AsyncNotifier Assertion Error修正 ✅
+
+**Problem**: `_dependents.isEmpty is not true` エラーがAsyncNotifier.build()内で発生
+
+**Root Cause**: `AsyncNotifier.build()`内で`ref.read(authStateProvider)`を使用
+
+**Solution**: `ref.read()` → `ref.watch()`に変更
+
+```dart
+// ❌ Wrong: AsyncNotifier.build()内でref.read()使用
+final currentUser = ref.read(authStateProvider).value;
+
+// ✅ Correct: ref.watch()で依存関係追跡
+final currentUser = ref.watch(authStateProvider).value;
+```
+
+**Critical Rule**: AsyncNotifier.build()内では常に`ref.watch()`を使用（依存関係追跡のため）
+
+**Modified Files**: `lib/providers/purchase_group_provider.dart` (Line 473)
+
+**Commit**: `ac7d03e`
+
+---
+
+### 3. 多言語対応システム実装（日本語モジュール完成） ✅
+
+**Purpose**: 世界展開（英語・中国語・スペイン語）を見据えたUIテキストの国際化
+
+**Implementation**:
+
+```
+lib/l10n/
+├── app_texts.dart              # 抽象基底クラス（全言語共通インターフェース）
+├── app_texts_ja.dart           # 日本語実装 ✅ (160項目)
+├── app_localizations.dart      # グローバル管理クラス
+├── l10n.dart                   # エクスポート＋ショートカット
+└── README.md                   # 完全ドキュメント
+```
+
+**Usage Pattern**:
+
+```dart
+import 'package:goshopping/l10n/l10n.dart';
+
+// 従来
+Text('グループ名')
+
+// 新方式（多言語対応）
+Text(texts.groupName)  // グローバルショートカット
+```
+
+**Text Categories** (約160項目):
+
+- 共通、認証、グループ、リスト、アイテム、QR招待、設定、通知、ホワイトボード、同期、エラー、日時、確認
+
+**Implementation Status**:
+
+- ✅ 日本語 (160項目実装完了)
+- ⏳ 英語・中国語・スペイン語（未実装）
+
+**Commit**: `f135083`
+
+---
+
 ## Recent Implementations (2026-02-10)
 
 ### 1. ホワイトボードスクロールモードでundo/redo機能有効化 ✅
