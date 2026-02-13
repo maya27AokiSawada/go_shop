@@ -1743,14 +1743,48 @@ class MyNotifier extends AsyncNotifier<Data> {
 
 **追加内容**:
 
-```markdown
+````markdown
 ⚠️ **CRITICAL**: Riverpod 関連の修正を行う場合は、必ず以下のドキュメントを参照すること:
 
 - **`docs/riverpod_best_practices.md`** - Riverpod ベストプラクティス＆アンチパターン集
 - 特に`AsyncNotifier.build()`メソッド内での依存性管理に注意
 - `late final Ref`の使用は禁止（LateInitializationError の原因）
 - build()外で ref が必要な場合は`Ref? _ref` + `_ref ??= ref`パターンを使用
+
+⚠️ **CRITICAL 2**: ダイアログ内のConsumerWidgetでのprovider使用（2026-02-13発見）:
+
+- **`showDialog()`内のConsumerWidget**では**必ず`ref.watch()`**を使用
+- `ref.read(provider).value`はダイアログ内では`_dependents.isEmpty`エラーを引き起こす
+- 通常のページ/Widget内のメソッド（onPressed等）では`ref.read()`でも問題なし
+- **ダイアログは特殊なライフサイクル**を持つため、`ref.watch()`で依存関係を明示する必要あり
+
+```dart
+// ❌ ダイアログ内では避ける
+showDialog(
+  builder: (context) => Consumer(
+    builder: (context, ref, child) {
+      final data = ref.read(someProvider).value; // エラー発生
+      return AlertDialog(...);
+    }
+  )
+);
+
+// ✅ ダイアログ内では watch() を使用
+showDialog(
+  builder: (context) => Consumer(
+    builder: (context, ref, child) {
+      final data = ref.watch(someProvider).value; // 安全
+      return AlertDialog(...);
+    }
+  )
+);
 ```
+````
+
+**発見経緯**: グループ作成ダイアログで`_dependents.isEmpty is not true`エラー（2回目の発生）
+**影響範囲**: ダイアログ内のConsumerWidgetのみ（全コードベース監査で21箇所確認、全て問題なし）
+
+````
 
 **Commits**: `f9da5f5`, `2e12c80`
 
@@ -1802,7 +1836,7 @@ class MyNotifier extends AsyncNotifier<Data> {
     { "fieldPath": "read", "order": "ASCENDING" }
   ]
 }
-```
+````
 
 **After**:
 
@@ -2251,7 +2285,35 @@ Firestore: `/invitations/{invitationId}`
 - ~~`invitation_provider.dart`~~
 - ~~`invitation_management_dialog.dart`~~
 
-### Default Group System (Updated: 2025-11-17)
+### Default Group System (DEPRECATED: 2026-02-12, Cleanup: 2026-02-13)
+
+⚠️ **この機能は完全に廃止されました**
+
+**廃止日**: 2026-02-12
+**削除漏れ修正**: 2026-02-13
+
+**新仕様**:
+
+- サインアップ後、グループが0個の場合は**初回セットアップ画面** (`initial_setup_widget.dart`) を表示
+- ユーザーが能動的に「最初のグループを作成」または「QRコードでグループ参加」を選択
+- 全てのグループが同等に扱われる（特別扱い・削除保護なし）
+
+**削除された機能**:
+
+- `createDefaultGroup()` メソッド
+- `isDefaultGroup()` 判定関数
+- デフォルトグループの特別なUI表示（緑色、特別アイコン）
+- デフォルトグループの削除保護 ✅ 2026-02-13に削除漏れ修正
+- `lib/utils/group_helpers.dart` ファイル全体
+
+**参照**: `docs/daily_reports/2026-02/daily_report_20260212.md` (廃止), `daily_report_20260213.md` (削除漏れ修正)
+
+---
+
+### ~~Default Group System~~ (Updated: 2025-11-17) ❌ DEPRECATED
+
+<details>
+<summary>⚠️ 旧仕様（参考用・実装しないこと）</summary>
 
 **デフォルトグループ** = ユーザー専用のプライベートグループ
 
@@ -2338,6 +2400,10 @@ if (legacyGroupExists && !uidGroupExists) {
 - `lib/providers/purchase_group_provider.dart`
 - `lib/datastore/hive_purchase_group_repository.dart`
 
+</details>
+
+---
+
 ### UID Change Detection & Data Migration
 
 **Flow** (`lib/helpers/user_id_change_helper.dart`):
@@ -2348,10 +2414,9 @@ if (legacyGroupExists && !uidGroupExists) {
    - Clear Hive boxes (SharedGroup + SharedList)
    - Call `SelectedGroupIdNotifier.clearSelection()`
    - Sync from Firestore (download new user's data)
-   - **Create default group** (explicit call)
+   - ~~**Create default group** (explicit call)~~ ❌ DEPRECATED: デフォルトグループ機能廃止
+   - Show initial setup screen if no groups exist
    - Invalidate providers sequentially
-
-**Critical**: After UID change data clear, must explicitly create default group as `authStateChanges()` doesn't fire for existing login.
 
 ### App Mode & Terminology System (Added: 2025-11-18)
 

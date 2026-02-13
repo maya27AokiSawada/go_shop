@@ -395,7 +395,7 @@ class _GroupCreationWithCopyDialogState
     if (!_formKey.currentState!.validate()) {
       AppLogger.info('🔴 [CREATE GROUP DIALOG] バリデーション失敗');
       // バリデーション失敗時に重複チェック
-      final allGroupsAsync = ref.read(allGroupsProvider);
+      final allGroupsAsync = ref.watch(allGroupsProvider);
       final allGroups = await allGroupsAsync.when(
         data: (groups) async => groups,
         loading: () async => <SharedGroup>[],
@@ -428,7 +428,7 @@ class _GroupCreationWithCopyDialogState
 
     try {
       // 🔥 同じ名前のグループが既に存在しないかチェック
-      final allGroupsAsync = ref.read(allGroupsProvider);
+      final allGroupsAsync = ref.watch(allGroupsProvider);
       final allGroups = await allGroupsAsync.when(
         data: (groups) async => groups,
         loading: () async => <SharedGroup>[],
@@ -496,7 +496,7 @@ class _GroupCreationWithCopyDialogState
       // Add members BEFORE closing dialog (if needed)
       if (hasMembersToAdd) {
         AppLogger.info('🔄 [CREATE GROUP DIALOG] メンバー追加開始');
-        final currentGroup = ref.read(selectedGroupNotifierProvider).value;
+        final currentGroup = ref.watch(selectedGroupNotifierProvider).value;
         if (currentGroup != null) {
           await _addSelectedMembers(currentGroup);
           AppLogger.info('✅ [CREATE GROUP DIALOG] メンバー追加完了');

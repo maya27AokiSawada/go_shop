@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:goshopping/providers/auth_provider.dart';
 import 'package:goshopping/providers/purchase_group_provider.dart';
-import 'package:goshopping/utils/group_helpers.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,8 +30,12 @@ class GroupDebugScreen extends ConsumerWidget {
         data: (user) {
           return allGroupsAsync.when(
             data: (groups) {
-              final defaultGroups =
-                  groups.where((g) => isDefaultGroup(g, user)).toList();
+              // 注: デフォルトグループ機能は削除されました（2026-02-12）
+              // groupId == user.uid の判定のみ実施
+              final legacyDefaultGroups = groups
+                  .where((g) =>
+                      g.groupId == user?.uid || g.groupId == 'default_group')
+                  .toList();
 
               return ListView(
                 padding: const EdgeInsets.all(16),
@@ -45,11 +48,12 @@ class GroupDebugScreen extends ConsumerWidget {
                       style: const TextStyle(fontSize: 16)),
                   const SizedBox(height: 8),
                   Text(
-                    'デフォルトグループ数: ${defaultGroups.length}',
+                    'レガシーデフォルトグループ数: ${legacyDefaultGroups.length}',
                     style: TextStyle(
                       fontSize: 16,
-                      color:
-                          defaultGroups.length > 1 ? Colors.red : Colors.green,
+                      color: legacyDefaultGroups.length > 1
+                          ? Colors.red
+                          : Colors.green,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -59,9 +63,10 @@ class GroupDebugScreen extends ConsumerWidget {
                           TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   ...groups.map((g) {
-                    final isDefault = isDefaultGroup(g, user);
+                    final isLegacyDefault =
+                        g.groupId == user?.uid || g.groupId == 'default_group';
                     return Card(
-                      color: isDefault ? Colors.yellow[100] : null,
+                      color: isLegacyDefault ? Colors.yellow[100] : null,
                       child: ListTile(
                         title: Text(g.groupName),
                         subtitle: Column(
@@ -72,7 +77,7 @@ class GroupDebugScreen extends ConsumerWidget {
                             Text('isDeleted: ${g.isDeleted}'),
                           ],
                         ),
-                        trailing: isDefault
+                        trailing: isLegacyDefault
                             ? const Icon(Icons.star, color: Colors.orange)
                             : null,
                       ),

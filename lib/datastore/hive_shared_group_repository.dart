@@ -4,7 +4,6 @@ import 'package:uuid/uuid.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:developer' as developer;
 import '../models/shared_group.dart';
-import '../models/user_settings.dart';
 import '../datastore/shared_group_repository.dart';
 import '../providers/hive_provider.dart';
 import '../providers/user_specific_hive_provider.dart';
@@ -340,12 +339,6 @@ class HiveSharedGroupRepository implements SharedGroupRepository {
   @override
   Future<SharedGroup> deleteGroup(String groupId) async {
     try {
-      // UIDベースのデフォルトグループのみ削除不可（レガシーdefault_groupは削除可能）
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser != null && groupId == currentUser.uid) {
-        throw Exception('Cannot delete default group');
-      }
-
       final box = await _boxAsync;
       final group = box.get(groupId);
       if (group == null) {

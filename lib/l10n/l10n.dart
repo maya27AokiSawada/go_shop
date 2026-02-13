@@ -60,6 +60,7 @@ export 'app_localizations.dart';
 /// ```dart
 /// Text(texts.groupName);
 /// ```
+import 'app_texts.dart';
 import 'app_localizations.dart';
 
 AppTexts get texts => AppLocalizations.current;
