@@ -25,6 +25,7 @@ abstract class SharedListRepository {
     required String groupId,
     required String listName,
     String? description,
+    String? customListId, // 🆕 カスタムlistId（デバイスプレフィックス付き）
   });
 
   /// Get a specific shopping list by listId

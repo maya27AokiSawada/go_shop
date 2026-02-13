@@ -6,6 +6,7 @@ import '../datastore/shared_list_repository.dart';
 import '../datastore/hive_shared_list_repository.dart';
 import '../datastore/firestore_shared_list_repository.dart';
 import '../services/list_notification_batch_service.dart';
+import '../services/device_id_service.dart'; // 🆕 デバイスID生成用
 import '../flavors.dart';
 
 /// Hive（ローカルキャッシュ）+ Firestore（リモート）のハイブリッドSharedListリポジトリ
@@ -355,8 +356,14 @@ class HybridSharedListRepository implements SharedListRepository {
     required String groupId,
     required String listName,
     String? description,
+    String? customListId, // 🆕 基底クラスからの継承パラメータ
   }) async {
     try {
+      // 🆕 デバイス固有のlistID生成（ID衝突防止）
+      // customListIdが渡されていなければ自動生成
+      final listIdToUse = customListId ?? await DeviceIdService.generateListId();
+      developer.log('🆕 [HYBRID_LIST] デバイスプレフィックス付きlistId: $listIdToUse');
+
       // 🔥 サインイン必須仕様: Firestore優先
       if (_firestoreRepo != null) {
         developer.log('🔥 [HYBRID_LIST] Firestore優先モード - Firestoreに作成');
@@ -367,6 +374,7 @@ class HybridSharedListRepository implements SharedListRepository {
           groupId: groupId,
           listName: listName,
           description: description,
+          customListId: listIdToUse, // 🆕 カスタムlistIdを使用
         );
         developer.log(
             '✅ [HYBRID_LIST] Firestore作成完了: ${newList.listName} (listId: ${newList.listId})');
@@ -384,6 +392,7 @@ class HybridSharedListRepository implements SharedListRepository {
           groupId: groupId,
           listName: listName,
           description: description,
+          customListId: listIdToUse, // 🆕 カスタムlistIdを使用
         );
         developer.log('✅ [HYBRID_LIST] Hive保存完了: ${newList.listName}');
         return newList;

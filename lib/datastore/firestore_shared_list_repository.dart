@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +6,7 @@ import 'dart:developer' as developer show log;
 import '../models/shared_list.dart';
 import '../services/notification_service.dart';
 import '../services/user_preferences_service.dart';
+import '../services/error_log_service.dart';
 import '../providers/auth_provider.dart';
 import 'shared_list_repository.dart';
 import '../providers/firestore_provider.dart';
@@ -30,12 +32,14 @@ class FirestoreSharedListRepository implements SharedListRepository {
     required String groupId,
     required String listName,
     String? description,
+    String? customListId, // 🆕 カスタムlistId（デバイスプレフィックス付き）
   }) async {
     final newList = SharedList.create(
       ownerUid: ownerUid,
       groupId: groupId,
       groupName: listName, // groupNameはlistNameと同じで初期化
       listName: listName,
+      listId: customListId, // 🆕 カスタムlistIdを使用
       description: description ?? '',
       items: {},
     );
@@ -70,8 +74,19 @@ class FirestoreSharedListRepository implements SharedListRepository {
       }
 
       return newList;
+    } on FirebaseException catch (e) {
+      developer.log('❌ Firestoreへのリスト作成失敗: ${e.code} - ${e.message}');
+      await ErrorLogService.logOperationError(
+        'リスト作成',
+        'Firestoreへのリスト作成に失敗しました: ${e.code} - ${e.message}',
+      );
+      rethrow;
     } catch (e) {
       developer.log('❌ Firestoreへのリスト作成失敗: $e');
+      await ErrorLogService.logOperationError(
+        'リスト作成',
+        'リスト作成エラー: $e',
+      );
       rethrow;
     }
   }
@@ -129,34 +144,50 @@ class FirestoreSharedListRepository implements SharedListRepository {
       developer.log('⚠️ 既存リスト名取得失敗: $e');
     }
 
-    // Windows版Firestoreのスレッド問題を回避
-    await Future.microtask(() async {
-      await _collection(list.groupId)
-          .doc(list.listId)
-          .set(_sharedListToFirestore(list));
-    });
-    developer.log('💾 Firestoreでリスト更新: ${list.listName} (ID: ${list.listId})');
+    try {
+      // Windows版Firestoreのスレッド問題を回避
+      await Future.microtask(() async {
+        await _collection(list.groupId)
+            .doc(list.listId)
+            .set(_sharedListToFirestore(list));
+      });
+      developer.log('💾 Firestoreでリスト更新: ${list.listName} (ID: ${list.listId})');
 
-    // リスト名が変更された場合、通知を送信
-    if (oldListName != null && oldListName != list.listName) {
-      try {
-        final currentUser = _ref.read(authStateProvider).value;
-        final renamerName = currentUser?.displayName ??
-            await UserPreferencesService.getUserName() ??
-            'ユーザー';
+      // リスト名が変更された場合、通知を送信
+      if (oldListName != null && oldListName != list.listName) {
+        try {
+          final currentUser = _ref.read(authStateProvider).value;
+          final renamerName = currentUser?.displayName ??
+              await UserPreferencesService.getUserName() ??
+              'ユーザー';
 
-        await _ref
-            .read(notificationServiceProvider)
-            .sendListRenamedNotification(
-              groupId: list.groupId,
-              listId: list.listId,
-              oldName: oldListName,
-              newName: list.listName,
-              renamerName: renamerName,
-            );
-      } catch (e) {
-        developer.log('⚠️ リスト名変更通知送信エラー: $e');
+          await _ref
+              .read(notificationServiceProvider)
+              .sendListRenamedNotification(
+                groupId: list.groupId,
+                listId: list.listId,
+                oldName: oldListName,
+                newName: list.listName,
+                renamerName: renamerName,
+              );
+        } catch (e) {
+          developer.log('⚠️ リスト名変更通知送信エラー: $e');
+        }
       }
+    } on FirebaseException catch (e) {
+      developer.log('❌ Firestoreへのリスト更新失敗: ${e.code} - ${e.message}');
+      await ErrorLogService.logOperationError(
+        'リスト更新',
+        'Firestoreリスト更新エラー: ${e.code} - ${e.message}',
+      );
+      rethrow;
+    } catch (e) {
+      developer.log('❌ リスト更新失敗: $e');
+      await ErrorLogService.logOperationError(
+        'リスト更新',
+        'リスト更新エラー: $e',
+      );
+      rethrow;
     }
   }
 
@@ -174,21 +205,22 @@ class FirestoreSharedListRepository implements SharedListRepository {
       developer.log('⚠️ リスト名取得失敗: $e');
     }
 
-    // Windows版Firestoreのスレッド問題を回避
-    await Future.microtask(() async {
-      await _collection(groupId).doc(listId).delete();
-    });
-    developer.log('🗑️ Firestoreからリスト削除 (groupId: $groupId, listId: $listId)');
+    try {
+      // Windows版Firestoreのスレッド問題を回避
+      await Future.microtask(() async {
+        await _collection(groupId).doc(listId).delete();
+      });
+      developer.log('🗑️ Firestoreからリスト削除 (groupId: $groupId, listId: $listId)');
 
-    // リスト削除通知を送信
-    if (listName != null) {
-      try {
-        final currentUser = _ref.read(authStateProvider).value;
-        final deleterName = currentUser?.displayName ??
-            await UserPreferencesService.getUserName() ??
-            'ユーザー';
+      // リスト削除通知を送信
+      if (listName != null) {
+        try {
+          final currentUser = _ref.read(authStateProvider).value;
+          final deleterName = currentUser?.displayName ??
+              await UserPreferencesService.getUserName() ??
+              'ユーザー';
 
-        await _ref
+          await _ref
             .read(notificationServiceProvider)
             .sendListDeletedNotification(
               groupId: groupId,
@@ -199,6 +231,21 @@ class FirestoreSharedListRepository implements SharedListRepository {
       } catch (e) {
         developer.log('⚠️ リスト削除通知送信エラー: $e');
       }
+    }
+    } on FirebaseException catch (e) {
+      developer.log('❌ Firestoreからのリスト削除失敗: ${e.code} - ${e.message}');
+      await ErrorLogService.logOperationError(
+        'リスト削除',
+        'Firestoreリスト削除エラー: ${e.code} - ${e.message}',
+      );
+      rethrow;
+    } catch (e) {
+      developer.log('❌ リスト削除失敗: $e');
+      await ErrorLogService.logOperationError(
+        'リスト削除',
+        'リスト削除エラー: $e',
+      );
+      rethrow;
     }
   }
 

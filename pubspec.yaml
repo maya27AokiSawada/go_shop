@@ -79,6 +79,9 @@ dependencies:
   geolocator: ^12.0.0 # 地域広告用の位置情報
   geocoding: ^3.0.0 # 住所変換
 
+  # Device Information
+  device_info_plus: ^10.1.2 # デバイス固有ID取得（グループ/リストID生成用）
+
   # Drawing / Whiteboard
   flutter_drawing_board: ^1.0.1+1 # 手書きホワイトボード機能（問題あり - signature移行予定）
   signature: ^5.5.0 # 手書き署名・描画機能（安定版）

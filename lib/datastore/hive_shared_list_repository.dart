@@ -243,6 +243,7 @@ class HiveSharedListRepository implements SharedListRepository {
     required String groupId,
     required String listName,
     String? description,
+    String? customListId, // 🆕 カスタムlistId（デバイスプレフィックス付き）
   }) async {
     try {
       // Create new shopping list with generated listId
@@ -252,6 +253,7 @@ class HiveSharedListRepository implements SharedListRepository {
         groupName:
             listName, // Note: groupName is required, use listName for now
         listName: listName,
+        listId: customListId, // 🆕 カスタムlistIdを使用
         description: description ?? '',
         items: {}, // 🆕 Map形式
       );

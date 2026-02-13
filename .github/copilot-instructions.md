@@ -42,6 +42,297 @@ flutterfire configure --project=gotoshop-572b7
 
 ---
 
+## Recent Implementations (2026-02-13)
+
+### デバイスIDプレフィックス機能実装 ✅
+
+**Purpose**: グループ/リストIDの衝突を防ぐため、デバイス固有のIDプレフィックスを自動生成・付与する
+
+**Problem**:
+
+- グループID: `timestamp.toString()` → 複数デバイスで同時作成時に衝突リスク
+- リストID: UUID v4のみ → トレーサビリティなし
+
+**Solution**: device_info_plusパッケージによるプラットフォーム別デバイスID取得
+
+#### Implementation
+
+**DeviceIdService** (`lib/services/device_id_service.dart` - 新規143行):
+
+```dart
+class DeviceIdService {
+  static String? _cachedPrefix;
+
+  /// デバイスIDプレフィックスを取得（8文字）
+  static Future<String> getDevicePrefix() async {
+    // SharedPreferencesに永続化済みなら再利用
+    final savedPrefix = prefs.getString('device_id_prefix');
+    if (savedPrefix != null) return savedPrefix;
+
+    // プラットフォーム別取得
+    if (Platform.isAndroid) {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      prefix = androidInfo.id.substring(0, 8); // e.g., "a3f8c9d2"
+    } else if (Platform.isIOS) {
+      final iosInfo = await DeviceInfoPlugin().iosInfo;
+      prefix = iosInfo.identifierForVendor?.substring(0, 8) ?? fallback;
+    } else if (Platform.isWindows) {
+      prefix = 'win${uuid.v4().substring(0, 5)}'; // e.g., "win7a2c4"
+    }
+    // Linux/macOS/その他も対応
+
+    // SharedPreferencesに保存（永続化）
+    await prefs.setString('device_id_prefix', prefix);
+    return prefix;
+  }
+
+  /// グループID生成: "a3f8c9d2_1707835200000"
+  static Future<String> generateGroupId() async {
+    final prefix = await getDevicePrefix();
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    return '${prefix}_$timestamp';
+  }
+
+  /// リストID生成: "a3f8c9d2_f3e1a7b4"
+  static Future<String> generateListId() async {
+    final prefix = await getDevicePrefix();
+    final uuid = Uuid().v4().replaceAll('-', '').substring(0, 8);
+    return '${prefix}_$uuid';
+  }
+}
+```
+
+#### ID形式例
+
+| プラットフォーム | グループID例             | リストID例          |
+| ---------------- | ------------------------ | ------------------- |
+| Android          | `a3f8c9d2_1707835200000` | `a3f8c9d2_f3e1a7b4` |
+| iOS              | `f4b7c3d1_1707835200000` | `f4b7c3d1_f3e1a7b4` |
+| Windows          | `win7a2c4_1707835200000` | `win7a2c4_f3e1a7b4` |
+| Linux            | `lnx5e9f2_1707835200000` | `lnx5e9f2_f3e1a7b4` |
+| macOS            | `mac3d8a6_1707835200000` | `mac3d8a6_f3e1a7b4` |
+
+#### 技術的特徴
+
+**1. ID衝突防止**:
+
+- 複数デバイスで同時にグループ/リスト作成しても衝突なし
+- タイムスタンプが同じでもデバイスプレフィックスで識別可能
+
+**2. SharedPreferences永続化**:
+
+- Windows/Linux/macOSはハードウェアIDが取得困難
+- 初回起動時にUUID生成 → SharedPreferencesに保存
+- アプリ再インストールまで同じIDを維持
+
+**3. メモリキャッシュ**:
+
+- 初回取得後は`_cachedPrefix`に保存
+- 2回目以降はディスク読み取り不要
+
+**4. エラーハンドリング**:
+
+- デバイス情報取得失敗時はフォールバックUUID生成
+- アプリがクラッシュしない設計
+
+**5. プラットフォーム対応**:
+
+- Android: androidInfo.id（ファクトリーリセットで変更）
+- iOS: identifierForVendor（アプリ削除で変更）
+- Windows/Linux/macOS: SharedPreferences永続UUID
+
+#### Modified Files
+
+- `pubspec.yaml` - device_info_plus依存性追加
+- `lib/services/device_id_service.dart` - 新規作成（143行）
+- `lib/providers/purchase_group_provider.dart` - グループID生成ロジック更新
+- `lib/datastore/shared_list_repository.dart` - customListIdパラメータ追加
+- `lib/datastore/firestore_shared_list_repository.dart` - customListId対応
+- `lib/datastore/hive_shared_list_repository.dart` - customListId対応
+- `lib/datastore/hybrid_shared_list_repository.dart` - DeviceIdService統合
+
+**Commits** (予定):
+
+```bash
+git commit -m "feat: デバイスIDプレフィックス機能実装（ID衝突防止）"
+```
+
+**Status**: ✅ 実装完了・ビルドテスト合格
+
+**Next Steps**:
+
+1. ⏳ 実機テストでデバイスプレフィックス動作確認
+2. ⏳ 複数デバイス同時操作でID衝突がないことを検証
+3. ⏳ Firestore Consoleで新形式のgroupId/listIdを確認
+
+---
+
+## Recent Implementations (2026-02-14)
+
+### 1. エラーハンドリング・エラー履歴記録の実装 ✅
+
+**Purpose**: Repository層とSyncServiceでのエラーを、ユーザーが確認できるエラー履歴ページに記録する
+
+**Background**: ユーザー要求「リポジトリ層でCRUDが失敗、Firestore同期タイムアウトなどが発生した時エラー履歴に反映してるか確認してください」
+
+**調査結果**:
+
+- ✅ **同期アイコン機能**: 既に完全実装済み
+  - `syncStatusProvider` (lib/providers/purchase_group_provider.dart Lines 1130-1166)
+  - タイムアウト→赤icon, 同期中→オレンジicon, 成功→緑icon
+  - CommonAppBar.\_buildSyncStatusIcon()で自動表示
+  - **変更不要** - 要求を100%満たしている
+
+- ❌ **エラーログ記録**: 未実装 → 今回実装
+  - ErrorLogServiceのメソッド完備（logSyncError, logNetworkError, logOperationError）
+  - しかしRepository層の20+箇所のcatchブロックで呼び出されていなかった
+  - 従来: developer.log()またはAppLogger.error()のみ（コンソールログ）
+  - ユーザーはエラー履歴ページでエラーを確認できない状態だった
+
+**Implementation**:
+
+#### SyncServiceのエラーログ記録 (lib/services/sync_service.dart)
+
+```dart
+// インポート追加
+import 'dart:async';  // TimeoutException用
+import 'error_log_service.dart';
+
+// syncAllGroupsFromFirestore() - タイムアウト設定（30秒）
+final snapshot = await _firestore
+    .collection('SharedGroups')
+    .where('allowedUid', arrayContains: user.uid)
+    .get()
+    .timeout(
+      const Duration(seconds: 30),
+      onTimeout: () {
+        throw TimeoutException('Firestore同期がタイムアウトしました（30秒）');
+      },
+    );
+
+// エラーハンドリング（3種類）
+} on TimeoutException catch (e) {
+  AppLogger.error('⏱️ [SYNC] 同期タイムアウト: $e');
+  await ErrorLogService.logSyncError(
+    '全グループ同期',
+    'Firestore同期が30秒でタイムアウトしました。ネットワーク接続を確認してください。',
+  );
+  rethrow;
+} on FirebaseException catch (e) {
+  AppLogger.error('❌ [SYNC] Firestore同期エラー: ${e.code} - ${e.message}');
+  await ErrorLogService.logNetworkError(
+    '全グループ同期',
+    'Firestoreエラー: ${e.code} - ${e.message}',
+  );
+  rethrow;
+} catch (e) {
+  AppLogger.error('❌ [SYNC] Firestore→Hive同期エラー: $e');
+  await ErrorLogService.logSyncError(
+    '全グループ同期',
+    'エラー: $e',
+  );
+  rethrow;
+}
+```
+
+**修正メソッド**:
+
+- ✅ `syncAllGroupsFromFirestore()` - タイムアウト30秒 + ErrorLogService
+- ✅ `syncSpecificGroup()` - タイムアウト10秒 + ErrorLogService
+- ✅ `uploadGroupToFirestore()` - FirebaseException処理 + ErrorLogService
+- ✅ `markGroupAsDeletedInFirestore()` - FirebaseException処理 + ErrorLogService
+
+#### FirestoreSharedListRepositoryのエラーログ記録
+
+```dart
+// インポート追加
+import 'dart:async';  // TimeoutException用（将来的に使用）
+import '../services/error_log_service.dart';
+
+// createSharedList()
+} on FirebaseException catch (e) {
+  developer.log('❌ Firestoreへのリスト作成失敗: ${e.code} - ${e.message}');
+  await ErrorLogService.logOperationError(
+    'リスト作成',
+    'Firestoreへのリスト作成に失敗しました: ${e.code} - ${e.message}',
+  );
+  rethrow;
+} catch (e) {
+  developer.log('❌ Firestoreへのリスト作成失敗: $e');
+  await ErrorLogService.logOperationError(
+    'リスト作成',
+    'リスト作成エラー: $e',
+  );
+  rethrow;
+}
+```
+
+**修正メソッド**:
+
+- ✅ `createSharedList()` - FirebaseException処理 + ErrorLogService
+- ✅ `updateSharedList()` - FirebaseException処理 + ErrorLogService
+- ✅ `deleteSharedList()` - FirebaseException処理 + ErrorLogService
+
+**エラー種別の使い分け**:
+
+| エラー種類         | ErrorLogServiceメソッド | 使用例                                             |
+| ------------------ | ----------------------- | -------------------------------------------------- |
+| 同期エラー         | `logSyncError()`        | Firestore→Hive同期失敗、タイムアウト               |
+| ネットワークエラー | `logNetworkError()`     | FirebaseException (permission-denied, unavailable) |
+| 操作エラー         | `logOperationError()`   | CRUD失敗、一般的なエラー                           |
+
+**Technical Learnings**:
+
+1. **タイムアウト処理パターン**:
+
+   ```dart
+   // ✅ Correct: Future.timeout()でTimeoutExceptionをスロー
+   final result = await operation().timeout(
+     const Duration(seconds: 30),
+     onTimeout: () {
+       throw TimeoutException('説明メッセージ');
+     },
+   );
+   ```
+
+2. **FirebaseExceptionの優先キャッチ**:
+
+   ```dart
+   // ✅ Correct: 具体的な例外を先に
+   } on TimeoutException catch (e) {
+     // タイムアウト専用処理
+   } on FirebaseException catch (e) {
+     // Firebase専用処理
+   } catch (e) {
+     // 一般エラー処理
+   }
+   ```
+
+3. **ErrorLogServiceとAppLoggerの使い分け**:
+   - **ErrorLogService**: ユーザー向けエラー履歴（エラー履歴ページで確認可能）
+   - **AppLogger**: 開発者向けコンソールログ（デバッグ用）
+   - **両方使用**: エラー発生時は両方に記録する
+
+**Modified Files**:
+
+- `lib/services/sync_service.dart` (import追加、5箇所のエラー処理改善)
+- `lib/datastore/firestore_shared_list_repository.dart` (import追加、3箇所のエラー処理改善)
+
+**Commits**: (予定)
+
+- `feat: SyncServiceにタイムアウト処理とエラーログ記録追加`
+- `feat: FirestoreSharedListRepositoryにエラーログ記録追加`
+
+**Status**: ✅ 実装完了 | ⏳ 実機テスト待ち
+
+**Next Steps**:
+
+1. ⏳ 実機テストでエラーログ記録動作確認
+2. ⏳ 他のRepositoryへのエラーログ記録展開（firestore_shared_group_adapter.dart、firestore_purchase_group_repository.dart）
+3. ⏳ タイムアウト時間の最適化
+
+---
+
 ## Recent Implementations (2026-02-12)
 
 ### 1. グループ作成後のUI自動反映修正 ✅

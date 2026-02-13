@@ -14,6 +14,7 @@ import '../helpers/security_validator.dart';
 import '../services/access_control_service.dart';
 import '../services/user_preferences_service.dart';
 import '../services/user_initialization_service.dart';
+import '../services/device_id_service.dart'; // 🆕 デバイスID生成用
 // 🔥 REMOVED: import '../services/firestore_user_name_service.dart'; デフォルトグループ機能削除
 import '../services/notification_service.dart';
 import 'auth_provider.dart';
@@ -661,9 +662,13 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
         isSignedIn: currentUser != null,
       );
 
+      // 🆕 デバイス固有のgroupID生成（ID衝突防止）
+      final groupId = await DeviceIdService.generateGroupId();
+      Log.info('🆕 [CREATE GROUP] デバイスプレフィックス付きgroupId生成: $groupId');
+
       // グループを作成
       final newGroup = await repository.createGroup(
-        timestamp.toString(), // 一意のグループID
+        groupId, // 🆕 デバイスプレフィックス付きID
         groupName,
         ownerMember,
       );

@@ -1,5 +1,133 @@
 # GoShopping - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-02-13)
+
+### デバイスIDプレフィックス機能実装 ✅
+
+**Purpose**: グループ/リストIDの衝突を防ぐため、デバイス固有のIDプレフィックスを自動生成・付与する
+
+**Problem**:
+
+- グループID: `timestamp.toString()` → 複数デバイスで同時作成時に衝突リスク
+- リストID: UUID v4のみ → トレーサビリティなし
+
+**Solution**: device_info_plusパッケージによるプラットフォーム別デバイスID取得
+
+#### Architecture
+
+**DeviceIdService** (`lib/services/device_id_service.dart`):
+
+```dart
+class DeviceIdService {
+  /// デバイスIDプレフィックスを取得（8文字）
+  /// SharedPreferencesに永続化、メモリキャッシュ
+  static Future<String> getDevicePrefix() async {
+    // Android: androidInfo.id.substring(0, 8)
+    // iOS: identifierForVendor.substring(0, 8)
+    // Windows: 'win' + UUID(5文字)
+    // Linux: 'lnx' + UUID(5文字)
+    // macOS: 'mac' + UUID(5文字)
+  }
+
+  /// グループID生成: "a3f8c9d2_1707835200000"
+  static Future<String> generateGroupId();
+
+  /// リストID生成: "a3f8c9d2_f3e1a7b4"
+  static Future<String> generateListId();
+}
+```
+
+#### ID Format Examples
+
+| Platform | Group ID Example         | List ID Example     |
+| -------- | ------------------------ | ------------------- |
+| Android  | `a3f8c9d2_1707835200000` | `a3f8c9d2_f3e1a7b4` |
+| iOS      | `f4b7c3d1_1707835200000` | `f4b7c3d1_f3e1a7b4` |
+| Windows  | `win7a2c4_1707835200000` | `win7a2c4_f3e1a7b4` |
+| Linux    | `lnx5e9f2_1707835200000` | `lnx5e9f2_f3e1a7b4` |
+| macOS    | `mac3d8a6_1707835200000` | `mac3d8a6_f3e1a7b4` |
+
+#### Implementation Details
+
+**1. Package Addition** (`pubspec.yaml`):
+
+```yaml
+device_info_plus: ^10.1.2 # デバイス固有ID取得
+```
+
+**2. Group ID Generation** (`lib/providers/purchase_group_provider.dart`):
+
+```dart
+// Before: timestamp.toString()
+// After:
+final groupId = await DeviceIdService.generateGroupId();
+final newGroup = await repository.createGroup(groupId, groupName, ownerMember);
+```
+
+**3. List ID Generation** (All repositories updated):
+
+- Base: `shared_list_repository.dart` - Added `customListId` parameter
+- Firestore: `firestore_shared_list_repository.dart` - Uses `customListId`
+- Hive: `hive_shared_list_repository.dart` - Uses `customListId`
+- Hybrid: `hybrid_shared_list_repository.dart` - Calls `generateListId()`
+
+#### Key Features
+
+**1. Collision Prevention**:
+
+- Multiple devices creating groups/lists simultaneously → No collision
+- Same timestamp → Different device prefixes
+
+**2. SharedPreferences Persistence**:
+
+- Windows/Linux/macOS: Hardware ID hard to get → Generate UUID + persist
+- Survives app restart until reinstall
+
+**3. Memory Cache**:
+
+- First call: Fetch from SharedPreferences or generate
+- Subsequent calls: Return cached value (no disk read)
+
+**4. Error Handling**:
+
+- Device info fetch failure → Fallback to random UUID
+- Never crashes the app
+
+**5. Platform Support**:
+
+- Android: `androidInfo.id` (changes on factory reset)
+- iOS: `identifierForVendor` (changes on app delete)
+- Windows/Linux/macOS: Persistent UUID in SharedPreferences
+
+#### Build Status
+
+```bash
+$ flutter build windows --debug
+√ Built build\windows\x64\runner\Debug\go_shop.exe (34.0s)
+```
+
+**Compilation Errors**: None (all files clean)
+
+**Modified Files**:
+
+- `pubspec.yaml`
+- `lib/services/device_id_service.dart` (new, 143 lines)
+- `lib/providers/purchase_group_provider.dart`
+- `lib/datastore/shared_list_repository.dart`
+- `lib/datastore/firestore_shared_list_repository.dart`
+- `lib/datastore/hive_shared_list_repository.dart`
+- `lib/datastore/hybrid_shared_list_repository.dart`
+
+**Status**: ✅ Implementation complete, build verified
+
+**Next Steps**:
+
+1. ⏳ Real device testing (Android/iOS/Windows)
+2. ⏳ Multi-device simultaneous operation test
+3. ⏳ Verify new ID format in Firestore Console
+
+---
+
 ## Recent Implementations (2026-02-12)
 
 ### 1. グループ作成後のUI自動反映修正 ✅
