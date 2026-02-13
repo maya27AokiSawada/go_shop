@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -6,6 +7,7 @@ import '../datastore/shared_group_repository.dart';
 import '../providers/purchase_group_provider.dart';
 import '../utils/app_logger.dart';
 import '../flavors.dart';
+import 'error_log_service.dart';
 
 final syncServiceProvider = Provider<SyncService>((ref) {
   return SyncService(ref);
@@ -33,10 +35,17 @@ class SyncService {
     try {
       AppLogger.info('⬇️ [SYNC] Firestore→Hive全グループ同期開始');
 
+      // 🔥 タイムアウト設定（30秒）
       final snapshot = await _firestore
           .collection('SharedGroups')
           .where('allowedUid', arrayContains: user.uid)
-          .get();
+          .get()
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () {
+              throw TimeoutException('Firestore同期がタイムアウトしました（30秒）');
+            },
+          );
 
       AppLogger.info('📊 [SYNC] Firestoreクエリ完了: ${snapshot.docs.length}個のグループ');
 
@@ -65,8 +74,28 @@ class SyncService {
 
       AppLogger.info('✅ [SYNC] 同期完了: $syncedCount個、スキップ: $skippedCount個');
       return SyncResult(syncedCount: syncedCount, skippedCount: skippedCount);
+    } on TimeoutException catch (e) {
+      // 🔥 タイムアウトエラー処理
+      AppLogger.error('⏱️ [SYNC] 同期タイムアウト: $e');
+      await ErrorLogService.logSyncError(
+        '全グループ同期',
+        'Firestore同期が30秒でタイムアウトしました。ネットワーク接続を確認してください。',
+      );
+      rethrow;
+    } on FirebaseException catch (e) {
+      // 🔥 Firestoreエラー処理
+      AppLogger.error('❌ [SYNC] Firestore同期エラー: ${e.code} - ${e.message}');
+      await ErrorLogService.logNetworkError(
+        '全グループ同期',
+        'Firestoreエラー: ${e.code} - ${e.message}',
+      );
+      rethrow;
     } catch (e) {
       AppLogger.error('❌ [SYNC] Firestore→Hive同期エラー: $e');
+      await ErrorLogService.logSyncError(
+        '全グループ同期',
+        'エラー: $e',
+      );
       rethrow;
     }
   }
@@ -77,8 +106,17 @@ class SyncService {
     try {
       AppLogger.info('🔄 [SYNC] グループ同期開始: ${AppLogger.maskGroupId(groupId)}');
 
-      final groupDoc =
-          await _firestore.collection('SharedGroups').doc(groupId).get();
+      // 🔥 タイムアウト設定（10秒）
+      final groupDoc = await _firestore
+          .collection('SharedGroups')
+          .doc(groupId)
+          .get()
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              throw TimeoutException('グループ同期がタイムアウトしました（10秒）');
+            },
+          );
 
       if (!groupDoc.exists) {
         AppLogger.warning(
@@ -102,9 +140,29 @@ class SyncService {
       AppLogger.info(
           '✅ [SYNC] グループ同期完了: ${AppLogger.maskGroup(group.groupName, group.groupId)}');
       return true;
+    } on TimeoutException catch (e) {
+      // 🔥 タイムアウトエラー処理
+      AppLogger.error('⏱️ [SYNC] グループ同期タイムアウト: $e');
+      await ErrorLogService.logSyncError(
+        'グループ同期',
+        'グループ ${AppLogger.maskGroupId(groupId)} の同期が10秒でタイムアウトしました',
+      );
+      return false;
+    } on FirebaseException catch (e) {
+      // 🔥 Firestoreエラー処理
+      AppLogger.error('❌ [SYNC] Firestoreエラー: ${e.code}');
+      await ErrorLogService.logNetworkError(
+        'グループ同期',
+        'Firestoreエラー (${e.code}): ${e.message}',
+      );
+      return false;
     } catch (e) {
       AppLogger.error(
           '❌ [SYNC] グループ同期エラー (${AppLogger.maskGroupId(groupId)}): $e');
+      await ErrorLogService.logSyncError(
+        'グループ同期',
+        'エラー: $e',
+      );
       return false;
     }
   }
@@ -145,9 +203,27 @@ class SyncService {
       AppLogger.info(
           '✅ [SYNC] アップロード完了: ${AppLogger.maskGroup(group.groupName, group.groupId)}');
       return true;
+    } on TimeoutException catch (e) {
+      AppLogger.error('⏱️ [SYNC] アップロードタイムアウト: $e');
+      await ErrorLogService.logSyncError(
+        'グループアップロード',
+        'グループ ${AppLogger.maskGroup(group.groupName, group.groupId)} のFirestoreアップロードがタイムアウトしました',
+      );
+      return false;
+    } on FirebaseException catch (e) {
+      AppLogger.error('❌ [SYNC] Firestoreエラー: ${e.code}');
+      await ErrorLogService.logNetworkError(
+        'グループアップロード',
+        'Firestoreエラー (${e.code}): ${e.message}',
+      );
+      return false;
     } catch (e) {
       AppLogger.error(
           '❌ [SYNC] アップロード失敗: ${AppLogger.maskGroup(group.groupName, group.groupId)}, $e');
+      await ErrorLogService.logOperationError(
+        'グループアップロード',
+        'エラー: $e',
+      );
       return false;
     }
   }
@@ -168,8 +244,19 @@ class SyncService {
       AppLogger.info(
           '✅ [SYNC] グループに削除フラグを設定: ${AppLogger.maskGroupId(groupId)}');
       return true;
+    } on FirebaseException catch (e) {
+      AppLogger.error('❌ [SYNC] Firestoreエラー: ${e.code}');
+      await ErrorLogService.logNetworkError(
+        'グループ削除フラグ設定',
+        'Firestoreエラー (${e.code}): ${e.message}',
+      );
+      return false;
     } catch (e) {
       AppLogger.error('❌ [SYNC] 削除フラグ設定エラー: $e');
+      await ErrorLogService.logOperationError(
+        'グループ削除フラグ設定',
+        'エラー: $e',
+      );
       return false;
     }
   }
