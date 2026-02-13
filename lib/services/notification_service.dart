@@ -920,12 +920,24 @@ class NotificationService {
           .collection('invitations')
           .doc(invitationId);
 
+      // 現在の使用回数を確認してステータスを決定
+      final invitationDoc = await invitationRef.get();
+      final currentUses = (invitationDoc.data()?['currentUses'] as int?) ?? 0;
+      final maxUses = (invitationDoc.data()?['maxUses'] as int?) ?? 5;
+      final newCurrentUses = currentUses + 1;
+
+      // ステータスの決定: maxUsesに達したら'used'、それ以外は'accepted'
+      final newStatus = newCurrentUses >= maxUses ? 'used' : 'accepted';
+
+      AppLogger.info(
+          '📊 [INVITATION] 使用回数: $currentUses → $newCurrentUses / $maxUses (status: $newStatus)');
+
       // Atomic update: currentUsesをインクリメント、usedBy配列に追加
       await invitationRef.update({
         'currentUses': FieldValue.increment(1),
         'usedBy': FieldValue.arrayUnion([acceptorUid]),
         'lastUsedAt': FieldValue.serverTimestamp(),
-        'status': 'accepted',
+        'status': newStatus,
       });
 
       AppLogger.info('✅ [INVITATION] 招待使用回数の更新完了');

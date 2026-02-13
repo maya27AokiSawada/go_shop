@@ -243,9 +243,18 @@ class QRInvitationService {
         return null;
       }
 
-      // ステータスチェック
+      // 使用回数チェック（maxUsesベース）
       final status = invitationData['status'] as String?;
-      if (status != 'pending') {
+      final currentUses = invitationData['currentUses'] as int? ?? 0;
+      final maxUses = invitationData['maxUses'] as int? ?? 5;
+
+      if (currentUses >= maxUses) {
+        Log.error('❌ 招待の使用回数上限に達しています: $currentUses/$maxUses');
+        return null;
+      }
+
+      // 有効なステータスかチェック（pending または使用枠が残っている accepted）
+      if (status != 'pending' && status != 'accepted') {
         Log.error('❌ 招待のステータスが無効: $status');
         return null;
       }
@@ -658,13 +667,22 @@ class QRInvitationService {
       final storedSecurityKey = storedData['securityKey'] as String?;
       final status = storedData['status'] as String?;
       final expiresAt = storedData['expiresAt'] as Timestamp?;
+      final currentUses = storedData['currentUses'] as int? ?? 0;
+      final maxUses = storedData['maxUses'] as int? ?? 5;
 
       Log.info('🔍 [SECURITY] status: $status');
+      Log.info('🔍 [SECURITY] currentUses: $currentUses / maxUses: $maxUses');
       Log.info('🔍 [SECURITY] expiresAt: $expiresAt');
 
-      // ステータスチェック
-      if (status != 'pending') {
-        Log.info('❌ 招待は既に使用済みまたは無効です: $status');
+      // ステータスチェック（maxUsesベース）
+      if (currentUses >= maxUses) {
+        Log.info('❌ 招待の使用回数上限に達しています: $currentUses/$maxUses');
+        return false;
+      }
+
+      // 有効なステータスかチェック（pending または使用枠が残っている accepted）
+      if (status != 'pending' && status != 'accepted') {
+        Log.info('❌ 招待は無効です: $status');
         return false;
       }
 
