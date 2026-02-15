@@ -65,7 +65,7 @@ dependencies:
 
   # QR Code
   qr_flutter: ^4.1.0
-  mobile_scanner: ^5.0.0 # Android/iOS用
+  mobile_scanner: ^7.1.4 # Android/iOS用
   zxing_lib: ^1.1.4 # Windows用: Pure Dart QR decoder
   image: ^4.2.0 # Windows用: Image processing
   file_picker: ^8.1.6 # Windows用: File picker
