@@ -9,6 +9,7 @@ import '../providers/auth_provider.dart';
 import '../widgets/shopping_list_header_widget.dart';
 import '../widgets/shared_item_edit_modal.dart';
 import '../utils/app_logger.dart';
+import '../utils/snackbar_helper.dart';
 
 /// 共有リスト画面
 /// カレントグループとカレントリストを使用したシンプルな実装
@@ -149,9 +150,7 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
       onPressed: () {
         final currentList = ref.read(currentListProvider);
         if (currentList == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('リストを選択してください')),
-          );
+          SnackBarHelper.showError(context, 'リストを選択してください');
           return;
         }
         _showAddItemDialog(context, ref);
@@ -369,9 +368,7 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
 
                       final name = nameController.text.trim();
                       if (name.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('商品名を入力してください')),
-                        );
+                        SnackBarHelper.showError(context, '商品名を入力してください');
                         return;
                       }
 
@@ -424,9 +421,7 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
                         if (context.mounted) {
                           Navigator.of(context).pop();
 
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('「$name」を追加しました')),
-                          );
+                          SnackBarHelper.showSuccess(context, '「$name」を追加しました');
                         }
                       } catch (e, stackTrace) {
                         Log.error('❌ アイテム追加エラー: $e', stackTrace);
@@ -437,9 +432,8 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
                         });
 
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('アイテム追加に失敗しました: $e')),
-                          );
+                          SnackBarHelper.showError(
+                              context, 'アイテム追加に失敗しました: $e');
                         }
                       }
                     },
@@ -474,9 +468,7 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
       return picked;
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('日付選択エラー: $e')),
-        );
+        SnackBarHelper.showError(context, '日付選択エラー: $e');
       }
       return null;
     }
@@ -853,15 +845,11 @@ class _SharedItemTile extends ConsumerWidget {
 
                 Navigator.of(context).pop();
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('「${item.name}」を削除しました')),
-                );
+                SnackBarHelper.showSuccess(context, '「${item.name}」を削除しました');
               } catch (e, stackTrace) {
                 Log.error('❌ アイテム削除エラー: $e', stackTrace);
                 Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('削除に失敗しました: $e')),
-                );
+                SnackBarHelper.showError(context, '削除に失敗しました: $e');
               }
             },
             style: ElevatedButton.styleFrom(
@@ -1089,9 +1077,7 @@ class _SharedItemTile extends ConsumerWidget {
 
                       final name = nameController.text.trim();
                       if (name.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('商品名を入力してください')),
-                        );
+                        SnackBarHelper.showError(context, '商品名を入力してください');
                         return;
                       }
 
@@ -1124,9 +1110,7 @@ class _SharedItemTile extends ConsumerWidget {
 
                         if (context.mounted) {
                           Navigator.of(context).pop();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('「$name」を更新しました')),
-                          );
+                          SnackBarHelper.showSuccess(context, '「$name」を更新しました');
                         }
                       } catch (e, stackTrace) {
                         Log.error('❌ アイテム更新エラー: $e', stackTrace);
@@ -1136,9 +1120,7 @@ class _SharedItemTile extends ConsumerWidget {
                         });
 
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('更新に失敗しました: $e')),
-                          );
+                          SnackBarHelper.showError(context, '更新に失敗しました: $e');
                         }
                       }
                     },
@@ -1173,9 +1155,7 @@ class _SharedItemTile extends ConsumerWidget {
       return picked;
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('日付選択エラー: $e')),
-        );
+        SnackBarHelper.showError(context, '日付選択エラー: $e');
       }
       return null;
     }

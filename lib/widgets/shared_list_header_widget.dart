@@ -271,9 +271,7 @@ class SharedListHeaderWidget extends ConsumerWidget {
 
               final selectedGroupId = ref.read(selectedGroupIdProvider);
               if (selectedGroupId == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('グループが選択されていません')),
-                );
+                SnackBarHelper.showError(context, 'グループが選択されていません');
                 return;
               }
 
@@ -288,9 +286,7 @@ class SharedListHeaderWidget extends ConsumerWidget {
               );
 
               if (currentGroup == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('グループ情報の取得に失敗しました')),
-                );
+                SnackBarHelper.showError(context, 'グループ情報の取得に失敗しました');
                 return;
               }
 
@@ -310,12 +306,8 @@ class SharedListHeaderWidget extends ConsumerWidget {
                   );
 
                   if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('「$name」という名前のリストは既に存在します'),
-                      backgroundColor: Colors.orange,
-                    ),
-                  );
+                  SnackBarHelper.showWarning(
+                      context, '「$name」という名前のリストは既に存在します');
                   return;
                 }
 
@@ -352,14 +344,10 @@ class SharedListHeaderWidget extends ConsumerWidget {
                 // StreamBuilderが次回アクセス時に自動的に最新データを取得
 
                 if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('「$name」を作成しました')),
-                );
+                SnackBarHelper.showSuccess(context, '「$name」を作成しました');
               } catch (e, stackTrace) {
                 Log.error('❌ リスト作成エラー: $e', stackTrace);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('リスト作成に失敗しました: $e')),
-                );
+                SnackBarHelper.showError(context, 'リスト作成に失敗しました: $e');
               }
             },
             child: const Text('作成'),
@@ -440,15 +428,12 @@ class SharedListHeaderWidget extends ConsumerWidget {
                 }
 
                 if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('「${listToDelete.listName}」を削除しました')),
-                );
+                SnackBarHelper.showSuccess(
+                    context, '「${listToDelete.listName}」を削除しました');
               } catch (e, stackTrace) {
                 Log.error('❌ リスト削除エラー: $e', stackTrace);
                 if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('リスト削除に失敗しました: $e')),
-                );
+                SnackBarHelper.showError(context, 'リスト削除に失敗しました: $e');
               }
             },
             style: TextButton.styleFrom(

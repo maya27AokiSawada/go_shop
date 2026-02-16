@@ -8,6 +8,7 @@ import '../providers/purchase_group_provider.dart';
 import '../providers/shared_list_provider.dart';
 import '../utils/app_logger.dart';
 import '../services/error_log_service.dart';
+import '../utils/snackbar_helper.dart';
 
 /// 買い物リスト画面のヘッダーウィジェット
 /// - カレントグループ表示
@@ -283,9 +284,7 @@ class SharedListHeaderWidget extends ConsumerWidget {
                         setDialogState(() {
                           isSubmitting = false;
                         });
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('リスト名を入力してください')),
-                        );
+                        SnackBarHelper.showError(context, 'リスト名を入力してください');
                         return;
                       }
 
@@ -294,9 +293,7 @@ class SharedListHeaderWidget extends ConsumerWidget {
                         setDialogState(() {
                           isSubmitting = false;
                         });
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('グループが選択されていません')),
-                        );
+                        SnackBarHelper.showError(context, 'グループが選択されていません');
                         return;
                       }
 
@@ -314,9 +311,7 @@ class SharedListHeaderWidget extends ConsumerWidget {
                         setDialogState(() {
                           isSubmitting = false;
                         });
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('グループ情報の取得に失敗しました')),
-                        );
+                        SnackBarHelper.showError(context, 'グループ情報の取得に失敗しました');
                         return;
                       }
 
@@ -339,12 +334,8 @@ class SharedListHeaderWidget extends ConsumerWidget {
                           setDialogState(() {
                             isSubmitting = false;
                           });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('「$name」という名前のリストは既に存在します'),
-                              backgroundColor: Colors.orange,
-                            ),
-                          );
+                          SnackBarHelper.showWarning(
+                              context, '「$name」という名前のリストは既に存在します');
                           return;
                         }
 
@@ -417,9 +408,7 @@ class SharedListHeaderWidget extends ConsumerWidget {
                         }
 
                         if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('「$name」を作成しました')),
-                        );
+                        SnackBarHelper.showSuccess(context, '「$name」を作成しました');
                       } catch (e, stackTrace) {
                         Log.error('❌ リスト作成エラー: $e', stackTrace);
 
@@ -429,9 +418,7 @@ class SharedListHeaderWidget extends ConsumerWidget {
                         });
 
                         if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('リスト作成に失敗しました: $e')),
-                        );
+                        SnackBarHelper.showError(context, 'リスト作成に失敗しました: $e');
                       }
                     },
               child: isSubmitting
@@ -519,15 +506,12 @@ class SharedListHeaderWidget extends ConsumerWidget {
                 }
 
                 if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('「${listToDelete.listName}」を削除しました')),
-                );
+                SnackBarHelper.showSuccess(
+                    context, '「${listToDelete.listName}」を削除しました');
               } catch (e, stackTrace) {
                 Log.error('❌ リスト削除エラー: $e', stackTrace);
                 if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('リスト削除に失敗しました: $e')),
-                );
+                SnackBarHelper.showError(context, 'リスト削除に失敗しました: $e');
               }
             },
             style: TextButton.styleFrom(

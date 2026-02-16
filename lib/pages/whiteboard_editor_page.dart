@@ -13,6 +13,7 @@ import '../providers/auth_provider.dart';
 import '../providers/user_settings_provider.dart';
 import '../services/notification_service.dart';
 import '../services/whiteboard_edit_lock_service.dart';
+import '../utils/snackbar_helper.dart';
 import '../utils/drawing_converter.dart';
 import '../utils/app_logger.dart';
 
@@ -460,12 +461,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
 
         // 成功メッセージを表示
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('編集ロックを強制解除しました'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          SnackBarHelper.showSuccess(context, '編集ロックを強制解除しました');
         }
       } else {
         throw Exception('強制解除に失敗しました');
@@ -474,12 +470,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       AppLogger.error('❌ [WHITEBOARD] 編集ロック強制解除エラー: $e');
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('ロック解除に失敗しました: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        SnackBarHelper.showError(context, 'ロック解除に失敗しました: $e');
       }
     }
   }
@@ -517,12 +508,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         // その他のエラー（Firestore接続問題など）
         AppLogger.error('❌ [ON_DRAW_START] ロック取得エラー - スナックバー表示');
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('編集ロックの取得に失敗しました'),
-              backgroundColor: Colors.orange,
-            ),
-          );
+          SnackBarHelper.showWarning(context, '編集ロックの取得に失敗しました');
         }
       }
       return false; // 描画をブロック
@@ -721,10 +707,8 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   /// ↩️ Undo: 1つ前の状態に戻る
   void _undo() {
     if (!_canUndo()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('これ以上戻せません'), duration: Duration(milliseconds: 500)),
-      );
+      SnackBarHelper.showCustom(context,
+          message: 'これ以上戻せません', duration: const Duration(milliseconds: 500));
       return;
     }
 
@@ -748,10 +732,8 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   /// ↪️ Redo: 1つ先の状態に進む
   void _redo() {
     if (!_canRedo()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('これ以上進めません'), duration: Duration(milliseconds: 500)),
-      );
+      SnackBarHelper.showCustom(context,
+          message: 'これ以上進めません', duration: const Duration(milliseconds: 500));
       return;
     }
 
@@ -871,9 +853,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('保存しました')),
-        );
+        SnackBarHelper.showSuccess(context, '保存しました');
       }
     } catch (e, stackTrace) {
       AppLogger.error('❌ ホワイトボード保存エラー: $e');
@@ -904,9 +884,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('保存に失敗しました: $e')),
-        );
+        SnackBarHelper.showError(context, '保存に失敗しました: $e');
       }
     } finally {
       if (mounted) {
@@ -930,12 +908,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       await _reloadWhiteboardFromFirestore(reason: 'privacy toggle');
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              wasPrivate ? '他の人も編集できるようになりました' : '自分だけ編集できるようになりました',
-            ),
-          ),
+        SnackBarHelper.showSuccess(
+          context,
+          wasPrivate ? '他の人も編集できるようになりました' : '自分だけ編集できるようになりました',
         );
       }
 
@@ -1015,9 +990,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       AppLogger.info('✅ [DELETE] 全クリア処理完了 - Firestoreリスナー再開');
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('全消去しました')),
-        );
+        SnackBarHelper.showSuccess(context, '全消去しました');
       }
     } catch (e) {
       // エラー時もsetState内でフラグをリセット
@@ -1028,9 +1001,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       }
       AppLogger.error('❌ [DELETE] 全消去エラー: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('全消去に失敗しました: $e')),
-        );
+        SnackBarHelper.showError(context, '全消去に失敗しました: $e');
       }
     }
   }
@@ -1348,10 +1319,8 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                             if (_isEditingLocked && _currentEditor != null) {
                               _showEditingInProgressDialog();
                             } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text('編集ロックの取得に失敗しました')),
-                              );
+                              SnackBarHelper.showWarning(
+                                  context, '編集ロックの取得に失敗しました');
                             }
                             return; // モード切り替えをキャンセル
                           }

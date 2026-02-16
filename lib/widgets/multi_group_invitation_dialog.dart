@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shared_group.dart';
 import '../services/enhanced_invitation_service.dart';
+import '../utils/snackbar_helper.dart';
 
 /// Dialog for selecting multiple groups to invite a user to
 class MultiGroupInvitationDialog extends ConsumerStatefulWidget {
@@ -282,12 +283,7 @@ class _MultiGroupInvitationDialogState
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('招待送信エラー: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        SnackBarHelper.showError(context, '招待送信エラー: $e');
       }
     } finally {
       if (mounted) {
