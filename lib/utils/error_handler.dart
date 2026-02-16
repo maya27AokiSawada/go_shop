@@ -123,4 +123,29 @@ class ErrorHandler {
 
     return results;
   }
+
+  /// エラーオブジェクトから人間が読めるメッセージを抽出
+  ///
+  /// 使用例:
+  /// ```dart
+  /// catch (e) {
+  ///   final message = ErrorHandler.getErrorMessage(e);
+  ///   showSnackBar(message);
+  /// }
+  /// ```
+  static String getErrorMessage(Object error) {
+    // Exceptionの場合、メッセージを抽出
+    if (error is Exception) {
+      final errorString = error.toString();
+      // "Exception: メッセージ" の形式から "メッセージ" を抽出
+      if (errorString.startsWith('Exception: ')) {
+        return errorString.substring(11); // "Exception: " の長さ = 11
+      }
+      // "Exception" だけの場合
+      return '予期しないエラーが発生しました';
+    }
+
+    // その他のエラー型
+    return error.toString();
+  }
 }
