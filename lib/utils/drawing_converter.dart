@@ -22,8 +22,8 @@ class DrawingConverter {
       if (points.isEmpty) return [];
 
       // 🔥 ペンアップ検出のための距離ベース分割
-      // 閾値を50pxに設定：ペンを離して別の場所に描いた場合に分割
-      const double breakThreshold = 50.0;
+      // 閾値を30pxに設定：ひらがな等の小さな文字でも確実に分割
+      const double breakThreshold = 30.0;
 
       final List<DrawingStroke> strokes = [];
       List<DrawingPoint> currentStrokePoints = [];

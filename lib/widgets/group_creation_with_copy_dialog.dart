@@ -482,21 +482,29 @@ class _GroupCreationWithCopyDialogState
       AppLogger.info('🔄 [CREATE GROUP DIALOG] allGroupsProviderを無効化');
       ref.invalidate(allGroupsProvider);
 
-      // 🆕 Windows対策: allGroupsProviderの再構築完了を待機
+      // 🆕 Windows対策: allGroupsProviderの再構築完了を待機（タイムアウト付き）
       AppLogger.info('⏳ [CREATE GROUP DIALOG] allGroupsProvider更新待機中...');
       try {
-        await ref.read(allGroupsProvider.future);
+        await ref.read(allGroupsProvider.future).timeout(
+          const Duration(seconds: 5),
+          onTimeout: () {
+            AppLogger.warning(
+                '⏱️ [CREATE GROUP DIALOG] allGroupsProvider更新タイムアウト（5秒）');
+            return []; // 空リストを返して処理を続行
+          },
+        );
         AppLogger.info('✅ [CREATE GROUP DIALOG] allGroupsProvider更新完了');
       } catch (e) {
         AppLogger.warning(
             '⚠️ [CREATE GROUP DIALOG] allGroupsProvider更新エラー: $e');
-        // エラーでも続行
+        // エラーでも続行（Firestoreには保存済み）
       }
 
       // Add members BEFORE closing dialog (if needed)
       if (hasMembersToAdd) {
         AppLogger.info('🔄 [CREATE GROUP DIALOG] メンバー追加開始');
-        final currentGroup = ref.watch(selectedGroupNotifierProvider).value;
+        // 🔥 FIX: 非同期メソッド内ではref.read()を使用（ref.watch()は_dependentsエラーの原因）
+        final currentGroup = ref.read(selectedGroupNotifierProvider).value;
         if (currentGroup != null) {
           await _addSelectedMembers(currentGroup);
           AppLogger.info('✅ [CREATE GROUP DIALOG] メンバー追加完了');
