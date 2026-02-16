@@ -369,24 +369,30 @@ class UserSpecificHiveService {
     Log.info(
         '⏳ Starting schema migration from version $currentVersion to $_currentSchemaVersion...');
 
-    // バージョンごとのマイグレーション処理
-    if (currentVersion < 1) {
-      currentVersion = 1;
-      Log.info('Migrated to schema version 1');
+    try {
+      // バージョンごとのマイグレーション処理
+      if (currentVersion < 1) {
+        currentVersion = 1;
+        Log.info('Migrated to schema version 1');
+      }
+
+      if (currentVersion < 2) {
+        // スキーマバージョン2へのマイグレーション
+        await _migrateToV2();
+        currentVersion = 2;
+      }
+
+      // ... 将来のバージョンアップはここに追加 ...
+
+      // 🔥 マイグレーション成功時のみバージョン保存（1箇所に統一）
+      await prefs.setInt(_schemaVersionKey, currentVersion);
+      Log.info('✅ Schema migration completed. New version: $currentVersion');
+    } catch (e, stackTrace) {
+      Log.error('❌ Schema migration failed at version $currentVersion: $e');
+      Log.error('Stack trace: $stackTrace');
+      // 🔥 エラー時はバージョンを保存しない（次回起動時に再試行）
+      rethrow;
     }
-
-    if (currentVersion < 2) {
-      // スキーマバージョン2へのマイグレーション
-      await _migrateToV2();
-      currentVersion = 2;
-      // マイグレーション後に必ずバージョン2を保存
-      await prefs.setInt(_schemaVersionKey, 2);
-    }
-
-    // ... 将来のバージョンアップはここに追加 ...
-
-    await prefs.setInt(_schemaVersionKey, currentVersion);
-    Log.info('✅ Schema migration completed. New version: $currentVersion');
   }
 
   /// スキーマバージョン2へのマイグレーション
@@ -394,50 +400,46 @@ class UserSpecificHiveService {
   Future<void> _migrateToV2() async {
     Log.info(
         '🚀 Running migration to v2: Deleting old SharedGroups and sharedLists data files...');
-    try {
-      // 現在のHiveパスを取得（デフォルトまたはユーザー固有のパス）
-      final appDocDir = await getApplicationDocumentsDirectory();
-      final hivePath = '${appDocDir.path}/hive_db';
+    // 🔥 エラーはキャッチせずrethrowして_runMigrationIfNeeded()で処理
+    // 現在のHiveパスを取得（デフォルトまたはユーザー固有のパス）
+    final appDocDir = await getApplicationDocumentsDirectory();
+    final hivePath = '${appDocDir.path}/hive_db';
 
-      Log.info('🔍 Hive data path: $hivePath');
+    Log.info('🔍 Hive data path: $hivePath');
 
-      // SharedGroups のデータファイルを削除
-      final SharedGroupsFile = File('$hivePath/SharedGroups.hive');
-      if (await SharedGroupsFile.exists()) {
-        await SharedGroupsFile.delete();
-        Log.info('✅ Deleted SharedGroups.hive file.');
-      } else {
-        Log.info(
-            'ℹ️  SharedGroups.hive file not found (already deleted or never existed).');
-      }
-
-      final SharedGroupsLockFile = File('$hivePath/SharedGroups.lock');
-      if (await SharedGroupsLockFile.exists()) {
-        await SharedGroupsLockFile.delete();
-        Log.info('✅ Deleted SharedGroups.lock file.');
-      }
-
-      // sharedLists のデータファイルを削除
-      final sharedListsFile = File('$hivePath/sharedLists.hive');
-      if (await sharedListsFile.exists()) {
-        await sharedListsFile.delete();
-        Log.info('✅ Deleted sharedLists.hive file.');
-      } else {
-        Log.info(
-            'ℹ️  sharedLists.hive file not found (already deleted or never existed).');
-      }
-
-      final sharedListsLockFile = File('$hivePath/sharedLists.lock');
-      if (await sharedListsLockFile.exists()) {
-        await sharedListsLockFile.delete();
-        Log.info('✅ Deleted sharedLists.lock file.');
-      }
-
+    // SharedGroups のデータファイルを削除
+    final SharedGroupsFile = File('$hivePath/SharedGroups.hive');
+    if (await SharedGroupsFile.exists()) {
+      await SharedGroupsFile.delete();
+      Log.info('✅ Deleted SharedGroups.hive file.');
+    } else {
       Log.info(
-          '✅ Migration to v2 completed successfully by deleting old data files.');
-    } catch (e) {
-      Log.error('❌ Error during migration to v2 (deleting files): $e');
-      // エラーが発生しても、他の処理は継続させる
+          'ℹ️  SharedGroups.hive file not found (already deleted or never existed).');
     }
+
+    final SharedGroupsLockFile = File('$hivePath/SharedGroups.lock');
+    if (await SharedGroupsLockFile.exists()) {
+      await SharedGroupsLockFile.delete();
+      Log.info('✅ Deleted SharedGroups.lock file.');
+    }
+
+    // sharedLists のデータファイルを削除
+    final sharedListsFile = File('$hivePath/sharedLists.hive');
+    if (await sharedListsFile.exists()) {
+      await sharedListsFile.delete();
+      Log.info('✅ Deleted sharedLists.hive file.');
+    } else {
+      Log.info(
+          'ℹ️  sharedLists.hive file not found (already deleted or never existed).');
+    }
+
+    final sharedListsLockFile = File('$hivePath/sharedLists.lock');
+    if (await sharedListsLockFile.exists()) {
+      await sharedListsLockFile.delete();
+      Log.info('✅ Deleted sharedLists.lock file.');
+    }
+
+    Log.info(
+        '✅ Migration to v2 completed successfully by deleting old data files.');
   }
 }
