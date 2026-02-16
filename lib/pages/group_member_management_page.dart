@@ -155,14 +155,32 @@ class _GroupMemberManagementPageState
       ),
     );
 
-    // メンバーリストウィジェット
+    // メンバーリストウィジェット（スクロールビュー対応）
+    Widget buildMemberListForScroll() {
+      if (members.isEmpty) {
+        return _buildEmptyMemberList();
+      }
+      return ListView.builder(
+        shrinkWrap: true, // 🔥 スクロールビュー内で使用するため必須
+        physics: const NeverScrollableScrollPhysics(), // 🔥 親のスクロールに委譲
+        itemCount: members.length,
+        itemBuilder: (context, index) {
+          final member = members[index];
+          return MemberTileWithWhiteboard(
+            member: member,
+            groupId: group.groupId,
+          );
+        },
+      );
+    }
+
+    // メンバーリストウィジェット（Expanded用、元の実装）
     final memberListWidget = members.isEmpty
         ? _buildEmptyMemberList()
         : ListView.builder(
             itemCount: members.length,
             itemBuilder: (context, index) {
               final member = members[index];
-              // メンバータイルにホワイトボード機能統合
               return MemberTileWithWhiteboard(
                 member: member,
                 groupId: group.groupId,
@@ -170,61 +188,136 @@ class _GroupMemberManagementPageState
             },
           );
 
-    // 画面幅を取得
-    final screenWidth = MediaQuery.of(context).size.width;
+    // 画面サイズとアスペクト比を取得
+    final screenSize = MediaQuery.of(context).size;
+    final screenWidth = screenSize.width;
+    final screenHeight = screenSize.height;
+    final aspectRatio = screenWidth / screenHeight;
+
     final isWideScreen = screenWidth >= 1000;
+    // スマホのランドスケープ: 横長だが高さが狭い（アスペクト比1.5未満）
+    final isNarrowLandscape =
+        aspectRatio > 1.0 && aspectRatio < 1.5 && screenHeight < 600;
+
+    // ランドスケープ警告バナー（スマホの横向き時）
+    Widget? landscapeWarningBanner;
+    if (isNarrowLandscape) {
+      landscapeWarningBanner = Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.orange.shade100,
+          border: Border(
+            bottom: BorderSide(color: Colors.orange.shade300),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.screen_rotation,
+                color: Colors.orange.shade700, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '縦向きでの使用を推奨します',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.orange.shade700,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     if (isWideScreen) {
-      // 横長画面: 左右分割レイアウト
-      return Row(
+      // 横長画面: 左右分割レイアウト（タブレット等）
+      return Column(
         children: [
-          // 左側: グループ情報＋ホワイトボードプレビュー
+          if (landscapeWarningBanner != null) landscapeWarningBanner,
           Expanded(
-            flex: 1,
-            child: SingleChildScrollView(
-              child: headerWidget,
-            ),
-          ),
-          // 仕切り線
-          VerticalDivider(
-            width: 1,
-            color: Colors.grey.shade200,
-          ),
-          // 右側: メンバーリスト
-          Expanded(
-            flex: 1,
-            child: Column(
+            child: Row(
               children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    border: Border(
-                      bottom: BorderSide(color: Colors.grey.shade200),
-                    ),
-                  ),
-                  child: Text(
-                    'メンバーリスト',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey.shade700,
-                    ),
+                // 左側: グループ情報＋ホワイトボードプレビュー
+                Expanded(
+                  flex: 1,
+                  child: SingleChildScrollView(
+                    child: headerWidget,
                   ),
                 ),
-                Expanded(child: memberListWidget),
+                // 仕切り線
+                VerticalDivider(
+                  width: 1,
+                  color: Colors.grey.shade200,
+                ),
+                // 右側: メンバーリスト
+                Expanded(
+                  flex: 1,
+                  child: Column(
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          border: Border(
+                            bottom: BorderSide(color: Colors.grey.shade200),
+                          ),
+                        ),
+                        child: Text(
+                          'メンバーリスト',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                      ),
+                      Expanded(child: memberListWidget),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
         ],
       );
     } else {
-      // 縦長画面: 従来のColumn レイアウト
+      // 縦長画面 or スマホのランドスケープ: スクロール対応レイアウト
       return Column(
         children: [
-          headerWidget,
-          Expanded(child: memberListWidget),
+          if (landscapeWarningBanner != null) landscapeWarningBanner,
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  headerWidget,
+                  // メンバーリストヘッダー
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      border: Border(
+                        bottom: BorderSide(color: Colors.grey.shade200),
+                      ),
+                    ),
+                    child: Text(
+                      'メンバーリスト',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ),
+                  // メンバーリスト本体（shrinkWrap対応版）
+                  buildMemberListForScroll(),
+                ],
+              ),
+            ),
+          ),
         ],
       );
     }
