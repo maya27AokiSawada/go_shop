@@ -92,6 +92,17 @@ Go Shop（以下「本アプリ」）は、maya27AokiSawada（以下「開発者
 - 目的: 広告配信
 - プライバシーポリシー: <https://support.google.com/admob/answer/6128543>
 
+### 4.3 運営者によるアクセス
+
+運営者は以下の目的に限り、最小限の範囲でユーザーデータにアクセスする場合があります。
+
+- **システムメンテナンス**: データベーススキーマ更新、不具合修正、バージョンアップ対応
+- **データ整合性チェック**: データベース最適化、バックアップ運用
+- **セキュリティ監査**: 不正利用の検出、脆弱性対応
+- **ユーザーサポート**: 問い合わせ対応時のデータ確認
+
+これらのアクセスは暗号化された通信で行われ、アクセスログが記録されます。個人情報は必要最小限のみ閲覧し、第三者への提供や目的外利用は一切行いません。
+
 ## 5. データの保持期間
 
 - **アカウント情報**: アカウント削除まで
@@ -259,6 +270,17 @@ The App uses the following services:
 
 - Purpose: Ad delivery
 - Privacy Policy: <https://support.google.com/admob/answer/6128543>
+
+### 4.3 Operator Access
+
+Operators may access user data to the minimum extent necessary for the following purposes only:
+
+- **System Maintenance**: Database schema updates, bug fixes, version upgrades
+- **Data Integrity Checks**: Database optimization, backup operations
+- **Security Audits**: Detection of unauthorized use, vulnerability response
+- **User Support**: Data verification when responding to inquiries
+
+These accesses are conducted via encrypted communication and access logs are recorded. Personal information is accessed only to the minimum extent necessary and is never provided to third parties or used for purposes other than those stated.
 
 ## 5. Data Retention Period
 
