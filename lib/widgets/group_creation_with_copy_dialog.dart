@@ -6,6 +6,7 @@ import '../providers/purchase_group_provider.dart';
 import '../utils/app_logger.dart';
 import 'dart:developer' as developer;
 import '../services/error_log_service.dart';
+import '../utils/snackbar_helper.dart';
 
 /// Dialog for creating new group with option to copy members from existing group
 class GroupCreationWithCopyDialog extends ConsumerStatefulWidget {
@@ -463,11 +464,9 @@ class _GroupCreationWithCopyDialogState
           setState(() {
             _isLoading = false;
           });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('「$groupName」という名前のグループは既に存在します'),
-              backgroundColor: Colors.orange,
-            ),
+          SnackBarHelper.showWarning(
+            context,
+            '「$groupName」という名前のグループは既に存在します',
           );
         }
         return;

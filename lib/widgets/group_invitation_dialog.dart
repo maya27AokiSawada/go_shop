@@ -11,6 +11,7 @@ import '../models/invitation.dart';
 import '../services/qr_invitation_service.dart';
 import '../providers/purchase_group_provider.dart';
 import '../utils/app_logger.dart';
+import '../utils/snackbar_helper.dart';
 
 /// グループ招待管理ダイアログ
 /// Firestoreから招待一覧を取得して表示
@@ -426,21 +427,11 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('招待コードを生成しました'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        SnackBarHelper.showSuccess(context, '招待コードを生成しました');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('エラー: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        SnackBarHelper.showError(context, 'エラー: $e');
       }
     } finally {
       if (mounted) {
@@ -452,12 +443,7 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
   Future<void> _copyQRData(String qrData) async {
     await Clipboard.setData(ClipboardData(text: qrData));
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('招待データをクリップボードにコピーしました'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      SnackBarHelper.showSuccess(context, '招待データをクリップボードにコピーしました');
     }
   }
 
@@ -494,21 +480,11 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
             .delete();
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('招待を削除しました'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          SnackBarHelper.showSuccess(context, '招待を削除しました');
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('削除エラー: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          SnackBarHelper.showError(context, '削除エラー: $e');
         }
       }
     }
@@ -608,12 +584,7 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
 
       // UI通知
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$acceptorName さんがグループに参加しました'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        SnackBarHelper.showSuccess(context, '$acceptorName さんがグループに参加しました');
       }
     } catch (e) {
       Log.error('❌ [INVITATION_MONITOR] グループ更新エラー: $e');

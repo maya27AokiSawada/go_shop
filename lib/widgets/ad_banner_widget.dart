@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/subscription_provider.dart';
+import '../utils/snackbar_helper.dart';
 
 /// シンプルな広告バナーウィジェット（実際のAdMob等に置き換え可能）
 class AdBannerWidget extends ConsumerWidget {
@@ -235,12 +236,7 @@ class _PremiumUpgradeDialog extends ConsumerWidget {
     ref.read(subscriptionProvider.notifier).purchaseYearlyPlan();
 
     Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('年間プランにアップグレードしました！'),
-        backgroundColor: Colors.green,
-      ),
-    );
+    SnackBarHelper.showSuccess(context, '年間プランにアップグレードしました！');
   }
 
   void _purchaseThreeYearPlan(BuildContext context, WidgetRef ref) {
@@ -248,12 +244,7 @@ class _PremiumUpgradeDialog extends ConsumerWidget {
     ref.read(subscriptionProvider.notifier).purchaseThreeYearPlan();
 
     Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('3年プランにアップグレードしました！'),
-        backgroundColor: Colors.green,
-      ),
-    );
+    SnackBarHelper.showSuccess(context, '3年プランにアップグレードしました！');
   }
 }
 

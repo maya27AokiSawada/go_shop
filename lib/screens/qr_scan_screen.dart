@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../services/invite_code_service.dart';
+import '../utils/snackbar_helper.dart';
 
 /// QRコード読み取り画面 + 手動入力ダイアログ
 ///
@@ -233,18 +234,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(child: Text('エラー: $e')),
-              ],
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
+        SnackBarHelper.showError(context, 'エラー: $e');
 
         // エラー時はスキャンを続行
         lastScannedCode = null;

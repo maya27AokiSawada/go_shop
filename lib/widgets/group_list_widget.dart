@@ -7,6 +7,7 @@ import '../providers/current_list_provider.dart';
 import '../providers/group_shopping_lists_provider.dart';
 import '../utils/app_logger.dart';
 import '../utils/error_handler.dart';
+import '../utils/snackbar_helper.dart';
 // 🔥 REMOVED: import '../utils/group_helpers.dart'; デフォルトグループ機能削除
 import '../pages/group_member_management_page.dart';
 import '../services/user_initialization_service.dart';
@@ -91,18 +92,14 @@ class GroupListWidget extends ConsumerWidget {
                           AppLogger.info('✅ [DEBUG] Firestore→Hive同期完了');
 
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('双方向同期完了')),
-                            );
+                            SnackBarHelper.showSuccess(context, '双方向同期完了');
                           }
                         },
                         context: 'GROUP_LIST:debugSync',
                         defaultValue: null,
                         onError: (error, stackTrace) {
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('同期エラー: $error')),
-                            );
+                            SnackBarHelper.showError(context, '同期エラー: $error');
                           }
                         },
                       );
@@ -316,13 +313,11 @@ class GroupListWidget extends ConsumerWidget {
         '📋 [GROUP_SELECT] カレントグループを変更: ${group.groupName} (${group.groupId})');
 
     // 成功メッセージを表示
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.white, size: 20),
-            const SizedBox(width: 8),
-            Expanded(
+    SnackBarHelper.showCustom(
+      context,
+      message: '${group.groupName}を選択しました',
+      icon: Icons.check_circle,
+      backgroundColor: Colors.green[700],
               child: Text('「${group.groupName}」をカレントグループに設定しました'),
             ),
           ],
@@ -330,7 +325,7 @@ class GroupListWidget extends ConsumerWidget {
         backgroundColor: Colors.green,
         duration: const Duration(seconds: 2),
       ),
-    );
+    )
 
     // グループ切り替え時にリスト一覧プロバイダーも再取得
     ref.invalidate(groupSharedListsProvider);
@@ -505,12 +500,7 @@ class GroupListWidget extends ConsumerWidget {
     if (!isOwner) {
       AppLogger.info(
           '📋 [GROUP_OPTIONS] オーナーではないため削除権限なし: ${AppLogger.maskUserId(currentUserId)}');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('グループを削除できるのはオーナーのみです'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      SnackBarHelper.showWarning(context, 'グループを削除できるのはオーナーのみです');
       return;
     }
 
@@ -565,22 +555,19 @@ class GroupListWidget extends ConsumerWidget {
 
     try {
       // ローディング表示
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
+      SnackBarHelper.showCustom(
+        context,
+        message: '削除中...',
+        icon: Icons.hourglass_empty,
+        duration: const Duration(seconds: 5),
               ),
-              SizedBox(width: 16),
-              Text('グループを削除中...'),
+              const SizedBox(width: 16),
+              const Text('グループを削除中...'),
             ],
           ),
-          duration: Duration(seconds: 30),
+          duration: const Duration(seconds: 30),
         ),
-      );
+      )
 
       // リポジトリから削除実行
       final repository = ref.read(SharedGroupRepositoryProvider);
@@ -602,24 +589,14 @@ class GroupListWidget extends ConsumerWidget {
       // 成功メッセージ
       if (context.mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('「${group.groupName}」を削除しました'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        SnackBarHelper.showSuccess(context, '「${group.groupName}」を削除しました');
       }
     } catch (error, stackTrace) {
       AppLogger.error('❌ [GROUP_DELETE] グループ削除エラー', error, stackTrace);
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('グループの削除に失敗しました: $error'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        SnackBarHelper.showError(context, 'グループの削除に失敗しました: $error');
       }
     }
   }

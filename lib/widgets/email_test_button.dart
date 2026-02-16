@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/email_test_service.dart';
 import '../utils/app_logger.dart';
+import '../utils/snackbar_helper.dart';
 
 class EmailTestButton extends ConsumerStatefulWidget {
   const EmailTestButton({super.key});
@@ -109,13 +110,11 @@ Go Shop 開発チーム
         });
 
         // スナックバーでも結果を表示
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(success ? 'テストメール送信完了' : 'メール送信に失敗しました'),
-            backgroundColor: success ? Colors.green : Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        if (success) {
+          SnackBarHelper.showSuccess(context, 'テストメール送信完了');
+        } else {
+          SnackBarHelper.showError(context, 'メール送信に失敗しました');
+        }
       }
     } catch (e) {
       Log.error('❌ テストメール送信エラー: $e', e);
@@ -125,12 +124,10 @@ Go Shop 開発チーム
           _lastResult = '❌ エラー発生: ${e.toString()}';
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('エラー: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
+        SnackBarHelper.showError(
+          context,
+          'エラー: ${e.toString()}',
+          duration: const Duration(seconds: 5),
         );
       }
     } finally {

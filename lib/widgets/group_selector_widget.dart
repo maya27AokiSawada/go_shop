@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shared_group.dart';
 import '../providers/purchase_group_provider.dart';
 import '../utils/app_logger.dart';
+import '../utils/snackbar_helper.dart';
 
 /// グループ選択専用ウィジェット
 class GroupSelectorWidget extends ConsumerWidget {
@@ -31,14 +32,10 @@ class GroupSelectorWidget extends ConsumerWidget {
                     try {
                       await ref.read(forceSyncProvider.future);
                       AppLogger.info('✅ [DEBUG] Firestore同期完了');
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('同期完了')),
-                      );
+                      SnackBarHelper.showSuccess(context, '同期完了');
                     } catch (e) {
                       AppLogger.error('❌ [DEBUG] Firestore同期エラー: $e');
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('同期エラー: $e')),
-                      );
+                      SnackBarHelper.showError(context, '同期エラー: $e');
                     }
                   },
                   icon: const Icon(Icons.sync, size: 14),
