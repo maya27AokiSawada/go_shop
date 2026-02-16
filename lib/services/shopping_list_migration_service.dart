@@ -72,9 +72,6 @@ class SharedListMigrationService {
       }
 
       Log.info('✅ [MIGRATION] マイグレーション完了: 成功=$successCount, 失敗=$errorCount');
-
-      // 4. 旧リストを削除（オプション - コメントアウト状態で保持）
-      // await _deleteOldLists(oldCollectionRef, oldListsSnapshot.docs);
     } catch (e, stackTrace) {
       Log.error('❌ [MIGRATION] マイグレーション全体エラー: $e');
       Log.info('スタックトレース: $stackTrace');

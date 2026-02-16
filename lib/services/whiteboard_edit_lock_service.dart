@@ -287,9 +287,6 @@ class WhiteboardEditLock {
         AppLogger.info('💀 [LOCK] 編集ロック強制削除: $whiteboardId');
       });
 
-      // 🔥 古いeditLocksコレクションのクリーンアップはスキップ（権限不足）
-      // await cleanupLegacyEditLocks(groupId: groupId);
-
       return true;
     } catch (e) {
       AppLogger.error('❌ [LOCK] 編集ロック強制削除エラー: $e');

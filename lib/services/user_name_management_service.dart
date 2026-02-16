@@ -143,8 +143,6 @@ class UserNameManagementService {
             updatedCount++;
             Log.info(
                 '  グループ[${group.groupName}]の更新メンバー数: ${updatedMembers.length}');
-            // TODO: グループデータをHive/Firestoreに保存
-            // await groupRepository.updateGroup(group.copyWith(members: updatedMembers));
           }
         }
 

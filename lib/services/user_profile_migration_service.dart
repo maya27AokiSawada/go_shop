@@ -106,9 +106,6 @@ class UserProfileMigrationService {
       AppLogger.info(
           '✅ [MIGRATION] プロファイル移行完了: ${AppLogger.maskName(displayName)}');
 
-      // 旧データの削除（オプション - コメントアウト推奨）
-      // await _deleteOldProfileData(userDocRef);
-
       return true;
     } catch (e) {
       AppLogger.error('❌ [MIGRATION] プロファイル移行エラー (UID=$uid): $e');
@@ -198,16 +195,7 @@ class UserProfileMigrationService {
   /// 旧プロファイルデータを削除（オプション）
   Future<void> _deleteOldProfileData(DocumentReference userDocRef) async {
     try {
-      // profile サブコレクションの削除は慎重に行う
-      // 本番環境では手動削除またはFirebase Functionsでの削除を推奨
       AppLogger.warning('⚠️ [MIGRATION] 旧データ削除は手動で行ってください');
-
-      // コメントアウト: 自動削除は危険なため
-      // final profileCollection = userDocRef.collection('profile');
-      // final profileDocs = await profileCollection.get();
-      // for (final doc in profileDocs.docs) {
-      //   await doc.reference.delete();
-      // }
     } catch (e) {
       AppLogger.error('❌ [MIGRATION] 旧データ削除エラー: $e');
     }

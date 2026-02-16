@@ -197,9 +197,6 @@ class InviteWidget extends ConsumerWidget {
 
   /// 招待文を共有（将来的にshare_plusパッケージ使用）
   Future<void> _shareInvite(BuildContext context, String text) async {
-    // share_plus パッケージ使用時は以下を有効化
-    // await Share.share(text, subject: 'Go Shop グループ招待');
-
     // 暫定：クリップボードにコピー + 案内
     await _copyToClipboard(context, text);
     if (context.mounted) {

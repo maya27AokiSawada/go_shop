@@ -262,21 +262,6 @@ class HiveSharedListRepository implements SharedListRepository {
       await box.put(newList.listId, newList);
       developer.log('🆕 新規リスト作成: ${newList.listName} (ID: ${newList.listId})');
 
-      // `SharedGroup`から`sharedListIds`が削除されたため、この処理は不要
-      // final SharedGroupBox = ref.read(SharedGroupBoxProvider);
-      // final SharedGroup = SharedGroupBox.get(groupId);
-      // if (SharedGroup != null) {
-      //   final updatedSharedListIds = <String>[
-      //     ...(SharedGroup.sharedListIds ?? []),
-      //     newList.listId
-      //   ];
-      //   final updatedGroup =
-      //       SharedGroup.copyWith(sharedListIds: updatedSharedListIds);
-      //   await SharedGroupBox.put(groupId, updatedGroup);
-      //   developer.log(
-      //       '📝 グループ「${SharedGroup.groupName}」にリストID追加: ${newList.listId}');
-      // }
-
       return newList;
     } catch (e) {
       developer.log('❌ リスト作成エラー: $e');
@@ -330,21 +315,6 @@ class HiveSharedListRepository implements SharedListRepository {
       if (list != null) {
         // Remove from Hive
         await box.delete(listId);
-
-        // `SharedGroup`から`sharedListIds`が削除されたため、この処理は不要
-        // final SharedGroupBox = ref.read(SharedGroupBoxProvider);
-        // final SharedGroup = SharedGroupBox.get(list.groupId);
-        // if (SharedGroup != null) {
-        //   final updatedSharedListIds = (SharedGroup.sharedListIds ?? [])
-        //       .where((id) => id != listId)
-        //       .toList()
-        //       .cast<String>();
-        //   final updatedGroup =
-        //       SharedGroup.copyWith(sharedListIds: updatedSharedListIds);
-        //   await SharedGroupBox.put(list.groupId, updatedGroup);
-        //   developer
-        //       .log('📝 グループ「${SharedGroup.groupName}」からリストID削除: $listId');
-        // }
 
         developer.log(
             '🗑️ リスト削除: ${list.listName} (groupId: $groupId, listId: $listId)');

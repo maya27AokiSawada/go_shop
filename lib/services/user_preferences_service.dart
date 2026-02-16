@@ -173,8 +173,6 @@ class UserPreferencesService {
           operation: () async {
             final prefs = await SharedPreferences.getInstance();
             await prefs.remove(_keyUserEmail);
-            // UIDは削除しない - 次回ログイン時にUID変更を検出するため保持
-            // await prefs.remove(_keyUserId);
             Log.info(
                 '🗑️ SharedPreferences メールアドレスをクリア完了（ユーザー名・UID・データバージョン保持）');
             return true;

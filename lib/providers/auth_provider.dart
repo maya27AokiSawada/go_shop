@@ -84,8 +84,6 @@ class FirebaseAuthService {
       return;
     }
 
-    // ログアウト時はUIDを保持（次回ログイン時のUID比較のため）
-    // await UserPreferencesService.clearUserId(); ← 削除
     Log.info('🔓 [SIGNOUT] ログアウト実行（UIDは保持）');
 
     await _auth!.signOut();
@@ -538,7 +536,6 @@ class FirebaseAuthService {
         await ref.read(userNameProvider.notifier).refresh();
       } catch (_) {}
     }
-    // TODO: QrCodeHelper.processPendingInvitation処理
   }
 
   Future<void> _performPostSignUpActions(

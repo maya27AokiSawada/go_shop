@@ -121,17 +121,6 @@ class InvitationSecurityService {
     DateTime? statusChangeTime,
   }) {
     throw UnimplementedError('v4データモデルでは招待機能が削除されました');
-    // final now = statusChangeTime ?? DateTime.now();
-    //
-    // return member.copyWith(
-    //   invitationStatus: newStatus,
-    //   securityKey: securityKey ?? member.securityKey,
-    //   invitedAt: newStatus == InvitationStatus.pending
-    //       ? (member.invitedAt ?? now)
-    //       : member.invitedAt,
-    //   acceptedAt:
-    //       newStatus == InvitationStatus.accepted ? now : member.acceptedAt,
-    // );
   }
 
   /// 招待レスポンス用のデータを作成

@@ -115,24 +115,8 @@ class DeepLinkService {
 
       Log.info('🎫 Processing invite code: $inviteCode');
 
-      // TODO: QRコードシステムに移行 - 新しい招待処理を実装
       Log.warning('⚠️ Deep link invitation system migrated to QR code system');
       return null;
-
-      // 旧システム（コメントアウト）
-      // final invitationInfo = await invitationService.getInvitationByCode(inviteCode);
-      // if (invitationInfo == null) {
-      //   Log.warning('⚠️ Invalid or expired invitation code');
-      //   return null;
-      // }
-      // final success = await invitationService.acceptInvitation(inviteCode);
-      // if (success) {
-      //   Log.info('✅ Invitation accepted successfully');
-      //   return invitationInfo;
-      // } else {
-      //   Log.warning('⚠️ Failed to accept invitation');
-      //   return null;
-      // }
     } catch (e) {
       Log.error('❌ Failed to handle invitation link: $e');
       return null;

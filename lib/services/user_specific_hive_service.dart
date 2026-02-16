@@ -371,8 +371,6 @@ class UserSpecificHiveService {
 
     // バージョンごとのマイグレーション処理
     if (currentVersion < 1) {
-      // スキーマバージョン1へのマイグレーション（もしあれば）
-      // await _migrateToV1();
       currentVersion = 1;
       Log.info('Migrated to schema version 1');
     }
