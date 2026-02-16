@@ -9,6 +9,7 @@ import '../widgets/member_selection_dialog.dart';
 import '../pages/group_invitation_page.dart';
 import '../widgets/whiteboard_preview_widget.dart';
 import '../widgets/member_tile_with_whiteboard.dart';
+import '../widgets/group_creation_with_copy_dialog.dart';
 
 /// グループのメンバー管理画面
 /// 招待→ユーザー情報セットの流れに対応
@@ -40,6 +41,20 @@ class _GroupMemberManagementPageState
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.content_copy),
+            tooltip: 'このグループをコピーして新規作成',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => GroupCreationWithCopyDialog(
+                    initialSelectedGroup: widget.group,
+                  ),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.person_add),
             tooltip: 'メンバーを招待',

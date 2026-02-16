@@ -10,8 +10,11 @@ import '../utils/snackbar_helper.dart';
 
 /// Dialog for creating new group with option to copy members from existing group
 class GroupCreationWithCopyDialog extends ConsumerStatefulWidget {
+  final SharedGroup? initialSelectedGroup;
+
   const GroupCreationWithCopyDialog({
     super.key,
+    this.initialSelectedGroup,
   });
 
   @override
@@ -28,6 +31,20 @@ class _GroupCreationWithCopyDialogState
   final Map<String, bool> _selectedMembers = {};
   final Map<String, SharedGroupRole> _memberRoles = {};
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // 初期選択グループが指定されていれば設定
+    if (widget.initialSelectedGroup != null) {
+      _selectedSourceGroup = widget.initialSelectedGroup;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        setState(() {
+          _updateMemberSelection();
+        });
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -163,16 +180,9 @@ class _GroupCreationWithCopyDialogState
                             ...existingGroups.map(
                               (group) => DropdownMenuItem<SharedGroup>(
                                 value: group,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(group.groupName),
-                                    Text(
-                                      'メンバー数: ${group.members?.length ?? 0}人',
-                                      style: const TextStyle(
-                                          fontSize: 12, color: Colors.grey),
-                                    ),
-                                  ],
+                                child: Text(
+                                  '${group.groupName} (${group.members?.length ?? 0}人)',
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ),
