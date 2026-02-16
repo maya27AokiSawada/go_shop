@@ -7,6 +7,7 @@ import '../services/qr_invitation_service.dart';
 import '../services/pending_invitation_service.dart';
 import '../helpers/ui_helper.dart';
 import '../utils/error_handler.dart';
+import '../utils/snackbar_helper.dart';
 
 /// QRコード招待ボタンウィジェット
 class QRInviteButton extends ConsumerWidget {
@@ -68,14 +69,7 @@ class QRInviteButton extends ConsumerWidget {
       context: 'QR_INVITE:showDialog',
       defaultValue: null,
       onError: (error, stackTrace) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('QRコード生成エラー: $error'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+        SnackBarHelper.showError(context, 'QRコード生成エラー: $error');
       },
     );
   }
@@ -188,24 +182,14 @@ class QRInviteDialog extends ConsumerWidget {
   Future<void> _copyQRData(BuildContext context) async {
     await Clipboard.setData(ClipboardData(text: qrData));
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('招待データをクリップボードにコピーしました'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      SnackBarHelper.showSuccess(context, '招待データをクリップボードにコピーしました');
     }
   }
 
   Future<void> _shareQR(BuildContext context) async {
     // 将来実装予定: OSネイティブシェア機能（share_plusライブラリ使用）
     // Future implementation: Native OS share functionality using share_plus
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('共有機能は今後実装予定です'),
-        backgroundColor: Colors.orange,
-      ),
-    );
+    SnackBarHelper.showWarning(context, '共有機能は今後実装予定です');
   }
 }
 

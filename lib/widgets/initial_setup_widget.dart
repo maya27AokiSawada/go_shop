@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/purchase_group_provider.dart';
 import '../widgets/accept_invitation_widget.dart';
 import '../utils/app_logger.dart';
+import '../utils/snackbar_helper.dart';
 
 /// 初回セットアップ画面
 ///
@@ -216,12 +217,7 @@ class InitialSetupWidget extends ConsumerWidget {
 
       // 成功メッセージ
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('「$groupName」を作成しました'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        SnackBarHelper.showSuccess(context, '「$groupName」を作成しました');
       }
     } catch (e, stackTrace) {
       Log.error('❌ [INITIAL_SETUP] グループ作成エラー: $e');
@@ -234,12 +230,11 @@ class InitialSetupWidget extends ConsumerWidget {
 
       // エラーメッセージ
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('グループ作成に失敗しました: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
+        SnackBarHelper.showCustom(
+          context,
+          message: 'グループ作成に失敗しました: ${e.toString()}',
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
         );
       }
     }

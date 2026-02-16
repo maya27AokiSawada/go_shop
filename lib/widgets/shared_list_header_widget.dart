@@ -8,6 +8,7 @@ import '../providers/purchase_group_provider.dart';
 import '../providers/shared_list_provider.dart';
 import '../utils/app_logger.dart';
 import '../services/error_log_service.dart';
+import '../utils/snackbar_helper.dart';
 
 /// 買い物リスト画面のヘッダーウィジェット
 /// - カレントグループ表示
@@ -264,9 +265,7 @@ class SharedListHeaderWidget extends ConsumerWidget {
             onPressed: () async {
               final name = nameController.text.trim();
               if (name.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('リスト名を入力してください')),
-                );
+                SnackBarHelper.showError(context, 'リスト名を入力してください');
                 return;
               }
 

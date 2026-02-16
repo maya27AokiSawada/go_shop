@@ -350,3 +350,75 @@ catch (e) {
 
 **Status**: ✅ Windows環境での作業完了、Android実機テスト完了
 **Next**: macOS環境でのiOS実機テスト、グループ詳細画面ランドスケープUIオーバーフロー修正
+
+### 7. SnackBarHelper実装 ✅
+
+**目的**: 30+箇所のSnackBar重複コードを共通化し、コード品質向上
+
+#### 背景
+
+コードベース調査の結果、以下の重複パターンを発見：
+
+- SnackBar: 30+箇所（約300行）
+- CircularProgressIndicator: 30+箇所（約150行）
+- context.mounted チェック: 30+箇所（約120行）
+
+**削減可能コード量**: 約670行 → 約220行（67%削減）
+
+#### 実装内容
+
+**新規作成**: `lib/utils/snackbar_helper.dart`（134行）
+
+**メソッド構成**:
+- `showSuccess(context, message)` - 緑色、2秒
+- `showError(context, message)` - 赤色、3秒
+- `showInfo(context, message)` - デフォルト、2秒
+- `showWarning(context, message)` - オレンジ色、2秒
+- `showCustom(context, {message, icon, backgroundColor, duration, action})` - カスタム設定
+
+**特徴**:
+- 全メソッドに`context.mounted`チェック内蔵
+- `SnackBarBehavior.floating`で統一（モダンUI）
+- アクションボタン対応（undo、retry等）
+
+#### サンプル実装（6箇所置き換え）
+
+**1. qr_invitation_widgets.dart（3箇所）** - 28行 → 8行（71%削減）
+**2. initial_setup_widget.dart（2箇所）** - 18行 → 10行（44%削減）
+**3. shared_list_header_widget.dart（1箇所）** - 5行 → 4行（20%削減）
+
+**合計**: 51行 → 22行（57%削減）
+
+#### 技術的メリット
+
+1. **安全性向上** - `context.mounted`チェック漏れ防止
+2. **一貫性確保** - 色・デュレーション・動作の統一
+3. **保守性向上** - 1箇所の修正で全箇所に反映
+4. **可読性向上** - 冗長なコードが1行に
+
+#### 修正ファイル
+
+- ✅ `lib/utils/snackbar_helper.dart`（新規作成、134行）
+- ✅ `lib/widgets/qr_invitation_widgets.dart`（3箇所 + import）
+- ✅ `lib/widgets/initial_setup_widget.dart`（2箇所 + import）
+- ✅ `lib/widgets/shared_list_header_widget.dart`（1箇所 + import）
+
+#### 次のステップ（優先度順）
+
+1. **SnackBarHelper完全移行** - 残り24+ファイル、約250行削減
+2. **SafeNavigation拡張** - 30+箇所の`if (context.mounted)`削減
+3. **LoadingWidget共通化** - 30+箇所のCircularProgressIndicator統一
+4. **DialogHelper実装** - 約10箇所の確認ダイアログ統一、~100行削減
+
+## ⏰ 作業時間更新
+
+**合計**: 約2.5時間
+
+- コード品質調査: 20分（grep検索、パターン分析）
+- SnackBarHelper実装: 30分（クラス作成、サンプル置き換え、日報作成）
+- その他: 1時間40分（iOS対応、実機テスト等）
+
+---
+
+**Status**: ✅ SnackBarHelperサンプル実装完了（6箇所）
+**Next**: 残り24+ファイルのSnackBar移行、優先度2以降の実装
