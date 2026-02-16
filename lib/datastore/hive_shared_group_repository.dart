@@ -1,7 +1,6 @@
 import 'package:hive/hive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:developer' as developer;
 import '../models/shared_group.dart';
 import '../datastore/shared_group_repository.dart';

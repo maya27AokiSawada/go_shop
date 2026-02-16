@@ -64,8 +64,7 @@ class FirebaseSyncSharedListRepository implements SharedListRepository {
 
   @override
   Future<SharedList?> getSharedList(String groupId) async {
-    AppLogger.info(
-        'FirebaseSyncRepo: Reading SharedList for group: $groupId');
+    AppLogger.info('FirebaseSyncRepo: Reading SharedList for group: $groupId');
 
     // ログイン状態ならFirebaseから同期を試衁E
     final user = _currentUser;
@@ -381,8 +380,7 @@ class FirebaseSyncSharedListRepository implements SharedListRepository {
   }
 
   /// Firebaseからの更新が必要かどうかを判断
-  bool _shouldUpdateFromFirebase(
-      SharedList hiveList, SharedList firebaseList) {
+  bool _shouldUpdateFromFirebase(SharedList hiveList, SharedList firebaseList) {
     // アイテム数が異なる場合は更新
     if (hiveList.items.length != firebaseList.items.length) {
       AppLogger.info(
@@ -450,6 +448,7 @@ class FirebaseSyncSharedListRepository implements SharedListRepository {
     required String groupId,
     required String listName,
     String? description,
+    String? customListId,
   }) async {
     throw UnimplementedError(
         'FirebaseRepository multi-list support not implemented yet');

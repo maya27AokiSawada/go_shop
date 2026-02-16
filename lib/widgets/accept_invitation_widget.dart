@@ -149,7 +149,7 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
                 MobileScanner(
                   controller: _controller,
                   fit: BoxFit.contain,
-                  errorBuilder: (context, error, child) {
+                  errorBuilder: (context, error) {
                     Log.error('❌ [MOBILE_SCANNER] カメラエラー: $error');
                     return Center(
                       child: Column(
@@ -187,7 +187,7 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
                     Log.info(
                         '🔍 [MOBILE_SCANNER] rawValue長さ: ${rawValue?.length ?? 0}文字');
                     Log.info(
-                        '🔍 [MOBILE_SCANNER] rawValue内容: ${rawValue?.substring(0, rawValue.length > 100 ? 100 : (rawValue.length ?? 0))}');
+                        '🔍 [MOBILE_SCANNER] rawValue内容: ${rawValue != null ? rawValue.substring(0, rawValue.length > 100 ? 100 : rawValue.length) : 'null'}');
 
                     if (rawValue != null) {
                       Log.info(

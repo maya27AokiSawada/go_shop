@@ -4,9 +4,7 @@ import '../utils/app_logger.dart';
 import '../models/shared_list.dart';
 import '../providers/purchase_group_provider.dart';
 import '../datastore/shared_list_repository.dart';
-import '../datastore/hive_shared_list_repository.dart';
 import '../datastore/hybrid_shared_list_repository.dart';
-import '../flavors.dart';
 
 // SharedListのBox管理
 final sharedListBoxProvider = Provider<Box<SharedList>>((ref) {

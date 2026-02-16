@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/purchase_group_provider.dart';
-import '../widgets/group_creation_with_copy_dialog.dart';
 import '../widgets/accept_invitation_widget.dart';
 import '../utils/app_logger.dart';
 

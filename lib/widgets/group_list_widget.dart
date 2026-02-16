@@ -10,7 +10,6 @@ import '../utils/error_handler.dart';
 // 🔥 REMOVED: import '../utils/group_helpers.dart'; デフォルトグループ機能削除
 import '../pages/group_member_management_page.dart';
 import '../services/user_initialization_service.dart';
-import '../flavors.dart';
 import 'initial_setup_widget.dart'; // 🆕 初回セットアップ画面
 
 /// グループをリスト表示するウィジェット
