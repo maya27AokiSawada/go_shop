@@ -370,6 +370,7 @@ catch (e) {
 **新規作成**: `lib/utils/snackbar_helper.dart`（134行）
 
 **メソッド構成**:
+
 - `showSuccess(context, message)` - 緑色、2秒
 - `showError(context, message)` - 赤色、3秒
 - `showInfo(context, message)` - デフォルト、2秒
@@ -377,6 +378,7 @@ catch (e) {
 - `showCustom(context, {message, icon, backgroundColor, duration, action})` - カスタム設定
 
 **特徴**:
+
 - 全メソッドに`context.mounted`チェック内蔵
 - `SnackBarBehavior.floating`で統一（モダンUI）
 - アクションボタン対応（undo、retry等）
@@ -422,3 +424,263 @@ catch (e) {
 
 **Status**: ✅ SnackBarHelperサンプル実装完了（6箇所）
 **Next**: 残り24+ファイルのSnackBar移行、優先度2以降の実装
+
+### 8. Phase 4: SnackBar完全移行完了 ✅
+
+**目的**: 残り21箇所のSnackBar重複コードを完全移行
+
+#### 実装範囲
+
+**対象ファイル**: 7ファイル、22箇所
+
+1. **group_list_widget.dart** - 7箇所
+   - グループ削除成功/エラー
+   - グループ作成成功
+   - グループコピー成功
+   - 通知送信成功/エラー
+
+2. **group_invitation_dialog.dart** - 6箇所
+   - 招待作成成功/エラー
+   - 招待削除成功/エラー
+   - 招待コピー成功/エラー
+
+3. **qr_scan_screen.dart** - 2箇所
+   - カメラ権限エラー
+   - QR検出エラー
+
+4. **email_test_button.dart** - 2箇所
+   - メール送信成功/エラー
+
+5. **group_selector_widget.dart** - 2箇所
+   - グループ選択エラー
+   - 同期エラー
+
+6. **group_creation_with_copy_dialog.dart** - 1箇所
+   - グループ作成成功
+
+7. **ad_banner_widget.dart** - 2箇所
+   - 広告読み込みエラー
+   - 広告表示エラー
+
+#### 削減効果
+
+**Before（Phase 4対象）**:
+
+- 22箇所のSnackBar重複コード
+- 約132行（詳細なSnackBar設置コード）
+
+**After（SnackBarHelper使用）**:
+
+- 22箇所 → ヘルパーメソッド呼び出し1行ずつ
+- 約34行（import + メソッド呼び出し）
+
+**削減率**: 132行 → 34行（**74%削減**）
+
+#### 累積効果（Phase 1-4合計）
+
+**全体統計**:
+
+- **対象ファイル**: 18ファイル
+- **移行箇所**: 63箇所（Phase 1-3: 41箇所 + Phase 4: 22箇所）
+- **削減コード量**: 約400行 → 約100行
+- **削減率**: **75%削減**
+
+#### 技術的メモ
+
+**移行パターン**:
+
+```dart
+// Before（Phase 4対象、典型例）
+if (context.mounted) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text('グループを削除しました'),
+      backgroundColor: Colors.green[700],
+      behavior: SnackBarBehavior.floating,
+    ),
+  );
+}
+
+// After（SnackBarHelper使用）
+SnackBarHelper.showSuccess(context, 'グループを削除しました');
+```
+
+**エラーメッセージの簡潔化**:
+
+```dart
+// Before: スタックトレース込みで表示
+showError(context, '削除エラー: $e\n$stackTrace');
+
+// After: ErrorHandler.getErrorMessage()でクリーンなメッセージ
+showError(context, ErrorHandler.getErrorMessage(e));
+```
+
+#### コミット情報
+
+**コミット**: `d9be169` - "refactor: Phase 4 SnackBar完全移行（22箇所、7ファイル、74%削減）"
+
+**Modified Files**:
+
+- lib/utils/snackbar_helper.dart（統計コメント更新）
+- lib/widgets/group_list_widget.dart（7箇所 + import）
+- lib/widgets/group_invitation_dialog.dart（6箇所 + import）
+- lib/widgets/qr_scan_screen.dart（2箇所 + import）
+- lib/widgets/email_test_button.dart（2箇所 + import）
+- lib/widgets/group_selector_widget.dart（2箇所 + import）
+- lib/widgets/group_creation_with_copy_dialog.dart（1箇所 + import）
+- lib/widgets/ad_banner_widget.dart（2箇所 + import）
+
+**Status**: ✅ Phase 4完了、future ブランチにプッシュ済み
+
+### 9. グループコピー作成UI改善 ✅
+
+**目的**: グループ作成ダイアログのUX改善とアクセス性向上
+
+#### 問題点
+
+1. **ドロップダウンオーバーフロー**
+   - 既存グループ選択ドロップダウンで表示項目がモバイル画面幅を超える
+   - Column レイアウト（2行: グループ名 + "メンバー数: X人"）が原因
+
+2. **コピー機能のアクセス性**
+   - グループ詳細画面から直接コピー作成できない
+   - ジェスチャーパターン（tap/double-tap/long-press）が全て使用済み
+   - FABからしかアクセスできない
+
+#### 実装内容
+
+**1. ドロップダウン表示の簡素化**
+
+```dart
+// Before（オーバーフロー発生）
+DropdownMenuItem<SharedGroup>(
+  value: group,
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(group.groupName),
+      Text('メンバー数: ${group.members?.length ?? 0}人',
+        style: const TextStyle(fontSize: 12, color: Colors.grey)),
+    ],
+  ),
+)
+
+// After（1行表示、ellipsis対応）
+DropdownMenuItem<SharedGroup>(
+  value: group,
+  child: Text(
+    '${group.groupName} (${group.members?.length ?? 0}人)',
+    overflow: TextOverflow.ellipsis,
+  ),
+)
+```
+
+**効果**: モバイル画面でもオーバーフローせず、長いグループ名も省略表示
+
+**2. グループ詳細画面にコピーアイコン追加**
+
+**Modified File**: `lib/pages/group_member_management_page.dart`
+
+```dart
+// AppBar actions に content_copy アイコンを追加
+actions: [
+  IconButton(
+    icon: const Icon(Icons.content_copy),
+    tooltip: 'このグループをコピーして新規作成',
+    onPressed: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => GroupCreationWithCopyDialog(
+            initialSelectedGroup: widget.group,
+          ),
+        ),
+      );
+    },
+  ),
+  IconButton(
+    icon: const Icon(Icons.person_add),
+    tooltip: 'メンバーを招待',
+    onPressed: () { /* 既存の招待処理 */ },
+  ),
+]
+```
+
+**アイコン配置順**: content_copy（コピー）→ person_add（招待）
+
+**3. 初期グループ選択の自動化**
+
+**Modified File**: `lib/widgets/group_creation_with_copy_dialog.dart`
+
+```dart
+// パラメータ追加
+class GroupCreationWithCopyDialog extends StatefulWidget {
+  final SharedGroup? initialSelectedGroup; // ← 新規追加
+
+  const GroupCreationWithCopyDialog({
+    super.key,
+    this.initialSelectedGroup,
+  });
+}
+
+// 初期化処理
+@override
+void initState() {
+  super.initState();
+  if (widget.initialSelectedGroup != null) {
+    _selectedSourceGroup = widget.initialSelectedGroup;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      setState(() {
+        _updateMemberSelection();
+      });
+    });
+  }
+}
+```
+
+**動作**: 詳細画面からコピーアイコンをタップ → ダイアログが開く → 自動的に現在のグループが選択される → メンバーリストも自動表示
+
+#### UX改善効果
+
+**Before（改善前）**:
+
+- ドロップダウン: 長いグループ名でオーバーフロー発生
+- コピー機能: FABからのみアクセス可能（3ステップ必要）
+
+**After（改善後）**:
+
+- ドロップダウン: 1行表示、長い名前は省略表示（...）
+- コピー機能: 詳細画面のAppBarから1タップでアクセス可能
+
+**ユーザーフロー短縮**:
+
+- FAB → 既存グループ選択 → メンバー選択（3ステップ）
+- → 詳細画面のコピーアイコン → メンバー確認（2ステップ）
+
+#### コミット情報
+
+**コミット**: `5ea598b` - "refactor: グループコピー作成UI改善"
+
+**Modified Files**:
+
+- lib/widgets/group_creation_with_copy_dialog.dart（ドロップダウン簡素化、initialSelectedGroupパラメータ、initState() 追加）
+- lib/pages/group_member_management_page.dart（content_copy アイコン追加、import 追加）
+
+**変更統計**: 2 files changed, 35 insertions(+), 10 deletions(-)
+
+**Status**: ✅ UI改善完了、future ブランチにプッシュ待ち
+
+## ⏰ 最終作業時間
+
+**合計**: 約4時間
+
+- iOS対応・コンパイルエラー修正: 30分
+- Android実機テスト: 1時間
+- SnackBarHelperサンプル実装: 30分
+- Phase 4 SnackBar完全移行: 1時間
+- グループコピー作成UI改善: 1時間
+
+---
+
+**Final Status**: ✅ 全作業完了（Phase 4移行 + UI改善）
+**Next Session**: Priority 2-4実装（SafeNavigation、LoadingWidget、DialogHelper）
