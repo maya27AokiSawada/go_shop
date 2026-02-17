@@ -124,9 +124,10 @@ Go Shop 開発チーム
           _lastResult = '❌ エラー発生: ${e.toString()}';
         });
 
-        SnackBarHelper.showError(
+        SnackBarHelper.showCustom(
           context,
-          'エラー: ${e.toString()}',
+          message: 'エラー: ${e.toString()}',
+          backgroundColor: Colors.red[700],
           duration: const Duration(seconds: 5),
         );
       }

@@ -9,7 +9,7 @@ import 'package:goshopping/providers/app_mode_notifier_provider.dart';
 import 'package:goshopping/config/app_mode_config.dart';
 import 'package:goshopping/pages/home_page.dart';
 import 'package:goshopping/pages/shared_group_page.dart';
-import 'package:goshopping/pages/shopping_list_page_v2.dart';
+import 'package:goshopping/pages/shared_list_page.dart';
 import 'package:goshopping/pages/settings_page.dart';
 
 void main() {
@@ -57,7 +57,7 @@ void main() {
       // Assert: 初期状態(pageIndex=0)でHomePageが表示される
       expect(find.byType(HomePage), findsOneWidget);
       expect(find.byType(SharedGroupPage), findsNothing);
-      expect(find.byType(SharedListPageV2), findsNothing);
+      expect(find.byType(SharedListPage), findsNothing);
       expect(find.byType(SettingsPage), findsNothing);
     });
 
@@ -138,9 +138,9 @@ void main() {
       await tester.tap(find.byIcon(Icons.list));
       await tester.pumpAndSettle();
 
-      // Assert: SharedListPageV2が表示される
+      // Assert: SharedListPageが表示される
       expect(find.byType(HomePage), findsNothing);
-      expect(find.byType(SharedListPageV2), findsOneWidget);
+      expect(find.byType(SharedListPage), findsOneWidget);
     });
 
     testWidgets('currentIndexが正しく反映される', (WidgetTester tester) async {
@@ -239,7 +239,7 @@ void main() {
 
       await tester.tap(find.byIcon(Icons.list));
       await tester.pumpAndSettle();
-      expect(find.byType(SharedListPageV2), findsOneWidget);
+      expect(find.byType(SharedListPage), findsOneWidget);
 
       await tester.tap(find.byIcon(Icons.settings));
       await tester.pumpAndSettle();

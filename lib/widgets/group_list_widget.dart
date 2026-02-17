@@ -315,17 +315,11 @@ class GroupListWidget extends ConsumerWidget {
     // 成功メッセージを表示
     SnackBarHelper.showCustom(
       context,
-      message: '${group.groupName}を選択しました',
+      message: '「${group.groupName}」を選択しました',
       icon: Icons.check_circle,
       backgroundColor: Colors.green[700],
-              child: Text('「${group.groupName}」をカレントグループに設定しました'),
-            ),
-          ],
-        ),
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 2),
-      ),
-    )
+      duration: const Duration(seconds: 2),
+    );
 
     // グループ切り替え時にリスト一覧プロバイダーも再取得
     ref.invalidate(groupSharedListsProvider);
@@ -557,17 +551,10 @@ class GroupListWidget extends ConsumerWidget {
       // ローディング表示
       SnackBarHelper.showCustom(
         context,
-        message: '削除中...',
+        message: 'グループを削除中...',
         icon: Icons.hourglass_empty,
         duration: const Duration(seconds: 5),
-              ),
-              const SizedBox(width: 16),
-              const Text('グループを削除中...'),
-            ],
-          ),
-          duration: const Duration(seconds: 30),
-        ),
-      )
+      );
 
       // リポジトリから削除実行
       final repository = ref.read(SharedGroupRepositoryProvider);
