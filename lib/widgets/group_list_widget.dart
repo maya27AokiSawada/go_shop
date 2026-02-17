@@ -506,6 +506,23 @@ class GroupListWidget extends ConsumerWidget {
 
   static void _showDeleteConfirmationDialog(
       BuildContext context, WidgetRef ref, SharedGroup group) {
+    // オーナー判定
+    final authState = ref.read(authStateProvider);
+    final currentUser = authState.value;
+    final isOwner = currentUser != null && group.ownerUid == currentUser.uid;
+
+    if (isOwner) {
+      // オーナーの場合: グループ削除ダイアログ
+      _showOwnerDeleteDialog(context, ref, group);
+    } else {
+      // メンバーの場合: グループ離脱ダイアログ
+      _showMemberLeaveDialog(context, ref, group);
+    }
+  }
+
+  /// オーナー用: グループ削除確認ダイアログ
+  static void _showOwnerDeleteDialog(
+      BuildContext context, WidgetRef ref, SharedGroup group) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -545,6 +562,49 @@ class GroupListWidget extends ConsumerWidget {
     );
   }
 
+  /// メンバー用: グループ離脱確認ダイアログ
+  static void _showMemberLeaveDialog(
+      BuildContext context, WidgetRef ref, SharedGroup group) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('グループを退出'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('「${group.groupName}」から退出しますか？'),
+              const SizedBox(height: 8),
+              const Text(
+                'あなたの情報がこのグループから削除されます。\n再度参加するには、招待が必要です。',
+                style: TextStyle(color: Colors.orange, fontSize: 12),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('キャンセル'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _leaveGroup(context, ref, group);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('退出'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// オーナー専用: グループ完全削除
   static void _deleteGroup(
       BuildContext context, WidgetRef ref, SharedGroup group) async {
     AppLogger.info('🗑️ [GROUP_DELETE] グループ削除開始: ${group.groupId}');
@@ -600,6 +660,75 @@ class GroupListWidget extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
         SnackBarHelper.showError(context, 'グループの削除に失敗しました: $error');
+      }
+    }
+  }
+
+  /// メンバー専用: グループ離脱
+  static void _leaveGroup(
+      BuildContext context, WidgetRef ref, SharedGroup group) async {
+    AppLogger.info('🚪 [GROUP_LEAVE] グループ離脱開始: ${group.groupId}');
+
+    try {
+      // ローディング表示
+      SnackBarHelper.showCustom(
+        context,
+        message: 'グループを退出中...',
+        icon: Icons.hourglass_empty,
+        duration: const Duration(seconds: 5),
+      );
+
+      // 現在のユーザー情報取得
+      final authState = ref.read(authStateProvider);
+      final currentUser = authState.value;
+      if (currentUser == null) {
+        throw Exception('ユーザー情報が取得できません');
+      }
+
+      // 自分のメンバー情報を検索
+      final myMember = group.members?.firstWhere(
+        (m) => m.memberId == currentUser.uid,
+        orElse: () => throw Exception('メンバー情報が見つかりません'),
+      );
+
+      if (myMember == null) {
+        throw Exception('メンバー情報が見つかりません');
+      }
+
+      // リポジトリからメンバー削除実行
+      // 🔥 CRITICAL: removeMember()は members + allowedUid 両方を更新
+      final repository = ref.read(SharedGroupRepositoryProvider);
+      await repository.removeMember(group.groupId, myMember);
+
+      AppLogger.info('✅ [GROUP_LEAVE] Firestore更新完了（members + allowedUid）');
+
+      // ローカル（Hive）から削除
+      // 注: HybridRepositoryが自動的にHiveも更新する
+
+      // 離脱したグループが選択中の場合はクリア
+      final selectedGroupId = ref.read(selectedGroupIdProvider);
+      if (selectedGroupId == group.groupId) {
+        AppLogger.info('🔄 [GROUP_LEAVE] 選択中のグループをクリア: ${group.groupId}');
+        ref.read(selectedGroupIdProvider.notifier).clearSelection();
+        ref.read(currentListProvider.notifier).clearSelection();
+      }
+
+      // プロバイダーを更新（UIから消える）
+      ref.invalidate(allGroupsProvider);
+
+      AppLogger.info('✅ [GROUP_LEAVE] グループ離脱完了: ${group.groupId}');
+
+      // 成功メッセージ
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        SnackBarHelper.showSuccess(context, '「${group.groupName}」から退出しました');
+      }
+    } catch (error, stackTrace) {
+      AppLogger.error('❌ [GROUP_LEAVE] グループ離脱エラー', error, stackTrace);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        SnackBarHelper.showError(context, 'グループの退出に失敗しました');
       }
     }
   }
