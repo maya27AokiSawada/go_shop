@@ -1,7 +1,7 @@
 # 🚨 緊急セキュリティ対応が必要です
 
 **日付**: 2026-02-10（最終更新: 2026-02-17）
-**対応状況**: Git履歴クリーンアップ完了、手動設定変更が必要
+**対応状況**: ほぼ完了（Sentry設定のみ残存）
 
 ---
 
@@ -56,75 +56,40 @@ git gc --prune=now
 git push --force --all
 ```
 
-### 2. Sentry DSN説明コメント追加
+### 3. Sentry DSN説明コメント追加
 
 - ✅ Sentry DSNは公開情報として設計されている旨を`main.dart`、`main_dev.dart`、`main_prod.dart`に明記
 - ✅ セキュリティ保護方法を説明
 
----
+### 4. Gmail appパスワードの無効化と再発行（2026-02-17完了）
 
-## ⚠️ 【緊急】手動対応が必要（優先度：最高）
+- ✅ 既存のGmail appパスワード（`hlcptkurwoftnple`）を無効化
+- ✅ 新しいアプリパスワードを発行して`extensions/firestore-send-email.env`に設定
+- ✅ Firebase Extensionの設定を更新
 
-### 🔥 1. Gmailアプリパスワードの無効化と再発行
+**アカウント**: `ansize.oneness@gmail.com`
+**用途**: Firebase Email Extension（パスワードリセットメール送信）
 
-**問題**: `extensions/firestore-send-email.env`に含まれていたGmailアプリパスワード（`hlcptkurwoftnple`）が過去のGit履歴に残っている可能性があります。
+### 5. Firebase API Keyの制限設定（2026-02-17完了）
 
-**対応手順**:
+- ✅ Google Cloud Consoleでアプリケーション制限を設定
+- ✅ Androidアプリ: パッケージ名`net.sumomo_planning.goshopping`で制限
+- ✅ iOSアプリ: Bundle IDで制限
+- ✅ 使用APIの制限を設定
 
-1. **今すぐGoogleアカウント管理画面にアクセス**
-   - https://myaccount.google.com/apppasswords
-   - アカウント: `ansize.oneness@gmail.com`
+**対象API Keys**:
 
-2. **既存のアプリパスワードを削除**
-   - 「go_shop」や「Firebase」などの名前で作成されたアプリパスワードを全て削除
-
-3. **新しいアプリパスワードを発行**
-   - 新しいアプリパスワードを生成
-   - `extensions/firestore-send-email.env`ファイルに記録（このファイルは`.gitignore`で保護済み）
-
-4. **Firebase Extensionの設定を更新**
-   ```bash
-   # Firebase Consoleで更新するか、Firebase CLIで再設定
-   firebase ext:configure firestore-send-email --project goshopping-48db9
-   firebase ext:configure firestore-send-email --project gotoshop-572b7
-   ```
-
-**現在の使用状況**: Authのパスワードリセットメール送信のみ
+- Android prod: `AIzaSyCOrH6NiWn6nUhpdgnZ328hQ9Yel-ECFf4`
+- Android dev: `AIzaSyAMlVtmR4t0tEkWoD32xbTfKBnjAjQUbFU`
+- iOS prod: `AIzaSyCgauCbShRE1og3U3_a6EQWmycZqgu4y6w`
 
 ---
 
-## ⚠️ 手動対応が必要（優先度：高）
+## ⚠️ 残りの手動対応が必要（優先度：中）
 
-### 🔐 2. Firebase API Keyの制限設定
+### 🛡️ Sentry DSNのセキュリティ設定
 
-**問題**: `lib/firebase_options_goshopping.dart`に含まれていたFirebase API Keyが過去のGit履歴に残っています。
-
-**対応手順**:
-
-1. **Google Cloud Consoleにアクセス**
-   - https://console.cloud.google.com/
-   - プロジェクト: `goshopping-48db9` と `gotoshop-572b7`
-
-2. **API KeysでFirebase API Keyを検索**
-   - 「認証情報」→「APIキー」
-   - `AIzaSyCOrH6NiWn6nUhpdgnZ328hQ9Yel-ECFf4`（prod）
-   - `AIzaSyAMlVtmR4t0tEkWoD32xbTfKBnjAjQUbFU`（dev）
-
-3. **APIキーの制限を設定**
-   - **Androidアプリの制限**: パッケージ名を`net.sumomo_planning.goshopping`に制限
-   - **iOSアプリの制限**: バンドルIDを制限
-   - **HTTP refererの制限**（Web版）: 許可するドメインのみ設定
-
-4. **API制限を設定**
-   - 使用するFirebase APIのみを許可（不要なAPIへのアクセスを拒否）
-
-**参考**: https://cloud.google.com/docs/authentication/api-keys#api_key_restrictions
-
----
-
-### 🛡️ 3. Sentry DSNのセキュリティ設定
-
-**問題**: Sentry DSNは公開情報として設計されていますが、レートリミットや許可ドメイン設定が必要です。
+**現状**: Sentry DSNは公開情報として設計されていますが、レートリミットや使用量制限の設定が推奨されます。
 
 **対応手順**:
 
@@ -132,58 +97,35 @@ git push --force --all
    - https://sentry.io/
    - プロジェクト: GoShopping
 
-2. **Allowed Domainsを設定**
-   - Settings → Client Keys (DSN)
-   - 「Allowed Domains」に許可するドメインを設定
-   - 例: `net.sumomo_planning.goshopping`、`localhost`
+2. **Rate Limitsを設定**（推奨）
+   - Settings → Projects → GoShopping → Processing
+   - 適切なレートリミットを設定（例: 1000 events/minute）
+   - 無制限の送信を防ぐ
 
-3. **レートリミットを設定**
-   - Settings → Quotas
-   - 適切なレートリミットを設定（無制限の送信を防ぐ）
+3. **Spike Protectionを有効化**（推奨）
+   - Organization Settings → Usage & Billing
+   - Spike Protectionを有効にして予期しない大量エラーに備える
 
----
+4. **Data Scrubbingを設定**（オプション）
+   - Settings → Projects → GoShopping → Security & Privacy
+   - 個人情報の自動マスキングを有効化
 
-## 📋 推奨対応（優先度：中）
-
-### 4. Git履歴からの完全削除
-
-現在のコミットで機密ファイルを削除しましたが、**Git履歴には残っています**。完全に削除するには以下のツールを使用してください。
-
-#### オプション1: BFG Repo-Cleaner（推奨）
-
-```bash
-# BFGをダウンロード
-# https://rtyley.github.io/bfg-repo-cleaner/
-
-# ファイルを履歴から完全削除
-java -jar bfg.jar --delete-files firebase_options_goshopping.dart
-java -jar bfg.jar --delete-files firestore-send-email.env
-
-# 履歴をクリーンアップ
-git reflog expire --expire=now --all
-git gc --prune=now --aggressive
-
-# リモートに強制プッシュ（⚠️ 慎重に）
-git push --force --all
-```
-
-#### オプション2: git filter-branch
-
-```bash
-git filter-branch --force --index-filter \
-  "git rm --cached --ignore-unmatch lib/firebase_options_goshopping.dart extensions/firestore-send-email.env" \
-  --prune-empty --tag-name-filter cat -- --all
-
-git reflog expire --expire=now --all
-git gc --prune=now --aggressive
-git push --force --all
-```
-
-⚠️ **注意**: `git push --force`は他の開発者に影響を与えます。チームメンバーがいる場合は事前に通知してください。
+**参考**: https://docs.sentry.io/product/security/
 
 ---
 
-## 🔍 確認方法
+## 📋 完了した対策の詳細
+
+### Git履歴からの完全削除について
+
+当初「推奨対応」としていたGit履歴からの完全削除は、**BFG Repo-Cleaner v1.14.0**を使用して2026-02-17に完了しました。
+
+- 全ての機密ファイルが履歴から削除され、リモートリポジトリに反映済み
+- 詳細は上記「2. Git履歴から機密情報を完全削除」セクションを参照
+
+---
+
+## 確認方法
 
 ### 機密情報が履歴に残っているか確認
 
@@ -240,10 +182,7 @@ git status --ignored
 
 ---
 
-**最終更新**: 2026-02-10
-**担当者**: GitHub Copilot AI Coding Agenthub.io/bfg-repo-cleaner/>
-
----
-
-**最終更新**: 2026-02-10
+**最終更新**: 2026-02-17
+**担当者**: GitHub Copilot AI Coding Agent
+**担当者**: GitHub Copilot AI Coding Agent
 **担当者**: GitHub Copilot AI Coding Agent
