@@ -91,7 +91,7 @@ git push --force --all
 
 **プロジェクト**: GoShopping
 **プラン**: Free Plan
-**参考**: https://docs.sentry.io/product/security/
+**参考**: <https://docs.sentry.io/product/security/>
 
 ---
 
@@ -177,9 +177,9 @@ git status --ignored
 
 質問や不明点があれば、以下を参照してください：
 
-- Firebase Security: https://firebase.google.com/docs/projects/api-keys
-- Sentry Security: https://docs.sentry.io/product/security/
-- BFG Repo-Cleaner: https://rtyley.github.io/bfg-repo-cleaner/
+- Firebase Security: <https://firebase.google.com/docs/projects/api-keys>
+- Sentry Security: <https://docs.sentry.io/product/security/>
+- BFG Repo-Cleaner: <https://rtyley.github.io/bfg-repo-cleaner/>
 
 ---
 

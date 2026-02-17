@@ -1,5 +1,119 @@
 # GoShopping - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-02-17)
+
+### 1. グループ削除通知機能追加 ✅
+
+**Purpose**: オーナーがグループを削除した際、全メンバーに通知を送信してリアルタイム同期を実現
+
+**Background**: Pixel 9でグループを削除してもSH 54Dに反映されない問題を発見（手動同期でも反映せず）
+
+**Implementation** (`lib/widgets/group_list_widget.dart`):
+
+```dart
+static void _deleteGroup(
+    BuildContext context, WidgetRef ref, SharedGroup group) async {
+  // グループ削除実行
+  await repository.deleteGroup(group.groupId);
+
+  // 🔥 削除通知を送信
+  final notificationService = ref.read(notificationServiceProvider);
+  final currentUser = authState.value;
+  if (currentUser != null) {
+    final userName = currentUser.displayName ?? 'ユーザー';
+    await notificationService.sendGroupDeletedNotification(
+      groupId: group.groupId,
+      groupName: group.groupName,
+      deleterName: userName,
+    );
+  }
+}
+```
+
+**Features**:
+
+- ✅ グループ削除時に全メンバーに通知送信
+- ✅ 他デバイスで自動的にグループ削除反映
+- ✅ 手動同期不要のリアルタイム同期
+
+**Modified Files**:
+
+- `lib/widgets/group_list_widget.dart` - 削除通知送信処理追加
+
+**Commit**: `97937b0`
+
+---
+
+### 2. グループ離脱機能実装（メンバー専用） ✅
+
+**Purpose**: メンバーがグループから離脱する機能を実装（オーナーは削除のみ可能）
+
+**Background**: ユーザーからの指摘「メンバーがグループを離脱する機能が未実装」
+
+**Implementation**:
+
+#### オーナー・メンバー判定
+
+```dart
+static void _showDeleteConfirmationDialog(
+    BuildContext context, WidgetRef ref, SharedGroup group) {
+  final isOwner = currentUser != null && group.ownerUid == currentUser.uid;
+
+  if (isOwner) {
+    _showOwnerDeleteDialog(context, ref, group);  // 削除ダイアログ
+  } else {
+    _showMemberLeaveDialog(context, ref, group);  // 離脱ダイアログ
+  }
+}
+```
+
+#### 2種類のダイアログ
+
+| ユーザー種別 | ダイアログタイトル | ボタン色   | 処理内容                         |
+| ------------ | ------------------ | ---------- | -------------------------------- |
+| **オーナー** | 「グループを削除」 | 赤色       | グループ完全削除（全データ削除） |
+| **メンバー** | 「グループを退出」 | オレンジ色 | 自分のみ離脱（再招待で復帰可）   |
+
+#### グループ離脱処理
+
+```dart
+static void _leaveGroup(
+    BuildContext context, WidgetRef ref, SharedGroup group) async {
+  // 自分のメンバー情報取得
+  final myMember = group.members?.firstWhere(
+    (m) => m.memberId == currentUser.uid,
+  );
+
+  // Firestoreから削除（members + allowedUid両方更新）
+  await repository.removeMember(group.groupId, myMember);
+
+  // UIから消去
+  ref.invalidate(allGroupsProvider);
+}
+```
+
+**Technical Details**:
+
+- `SharedGroup.removeMember()` が `members`配列と`allowedUid`配列の両方を自動更新
+- `HybridRepository` 経由でFirestore + Hive両方を更新
+- 選択中グループの場合は自動的にクリア
+
+**Features**:
+
+- ✅ オーナーとメンバーで異なるダイアログ表示
+- ✅ メンバーはグループから離脱可能
+- ✅ Firestore上の`members`と`allowedUid`両方更新
+- ✅ ローカル（Hive）からも削除
+- ✅ UIから即座に該当グループを消去
+
+**Modified Files**:
+
+- `lib/widgets/group_list_widget.dart` (+129 lines) - 離脱機能追加
+
+**Commit**: `777dd22`
+
+---
+
 ## Recent Implementations (2026-02-13)
 
 ### デバイスIDプレフィックス機能実装 ✅
