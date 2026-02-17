@@ -1,7 +1,7 @@
 # 🚨 緊急セキュリティ対応が必要です
 
-**日付**: 2026-02-10
-**対応状況**: 一部対応済み、手動対応が必要
+**日付**: 2026-02-10（最終更新: 2026-02-17）
+**対応状況**: Git履歴クリーンアップ完了、手動設定変更が必要
 
 ---
 
@@ -11,9 +11,50 @@
 
 - ✅ `lib/firebase_options_goshopping.dart` - Git管理から除外（`git rm --cached`）
 - ✅ `extensions/firestore-send-email.env` - Git管理から除外（`git rm --cached`）
+- ✅ `ios/Runner/GoogleService-Info.plist` - Git管理から除外（`git rm --cached`）
+- ✅ `ios_backup/GoogleService-Info.plist` - Git管理から除外（`git rm --cached`）
 - ✅ `.gitignore`に追加済み（今後は自動的に除外）
 
-**Commit**: `2279996` - "security: 機密情報をGit管理から除外＋Sentry DSN説明追加"
+**Commits**:
+
+- `2279996` - "security: 機密情報をGit管理から除外＋Sentry DSN説明追加"
+- `31625c4` - "security: iOS版GoogleService-Info.plistをGit管理から除外（機密情報保護）"
+
+### 2. Git履歴から機密情報を完全削除（2026-02-17完了）
+
+**使用ツール**: BFG Repo-Cleaner v1.14.0
+
+**削除対象ファイル**:
+
+- ✅ `lib/firebase_options_goshopping.dart` - 295オブジェクトID変更
+- ✅ `extensions/firestore-send-email.env` - 729オブジェクトID変更
+- ✅ `ios/Runner/GoogleService-Info.plist` - 272オブジェクトID変更（3バージョン削除）
+
+**更新されたブランチ**:
+
+- ✅ `future`: ba47b36 → 3be13a8（強制更新）
+- ✅ `main`: 8825c0a → 8ef2db2（強制更新）
+- ✅ `oneness`: 670f6f7 → c1c7caf（強制更新）
+
+**BFGレポート**: `C:\FlutterProject\go_shop.bfg-report\2026-02-17\`
+
+**実行コマンド**:
+
+```powershell
+# BFG Repo-Cleanerで機密ファイルを全履歴から削除
+cd C:\FlutterProject
+java -jar bfg.jar --delete-files firebase_options_goshopping.dart --no-blob-protection go_shop
+java -jar bfg.jar --delete-files firestore-send-email.env --no-blob-protection go_shop
+java -jar bfg.jar --delete-files GoogleService-Info.plist --no-blob-protection go_shop
+
+# reflogとガベージコレクション
+cd go_shop
+git reflog expire --expire=now --all
+git gc --prune=now
+
+# リモートに強制プッシュ
+git push --force --all
+```
 
 ### 2. Sentry DSN説明コメント追加
 
@@ -196,6 +237,11 @@ git status --ignored
 - Firebase Security: https://firebase.google.com/docs/projects/api-keys
 - Sentry Security: https://docs.sentry.io/product/security/
 - BFG Repo-Cleaner: https://rtyley.github.io/bfg-repo-cleaner/
+
+---
+
+**最終更新**: 2026-02-10
+**担当者**: GitHub Copilot AI Coding Agenthub.io/bfg-repo-cleaner/>
 
 ---
 
