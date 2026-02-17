@@ -11,6 +11,8 @@ import '../utils/snackbar_helper.dart';
 // 🔥 REMOVED: import '../utils/group_helpers.dart'; デフォルトグループ機能削除
 import '../pages/group_member_management_page.dart';
 import '../services/user_initialization_service.dart';
+import '../services/notification_service.dart';
+import '../providers/auth_provider.dart';
 import 'initial_setup_widget.dart'; // 🆕 初回セットアップ画面
 
 /// グループをリスト表示するウィジェット
@@ -559,6 +561,20 @@ class GroupListWidget extends ConsumerWidget {
       // リポジトリから削除実行
       final repository = ref.read(SharedGroupRepositoryProvider);
       await repository.deleteGroup(group.groupId);
+
+      // 🔥 削除通知を送信
+      final notificationService = ref.read(notificationServiceProvider);
+      final authState = ref.read(authStateProvider);
+      final currentUser = authState.value;
+      if (currentUser != null) {
+        final userName = currentUser.displayName ?? 'ユーザー';
+        await notificationService.sendGroupDeletedNotification(
+          groupId: group.groupId,
+          groupName: group.groupName,
+          deleterName: userName,
+        );
+        AppLogger.info('✅ [GROUP_DELETE] 削除通知送信完了');
+      }
 
       // 削除されたグループが選択中のグループの場合はクリア
       final selectedGroupId = ref.read(selectedGroupIdProvider);

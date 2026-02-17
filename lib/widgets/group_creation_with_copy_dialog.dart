@@ -206,19 +206,21 @@ class _GroupCreationWithCopyDialogState
                               fontSize: 16, fontWeight: FontWeight.w500),
                         ),
                         const SizedBox(height: 8),
-                        Flexible(
-                          child: Container(
-                            constraints: const BoxConstraints(maxHeight: 300),
-                            child: ListView.builder(
-                              shrinkWrap: true,
-                              itemCount:
-                                  _selectedSourceGroup!.members?.length ?? 0,
-                              itemBuilder: (context, index) {
-                                final member =
-                                    _selectedSourceGroup!.members![index];
-                                return _buildMemberSelectionTile(member);
-                              },
-                            ),
+                        Container(
+                          constraints: const BoxConstraints(maxHeight: 300),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: ListView.builder(
+                            shrinkWrap: true,
+                            itemCount:
+                                _selectedSourceGroup!.members?.length ?? 0,
+                            itemBuilder: (context, index) {
+                              final member =
+                                  _selectedSourceGroup!.members![index];
+                              return _buildMemberSelectionTile(member);
+                            },
                           ),
                         ),
                       ] else if (_selectedSourceGroup != null) ...[
