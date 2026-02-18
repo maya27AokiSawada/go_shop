@@ -1,5 +1,123 @@
 # GoShopping - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-02-19)
+
+### 1. iOS Firebase設定完了 ✅
+
+**Purpose**: iOS版でFirebaseを正常に動作させるための設定を完了
+
+**Implementation**:
+
+**GoogleService-Info.plist設定**:
+
+- Firebase ConsoleからiOS用設定ファイルをダウンロード
+- `ios/GoogleService-Info.plist`に配置
+- Xcodeプロジェクト（`ios/Runner.xcodeproj/project.pbxproj`）に参照を追加（6箇所）
+- ビルドフェーズのリソースに追加
+
+**セキュリティ対策**:
+
+- `.gitignore`に`GoogleService-Info.plist`の除外パターン追加
+- テンプレートファイル作成: `ios/GoogleService-Info.plist.template`
+- プレースホルダー値で構造を示す
+
+**ドキュメント更新**:
+
+- `SETUP.md`: iOS Firebase設定手順を追加
+- `docs/SECURITY_ACTION_REQUIRED.md`: セキュリティ対応記録
+
+**Commit**: `b8157b1` - "security: iOS Firebase設定の機密情報保護"
+
+**Status**: ✅ 完了
+
+---
+
+### 2. iOS版DeviceIdServiceエラーハンドリング強化 ✅
+
+**Purpose**: iOS特有のidentifierForVendor取得失敗に対応
+
+**Background**:
+
+- グループ作成時に使用するデバイスIDプレフィックスの生成
+- iOSの`identifierForVendor`がnullまたは空の場合の対処が不十分
+
+**Implementation** (`lib/services/device_id_service.dart`):
+
+```dart
+} else if (Platform.isIOS) {
+  try {
+    final iosInfo = await deviceInfo.iosInfo;
+    final vendorId = iosInfo.identifierForVendor;
+
+    if (vendorId != null && vendorId.isNotEmpty) {
+      // 正常パス: vendorIdの最初の8文字を使用
+      final cleanId = vendorId.replaceAll('-', '');
+      if (cleanId.length >= 8) {
+        prefix = _sanitizePrefix(cleanId.substring(0, 8));
+      } else {
+        throw Exception('iOS Vendor ID too short');
+      }
+    } else {
+      throw Exception('iOS Vendor ID is null');
+    }
+  } catch (iosError) {
+    // iOS固有エラー時のフォールバック
+    final uuid = const Uuid().v4().replaceAll('-', '');
+    prefix = 'ios\${uuid.substring(0, 5)}'; // "ios" + 5文字 = 8文字
+    AppLogger.warning('⚠️ [DEVICE_ID] iOS Vendor ID取得失敗、フォールバック使用');
+  }
+}
+```
+
+**Features**:
+
+- ✅ `identifierForVendor`のnullチェック追加
+- ✅ vendorIdの長さチェック追加
+- ✅ エラー時は`ios` + UUID（5文字）のフォールバックを使用
+- ✅ Android/Windows/Linux/macOSには影響なし
+
+**Commit**: `a485846` - "fix(ios): iOS版DeviceIdServiceのエラーハンドリング強化"
+
+**Status**: ✅ 完了
+
+---
+
+### 3. iOS動作確認完了 ✅
+
+**実施内容**:
+
+- デバイス: iPhone 16e Simulator (iOS 26.2)
+- CocoaPods: 51個のポッド（Firebase関連含む）
+- ✅ アプリ起動成功
+- ✅ Firebase初期化成功
+- ✅ グループ作成機能正常動作
+- ✅ デバイスIDプレフィックス生成正常動作
+
+**技術的学習事項**:
+
+**iOS Firebase設定の注意点**:
+
+- `GoogleService-Info.plist`の配置だけでは不十分
+- `project.pbxproj`にファイル参照を追加する必要あり（6箇所）
+  - PBXBuildFile（ビルドファイル定義）
+  - PBXFileReference（ファイル参照）
+  - PBXResourcesBuildPhase（リソースビルドフェーズ）
+
+**iOS identifierForVendorの特性**:
+
+- アプリが初回インストール直後は取得できない場合あり
+- プライバシー設定により制限される場合あり
+- 必ずnullチェックとフォールバック実装が必要
+
+**Flutter flavorとiOS**:
+
+- `flutter run --flavor dev`はiOSでは使用不可（カスタムスキーム未設定）
+- 通常の`flutter run`コマンドで実行
+
+**Status**: ✅ 完了
+
+---
+
 ## Recent Implementations (2026-02-18)
 
 ### データクラスリファレンスドキュメント作成 ✅
