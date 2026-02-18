@@ -1,5 +1,58 @@
 # GoShopping - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-02-18)
+
+### データクラスリファレンスドキュメント作成 ✅
+
+**Purpose**: プロジェクト全体で使用される全データクラスの一覧と概要を整理
+
+**Background**:
+
+- 26個のデータクラス（Freezed、Enum、通常クラス）が散在
+- 新規開発者がデータ構造を理解するのに時間がかかる
+- HiveType ID衝突のリスク
+
+**Implementation**:
+
+**新規ファイル**: `docs/specifications/data_classes_reference.md`
+
+**ドキュメント構造**:
+
+- 凡例システム（📦 Freezed、🗃️ Hive、☁️ Firestore、🔢 Enum）
+- 全26クラスをアルファベット順に整理
+- 各クラスの目的・用途・主要フィールドを記載
+
+**収録クラス例**:
+
+- AcceptedInvitation, AppNews, DrawingPoint, DrawingStroke
+- FirestoreAcceptedInvitation, FirestoreSharedList
+- GroupConfig, Invitation, Permission（8ビット権限管理）
+- SharedGroup, SharedList, SharedItem, Whiteboard
+- 各種Enum（GroupType, ListType, SyncStatus等）
+
+**付録セクション**:
+
+- HiveType ID一覧表（使用中: 0-4, 6-12, 15-17）
+- 命名規則の注意事項（`memberId`が正、`memberID`ではない）
+- Firestore連携パターン（3種類）
+- 差分同期の重要性（Map形式による90%削減達成）
+
+**技術的価値**:
+
+- ✅ 新規開発者のオンボーディング時間短縮
+- ✅ データモデル設計の全体把握が容易
+- ✅ HiveType ID衝突防止
+- ✅ 命名規則の統一促進
+
+**Status**: ✅ 完了
+
+**Next Steps**:
+
+- ⏳ ウィジェットクラスリファレンス作成
+- ⏳ サービス・プロバイダー・リポジトリクラスリファレンス作成
+
+---
+
 ## Recent Implementations (2026-02-17)
 
 ### 1. グループ削除通知機能追加 ✅
