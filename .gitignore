@@ -55,6 +55,9 @@ app.*.map.json
 
 # Firebase & Google Services (機密情報)
 google-services.json
+GoogleService-Info.plist
+ios/GoogleService-Info.plist
+ios/Runner/GoogleService-Info.plist
 lib/firebase_options.dart
 lib/firebase_options_goshopping.dart
 firebase-debug.log

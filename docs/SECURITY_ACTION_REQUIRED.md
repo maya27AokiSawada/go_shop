@@ -1,6 +1,6 @@
 # ✅ セキュリティ対応完了
 
-**日付**: 2026-02-10（最終更新: 2026-02-17）
+**日付**: 2026-02-10（最終更新: 2026-02-19）
 **対応状況**: すべて完了
 
 ---
@@ -11,6 +11,7 @@
 
 - ✅ `lib/firebase_options_goshopping.dart` - Git管理から除外（`git rm --cached`）
 - ✅ `extensions/firestore-send-email.env` - Git管理から除外（`git rm --cached`）
+- ✅ `ios/GoogleService-Info.plist` - Git管理から除外（`git rm --cached`） - **2026-02-19追加**
 - ✅ `ios/Runner/GoogleService-Info.plist` - Git管理から除外（`git rm --cached`）
 - ✅ `ios_backup/GoogleService-Info.plist` - Git管理から除外（`git rm --cached`）
 - ✅ `.gitignore`に追加済み（今後は自動的に除外）
