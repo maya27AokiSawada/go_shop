@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
 import '../models/shared_group.dart';
 import '../providers/purchase_group_provider.dart';
 import '../utils/app_logger.dart';
@@ -562,10 +563,12 @@ class _GroupCreationWithCopyDialogState
 
       // 🔥 FIX: メンバーコピーがある場合、プロバイダー更新後にメンバーを追加
       // この時点で新しいグループがallGroupsProviderに含まれている
+      String? newGroupId;
       if (hasMembersToAdd) {
         AppLogger.info('🔄 [CREATE GROUP DIALOG] メンバー追加開始');
-        await _addMembersToNewGroup(groupName);
-        AppLogger.info('✅ [CREATE GROUP DIALOG] メンバー追加完了');
+        newGroupId = await _addMembersToNewGroup(groupName);
+        AppLogger.info(
+            '✅ [CREATE GROUP DIALOG] メンバー追加完了（グループID: ${AppLogger.maskGroupId(newGroupId, currentUserId: ref.read(authStateProvider).value?.uid)}）');
       }
 
       // 🔥 CRITICAL: メンバー追加後、プロバイダーを無効化（ダイアログを閉じる前）
@@ -587,9 +590,9 @@ class _GroupCreationWithCopyDialogState
 
       // 🔥 FIX: メンバーコピーは新グループ作成時に追加済み（_addSelectedMembersは削除）
       // メンバーに通知を送信
-      if (hasMembersToAdd) {
+      if (hasMembersToAdd && newGroupId != null) {
         AppLogger.info('🔄 [CREATE GROUP DIALOG] メンバー通知送信開始');
-        await _sendMemberNotifications(groupName);
+        await _sendMemberNotifications(newGroupId, groupName);
         AppLogger.info('✅ [CREATE GROUP DIALOG] メンバー通知送信完了');
       }
 
@@ -640,17 +643,19 @@ class _GroupCreationWithCopyDialogState
   }
 
   /// 🔥 NEW: 新規作成したグループにメンバーを追加
-  Future<void> _addMembersToNewGroup(String groupName) async {
+  /// 戻り値: 新しく作成したグループのID
+  Future<String?> _addMembersToNewGroup(String groupName) async {
     try {
       if (_selectedSourceGroup?.members == null) {
-        return;
+        AppLogger.warning('⚠️ [ADD MEMBERS TO NEW GROUP] メンバーがnull');
+        return null;
       }
 
       final authState = ref.read(authStateProvider);
       final currentUser = authState.value;
       if (currentUser == null) {
         AppLogger.warning('⚠️ [ADD MEMBERS TO NEW GROUP] currentUserがnull');
-        return;
+        return null;
       }
 
       // 新規作成したグループを取得
@@ -698,7 +703,7 @@ class _GroupCreationWithCopyDialogState
 
       if (membersToAdd.isEmpty) {
         AppLogger.info('⚠️ [ADD MEMBERS TO NEW GROUP] 追加するメンバーがいません');
-        return;
+        return newGroup.groupId;
       }
 
       // 既存のメンバーリスト（オーナーのみ）に新メンバーを追加
@@ -727,6 +732,7 @@ class _GroupCreationWithCopyDialogState
 
       // 🔥 FIX: プロバイダー無効化は呼び出し元（_createGroup）で実行
       // ここで実行するとダイアログが閉じられた後にrefを使用するリスクがある
+      return newGroup.groupId;
     } catch (e, stackTrace) {
       AppLogger.error('❌ [ADD MEMBERS TO NEW GROUP] メンバー追加処理でエラー発生: $e');
       AppLogger.error('❌ [ADD MEMBERS TO NEW GROUP] スタックトレース: $stackTrace');
@@ -735,7 +741,8 @@ class _GroupCreationWithCopyDialogState
   }
 
   /// 🔥 NEW: メンバーに通知のみ送信（グループには作成時に追加済み）
-  Future<void> _sendMemberNotifications(String groupName) async {
+  Future<void> _sendMemberNotifications(
+      String groupId, String groupName) async {
     try {
       if (_selectedSourceGroup?.members == null) {
         return;
@@ -750,12 +757,6 @@ class _GroupCreationWithCopyDialogState
         return;
       }
 
-      final selectedGroup = ref.read(selectedGroupNotifierProvider).value;
-      if (selectedGroup == null) {
-        AppLogger.warning('⚠️ [SEND NOTIFICATIONS] selectedGroupがnull');
-        return;
-      }
-
       final senderName = currentUser.displayName ?? 'ユーザー';
       final members = _selectedSourceGroup!.members;
 
@@ -767,23 +768,31 @@ class _GroupCreationWithCopyDialogState
           // 現在のユーザー（作成者）は除外
           if (isSelected && member.memberId != currentUser.uid) {
             try {
+              // 🔥 FIX: タイムアウトを設定（5秒）
               await notificationService.sendNotification(
                 targetUserId: member.memberId,
                 type: NotificationType.groupMemberAdded,
-                groupId: selectedGroup.groupId,
+                groupId: groupId,
                 message: '$senderName さんが「$groupName」にあなたを追加しました',
                 metadata: {
-                  'groupId': selectedGroup.groupId,
+                  'groupId': groupId,
                   'groupName': groupName,
                   'addedBy': currentUser.uid,
                   'addedByName': senderName,
+                },
+              ).timeout(
+                const Duration(seconds: 5),
+                onTimeout: () {
+                  AppLogger.warning(
+                      '⏱️ [SEND NOTIFICATIONS] 通知送信タイムアウト: ${AppLogger.maskName(member.name)}');
+                  throw TimeoutException('通知送信がタイムアウトしました');
                 },
               );
               AppLogger.info(
                   '✅ [SEND NOTIFICATIONS] 通知送信完了: ${AppLogger.maskName(member.name)}');
             } catch (e) {
               AppLogger.error(
-                  '❌ [SEND NOTIFICATIONS] 通知送信エラー: ${member.name} - $e');
+                  '❌ [SEND NOTIFICATIONS] 通知送信エラー: ${AppLogger.maskName(member.name)} - $e');
               // 個別のメンバー通知失敗は続行（他のメンバーには送信）
             }
           }
