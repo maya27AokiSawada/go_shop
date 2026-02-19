@@ -1,12 +1,10 @@
 // lib/widgets/group_creation_with_copy_dialog.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import '../models/shared_group.dart';
 import '../providers/purchase_group_provider.dart';
 import '../utils/app_logger.dart';
-import 'dart:developer' as developer;
 import '../services/error_log_service.dart';
 import '../utils/snackbar_helper.dart';
 import '../services/notification_service.dart';
@@ -592,8 +590,26 @@ class _GroupCreationWithCopyDialogState
       // メンバーに通知を送信
       if (hasMembersToAdd && newGroupId != null) {
         AppLogger.info('🔄 [CREATE GROUP DIALOG] メンバー通知送信開始');
-        await _sendMemberNotifications(newGroupId, groupName);
-        AppLogger.info('✅ [CREATE GROUP DIALOG] メンバー通知送信完了');
+
+        // 🔥 CRITICAL: Widget dispose前にrefを使用してサービス・ユーザー情報を取得
+        final notificationService = ref.read(notificationServiceProvider);
+        final authState = ref.read(authStateProvider);
+        final currentUser = authState.value;
+        final senderName = currentUser?.displayName ?? 'ユーザー';
+
+        if (currentUser != null) {
+          await _sendMemberNotifications(
+            notificationService,
+            currentUser.uid,
+            senderName,
+            newGroupId,
+            groupName,
+          );
+          AppLogger.info('✅ [CREATE GROUP DIALOG] メンバー通知送信完了');
+        } else {
+          AppLogger.warning(
+              '⚠️ [CREATE GROUP DIALOG] currentUserがnull - 通知送信スキップ');
+        }
       }
 
       // ✅ グループ作成処理完了
@@ -741,23 +757,18 @@ class _GroupCreationWithCopyDialogState
   }
 
   /// 🔥 NEW: メンバーに通知のみ送信（グループには作成時に追加済み）
+  /// notificationService, currentUid, senderNameは呼び出し元で取得済み（Widget dispose対策）
   Future<void> _sendMemberNotifications(
-      String groupId, String groupName) async {
+    NotificationService notificationService,
+    String currentUid,
+    String senderName,
+    String groupId,
+    String groupName,
+  ) async {
     try {
       if (_selectedSourceGroup?.members == null) {
         return;
       }
-
-      final notificationService = ref.read(notificationServiceProvider);
-      final authState = ref.read(authStateProvider);
-      final currentUser = authState.value;
-
-      if (currentUser == null) {
-        AppLogger.warning('⚠️ [SEND NOTIFICATIONS] currentUserがnull');
-        return;
-      }
-
-      final senderName = currentUser.displayName ?? 'ユーザー';
       final members = _selectedSourceGroup!.members;
 
       if (members != null) {
@@ -766,7 +777,7 @@ class _GroupCreationWithCopyDialogState
           final isSelected = _selectedMembers[memberId] ?? false;
 
           // 現在のユーザー（作成者）は除外
-          if (isSelected && member.memberId != currentUser.uid) {
+          if (isSelected && member.memberId != currentUid) {
             try {
               // 🔥 FIX: タイムアウトを設定（5秒）
               await notificationService.sendNotification(
@@ -777,7 +788,7 @@ class _GroupCreationWithCopyDialogState
                 metadata: {
                   'groupId': groupId,
                   'groupName': groupName,
-                  'addedBy': currentUser.uid,
+                  'addedBy': currentUid,
                   'addedByName': senderName,
                 },
               ).timeout(
