@@ -238,29 +238,31 @@ class SharedListHeaderWidget extends ConsumerWidget {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: const Text('新しい買い物リストを作成'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'リスト名',
-                  hintText: '例: 週末の買い物',
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'リスト名',
+                    hintText: '例: 週末の買い物',
+                  ),
+                  autofocus: true,
+                  enabled: !isSubmitting,
                 ),
-                autofocus: true,
-                enabled: !isSubmitting,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: descriptionController,
-                decoration: const InputDecoration(
-                  labelText: '説明（任意）',
-                  hintText: '例: 土曜日のスーパーで',
+                const SizedBox(height: 12),
+                TextField(
+                  controller: descriptionController,
+                  decoration: const InputDecoration(
+                    labelText: '説明（任意）',
+                    hintText: '例: 土曜日のスーパーで',
+                  ),
+                  maxLines: 2,
+                  enabled: !isSubmitting,
                 ),
-                maxLines: 2,
-                enabled: !isSubmitting,
-              ),
-            ],
+              ],
+            ),
           ),
           actions: [
             TextButton(
