@@ -554,6 +554,116 @@ grep -c "GoogleService-Info.plist" ios/Runner.xcodeproj/project.pbxproj
 
 ---
 
+#### 6. Production Bug修正: グループコピー時の赤画面エラー ✅
+
+**Purpose**: Pixel 9で「コピー付き作成」時にFlutterエラー画面が表示される問題を修正
+
+**背景**:
+
+- ユーザー報告「コピー付き作成で赤画面発生しました Pixel 9です」
+- グループ作成自体は成功するが、その後にエラー画面表示
+- 再現条件: **別ユーザーがオーナーのグループをコピー**した場合
+
+**調査プロセス**:
+
+**Phase 1**: 初期仮説（Widget disposal during long async chain）
+
+- 8秒以上の非同期処理チェーン中にWidgetが破棄される可能性を調査
+- **結果**: Crashlyticsログにより仮説は誤りと判明
+
+**Phase 2**: Crashlyticsログ分析 ✅
+
+```
+Fatal Exception: io.flutter.plugins.firebase.crashlytics.FlutterError
+There should be exactly one item with [DropdownButton]'s value:
+SharedGroup(groupName: CCすもも02191306, groupId: win0396f_1771473965650, ...)
+Either zero or 2 or more [DropdownMenuItem]s were detected with the same value
+
+'package:flutter/src/material/dropdown.dart':
+Failed assertion: line 1830
+
+at _GroupCreationWithCopyDialogState._buildDialog(group_creation_with_copy_dialog.dart:172)
+```
+
+**Phase 3**: 根本原因特定 ✅
+
+- **Error Type**: Flutter DropdownButton assertion failure
+- **Problem**: DropdownButtonFormFieldのitemsリストに同じgroupIdのグループが複数含まれる
+- **Data Flow**: Hive → getAllGroups() → allGroupsProvider.build() → Dialog dropdown
+- **Missing Logic**: `allGroupsProvider`がgroupIdで重複除去していなかった
+
+**実装内容**:
+
+**修正1: Dialog側（症状への直接対処）** - `lib/widgets/group_creation_with_copy_dialog.dart`
+
+```dart
+items: [
+  const DropdownMenuItem<SharedGroup>(
+    value: null,
+    child: Text('新しいグループ (メンバーなし)'),
+  ),
+  // 🔥 FIX: groupIdで重複を除去
+  ...existingGroups
+      .fold<Map<String, SharedGroup>>(
+        {},
+        (map, group) {
+          map[group.groupId] = group;
+          return map;
+        },
+      )
+      .values
+      .map((group) => DropdownMenuItem<SharedGroup>(...)),
+],
+```
+
+**修正2: Provider側（根本的対策）** - `lib/providers/purchase_group_provider.dart`
+
+```dart
+// AllGroupsNotifier.build()の戻り値で重複除去
+final uniqueGroups = <String, SharedGroup>{};
+for (final group in filteredGroups) {
+  uniqueGroups[group.groupId] = group;
+}
+final deduplicatedGroups = uniqueGroups.values.toList();
+
+final removedCount = filteredGroups.length - deduplicatedGroups.length;
+if (removedCount > 0) {
+  Log.warning('⚠️ [ALL GROUPS] 重複グループを除去: $removedCount グループ');
+}
+
+return deduplicatedGroups;
+```
+
+**技術的価値**:
+
+- ✅ **二重保護**: DialogとProvider両方で重複を除去
+- ✅ **ログ出力**: 重複検出時は警告ログを記録（調査用）
+- ✅ **パフォーマンス**: Map<String, SharedGroup>による効率的な重複除去（O(n)）
+- ✅ **安全性**: Flutter framework assertionエラーを防止
+
+**Hive Storage Paradox** ⚠️:
+
+- Hiveは`Box<SharedGroup>`（Mapベース）でgroupIdをキーとして使用
+- `box.put(groupId, group)`は同じキーで上書きするため、理論上重複は発生しない
+- しかし実際には重複が発生していた（Crashlyticsで確認）
+- **推測**: Firestoreリスナーまたは複数のbox instanceによる並行書き込みの可能性
+
+**Modified Files**:
+
+- `lib/widgets/group_creation_with_copy_dialog.dart` (Line 190-210)
+- `lib/providers/purchase_group_provider.dart` (Line 530-545)
+
+**Status**: ✅ 実装完了・コンパイルエラーなし | ⏳ 実機テスト待ち（Pixel 9）
+
+**Next Steps**:
+
+1. ⏳ Pixel 9で再現テスト（別ユーザーがオーナーのグループをコピー）
+2. ⏳ 赤画面が出ないことを確認
+3. ⏳ グループ作成が正常に完了することを確認
+4. ⏳ コピーされたメンバーが正しく追加されることを確認
+
+---
+
 ## 📊 Status Summary
 
 **Today's Achievements**:
@@ -565,12 +675,16 @@ grep -c "GoogleService-Info.plist" ios/Runner.xcodeproj/project.pbxproj
 - ✅ グループ作成機能動作確認
 - ✅ **ウィジェットクラスリファレンス作成**（42個のウィジェット網羅、約650行）
 - ✅ **ページウィジェットリファレンス作成**（17個のページ網羅、約1100行）
+- ✅ **Production Bug修正: グループコピー時の赤画面エラー**
+  - Crashlyticsログ分析 → 根本原因特定（DropdownButton重複値エラー）
+  - DialogとProvider両方で重複除去ロジック実装
+  - 実機テストは後日実施予定
 
 **Commits**:
 
 - `b8157b1` - Firebase設定セキュリティ対応
 - `a485846` - iOS DeviceIdServiceエラーハンドリング
-- (本コミット) - ウィジェット・ページリファレンス作成
+- (今回) - ウィジェット・ページリファレンス作成、Production Bug修正
 
 **Branch**: `future`
 

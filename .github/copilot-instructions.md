@@ -44,7 +44,150 @@ flutterfire configure --project=gotoshop-572b7
 
 ## Recent Implementations (2026-02-19)
 
-### 1. iOS Firebase設定完了 ✅
+### 1. Production Bug修正: グループコピー時の赤画面エラー ✅
+
+**Purpose**: Pixel 9で「コピー付き作成」時にFlutterエラー画面が表示される問題を修正
+
+**Problem**:
+
+- ユーザー報告「コピー付き作成で赤画面発生しました Pixel 9です」
+- グループ作成自体は成功するが、その後にエラー画面表示
+- **再現条件**: 別ユーザーがオーナーのグループをコピーした場合
+
+**Crashlytics Error Log**:
+
+```
+Fatal Exception: io.flutter.plugins.firebase.crashlytics.FlutterError
+There should be exactly one item with [DropdownButton]'s value:
+SharedGroup(groupName: CCすもも02191306, groupId: win0396f_1771473965650, ...)
+Either zero or 2 or more [DropdownMenuItem]s were detected with the same value
+
+'package:flutter/src/material/dropdown.dart':
+Failed assertion: line 1830 pos 10
+
+at _GroupCreationWithCopyDialogState._buildDialog(group_creation_with_copy_dialog.dart:172)
+```
+
+**Root Cause Analysis**:
+
+**Error Type**: Flutter DropdownButton assertion failure (framework level)
+
+**Problem**: `DropdownButtonFormField`のitemsリストに同じgroupIdのグループが複数含まれる
+
+**Data Flow**:
+
+```
+Hive Box<SharedGroup> (Map-based storage)
+  ↓
+HiveRepository.getAllGroups() (box.values.toList())
+  ↓
+AllGroupsNotifier.build() (filtering, no deduplication)
+  ↓
+Dialog.build() (existingGroups parameter)
+  ↓
+DropdownButtonFormField.items (duplicate SharedGroup values)
+  ↓
+Flutter assertion failure ❌
+```
+
+**Missing Logic**:
+
+- `allGroupsProvider.build()`がgroupIdで重複除去していなかった
+- HiveはMap-based storage（groupIdがキー）のため理論上重複は発生しない
+- しかし実際には重複が発生（Firestoreリスナーまたは並行書き込みの可能性）
+
+**Solution Implemented**:
+
+**修正1: Dialog側（症状への直接対処）** - `lib/widgets/group_creation_with_copy_dialog.dart` Line 190-210
+
+```dart
+items: [
+  const DropdownMenuItem<SharedGroup>(
+    value: null,
+    child: Text('新しいグループ (メンバーなし)'),
+  ),
+  // 🔥 FIX: groupIdで重複を除去（Dropdownアサーションエラー防止）
+  ...existingGroups
+      .fold<Map<String, SharedGroup>>(
+        {},
+        (map, group) {
+          map[group.groupId] = group;
+          return map;
+        },
+      )
+      .values
+      .map(
+        (group) => DropdownMenuItem<SharedGroup>(
+          value: group,
+          child: Text(
+            '${group.groupName} (${group.members?.length ?? 0}人)',
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ),
+],
+```
+
+**修正2: Provider側（根本的対策）** - `lib/providers/purchase_group_provider.dart` Line 530-545
+
+```dart
+// AllGroupsNotifier.build()の戻り値で重複除去
+final uniqueGroups = <String, SharedGroup>{};
+for (final group in filteredGroups) {
+  uniqueGroups[group.groupId] = group;
+}
+final deduplicatedGroups = uniqueGroups.values.toList();
+
+final removedCount = filteredGroups.length - deduplicatedGroups.length;
+if (removedCount > 0) {
+  Log.warning('⚠️ [ALL GROUPS] 重複グループを除去: $removedCount グループ');
+}
+
+return deduplicatedGroups;
+```
+
+**Technical Benefits**:
+
+- ✅ **二重保護**: DialogとProvider両方で重複を除去
+- ✅ **ログ出力**: 重複検出時は警告ログを記録（調査用）
+- ✅ **パフォーマンス**: Map<String, SharedGroup>による効率的な重複除去（O(n)）
+- ✅ **安全性**: Flutter framework assertionエラーを防止
+- ✅ **全消費者に効果**: allGroupsProviderを使用する全ウィジェットが保護される
+
+**Modified Files**:
+
+- `lib/widgets/group_creation_with_copy_dialog.dart` (Line 190-210)
+- `lib/providers/purchase_group_provider.dart` (Line 530-545)
+
+**Commit**: (今回コミット) - "fix: DropdownButton重複値エラーを修正（groupId重複除去）"
+
+**Status**: ✅ 実装完了・コンパイルエラーなし | ⏳ 実機テスト待ち（Pixel 9）
+
+**Next Steps**:
+
+1. ⏳ Pixel 9で再現テスト（別ユーザーがオーナーのグループをコピー）
+2. ⏳ 赤画面が出ないことを確認
+3. ⏳ グループ作成が正常に完了することを確認
+
+**Critical Pattern for Future Reference**:
+
+```dart
+// ❌ Wrong: DropdownButton with potential duplicate values
+items: existingItems.map((item) => DropdownMenuItem(value: item, ...))
+
+// ✅ Correct: Always deduplicate by unique key
+items: existingItems
+    .fold<Map<String, Item>>({}, (map, item) {
+      map[item.id] = item;
+      return map;
+    })
+    .values
+    .map((item) => DropdownMenuItem(value: item, ...))
+```
+
+---
+
+### 2. iOS Firebase設定完了 ✅
 
 **Purpose**: iOS版でFirebaseを正常に動作させるための設定を完了
 
@@ -94,7 +237,7 @@ grep -c "GoogleService-Info.plist" ios/Runner.xcodeproj/project.pbxproj
 
 ---
 
-### 2. iOS版DeviceIdServiceエラーハンドリング強化 ✅
+### 3. iOS版DeviceIdServiceエラーハンドリング強化 ✅
 
 **Purpose**: iOS特有のidentifierForVendor取得失敗に対応してグループ作成を安定化
 
@@ -168,7 +311,7 @@ grep -c "GoogleService-Info.plist" ios/Runner.xcodeproj/project.pbxproj
 
 ---
 
-### 3. iOS動作確認完了 ✅
+### 4. iOS動作確認完了 ✅
 
 **実施内容**:
 
@@ -253,7 +396,7 @@ grep -c "GoogleService-Info.plist" ios/Runner.xcodeproj/project.pbxproj
 
 ---
 
-### 4. ウィジェットクラスリファレンス作成 ✅
+### 5. ウィジェットクラスリファレンス作成 ✅
 
 **Purpose**: プロジェクト全体で使用される全ウィジェットクラスの一覧と概要を整理し、UI構成の理解とコンポーネント再利用を促進
 
@@ -401,7 +544,7 @@ grep -c "GoogleService-Info.plist" ios/Runner.xcodeproj/project.pbxproj
 
 ---
 
-### 5. ページウィジェットリファレンス作成 ✅
+### 6. ページウィジェットリファレンス作成 ✅
 
 **Purpose**: アプリ全体の画面構成とナビゲーション構造を体系的に整理し、アプリアーキテクチャの理解を促進
 

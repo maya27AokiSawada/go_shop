@@ -534,7 +534,19 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
         Log.info('📊 [ALL GROUPS] グループ数: ${allGroups.length}個');
       }
 
-      return filteredGroups;
+      // 🔥 FIX: groupIdで重複を除去（DropdownButtonアサーションエラー防止）
+      final uniqueGroups = <String, SharedGroup>{};
+      for (final group in filteredGroups) {
+        uniqueGroups[group.groupId] = group;
+      }
+      final deduplicatedGroups = uniqueGroups.values.toList();
+
+      final removedCount = filteredGroups.length - deduplicatedGroups.length;
+      if (removedCount > 0) {
+        Log.warning('⚠️ [ALL GROUPS] 重複グループを除去: $removedCount グループ');
+      }
+
+      return deduplicatedGroups;
     } catch (e, stackTrace) {
       Log.error('❌ [ALL GROUPS] エラー発生: $e');
       Log.error('❌ [ALL GROUPS] スタックトレース: $stackTrace');

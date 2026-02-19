@@ -190,15 +190,25 @@ class _GroupCreationWithCopyDialogState
                               value: null,
                               child: Text('新しいグループ (メンバーなし)'),
                             ),
-                            ...existingGroups.map(
-                              (group) => DropdownMenuItem<SharedGroup>(
-                                value: group,
-                                child: Text(
-                                  '${group.groupName} (${group.members?.length ?? 0}人)',
-                                  overflow: TextOverflow.ellipsis,
+                            // 🔥 FIX: groupIdで重複を除去（Dropdownアサーションエラー防止）
+                            ...existingGroups
+                                .fold<Map<String, SharedGroup>>(
+                                  {},
+                                  (map, group) {
+                                    map[group.groupId] = group;
+                                    return map;
+                                  },
+                                )
+                                .values
+                                .map(
+                                  (group) => DropdownMenuItem<SharedGroup>(
+                                    value: group,
+                                    child: Text(
+                                      '${group.groupName} (${group.members?.length ?? 0}人)',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
                           ],
                           onChanged: (group) {
                             setState(() {

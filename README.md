@@ -2,7 +2,77 @@
 
 ## Recent Implementations (2026-02-19)
 
-### 1. iOS Firebase設定完了 ✅
+### 1. Production Bug修正: グループコピー時の赤画面エラー ✅
+
+**Purpose**: Pixel 9で「コピー付き作成」時にFlutterエラー画面が表示される問題を修正
+
+**Problem**:
+
+- ユーザー報告「コピー付き作成で赤画面発生しました Pixel 9です」
+- グループ作成自体は成功するが、その後にエラー画面表示
+- **再現条件**: 別ユーザーがオーナーのグループをコピーした場合
+
+**Root Cause** (Crashlyticsログ分析):
+
+```
+Fatal Exception: io.flutter.plugins.firebase.crashlytics.FlutterError
+There should be exactly one item with [DropdownButton]'s value
+Either zero or 2 or more [DropdownMenuItem]s were detected with the same value
+at _GroupCreationWithCopyDialogState._buildDialog(group_creation_with_copy_dialog.dart:172)
+```
+
+- **Error Type**: Flutter DropdownButton assertion failure
+- **Problem**: DropdownButtonFormFieldのitemsリストに同じgroupIdのグループが複数含まれる
+- **Data Flow**: Hive → getAllGroups() → allGroupsProvider.build() → Dialog dropdown
+- **Missing Logic**: `allGroupsProvider`がgroupIdで重複除去していなかった
+
+**Solution**:
+
+**修正1: Dialog側（症状への直接対処）** - `lib/widgets/group_creation_with_copy_dialog.dart`
+
+```dart
+items: [
+  const DropdownMenuItem(value: null, child: Text('新しいグループ (メンバーなし)')),
+  // 🔥 FIX: groupIdで重複を除去
+  ...existingGroups
+      .fold<Map<String, SharedGroup>>({}, (map, group) {
+        map[group.groupId] = group;
+        return map;
+      })
+      .values
+      .map((group) => DropdownMenuItem<SharedGroup>(...)),
+],
+```
+
+**修正2: Provider側（根本的対策）** - `lib/providers/purchase_group_provider.dart`
+
+```dart
+// AllGroupsNotifier.build()の戻り値で重複除去
+final uniqueGroups = <String, SharedGroup>{};
+for (final group in filteredGroups) {
+  uniqueGroups[group.groupId] = group;
+}
+final deduplicatedGroups = uniqueGroups.values.toList();
+
+if (removedCount > 0) {
+  Log.warning('⚠️ [ALL GROUPS] 重複グループを除去: $removedCount グループ');
+}
+
+return deduplicatedGroups;
+```
+
+**Benefits**:
+
+- ✅ **二重保護**: DialogとProvider両方で重複を除去
+- ✅ **ログ出力**: 重複検出時は警告ログを記録（調査用）
+- ✅ **パフォーマンス**: Map<String, SharedGroup>による効率的な重複除去（O(n)）
+- ✅ **安全性**: Flutter framework assertionエラーを防止
+
+**Status**: ✅ 実装完了・コンパイルエラーなし | ⏳ 実機テスト待ち（Pixel 9）
+
+---
+
+### 2. iOS Firebase設定完了 ✅
 
 **Purpose**: iOS版でFirebaseを正常に動作させるための設定を完了
 
@@ -32,7 +102,7 @@
 
 ---
 
-### 2. iOS版DeviceIdServiceエラーハンドリング強化 ✅
+### 3. iOS版DeviceIdServiceエラーハンドリング強化 ✅
 
 **Purpose**: iOS特有のidentifierForVendor取得失敗に対応
 
@@ -82,7 +152,7 @@
 
 ---
 
-### 3. iOS動作確認完了 ✅
+### 4. iOS動作確認完了 ✅
 
 **実施内容**:
 
