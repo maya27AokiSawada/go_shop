@@ -1,12 +1,15 @@
 // lib/widgets/group_creation_with_copy_dialog.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/shared_group.dart';
 import '../providers/purchase_group_provider.dart';
 import '../utils/app_logger.dart';
 import 'dart:developer' as developer;
 import '../services/error_log_service.dart';
 import '../utils/snackbar_helper.dart';
+import '../services/notification_service.dart';
+import '../providers/auth_provider.dart';
 
 /// Dialog for creating new group with option to copy members from existing group
 class GroupCreationWithCopyDialog extends ConsumerStatefulWidget {
@@ -95,7 +98,8 @@ class _GroupCreationWithCopyDialogState
       child: Container(
         width: MediaQuery.of(context).size.width * 0.9,
         constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.8,
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+          maxWidth: 600,
         ),
         child: Stack(
           children: [
@@ -167,6 +171,7 @@ class _GroupCreationWithCopyDialogState
                         ),
                         const SizedBox(height: 8),
                         DropdownButtonFormField<SharedGroup>(
+                          isExpanded: true, // 🔥 FIX: UIオーバーフロー防止
                           initialValue: _selectedSourceGroup,
                           decoration: const InputDecoration(
                             hintText: 'グループを選択...',
@@ -311,22 +316,28 @@ class _GroupCreationWithCopyDialogState
     final memberId = member.memberId;
     final isSelected = _selectedMembers[memberId] ?? false;
 
-    // Don't show owner in the copy list (they can't be copied with owner role)
-    if (member.role == SharedGroupRole.owner) {
-      return const SizedBox.shrink();
+    // 🔥 FIX: オーナーの役割ではなく、現在のユーザー（新グループの作成者）を除外
+    final authState = ref.watch(authStateProvider);
+    final currentUser = authState.value;
+    if (currentUser != null && member.memberId == currentUser.uid) {
+      return const SizedBox.shrink(); // 自分自身は除外
     }
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: ListTile(
+        isThreeLine: true, // 🔥 FIX: 3行レイアウトを有効化
         leading: Checkbox(
           value: isSelected,
           onChanged: (value) {
             setState(() {
               _selectedMembers[memberId] = value ?? false;
               if (value == true) {
-                // Set default role (preserve original role but can be changed)
-                _memberRoles[memberId] = member.role;
+                // 🔥 FIX: 元の役割がownerの場合はmanagerに降格
+                // DropdownButtonのitemsにownerが含まれないため
+                _memberRoles[memberId] = member.role == SharedGroupRole.owner
+                    ? SharedGroupRole.manager
+                    : member.role;
               }
             });
           },
@@ -334,35 +345,50 @@ class _GroupCreationWithCopyDialogState
         title: Text(
           member.name,
           style: const TextStyle(fontWeight: FontWeight.w500),
+          overflow: TextOverflow.ellipsis, // 🔥 FIX: テキストオーバーフロー対策
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min, // 🔥 FIX: 最小サイズに制限
           children: [
-            Text(member.contact),
+            Text(
+              member.contact,
+              overflow: TextOverflow.ellipsis, // 🔥 FIX: テキストオーバーフロー対策
+            ),
             Text(
               '現在の役割: ${_getRoleDisplayName(member.role)}',
               style: const TextStyle(fontSize: 12, color: Colors.grey),
+              overflow: TextOverflow.ellipsis, // 🔥 FIX: テキストオーバーフロー対策
             ),
           ],
         ),
         trailing: isSelected
-            ? DropdownButton<SharedGroupRole>(
-                value: _memberRoles[memberId],
-                onChanged: (role) {
-                  if (role != null) {
-                    setState(() {
-                      _memberRoles[memberId] = role;
-                    });
-                  }
-                },
-                items: SharedGroupRole.values
-                    .where((role) =>
-                        role != SharedGroupRole.owner) // Don't allow owner role
-                    .map((role) => DropdownMenuItem(
-                          value: role,
-                          child: Text(_getRoleDisplayName(role)),
-                        ))
-                    .toList(),
+            ? SizedBox(
+                width: 100, // 🔥 FIX: DropdownButtonの横幅を制限
+                child: DropdownButton<SharedGroupRole>(
+                  isExpanded: true, // 🔥 FIX: 幅いっぱいに表示
+                  value: _memberRoles[memberId],
+                  onChanged: (role) {
+                    if (role != null) {
+                      setState(() {
+                        _memberRoles[memberId] = role;
+                      });
+                    }
+                  },
+                  items: SharedGroupRole.values
+                      .where((role) =>
+                          role !=
+                          SharedGroupRole.owner) // Don't allow owner role
+                      .map((role) => DropdownMenuItem(
+                            value: role,
+                            child: Text(
+                              _getRoleDisplayName(role),
+                              overflow: TextOverflow
+                                  .ellipsis, // 🔥 FIX: テキストオーバーフロー対策
+                            ),
+                          ))
+                      .toList(),
+                ),
               )
             : null,
       ),
@@ -386,13 +412,21 @@ class _GroupCreationWithCopyDialogState
     _selectedMembers.clear();
     _memberRoles.clear();
 
+    // 🔥 FIX: 現在のユーザーを取得して除外対象にする
+    final authState = ref.read(authStateProvider);
+    final currentUser = authState.value;
+
     final members = _selectedSourceGroup!.members;
     if (members != null) {
       for (final member in members) {
-        if (member.role != SharedGroupRole.owner) {
-          // Auto-select non-owner members by default
+        // 🔥 FIX: オーナー役割ではなく、現在のユーザー（作成者）を除外
+        if (currentUser == null || member.memberId != currentUser.uid) {
+          // 現在のユーザー以外は自動選択（デフォルトでチェック）
           _selectedMembers[member.memberId] = true;
-          _memberRoles[member.memberId] = member.role;
+          // 🔥 元の役割がownerの場合はmanagerに降格
+          _memberRoles[member.memberId] = member.role == SharedGroupRole.owner
+              ? SharedGroupRole.manager
+              : member.role;
         }
       }
     }
@@ -489,11 +523,12 @@ class _GroupCreationWithCopyDialogState
       await ref.read(allGroupsProvider.notifier).createNewGroup(groupName);
       AppLogger.info('✅ [CREATE GROUP DIALOG] createNewGroup() 完了');
 
-      // 🔥 CRITICAL: allGroupsProviderを無効化してFirestoreから再取得
-      AppLogger.info('🔄 [CREATE GROUP DIALOG] allGroupsProviderを無効化');
+      // 🔥 CRITICAL: グループ作成後、すぐにallGroupsProviderを無効化してFirestoreから再取得
+      // これにより_addMembersToNewGroup()で新しいグループが確実に見つかる
+      AppLogger.info('🔄 [CREATE GROUP DIALOG] allGroupsProviderを無効化（メンバー追加前）');
       ref.invalidate(allGroupsProvider);
 
-      // 🆕 Windows対策: allGroupsProviderの再構築完了を待機（タイムアウト付き）
+      // 🆕 allGroupsProviderの再構築完了を待機（タイムアウト付き）
       AppLogger.info('⏳ [CREATE GROUP DIALOG] allGroupsProvider更新待機中...');
       try {
         await ref.read(allGroupsProvider.future).timeout(
@@ -511,18 +546,37 @@ class _GroupCreationWithCopyDialogState
         // エラーでも続行（Firestoreには保存済み）
       }
 
-      // Add members BEFORE closing dialog (if needed)
+      // 🔥 FIX: メンバーコピーがある場合、プロバイダー更新後にメンバーを追加
+      // この時点で新しいグループがallGroupsProviderに含まれている
       if (hasMembersToAdd) {
         AppLogger.info('🔄 [CREATE GROUP DIALOG] メンバー追加開始');
-        // 🔥 FIX: 非同期メソッド内ではref.read()を使用（ref.watch()は_dependentsエラーの原因）
-        final currentGroup = ref.read(selectedGroupNotifierProvider).value;
-        if (currentGroup != null) {
-          await _addSelectedMembers(currentGroup);
-          AppLogger.info('✅ [CREATE GROUP DIALOG] メンバー追加完了');
-        } else {
-          AppLogger.warning(
-              '⚠️ [CREATE GROUP DIALOG] currentGroupがnull - メンバー追加をスキップ');
+        await _addMembersToNewGroup(groupName);
+        AppLogger.info('✅ [CREATE GROUP DIALOG] メンバー追加完了');
+      }
+
+      // 🔥 CRITICAL: メンバー追加後、プロバイダーを無効化（ダイアログを閉じる前）
+      if (hasMembersToAdd) {
+        AppLogger.info('🔄 [CREATE GROUP DIALOG] プロバイダー無効化開始（メンバー追加後）');
+        ref.invalidate(allGroupsProvider);
+        ref.invalidate(selectedGroupNotifierProvider);
+
+        // プロバイダー更新完了を待機
+        try {
+          await ref.read(allGroupsProvider.future).timeout(
+                const Duration(seconds: 3),
+              );
+          AppLogger.info('✅ [CREATE GROUP DIALOG] プロバイダー更新完了');
+        } catch (e) {
+          AppLogger.warning('⚠️ [CREATE GROUP DIALOG] プロバイダー更新エラー: $e');
         }
+      }
+
+      // 🔥 FIX: メンバーコピーは新グループ作成時に追加済み（_addSelectedMembersは削除）
+      // メンバーに通知を送信
+      if (hasMembersToAdd) {
+        AppLogger.info('🔄 [CREATE GROUP DIALOG] メンバー通知送信開始');
+        await _sendMemberNotifications(groupName);
+        AppLogger.info('✅ [CREATE GROUP DIALOG] メンバー通知送信完了');
       }
 
       // ✅ グループ作成処理完了
@@ -571,23 +625,47 @@ class _GroupCreationWithCopyDialogState
     }
   }
 
-  Future<void> _addSelectedMembers(SharedGroup newGroup) async {
+  /// 🔥 NEW: 新規作成したグループにメンバーを追加
+  Future<void> _addMembersToNewGroup(String groupName) async {
     try {
       if (_selectedSourceGroup?.members == null) {
-        AppLogger.info('⚠️ [ADD MEMBERS] ソースグループにメンバーがいません');
         return;
       }
 
-      final selectedGroupNotifier =
-          ref.read(selectedGroupNotifierProvider.notifier);
+      final authState = ref.read(authStateProvider);
+      final currentUser = authState.value;
+      if (currentUser == null) {
+        AppLogger.warning('⚠️ [ADD MEMBERS TO NEW GROUP] currentUserがnull');
+        return;
+      }
 
+      // 新規作成したグループを取得
+      final allGroupsAsync = ref.read(allGroupsProvider);
+      final allGroups = await allGroupsAsync.when(
+        data: (groups) async => groups,
+        loading: () async => <SharedGroup>[],
+        error: (_, __) async => <SharedGroup>[],
+      );
+
+      final newGroup = allGroups.firstWhere(
+        (g) => g.groupName == groupName,
+        orElse: () => throw Exception('新規作成したグループが見つかりません: $groupName'),
+      );
+
+      AppLogger.info(
+          '✅ [ADD MEMBERS TO NEW GROUP] 新グループ取得: ${AppLogger.maskGroup(newGroup.groupName, newGroup.groupId)}');
+
+      // 選択されたメンバーリストを作成
+      final membersToAdd = <SharedGroupMember>[];
       final members = _selectedSourceGroup!.members;
+
       if (members != null) {
         for (final member in members) {
           final memberId = member.memberId;
           final isSelected = _selectedMembers[memberId] ?? false;
 
-          if (isSelected && member.role != SharedGroupRole.owner) {
+          // 現在のユーザー（作成者）は除外
+          if (isSelected && member.memberId != currentUser.uid) {
             final newRole = _memberRoles[memberId] ?? member.role;
 
             final newMember = SharedGroupMember.create(
@@ -597,21 +675,110 @@ class _GroupCreationWithCopyDialogState
               role: newRole,
             );
 
+            membersToAdd.add(newMember);
+            AppLogger.info(
+                '📝 [ADD MEMBERS TO NEW GROUP] 追加予定: ${AppLogger.maskName(member.name)} (役割: ${_getRoleDisplayName(newRole)})');
+          }
+        }
+      }
+
+      if (membersToAdd.isEmpty) {
+        AppLogger.info('⚠️ [ADD MEMBERS TO NEW GROUP] 追加するメンバーがいません');
+        return;
+      }
+
+      // 既存のメンバーリスト（オーナーのみ）に新メンバーを追加
+      final existingMembers = newGroup.members ?? [];
+      final updatedMembers = [...existingMembers, ...membersToAdd];
+
+      // allowedUidリストも更新
+      final existingAllowedUids = newGroup.allowedUid;
+      final newAllowedUids = membersToAdd.map((m) => m.memberId).toList();
+      final updatedAllowedUids = [...existingAllowedUids, ...newAllowedUids];
+
+      // グループを更新
+      final updatedGroup = newGroup.copyWith(
+        members: updatedMembers,
+        allowedUid: updatedAllowedUids,
+      );
+
+      AppLogger.info(
+          '🔄 [ADD MEMBERS TO NEW GROUP] グループ更新開始: ${membersToAdd.length}人追加');
+
+      // Firestoreに保存
+      final repository = ref.read(SharedGroupRepositoryProvider);
+      await repository.updateGroup(updatedGroup.groupId, updatedGroup);
+
+      AppLogger.info('✅ [ADD MEMBERS TO NEW GROUP] グループ更新完了');
+
+      // 🔥 FIX: プロバイダー無効化は呼び出し元（_createGroup）で実行
+      // ここで実行するとダイアログが閉じられた後にrefを使用するリスクがある
+    } catch (e, stackTrace) {
+      AppLogger.error('❌ [ADD MEMBERS TO NEW GROUP] メンバー追加処理でエラー発生: $e');
+      AppLogger.error('❌ [ADD MEMBERS TO NEW GROUP] スタックトレース: $stackTrace');
+      rethrow;
+    }
+  }
+
+  /// 🔥 NEW: メンバーに通知のみ送信（グループには作成時に追加済み）
+  Future<void> _sendMemberNotifications(String groupName) async {
+    try {
+      if (_selectedSourceGroup?.members == null) {
+        return;
+      }
+
+      final notificationService = ref.read(notificationServiceProvider);
+      final authState = ref.read(authStateProvider);
+      final currentUser = authState.value;
+
+      if (currentUser == null) {
+        AppLogger.warning('⚠️ [SEND NOTIFICATIONS] currentUserがnull');
+        return;
+      }
+
+      final selectedGroup = ref.read(selectedGroupNotifierProvider).value;
+      if (selectedGroup == null) {
+        AppLogger.warning('⚠️ [SEND NOTIFICATIONS] selectedGroupがnull');
+        return;
+      }
+
+      final senderName = currentUser.displayName ?? 'ユーザー';
+      final members = _selectedSourceGroup!.members;
+
+      if (members != null) {
+        for (final member in members) {
+          final memberId = member.memberId;
+          final isSelected = _selectedMembers[memberId] ?? false;
+
+          // 現在のユーザー（作成者）は除外
+          if (isSelected && member.memberId != currentUser.uid) {
             try {
-              await selectedGroupNotifier.addMember(newMember);
-              developer.log(
-                  '✅ メンバー追加成功: ${member.name} (役割: ${_getRoleDisplayName(newRole)})');
+              await notificationService.sendNotification(
+                targetUserId: member.memberId,
+                type: NotificationType.groupMemberAdded,
+                groupId: selectedGroup.groupId,
+                message: '$senderName さんが「$groupName」にあなたを追加しました',
+                metadata: {
+                  'groupId': selectedGroup.groupId,
+                  'groupName': groupName,
+                  'addedBy': currentUser.uid,
+                  'addedByName': senderName,
+                },
+              );
+              AppLogger.info(
+                  '✅ [SEND NOTIFICATIONS] 通知送信完了: ${AppLogger.maskName(member.name)}');
             } catch (e) {
-              developer.log('❌ メンバー追加エラー: ${member.name} - $e');
-              // 個別のメンバー追加失敗は続行（他のメンバーは追加）
+              AppLogger.error(
+                  '❌ [SEND NOTIFICATIONS] 通知送信エラー: ${member.name} - $e');
+              // 個別のメンバー通知失敗は続行（他のメンバーには送信）
             }
           }
         }
       }
     } catch (e, stackTrace) {
-      AppLogger.error('❌ [ADD MEMBERS] メンバー追加処理でエラー発生: $e');
-      AppLogger.error('❌ [ADD MEMBERS] スタックトレース: $stackTrace');
-      rethrow; // 呼び出し元にエラーを伝播
+      AppLogger.error('❌ [SEND NOTIFICATIONS] 通知送信処理でエラー発生: $e');
+      AppLogger.error('❌ [SEND NOTIFICATIONS] スタックトレース: $stackTrace');
+      // エラーでも処理を続行（通知は必須ではない）
     }
   }
 }
