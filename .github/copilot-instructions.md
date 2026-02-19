@@ -253,6 +253,293 @@ grep -c "GoogleService-Info.plist" ios/Runner.xcodeproj/project.pbxproj
 
 ---
 
+### 4. ウィジェットクラスリファレンス作成 ✅
+
+**Purpose**: プロジェクト全体で使用される全ウィジェットクラスの一覧と概要を整理し、UI構成の理解とコンポーネント再利用を促進
+
+**Background**:
+
+- `lib/widgets/` 配下に42個のウィジェットクラスが存在
+- 各ウィジェットの目的・機能・使用場所が不明瞭
+- 新規開発者がUI構成を理解するのに時間がかかる
+- コンポーネント再利用の判断が困難
+
+**Implementation**:
+
+**新規ファイル**: `docs/specifications/widget_classes_reference.md` (約650行)
+
+**ドキュメント構造**:
+
+#### 凡例システム
+
+```markdown
+- 📱 画面全体/ページウィジェット
+- 🎨 UI部品/コンポーネント
+- ⚙️ 設定パネル
+- 🔐 認証関連
+- 📊 データ表示
+- 🔄 同期・初期化
+- 🎯 専用機能
+```
+
+#### 収録ウィジェット（42個、アルファベット順）
+
+**メインウィジェット（37個）**:
+
+- AcceptInvitationWidget（QR招待受諾）
+- AdBannerWidget（AdMob広告）
+- AppInitializeWidget（アプリ初期化）
+- AuthPanelWidget（認証パネル）
+- CommonAppBar（共通AppBar）
+- DataMigrationWidget（データ移行）
+- EmailDiagnosticsWidget（メール診断）
+- GroupCreationWithCopyDialog（グループ作成）
+- GroupInvitationDialog（招待管理）
+- GroupListWidget（グループ一覧）
+- GroupSelectorWidget（グループ選択）
+- HiveInitializationWrapper（Hive初期化）
+- InitialSetupWidget（初回セットアップ）
+- InvitationMonitorWidget（招待監視）
+- InviteWidget（QR招待生成）
+- MemberRoleManagementWidget（役割管理）
+- MemberSelectionDialog（メンバー選択）
+- MemberTileWithWhiteboard（メンバータイル）
+- MultiGroupInvitationDialog（複数グループ招待）
+- NewsAndAdsPanelWidget（ニュース＋広告）
+- NewsWidget（ニュース表示）
+- OwnerMessageWidget（オーナーメッセージ）
+- PaymentReminderWidget（決済リマインダー）
+- QRCodePanelWidget（QRコードパネル）
+- QRInvitationWidgets（QR招待コンポーネント群）
+- SharedItemEditModal（アイテム編集）
+- SharedListHeaderWidget（リストヘッダー）
+- SignupDialog（サインアップ）
+- SignupProcessingWidget（サインアップ処理）
+- SyncStatusWidget（同期状態表示）
+- TestScenarioWidget（テストシナリオ）
+- UserDataMigrationDialog（データ移行選択）
+- UserNamePanelWidget（ユーザー名パネル）
+- WhiteboardPreviewWidget（ホワイトボードプレビュー）
+- WindowsQRScanner（Windows版QRスキャナー）
+- WindowsQRScannerSimple（Windows版QRスキャナー簡易版）
+
+**設定パネルウィジェット（5個）**:
+
+- AppModeSwitcherPanel（モード切替）
+- AuthStatusPanel（認証状態）
+- FirestoreSyncStatusPanel（Firestore同期状態）
+- NotificationSettingsPanel（通知設定）
+- PrivacySettingsPanel（プライバシー設定）
+
+#### 各ウィジェットの記載内容
+
+- **ファイルパス**: ウィジェットのソースファイル
+- **種類**: ConsumerWidget/ConsumerStatefulWidget/StatefulWidget
+- **目的**: ウィジェットの役割・用途の簡潔な説明
+- **主要機能**: 実装されている主要機能のリスト
+- **使用場所**: 該当ウィジェットが使用されているページ/画面
+- **特徴**: 特筆すべき実装パターンや技術的特性
+
+#### ドキュメント方針
+
+- ✅ 詳細な実装コードは省略（ソースコード参照で十分）
+- ✅ 目的・機能・使用場所に焦点を当てる
+- ✅ アルファベット順で検索性向上
+- ✅ 実用的な情報を優先
+
+#### 付録セクション
+
+**ウィジェット分類統計**:
+
+| カテゴリ             | 個数 | 主要ウィジェット                                           |
+| -------------------- | ---- | ---------------------------------------------------------- |
+| **認証関連**         | 5    | AuthPanelWidget, SignupDialog, SignupProcessingWidget      |
+| **グループ管理**     | 7    | GroupListWidget, GroupSelectorWidget, GroupCreationDialog  |
+| **招待・QR**         | 8    | AcceptInvitationWidget, QRCodePanelWidget, InviteWidget    |
+| **リスト・アイテム** | 3    | SharedListHeaderWidget, SharedItemEditModal                |
+| **同期・初期化**     | 5    | AppInitializeWidget, SyncStatusWidget, DataMigrationWidget |
+| **設定パネル**       | 5    | AppModeSwitcherPanel, NotificationSettingsPanel等          |
+| **UI部品**           | 6    | CommonAppBar, NewsWidget, AdBannerWidget                   |
+| **ホワイトボード**   | 2    | WhiteboardPreviewWidget, MemberTileWithWhiteboard          |
+| **その他**           | 1    | TestScenarioWidget                                         |
+
+**状態管理タイプ別**:
+
+| タイプ                     | 個数 |
+| -------------------------- | ---- |
+| **ConsumerWidget**         | 23   |
+| **ConsumerStatefulWidget** | 11   |
+| **StatefulWidget**         | 8    |
+
+**重要な設計パターン**:
+
+1. **Riverpod統合**: 全ウィジェットがRiverpodプロバイダーと統合
+2. **プラットフォーム別UI**: iOS/Android/Windows対応の条件分岐
+3. **StreamBuilder統合**: リアルタイム同期が必要なウィジェット
+4. **ダイアログ返却パターン**: `showDialog()`返り値でデータ受け渡し
+5. **エラーハンドリング**: ErrorHandler、SnackBarHelper、ErrorLogService統合
+
+**技術的価値**:
+
+- ✅ 新規開発者のオンボーディング時間短縮
+- ✅ UI構成の全体把握が容易
+- ✅ コンポーネント再利用の判断材料
+- ✅ プラットフォーム別実装パターンの把握
+- ✅ Riverpod統合パターンの理解促進
+
+**Modified Files**:
+
+- `docs/specifications/widget_classes_reference.md` (新規作成)
+
+**Status**: ✅ 完了
+
+**Next Steps**:
+
+1. ⏳ サービスクラスリファレンス作成（`lib/services/` 配下）
+2. ⏳ プロバイダーリファレンス作成（`lib/providers/` 配下）
+3. ⏳ リポジトリクラスリファレンス作成（`lib/datastore/` 配下）
+
+---
+
+### 5. ページウィジェットリファレンス作成 ✅
+
+**Purpose**: アプリ全体の画面構成とナビゲーション構造を体系的に整理し、アプリアーキテクチャの理解を促進
+
+**Background**:
+
+- `lib/pages/` 配下に17個のページウィジェットが存在
+- ページ間のナビゲーション構造が不明瞭
+- 本番ページとテスト/デバッグページの区別が曖昧
+- 各ページの役割・依存関係・設計パターンが文書化されていない
+
+**Implementation**:
+
+**新規ファイル**: `docs/specifications/page_widgets_reference.md` (約1100行)
+
+**ドキュメント構造**:
+
+#### 凡例システム
+
+```markdown
+- 🏠 メイン画面
+- 📊 データ表示
+- ⚙️ 設定・管理
+- ✏️ 編集・作成
+- 📜 履歴表示
+- ℹ️ 情報表示
+- 🧪 テスト・デバッグ
+```
+
+#### 収録ページ（17個）
+
+**本番ページ（11個）**:
+
+- **HomePage** (931行) - 認証・ニュース統合メイン画面
+- **SharedListPage** (1181行) - 買い物リスト管理画面
+- **SettingsPage** (2665行) - 総合設定ハブ（6パネル統合）
+- **GroupInvitationPage** (308行) - QRコード招待生成
+- **GroupMemberManagementPage** (683行) - メンバー管理・役割制御
+- **WhiteboardEditorPage** (1902行) - フルスクリーン描画エディター
+- **NotificationHistoryPage** (331行) - Firestoreリアルタイム通知履歴
+- **ErrorHistoryPage** (407行) - ローカルエラーログ表示
+- **NewsPage** (194行) - ニュース・セール情報（位置情報連携）
+- **PremiumPage** (491行) - プレミアムサブスクリプション管理
+- **HelpPage** (824行) - ユーザーガイド（検索機能付き）
+
+**テスト/デバッグページ（6個）**:
+
+- TestGroupPage, DebugEmailTestPage, EnhancedInvitationTestPage, HybridSyncTestPage, SharedGroupPage, SharedGroupPageSimple
+
+#### 統計情報
+
+**カテゴリ別内訳**:
+
+| カテゴリ   | 個数 | 主要ページ                                                    |
+| ---------- | ---- | ------------------------------------------------------------- |
+| メイン画面 | 1    | HomePage                                                      |
+| データ表示 | 4    | SharedListPage, GroupMemberManagementPage, NewsPage, HelpPage |
+| 設定・管理 | 1    | SettingsPage                                                  |
+| 編集・作成 | 2    | WhiteboardEditorPage, GroupInvitationPage                     |
+| 履歴表示   | 2    | NotificationHistoryPage, ErrorHistoryPage                     |
+| 情報表示   | 1    | PremiumPage                                                   |
+| テスト     | 6    | TestGroupPage, DebugEmailTestPage等                           |
+
+**Widgetタイプ別**:
+
+| タイプ                     | 個数 |
+| -------------------------- | ---- |
+| **ConsumerStatefulWidget** | 11   |
+| **ConsumerWidget**         | 3    |
+| **StatefulWidget**         | 3    |
+
+**行数ランキング（Top 5）**:
+
+1. SettingsPage (2665行) - 6パネル統合の総合設定
+2. WhiteboardEditorPage (1902行) - 編集ロック・2層レンダリング
+3. SharedListPage (1181行) - リスト管理・ソート機能
+4. HomePage (931行) - 認証・ニュース・広告統合
+5. HelpPage (824行) - 検索機能付きガイド
+
+#### ナビゲーション構造
+
+**BottomNavigationBar（4タブ）**:
+
+```
+HomePage → ホームタブ
+  ├─ SignupDialog（ダイアログ）
+  ├─ NewsPage（ニュース詳細）
+  └─ PremiumPage（プレミアム案内）
+
+GroupListWidget → グループタブ
+  ├─ GroupInvitationPage（招待管理）
+  └─ GroupMemberManagementPage（メンバー管理）
+      └─ WhiteboardEditorPage（ホワイトボード編集）
+
+SharedListPage → 買い物リストタブ
+
+SettingsPage → 設定タブ
+  ├─ NotificationHistoryPage（通知履歴）
+  ├─ ErrorHistoryPage（エラー履歴）
+  └─ HelpPage（ヘルプ）
+```
+
+#### 重要な設計パターン
+
+1. **認証状態管理**: `authStateProvider` → HomePage/SettingsPageで監視
+2. **カレント選択管理**: `selectedGroupIdProvider`, `currentListProvider` → 複数ページで共有
+3. **リアルタイム同期**: `StreamBuilder` → WhiteboardEditorPage/NotificationHistoryPage
+4. **エラーハンドリング**: `AppLogger` + `ErrorLogService` → 全ページ統合
+5. **ダイアログパターン**: Modal Bottom Sheet → SharedListPage/GroupInvitationPage
+6. **Firestore優先読み込み**: 認証必須アプリとして全ページでFirestore→Hiveキャッシュ
+
+**アーキテクチャ的価値**:
+
+- ✅ アプリ全体のナビゲーション構造を可視化
+- ✅ ページ間の依存関係を明確化
+- ✅ 本番環境とテスト環境の分離を体系化
+- ✅ 設計パターンの抽出で開発ガイドライン確立
+- ✅ 各ページの役割・責務を明確化
+
+**関連ドキュメント**:
+
+- `docs/specifications/data_classes_reference.md` - データモデル層
+- `docs/specifications/widget_classes_reference.md` - UIコンポーネント層
+- （次回）サービスクラスリファレンス - ビジネスロジック層
+
+**Modified Files**:
+
+- `docs/specifications/page_widgets_reference.md` (新規作成)
+
+**Status**: ✅ 完了
+
+**Next Steps**:
+
+1. ⏳ サービスクラスリファレンス作成（`lib/services/` 配下）
+2. ⏳ プロバイダーリファレンス作成（`lib/providers/` 配下）
+3. ⏳ リポジトリクラスリファレンス作成（`lib/datastore/` 配下）
+
+---
+
 ## Recent Implementations (2026-02-18)
 
 ### データクラスリファレンスドキュメント作成 ✅

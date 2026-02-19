@@ -128,6 +128,299 @@ flutter run -d 89C2977C-F407-4F73-914C-BFC95398E11B
 
 ---
 
+### 4. ウィジェットクラスリファレンス作成 ✅
+
+**目的**: プロジェクトで使用される全ウィジェットクラスの一覧と概要を整理
+
+**実装内容**:
+
+**新規ファイル**: `docs/specifications/widget_classes_reference.md` (約650行)
+
+**ドキュメント構造**:
+
+**凡例マーク**:
+
+- 📱 画面全体/ページウィジェット
+- 🎨 UI部品/コンポーネント
+- ⚙️ 設定パネル
+- 🔐 認証関連
+- 📊 データ表示
+- 🔄 同期・初期化
+- 🎯 専用機能
+
+**収録ウィジェット数**: 42個（メイン37個 + 設定5個）
+
+**主要ウィジェット**:
+
+**認証関連（5個）**:
+
+- AuthPanelWidget（サインアップ/サインイン切り替え）
+- SignupDialog、SignupProcessingWidget
+
+**グループ管理（7個）**:
+
+- GroupListWidget（グループ一覧）
+- GroupSelectorWidget（グループ選択ドロップダウン）
+- GroupCreationWithCopyDialog（メンバー・リストコピー機能）
+
+**招待・QR（8個）**:
+
+- AcceptInvitationWidget（プラットフォーム別QRスキャナー）
+- QRCodePanelWidget、InviteWidget
+- GroupInvitationDialog（リアルタイム招待一覧）
+
+**リスト・アイテム（3個）**:
+
+- SharedListHeaderWidget（リスト選択・作成）
+- SharedItemEditModal（アイテム編集フル機能）
+
+**同期・初期化（5個）**:
+
+- AppInitializeWidget（8ステップ初期化統合）
+- SyncStatusWidget（4種類の同期状態表示）
+- DataMigrationWidget（UID変更時のデータ移行）
+
+**UI部品（6個）**:
+
+- CommonAppBar（同期状態表示、フローティングメニュー）
+- NewsWidget（Markdownレンダリング、既読管理）
+- AdBannerWidget（位置情報ベース広告）
+
+**ホワイトボード（2個）**:
+
+- WhiteboardPreviewWidget（CustomPainter描画）
+- MemberTileWithWhiteboard（個人ホワイトボードアクセス）
+
+**設定パネル（5個）**:
+
+- AppModeSwitcherPanel（買い物 ⇄ TODO切替）
+- NotificationSettingsPanel、PrivacySettingsPanel
+- AuthStatusPanel、FirestoreSyncStatusPanel
+
+**各ウィジェットの記載内容**:
+
+- **ファイルパス**: ソースファイルの場所
+- **種類**: ConsumerWidget/ConsumerStatefulWidget/StatefulWidget
+- **目的**: 役割・用途の簡潔な説明
+- **主要機能**: 実装機能のリスト
+- **使用場所**: 使用されているページ/画面
+- **特徴**: 特筆すべき実装パターン
+
+**ドキュメント方針**:
+
+- ✅ 詳細な実装コードは省略（ソースコード参照で十分）
+- ✅ 目的・機能・使用場所に焦点
+- ✅ アルファベット順で検索性向上
+- ✅ 実用的な情報を優先
+
+**付録セクション**:
+
+**ウィジェット分類統計**:
+
+- カテゴリ別（認証、グループ管理、招待、同期等）
+- 状態管理タイプ別（ConsumerWidget: 23個、ConsumerStatefulWidget: 11個、StatefulWidget: 8個）
+
+**重要な設計パターン**:
+
+1. Riverpod統合パターン
+2. プラットフォーム別UI（iOS/Android/Windows）
+3. StreamBuilder統合（リアルタイム同期）
+4. ダイアログ返却パターン
+5. エラーハンドリング統合
+
+**技術的価値**:
+
+- ✅ 新規開発者のオンボーディング時間短縮
+- ✅ UI構成の全体把握が容易
+- ✅ コンポーネント再利用の判断材料
+- ✅ プラットフォーム別実装パターンの把握
+- ✅ Riverpod統合パターンの理解促進
+
+---
+
+### 5. ページウィジェットリファレンス作成 ✅
+
+**目的**: アプリ全体の画面構成とナビゲーション構造を体系的に整理し、アプリアーキテクチャの理解を促進
+
+**背景**:
+
+- `lib/pages/` 配下に17個のページウィジェットが存在
+- ページ間のナビゲーション構造が不明瞭
+- 本番ページとテスト/デバッグページの区別が曖昧
+- 各ページの役割・依存関係・設計パターンが文書化されていない
+
+**実装内容**:
+
+**新規ファイル**: `docs/specifications/page_widgets_reference.md` (約1100行)
+
+**ドキュメント構造**:
+
+**凡例マーク**:
+
+- 🏠 メイン画面
+- 📊 データ表示
+- ⚙️ 設定・管理
+- ✏️ 編集・作成
+- 📜 履歴表示
+- ℹ️ 情報表示
+- 🧪 テスト・デバッグ
+
+**収録ページ数**: 17個（本番11個 + テスト/デバッグ6個）
+
+**本番ページ（11個）**:
+
+1. **HomePage** (931行) - 認証・ニュース統合メイン画面
+   - サインアップ/サインイン切り替え
+   - ユーザー名パネル（SharedPreferences連携）
+   - ニュース＋広告統合表示
+   - アプリ起動回数カウント
+
+2. **SharedListPage** (1181行) - 買い物リスト管理画面
+   - カレントグループ初期化
+   - グループ変更検出
+   - アイテムCRUD操作
+   - ソート機能（購入済み/未購入/名前順）
+
+3. **SettingsPage** (2665行) - 総合設定ハブ（6パネル統合）
+   - 認証状態パネル
+   - 同期状態パネル
+   - アプリモード切替（買い物 ⇄ TODO）
+   - プライバシー設定
+   - 通知設定
+   - データメンテナンス
+   - アカウント削除（再認証機能付き）
+
+4. **GroupInvitationPage** (308行) - QRコード招待生成
+   - StreamBuilderでリアルタイム招待一覧
+   - QRコード生成（qr_flutter）
+   - 招待削除・コピー機能
+
+5. **GroupMemberManagementPage** (683行) - メンバー管理・役割制御
+   - メンバー一覧（役割別フィルタリング）
+   - 役割ベースアクセス制御（owner/admin/partner/member）
+   - ホワイトボードプレビュー統合
+   - メンバー招待
+
+6. **WhiteboardEditorPage** (1902行) - フルスクリーン描画エディター
+   - 2層レンダリング（背景CustomPaint + 前景Signature）
+   - 編集ロック（30秒タイムアウト）
+   - Undo/Redo（50履歴）
+   - 差分保存（90%ネットワーク削減達成）
+   - Firestoreリアルタイム同期
+
+7. **NotificationHistoryPage** (331行) - Firestoreリアルタイム通知履歴
+   - StreamBuilderで自動更新
+   - 通知タイプ別アイコン・色
+   - 既読/未読管理
+
+8. **ErrorHistoryPage** (407行) - ローカルエラーログ表示
+   - SharedPreferencesベース
+   - エラータイプ別分類
+   - 既読/未読管理
+
+9. **NewsPage** (194行) - ニュース・セール情報
+   - 位置情報サービス連携（Geolocator）
+   - Markdownレンダリング
+   - 既読管理
+
+10. **PremiumPage** (491行) - プレミアムサブスクリプション管理
+    - サブスクリプション状態管理
+    - 機能比較表
+    - 価格表示
+
+11. **HelpPage** (824行) - ユーザーガイド
+    - 検索機能付き
+    - セクション別ヘルプ
+    - よくある質問
+
+**テスト/デバッグページ（6個）**:
+
+- TestGroupPage, DebugEmailTestPage, EnhancedInvitationTestPage, HybridSyncTestPage, SharedGroupPage, SharedGroupPageSimple
+
+**統計情報**:
+
+**カテゴリ別内訳**:
+
+| カテゴリ   | 個数 | 主要ページ                                                    |
+| ---------- | ---- | ------------------------------------------------------------- |
+| メイン画面 | 1    | HomePage                                                      |
+| データ表示 | 4    | SharedListPage, GroupMemberManagementPage, NewsPage, HelpPage |
+| 設定・管理 | 1    | SettingsPage                                                  |
+| 編集・作成 | 2    | WhiteboardEditorPage, GroupInvitationPage                     |
+| 履歴表示   | 2    | NotificationHistoryPage, ErrorHistoryPage                     |
+| 情報表示   | 1    | PremiumPage                                                   |
+| テスト     | 6    | TestGroupPage, DebugEmailTestPage等                           |
+
+**Widgetタイプ別**:
+
+- ConsumerStatefulWidget: 11個
+- ConsumerWidget: 3個
+- StatefulWidget: 3個
+
+**行数ランキング（Top 5）**:
+
+1. SettingsPage (2665行) - 6パネル統合の総合設定
+2. WhiteboardEditorPage (1902行) - 編集ロック・2層レンダリング
+3. SharedListPage (1181行) - リスト管理・ソート機能
+4. HomePage (931行) - 認証・ニュース・広告統合
+5. HelpPage (824行) - 検索機能付きガイド
+
+**ナビゲーション構造**:
+
+BottomNavigationBar（4タブ）:
+
+```
+HomePage → ホームタブ
+  ├─ SignupDialog（ダイアログ）
+  ├─ NewsPage（ニュース詳細）
+  └─ PremiumPage（プレミアム案内）
+
+GroupListWidget → グループタブ
+  ├─ GroupInvitationPage（招待管理）
+  └─ GroupMemberManagementPage（メンバー管理）
+      └─ WhiteboardEditorPage（ホワイトボード編集）
+
+SharedListPage → 買い物リストタブ
+
+SettingsPage → 設定タブ
+  ├─ NotificationHistoryPage（通知履歴）
+  ├─ ErrorHistoryPage（エラー履歴）
+  └─ HelpPage（ヘルプ）
+```
+
+**重要な設計パターン**:
+
+1. **認証状態管理**: `authStateProvider` → HomePage/SettingsPageで監視
+2. **カレント選択管理**: `selectedGroupIdProvider`, `currentListProvider` → 複数ページで共有
+3. **リアルタイム同期**: `StreamBuilder` → WhiteboardEditorPage/NotificationHistoryPage
+4. **エラーハンドリング**: `AppLogger` + `ErrorLogService` → 全ページ統合
+5. **ダイアログパターン**: Modal Bottom Sheet → SharedListPage/GroupInvitationPage
+6. **Firestore優先読み込み**: 認証必須アプリとして全ページでFirestore→Hiveキャッシュ
+
+**アーキテクチャ的価値**:
+
+- ✅ アプリ全体のナビゲーション構造を可視化
+- ✅ ページ間の依存関係を明確化
+- ✅ 本番環境とテスト環境の分離を体系化
+- ✅ 設計パターンの抽出で開発ガイドライン確立
+- ✅ 各ページの役割・責務を明確化
+
+**関連ドキュメント**:
+
+- `docs/specifications/data_classes_reference.md` - データモデル層
+- `docs/specifications/widget_classes_reference.md` - UIコンポーネント層
+- （次回）サービスクラスリファレンス - ビジネスロジック層
+
+**技術的価値**:
+
+- ✅ アプリ全体のアーキテクチャ把握が容易
+- ✅ ナビゲーションフローの理解促進
+- ✅ ページ別の責務分担を明確化
+- ✅ 設計パターンの一貫性確認
+- ✅ 新規開発者のオンボーディング効率化
+
+---
+
 ## 🔧 技術的学習事項
 
 ### 1. iOS Firebase設定の注意点
@@ -196,6 +489,10 @@ grep -c "GoogleService-Info.plist" ios/Runner.xcodeproj/project.pbxproj
 
 - `SETUP.md` - iOS Firebase設定手順追加
 - `docs/SECURITY_ACTION_REQUIRED.md` - セキュリティ対応記録
+- `docs/specifications/widget_classes_reference.md` - ウィジェットクラスリファレンス（新規作成、約650行）
+- `docs/specifications/page_widgets_reference.md` - ページウィジェットリファレンス（新規作成、約1100行）
+- `.github/copilot-instructions.md` - Recent Implementations更新（セクション4＋5追加）
+- `docs/daily_reports/2026-02/daily_report_20260219.md` - 本日報（セクション4＋5追加）
 
 ---
 
@@ -203,18 +500,19 @@ grep -c "GoogleService-Info.plist" ios/Runner.xcodeproj/project.pbxproj
 
 ### HIGH Priority
 
-#### 1. iOS flavorサポート追加（オプション）
+#### 1. ドキュメント整備（継続）
 
-**実装予定**:
+**次の優先度**:
 
-- Xcodeでカスタムスキーム設定
-- `Runner-Dev.xcscheme`, `Runner-Prod.xcscheme`作成
-- `--flavor dev/prod`オプションの有効化
+- ⏳ サービスクラスリファレンス作成（`lib/services/` 配下）
+- ⏳ プロバイダーリファレンス作成（`lib/providers/` 配下）
+- ⏳ リポジトリクラスリファレンス作成（`lib/datastore/` 配下）
 
 **メリット**:
 
-- Android/iOSで統一されたビルドコマンド
-- 環境切り替えの簡便化
+- コードベース全体の理解向上
+- 新規開発者のオンボーディング効率化
+- アーキテクチャパターンの明確化
 
 #### 2. iOS実機テスト
 
@@ -232,14 +530,22 @@ grep -c "GoogleService-Info.plist" ios/Runner.xcodeproj/project.pbxproj
 
 ### MEDIUM Priority
 
-#### 3. macOS版対応（将来）
+#### 3. iOS flavorサポート追加（オプション）
+
+**実装予定**:
+
+- Xcodeでカスタムスキーム設定
+- `Runner-Dev.xcscheme`, `Runner-Prod.xcscheme`作成
+- `--flavor dev/prod`オプションの有効化
+
+#### 4. macOS版対応（将来）
 
 **DeviceIdServiceの拡張**:
 
 - macOSでのデバイス識別子取得
 - デスクトップ特有の動作検証
 
-#### 4. CI/CD設定
+#### 5. CI/CD設定
 
 **GitHub Actions**:
 
@@ -253,16 +559,28 @@ grep -c "GoogleService-Info.plist" ios/Runner.xcodeproj/project.pbxproj
 **Today's Achievements**:
 
 - ✅ iOS Firebase設定完了
-- ✅ セキュリティ対策実施
+- ✅ セキュリティ対策実施（.gitignore、テンプレートファイル）
 - ✅ iOS DeviceIdServiceエラーハンドリング強化
-- ✅ iOS動作確認完了
+- ✅ iOS動作確認完了（iPhone 16e Simulator）
 - ✅ グループ作成機能動作確認
+- ✅ **ウィジェットクラスリファレンス作成**（42個のウィジェット網羅、約650行）
+- ✅ **ページウィジェットリファレンス作成**（17個のページ網羅、約1100行）
 
 **Commits**:
 
 - `b8157b1` - Firebase設定セキュリティ対応
 - `a485846` - iOS DeviceIdServiceエラーハンドリング
+- (本コミット) - ウィジェット・ページリファレンス作成
 
 **Branch**: `future`
 
 **Status**: ✅ All tasks completed
+
+**Documentation Coverage**:
+
+- ✅ データクラスリファレンス（26クラス、約500行）- 2026-02-18
+- ✅ ウィジェットクラスリファレンス（42ウィジェット、約650行）- 2026-02-19
+- ✅ ページウィジェットリファレンス（17ページ、約1100行）- 2026-02-19
+- ⏳ サービスクラスリファレンス（次回）
+- ⏳ プロバイダーリファレンス（次回）
+- ⏳ リポジトリクラスリファレンス（次回）
