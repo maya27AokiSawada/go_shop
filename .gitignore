@@ -88,3 +88,6 @@ build_*.log
 
 # Zip archives
 *.zip
+
+# Sentry native lock files
+.sentry-native/*.run.lock
