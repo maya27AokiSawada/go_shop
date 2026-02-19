@@ -1,33 +1,64 @@
-# feat: ホワイトボードにスクロール可能なキャンバス＋スクロールロック機能実装
+docs: ページウィジェットリファレンス作成 (2026-02-19)
 
-2026-01-16 ホワイトボード機能の大幅強化
+## 目的
 
-## 変更内容
+アプリ全体の画面構成とナビゲーション構造を体系的に整理し、
+アプリアーキテクチャの理解を促進
 
-### 新機能
-- スクロール可能なキャンバス実装（1x-4x倍サイズ）
-- グリッド線表示機能（50px間隔）
-- スクロールロックボタン実装（🔒/🔓）
-- スマホでの描画対応（ジェスチャー競合解決）
+## 実装内容
 
-### 技術詳細
-- ScrollController追加（縦横スクロール）
-- LayoutBuilderでキャンバスサイズ計算
-- IgnorePointerで描画制御
-- Positioned.fillでタッチ領域確保
+### 新規ファイル
 
-### 問題解決
-- スマホでスクロールと描画が競合する問題を解決
-- スクロールロック機能で明示的にモード切替
-- 誤操作防止（スクロール時の意図しない描画を防止）
+- `docs/specifications/page_widgets_reference.md` (約1100行)
 
-### Modified Files
-- lib/pages/whiteboard_editor_page.dart (415行 → 558行)
+### ドキュメント構造
 
-### ドキュメント
-- docs/daily_reports/2026-01/20260116_whiteboard_scrollable_canvas.md
+- 本番ページ（11個）の詳細ドキュメント
+- テスト/デバッグページ（6個）の概要
+- ナビゲーション構造図（BottomNavigationBar階層）
+- 統計情報（カテゴリ別、Widgetタイプ別、行数ランキング）
+- 重要な設計パターン（6つ）
+- アーキテクチャ的価値の明文化
 
-### 検証
-- ✅ Android実機（SH 54D）で動作確認済み
-- ✅ スクロールロック・描画制御が正常動作
+### 主要ページ
 
+1. HomePage (931行) - 認証・ニュース統合メイン画面
+2. SharedListPage (1181行) - 買い物リスト管理
+3. SettingsPage (2665行) - 総合設定ハブ（6パネル統合）
+4. WhiteboardEditorPage (1902行) - フルスクリーン描画エディター
+5. GroupMemberManagementPage (683行) - メンバー管理・役割制御
+6. その他6ページ（NotificationHistory, ErrorHistory, News, Premium, Help, GroupInvitation）
+
+### 技術的価値
+
+- アプリ全体のアーキテクチャ把握が容易
+- ナビゲーションフローの理解促進
+- ページ別の責務分担を明確化
+- 設計パターンの一貫性確認
+- 新規開発者のオンボーディング効率化
+
+### ドキュメント統合
+
+- copilot-instructions.md - セクション5追加
+- daily_report_20260219.md - セクション5追加
+- Modified Files - page_widgets_reference.md追加
+- Status Summary - ドキュメントカバレッジ更新
+
+## Modified Files
+
+- docs/specifications/page_widgets_reference.md (新規作成)
+- .github/copilot-instructions.md (セクション5追加)
+- docs/daily_reports/2026-02/daily_report_20260219.md (セクション5追加)
+
+## Documentation Coverage
+
+- ✅ データクラスリファレンス（26クラス、約500行）- 2026-02-18
+- ✅ ウィジェットクラスリファレンス（42ウィジェット、約650行）- 2026-02-19
+- ✅ ページウィジェットリファレンス（17ページ、約1100行）- 2026-02-19
+- ⏳ サービスクラスリファレンス（次回）
+- ⏳ プロバイダーリファレンス（次回）
+- ⏳ リポジトリクラスリファレンス（次回）
+
+## Branch
+
+future
