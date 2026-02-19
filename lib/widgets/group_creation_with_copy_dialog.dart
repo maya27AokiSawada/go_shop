@@ -172,7 +172,16 @@ class _GroupCreationWithCopyDialogState
                         const SizedBox(height: 8),
                         DropdownButtonFormField<SharedGroup>(
                           isExpanded: true, // 🔥 FIX: UIオーバーフロー防止
-                          initialValue: _selectedSourceGroup,
+                          initialValue: () {
+                            // 🔥 FIX: _selectedSourceGroupがexistingGroupsに存在するか確認
+                            // 存在しない場合はnullに設定（グループ削除後など）
+                            if (_selectedSourceGroup == null) return null;
+
+                            final exists = existingGroups.any((g) =>
+                                g.groupId == _selectedSourceGroup!.groupId);
+
+                            return exists ? _selectedSourceGroup : null;
+                          }(),
                           decoration: const InputDecoration(
                             hintText: 'グループを選択...',
                             border: OutlineInputBorder(),
@@ -411,6 +420,11 @@ class _GroupCreationWithCopyDialogState
   void _updateMemberSelection() {
     _selectedMembers.clear();
     _memberRoles.clear();
+
+    // 🔥 FIX: _selectedSourceGroupがnullの場合は何もしない
+    if (_selectedSourceGroup == null) {
+      return;
+    }
 
     // 🔥 FIX: 現在のユーザーを取得して除外対象にする
     final authState = ref.read(authStateProvider);
