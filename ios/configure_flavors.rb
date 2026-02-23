@@ -130,13 +130,14 @@ end
 base_scheme_content = File.read(base_scheme_path)
 
 # Define scheme configurations
+# NOTE: Flutter's --flavor option expects scheme names to match the flavor name exactly (dev, prod)
 schemes = {
-  'Runner-dev' => {
+  'dev' => {
     'Debug' => 'Debug-dev',
     'Release' => 'Release-dev',
     'Profile' => 'Profile-dev'
   },
-  'Runner-prod' => {
+  'prod' => {
     'Debug' => 'Debug-prod',
     'Release' => 'Release-prod',
     'Profile' => 'Profile-prod'
