@@ -143,12 +143,14 @@ class _SharedGroupPageState extends ConsumerState<SharedGroupPage> {
                 await ref
                     .read(SharedGroupRepositoryProvider)
                     .deleteGroup(groupId);
-                ref.invalidate(allGroupsProvider);
 
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('グループを削除しました')),
                 );
+
+                // 🔥 修正: SnackBar表示後にinvalidate
+                ref.invalidate(allGroupsProvider);
               } catch (e) {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -193,7 +195,7 @@ class _SharedGroupPageState extends ConsumerState<SharedGroupPage> {
                   ),
                 );
 
-                // グループリストを更新
+                // 🔥 修正: SnackBar表示後にinvalidate（グループリストを更新）
                 ref.invalidate(allGroupsProvider);
               } catch (e) {
                 Navigator.pop(context);

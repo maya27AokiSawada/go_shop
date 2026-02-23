@@ -562,12 +562,13 @@ class _GroupMemberManagementPageState
             member,
           );
 
-      ref.invalidate(selectedGroupProvider);
-
       AppLogger.info('✅ [MEMBER_MGMT] メンバー追加完了: ${member.name}');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${member.name} を追加しました')),
       );
+
+      // 🔥 修正: SnackBar表示後にinvalidate
+      ref.invalidate(selectedGroupProvider);
     } catch (e) {
       AppLogger.error('❌ [MEMBER_MGMT] メンバー追加エラー: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -641,12 +642,13 @@ class _GroupMemberManagementPageState
             member,
           );
 
-      ref.invalidate(selectedGroupProvider);
-
       AppLogger.info('✅ [MEMBER_MGMT] メンバー削除完了: ${member.name}');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${member.name} を削除しました')),
       );
+
+      // 🔥 修正: SnackBar表示後にinvalidate
+      ref.invalidate(selectedGroupProvider);
     } catch (e) {
       AppLogger.error('❌ [MEMBER_MGMT] メンバー削除エラー: $e');
     }
@@ -677,13 +679,13 @@ class _GroupMemberManagementPageState
             updatedGroup,
           );
 
-      // プロバイダーを更新
-      ref.invalidate(allGroupsProvider);
-
       AppLogger.info('✅ [GROUP_MGMT] グループ名更新完了: $newName');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('グループ名を「$newName」に変更しました')),
       );
+
+      // 🔥 修正: SnackBar表示後にinvalidate（プロバイダーを更新）
+      ref.invalidate(allGroupsProvider);
     } catch (e) {
       AppLogger.error('❌ [GROUP_MGMT] グループ名更新エラー: $e');
       ScaffoldMessenger.of(context).showSnackBar(

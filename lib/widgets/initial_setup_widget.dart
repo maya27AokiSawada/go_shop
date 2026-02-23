@@ -220,15 +220,15 @@ class InitialSetupWidget extends ConsumerWidget {
         Navigator.of(context, rootNavigator: true).pop();
       }
 
-      // プロバイダーを無効化してUIを確実に更新
-      // ダイアログを閉じた後に実行することで、BuildContextの無効化を防ぐ
-      ref.invalidate(allGroupsProvider);
-      Log.info('🔄 [INITIAL_SETUP] allGroupsProvider無効化完了');
-
-      // 成功メッセージ
+      // 🔥 修正: SnackBarをinvalidateの前に表示（invalidate後はcontextが無効になる可能性があるため）
       if (context.mounted) {
         SnackBarHelper.showSuccess(context, '「$groupName」を作成しました');
       }
+
+      // プロバイダーを無効化してUIを確実に更新
+      // 注意: グループが0→1個になると、InitialSetupWidget→GroupListWidgetに切り替わる
+      ref.invalidate(allGroupsProvider);
+      Log.info('🔄 [INITIAL_SETUP] allGroupsProvider無効化完了');
     } catch (e, stackTrace) {
       Log.error('❌ [INITIAL_SETUP] グループ作成エラー: $e');
       Log.error('スタックトレース: $stackTrace');
