@@ -48,7 +48,8 @@ class InitialSetupWidget extends ConsumerWidget {
 
               // 選択肢1: 最初のグループを作成
               ElevatedButton.icon(
-                onPressed: () => _showCreateGroupDialog(context, ref),
+                onPressed: () async =>
+                    await _showCreateGroupDialog(context, ref),
                 icon: const Icon(Icons.add),
                 label: const Text(
                   '最初のグループを作成',
@@ -120,8 +121,17 @@ class InitialSetupWidget extends ConsumerWidget {
   }
 
   /// グループ作成ダイアログを表示
-  void _showCreateGroupDialog(BuildContext context, WidgetRef ref) {
-    Log.info('🆕 [INITIAL_SETUP] グループ作成ダイアログ表示');
+  Future<void> _showCreateGroupDialog(
+      BuildContext context, WidgetRef ref) async {
+    // 🔥 Firestoreからグループ一覧の同期完了を待つ（DropdownButton重複値エラー防止）
+    try {
+      AppLogger.info('🔄 [INITIAL_SETUP] allGroupsProvider同期開始...');
+      await ref.read(allGroupsProvider.future);
+      AppLogger.info('✅ [INITIAL_SETUP] allGroupsProvider同期完了 - ダイアログ表示');
+    } catch (e) {
+      AppLogger.error('❌ [INITIAL_SETUP] allGroupsProvider読み込みエラー: $e');
+      // エラー時も処理続行（Hiveキャッシュで動作可能）
+    }
 
     final groupNameController = TextEditingController();
 
