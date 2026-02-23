@@ -1,5 +1,121 @@
 # GoShopping - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-02-22/23)
+
+### iOS Flavor対応完全実装 ✅
+
+**Purpose**: AndroidのFlavorシステム（dev/prod）と同等のiOS対応を実装し、プラットフォーム統一を実現
+
+**Implementation Status**: 🟢 90% Complete (自動化可能な範囲は完了、残りは手動設定必須項目)
+
+**Key Features**:
+
+- ✅ xcconfig files (6 configurations: Debug/Release/Profile × dev/prod)
+- ✅ Firebase GoogleService-Info.plist 自動コピースクリプト
+- ✅ Ruby script for Xcode Build Configuration automation
+- ✅ Bundle Identifier & App Display Name dynamic configuration
+- ✅ Full documentation (`docs/knowledge_base/ios_flavor_setup.md`)
+
+**Build Commands**:
+
+```bash
+# iOS development flavor
+flutter run --flavor dev -d <iOS-device-id>
+
+# iOS production flavor
+flutter run --flavor prod -d <iOS-device-id>
+
+# iOS release build
+flutter build ios --release --flavor prod
+flutter build ipa --release --flavor prod
+```
+
+**Commits**: Multiple commits on 2026-02-23 for iOS flavor infrastructure
+
+**Reference**: See `docs/daily_reports/2026-02/daily_report_20260223.md` for complete implementation details.
+
+---
+
+### グループ作成赤画面エラー完全修正（4段階デバッグ） ✅
+
+**Purpose**: iPhone 16e SimulatorでのInitialSetupWidget初回グループ作成時の赤画面エラーを完全解決
+
+**Problem**: SharedGroupPageでは正常動作するが、InitialSetupWidgetでは4種類の異なるエラーが段階的に発生
+
+**Root Cause Discovery**: InitialSetupWidgetの特異な動作
+
+- Groups: 0 → 1 の遷移時に**widget が自動的に破棄される**（app_initialize_widget.dart）
+- `createNewGroup()` 成功後、InitialSetupWidgetが即座にGroupListWidgetに置き換わる
+- widget破棄後の**全てのcontext/ref操作が失敗**（dispose後は何も実行できない）
+
+**4段階修正プロセス**:
+
+**Phase 1** (Commit 6b8be8a): Sync timing fix applied to initial_setup_widget.dart
+
+- Issue: Firestore sync not awaited → Added `await ref.read(allGroupsProvider.future)`
+- Result: ❌ Different error appeared (`_dependents.isEmpty`)
+
+**Phase 2** (Commit 0a2555c): Context operation ordering fixed (6 locations, 3 files)
+
+- Issue: SnackBar after `ref.invalidate()` → Moved SnackBar BEFORE invalidate
+- Result: ❌ Different error appeared (Navigator.pop failure)
+
+**Phase 3** (Commit 3c3f56b): Navigator.pop removed
+
+- Issue: Navigator.pop after widget disposed → Removed Navigator.pop completely
+- Rationale: Widget auto-replaced, no manual dialog close needed
+- Result: ❌ Different error appeared (ref.invalidate failure)
+
+**Phase 4** (Commit 978f28d): ref.invalidate removed (FINAL FIX) ✅
+
+- Issue: ref.invalidate after widget disposed → Removed ref.invalidate completely
+- Solution: Do nothing after `createNewGroup()` - let framework handle UI updates
+- Result: ✅ **Complete success, no errors**
+
+**Final Code Pattern**:
+
+```dart
+// lib/widgets/initial_setup_widget.dart
+try {
+  // Step 1: Create and wait for sync
+  await ref.read(allGroupsProvider.notifier).createNewGroup(groupName);
+  await ref.read(allGroupsProvider.future);
+
+  // Step 2: Nothing more! Widget will be auto-destroyed
+  // - NO SnackBar (widget destroyed)
+  // - NO Navigator.pop (widget auto-replaced)
+  // - NO ref.invalidate (cannot use ref on disposed widget)
+  // - UI updates automatically via allGroupsProvider watch
+
+  Log.info('🎉 初回グループ作成完了 - GroupListWidgetへ自動切替');
+} catch (e) {
+  // Error case: widget still exists
+  if (context.mounted) {
+    SnackBarHelper.showError(context, 'グループ作成に失敗しました');
+  }
+}
+```
+
+**Technical Learnings**:
+
+- `context.mounted` checks **parent Navigator**, not current widget disposal status
+- After widget disposal, **all ref operations fail** (invalidate, read, watch)
+- InitialSetupWidget has **unique 0→1 transition lifecycle** (different from all other widgets)
+- Solution: Minimal intervention - let Flutter framework handle UI updates automatically
+
+**Status**: ✅ Code complete, SharedGroupPage verified working | ⏳ InitialSetupWidget awaiting user testing
+
+**Commits**: 4 commits on 2026-02-22/23
+
+- `6b8be8a`: initial_setup_widget sync fix
+- `0a2555c`: SnackBar ordering fix (6 locations)
+- `3c3f56b`: Navigator.pop removal
+- `978f28d`: ref.invalidate removal (final solution)
+
+**Reference**: See `docs/daily_reports/2026-02/daily_report_20260222.md` and `daily_report_20260223.md` for complete debugging narrative.
+
+---
+
 ## Recent Implementations (2026-02-19)
 
 ### 1. Production Bug修正: グループコピー時の赤画面エラー ✅

@@ -215,5 +215,219 @@ git add pubspec.lock
 
 ---
 
-**最終更新**: 2026-02-17
+## 🎯 Widget Lifecycle Management（2026-02-23追加）
+
+### Critical Rule 1: Widget Disposal後のcontext/ref操作
+
+**問題**: Widget破棄後に`context`や`ref`を使用すると、アプリクラッシュや赤画面エラーが発生
+
+```dart
+// ❌ 間違ったパターン
+try {
+  await performAsyncOperation();
+
+  if (context.mounted) {
+    ref.invalidate(someProvider);  // ❌ widget破棄後は失敗
+  }
+} catch (e) {
+  // エラーハンドリング
+}
+```
+
+**理由**:
+
+- `context.mounted`は**親Navigatorのマウント状態**をチェック
+- **現在のwidgetが破棄されているかどうかは判定できない**
+- Widget破棄後は`ref.invalidate()`, `ref.read()`, `setState()`などの操作が全て失敗
+
+**正しいパターン**:
+
+```dart
+// ✅ 正しいパターン: 非同期操作完了後は何もしない
+try {
+  await performAsyncOperation();
+
+  // Widget破棄の可能性がある場合：
+  // - SnackBar: 表示しない（widget破棄済み）
+  // - Navigator.pop: 実行しない（widget自動置換）
+  // - ref.invalidate: 実行しない（ref操作不可）
+  // - UI更新: Providerの監視で自動実行される
+
+  Log.info('✅ 操作完了 - UI自動更新');
+} catch (e) {
+  // エラー時はwidgetがまだ存在している
+  if (context.mounted) {
+    SnackBarHelper.showError(context, 'エラー: $e');
+  }
+}
+```
+
+### Critical Rule 2: 0→1 Transition Widget Replacement
+
+**InitialSetupWidgetの特異な動作**:
+
+- `allGroupsProvider`がグループカウント0→1を検出すると、**自動的にwidget置換が発生**
+- `app_initialize_widget.dart`が`InitialSetupWidget` → `GroupListWidget`に切り替え
+- **非同期処理の最中にwidget破棄が発生**
+
+**タイムライン例**:
+
+```
+0ms:   User taps "グループを作成"
+10ms:  _createNewGroup() 呼び出し
+20ms:  createNewGroup() が Firestore書き込み
+30ms:  await allGroupsProvider.future 完了
+35ms:  🔥 allGroupsProvider が groupCount: 0 → 1 を検出
+40ms:  🔥 app_initialize_widget が InitialSetupWidget を GroupListWidget に置換
+45ms:  🔥 InitialSetupWidget.dispose() 呼び出し
+50ms:  ❌ context.mounted チェックをパス（親 Navigator は存在）
+55ms:  ❌ SnackBar 表示（成功するが widget は既に破棄済み）
+60ms:  ❌ ref.invalidate() 呼び出し
+       🚨 Error: "Cannot use ref after widget was disposed"
+```
+
+**解決策**:
+
+```dart
+// lib/widgets/initial_setup_widget.dart (正しい実装)
+try {
+  // Step 1: 操作実行と同期完了を待機
+  await ref.read(allGroupsProvider.notifier).createNewGroup(groupName);
+  await ref.read(allGroupsProvider.future);
+
+  Log.info('✅ グループ作成成功 - Firestore同期完了');
+
+  // Step 2: 何もしない！
+  // - Widget は自動的に破棄される
+  // - UI は allGroupsProvider の監視で自動更新
+  // - 手動の UI 操作は全て不要（かつ危険）
+
+  Log.info('🎉 初回グループ作成完了 - GroupListWidgetへ自動切替');
+
+} catch (e) {
+  // エラー時のみ widget が存在している
+  if (context.mounted) {
+    SnackBarHelper.showError(context, 'グループ作成に失敗しました');
+  }
+}
+```
+
+### Critical Rule 3: AsyncNotifierProvider Await Pattern
+
+**必須パターン**:
+
+```dart
+// ✅ 正しい: Provider更新完了を待機してから UI 操作
+await ref.read(dataProvider.notifier).performOperation();
+await ref.read(dataProvider.future);  // ← 重要: Provider更新完了を待機
+// これで UI 操作が安全（widget が存在する場合）
+```
+
+**理由**:
+
+- 最初の`await`: 操作完了（Firestore書き込み等）
+- 2番目の`await`: Provider更新（データが consumer に配信される）
+- 2番目の`await`がないと、UIが古いデータを表示
+
+**間違った例**:
+
+```dart
+// ❌ 間違い: Provider更新を待たずに UI 操作
+await ref.read(dataProvider.notifier).performOperation();
+// await ref.read(dataProvider.future);  ← 欠落
+ref.invalidate(dataProvider);  // 古いデータのまま無効化
+```
+
+### Critical Rule 4: SnackBar/Navigator Ordering
+
+**原則**: `ref.invalidate()`の**前に** context依存の操作を実行
+
+```dart
+// ✅ 正しい順序
+await operation();
+await ref.read(provider.future);
+
+if (context.mounted) {
+  SnackBarHelper.showSuccess(context, 'Success!');  // ← 先に実行
+}
+
+ref.invalidate(provider);  // ← その後に無効化
+
+if (context.mounted) {
+  Navigator.of(context).pop();  // ← 最後にダイアログ閉じる
+}
+```
+
+**間違った例**:
+
+```dart
+// ❌ 間違い: ref.invalidate後に context 操作
+await operation();
+ref.invalidate(provider);  // ← 先に無効化
+
+if (context.mounted) {
+  SnackBarHelper.showSuccess(context, 'Success!');  // ❌ エラー発生
+}
+```
+
+**理由**: `ref.invalidate()`後に`context`操作を行うと、`_dependents.isEmpty`アサーションエラーが発生
+
+### Widget Lifecycle Comparison
+
+| Widget Type                   | Group Transition | Widget After Operation | Safe to use context/ref? |
+| ----------------------------- | ---------------- | ---------------------- | ------------------------ |
+| **SharedGroupPage**           | N → N+1          | ✅ Widget persists     | ✅ Yes                   |
+| **InitialSetupWidget**        | 0 → 1            | ❌ Widget destroyed    | ❌ No                    |
+| **GroupMemberManagementPage** | N → N            | ✅ Widget persists     | ✅ Yes                   |
+
+**Key Difference**:
+
+- 通常のWidget: 操作後もwidgetが存在 → context/ref操作可能
+- InitialSetupWidget: 操作後にwidget破棄 → context/ref操作不可
+
+### 実装チェックリスト
+
+**非同期操作を含むwidgetメソッドを実装する際は、以下を確認：**
+
+- [ ] `await ref.read(provider.notifier).operation()`で操作完了を待機
+- [ ] `await ref.read(provider.future)`でProvider更新を待機
+- [ ] SnackBar表示は`ref.invalidate()`の**前**に実行
+- [ ] Widget破棄の可能性がある場合、context/ref操作を全て削除
+- [ ] エラーハンドリングで`context.mounted`チェックを使用
+- [ ] ログ出力で動作タイミングを追跡可能に
+
+### デバッグテクニック
+
+**効果的なログ配置**:
+
+```dart
+// ✅ 重要な操作の前後にログ
+Log.info('📝 操作開始: $operationName');
+await performOperation();
+Log.info('✅ 操作成功');
+
+// ✅ Widget破棄が予想される箇所
+Log.info('💡 Widget破棄予定ポイント - 以降の処理はスキップされる可能性');
+
+// ✅ エラー発生時の詳細
+Log.error('❌ 操作失敗: $e');
+Log.error('📍 スタックトレース: $stackTrace');
+```
+
+**Clean Buildの限界**:
+
+```bash
+# ❌ これらはWidget lifecycleの問題を解決しない
+flutter clean
+flutter pub get
+flutter run
+
+# ✅ Widget lifecycle問題はコード変更が必要
+# - Build cacheの問題ではない
+# - ランタイム動作の問題である
+```
+
+---
+
+**最終更新**: 2026-02-23
 **Important**: このファイルはAI支援開発のガイドラインです。すべての開発者が従うべき規則を定義しています。
