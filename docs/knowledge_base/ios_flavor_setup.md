@@ -71,7 +71,7 @@ open ios/Runner.xcworkspace
 "${PROJECT_DIR}/Runner/copy-googleservice-info.sh"
 ```
 
-6. このフェーズを「Compile Sources」の**前**にドラッグ移動
+1. このフェーズを「Compile Sources」の**前**にドラッグ移動
 
 #### 2.5 Schemesの作成
 

@@ -108,6 +108,38 @@ new_configs.each do |config_name, base_config|
   end
 end
 
+# Remove old GoogleService-Info.plist file reference (no longer needed with Run Script)
+puts ""
+puts "🧹 Cleaning up old GoogleService-Info.plist references..."
+
+# Find and remove GoogleService-Info.plist file reference
+old_plist_file = project.files.find { |f| f.path == 'GoogleService-Info.plist' }
+if old_plist_file
+  # Remove from Resources build phase
+  runner_target.resources_build_phase.files.each do |build_file|
+    if build_file.file_ref == old_plist_file
+      runner_target.resources_build_phase.files.delete(build_file)
+      puts "✅ Removed GoogleService-Info.plist from Resources build phase"
+    end
+  end
+
+  # Remove from RunnerTests resources if exists
+  if runner_tests_target
+    runner_tests_target.resources_build_phase.files.each do |build_file|
+      if build_file.file_ref == old_plist_file
+        runner_tests_target.resources_build_phase.files.delete(build_file)
+        puts "✅ Removed GoogleService-Info.plist from RunnerTests Resources build phase"
+      end
+    end
+  end
+
+  # Remove file reference from project
+  old_plist_file.remove_from_project
+  puts "✅ Removed GoogleService-Info.plist file reference from project"
+else
+  puts "⏭️  No old GoogleService-Info.plist reference found"
+end
+
 # Add Run Script Phase for GoogleService-Info.plist copy
 run_script_name = 'Copy GoogleService-Info.plist'
 existing_script = runner_target.shell_script_build_phases.find { |phase| phase.name == run_script_name }
