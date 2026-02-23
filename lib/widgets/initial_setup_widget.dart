@@ -219,40 +219,44 @@ class InitialSetupWidget extends ConsumerWidget {
       Log.info('✅ [INITIAL_SETUP] グループ作成完了');
 
       // グループ0→1で自動的にInitialSetupWidget→GroupListWidgetに切り替わるため、
-      // この時点でWidgetが破棄される。以降のcontext使用は全て危険。
+      // この時点でWidgetが破棄される。以降のcontext使用やref操作は全て危険。
 
-      // ローディングダイアログとSnackBarの処理はスキップ
+      // ⚠️ CRITICAL: ref.invalidate()も呼ばない
+      // createNewGroup()成功により自動的にUIは更新される
+      // invalidate()を呼ぶと、既に破棄されたwidgetのrefを操作してエラーになる
+
+      // ローディングダイアログとSnackBarの処理もスキップ
       // （GroupListWidgetに切り替わるため、ここでの操作は不要）
-
-      // プロバイダーを無効化してUIを確実に更新
-      ref.invalidate(allGroupsProvider);
-      Log.info('🔄 [INITIAL_SETUP] allGroupsProvider無効化完了');
     } catch (e, stackTrace) {
       Log.error('❌ [INITIAL_SETUP] グループ作成エラー: $e');
       Log.error('スタックトレース: $stackTrace');
 
-      // エラー時は、Widgetがまだ有効なのでcontextを使用可能
-      // ローディング閉じる
-      if (dialogShown && context.mounted) {
+      // ⚠️ CRITICAL: エラー時でもwidgetが破棄されている可能性がある
+      // context使用は最小限にし、失敗しても続行する
+
+      // ローディング閉じる（失敗しても無視）
+      if (dialogShown) {
         try {
-          Navigator.of(context, rootNavigator: true).pop();
-        } catch (_) {
-          // Navigator.popが失敗しても続行
+          if (context.mounted) {
+            Navigator.of(context, rootNavigator: true).pop();
+          }
+        } catch (navError) {
+          Log.warning('⚠️ [INITIAL_SETUP] Navigator.pop失敗（無視）: $navError');
         }
       }
 
-      // エラーメッセージ
-      if (context.mounted) {
-        try {
+      // エラーメッセージ（失敗しても無視）
+      try {
+        if (context.mounted) {
           SnackBarHelper.showCustom(
             context,
             message: 'グループ作成に失敗しました: ${e.toString()}',
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 5),
           );
-        } catch (_) {
-          // SnackBar表示が失敗しても続行
         }
+      } catch (snackError) {
+        Log.warning('⚠️ [INITIAL_SETUP] SnackBar表示失敗（無視）: $snackError');
       }
     }
   }
