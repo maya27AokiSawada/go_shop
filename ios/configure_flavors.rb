@@ -8,8 +8,9 @@ require 'xcodeproj'
 project_path = 'Runner.xcodeproj'
 project = Xcodeproj::Project.open(project_path)
 
-# Get the Runner target
+# Get Runner and RunnerTests targets
 runner_target = project.targets.find { |t| t.name == 'Runner' }
+runner_tests_target = project.targets.find { |t| t.name == 'RunnerTests' }
 
 unless runner_target
   puts "❌ Error: Runner target not found"
@@ -17,7 +18,7 @@ unless runner_target
 end
 
 puts "📱 iOS Flavor Configuration Script"
-puts "🎯 Target: #{runner_target.name}"
+puts "🎯 Targets: #{runner_target.name}" + (runner_tests_target ? ", #{runner_tests_target.name}" : "")
 
 # Get existing build configurations
 existing_configs = project.build_configurations.map(&:name)
@@ -35,12 +36,6 @@ new_configs = {
 
 # Add new build configurations
 new_configs.each do |config_name, base_config|
-  # Check if configuration already exists
-  if project.build_configurations.any? { |c| c.name == config_name }
-    puts "⏭️  Skip: #{config_name} already exists"
-    next
-  end
-
   # Find base configuration
   base = project.build_configurations.find { |c| c.name == base_config }
 
@@ -49,38 +44,68 @@ new_configs.each do |config_name, base_config|
     next
   end
 
-  # Create new configuration
-  new_config = project.new(Xcodeproj::Project::Object::XCBuildConfiguration)
-  new_config.name = config_name
-  new_config.build_settings = base.build_settings.dup
+  # Add to project level if not exists
+  unless project.build_configurations.any? { |c| c.name == config_name }
+    # Create new configuration
+    new_config = project.new(Xcodeproj::Project::Object::XCBuildConfiguration)
+    new_config.name = config_name
+    new_config.build_settings = base.build_settings.dup
 
-  # Set xcconfig file reference
-  xcconfig_filename = "#{config_name}.xcconfig"
-  xcconfig_file = project.files.find { |f| f.path&.include?(xcconfig_filename) }
+    # Set xcconfig file reference
+    xcconfig_filename = "#{config_name}.xcconfig"
+    xcconfig_file = project.files.find { |f| f.path&.include?(xcconfig_filename) }
 
-  unless xcconfig_file
-    # Add xcconfig file reference
-    flutter_group = project.main_group.find_subpath('Flutter', true)
-    xcconfig_file = flutter_group.new_file("Flutter/#{xcconfig_filename}")
+    unless xcconfig_file
+      # Add xcconfig file reference
+      flutter_group = project.main_group.find_subpath('Flutter', true)
+      xcconfig_file = flutter_group.new_file("Flutter/#{xcconfig_filename}")
+    end
+
+    new_config.base_configuration_reference = xcconfig_file if xcconfig_file
+
+    # Add to project build configuration list
+    project.build_configuration_list.build_configurations << new_config
+    puts "✅ Created project configuration: #{config_name}"
+  else
+    puts "⏭️  Project configuration exists: #{config_name}"
   end
 
-  new_config.base_configuration_reference = xcconfig_file if xcconfig_file
+  # Add to Runner target if not exists
+  unless runner_target.build_configurations.any? { |c| c.name == config_name }
+    target_config = runner_target.build_configurations.find { |c| c.name == base_config }
+    if target_config
+      xcconfig_filename = "#{config_name}.xcconfig"
+      xcconfig_file = project.files.find { |f| f.path&.include?(xcconfig_filename) }
 
-  # Add to project build configuration list
-  project.build_configuration_list.build_configurations << new_config
+      new_target_config = project.new(Xcodeproj::Project::Object::XCBuildConfiguration)
+      new_target_config.name = config_name
+      new_target_config.build_settings = target_config.build_settings.dup
+      new_target_config.base_configuration_reference = xcconfig_file if xcconfig_file
 
-  # Add to target build configuration list
-  target_config = runner_target.build_configurations.find { |c| c.name == base_config }
-  if target_config
-    new_target_config = project.new(Xcodeproj::Project::Object::XCBuildConfiguration)
-    new_target_config.name = config_name
-    new_target_config.build_settings = target_config.build_settings.dup
-    new_target_config.base_configuration_reference = xcconfig_file if xcconfig_file
-
-    runner_target.build_configuration_list.build_configurations << new_target_config
+      runner_target.build_configuration_list.build_configurations << new_target_config
+      puts "✅ Added to Runner target: #{config_name}"
+    end
+  else
+    puts "⏭️  Runner target has: #{config_name}"
   end
 
-  puts "✅ Created: #{config_name} (based on #{base_config})"
+  # Add to RunnerTests target if not exists
+  if runner_tests_target && !runner_tests_target.build_configurations.any? { |c| c.name == config_name }
+    tests_target_config = runner_tests_target.build_configurations.find { |c| c.name == base_config }
+    if tests_target_config
+      new_tests_config = project.new(Xcodeproj::Project::Object::XCBuildConfiguration)
+      new_tests_config.name = config_name
+      new_tests_config.build_settings = tests_target_config.build_settings.dup
+      # RunnerTests uses Pods xcconfig files, not Flutter xcconfig
+      # Copy base_configuration_reference from base config
+      new_tests_config.base_configuration_reference = tests_target_config.base_configuration_reference
+
+      runner_tests_target.build_configuration_list.build_configurations << new_tests_config
+      puts "✅ Added to RunnerTests target: #{config_name}"
+    end
+  elsif runner_tests_target
+    puts "⏭️  RunnerTests target has: #{config_name}"
+  end
 end
 
 # Add Run Script Phase for GoogleService-Info.plist copy
