@@ -44,7 +44,19 @@ class _GroupMemberManagementPageState
           IconButton(
             icon: const Icon(Icons.content_copy),
             tooltip: 'このグループをコピーして新規作成',
-            onPressed: () {
+            onPressed: () async {
+              // 🔥 同期完了を待機（同期中作成による赤画面エラーを防止）
+              try {
+                await ref.read(allGroupsProvider.future);
+                AppLogger.info(
+                    '✅ [GROUP_COPY] allGroupsProvider同期完了 - ダイアログ表示');
+              } catch (e) {
+                AppLogger.error('❌ [GROUP_COPY] allGroupsProvider読み込みエラー: $e');
+                // エラーでもダイアログ表示は継続（Hiveフォールバック）
+              }
+
+              if (!mounted) return;
+
               Navigator.push(
                 context,
                 MaterialPageRoute(

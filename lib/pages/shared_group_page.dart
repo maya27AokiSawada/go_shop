@@ -84,6 +84,15 @@ class _SharedGroupPageState extends ConsumerState<SharedGroupPage> {
   }
 
   Future<void> _showCreateGroupDialog(BuildContext context) async {
+    // 🔥 同期完了を待機（同期中作成による赤画面エラーを防止）
+    try {
+      await ref.read(allGroupsProvider.future);
+      AppLogger.info('✅ [GROUP_CREATION] allGroupsProvider同期完了 - ダイアログ表示');
+    } catch (e) {
+      AppLogger.error('❌ [GROUP_CREATION] allGroupsProvider読み込みエラー: $e');
+      // エラーでもダイアログ表示は継続（Hiveフォールバック）
+    }
+
     // ダイアログ内で直接allGroupsProviderを参照するため、
     // ここでは何も取得せずにダイアログを表示
     final result = await showDialog<bool>(
