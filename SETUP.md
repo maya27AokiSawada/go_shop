@@ -37,21 +37,31 @@ cp lib/firebase_options.dart.template lib/firebase_options.dart
 
 #### `GoogleService-Info.plist` (iOS用)
 
-```bash
-# Firebase Console からダウンロード
-# プロジェクト設定 > 全般 > マイアプリ (iOS)
-# 「GoogleService-Info.plist」をダウンロードして、以下に配置：
-# ios/GoogleService-Info.plist
+⚠️ **iOS フレーバー対応**: Dev環境とProd環境で異なるFirebaseプロジェクトを使用します。
 
-# Xcodeプロジェクトへの追加（重要！）
-open ios/Runner.xcodeproj
-# 1. 左のファイルツリーで「Runner」フォルダを右クリック
-# 2. "Add Files to Runner..." を選択
-# 3. ios/GoogleService-Info.plist を選択
-# 4. ✅ "Copy items if needed" にチェック
-# 5. ✅ "Add to targets" で「Runner」をチェック
-# 6. 「Add」をクリック
+```bash
+# Firebase Console から両環境の設定ファイルをダウンロード
+# プロジェクト設定 > 全般 > マイアプリ (iOS)
+
+# Dev環境用 (プロジェクトID: gotoshop-572b7)
+# Bundle ID: net.sumomo_planning.go_shop.dev
+# ダウンロードした GoogleService-Info.plist を以下に配置：
+cp path/to/dev/GoogleService-Info.plist ios/GoogleService-Info-dev.plist
+
+# Prod環境用 (プロジェクトID: goshopping-48db9)
+# Bundle ID: net.sumomo_planning.goshopping
+# ダウンロードした GoogleService-Info.plist を以下に配置：
+cp path/to/prod/GoogleService-Info.plist ios/GoogleService-Info-prod.plist
+
+# ビルド時に自動的に適切な設定ファイルがコピーされます
 ```
+
+**⚠️ Xcodeの手動設定は不要**:
+
+- 自動生成スクリプト `ios/Runner/copy-googleservice-info.sh` が環境に応じて適切な設定ファイルをコピーします
+- Xcodeプロジェクトには `ios/GoogleService-Info.plist`（元のファイル）のみ追加してください
+
+**詳細な設定手順**: `docs/knowledge_base/ios_flavor_setup.md` を参照
 
 **⚠️ セキュリティ注意**:
 

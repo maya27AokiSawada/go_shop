@@ -181,8 +181,22 @@ return deduplicatedGroups;
 
 **Flutter flavorとiOS**:
 
-- `flutter run --flavor dev`はiOSでは使用不可（カスタムスキーム未設定）
-- 通常の`flutter run`コマンドで実行
+- ✅ iOS flavorサポート完全実装済み（2026-02-19）
+- Xcodeカスタムスキーム生成により、Android同様に`--flavor`オプション使用可能
+- 詳細セットアップ手順: `docs/knowledge_base/ios_flavor_setup.md`参照
+- ビルドコマンド:
+
+  ```bash
+  # iOS開発環境（dev flavor）
+  flutter run --flavor dev -d <iOS-device-id>
+
+  # iOS本番環境（prod flavor）
+  flutter run --flavor prod -d <iOS-device-id>
+
+  # iOSリリースビルド
+  flutter build ios --release --flavor prod
+  flutter build ipa --release --flavor prod
+  ```
 
 **Status**: ✅ 完了
 
@@ -2254,19 +2268,32 @@ flutterfire configure
 ### ビルドコマンド
 
 ```bash
-# 開発環境（Hiveのみ、高速テスト用）
+# Android開発環境（Hiveのみ、高速テスト用）
 flutter run --flavor dev
 
-# 本番環境（Firestore + Hiveハイブリッド）
+# Android本番環境（Firestore + Hiveハイブリッド）
 flutter run --flavor prod
+
+# iOS開発環境（dev flavor）
+flutter run --flavor dev -d <iOS-device-id>
+
+# iOS本番環境（prod flavor）
+flutter run --flavor prod -d <iOS-device-id>
 
 # Androidデバッグビルド
 cd android
 ./gradlew assembleDebug --no-daemon
 
-# リリースビルド
+# Androidリリースビルド
 flutter build apk --release --flavor prod
+flutter build appbundle --release --flavor prod
+
+# iOSリリースビルド
+flutter build ios --release --flavor prod
+flutter build ipa --release --flavor prod
 ```
+
+**iOS Flavorセットアップ**: 初回ビルド前に`docs/knowledge_base/ios_flavor_setup.md`の手順に従ってXcodeスキームを作成してください。
 
 ## プロジェクト構成
 
