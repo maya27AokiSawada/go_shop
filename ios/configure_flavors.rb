@@ -76,7 +76,7 @@ new_configs.each do |config_name, base_config|
     new_target_config.name = config_name
     new_target_config.build_settings = target_config.build_settings.dup
     new_target_config.base_configuration_reference = xcconfig_file if xcconfig_file
-    
+
     runner_target.build_configuration_list.build_configurations << new_target_config
   end
 
@@ -90,20 +90,20 @@ existing_script = runner_target.shell_script_build_phases.find { |phase| phase.n
 unless existing_script
   run_script_phase = runner_target.new_shell_script_build_phase(run_script_name)
   run_script_phase.shell_script = '"${PROJECT_DIR}/Runner/copy-googleservice-info.sh"'
-  
+
   # Move the phase to before Compile Sources
   compile_sources_phase = runner_target.source_build_phase
   if compile_sources_phase
     phases = runner_target.build_phases
     script_index = phases.index(run_script_phase)
     compile_index = phases.index(compile_sources_phase)
-    
+
     if script_index && compile_index && script_index > compile_index
       phases.delete_at(script_index)
       phases.insert(compile_index, run_script_phase)
     end
   end
-  
+
   puts "✅ Added: Run Script Phase '#{run_script_name}'"
 else
   puts "⏭️  Skip: Run Script Phase '#{run_script_name}' already exists"
@@ -112,15 +112,88 @@ end
 # Save the project
 project.save
 
+# Create Xcode Schemes
+puts ""
+puts "📝 Creating Xcode Schemes..."
+
+schemes_dir = "Runner.xcodeproj/xcshareddata/xcschemes"
+Dir.mkdir(schemes_dir) unless Dir.exist?(schemes_dir)
+
+base_scheme_path = "#{schemes_dir}/Runner.xcscheme"
+
+unless File.exist?(base_scheme_path)
+  puts "❌ Error: Base scheme file not found: #{base_scheme_path}"
+  exit 1
+end
+
+# Read base scheme template
+base_scheme_content = File.read(base_scheme_path)
+
+# Define scheme configurations
+schemes = {
+  'Runner-dev' => {
+    'Debug' => 'Debug-dev',
+    'Release' => 'Release-dev',
+    'Profile' => 'Profile-dev'
+  },
+  'Runner-prod' => {
+    'Debug' => 'Debug-prod',
+    'Release' => 'Release-prod',
+    'Profile' => 'Profile-prod'
+  }
+}
+
+# Generate schemes
+schemes.each do |scheme_name, config_map|
+  scheme_path = "#{schemes_dir}/#{scheme_name}.xcscheme"
+
+  if File.exist?(scheme_path)
+    puts "⏭️  Skip: Scheme '#{scheme_name}' already exists"
+    next
+  end
+
+  # Replace build configurations
+  scheme_content = base_scheme_content.dup
+
+  # TestAction: Debug → Debug-dev/Debug-prod
+  scheme_content.gsub!(/<TestAction[^>]*buildConfiguration\s*=\s*"Debug"/) do |match|
+    match.gsub('"Debug"', "\"#{config_map['Debug']}\"")
+  end
+
+  # LaunchAction: Debug → Debug-dev/Debug-prod
+  scheme_content.gsub!(/<LaunchAction[^>]*buildConfiguration\s*=\s*"Debug"/) do |match|
+    match.gsub('"Debug"', "\"#{config_map['Debug']}\"")
+  end
+
+  # ProfileAction: Profile → Profile-dev/Profile-prod
+  scheme_content.gsub!(/<ProfileAction[^>]*buildConfiguration\s*=\s*"Profile"/) do |match|
+    match.gsub('"Profile"', "\"#{config_map['Profile']}\"")
+  end
+
+  # AnalyzeAction: Debug → Debug-dev/Debug-prod
+  scheme_content.gsub!(/<AnalyzeAction[^>]*buildConfiguration\s*=\s*"Debug"/) do |match|
+    match.gsub('"Debug"', "\"#{config_map['Debug']}\"")
+  end
+
+  # ArchiveAction: Release → Release-dev/Release-prod
+  scheme_content.gsub!(/<ArchiveAction[^>]*buildConfiguration\s*=\s*"Release"/) do |match|
+    match.gsub('"Release"', "\"#{config_map['Release']}\"")
+  end
+
+  # Write scheme file
+  File.write(scheme_path, scheme_content)
+  puts "✅ Created: Scheme '#{scheme_name}'"
+end
+
 puts "🎉 Configuration complete!"
 puts ""
 puts "Next steps:"
-puts "1. Open Xcode: open ios/Runner.xcworkspace"
-puts "2. Create Schemes (Product → Scheme → Manage Schemes):"
-puts "   - dev: Use Debug-dev, Release-dev, Profile-dev"
-puts "   - prod: Use Debug-prod, Release-prod, Profile-prod"
-puts "3. Place Firebase config files:"
+puts "1. Place Firebase config files:"
 puts "   - ios/GoogleService-Info-dev.plist"
 puts "   - ios/GoogleService-Info-prod.plist"
-puts "4. Build: flutter build ios --flavor dev"
+puts "2. Build & Run:"
+puts "   flutter run --flavor dev -d <iOS-device-id>"
+puts "   flutter run --flavor prod -d <iOS-device-id>"
+puts "3. Release Build:"
+puts "   flutter build ios --release --flavor prod"
 
