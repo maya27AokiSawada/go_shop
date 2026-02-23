@@ -210,42 +210,49 @@ class InitialSetupWidget extends ConsumerWidget {
         await Future.delayed(const Duration(milliseconds: 100));
       }
 
+      // 🔥 重要: グループ作成完了後、このWidgetは破棄されるため、
+      // createNewGroup()呼び出し前にダイアログを閉じる必要がある
+
       // グループ作成
       await ref.read(allGroupsProvider.notifier).createNewGroup(groupName);
 
       Log.info('✅ [INITIAL_SETUP] グループ作成完了');
 
-      // ローディング閉じる（プロバイダー無効化前に実行）
-      if (dialogShown && context.mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
+      // グループ0→1で自動的にInitialSetupWidget→GroupListWidgetに切り替わるため、
+      // この時点でWidgetが破棄される。以降のcontext使用は全て危険。
 
-      // 🔥 修正: SnackBarをinvalidateの前に表示（invalidate後はcontextが無効になる可能性があるため）
-      if (context.mounted) {
-        SnackBarHelper.showSuccess(context, '「$groupName」を作成しました');
-      }
+      // ローディングダイアログとSnackBarの処理はスキップ
+      // （GroupListWidgetに切り替わるため、ここでの操作は不要）
 
       // プロバイダーを無効化してUIを確実に更新
-      // 注意: グループが0→1個になると、InitialSetupWidget→GroupListWidgetに切り替わる
       ref.invalidate(allGroupsProvider);
       Log.info('🔄 [INITIAL_SETUP] allGroupsProvider無効化完了');
     } catch (e, stackTrace) {
       Log.error('❌ [INITIAL_SETUP] グループ作成エラー: $e');
       Log.error('スタックトレース: $stackTrace');
 
+      // エラー時は、Widgetがまだ有効なのでcontextを使用可能
       // ローディング閉じる
       if (dialogShown && context.mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
+        try {
+          Navigator.of(context, rootNavigator: true).pop();
+        } catch (_) {
+          // Navigator.popが失敗しても続行
+        }
       }
 
       // エラーメッセージ
       if (context.mounted) {
-        SnackBarHelper.showCustom(
-          context,
-          message: 'グループ作成に失敗しました: ${e.toString()}',
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 5),
-        );
+        try {
+          SnackBarHelper.showCustom(
+            context,
+            message: 'グループ作成に失敗しました: ${e.toString()}',
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          );
+        } catch (_) {
+          // SnackBar表示が失敗しても続行
+        }
       }
     }
   }
