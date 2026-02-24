@@ -87,13 +87,22 @@ class NotificationData {
 /// リアルタイム通知サービス
 class NotificationService {
   final Ref _ref;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore;
+  final FirebaseAuth _auth;
 
   StreamSubscription<QuerySnapshot>? _notificationSubscription;
   bool _isListening = false;
 
-  NotificationService(this._ref);
+  /// コンストラクタ
+  ///
+  /// [firestore] と [auth] はテスト用の依存性注入に使用。
+  /// 省略時は本番環境のインスタンスを使用（後方互換性維持）。
+  NotificationService(
+    this._ref, {
+    FirebaseFirestore? firestore,
+    FirebaseAuth? auth,
+  })  : _firestore = firestore ?? FirebaseFirestore.instance,
+        _auth = auth ?? FirebaseAuth.instance;
 
   /// 通知リスナーを開始
   void startListening() {
