@@ -26,10 +26,16 @@ final qrInvitationServiceProvider = Provider<QRInvitationService>((ref) {
 
 class QRInvitationService {
   final Ref _ref;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore;
+  final FirebaseAuth _auth;
 
-  QRInvitationService(this._ref);
+  // 🔥 依存性注入対応: テスト時はmockを注入、本番時はデフォルト値を使用
+  QRInvitationService(
+    this._ref, {
+    FirebaseAuth? auth,
+    FirebaseFirestore? firestore,
+  })  : _auth = auth ?? FirebaseAuth.instance,
+        _firestore = firestore ?? FirebaseFirestore.instance;
 
   InvitationSecurityService get _securityService =>
       _ref.read(invitationSecurityServiceProvider);
