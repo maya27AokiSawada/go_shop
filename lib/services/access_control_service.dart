@@ -9,12 +9,12 @@ import '../providers/purchase_group_provider.dart';
 /// ユーザーのアクセス権限を管理するサービス
 class AccessControlService {
   final Ref _ref;
+  final FirebaseAuth _auth;
   static const String _secretModeKey = 'secret_mode';
 
-  // Firebase Authを使用
-  FirebaseAuth get _auth => FirebaseAuth.instance;
-
-  AccessControlService(this._ref);
+  // Firebase Authを使用（テスト時はモックを注入可能）
+  AccessControlService(this._ref, {FirebaseAuth? auth})
+      : _auth = auth ?? FirebaseAuth.instance;
 
   /// 現在のユーザーがグループ作成可能かチェック
   bool canCreateGroup() {

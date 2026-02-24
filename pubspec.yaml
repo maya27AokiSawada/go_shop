@@ -97,6 +97,7 @@ dev_dependencies:
 
   # Testing
   mockito: ^5.4.4
+  firebase_auth_mocks: ^0.15.1 # Firebase Auth mocking for unit tests (compatible with firebase_core ^4.1.1)
 
   # Linting
   lints: ^2.1.1
