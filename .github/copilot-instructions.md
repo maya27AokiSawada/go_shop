@@ -42,6 +42,142 @@ flutterfire configure --project=gotoshop-572b7
 
 ---
 
+## Recent Implementations (2026-02-24)
+
+### 1. Tier 2ユニットテスト - access_control_service 実装完了 ✅
+
+**Purpose**: Firebase依存サービスのユニットテストを実装し、Firebase Auth制約下でのテスト戦略確立
+
+**Background**:
+
+- Tier 1完了（82テスト）に続き、Tier 2（Firebase依存サービス）開始
+- access_control_service は FirebaseAuth.instance (singleton) を使用
+- 標準的な依存性注入によるモックが困難
+
+**Implementation**:
+
+#### テスト作成: 23テスト（12成功 / 11スキップ）
+
+**成功したテスト（12個）- Firebase不要なロジック**:
+
+- `canCreateGroup`: 基本ロジック検証（2テスト）
+- `canEditGroup`: デフォルトグループ特殊処理（1テスト）
+- `canInviteMembers`: デフォルトグループ拒否ロジック（1テスト）
+- `Secret Mode`: SharedPreferences操作、watchSecretMode（3テスト）
+- `getAccessDeniedMessage`: エラーメッセージ生成（3テスト）
+- `Enum Tests`: GroupVisibilityMode、AccessType定義確認（2テスト）
+
+**スキップしたテスト（11個）- Firebase Auth依存**:
+
+- `canEditGroup/canInviteMembers`: 通常グループの認証チェック（2テスト）
+- `toggleSecretMode`: 全パターン（4テスト）
+- `getGroupVisibilityMode`: シークレットモード＋認証状態（3テスト）
+- `Edge Cases`: 空文字列処理、連続呼び出し（3テスト）
+
+**技術的課題と対策**:
+
+**Issue 1: Firebase初期化エラー**
+
+- 問題: `[core/no-app] No Firebase App '[DEFAULT]' has been created`
+- 原因: テスト環境でFirebase.initializeApp()未実行
+- 試行1: firebase_core imports + 初期化関数追加 → コンパイルエラー
+
+**Issue 2: コンパイルエラー**
+
+- 問題1: `Type 'MethodCall' not found` (line 13)
+- 問題2: `Method not found: 'setupFirebaseCoreMocks'` (line 18)
+- 原因: 存在しないFirebase mock setupメソッドを使用
+- 解決: 不要なコード削除、シンプルなFirebase初期化に変更
+
+**Issue 3: FirebaseAuth.instance シングルトン制約**
+
+- 問題: 依存性注入不可 → 標準的なモックが不可能
+- 選択肢検討:
+  1. `firebase_auth_mocks` package追加 (選択せず - 将来対応)
+  2. Platform channel level mock (複雑 - 選択せず)
+  3. Firebase不要なロジックのみテスト ✅ **採用**
+- 結果: 12個のロジックテストが成功、Firebase依存は`skip`指定
+
+**File Structure**:
+
+```dart
+// test/unit/services/access_control_service_test.dart (456 lines)
+
+// TODOコメント（将来の改善ガイド付き）
+// - firebase_auth_mocksパッケージ追加方法
+// - MockFirebaseAuth使用例
+// - リファクタリング選択肢
+
+// Mock Classes
+class MockRef ... // Provider invalidation追跡
+// 注: MockFirebaseAuth, MockUser は定義したが未使用（singleton制約）
+
+// Test Groups
+- canCreateGroup (2 tests: 2 success)
+- canEditGroup (2 tests: 1 success, 1 skip)
+- canInviteMembers (2 tests: 1 success, 1 skip)
+- Secret Mode (5 tests: 2 success, 3 skip + 1 watchSecretMode success)
+- getGroupVisibilityMode (3 tests: 3 skip)
+- getAccessDeniedMessage (3 tests: 3 success)
+- Enum Tests (2 tests: 2 success)
+- Edge Cases (3 tests: 3 skip)
+```
+
+**Modified Files**:
+
+- `test/unit/services/access_control_service_test.dart` (新規作成、456行)
+  - Lines 1-39: TODOコメント＋Firebase初期化
+  - Lines 41-70: Mock classes定義
+  - Lines 72-456: 23テスト（各テストに`skip`理由明記）
+
+**Commit**: `12777a1` - "test: Tier 2ユニットテスト - access_control_service (23テスト: 12成功/11スキップ)"
+
+**Status**: ✅ Tier 2開始完了 | 📊 12/23テスト成功 (52.2%) | ⏳ Firebase Auth mock は将来対応
+
+**Next Steps**:
+
+1. ✅ ドキュメント更新 (copilot-instructions.md)
+2. ⏳ Tier 2残り: qr_invitation_service, notification_service
+3. ⏳ firebase_auth_mocks package検討（スキップしたテスト有効化）
+4. ⏳ Tier 3: その他のサービス層テスト
+
+**Technical Learnings**:
+
+**1. FirebaseAuth Singleton Pattern テスト戦略**
+
+```dart
+// ❌ 不可能: 依存性注入によるモック
+class AccessControlService {
+  final FirebaseAuth _auth; // コンストラクタ注入
+  AccessControlService(this._auth); // production codeに破壊的変更
+}
+
+// ✅ 現状: ロジック部分のみテスト
+- デフォルトグループ特殊処理（Firebase不要）
+- Enum定義確認
+- エラーメッセージ生成
+- SharedPreferences操作
+
+// 🔮 将来: firebase_auth_mocksパッケージ
+MockFirebaseAuth(signedIn: true, mockUser: MockUser(...))
+```
+
+**2. skip Parameter使用パターン**
+
+```dart
+test('description', () async {
+  // Test implementation
+}, skip: 'Firebase Auth mock required - add firebase_auth_mocks package');
+```
+
+**3. テストコード内TODOコメントの価値**
+
+- 将来の改善者へのガイド
+- パッケージ追加手順の明記
+- 代替実装パターンの提示
+
+---
+
 ## Recent Implementations (2026-02-19)
 
 ### 1. Production Bug修正: グループコピー時の赤画面エラー ✅
