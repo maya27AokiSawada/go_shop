@@ -1,7 +1,7 @@
 // lib/services/enhanced_invitation_service.dart
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shared_group.dart';
-import '../datastore/firestore_architecture.dart';
 import '../providers/auth_provider.dart';
 import 'dart:developer' as developer;
 
@@ -20,19 +20,31 @@ class EnhancedInvitationService {
         throw Exception('ユーザーがログインしていません');
       }
 
-      final userGroups =
-          await FirestoreCollections.getUserSharedGroups(currentUser.uid)
-              .get();
+      final userGroups = await FirebaseFirestore.instance
+          .collection('SharedGroups')
+          .where('allowedUid', arrayContains: currentUser.uid)
+          .get();
       final invitableGroups = <GroupInvitationOption>[];
 
       for (final doc in userGroups.docs) {
-        final firestoreGroup =
-            FirestoreSharedGroup.fromFirestoreData(doc.data());
+        final group = SharedGroup.fromJson(doc.data());
 
-        // Check if current user can invite to this group
-        if (firestoreGroup.canInviteUsers(currentUser.uid)) {
+        // Check if current user can invite to this group (owner or manager)
+        final currentMember = group.members?.firstWhere(
+          (m) => m.memberId == currentUser.uid,
+          orElse: () => const SharedGroupMember(
+            memberId: '',
+            name: '',
+            contact: '',
+            role: SharedGroupRole.member,
+          ),
+        );
+        final canInvite = currentMember?.role == SharedGroupRole.owner ||
+            currentMember?.role == SharedGroupRole.manager;
+
+        if (canInvite) {
           // Check if target email already exists in group
-          final existingMember = firestoreGroup.members?.firstWhere(
+          final existingMember = group.members?.firstWhere(
             (m) => m.contact.toLowerCase() == targetEmail.toLowerCase(),
             orElse: () => const SharedGroupMember(
                 memberId: '',
@@ -44,7 +56,7 @@ class EnhancedInvitationService {
           final isAlreadyMember = existingMember?.contact.isNotEmpty == true;
 
           invitableGroups.add(GroupInvitationOption(
-            group: firestoreGroup,
+            group: group,
             canInvite: !isAlreadyMember,
             reason: isAlreadyMember ? 'すでにメンバーです' : null,
           ));
@@ -120,24 +132,29 @@ class EnhancedInvitationService {
     String? customMessage,
   }) async {
     // Get group document
-    final groupDoc =
-        await FirestoreCollections.getSharedGroupDoc(ownerUid, groupId).get();
+    final groupDoc = await FirebaseFirestore.instance
+        .collection('SharedGroups')
+        .doc(groupId)
+        .get();
     if (!groupDoc.exists) {
       throw Exception('グループが見つかりません');
     }
 
-    final firestoreGroup =
-        FirestoreSharedGroup.fromFirestoreData(groupDoc.data()!);
+    final group = SharedGroup.fromJson(groupDoc.data()!);
 
-    // Verify current user can invite
-    if (!firestoreGroup.canInviteUsers(ownerUid)) {
+    // Verify current user can invite (owner or manager)
+    final currentMember = group.members?.firstWhere(
+      (m) => m.memberId == ownerUid,
+      orElse: () => const SharedGroupMember(
+        memberId: '',
+        name: '',
+        contact: '',
+        role: SharedGroupRole.member,
+      ),
+    );
+    if (currentMember?.role != SharedGroupRole.owner &&
+        currentMember?.role != SharedGroupRole.manager) {
       throw Exception('招待権限がありません');
-    }
-
-    // Add to pending invitations if not already present
-    final updatedPendingInvitations = [...firestoreGroup.pendingInvitations];
-    if (!updatedPendingInvitations.contains(targetEmail)) {
-      updatedPendingInvitations.add(targetEmail);
     }
 
     // Create new member entry (will be activated when invitation is accepted)
@@ -148,40 +165,24 @@ class EnhancedInvitationService {
       isSignedIn: false,
     );
 
-    final updatedMembers = <SharedGroupMember>[
-      ...(firestoreGroup.members ?? [])
-    ];
+    final updatedMembers = <SharedGroupMember>[...(group.members ?? [])];
     // Remove any existing member with same email and add new one
     updatedMembers.removeWhere(
         (m) => m.contact.toLowerCase() == targetEmail.toLowerCase());
     updatedMembers.add(newMember);
 
-    final baseGroup = SharedGroup(
-      groupName: firestoreGroup.groupName,
-      groupId: firestoreGroup.groupId,
-      ownerName: firestoreGroup.ownerName,
-      ownerEmail: firestoreGroup.ownerEmail,
-      ownerUid: firestoreGroup.ownerUid,
+    // Update group with new member
+    final updatedGroup = group.copyWith(
       members: updatedMembers,
-      // sharedListIds はサブコレクションに移行したため削除
-    );
-
-    final updatedGroup = FirestoreSharedGroup(
-      baseGroup: baseGroup,
-      acceptedUids: firestoreGroup.acceptedUids,
-      pendingInvitations: updatedPendingInvitations,
-      createdAt: firestoreGroup.createdAt,
-      updatedAt: DateTime.now(),
     );
 
     // Update Firestore
-    await groupDoc.reference.update(updatedGroup.toFirestoreData());
+    await groupDoc.reference.update(updatedGroup.toJson());
 
     // メール招待機能は実装しない（QR招待を使用）
     // Email invitations are not implemented - use QR code invitations instead
 
-    developer
-        .log('📧 招待送信完了: $targetEmail → グループ「${firestoreGroup.groupName}」');
+    developer.log('📧 招待送信完了: $targetEmail → グループ「${group.groupName}」');
   }
 
   /// Accept invitation by adding UID to acceptedUids list
@@ -192,60 +193,41 @@ class EnhancedInvitationService {
     String? userName,
   }) async {
     try {
-      final groupDoc =
-          await FirestoreCollections.getSharedGroupDoc(ownerUid, groupId)
-              .get();
+      final groupDoc = await FirebaseFirestore.instance
+          .collection('SharedGroups')
+          .doc(groupId)
+          .get();
       if (!groupDoc.exists) {
         throw Exception('グループが見つかりません');
       }
 
-      final firestoreGroup =
-          FirestoreSharedGroup.fromFirestoreData(groupDoc.data()!);
+      final group = SharedGroup.fromJson(groupDoc.data()!);
 
-      // Accept invitation
-      final updatedGroup = firestoreGroup.acceptInvitation(userUid);
+      // Update member info with actual user name
+      final updatedMembers = group.members?.map((member) {
+        // Find member by contact (email) and update with actual user data
+        if (member.memberId == userUid ||
+            (member.contact.isNotEmpty && userName != null)) {
+          return member.copyWith(
+            memberId: userUid, // Update with actual UID
+            name: userName ?? member.name,
+            isSignedIn: true,
+            isInvitationAccepted: true,
+            acceptedAt: DateTime.now(),
+          );
+        }
+        return member;
+      }).toList();
 
-      // Update member info with actual user name if provided
-      if (userName != null) {
-        final updatedMembers = updatedGroup.members?.map((member) {
-          // Find member by UID in acceptedUids or by contact (for pending)
-          if (updatedGroup.acceptedUids.contains(userUid)) {
-            // Update the member info with actual user data
-            return member.copyWith(
-              name: userName,
-              isSignedIn: true,
-              isInvitationAccepted: true,
-              acceptedAt: DateTime.now(),
-            );
-          }
-          return member;
-        }).toList();
+      // Update group with accepted member info
+      final updatedGroup = group.copyWith(
+        members: updatedMembers,
+      );
 
-        final finalBaseGroup = SharedGroup(
-          groupName: updatedGroup.groupName,
-          groupId: updatedGroup.groupId,
-          ownerName: updatedGroup.ownerName,
-          ownerEmail: updatedGroup.ownerEmail,
-          ownerUid: updatedGroup.ownerUid,
-          members: updatedMembers,
-          // sharedListIds はサブコレクションに移行したため削除
-        );
+      // Update Firestore
+      await groupDoc.reference.update(updatedGroup.toJson());
 
-        final finalGroup = FirestoreSharedGroup(
-          baseGroup: finalBaseGroup,
-          acceptedUids: updatedGroup.acceptedUids,
-          pendingInvitations: updatedGroup.pendingInvitations,
-          createdAt: updatedGroup.createdAt,
-          updatedAt: DateTime.now(),
-        );
-
-        await groupDoc.reference.update(finalGroup.toFirestoreData());
-      } else {
-        await groupDoc.reference.update(updatedGroup.toFirestoreData());
-      }
-
-      developer
-          .log('✅ 招待受諾完了: UID $userUid → グループ「${firestoreGroup.groupName}」');
+      developer.log('✅ 招待受諾完了: UID $userUid → グループ「${group.groupName}」');
     } catch (e) {
       developer.log('❌ 招待受諾エラー: $e');
       rethrow;
@@ -273,7 +255,7 @@ class EnhancedInvitationService {
 
 /// Group invitation option for selection UI
 class GroupInvitationOption {
-  final FirestoreSharedGroup group;
+  final SharedGroup group;
   final bool canInvite;
   final String? reason;
 

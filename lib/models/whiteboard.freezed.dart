@@ -686,8 +686,8 @@ class _$WhiteboardImpl extends _Whiteboard {
       @HiveField(4) this.isPrivate = false,
       @HiveField(5) required this.createdAt,
       @HiveField(6) required this.updatedAt,
-      @HiveField(7) this.canvasWidth = 800.0,
-      @HiveField(8) this.canvasHeight = 600.0})
+      @HiveField(7) this.canvasWidth = 1280.0,
+      @HiveField(8) this.canvasHeight = 720.0})
       : _strokes = strokes,
         super._();
 

@@ -205,8 +205,8 @@ _$WhiteboardImpl _$$WhiteboardImplFromJson(Map<String, dynamic> json) =>
       isPrivate: json['isPrivate'] as bool? ?? false,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
-      canvasWidth: (json['canvasWidth'] as num?)?.toDouble() ?? 800.0,
-      canvasHeight: (json['canvasHeight'] as num?)?.toDouble() ?? 600.0,
+      canvasWidth: (json['canvasWidth'] as num?)?.toDouble() ?? 1280.0,
+      canvasHeight: (json['canvasHeight'] as num?)?.toDouble() ?? 720.0,
     );
 
 Map<String, dynamic> _$$WhiteboardImplToJson(_$WhiteboardImpl instance) =>
