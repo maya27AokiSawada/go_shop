@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive/hive.dart';
+import '../models/shared_group.dart';
+import '../models/shared_list.dart';
 import '../providers/auth_provider.dart';
 import '../providers/hive_provider.dart';
 import '../providers/purchase_group_provider.dart';
@@ -843,12 +846,26 @@ class _HomePageState extends ConsumerState<HomePage> {
                   child: ElevatedButton.icon(
                     onPressed: () async {
                       try {
-                        // サインアウト前にHiveをクリア
-                        final SharedGroupBox = ref.read(SharedGroupBoxProvider);
-                        final sharedListBox = ref.read(sharedListBoxProvider);
-                        await SharedGroupBox.clear();
-                        await sharedListBox.clear();
-                        AppLogger.info('🗑️ [SIGNOUT] Hiveデータをクリア完了');
+                        // サインアウト前にHiveをクリア（BOXが開いている場合のみ）
+                        if (Hive.isBoxOpen('SharedGroups')) {
+                          final SharedGroupBox =
+                              Hive.box<SharedGroup>('SharedGroups');
+                          await SharedGroupBox.clear();
+                          AppLogger.info('🗑️ [SIGNOUT] SharedGroupsデータをクリア完了');
+                        } else {
+                          AppLogger.info(
+                              'ℹ️ [SIGNOUT] SharedGroups BOXは開いていません');
+                        }
+
+                        if (Hive.isBoxOpen('sharedLists')) {
+                          final sharedListBox =
+                              Hive.box<SharedList>('sharedLists');
+                          await sharedListBox.clear();
+                          AppLogger.info('🗑️ [SIGNOUT] sharedListsデータをクリア完了');
+                        } else {
+                          AppLogger.info(
+                              'ℹ️ [SIGNOUT] sharedLists BOXは開いていません');
+                        }
 
                         // SharedPreferencesをクリア
                         await UserPreferencesService.clearAllUserInfo();

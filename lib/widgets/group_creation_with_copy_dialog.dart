@@ -546,10 +546,15 @@ class _GroupCreationWithCopyDialogState
       await ref.read(allGroupsProvider.notifier).createNewGroup(groupName);
       AppLogger.info('✅ [CREATE GROUP DIALOG] createNewGroup() 完了');
 
-      // 🔥 FIX: invalidate()を削除（createNewGroup()内で状態を直接更新済み）
-      // グループ0→1遷移時のinvalidate()による競合を回避
-      // 少し待機してUIが安定するのを待つ
-      await Future.delayed(const Duration(milliseconds: 300));
+      // 🔥 FIX (2026-02-26): iOS対応 - invalidate()を再追加
+      // createNewGroup()内で状態を直接更新しているが、iOSではinvalidate()が必要
+      // Androidでは直接更新のみで動作するが、iOSでは明示的なinvalidateが必要
+      ref.invalidate(allGroupsProvider);
+      AppLogger.info(
+          '🔄 [CREATE GROUP DIALOG] allGroupsProvider invalidate完了（iOS対応）');
+
+      // UI安定化のため待機（iOSは少し長めの待機が必要）
+      await Future.delayed(const Duration(milliseconds: 500));
       AppLogger.info('✅ [CREATE GROUP DIALOG] UI安定化待機完了');
 
       // 🔥 FIX: メンバーコピーがある場合、プロバイダー更新後にメンバーを追加
