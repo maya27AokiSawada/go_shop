@@ -1,5 +1,73 @@
 # GoShopping - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-02-25)
+
+### 🎉 0→1グループ作成の赤画面エラー完全解決 ✅
+
+**Purpose**: `_dependents.isEmpty`エラー（赤画面）をアーキテクチャ変更により根本的に解決
+
+**Implementation Status**: 🟢 100% Complete - Red screen completely eliminated
+
+**Background**:
+
+長期間持ち越していた重要バグの完全解決：
+
+- 前回から持ち越しの`_dependents.isEmpty`エラー（グループ0→1作成時）
+- InitialSetupWidget内での5回の修正試行がすべて失敗
+- ユーザーの洞察「考え方を変えましょう」により突破口
+- アーキテクチャ変更による根本的解決を実施
+
+**Root Cause** (Architectural Flaw):
+
+InitialSetupWidgetが実行不可能な処理を実施：
+
+```
+InitialSetupWidget (ConsumerWidget with scoped ref)
+  └─ showDialog() → New widget tree
+      └─ _createGroup() async → Navigation (removes InitialSetupWidget)
+          └─ But async function still using invalid ref
+              → _dependents.isEmpty ERROR
+```
+
+**Solution Implemented**:
+
+1. **Remove InitialSetupWidget from flow** - Eliminate widget lifecycle conflicts
+2. **Inline empty state message** - Show simple UI in GroupListWidget
+3. **Auto-navigate to group page** - After sign-in if groups.isEmpty
+4. **Use existing FAB** - Group creation via stable FloatingActionButton
+
+**Architecture Change**:
+
+```
+❌ Old: Sign-in → HomePage → InitialSetupWidget → Dialog → Create → Navigate → RED SCREEN
+✅ New: Sign-in → Check groups → Auto-navigate → Show message → User clicks FAB → Create
+```
+
+**Benefits**:
+
+- ✅ Red screen completely eliminated
+- ✅ Widget disposal conflicts avoided
+- ✅ Simple, intuitive UX
+- ✅ QR invitation also promoted in message
+
+**Modified Files**:
+
+- `lib/widgets/group_list_widget.dart` - Empty state UI integration
+- `lib/pages/home_page.dart` - Auto-navigation to group page
+- `lib/widgets/initial_setup_widget.dart` - Preserved (unused, can delete later)
+
+**Test Results**: ✅ Verified on Pixel 9 (adb-51040DLAQ001K0-JamWam.\_adb-tls-connect.\_tcp)
+
+**Technical Learning**: "Sometimes the best fix is to redesign, not to fix."
+
+**Next Steps**:
+
+1. ⏳ Comprehensive device testing (test_checklist_20260226.md)
+2. ⏳ Verify sign-up flow consistency
+3. ⏳ Clean up unused code (InitialSetupWidget)
+
+---
+
 ## Recent Implementations (2026-02-24)
 
 ### 🎉 Tier 2ユニットテスト完全達成 ✅

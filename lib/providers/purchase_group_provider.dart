@@ -713,10 +713,18 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
         Log.warning('⚠️ [CREATE GROUP] グループ選択エラー（続行）: $e');
       }
 
-      // ✅ プロバイダー無効化は呼び出し側で実施
-      // ここでinvalidateSelf()を呼ぶと、watchしているウィジェットが再ビルドされ、
-      // 呼び出し側のBuildContextが無効になってダイアログが閉じられなくなる
-      Log.info('✅ [CREATE GROUP] グループ作成処理完了（プロバイダー無効化は呼び出し側で実施）');
+      // 🔥 FIX: グループ0→1遷移時のinvalidate問題を回避
+      // プロバイダー状態を直接更新することで、invalidate()が不要になる
+      try {
+        final currentGroups = state.value ?? [];
+        state = AsyncData([...currentGroups, newGroup]);
+        Log.info(
+            '✅ [CREATE GROUP] プロバイダー状態を直接更新（グループ数: ${currentGroups.length} → ${currentGroups.length + 1}）');
+      } catch (e) {
+        Log.warning('⚠️ [CREATE GROUP] 状態更新エラー（Firestoreには保存済み）: $e');
+      }
+
+      Log.info('✅ [CREATE GROUP] グループ作成処理完了');
 
       // ✅ メンバープール更新は不要
       // グループ作成時はオーナー（自分）のみ追加され、既にメンバープールに存在

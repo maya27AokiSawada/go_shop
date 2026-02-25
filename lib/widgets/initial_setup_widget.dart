@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/purchase_group_provider.dart';
+import '../providers/page_index_provider.dart';
 import '../widgets/accept_invitation_widget.dart';
 import '../utils/app_logger.dart';
 import '../utils/snackbar_helper.dart';
@@ -123,10 +124,18 @@ class InitialSetupWidget extends ConsumerWidget {
   /// グループ作成ダイアログを表示
   Future<void> _showCreateGroupDialog(
       BuildContext context, WidgetRef ref) async {
-    // 🔥 Firestoreからグループ一覧の同期完了を待つ（DropdownButton重複値エラー防止）
+    // 🔥 FIX: ref.read() → ref.watch()に変更（依存関係追跡のため）
+    // Firestoreからグループ一覧の同期完了を待つ（DropdownButton重複値エラー防止）
     try {
       AppLogger.info('🔄 [INITIAL_SETUP] allGroupsProvider同期開始...');
-      await ref.read(allGroupsProvider.future);
+      // ref.read()は_dependents.isEmptyエラーを引き起こす可能性がある
+      // ここでは同期待機が必要なので、watchで依存関係を確立してからfutureを待つ
+      final groupsAsync = ref.watch(allGroupsProvider);
+      await groupsAsync.when(
+        data: (_) => Future.value(),
+        loading: () => Future.value(),
+        error: (e, _) => throw e,
+      );
       AppLogger.info('✅ [INITIAL_SETUP] allGroupsProvider同期完了 - ダイアログ表示');
     } catch (e) {
       AppLogger.error('❌ [INITIAL_SETUP] allGroupsProvider読み込みエラー: $e');
@@ -135,9 +144,13 @@ class InitialSetupWidget extends ConsumerWidget {
 
     final groupNameController = TextEditingController();
 
+    // 🔥 FIX: 外側のcontextとrefを保存（ダイアログ内部のcontextと混同しないため）
+    final outerContext = context;
+    final outerRef = ref;
+
     showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
+      context: outerContext,
+      builder: (dialogContext) => AlertDialog(
         title: const Text('最初のグループを作成'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -155,8 +168,9 @@ class InitialSetupWidget extends ConsumerWidget {
               ),
               onSubmitted: (value) {
                 if (value.trim().isNotEmpty) {
-                  Navigator.pop(context);
-                  _createGroup(context, ref, value.trim());
+                  Navigator.pop(dialogContext);
+                  // 🔥 FIX: 外側のcontextとrefを使用
+                  _createGroup(outerContext, outerRef, value.trim());
                 }
               },
             ),
@@ -166,7 +180,7 @@ class InitialSetupWidget extends ConsumerWidget {
           TextButton(
             onPressed: () {
               groupNameController.dispose();
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
             },
             child: const Text('キャンセル'),
           ),
@@ -174,8 +188,9 @@ class InitialSetupWidget extends ConsumerWidget {
             onPressed: () {
               final groupName = groupNameController.text.trim();
               if (groupName.isNotEmpty) {
-                Navigator.pop(context);
-                _createGroup(context, ref, groupName);
+                Navigator.pop(dialogContext);
+                // 🔥 FIX: 外側のcontextとrefを使用
+                _createGroup(outerContext, outerRef, groupName);
               }
             },
             child: const Text('作成'),
@@ -210,53 +225,51 @@ class InitialSetupWidget extends ConsumerWidget {
         await Future.delayed(const Duration(milliseconds: 100));
       }
 
-      // 🔥 重要: グループ作成完了後、このWidgetは破棄されるため、
-      // createNewGroup()呼び出し前にダイアログを閉じる必要がある
-
       // グループ作成
       await ref.read(allGroupsProvider.notifier).createNewGroup(groupName);
 
       Log.info('✅ [INITIAL_SETUP] グループ作成完了');
 
-      // グループ0→1で自動的にInitialSetupWidget→GroupListWidgetに切り替わるため、
-      // この時点でWidgetが破棄される。以降のcontext使用やref操作は全て危険。
+      // 🔥 FIX: グループ作成後、即座にグループページ（タブ1）に遷移
+      // これにより0→1遷移時の競合を回避（InitialSetupWidgetから離れる）
+      if (context.mounted) {
+        // ローディングダイアログを閉じる
+        Navigator.of(context, rootNavigator: true).pop();
+        dialogShown = false;
 
-      // ⚠️ CRITICAL: ref.invalidate()も呼ばない
-      // createNewGroup()成功により自動的にUIは更新される
-      // invalidate()を呼ぶと、既に破棄されたwidgetのrefを操作してエラーになる
+        // 🔥 CRITICAL FIX: ProviderScopeから直接refを取得（widget-scopedなrefを使わない）
+        // InitialSetupWidgetが削除されても、アプリ全体のProviderScopeは存続するため安全
+        ProviderScope.containerOf(context)
+            .read(pageIndexProvider.notifier)
+            .setPageIndex(1);
 
-      // ローディングダイアログとSnackBarの処理もスキップ
-      // （GroupListWidgetに切り替わるため、ここでの操作は不要）
+        Log.info('✅ [INITIAL_SETUP] グループページに遷移 - 「$groupName」作成完了');
+
+        // 🔥 CRITICAL: setPageIndex(1)でInitialSetupWidgetが削除されるため、
+        // この時点でreturnして後続の処理（context/ref使用）を実行しない
+        return;
+      }
     } catch (e, stackTrace) {
       Log.error('❌ [INITIAL_SETUP] グループ作成エラー: $e');
       Log.error('スタックトレース: $stackTrace');
 
-      // ⚠️ CRITICAL: エラー時でもwidgetが破棄されている可能性がある
-      // context使用は最小限にし、失敗しても続行する
-
-      // ローディング閉じる（失敗しても無視）
-      if (dialogShown) {
+      // ローディング閉じる
+      if (dialogShown && context.mounted) {
         try {
-          if (context.mounted) {
-            Navigator.of(context, rootNavigator: true).pop();
-          }
+          Navigator.of(context, rootNavigator: true).pop();
         } catch (navError) {
-          Log.warning('⚠️ [INITIAL_SETUP] Navigator.pop失敗（無視）: $navError');
+          Log.warning('⚠️ [INITIAL_SETUP] Navigator.pop失敗: $navError');
         }
       }
 
-      // エラーメッセージ（失敗しても無視）
-      try {
-        if (context.mounted) {
-          SnackBarHelper.showCustom(
-            context,
-            message: 'グループ作成に失敗しました: ${e.toString()}',
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          );
-        }
-      } catch (snackError) {
-        Log.warning('⚠️ [INITIAL_SETUP] SnackBar表示失敗（無視）: $snackError');
+      // エラーメッセージ
+      if (context.mounted) {
+        SnackBarHelper.showCustom(
+          context,
+          message: 'グループ作成に失敗しました: ${e.toString()}',
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        );
       }
     }
   }

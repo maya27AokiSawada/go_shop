@@ -13,7 +13,7 @@ import '../pages/group_member_management_page.dart';
 import '../services/user_initialization_service.dart';
 import '../services/notification_service.dart';
 import '../providers/auth_provider.dart';
-import 'initial_setup_widget.dart'; // 🆕 初回セットアップ画面
+// 🔥 REMOVED: import 'initial_setup_widget.dart'; グループページ内にメッセージ表示に変更
 
 /// グループをリスト表示するウィジェット
 /// タップでメンバー管理画面に遷移
@@ -135,9 +135,32 @@ class GroupListWidget extends ConsumerWidget {
       List<SharedGroup> groups, String selectedGroupId) {
     AppLogger.info('📋 [GROUP_LIST] グループ数: ${groups.length}');
 
-    // 🆕 グループが0個の場合は初回セットアップ画面を表示
+    // 🔥 FIX: グループが0個の場合はシンプルなメッセージを表示
+    // （右下のFloatingActionButtonでグループ作成可能）
     if (groups.isEmpty) {
-      return const InitialSetupWidget();
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.group_add, size: 80, color: Colors.blue.shade200),
+              const SizedBox(height: 24),
+              const Text(
+                '最初のグループを作成するか\nQRコードをスキャンして参加してください',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                '右下の ＋ ボタンからグループを作成できます',
+                style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     return ListView.builder(

@@ -12,10 +12,9 @@ class PageIndexNotifier extends StateNotifier<int> {
   }
 }
 
-// StateNotifierProvider.autoDispose を使用して、
-// リソースが不要になったら自動的に破棄されるようにします。
-final pageIndexProvider =
-    StateNotifierProvider.autoDispose<PageIndexNotifier, int>(
+// 🔥 FIX: autoDisposeを削除（アプリ全体で常に使用されるプロバイダーのため）
+// StateNotifierProvider を使用して、アプリライフサイクル全体で保持します。
+final pageIndexProvider = StateNotifierProvider<PageIndexNotifier, int>(
   (ref) {
     // StateNotifier のインスタンスを返します。
     return PageIndexNotifier();

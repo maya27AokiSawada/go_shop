@@ -546,28 +546,11 @@ class _GroupCreationWithCopyDialogState
       await ref.read(allGroupsProvider.notifier).createNewGroup(groupName);
       AppLogger.info('✅ [CREATE GROUP DIALOG] createNewGroup() 完了');
 
-      // 🔥 CRITICAL: グループ作成後、すぐにallGroupsProviderを無効化してFirestoreから再取得
-      // これにより_addMembersToNewGroup()で新しいグループが確実に見つかる
-      AppLogger.info('🔄 [CREATE GROUP DIALOG] allGroupsProviderを無効化（メンバー追加前）');
-      ref.invalidate(allGroupsProvider);
-
-      // 🆕 allGroupsProviderの再構築完了を待機（タイムアウト付き）
-      AppLogger.info('⏳ [CREATE GROUP DIALOG] allGroupsProvider更新待機中...');
-      try {
-        await ref.read(allGroupsProvider.future).timeout(
-          const Duration(seconds: 5),
-          onTimeout: () {
-            AppLogger.warning(
-                '⏱️ [CREATE GROUP DIALOG] allGroupsProvider更新タイムアウト（5秒）');
-            return []; // 空リストを返して処理を続行
-          },
-        );
-        AppLogger.info('✅ [CREATE GROUP DIALOG] allGroupsProvider更新完了');
-      } catch (e) {
-        AppLogger.warning(
-            '⚠️ [CREATE GROUP DIALOG] allGroupsProvider更新エラー: $e');
-        // エラーでも続行（Firestoreには保存済み）
-      }
+      // 🔥 FIX: invalidate()を削除（createNewGroup()内で状態を直接更新済み）
+      // グループ0→1遷移時のinvalidate()による競合を回避
+      // 少し待機してUIが安定するのを待つ
+      await Future.delayed(const Duration(milliseconds: 300));
+      AppLogger.info('✅ [CREATE GROUP DIALOG] UI安定化待機完了');
 
       // 🔥 FIX: メンバーコピーがある場合、プロバイダー更新後にメンバーを追加
       // この時点で新しいグループがallGroupsProviderに含まれている
@@ -579,21 +562,12 @@ class _GroupCreationWithCopyDialogState
             '✅ [CREATE GROUP DIALOG] メンバー追加完了（グループID: ${AppLogger.maskGroupId(newGroupId, currentUserId: ref.read(authStateProvider).value?.uid)}）');
       }
 
-      // 🔥 CRITICAL: メンバー追加後、プロバイダーを無効化（ダイアログを閉じる前）
+      // 🔥 FIX: invalidate()を削除（メンバー追加は_addMembersToNewGroup内で完了）
+      // メンバー追加後も状態は自動的に更新される
       if (hasMembersToAdd) {
-        AppLogger.info('🔄 [CREATE GROUP DIALOG] プロバイダー無効化開始（メンバー追加後）');
-        ref.invalidate(allGroupsProvider);
-        ref.invalidate(selectedGroupNotifierProvider);
-
-        // プロバイダー更新完了を待機
-        try {
-          await ref.read(allGroupsProvider.future).timeout(
-                const Duration(seconds: 3),
-              );
-          AppLogger.info('✅ [CREATE GROUP DIALOG] プロバイダー更新完了');
-        } catch (e) {
-          AppLogger.warning('⚠️ [CREATE GROUP DIALOG] プロバイダー更新エラー: $e');
-        }
+        // UI安定化のため少し待機
+        await Future.delayed(const Duration(milliseconds: 300));
+        AppLogger.info('✅ [CREATE GROUP DIALOG] メンバー追加後のUI安定化完了');
       }
 
       // 🔥 FIX: メンバーコピーは新グループ作成時に追加済み（_addSelectedMembersは削除）
@@ -603,7 +577,7 @@ class _GroupCreationWithCopyDialogState
 
         // 🔥 CRITICAL: Widget dispose前にrefを使用してサービス・ユーザー情報を取得
         final notificationService = ref.read(notificationServiceProvider);
-        final authState = ref.watch(authStateProvider);
+        final authState = ref.read(authStateProvider);
         final currentUser = authState.value;
         final senderName = currentUser?.displayName ?? 'ユーザー';
 

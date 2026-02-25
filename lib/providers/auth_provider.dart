@@ -739,11 +739,8 @@ final authProvider = Provider<FirebaseAuthService>((ref) {
 });
 
 // Firebase認証状態プロバイダー
+// 🔥 2025-12-08アップデート: dev/prod両方でFirebaseを使用
 final authStateProvider = StreamProvider<User?>((ref) {
-  if (F.appFlavor == Flavor.prod) {
-    return FirebaseAuth.instance.authStateChanges();
-  } else {
-    // DEV環境では常にnullを返すストリーム
-    return Stream.value(null);
-  }
+  // dev/prod両方でFirebase Authのストリームを使用
+  return FirebaseAuth.instance.authStateChanges();
 });

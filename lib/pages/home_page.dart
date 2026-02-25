@@ -311,6 +311,15 @@ class _HomePageState extends ConsumerState<HomePage> {
       await Future.delayed(const Duration(milliseconds: 500));
       AppLogger.info('🔄 [SIGNIN] allGroupsProvider再読み込み完了');
 
+      // 🔥 NEW: グループが0個の場合は自動的にグループページ（タブ1）に遷移
+      final allGroups = await ref.read(allGroupsProvider.future);
+      if (allGroups.isEmpty) {
+        AppLogger.info('📋 [SIGNIN] グループ0個 → グループページ（タブ1）に遷移');
+        ProviderScope.containerOf(context)
+            .read(pageIndexProvider.notifier)
+            .setPageIndex(1);
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

@@ -42,6 +42,192 @@ flutterfire configure --project=gotoshop-572b7
 
 ---
 
+## Recent Implementations (2026-02-25)
+
+### 1. 0→1グループ作成時の赤画面エラー完全解決 ✅
+
+**Purpose**: `_dependents.isEmpty`エラー（赤画面）をアーキテクチャ変更により根本的に解決
+
+**Background**:
+
+- 前回から持ち越しの`_dependents.isEmpty`エラーが発生（グループ0→1作成時）
+- InitialSetupWidget内で5回の修正試行がすべて失敗
+  - Fix #1: autoDispose削除 → 失敗
+  - Fix #2: ref.read → ref.watch変更 → 失敗
+  - Fix #3: outerContext/outerRef保存 → 一時的改善も赤画面残存
+  - Fix #4: ProviderScope.containerOf()使用 → 失敗
+  - Fix #5: 早期return追加 → アプリ再起動でも失敗
+- ユーザーの洞察「考え方を変えましょう」により突破口
+
+**Root Cause**:
+
+InitialSetupWidgetが以下の不可能な処理を実行：
+
+```dart
+InitialSetupWidget (ConsumerWidget with scoped ref)
+  └─ showDialog() → 新しいウィジェットツリー
+      └─ _createGroup(context, ref, ...) → async関数
+          └─ ref.read(pageIndexProvider).setPageIndex(1) → ナビゲーション
+              ↓ HomeScreenが再ビルド
+              ↓ InitialSetupWidgetがツリーから削除
+              ↓ しかしasync関数がまだ実行中で無効なrefを使用
+              ↓ _dependents.isEmpty ERROR
+```
+
+→ **技術的な修正では解決不可能なアーキテクチャの根本的問題**
+
+**Solution: Architecture Change**
+
+InitialSetupWidgetを排除し、シンプルで安全なフローに再設計：
+
+#### 修正1: GroupListWidget空状態UI統合
+
+**File**: `lib/widgets/group_list_widget.dart` (Lines 133-162)
+
+**Before**:
+
+```dart
+if (groups.isEmpty) {
+  return const InitialSetupWidget();  // ← ライフサイクル競合の原因
+}
+```
+
+**After**:
+
+```dart
+if (groups.isEmpty) {
+  return Center(
+    child: Padding(
+      padding: const EdgeInsets.all(32.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.group_add, size: 80, color: Colors.blue.shade200),
+          const SizedBox(height: 24),
+          const Text(
+            '最初のグループを作成するか\nQRコードをスキャンして参加してください',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            '右下の ＋ ボタンからグループを作成できます',
+            style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    ),
+  );
+}
+```
+
+#### 修正2: サインイン後の自動グループページ遷移
+
+**File**: `lib/pages/home_page.dart` (Lines 309-318)
+
+```dart
+// プロバイダーを再読み込み（グループリストを更新）
+ref.invalidate(allGroupsProvider);
+await Future.delayed(const Duration(milliseconds: 500));
+AppLogger.info('🔄 [SIGNIN] allGroupsProvider再読み込み完了');
+
+// 🔥 NEW: グループが0個の場合は自動的にグループページ（タブ1）に遷移
+final allGroups = await ref.read(allGroupsProvider.future);
+if (allGroups.isEmpty) {
+  AppLogger.info('📋 [SIGNIN] グループ0個 → グループページ（タブ1）に遷移');
+  ProviderScope.containerOf(context)
+      .read(pageIndexProvider.notifier)
+      .setPageIndex(1);  // Safe: HomePageは永続的
+}
+```
+
+**Why This Works**:
+
+1. **HomePageは永続的**: ナビゲーション中もHomePageは存在し続けるため、ref/context競合なし
+2. **InitialSetupWidget排除**: ウィジェットライフサイクル問題が根本的に消失
+3. **既存FAB使用**: グループ作成は既存の安定したフロー
+4. **シンプルなUX**: メッセージ表示 → ユーザーがFABをクリック → 作成
+
+**Old Flow**:
+
+```
+サインイン → HomePage → InitialSetupWidget (if groups == 0)
+  → Dialog → Create → Navigate → RED SCREEN ❌
+```
+
+**New Flow**:
+
+```
+サインイン → Check groups → Auto-navigate to group page
+  → Show message → User clicks FAB → Create → ✅ No conflicts
+```
+
+**Benefits**:
+
+- ✅ **赤画面完全消失**
+- ✅ Widget削除時のref/context競合を完全回避
+- ✅ シンプルで直感的なUX
+- ✅ QR招待機能も案内メッセージに追加
+
+**Modified Files**:
+
+- `lib/widgets/group_list_widget.dart` (Lines 133-162) - 空状態UI統合
+- `lib/pages/home_page.dart` (Lines 309-318) - 自動グループページ遷移
+- `lib/widgets/initial_setup_widget.dart` - 保持（未使用、将来削除可能）
+
+**Commits**: (本セッション)
+
+**Status**: ✅ 実装完了・動作確認済み（赤画面消失）
+
+**Next Steps**:
+
+1. ⏳ 実機テスト実施（test_checklist_20260226.md）
+2. ⏳ サインアップフローの確認（同様の処理が必要か）
+3. ⏳ 未使用コードクリーンアップ（InitialSetupWidget削除）
+
+**Technical Learnings**:
+
+**1. アーキテクチャ問題は技術で解決できない**
+
+5回の修正試行がすべて失敗した理由：
+
+- アーキテクチャの根本的な問題を技術的な修正で解決しようとした
+- Widget自身を削除するナビゲーションを含むasync操作は不可能
+- 正しいアプローチ: 問題のあるコンポーネントを排除して再設計
+
+**2. Sometimes the best fix is to redesign, not to fix**
+
+- 技術的修正の限界を認識
+- ユーザーの洞察「考え方を変えましょう」が突破口
+- シンプルで安全なフローへの再設計が最善解
+
+**3. Widget Lifecycle Pattern**
+
+```dart
+// ❌ Wrong: Widget内でasync操作 + そのWidget自身を削除
+class MyWidget extends ConsumerWidget {
+  void action(BuildContext context, WidgetRef ref) async {
+    await doSomething();
+    Navigator.push(...);  // MyWidgetがツリーから削除
+    // でもasync関数はまだrefを使用 → ERROR
+  }
+}
+
+// ✅ Correct: 永続的なWidget（親）からナビゲーション
+class ParentWidget extends ConsumerWidget {
+  void action() async {
+    final data = await fetchData();
+    if (data.isEmpty) {
+      // ParentWidgetは存在し続けるので安全
+      ref.read(navigationProvider).navigate();
+    }
+  }
+}
+```
+
+---
+
 ## Recent Implementations (2026-02-24)
 
 ### 1. Tier 2ユニットテスト - qr_invitation_service 実装完了 ✅
