@@ -436,7 +436,7 @@ class _GroupCreationWithCopyDialogState
     }
 
     // 🔥 FIX: 現在のユーザーを取得して除外対象にする
-    final authState = ref.read(authStateProvider);
+    final authState = ref.watch(authStateProvider);
     final currentUser = authState.value;
 
     final members = _selectedSourceGroup!.members;
@@ -603,7 +603,7 @@ class _GroupCreationWithCopyDialogState
 
         // 🔥 CRITICAL: Widget dispose前にrefを使用してサービス・ユーザー情報を取得
         final notificationService = ref.read(notificationServiceProvider);
-        final authState = ref.read(authStateProvider);
+        final authState = ref.watch(authStateProvider);
         final currentUser = authState.value;
         final senderName = currentUser?.displayName ?? 'ユーザー';
 
@@ -677,7 +677,7 @@ class _GroupCreationWithCopyDialogState
         return null;
       }
 
-      final authState = ref.read(authStateProvider);
+      final authState = ref.watch(authStateProvider);
       final currentUser = authState.value;
       if (currentUser == null) {
         AppLogger.warning('⚠️ [ADD MEMBERS TO NEW GROUP] currentUserがnull');
@@ -685,7 +685,7 @@ class _GroupCreationWithCopyDialogState
       }
 
       // 新規作成したグループを取得
-      final allGroupsAsync = ref.read(allGroupsProvider);
+      final allGroupsAsync = ref.watch(allGroupsProvider);
       final allGroups = await allGroupsAsync.when(
         data: (groups) async => groups,
         loading: () async => <SharedGroup>[],
