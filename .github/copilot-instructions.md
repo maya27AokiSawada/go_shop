@@ -3938,10 +3938,36 @@ void main() async {
 
 1. **Property Naming**: Always use `memberId`, never `memberID`
 2. **Null Safety**: Guard against `SharedGroup.members` being null
-3. **Hive Box Access**: Ensure Boxes are opened in `_initializeHive()` before use
-4. **Riverpod Generator**: DO NOT use - causes build failures
-5. **Data Operations**: Always use differential sync methods for SharedItem operations (see below)
-6. **HiveType TypeID Conflicts**: Always check existing typeIDs before assigning new ones
+3. **Hive Box Access**: Always check `Hive.isBoxOpen()` before accessing boxes in lifecycle-sensitive code (startup, logout, etc.)
+
+   ```dart
+   // ❌ Wrong: Assumes BOX is always open
+   final box = ref.read(boxProvider);
+   await box.clear();
+
+   // ✅ Correct: Check BOX existence first
+   if (Hive.isBoxOpen('boxName')) {
+     final box = Hive.box<T>('boxName');
+     await box.clear();
+   } else {
+     AppLogger.info('ℹ️ BOX is not open');
+   }
+   ```
+
+4. **Platform-Specific Behavior (iOS vs Android)**: iOS requires explicit `ref.invalidate()` after state changes, even when using direct state assignment
+
+   ```dart
+   // After creating new data
+   await repository.create(newData);
+
+   // Android: Works with just state update
+   // iOS: Requires explicit invalidate
+   ref.invalidate(dataProvider);  // ← Required for iOS
+   ```
+
+5. **Riverpod Generator**: DO NOT use - causes build failures
+6. **Data Operations**: Always use differential sync methods for SharedItem operations (see below)
+7. **HiveType TypeID Conflicts**: Always check existing typeIDs before assigning new ones
    - Use `grep_search` with pattern `@HiveType\(typeId:\s*\d+\)` to find all existing IDs
    - Refer to the TypeID list above to avoid conflicts
    - Example: typeId 12 is used by `ListType`, whiteboard models use 15-17
