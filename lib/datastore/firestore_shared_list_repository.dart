@@ -54,24 +54,8 @@ class FirestoreSharedListRepository implements SharedListRepository {
       developer.log(
           '🆕 Firestoreに新規リスト作成: ${newList.listName} (ID: ${newList.listId})');
 
-      // リスト作成通知を送信
-      try {
-        final currentUser = _ref.read(authStateProvider).value;
-        final creatorName = currentUser?.displayName ??
-            await UserPreferencesService.getUserName() ??
-            'ユーザー';
-
-        await _ref
-            .read(notificationServiceProvider)
-            .sendListCreatedNotification(
-              groupId: groupId,
-              listId: newList.listId,
-              listName: listName,
-              creatorName: creatorName,
-            );
-      } catch (e) {
-        developer.log('⚠️ リスト作成通知送信エラー: $e');
-      }
+      // 🔥 リスト作成通知を非同期で送信（UIをブロックしない）
+      _sendListCreatedNotificationAsync(groupId, newList.listId, listName);
 
       return newList;
     } on FirebaseException catch (e) {
@@ -151,28 +135,13 @@ class FirestoreSharedListRepository implements SharedListRepository {
             .doc(list.listId)
             .set(_sharedListToFirestore(list));
       });
-      developer.log('💾 Firestoreでリスト更新: ${list.listName} (ID: ${list.listId})');
+      developer
+          .log('💾 Firestoreでリスト更新: ${list.listName} (ID: ${list.listId})');
 
-      // リスト名が変更された場合、通知を送信
+      // 🔥 リスト名が変更された場合、通知を非同期で送信（UIをブロックしない）
       if (oldListName != null && oldListName != list.listName) {
-        try {
-          final currentUser = _ref.read(authStateProvider).value;
-          final renamerName = currentUser?.displayName ??
-              await UserPreferencesService.getUserName() ??
-              'ユーザー';
-
-          await _ref
-              .read(notificationServiceProvider)
-              .sendListRenamedNotification(
-                groupId: list.groupId,
-                listId: list.listId,
-                oldName: oldListName,
-                newName: list.listName,
-                renamerName: renamerName,
-              );
-        } catch (e) {
-          developer.log('⚠️ リスト名変更通知送信エラー: $e');
-        }
+        _sendListRenamedNotificationAsync(
+            list.groupId, list.listId, oldListName, list.listName);
       }
     } on FirebaseException catch (e) {
       developer.log('❌ Firestoreへのリスト更新失敗: ${e.code} - ${e.message}');
@@ -210,28 +179,13 @@ class FirestoreSharedListRepository implements SharedListRepository {
       await Future.microtask(() async {
         await _collection(groupId).doc(listId).delete();
       });
-      developer.log('🗑️ Firestoreからリスト削除 (groupId: $groupId, listId: $listId)');
+      developer
+          .log('🗑️ Firestoreからリスト削除 (groupId: $groupId, listId: $listId)');
 
-      // リスト削除通知を送信
+      // 🔥 リスト削除通知を非同期で送信（UIをブロックしない）
       if (listName != null) {
-        try {
-          final currentUser = _ref.read(authStateProvider).value;
-          final deleterName = currentUser?.displayName ??
-              await UserPreferencesService.getUserName() ??
-              'ユーザー';
-
-          await _ref
-            .read(notificationServiceProvider)
-            .sendListDeletedNotification(
-              groupId: groupId,
-              listId: listId,
-              listName: listName,
-              deleterName: deleterName,
-            );
-      } catch (e) {
-        developer.log('⚠️ リスト削除通知送信エラー: $e');
+        _sendListDeletedNotificationAsync(groupId, listId, listName);
       }
-    }
     } on FirebaseException catch (e) {
       developer.log('❌ Firestoreからのリスト削除失敗: ${e.code} - ${e.message}');
       await ErrorLogService.logOperationError(
@@ -309,6 +263,82 @@ class FirestoreSharedListRepository implements SharedListRepository {
       developer.log(
           '✅ Firestoreでアイテムステータス更新: ${item.name} → ${isPurchased ? "購入済み" : "未購入"}');
     }
+  }
+
+  /// 🔥 リスト作成通知を非同期で送信（UIをブロックしない）
+  void _sendListCreatedNotificationAsync(
+      String groupId, String listId, String listName) {
+    Future(() async {
+      try {
+        final currentUser = _ref.read(authStateProvider).value;
+        final creatorName = currentUser?.displayName ??
+            await UserPreferencesService.getUserName() ??
+            'ユーザー';
+
+        await _ref
+            .read(notificationServiceProvider)
+            .sendListCreatedNotification(
+              groupId: groupId,
+              listId: listId,
+              listName: listName,
+              creatorName: creatorName,
+            );
+        developer.log('✅ リスト作成通知送信完了: $listName');
+      } catch (e) {
+        developer.log('⚠️ リスト作成通知送信エラー: $e');
+      }
+    });
+  }
+
+  /// 🔥 リスト名前変更通知を非同期で送信（UIをブロックしない）
+  void _sendListRenamedNotificationAsync(
+      String groupId, String listId, String oldName, String newName) {
+    Future(() async {
+      try {
+        final currentUser = _ref.read(authStateProvider).value;
+        final renamerName = currentUser?.displayName ??
+            await UserPreferencesService.getUserName() ??
+            'ユーザー';
+
+        await _ref
+            .read(notificationServiceProvider)
+            .sendListRenamedNotification(
+              groupId: groupId,
+              listId: listId,
+              oldName: oldName,
+              newName: newName,
+              renamerName: renamerName,
+            );
+        developer.log('✅ リスト名前変更通知送信完了: $oldName → $newName');
+      } catch (e) {
+        developer.log('⚠️ リスト名前変更通知送信エラー: $e');
+      }
+    });
+  }
+
+  /// 🔥 リスト削除通知を非同期で送信（UIをブロックしない）
+  void _sendListDeletedNotificationAsync(
+      String groupId, String listId, String listName) {
+    Future(() async {
+      try {
+        final currentUser = _ref.read(authStateProvider).value;
+        final deleterName = currentUser?.displayName ??
+            await UserPreferencesService.getUserName() ??
+            'ユーザー';
+
+        await _ref
+            .read(notificationServiceProvider)
+            .sendListDeletedNotification(
+              groupId: groupId,
+              listId: listId,
+              listName: listName,
+              deleterName: deleterName,
+            );
+        developer.log('✅ リスト削除通知送信完了: $listName');
+      } catch (e) {
+        developer.log('⚠️ リスト削除通知送信エラー: $e');
+      }
+    });
   }
 
   // --- Helper ---
