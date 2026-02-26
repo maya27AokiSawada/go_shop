@@ -1,5 +1,125 @@
 # GoShopping - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-02-26)
+
+### 🔧 Flutter SDK & Package Maintenance ✅
+
+**Purpose**: Flutter SDK 3.41.2へのアップグレードと42パッケージの更新、およびbuild互換性問題の解決
+
+**Implementation Status**: 🟢 100% Complete - Build system stable
+
+**Background**:
+
+SDK安定性維持と最新機能対応のため、Flutter SDK と依存パッケージを更新：
+
+- Flutter SDK 3.41.1 → 3.41.2 アップグレード
+- 42パッケージの最新バージョンへの更新
+- shared_preferences_android 2.4.20 互換性問題の検出と解決
+
+**Critical Issue Resolved**:
+
+**Problem**: shared_preferences_android 2.4.20 で `SharedPreferencesPlugin` クラスが削除され、`GeneratedPluginRegistrant.java` のビルドが失敗
+
+```
+error: cannot find symbol
+import io.flutter.plugins.sharedpreferences.SharedPreferencesPlugin;
+                                        ^
+  symbol:   class SharedPreferencesPlugin
+  location: package io.flutter.plugins.sharedpreferences
+```
+
+**Root Cause**:
+
+- shared_preferences_android 2.4.19 → 2.4.20 で `SharedPreferencesPlugin` クラス削除
+- `LegacySharedPreferencesPlugin` のみ残存
+- Flutter SDKのプラグイン登録生成器が旧クラス名を参照
+- 通常のキャッシュクリア（`flutter clean`, `gradlew clean`）では不十分
+
+**Solution Implemented**:
+
+1. **Platform-specific version pinning** in `pubspec.yaml`:
+
+   ```yaml
+   dependency_overrides:
+     shared_preferences_android: 2.4.17 # 2.4.20互換性問題のため
+   ```
+
+2. **Delete generated files**:
+
+   ```bash
+   rm -rf android/app/build/generated
+   ```
+
+3. **Full rebuild** to regenerate plugin registration:
+   ```bash
+   flutter build apk --debug --flavor prod
+   ```
+
+**Result**: ✅ Build succeeded in 244.8 seconds
+
+**Modified Files**:
+
+- `pubspec.yaml` - shared_preferences_android: 2.4.17 version constraint added
+- `pubspec.lock` - 42 packages updated, shared_preferences_android downgraded to 2.4.17
+- `lib/services/qr_invitation_service.dart` - QR v3.1 version preservation (line 269)
+- `lib/widgets/shopping_list_header_widget.dart` - Log.error() argument order fix (line 415)
+
+**Package Updates Summary**:
+
+**Firebase Suite**:
+
+- firebase_auth: 5.4.0 → 5.4.1
+- firebase_core: 4.1.1 → 4.1.2
+- Other Firebase packages updated
+
+**Major packages**:
+
+- mobile_scanner: 5.2.3 → 6.0.2
+- image: 4.2.0 → 4.3.0
+- webview_flutter: 4.10.0 → 4.10.1
+- And 39+ other packages
+
+**Technical Learnings**:
+
+1. **Plugin Compatibility Management**:
+   - Minor version updates can introduce breaking API changes
+   - Platform-specific version pinning isolates compatibility issues
+   - Always run full build after `flutter pub upgrade`
+
+2. **GeneratedPluginRegistrant Regeneration**:
+   - Standard `flutter clean` insufficient for plugin registration
+   - Generated files persist across typical cache clearing
+   - Full build process required: `flutter build apk/ios/windows`
+   - Manual deletion of `build/generated` directory when needed
+
+3. **Downgrade Best Practices**:
+   - Use `dependency_overrides` for temporary fixes
+   - Document reason in inline comment
+   - Monitor upstream package for permanent fix
+   - Report issue to package maintainers
+
+**Known Issues**:
+
+- shared_preferences_android 2.4.18+ incompatible with current Flutter SDK
+- 42 packages with breaking changes available but not applied
+- Monitor Flutter SDK updates for API compatibility fix
+
+**Next Steps**:
+
+1. ⏳ Tier 3 ユニットテスト開始 (non-Firebase services)
+2. ⏳ 残り42パッケージの破壊的変更を評価
+3. ⏳ Pixel 9での赤画面修正動作確認
+
+**Commits**:
+
+- `a0cbb96` - QR version preservation + Log.error fix
+- `8f07656` - .gitignore debug_info + copilot instructions formatting
+- `6954b88` - network_issues.md table formatting
+- `bf76a66` - Flutter SDK 3.41.2 upgrade + 42 package updates
+- `8e3938a` - shared_preferences_android 2.4.17 downgrade fix
+
+---
+
 ## Recent Implementations (2026-02-25)
 
 ### 🎉 0→1グループ作成の赤画面エラー完全解決 ✅

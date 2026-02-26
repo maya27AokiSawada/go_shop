@@ -42,6 +42,191 @@ flutterfire configure --project=gotoshop-572b7
 
 ---
 
+## Recent Implementations (2026-02-26)
+
+### Flutter SDK & Package Updates with Plugin Compatibility Resolution ✅
+
+**Purpose**: Maintain SDK stability and resolve shared_preferences_android 2.4.20 compatibility issue
+
+**Background**:
+
+Routine maintenance escalated into plugin compatibility troubleshooting:
+
+- Flutter SDK 3.41.1 → 3.41.2 upgrade
+- 42 packages updated via `flutter pub upgrade`
+- Build failure: `SharedPreferencesPlugin` class not found in GeneratedPluginRegistrant.java
+
+**Critical Issue**:
+
+**shared_preferences_android 2.4.20 Breaking Change**:
+
+```java
+// 2.4.19 (Working)
+package io.flutter.plugins.sharedpreferences;
+public class SharedPreferencesPlugin { ... }  // ← Existed
+
+// 2.4.20 (Breaking)
+package io.flutter.plugins.sharedpreferences;
+public class LegacySharedPreferencesPlugin { ... }  // ← Renamed
+// SharedPreferencesPlugin REMOVED
+```
+
+**Flutter SDK Issue**:
+
+- `GeneratedPluginRegistrant.java` still references `SharedPreferencesPlugin`
+- Plugin registration generator not updated for 2.4.20 API change
+- Standard cache clearing (`flutter clean`, `gradlew clean`) insufficient
+
+**Solution Pattern**:
+
+```yaml
+# pubspec.yaml
+dependency_overrides:
+  shared_preferences_android: 2.4.17 # 2.4.20互換性問題のため（SharedPreferencesPlugin削除）
+```
+
+```bash
+# Terminal commands
+rm -rf android/app/build/generated  # Force plugin registration regeneration
+flutter build apk --debug --flavor prod  # Full rebuild (244.8s)
+```
+
+**Technical Implementation**:
+
+**Files Modified**:
+
+- `lib/services/qr_invitation_service.dart` (Line 269): QR v3.1 version preservation
+- `lib/widgets/shopping_list_header_widget.dart` (Line 415): Log.error() argument order fix
+- `pubspec.yaml`: shared_preferences_android: 2.4.17 constraint added
+- `pubspec.lock`: 42 packages updated, shared_preferences_android downgraded
+
+**Package Update Summary**:
+
+- **Firebase**: firebase_auth 5.4.1, firebase_core 4.1.2, others updated
+- **Major packages**: mobile_scanner 6.0.2, image 4.3.0, webview_flutter 4.10.1
+- **Total**: 42 packages upgraded (excluding breaking changes)
+
+**Critical Patterns for AI Agents**:
+
+#### 1. Plugin Compatibility Issue Detection
+
+```dart
+// Error pattern in GeneratedPluginRegistrant.java
+error: cannot find symbol
+import io.flutter.plugins.PACKAGE_NAME.CLASS_NAME;
+                                      ^
+```
+
+**Diagnosis Steps**:
+
+1. Check package source code in `.pub-cache` for class existence
+2. Compare current version with previous version file structure
+3. Search package changelog/commits for API changes
+4. Identify if class renamed/removed between versions
+
+#### 2. Platform-Specific Version Pinning
+
+```yaml
+# ✅ Correct: Pin specific platform implementation
+dependency_overrides:
+  shared_preferences_android: 2.4.17 # Specific Android issue
+  # Keep shared_preferences (parent) updated
+
+# ❌ Wrong: Downgrade parent package (affects all platforms)
+dependencies:
+  shared_preferences: ^2.0.0 # Downgrades iOS/Web/Windows unnecessarily
+```
+
+#### 3. GeneratedPluginRegistrant Regeneration
+
+**Standard clean operations (INSUFFICIENT)**:
+
+```bash
+flutter clean           # ❌ Doesn't regenerate plugin registration
+gradlew clean          # ❌ Doesn't regenerate plugin registration
+flutter pub get        # ❌ Doesn't regenerate plugin registration
+```
+
+**Effective regeneration (REQUIRED)**:
+
+```bash
+rm -rf android/app/build/generated  # Force delete
+flutter build apk      # Full build regenerates registration
+# OR
+flutter build ios      # For iOS
+flutter build windows  # For Windows
+```
+
+**Key Insight**: Plugin registration only regenerates during **full platform build**, not during `flutter run` or cache clearing.
+
+#### 4. Dependency Troubleshooting Workflow
+
+**Phase 1: Identify Breaking Change**
+
+1. Run `flutter pub upgrade`
+2. Build fails with "cannot find symbol" in generated code
+3. Locate failing class in error message
+4. Check package version in `pubspec.lock`
+
+**Phase 2: Investigate Package Source**
+
+1. Navigate to `.pub-cache/hosted/pub.dev/PACKAGE_NAME-VERSION/`
+2. Inspect source files for class existence
+3. Compare with previous working version
+4. Identify API change type (rename/removal/refactor)
+
+**Phase 3: Apply Targeted Fix**
+
+1. Add `dependency_overrides` with last working version
+2. Delete `build/generated` directory
+3. Run full platform build
+4. Verify build success
+5. Document reason in code comment
+
+**Phase 4: Long-term Resolution**
+
+1. Report issue to Flutter team (if SDK generator issue)
+2. Report issue to package maintainer (if package issue)
+3. Monitor upstream fix
+4. Remove override when compatible version available
+
+#### 5. Documentation Best Practices
+
+```yaml
+# ✅ Good: Reason documented inline
+dependency_overrides:
+  shared_preferences_android: 2.4.17  # 2.4.20互換性問題（SharedPreferencesPlugin削除）
+
+# ❌ Bad: No explanation
+dependency_overrides:
+  shared_preferences_android: 2.4.17
+```
+
+**Why This Matters**:
+
+- Future developers understand why override exists
+- Easy to identify when override can be removed
+- Prevents accidental removal before issue resolved
+
+**Commits**:
+
+- `a0cbb96` - feat: QR v3.1 version preservation, Log.error fix
+- `8f07656` - chore: .gitignore debug_info, copilot instructions format
+- `6954b88` - docs: network_issues.md table formatting
+- `bf76a66` - chore: Flutter SDK 3.41.2 + 42 package upgrades
+- `8e3938a` - fix: shared_preferences_android 2.4.17 downgrade for compatibility
+
+**Status**: ✅ 完了・ビルド安定化 | ⏳ upstream互換性修正待機中
+
+**Next Steps**:
+
+1. ⏳ Monitor shared_preferences_android updates for 2.4.18+ compatibility
+2. ⏳ Monitor Flutter SDK updates for plugin registration fix
+3. ⏳ Evaluate remaining 42 packages with breaking changes
+4. ⏳ Continue Tier 3 unit tests (non-Firebase services)
+
+---
+
 ## Recent Implementations (2026-02-25)
 
 ### 1. 0→1グループ作成時の赤画面エラー完全解決 ✅
