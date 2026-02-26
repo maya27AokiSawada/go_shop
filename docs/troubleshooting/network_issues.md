@@ -16,10 +16,10 @@
 
 ### 概要
 
-**ISP**: コミュファ光（CTC - Chubu Telecommunications Company）  
-**発生条件**: 5GHz WiFi帯を使用している場合  
-**症状**: リスト作成・グループ操作が極端に遅い（1-3秒以上）  
-**発見日**: 2026年2月26日  
+**ISP**: コミュファ光（CTC - Chubu Telecommunications Company）
+**発生条件**: 5GHz WiFi帯を使用している場合
+**症状**: リスト作成・グループ操作が極端に遅い（1-3秒以上）
+**発見日**: 2026年2月26日
 **確認デバイス**: Pixel 9
 
 ### 症状の詳細
@@ -36,14 +36,15 @@
 **Android logcatで確認できるエラー**:
 
 ```
-W Firestore: Caused by: java.net.UnknownHostException: Unable to resolve host "firestore.googleapis.com": 
+W Firestore: Caused by: java.net.UnknownHostException: Unable to resolve host "firestore.googleapis.com":
              No address associated with hostname
 
-W Firestore: Caused by: android.system.GaiException: android_getaddrinfo failed: EAI_NODATA 
+W Firestore: Caused by: android.system.GaiException: android_getaddrinfo failed: EAI_NODATA
              (No address associated with hostname)
 ```
 
 **エラーの意味**:
+
 - デバイスはWiFiに接続されている
 - しかし`firestore.googleapis.com`のDNS解決ができない
 - Firebase/Firestoreへの通信がタイムアウトする
@@ -60,6 +61,7 @@ W Firestore: Caused by: android.system.GaiException: android_getaddrinfo failed:
 **なぜ5GHz帯だけ問題が起きるのか**:
 
 多くのルーターでは、異なる周波数帯で以下が異なる場合があります：
+
 - DNSサーバー設定
 - IPv6の有効/無効
 - プライベートDNS設定
@@ -83,6 +85,7 @@ W Firestore: Caused by: android.system.GaiException: android_getaddrinfo failed:
 **確認方法**:
 
 リスト作成が0.1-0.3秒で完了することを確認。
+
 - 以前: 1-3秒以上
 - 修正後: 0.1-0.3秒 ✅
 
@@ -131,12 +134,12 @@ DNS解決が失敗します。
 
 ### パフォーマンス比較
 
-| 環境                         | リスト作成時間 | 体感速度 |
-| ---------------------------- | -------------- | -------- |
-| 5GHz WiFi（問題あり）       | 1-3秒以上      | 非常に遅い |
-| 5GHz WiFi + コード最適化後  | 依然として遅い | 遅い      |
-| 2.4GHz WiFi（修正後）       | 0.1-0.3秒      | ✅ 高速   |
-| モバイルデータ               | 0.2-0.5秒      | ✅ 高速   |
+| 環境                       | リスト作成時間 | 体感速度   |
+| -------------------------- | -------------- | ---------- |
+| 5GHz WiFi（問題あり）      | 1-3秒以上      | 非常に遅い |
+| 5GHz WiFi + コード最適化後 | 依然として遅い | 遅い       |
+| 2.4GHz WiFi（修正後）      | 0.1-0.3秒      | ✅ 高速    |
+| モバイルデータ             | 0.2-0.5秒      | ✅ 高速    |
 
 **改善率**: 10-30倍の高速化 ✅
 
@@ -148,6 +151,7 @@ DNS解決が失敗します。
 5GHz WiFiのDNS問題による遅延は依然として発生していました。
 
 **両方の修正が必要**:
+
 - ✅ コード最適化（通知の非同期化）
 - ✅ ネットワーク修正（2.4GHz WiFiへの切り替え）
 
@@ -206,6 +210,7 @@ DNS解決が失敗します。
 ### Android Debug Bridge (adb) によるログ確認
 
 **前提条件**:
+
 - PCにAndroid Studio（またはadbツール）がインストールされている
 - USBデバッグが有効
 - デバイスがPCに接続されている
@@ -226,8 +231,8 @@ adb -s <device-id> logcat -d | Select-String -Pattern "(firestore|permission|den
 #### 具体例: コミュファ光問題の発見
 
 ```bash
-adb -s adb-51040DLAQ001K0-JamWam._adb-tls-connect._tcp logcat -d | 
-Select-String -Pattern "(permission|denied|firestore|error)" | 
+adb -s adb-51040DLAQ001K0-JamWam._adb-tls-connect._tcp logcat -d |
+Select-String -Pattern "(permission|denied|firestore|error)" |
 Select-Object -Last 30
 ```
 
@@ -296,10 +301,10 @@ WiFi接続中？
 
 ### 既知の問題デバイス
 
-| デバイス  | Android | 問題           | 解決方法           | ステータス |
-| --------- | ------- | -------------- | ------------------ | ---------- |
-| TBA1011   | 15      | DNS解決失敗    | モバイルデータ使用 | 未解決     |
-| Pixel 9   | -       | コミュファ光5G | 2.4GHz WiFiに切替  | ✅ 解決済  |
+| デバイス | Android | 問題           | 解決方法           | ステータス |
+| -------- | ------- | -------------- | ------------------ | ---------- |
+| TBA1011  | 15      | DNS解決失敗    | モバイルデータ使用 | 未解決     |
+| Pixel 9  | -       | コミュファ光5G | 2.4GHz WiFiに切替  | ✅ 解決済  |
 
 ---
 

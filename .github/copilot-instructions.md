@@ -4619,12 +4619,14 @@ Future<void> _cleanupInvalidHiveGroups(
 **Error**: `UnknownHostException: Unable to resolve host "firestore.googleapis.com"`
 
 **Logcat Pattern**:
+
 ```
 W Firestore: Caused by: java.net.UnknownHostException: Unable to resolve host "firestore.googleapis.com"
 W Firestore: Caused by: android.system.GaiException: android_getaddrinfo failed: EAI_NODATA
 ```
 
 **Environment**:
+
 - **ISP**: コミュファ光 (Chubu Telecommunications Company)
 - **SSID Pattern**: Contains "ctc"
 - **Problem WiFi Band**: 5GHz
@@ -4632,11 +4634,13 @@ W Firestore: Caused by: android.system.GaiException: android_getaddrinfo failed:
 - **Verified Device**: Pixel 9 (February 26, 2026)
 
 **Root Cause**:
+
 - DNS resolution failure for Firebase domains on コミュファ光's 5GHz band
 - Likely related to router's DNS/IPv6 configuration on 5GHz band
 - 2.4GHz band uses different configuration and works correctly
 
 **Workarounds** (in priority order):
+
 1. ✅ **Switch to 2.4GHz WiFi band** - Confirmed working by user
 2. Use mobile data connection
 3. Try changing Private DNS settings (Auto → Off)
@@ -4645,6 +4649,7 @@ W Firestore: Caused by: android.system.GaiException: android_getaddrinfo failed:
 **User Confirmation**: "リスト作成自体は切り替えてOKだったんです" (List creation worked after switching to 2.4GHz)
 
 **Performance Impact**:
+
 - 5GHz band: 1-3+ seconds (DNS timeout)
 - 2.4GHz band: 0.1-0.3 seconds ✅
 - **Improvement**: 10-30x faster
