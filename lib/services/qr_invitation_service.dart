@@ -266,6 +266,8 @@ class QRInvitationService {
       }
 
       Log.info('✅ 招待詳細取得成功');
+      // 🔥 FIX: QRコードのバージョン"3.1"を保持（Firestoreの"3.0"で上書きしない）
+      invitationData['version'] = '3.1';
       return invitationData;
     } catch (e) {
       Log.error('❌ 招待詳細取得エラー: $e');

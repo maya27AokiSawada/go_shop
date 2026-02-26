@@ -412,7 +412,8 @@ class SharedListHeaderWidget extends ConsumerWidget {
                         if (!context.mounted) return;
                         SnackBarHelper.showSuccess(context, '「$name」を作成しました');
                       } catch (e, stackTrace) {
-                        Log.error('❌ リスト作成エラー: $e', stackTrace);
+                        // 🔥 FIX: Log.error()の正しい引数順序（message, error, stackTrace）
+                        Log.error('リスト作成エラー', e, stackTrace);
 
                         // エラー時は送信フラグをリセット
                         setDialogState(() {
