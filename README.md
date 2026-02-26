@@ -2942,9 +2942,10 @@ firebase deploy --only firestore:rules
 # allowedUid配列に現在ユーザーが含まれるか確認
 ```
 
-## Known Issues (As of 2026-02-10)
+## Known Issues (As of 2026-02-26)
 
 - **TBA1011 Firestore 接続問題**: 特定デバイスで`Unable to resolve host firestore.googleapis.com`エラー（モバイル通信で回避可能）
+- **コミュファ光 5GHz WiFi 接続問題**: コミュファ光ISPの5GHz帯でFirestore DNS解決エラーが発生（2.4GHz帯またはモバイルデータで回避可能） - 詳細は[トラブルシューティングガイド](docs/troubleshooting/network_issues.md)参照
 
 ## Recent Updates（2026 年 2 月 10 日）
 

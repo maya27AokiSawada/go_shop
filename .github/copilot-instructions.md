@@ -4584,7 +4584,7 @@ Future<void> _cleanupInvalidHiveGroups(
 
 **⚠️ CRITICAL**: Never delete from Firestore during cleanup - other users may still need those groups!
 
-## Known Issues (As of 2026-02-10)
+## Known Issues (As of 2026-02-26)
 
 ### 1. TBA1011 Firestore Sync Error (Unresolved) ⚠️
 
@@ -4607,6 +4607,53 @@ Future<void> _cleanupInvalidHiveGroups(
 - Firestore SDK timing issues
 
 **Workaround**: Use TBA1011 for local operations only, rely on other devices for Firestore sync
+
+---
+
+### 2. コミュファ光 5GHz WiFi Firestore Connection Error ⚠️
+
+**Symptom**: List creation takes 1-3+ seconds, extremely slow Firestore operations
+
+**Occurrence**: コミュファ光 (CTC - Chubu Telecommunications) ISP users on 5GHz WiFi band
+
+**Error**: `UnknownHostException: Unable to resolve host "firestore.googleapis.com"`
+
+**Logcat Pattern**:
+```
+W Firestore: Caused by: java.net.UnknownHostException: Unable to resolve host "firestore.googleapis.com"
+W Firestore: Caused by: android.system.GaiException: android_getaddrinfo failed: EAI_NODATA
+```
+
+**Environment**:
+- **ISP**: コミュファ光 (Chubu Telecommunications Company)
+- **SSID Pattern**: Contains "ctc"
+- **Problem WiFi Band**: 5GHz
+- **Working WiFi Band**: 2.4GHz
+- **Verified Device**: Pixel 9 (February 26, 2026)
+
+**Root Cause**:
+- DNS resolution failure for Firebase domains on コミュファ光's 5GHz band
+- Likely related to router's DNS/IPv6 configuration on 5GHz band
+- 2.4GHz band uses different configuration and works correctly
+
+**Workarounds** (in priority order):
+1. ✅ **Switch to 2.4GHz WiFi band** - Confirmed working by user
+2. Use mobile data connection
+3. Try changing Private DNS settings (Auto → Off)
+4. Contact ISP for 5GHz band DNS configuration support
+
+**User Confirmation**: "リスト作成自体は切り替えてOKだったんです" (List creation worked after switching to 2.4GHz)
+
+**Performance Impact**:
+- 5GHz band: 1-3+ seconds (DNS timeout)
+- 2.4GHz band: 0.1-0.3 seconds ✅
+- **Improvement**: 10-30x faster
+
+**Related Issues**: Similar to TBA1011 issue above, but コミュファ光 issue is ISP-specific and band-specific
+
+**Status**: ✅ Workaround confirmed effective - Switch to 2.4GHz WiFi
+
+**See Also**: [Network Troubleshooting Guide](../docs/troubleshooting/network_issues.md)
 
 ---
 
