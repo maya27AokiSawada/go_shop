@@ -87,6 +87,7 @@ flutter_*.png
 SH*.log.txt
 windows.log.txt
 build_*.log
+debug_info/
 
 # Zip archives
 *.zip
