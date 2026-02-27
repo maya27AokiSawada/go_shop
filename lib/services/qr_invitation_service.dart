@@ -132,13 +132,9 @@ class QRInvitationService {
       'version': '3.0', // セキュリティ強化版
     };
 
-    // Firestoreのサブコレクションに保存: SharedGroups/{groupId}/invitations/{invitationId}
-    await _firestore
-        .collection('SharedGroups')
-        .doc(sharedGroupId)
-        .collection('invitations')
-        .doc(invitationId)
-        .set({
+    // 🔥 FIX: Firestoreのサブコレクションに保存（permission-denied対策のリトライあり）
+    // SharedGroups/{groupId}/invitations/{invitationId}
+    final invitationDocData = {
       ...invitationData,
       'token': invitationId, // Invitationモデルのtokenフィールド用
       'groupId': sharedGroupId, // Invitationモデル用 (sharedGroupIdのエイリアス)
@@ -152,9 +148,33 @@ class QRInvitationService {
       'maxUses': 5, // 最大5人まで使用可能
       'currentUses': 0, // 初期値は0
       'usedBy': [], // 使用済みユーザーのUIDリスト
-    });
+    };
 
-    Log.info('🔐 招待データをFirestoreに保存: $invitationId');
+    try {
+      await _firestore
+          .collection('SharedGroups')
+          .doc(sharedGroupId)
+          .collection('invitations')
+          .doc(invitationId)
+          .set(invitationDocData);
+      Log.info('🔐 招待データをFirestoreに保存: $invitationId');
+    } catch (e) {
+      if (e.toString().contains('permission-denied')) {
+        Log.warning('⚠️ [INVITATION] 招待作成でpermission-denied、リトライします: $e');
+        // グループ作成直後の伝播遅延の可能性があるため、100ms待機してリトライ
+        await Future.delayed(const Duration(milliseconds: 100));
+        await _firestore
+            .collection('SharedGroups')
+            .doc(sharedGroupId)
+            .collection('invitations')
+            .doc(invitationId)
+            .set(invitationDocData);
+        Log.info('✅ [INVITATION] リトライ成功: $invitationId');
+      } else {
+        Log.error('❌ [INVITATION] 招待データ保存エラー: $e');
+        rethrow;
+      }
+    }
 
     return invitationData;
   }
