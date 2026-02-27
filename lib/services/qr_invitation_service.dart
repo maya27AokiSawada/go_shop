@@ -504,6 +504,8 @@ class QRInvitationService {
 
       Log.info(
           '📤 [ACCEPTOR] 通知データ: groupId=$groupId, groupName=$groupName, userName=$userName');
+      Log.info(
+          '📤 [ACCEPTOR] 通知送信開始 - targetUserId: ${AppLogger.maskUserId(inviterUid)}');
 
       await notificationService.sendNotification(
         targetUserId: inviterUid,
@@ -520,6 +522,29 @@ class QRInvitationService {
       );
 
       Log.info('✅ [ACCEPTOR] 通知送信完了 - 招待元の確認待ち');
+
+      // 🔥 FIX: 通知が実際にFirestoreに書き込まれたか検証（100ms待機後に確認）
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      try {
+        final recentNotifications = await _firestore
+            .collection('notifications')
+            .where('userId', isEqualTo: inviterUid)
+            .where('metadata.acceptorUid', isEqualTo: acceptorUid)
+            .orderBy('timestamp', descending: true)
+            .limit(1)
+            .get();
+
+        if (recentNotifications.docs.isNotEmpty) {
+          Log.info(
+              '✅ [ACCEPTOR] 通知Firestore書き込み確認済み - docId: ${recentNotifications.docs.first.id}');
+        } else {
+          Log.warning('⚠️ [ACCEPTOR] 通知Firestore書き込み未確認 - リトライが必要かもしれません');
+        }
+      } catch (verifyError) {
+        Log.warning('⚠️ [ACCEPTOR] 通知検証エラー（書き込みは成功した可能性あり）: $verifyError');
+      }
+
       Log.info('✅ 招待受諾処理完了 - 招待元がメンバー追加を実施します');
 
       return true;

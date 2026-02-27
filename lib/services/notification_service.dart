@@ -141,9 +141,23 @@ class NotificationService {
       (snapshot) {
         AppLogger.info(
             '🔔 [NOTIFICATION] スナップショット受信: ${snapshot.docChanges.length}件の変更');
+        AppLogger.info('🔔 [NOTIFICATION] 現在のドキュメント数: ${snapshot.docs.length}');
+
         for (var change in snapshot.docChanges) {
           AppLogger.info(
               '🔔 [NOTIFICATION] 変更タイプ: ${change.type}, docId: ${change.doc.id}');
+
+          // 🔥 FIX: ドキュメントの詳細情報をログ出力
+          final data = change.doc.data();
+          AppLogger.info('🔔 [NOTIFICATION] 通知データ詳細:');
+          AppLogger.info('   - type: ${data?['type']}');
+          AppLogger.info(
+              '   - userId: ${AppLogger.maskUserId(data?['userId'])}');
+          AppLogger.info(
+              '   - groupId: ${AppLogger.maskGroupId(data?['groupId'])}');
+          AppLogger.info('   - read: ${data?['read']}');
+          AppLogger.info('   - metadata: ${data?['metadata']}');
+
           if (change.type == DocumentChangeType.added) {
             final notification = NotificationData.fromFirestore(change.doc);
 
@@ -159,7 +173,9 @@ class NotificationService {
 
             AppLogger.info(
                 '🔔 [NOTIFICATION] 通知検出: type=${notification.type}, groupId=${notification.groupId}');
+            AppLogger.info('🔔 [NOTIFICATION] _handleNotification()を呼び出します...');
             _handleNotification(notification);
+            AppLogger.info('✅ [NOTIFICATION] _handleNotification()完了');
           }
         }
       },
@@ -197,6 +213,14 @@ class NotificationService {
       // 通知タイプによって処理を分岐
       switch (notification.type) {
         case NotificationType.groupMemberAdded:
+          // 🔥 FIX: 詳細なデバッグログを追加
+          AppLogger.info('========== groupMemberAdded 通知処理開始 ==========');
+          AppLogger.info(
+              '   - groupId: ${AppLogger.maskGroupId(notification.groupId)}');
+          AppLogger.info('   - metadata: ${notification.metadata}');
+          AppLogger.info(
+              '   - metadata.acceptorUid: ${notification.metadata?['acceptorUid']}');
+
           // metadataにacceptorUidがある場合は招待元、なければ既存メンバー
           if (notification.metadata?['acceptorUid'] != null) {
             // 招待元: 新メンバー追加処理
@@ -210,16 +234,28 @@ class NotificationService {
             final acceptorName =
                 notification.metadata?['acceptorName'] as String? ?? 'ユーザー';
 
+            AppLogger.info(
+                '   - acceptorUid: ${AppLogger.maskUserId(acceptorUid)}');
+            AppLogger.info(
+                '   - acceptorName: ${AppLogger.maskName(acceptorName)}');
+
             if (groupId.isNotEmpty && acceptorUid != null) {
+              AppLogger.info('👥 [NOTIFICATION] _addMemberToGroup()を呼び出します...');
               await _addMemberToGroup(groupId, acceptorUid, acceptorName);
+              AppLogger.info('✅ [NOTIFICATION] _addMemberToGroup()完了');
+
               final invitationId =
                   notification.metadata?['invitationId'] as String?;
               if (invitationId != null) {
+                AppLogger.info('📝 [NOTIFICATION] 招待使用回数更新: $invitationId');
                 await _updateInvitationUsage(
                     groupId: groupId,
                     invitationId: invitationId,
                     acceptorUid: acceptorUid);
+                AppLogger.info('✅ [NOTIFICATION] 招待使用回数更新完了');
               }
+
+              AppLogger.info('📤 [NOTIFICATION] 受諾者に確認通知を送信...');
               await sendNotification(
                   targetUserId: acceptorUid,
                   type: NotificationType.syncConfirmation,
@@ -229,17 +265,28 @@ class NotificationService {
                     'confirmedBy': currentUser.uid,
                     'groupName': notification.metadata?['groupName']
                   });
+              AppLogger.info('✅ [NOTIFICATION] 受諾者への確認通知送信完了');
+            } else {
+              AppLogger.error(
+                  '❌ [NOTIFICATION] groupIdまたはacceptorUidが無効: groupId=$groupId, acceptorUid=$acceptorUid');
             }
           } else {
             // 既存メンバー: 同期処理
             AppLogger.info('👥 [NOTIFICATION] 既存メンバーとして同期通知を受信！');
+            AppLogger.info(
+                '   - groupId: ${AppLogger.maskGroupId(notification.groupId)}');
+            AppLogger.info('� [NOTIFICATION] Firestore→Hive同期開始...');
             final userInitService =
                 _ref.read(userInitializationServiceProvider);
             await userInitService.syncFromFirestoreToHive(currentUser);
+            AppLogger.info('✅ [NOTIFICATION] Firestore→Hive同期完了');
           }
           // UI更新
+          AppLogger.info('🔄 [NOTIFICATION] プロバイダー無効化開始...');
           _ref.invalidate(allGroupsProvider);
           _ref.invalidate(selectedGroupProvider);
+          AppLogger.info('✅ [NOTIFICATION] プロバイダー無効化完了');
+          AppLogger.info('========== groupMemberAdded 通知処理完了 ==========');
           break;
 
         case NotificationType.invitationAccepted:

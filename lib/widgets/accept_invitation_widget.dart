@@ -355,6 +355,7 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
 
         if (confirmed == true && mounted) {
           // QR招待を受諾
+          Log.info('🔍 [ACCEPT] 招待受諾処理開始...');
           final qrService = ref.read(qrInvitationServiceProvider);
           final success = await qrService.acceptQRInvitation(
             invitationData: invitationData,
@@ -362,8 +363,14 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
             ref: ref,
           );
 
+          Log.info('🔍 [ACCEPT] 招待受諾結果: success=$success, mounted=$mounted');
+
           if (success && mounted) {
-            Navigator.of(context).pop(); // スキャナー画面を閉じる
+            // 🔥 FIX: rootNavigatorを使用してスキャナー画面を確実に閉じる
+            Log.info('🔍 [ACCEPT] スキャナー画面を閉じます...');
+            Navigator.of(context, rootNavigator: true).pop();
+            Log.info('✅ [ACCEPT] スキャナー画面を閉じました');
+
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Column(
