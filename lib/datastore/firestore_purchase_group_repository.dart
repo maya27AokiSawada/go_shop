@@ -361,8 +361,8 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
       allowedUid:
           List<String>.from(data['allowedUid'] ?? []), // 🔥 CRITICAL: これが抜けていた！
       members: membersList,
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
-      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
+      createdAt: _parseDateTime(data['createdAt']),
+      updatedAt: _parseDateTime(data['updatedAt']),
       isDeleted: data['isDeleted'] ?? false,
     );
   }
@@ -374,12 +374,44 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
       contact: data['contact'] ?? '',
       role: SharedGroupRole.values.firstWhere((e) => e.name == data['role'],
           orElse: () => SharedGroupRole.member),
-      invitedAt: (data['invitedAt'] as Timestamp?)?.toDate() ??
-          (data['joinedAt'] as Timestamp?)?.toDate() ??
-          DateTime.now(),
-      acceptedAt: (data['acceptedAt'] as Timestamp?)?.toDate() ??
-          (data['joinedAt'] as Timestamp?)?.toDate(),
+      invitedAt: _parseDateTime(data['invitedAt'] ?? data['joinedAt']),
+      acceptedAt:
+          _parseDateTimeNullable(data['acceptedAt'] ?? data['joinedAt']),
     );
+  }
+
+  /// Timestamp型またはString型をDateTime型に安全に変換する
+  DateTime _parseDateTime(dynamic value) {
+    if (value == null) return DateTime.now();
+    try {
+      if (value is Timestamp) {
+        return value.toDate();
+      } else if (value is String) {
+        return DateTime.parse(value);
+      } else {
+        developer.log('❌ [PARSE_DATETIME] Unknown type: ${value.runtimeType}');
+        return DateTime.now();
+      }
+    } catch (e) {
+      developer.log('❌ [PARSE_DATETIME] Error: $e');
+      return DateTime.now();
+    }
+  }
+
+  /// Timestamp型またはString型をnullableなDateTime型に安全に変換する
+  DateTime? _parseDateTimeNullable(dynamic value) {
+    if (value == null) return null;
+    try {
+      if (value is Timestamp) {
+        return value.toDate();
+      } else if (value is String) {
+        return DateTime.parse(value);
+      } else {
+        return null;
+      }
+    } catch (e) {
+      return null;
+    }
   }
 
   @override

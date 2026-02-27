@@ -258,13 +258,28 @@ class FirestoreSharedGroupAdapter implements SharedGroupRepository {
       groupName: data['groupName'] ?? '',
       ownerUid: data['ownerUid'] ?? '',
       members: _parseMembers(data['members'] ?? []),
-      createdAt: data['createdAt'] != null
-          ? (data['createdAt'] as Timestamp).toDate()
-          : DateTime.now(),
-      updatedAt: data['updatedAt'] != null
-          ? (data['updatedAt'] as Timestamp).toDate()
-          : DateTime.now(),
+      createdAt: _parseDateTime(data['createdAt']),
+      updatedAt: _parseDateTime(data['updatedAt']),
     );
+  }
+
+  /// 🔥 FIX: Timestamp/String両対応のDateTime変換
+  DateTime _parseDateTime(dynamic value) {
+    if (value == null) return DateTime.now();
+
+    try {
+      if (value is Timestamp) {
+        return value.toDate();
+      } else if (value is String) {
+        return DateTime.parse(value);
+      } else {
+        developer.log('⚠️ Unknown datetime type: ${value.runtimeType}');
+        return DateTime.now();
+      }
+    } catch (e) {
+      developer.log('❌ DateTime parse error: $e, value: $value');
+      return DateTime.now();
+    }
   }
 
   List<SharedGroupMember> _parseMembers(List<dynamic> membersData) {
@@ -275,16 +290,10 @@ class FirestoreSharedGroupAdapter implements SharedGroupRepository {
           name: memberData['displayName'] ?? memberData['name'] ?? '',
           contact: memberData['contact'] ?? '',
           role: _parseRole(memberData['role']),
-          invitedAt: memberData['invitedAt'] != null
-              ? (memberData['invitedAt'] as Timestamp).toDate()
-              : (memberData['joinedAt'] != null
-                  ? (memberData['joinedAt'] as Timestamp).toDate()
-                  : DateTime.now()),
-          acceptedAt: memberData['acceptedAt'] != null
-              ? (memberData['acceptedAt'] as Timestamp).toDate()
-              : (memberData['joinedAt'] != null
-                  ? (memberData['joinedAt'] as Timestamp).toDate()
-                  : null),
+          invitedAt:
+              _parseDateTime(memberData['invitedAt'] ?? memberData['joinedAt']),
+          acceptedAt: _parseDateTimeNullable(
+              memberData['acceptedAt'] ?? memberData['joinedAt']),
         );
       }
       return SharedGroupMember(
@@ -295,6 +304,25 @@ class FirestoreSharedGroupAdapter implements SharedGroupRepository {
         invitedAt: DateTime.now(),
       );
     }).toList();
+  }
+
+  /// 🔥 FIX: Nullable DateTime変換
+  DateTime? _parseDateTimeNullable(dynamic value) {
+    if (value == null) return null;
+
+    try {
+      if (value is Timestamp) {
+        return value.toDate();
+      } else if (value is String) {
+        return DateTime.parse(value);
+      } else {
+        developer.log('⚠️ Unknown datetime type: ${value.runtimeType}');
+        return null;
+      }
+    } catch (e) {
+      developer.log('❌ DateTime parse error: $e, value: $value');
+      return null;
+    }
   }
 
   Map<String, dynamic> _memberToMap(SharedGroupMember member) {
