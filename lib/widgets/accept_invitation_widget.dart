@@ -116,150 +116,159 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
     // プラットフォーム判定
     final isWindows = !kIsWeb && Platform.isWindows;
 
+    // 画面サイズ取得（レイアウトオーバーフロー対策）
+    final screenSize = MediaQuery.of(context).size;
+    final scanAreaSize = (screenSize.width * 0.7).clamp(200.0, 300.0);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('QRコードをスキャン'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
-      body: isWindows
-          ? WindowsQRScannerSimple(
-              onDetect: (rawValue) {
-                if (_isProcessing) return;
+      body: SafeArea(
+        child: isWindows
+            ? WindowsQRScannerSimple(
+                onDetect: (rawValue) {
+                  if (_isProcessing) return;
 
-                // QRコードがJSON形式かトークン形式か判定
-                if (rawValue.startsWith('{') || rawValue.startsWith('[')) {
-                  // JSON形式 = QR招待
-                  _processQRInvitation(rawValue);
-                } else {
-                  // サポートされない形式
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('無効なQRコード形式です'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
+                  // QRコードがJSON形式かトークン形式か判定
+                  if (rawValue.startsWith('{') || rawValue.startsWith('[')) {
+                    // JSON形式 = QR招待
+                    _processQRInvitation(rawValue);
+                  } else {
+                    // サポートされない形式
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('無効なQRコード形式です'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
                   }
-                }
-              },
-            )
-          : Stack(
-              children: [
-                MobileScanner(
-                  controller: _controller,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error) {
-                    Log.error('❌ [MOBILE_SCANNER] カメラエラー: $error');
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.error, color: Colors.red, size: 48),
-                          const SizedBox(height: 16),
-                          Text('カメラエラー: $error'),
-                          const SizedBox(height: 16),
-                          const Text('カメラの権限を確認してください'),
-                        ],
-                      ),
-                    );
-                  },
-                  onDetect: (capture) {
-                    Log.info('📷 [MOBILE_SCANNER] カメラ画像取得 - onDetect呼び出し');
-                    Log.info('🔍 [MOBILE_SCANNER] onDetect呼び出し');
-                    Log.info(
-                        '🔍 [MOBILE_SCANNER] _isProcessing=$_isProcessing');
-
-                    if (_isProcessing) {
-                      Log.info('⚠️ [MOBILE_SCANNER] 既に処理中のためスキップ');
-                      return;
-                    }
-
-                    final barcodes = capture.barcodes;
-                    Log.info('🔍 [MOBILE_SCANNER] バーコード数: ${barcodes.length}');
-
-                    if (barcodes.isEmpty) {
-                      Log.info('⚠️ [MOBILE_SCANNER] バーコードが検出されませんでした');
-                      return;
-                    }
-
-                    final rawValue = barcodes.first.rawValue;
-                    Log.info(
-                        '🔍 [MOBILE_SCANNER] rawValue長さ: ${rawValue?.length ?? 0}文字');
-                    Log.info(
-                        '🔍 [MOBILE_SCANNER] rawValue内容: ${rawValue != null ? rawValue.substring(0, rawValue.length > 100 ? 100 : rawValue.length) : 'null'}');
-
-                    if (rawValue != null) {
+                },
+              )
+            : Stack(
+                children: [
+                  MobileScanner(
+                    controller: _controller,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error) {
+                      Log.error('❌ [MOBILE_SCANNER] カメラエラー: $error');
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.error,
+                                color: Colors.red, size: 48),
+                            const SizedBox(height: 16),
+                            Text('カメラエラー: $error'),
+                            const SizedBox(height: 16),
+                            const Text('カメラの権限を確認してください'),
+                          ],
+                        ),
+                      );
+                    },
+                    onDetect: (capture) {
+                      Log.info('📷 [MOBILE_SCANNER] カメラ画像取得 - onDetect呼び出し');
+                      Log.info('🔍 [MOBILE_SCANNER] onDetect呼び出し');
                       Log.info(
-                          '🔍 [MOBILE_SCANNER] 最初の文字: "${rawValue.isNotEmpty ? rawValue[0] : ''}"');
-                      Log.info(
-                          '🔍 [MOBILE_SCANNER] JSON形式チェック: startsWith({)=${rawValue.startsWith('{')} startsWith([)=${rawValue.startsWith('[')}');
+                          '🔍 [MOBILE_SCANNER] _isProcessing=$_isProcessing');
 
-                      // QRコードがJSON形式かトークン形式か判定
-                      if (rawValue.startsWith('{') ||
-                          rawValue.startsWith('[')) {
-                        Log.info('✅ [MOBILE_SCANNER] JSON形式のQRコード検出 - 処理開始');
-                        // JSON形式 = QR招待
-                        _processQRInvitation(rawValue);
-                      } else {
-                        Log.warning(
-                            '⚠️ [MOBILE_SCANNER] サポートされないQRコード形式: ${rawValue.substring(0, rawValue.length > 20 ? 20 : rawValue.length)}');
-                        // サポートされない形式
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('無効なQRコード形式です'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
+                      if (_isProcessing) {
+                        Log.info('⚠️ [MOBILE_SCANNER] 既に処理中のためスキップ');
+                        return;
                       }
-                    } else {
-                      Log.warning('⚠️ [MOBILE_SCANNER] rawValueがnullです');
-                    }
-                  },
-                ),
-                // スキャンエリアのオーバーレイ
-                Center(
-                  child: Container(
-                    width: 280,
-                    height: 280,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.white, width: 3),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Center(
-                      child: Text(
-                        'QRコードをここに',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          backgroundColor: Colors.black54,
+
+                      final barcodes = capture.barcodes;
+                      Log.info(
+                          '🔍 [MOBILE_SCANNER] バーコード数: ${barcodes.length}');
+
+                      if (barcodes.isEmpty) {
+                        Log.info('⚠️ [MOBILE_SCANNER] バーコードが検出されませんでした');
+                        return;
+                      }
+
+                      final rawValue = barcodes.first.rawValue;
+                      Log.info(
+                          '🔍 [MOBILE_SCANNER] rawValue長さ: ${rawValue?.length ?? 0}文字');
+                      Log.info(
+                          '🔍 [MOBILE_SCANNER] rawValue内容: ${rawValue != null ? rawValue.substring(0, rawValue.length > 100 ? 100 : rawValue.length) : 'null'}');
+
+                      if (rawValue != null) {
+                        Log.info(
+                            '🔍 [MOBILE_SCANNER] 最初の文字: "${rawValue.isNotEmpty ? rawValue[0] : ''}"');
+                        Log.info(
+                            '🔍 [MOBILE_SCANNER] JSON形式チェック: startsWith({)=${rawValue.startsWith('{')} startsWith([)=${rawValue.startsWith('[')}');
+
+                        // QRコードがJSON形式かトークン形式か判定
+                        if (rawValue.startsWith('{') ||
+                            rawValue.startsWith('[')) {
+                          Log.info('✅ [MOBILE_SCANNER] JSON形式のQRコード検出 - 処理開始');
+                          // JSON形式 = QR招待
+                          _processQRInvitation(rawValue);
+                        } else {
+                          Log.warning(
+                              '⚠️ [MOBILE_SCANNER] サポートされないQRコード形式: ${rawValue.substring(0, rawValue.length > 20 ? 20 : rawValue.length)}');
+                          // サポートされない形式
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('無効なQRコード形式です'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      } else {
+                        Log.warning('⚠️ [MOBILE_SCANNER] rawValueがnullです');
+                      }
+                    },
+                  ),
+                  // スキャンエリアのオーバーレイ（動的サイズ対応）
+                  Center(
+                    child: Container(
+                      width: scanAreaSize,
+                      height: scanAreaSize,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.white, width: 3),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'QRコードをここに',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            backgroundColor: Colors.black54,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                // 処理中インジケーター
-                if (_isProcessing)
-                  Container(
-                    color: Colors.black54,
-                    child: const Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          CircularProgressIndicator(color: Colors.white),
-                          SizedBox(height: 16),
-                          Text(
-                            '処理中...',
-                            style: TextStyle(color: Colors.white, fontSize: 18),
-                          ),
-                        ],
+                  // 処理中インジケーター
+                  if (_isProcessing)
+                    Container(
+                      color: Colors.black54,
+                      child: const Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircularProgressIndicator(color: Colors.white),
+                            SizedBox(height: 16),
+                            Text(
+                              '処理中...',
+                              style:
+                                  TextStyle(color: Colors.white, fontSize: 18),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-              ],
-            ),
+                ],
+              ),
+      ),
     );
   }
 

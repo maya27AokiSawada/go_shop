@@ -1,5 +1,117 @@
 # GoShopping - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-02-27)
+
+### 🧪 Systematic Testing & QR Scanner Crash Fix ✅
+
+**Purpose**: 2026-02-25バグ修正（5件）の系統的検証およびQR招待スキャン時のレイアウトオーバーフロー緊急修正
+
+**Testing Status**: 🟡 61% Complete (56/92 items tested)
+
+**Test Execution Summary**:
+
+- **Test Date**: 2026-02-27
+- **Tester**: maya27AokiSawada
+- **Environment**: Small Phone Emulator (Windows PC) + Pixel 9 (Android)
+- **Version**: 1.1.0+2 (dev flavor)
+- **Results**: 56/56 tested items PASSED (100% pass rate)
+
+**Test Results by Category**:
+
+1. **🔥 Priority Section (Red Screen Error Validation)**: ✅ **16/16 items PASSED (100%)**
+   - Sign-in with 0 groups: No red screen, empty state message displayed correctly
+   - FloatingActionButton group creation: Successful, no crashes
+   - Signup flow: Working correctly
+   - Multiple test iterations: All passed
+   - QR invitation message: Correct formatting with line breaks
+   - **Conclusion**: 2026-02-25 fix (InitialSetupWidget removal, auto-navigation) **completely functional**
+
+2. **Basic Functionality**: ✅ **12/12 items PASSED (100%)**
+   - App startup < 3 seconds
+   - Group management (create, invite, join) working
+   - Shopping list CRUD operations working
+   - Responsive layout (1000px breakpoint) working correctly
+
+3. **Whiteboard Features**: 🔄 **28/33 items TESTED (85%)**
+   - ✅ Access methods: Working (double-tap intentional by design)
+   - ✅ Drawing: 6-color picker, 3 pen sizes, multi-stroke, auto-split working
+   - ✅ Toolbar: 2-tier layout, all icons displayed
+   - ✅ Scroll/Draw modes: Lock/unlock functioning correctly
+   - ✅ Zoom: ±0.5x increments, scale display working
+   - ✅ Save: Firestore confirmed (Hive not explicitly verified)
+   - ✅ Clear all: Confirmation dialog working
+   - ⏭️ Read-only mode: NOT TESTED (5 items skipped)
+
+4. **Notifications**: ⏭️ **0/3 items TESTED** (time constraint)
+5. **Data Sync**: ⏭️ **0/8 items TESTED** (time constraint)
+6. **UI/UX Responsive**: ⏭️ **0/6 items TESTED** (time constraint)
+7. **Performance**: ⏭️ **0/8 items TESTED** (time constraint)
+8. **Error Handling**: ⏭️ **0/6 items TESTED** (time constraint)
+
+**Critical Issue Found & Resolved**: 🔥
+
+**Problem**: App crash during QR invitation scan (RenderFlex overflow 122px)
+
+- **Date**: 2026-02-27 13:53:09
+- **Crashlytics Issue ID**: 526a2113600a27104d6053a1f018cd0a
+- **Error**: `A RenderFlex overflowed by 122 pixels on the bottom`
+- **Root Cause**: Fixed 280x280px scan area + camera preview + toolbar exceeds small screen height
+
+**Solution Implemented**:
+
+**Modified File**: `lib/widgets/accept_invitation_widget.dart`
+
+```dart
+// BEFORE: Fixed layout
+body: isWindows ? WindowsQRScannerSimple(...) : Stack(...)
+Container(width: 280, height: 280, ...)
+
+// AFTER: Responsive layout
+final screenSize = MediaQuery.of(context).size;
+final scanAreaSize = (screenSize.width * 0.7).clamp(200.0, 300.0);
+body: SafeArea(
+  child: isWindows ? WindowsQRScannerSimple(...) : Stack(...)
+)
+Container(width: scanAreaSize, height: scanAreaSize, ...)
+```
+
+**Key Changes**:
+
+1. **SafeArea wrapper** - Avoids system UI overlap (notch, status bar)
+2. **MediaQuery integration** - Runtime screen size detection
+3. **Dynamic scan area** - 70% of screen width, clamped between 200-300px
+4. **Responsive behavior** - Fits any screen size while maintaining usability
+
+**Testing Status**:
+
+- ✅ Code modification complete
+- ⏳ Hot Reload test NOT YET PERFORMED (time constraint)
+- ⏳ Invitation QR scan flow re-test required
+
+**Next Session Priorities**:
+
+1. **P0 (Critical)**: Test QR scanner fix with Hot Reload
+2. **P1 (High)**: Complete remaining 36 test items (notifications, data sync, UI/UX, performance, error handling)
+3. **P2 (Medium)**: Update test summary tables and final approval
+
+**Technical Learnings**:
+
+1. **Systematic testing effectiveness**: Prioritized testing (priority section first) achieved maximum validation in limited time
+2. **Crashlytics value**: Detailed error capture enabled rapid root cause identification
+3. **SafeArea + MediaQuery pattern**: Dynamic layouts essential for mobile UI compatibility
+
+**Modified Files**:
+
+- `lib/widgets/accept_invitation_widget.dart` - QR scanner responsive layout fix
+- `docs/daily_reports/2026-02/daily_report_20260227.md` - Test execution report (new)
+- `docs/daily_reports/2026-02/test_checklist_20260227.md` - User test results (updated)
+
+**Commit**: (Pending) - "fix: QR scanner layout overflow + test results (56/92 passed)"
+
+**Status**: ✅ Testing 61% complete | ⏳ QR scanner fix awaiting verification | ⏳ 36 items remain
+
+---
+
 ## Recent Implementations (2026-02-26)
 
 ### 🔧 Flutter SDK & Package Maintenance ✅
