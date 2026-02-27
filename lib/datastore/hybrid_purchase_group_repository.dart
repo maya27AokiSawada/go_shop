@@ -416,6 +416,25 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
               await _firestoreRepo!.createGroup(groupId, groupName, member);
           AppLogger.info('✅ [HYBRID_REPO] Firestore作成完了: $groupName');
 
+          // 🔥 FIX: Firestoreドキュメントの伝播確認（permission-denied対策）
+          // Security Rulesのget()操作が確実に成功するようにする
+          try {
+            AppLogger.info('🔍 [HYBRID_REPO] Firestoreドキュメント伝播確認中...');
+            final verifyGroup = await _firestoreRepo!.getGroupById(groupId);
+            AppLogger.info(
+                '✅ [HYBRID_REPO] Firestore読み取り確認成功: ${verifyGroup.groupName}');
+            AppLogger.info(
+                '🔍 [HYBRID_REPO] allowedUid確認: ${verifyGroup.allowedUid}');
+          } catch (verifyError) {
+            AppLogger.warning(
+                '⚠️ [HYBRID_REPO] Firestore読み取り確認失敗、リトライ: $verifyError');
+            // リトライ1回（100ms待機後）
+            await Future.delayed(const Duration(milliseconds: 100));
+            final verifyGroup = await _firestoreRepo!.getGroupById(groupId);
+            AppLogger.info(
+                '✅ [HYBRID_REPO] Firestore読み取りリトライ成功: ${verifyGroup.groupName}');
+          }
+
           // 2. Hiveにキャッシュ（読み取り高速化のため）
           await _hiveRepo.saveGroup(newGroup);
           AppLogger.info('✅ [HYBRID_REPO] Hiveキャッシュ保存完了: $groupName');
