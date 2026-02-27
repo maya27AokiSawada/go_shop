@@ -107,7 +107,7 @@ class _GroupCreationWithCopyDialogState
               key: _formKey,
               child: SingleChildScrollView(
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.all(12.0), // 🔥 FIX: 16→12に縮小
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -115,22 +115,29 @@ class _GroupCreationWithCopyDialogState
                       // Header
                       Row(
                         children: [
-                          const Icon(Icons.group_add, color: Colors.blue),
+                          const Icon(Icons.group_add,
+                              color: Colors.blue, size: 20), // 🔥 FIX: サイズ指定
                           const SizedBox(width: 8),
                           const Expanded(
                             child: Text(
                               '新しいグループを作成',
                               style: TextStyle(
-                                  fontSize: 20, fontWeight: FontWeight.bold),
+                                  fontSize: 18,
+                                  fontWeight:
+                                      FontWeight.bold), // 🔥 FIX: 20→18に縮小
                             ),
                           ),
                           IconButton(
+                            padding: EdgeInsets.zero, // 🔥 FIX: パディング削減
+                            constraints:
+                                const BoxConstraints(), // 🔥 FIX: 最小サイズ制約なし
                             onPressed: () => Navigator.of(context).pop(),
-                            icon: const Icon(Icons.close),
+                            icon: const Icon(Icons.close,
+                                size: 20), // 🔥 FIX: サイズ指定
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12), // 🔥 FIX: 16→12に縮小
 
                       // Group name input
                       TextFormField(
@@ -159,14 +166,15 @@ class _GroupCreationWithCopyDialogState
                         },
                       ),
 
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12), // 🔥 FIX: 16→12に縮小
 
                       // Source group selection
                       if (existingGroups.isNotEmpty) ...[
                         const Text(
                           'メンバーをコピーする既存グループ (任意):',
                           style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w500),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500), // 🔥 FIX: 16→14に縮小
                         ),
                         const SizedBox(height: 8),
                         DropdownButtonFormField<SharedGroup>(
@@ -217,7 +225,7 @@ class _GroupCreationWithCopyDialogState
                             });
                           },
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 12), // 🔥 FIX: 16→12に縮小
                       ],
 
                       // Member selection list
@@ -226,11 +234,15 @@ class _GroupCreationWithCopyDialogState
                         const Text(
                           'コピーするメンバーとその役割を選択:',
                           style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w500),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500), // 🔥 FIX: 16→14に縮小
                         ),
                         const SizedBox(height: 8),
                         Container(
-                          constraints: const BoxConstraints(maxHeight: 300),
+                          constraints: BoxConstraints(
+                            maxHeight: MediaQuery.of(context).size.height *
+                                0.3, // 🔥 FIX: 動的高さに変更
+                          ),
                           decoration: BoxDecoration(
                             border: Border.all(color: Colors.grey.shade300),
                             borderRadius: BorderRadius.circular(8),
@@ -248,25 +260,30 @@ class _GroupCreationWithCopyDialogState
                         ),
                       ] else if (_selectedSourceGroup != null) ...[
                         Container(
-                          height: 100,
+                          height: 60, // 🔥 FIX: 100→60に縮小
                           alignment: Alignment.center,
                           child: const Text(
                             '選択されたグループにはメンバーがいません',
-                            style: TextStyle(color: Colors.grey),
+                            style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 12), // 🔥 FIX: フォントサイズ指定
                           ),
                         ),
                       ] else ...[
                         Container(
-                          height: 100,
+                          height: 60, // 🔥 FIX: 100→60に縮小
                           alignment: Alignment.center,
                           child: const Text(
                             '既存グループを選択するとメンバーをコピーできます',
-                            style: TextStyle(color: Colors.grey),
+                            style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 12), // 🔥 FIX: フォントサイズ指定
+                            textAlign: TextAlign.center, // 🔥 FIX: センタリング
                           ),
                         ),
                       ],
 
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12), // 🔥 FIX: 16→12に縮小
 
                       // Action buttons
                       Row(
