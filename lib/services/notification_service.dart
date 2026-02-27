@@ -450,6 +450,25 @@ class NotificationService {
 
       AppLogger.info('✅ [OWNER] Firestore更新完了: $acceptorUid を追加');
 
+      // 🔥 FIX: メンバー追加の伝播確認（三人目招待時のpermission-denied対策）
+      try {
+        final verifyGroup = await repository.getGroupById(groupId);
+        if (verifyGroup.allowedUid.contains(acceptorUid)) {
+          AppLogger.info('✅ [OWNER] メンバー追加の伝播確認成功');
+        } else {
+          throw Exception('メンバーがまだallowedUidに含まれていません');
+        }
+      } catch (verifyError) {
+        AppLogger.warning('⚠️ [OWNER] メンバー追加の伝播確認失敗、リトライします: $verifyError');
+        await Future.delayed(const Duration(milliseconds: 100));
+        final verifyGroup = await repository.getGroupById(groupId);
+        if (!verifyGroup.allowedUid.contains(acceptorUid)) {
+          AppLogger.error('❌ [OWNER] メンバー追加の伝播確認リトライ失敗');
+          throw Exception('メンバー追加の伝播確認に失敗しました');
+        }
+        AppLogger.info('✅ [OWNER] メンバー追加の伝播確認リトライ成功');
+      }
+
       // Hiveにも更新
       final updatedGroup = currentGroup.copyWith(
         allowedUid: updatedAllowedUid,
