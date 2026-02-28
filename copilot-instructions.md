@@ -429,5 +429,303 @@ flutter run
 
 ---
 
-**最終更新**: 2026-02-23
+## 🖼️ UI Overflow Prevention & Responsive Layout（2026-02-28追加）
+
+### Critical Rule 1: Column/Row Overflow Prevention
+
+**問題**: 固定サイズのUI要素がデバイスの画面サイズを超えるとRenderFlex overflowエラーが発生
+
+**AS10L事例** (2026-02-28発見):
+
+- デバイス: Amazon Kindle Fire HD 10.1 (1024x600, 10.1インチ)
+- エラー: `A RenderFlex overflowed by 122 pixels on the bottom`
+- 原因: 固定280x280pxのスキャンエリア + カメラプレビュー + ツールバー = 画面高600pxを超過
+
+**Before (Overflow発生)**:
+
+```dart
+// ❌ 固定サイズで overflow
+body: Stack(
+  children: [
+    // Camera preview (full height)
+    // ...
+    Center(
+      child: Container(
+        width: 280,   // ← 固定サイズ
+        height: 280,  // ← 固定サイズ
+        decoration: BoxDecoration(border: ...),
+      ),
+    ),
+  ],
+)
+```
+
+**After (Responsive)**:
+
+```dart
+// ✅ SafeArea + MediaQuery で responsive化
+final screenSize = MediaQuery.of(context).size;
+final scanAreaSize = (screenSize.width * 0.7).clamp(200.0, 300.0);
+
+body: SafeArea(  // ← システムUI（ノッチ、ステータスバー）を避ける
+  child: Stack(
+    children: [
+      // Camera preview
+      Center(
+        child: Container(
+          width: scanAreaSize,   // ← 動的サイズ
+          height: scanAreaSize,  // ← 動的サイズ
+          decoration: BoxDecoration(border: ...),
+        ),
+      ),
+    ],
+  ),
+)
+```
+
+### Critical Rule 2: Always Use SafeArea for Full-Screen UIs
+
+**SafeAreaの重要性**:
+
+- デバイスノッチ（切り欠き）を避ける
+- ステータスバーの高さを考慮
+- ナビゲーションバーの高さを考慮
+- システムジェスチャーエリアを避ける
+
+**必須パターン**:
+
+```dart
+// ✅ Scaffold + SafeArea
+Scaffold(
+  body: SafeArea(  // ← 必須
+    child: YourContent(),
+  ),
+)
+
+// ❌ SafeAreaなし（ノッチに重なる可能性）
+Scaffold(
+  body: YourContent(),
+)
+```
+
+### Critical Rule 3: SingleChildScrollView + mainAxisSize.min
+
+**ColumnがScrollableな場合の必須パターン**:
+
+```dart
+// ✅ 正しい: SingleChildScrollView + mainAxisSize.min
+SingleChildScrollView(
+  child: Column(
+    mainAxisSize: MainAxisSize.min,  // ← 重要: 必要最小サイズ
+    children: [
+      Widget1(),
+      Widget2(),
+      Widget3(),
+    ],
+  ),
+)
+
+// ❌ 間違い: mainAxisSize.max（デフォルト）
+SingleChildScrollView(
+  child: Column(
+    mainAxisSize: MainAxisSize.max,  // ← overflow発生
+    children: [...],
+  ),
+)
+```
+
+**理由**:
+
+- `mainAxisSize.max`: Columnが親の高さ全体を占有しようとする → ScrollViewと競合
+- `mainAxisSize.min`: Columnが子要素の高さ合計のみを使用 → ScrollViewと共存
+
+### Critical Rule 4: MediaQueryによる動的サイズ算出
+
+**推奨パターン**:
+
+```dart
+// ✅ 画面サイズに応じた動的サイズ
+final screenWidth = MediaQuery.of(context).size.width;
+final screenHeight = MediaQuery.of(context).size.height;
+
+// 画面幅の70%、ただし200-300pxの範囲内
+final scanAreaSize = (screenWidth * 0.7).clamp(200.0, 300.0);
+
+// 画面高さの50%、ただし最小400px
+final contentHeight = (screenHeight * 0.5).clamp(400.0, screenHeight);
+```
+
+**Clampの使い方**:
+
+```dart
+// clamp(min, max): 値をmin～maxの範囲内に制限
+(screenWidth * 0.7).clamp(200.0, 300.0)
+// 例:
+// - screenWidth = 320 → 224.0 → 224.0（200-300の範囲内）
+// - screenWidth = 240 → 168.0 → 200.0（最小値200）
+// - screenWidth = 500 → 350.0 → 300.0（最大値300）
+```
+
+### Critical Rule 5: Empty State Testing
+
+**必須テスト項目**:
+
+- ✅ 空のリスト（グループ0件、リスト0件、アイテム0件）
+- ✅ 低解像度デバイス（600px以下の高さ）
+- ✅ 小型デバイス（物理サイズ7～10インチ）
+- ✅ 縦向き・横向き両方
+
+**推奨テストデバイス**:
+| デバイスタイプ | 解像度例 | 物理サイズ | 優先度 |
+| -------------- | -------------- | ---------- | ------ |
+| スマホ（小） | 720x1280 | 5-6インチ | 高 |
+| タブレット（小）| 1024x600 | 7-10インチ | **最高** |
+| スマホ（大） | 1080x2400 | 6-7インチ | 中 |
+| タブレット（大）| 1920x1200 | 10-12インチ| 低 |
+
+**AS10L教訓**: 10.1インチでも解像度が1024x600と低いため、固定サイズUIは危険
+
+### Critical Rule 6: 物理サイズ ≠ 論理ピクセル密度
+
+**重要な理解**:
+
+```dart
+// ❌ Wrong: 物理サイズで判断
+if (deviceInches >= 10) {
+  // 大きな画面と判断 → 間違い
+}
+
+// ✅ Correct: 論理ピクセル（MediaQuery）で判断
+final screenHeight = MediaQuery.of(context).size.height;
+if (screenHeight >= 800) {
+  // 十分な高さと判断
+}
+```
+
+**AS10L vs Pixel 9 比較**:
+| デバイス | 物理サイズ | 解像度 | 論理高さ | 判定 |
+| ---------- | ---------- | ----------- | -------- | ---- |
+| AS10L | 10.1インチ | 1024x600 | ~600dp | ❌ 小 |
+| Pixel 9 | 6.24インチ | 1080x2424 | ~900dp | ✅ 大 |
+
+**結論**: 物理サイズではなく、MediaQueryの論理ピクセルで判断すること
+
+---
+
+## 🐛 Debugging with Crashlytics Breadcrumbs（2026-02-28追加）
+
+### Critical Rule 1: Breadcrumbs First Approach
+
+**問題発生時の調査順序**:
+
+1. ✅ **Crashlyticsのbreadcrumbs確認**（最優先）
+2. ✅ クラッシュログのスタックトレース分析
+3. ✅ Widget treeの`debugCreator`から呼び出し元特定
+4. ✅ ソースコードの該当箇所確認
+
+**AS10L事例の突破口**:
+
+```
+Crashlytics Breadcrumbs:
+[UI]    group_list_widget.dart:133  // ← 空状態UI分岐
+[UI]    accept_invitation_widget.dart:350  // ← QRスキャナー表示
+💡 この2つのログから「空状態のQRスキャン」が問題と判明
+```
+
+### Critical Rule 2: 効果的なBreadcrumb配置
+
+**推奨配置箇所**:
+
+```dart
+// ✅ Widget buildメソッドの分岐点
+@override
+Widget build(BuildContext context) {
+  FirebaseCrashlytics.instance.log('[UI] group_list_widget.dart:${lineNumber}');
+
+  if (groups.isEmpty) {
+    FirebaseCrashlytics.instance.log('[UI] Empty state: showing InitialSetupWidget');
+    return const InitialSetupWidget();
+  }
+
+  return ListView.builder(...);
+}
+
+// ✅ 重要なユーザーアクション
+void _onButtonPressed() {
+  FirebaseCrashlytics.instance.log('[ACTION] Button pressed: $buttonName');
+  performAction();
+}
+
+// ✅ 状態遷移
+setState(() {
+  FirebaseCrashlytics.instance.log('[STATE] Changing from $oldState to $newState');
+  state = newState;
+});
+```
+
+### Critical Rule 3: Widget Tree Analysis from debugCreator
+
+**Widget treeの読み方**:
+
+```
+A RenderFlex overflowed by 122 pixels on the bottom.
+The overflowing RenderFlex has an orientation of Axis.vertical.
+
+🔍 debugCreatorパターン解析:
+Column ← SingleChildScrollView ← ... ← AcceptInvitationWidget
+                                    ← InitialSetupWidget
+                                    ← GroupListWidget@1f3e5
+
+💡 結論: GroupListWidget → InitialSetupWidget → AcceptInvitationWidget
+        の順で呼び出し → AcceptInvitationWidget内のColumnでoverflow
+```
+
+**Widget tree解析テクニック**:
+
+1. エラーメッセージの`debugCreator`セクションを探す
+2. Widget名の階層を逆順に追う（下から上へ）
+3. 各Widgetのソースファイルを確認
+4. 呼び出しチェーンを再構築
+
+### Critical Rule 4: Root Cause Chain Analysis
+
+**単一原因ではなく連鎖を探す**:
+
+AS10L事例の連鎖:
+
+```
+1️⃣ 招待QRスキャン完了
+   ↓
+2️⃣ グループ追加（0 → 1）
+   ↓
+3️⃣ GroupListWidgetが再ビルド
+   ↓
+4️⃣ groups.isEmpty == false → ListView表示
+   ↓
+5️⃣ しかしQRスキャナーダイアログはまだ表示中（dismissされていない）
+   ↓
+6️⃣ 両方のUIが重なり、合計高さが画面高を超過
+   ↓
+🚨 RenderFlex overflow発生
+```
+
+**デバッグ時の思考プロセス**:
+
+- ❌ "なぜColumnがoverflowした？" → 直接原因のみ
+- ✅ "なぜこのタイミングでこのWidgetが表示された？" → 根本原因の連鎖
+
+### Critical Rule 5: Device-Specific Testing Priority
+
+**優先度付きテスト戦略**:
+
+1. **最優先**: 低解像度タブレット（AS10L等、600px台）
+2. **高優先**: 小型スマホ（720x1280等）
+3. **通常優先**: 標準スマホ（1080x2400等）
+4. **低優先**: 高解像度タブレット（1920x1200等）
+
+**理由**: 低解像度デバイスは市場シェアは低いが、UIの限界を最も早く露呈する
+
+---
+
+**最終更新**: 2026-02-28
 **Important**: このファイルはAI支援開発のガイドラインです。すべての開発者が従うべき規則を定義しています。

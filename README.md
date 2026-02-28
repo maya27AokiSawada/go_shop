@@ -1,5 +1,179 @@
 # GoShopping - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-02-28)
+
+### 🔧 AS10L Device Support - GroupListWidget Overflow Fix ✅
+
+**Purpose**: AS10L (低解像度10インチタブレット) でのグループ一覧空状態レイアウトオーバーフロー修正とFirestore同期UX改善
+
+**Implementation Status**: 🟢 100% Complete - All overflow issues resolved
+
+**Background**:
+
+AS10Lデバイス（10インチタブレット、低解像度 ~600-800px）でQR招待受諾後にアプリがクラッシュする問題を発見：
+
+- **Symptom 1**: 41px RenderFlex overflow error
+- **Symptom 2**: Android OSディープリンク選択ポップアップが表示
+- **Initial Hypothesis**: QRスキャナー画面のレイアウト問題（誤り）
+- **Breakthrough**: Crashlyticsブレッドクラム分析により真の原因を特定
+
+**Critical Discovery - Breadcrumbs Analysis**:
+
+Crashlyticsのブレッドクラム（操作履歴）より：
+
+```json
+{
+  "message": "debugCreator: Column ← Padding ← Center ← Expanded ← Column ← GroupListWidget ← ...",
+  "source": "crashlytics"
+}
+```
+
+**Key Findings**:
+
+- クラッシュ箇所は**GroupListWidget**（グループ一覧画面）
+- QRスキャナー画面ではなかった
+- 空状態表示（groups.isEmpty）でオーバーフロー発生
+
+**Root Cause**:
+
+```dart
+// ❌ 問題のコード: スクロール不可 + 高さ制限なし
+if (groups.isEmpty) {
+  return Center(
+    child: Padding(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(size: 60),  // AS10L解像度では収まらない
+          Text(...),
+          // ... more content
+        ],
+      ),
+    ),
+  );
+}
+```
+
+**AS10L Device Characteristics**:
+
+- 物理サイズ: 10インチ（大きい）
+- 解像度: ~600-800px（低い）
+- **物理サイズ ≠ レイアウト余裕** の実例
+
+**Solution Implemented**:
+
+```dart
+// ✅ 修正: SingleChildScrollView + mainAxisSize.min
+if (groups.isEmpty) {
+  return SingleChildScrollView(  // スクロール可能に
+    child: Center(
+      child: Padding(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,  // 高さ最小限
+          children: [
+            Icon(size: 60),
+            Text(...),
+            // ... more content
+          ],
+        ),
+      ),
+    ),
+  );
+}
+```
+
+**Benefits**:
+
+- ✅ AS10L: 41px overflow → 0px (スクロール可能)
+- ✅ 通常画面: コンテンツ収まる場合はスクロール不要
+- ✅ 全デバイス互換: 解像度に依存しない設計
+
+**Secondary Issue Resolution**:
+
+**ディープリンクポップアップ問題** も同時に解決：
+
+- **Root Cause Chain**: GroupListWidget crash → App terminates → QR data remains in Android system → OS shows deep link popup
+- **Resolution**: Primary crash fix → Secondary issue also disappeared
+- **User Insight**: "多分アプリというか元ウィジェットが落ちちゃったからOSのディープリンクが起動しちゃったんじゃないかな"
+
+**Firestore Sync Loading Overlay** (同日実装):
+
+グループ作成時のユーザーフィードバック改善：
+
+```dart
+// group_creation_with_copy_dialog.dart
+if (_isLoading)
+  Container(
+    color: Colors.black54,
+    child: Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircularProgressIndicator(color: Colors.white),
+          Text('グループを作成中...'),
+        ],
+      ),
+    ),
+  ),
+```
+
+**Testing Results**:
+
+**3-User Invitation Flow** (AS10L + Pixel 9 + Windows):
+
+- ✅ Windows → AS10L: 正常動作
+- ✅ Windows → Pixel 9: 正常動作
+- ✅ Pixel 9 → AS10L: 正常動作
+- ✅ Crash completely eliminated
+- ✅ Deep link popup eliminated
+
+**User Feedback**: "3ユーザーの招待もOKですね", "再現しなくなったよ"
+
+**Modified Files**:
+
+- `lib/widgets/group_list_widget.dart` (Lines 149-181) - SingleChildScrollView fix
+- `lib/widgets/group_creation_with_copy_dialog.dart` - Loading overlay implementation
+- `lib/services/notification_service.dart` - Invitation notification improvements
+- `lib/widgets/accept_invitation_widget.dart` - Debug logging enhancements
+
+**Commit**: `3447ab4` - "fix: AS10L対応 - GroupListWidget空状態のオーバーフロー修正 + 招待通知システム改善"
+
+**Technical Learnings**:
+
+1. **UI Overflow Severity**: 41px overflow → app crash → secondary OS issues
+2. **Breadcrumbs > Stack Traces**: Widget tree in breadcrumbs enables instant location identification
+3. **Physical Size ≠ Pixel Density**: 10-inch tablet can have less layout space than 6-inch phone
+4. **Empty State Testing**: Explicitly test empty states on lowest-resolution target devices
+5. **Root Cause Chains**: One root cause can manifest as multiple symptoms
+
+**Prevention Pattern**:
+
+```dart
+// ✅ Safe pattern for all static content
+SingleChildScrollView(
+  child: Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [/* content */],
+  ),
+)
+
+// ❌ Risky pattern (can overflow)
+Center(
+  child: Column(
+    children: [/* content */],
+  ),
+)
+```
+
+**Next Steps**:
+
+1. ⏳ Complete test checklist remaining items (whiteboard, data sync)
+2. ⏳ Address known issues from testing
+3. ⏳ Document overflow prevention patterns for team
+
+---
+
 ## Recent Implementations (2026-02-27)
 
 ### 🧪 Systematic Testing & QR Scanner Crash Fix ✅
