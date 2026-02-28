@@ -143,32 +143,36 @@ class GroupListWidget extends ConsumerWidget {
 
     // 🔥 FIX: グループが0個の場合はシンプルなメッセージを表示
     // （右下のFloatingActionButtonでグループ作成可能）
+    // 🔥 AS10L対応: SingleChildScrollViewでオーバーフロー防止
     if (groups.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0), // 🔥 FIX: 32→24に縮小
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.group_add,
-                  size: 60, color: Colors.blue.shade200), // 🔥 FIX: 80→60に縮小
-              const SizedBox(height: 16), // 🔥 FIX: 24→16に縮小
-              const Text(
-                '最初のグループを作成するか\nQRコードをスキャンして参加してください',
-                style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold), // 🔥 FIX: 20→16に縮小
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12), // 🔥 FIX: 16→12に縮小
-              Text(
-                '右下の ＋ ボタンからグループを作成できます',
-                style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade600), // 🔥 FIX: 16→14に縮小
-                textAlign: TextAlign.center,
-              ),
-            ],
+      return SingleChildScrollView(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0), // 🔥 FIX: 32→24に縮小
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min, // 🔥 FIX: 最小サイズに制限
+              children: [
+                Icon(Icons.group_add,
+                    size: 60, color: Colors.blue.shade200), // 🔥 FIX: 80→60に縮小
+                const SizedBox(height: 16), // 🔥 FIX: 24→16に縮小
+                const Text(
+                  '最初のグループを作成するか\nQRコードをスキャンして参加してください',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold), // 🔥 FIX: 20→16に縮小
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12), // 🔥 FIX: 16→12に縮小
+                Text(
+                  '右下の ＋ ボタンからグループを作成できます',
+                  style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade600), // 🔥 FIX: 16→14に縮小
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
           ),
         ),
       );

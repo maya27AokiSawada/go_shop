@@ -116,9 +116,24 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
     // プラットフォーム判定
     final isWindows = !kIsWeb && Platform.isWindows;
 
-    // 画面サイズ取得（レイアウトオーバーフロー対策）
+    // 🔥 修正: 画面幅と高さの両方を考慮してスキャンエリアサイズを決定
+    // AppBar(56px) + SafeAreaパディング + マージンを考慮
     final screenSize = MediaQuery.of(context).size;
-    final scanAreaSize = (screenSize.width * 0.7).clamp(200.0, 300.0);
+    final padding = MediaQuery.of(context).padding;
+
+    // 利用可能な高さを計算（AppBar + SafeAreaパディング + ツールバーマージンを除外）
+    final availableHeight =
+        screenSize.height - 56 - padding.top - padding.bottom - 100;
+
+    // スキャンエリアサイズ: 画面幅の60%、最小180px、最大280px
+    final widthBasedSize = (screenSize.width * 0.6).clamp(180.0, 280.0);
+
+    // 高さ基準のサイズ: 利用可能高さの70%
+    final heightBasedSize = (availableHeight * 0.7).clamp(180.0, 280.0);
+
+    // 最終サイズ: 幅と高さの小さい方を使用（AS10Lのような小画面対応）
+    final scanAreaSize =
+        widthBasedSize < heightBasedSize ? widthBasedSize : heightBasedSize;
 
     return Scaffold(
       appBar: AppBar(
@@ -190,7 +205,20 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
                         return;
                       }
 
-                      final rawValue = barcodes.first.rawValue;
+                      // 🔥 NEW: バーコード詳細情報をログ出力（ディープリンク問題調査）
+                      final barcode = barcodes.first;
+                      Log.info(
+                          '🔍 [MOBILE_SCANNER] Barcode type: ${barcode.type}');
+                      Log.info(
+                          '🔍 [MOBILE_SCANNER] Barcode format: ${barcode.format}');
+                      Log.info(
+                          '🔍 [MOBILE_SCANNER] Barcode value type: ${barcode.type.name}');
+                      if (barcode.url != null) {
+                        Log.warning(
+                            '⚠️ [MOBILE_SCANNER] URL検出: ${barcode.url}');
+                      }
+
+                      final rawValue = barcode.rawValue;
                       Log.info(
                           '🔍 [MOBILE_SCANNER] rawValue長さ: ${rawValue?.length ?? 0}文字');
                       Log.info(

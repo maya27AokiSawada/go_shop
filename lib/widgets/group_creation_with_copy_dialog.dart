@@ -570,8 +570,20 @@ class _GroupCreationWithCopyDialogState
       AppLogger.info(
           '🔄 [CREATE GROUP DIALOG] allGroupsProvider invalidate完了（iOS対応）');
 
-      // UI安定化のため待機（iOSは少し長めの待機が必要）
-      await Future.delayed(const Duration(milliseconds: 500));
+      // 🔥 NEW (2026-02-28): Firestore同期完了を実際に待機
+      // ユーザー要望: 「グループがFirestoreにセーブできるまでダークオーバーレイとスピナーを表示」
+      // 固定時間待機ではなく、プロバイダー更新の完了を実際に確認
+      AppLogger.info('⏳ [CREATE GROUP DIALOG] Firestore同期完了を待機中...');
+      try {
+        await ref.read(allGroupsProvider.future);
+        AppLogger.info('✅ [CREATE GROUP DIALOG] Firestore同期完了（プロバイダー更新完了）');
+      } catch (e) {
+        AppLogger.error('❌ [CREATE GROUP DIALOG] Firestore同期エラー: $e');
+        // エラーでも続行（ローカルには作成済み）
+      }
+
+      // UI安定化のため少し待機（iOSは少し長めの待機が必要）
+      await Future.delayed(const Duration(milliseconds: 300));
       AppLogger.info('✅ [CREATE GROUP DIALOG] UI安定化待機完了');
 
       // 🔥 FIX: メンバーコピーがある場合、プロバイダー更新後にメンバーを追加

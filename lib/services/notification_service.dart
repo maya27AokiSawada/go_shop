@@ -221,16 +221,17 @@ class NotificationService {
           AppLogger.info(
               '   - metadata.acceptorUid: ${notification.metadata?['acceptorUid']}');
 
-          // metadataにacceptorUidがある場合は招待元、なければ既存メンバー
-          if (notification.metadata?['acceptorUid'] != null) {
+          // 🔥 CRITICAL FIX: 自分が受諾者の場合と招待元の場合を区別
+          final acceptorUid = notification.metadata?['acceptorUid'] as String?;
+
+          // metadataにacceptorUidがあり、かつ自分が受諾者でない場合は招待元として処理
+          if (acceptorUid != null && currentUser.uid != acceptorUid) {
             // 招待元: 新メンバー追加処理
             AppLogger.info('========================================');
             AppLogger.info('👥 [NOTIFICATION] 招待元として新メンバー追加通知を受信！');
             AppLogger.info('========================================');
 
             final groupId = notification.groupId;
-            final acceptorUid =
-                notification.metadata?['acceptorUid'] as String?;
             final acceptorName =
                 notification.metadata?['acceptorName'] as String? ?? 'ユーザー';
 
@@ -239,7 +240,7 @@ class NotificationService {
             AppLogger.info(
                 '   - acceptorName: ${AppLogger.maskName(acceptorName)}');
 
-            if (groupId.isNotEmpty && acceptorUid != null) {
+            if (groupId.isNotEmpty) {
               AppLogger.info('👥 [NOTIFICATION] _addMemberToGroup()を呼び出します...');
               await _addMemberToGroup(groupId, acceptorUid, acceptorName);
               AppLogger.info('✅ [NOTIFICATION] _addMemberToGroup()完了');
@@ -554,6 +555,27 @@ class NotificationService {
       }
 
       AppLogger.info('✅ [OWNER] 全既存メンバーへの通知送信完了');
+
+      // 🔥 CRITICAL FIX: 受諾者自身にも承認通知を送信
+      AppLogger.info('📤 [OWNER] 受諾者への承認通知送信開始');
+      try {
+        await sendNotification(
+          targetUserId: acceptorUid,
+          groupId: groupId,
+          type: NotificationType.groupMemberAdded,
+          message: '「${currentGroup.groupName}」への参加が承認されました',
+          metadata: {
+            'groupName': currentGroup.groupName,
+            'acceptorUid': acceptorUid,
+            'acceptorName': finalAcceptorName,
+            'timestamp': DateTime.now().toIso8601String(),
+          },
+        );
+        AppLogger.info(
+            '✅ [OWNER] 受諾者への承認通知送信完了: ${AppLogger.maskUserId(acceptorUid)}');
+      } catch (e) {
+        AppLogger.error('❌ [OWNER] 受諾者への承認通知送信エラー: $e');
+      }
     } catch (e) {
       AppLogger.error('❌ [OWNER] グループ更新エラー: $e');
       rethrow;
