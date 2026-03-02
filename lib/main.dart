@@ -96,9 +96,10 @@ Future<void> _initializeApp() async {
       AppLogger.info('🔄 Firebase初期化開始...');
 
       // Android環境でのネットワークスタック初期化待機（DNS解決問題対策）
+      // 🔥 AS10L (Android 15) では3秒で動作検証中（2026-03-02）
       if (defaultTargetPlatform == TargetPlatform.android) {
-        AppLogger.info('⏳ Android環境 - ネットワークスタック初期化待機中（2秒）...');
-        await Future.delayed(const Duration(seconds: 2));
+        AppLogger.info('⏳ Android環境 - ネットワークスタック初期化待機中（3秒）...');
+        await Future.delayed(const Duration(seconds: 3));
         AppLogger.info('✅ ネットワークスタック初期化待機完了');
       }
 
