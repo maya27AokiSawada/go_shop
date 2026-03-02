@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/app_logger.dart';
 import 'user_initialization_service.dart';
 import '../providers/purchase_group_provider.dart'; // selectedGroupIdProvider, SharedGroupRepositoryProvider
@@ -201,7 +202,11 @@ class NotificationService {
   /// グループ関連の未読通知があるかチェック
   ///
   /// アプリ起動時にFirestore同期が必要か判断するために使用
-  /// グループ作成・更新・削除・招待受諾の通知がある場合にtrueを返す
+  /// 最後に同期した時刻以降にグループ関連の通知がある場合にtrueを返す
+  ///
+  /// 🔥 重要: readフィールドではなくtimestampを使用
+  /// 理由: 通知はFirestoreで全端末共有されるため、
+  ///       一度既読になると他端末では検出できなくなる
   Future<bool> hasUnreadGroupNotifications() async {
     final currentUser = _auth.currentUser;
     if (currentUser == null) {
@@ -210,16 +215,27 @@ class NotificationService {
     }
 
     try {
-      AppLogger.info('🔍 [NOTIFICATION] 未読グループ通知チェック開始...');
+      AppLogger.info('🔍 [NOTIFICATION] 最終同期時刻以降のグループ通知チェック開始...');
+
+      // 最終同期時刻を取得（なければ24時間前）
+      final prefs = await SharedPreferences.getInstance();
+      final lastSyncMs = prefs.getInt('last_firestore_sync_time') ??
+          (DateTime.now()
+              .subtract(const Duration(hours: 24))
+              .millisecondsSinceEpoch);
+      final lastSyncTime = Timestamp.fromMillisecondsSinceEpoch(lastSyncMs);
+
+      AppLogger.info(
+          '📅 [NOTIFICATION] 最終同期: ${DateTime.fromMillisecondsSinceEpoch(lastSyncMs)}');
 
       final snapshot = await _firestore
           .collection('notifications')
           .where('userId', isEqualTo: currentUser.uid)
-          .where('read', isEqualTo: false)
+          .where('timestamp', isGreaterThan: lastSyncTime) // ← 時刻ベース
           .get()
           .timeout(const Duration(seconds: 5));
 
-      AppLogger.info('📬 [NOTIFICATION] 未読通知総数: ${snapshot.docs.length}');
+      AppLogger.info('📬 [NOTIFICATION] 最終同期以降の通知総数: ${snapshot.docs.length}');
 
       // グループ関連の通知タイプ
       final groupTypes = [
@@ -235,15 +251,30 @@ class NotificationService {
         if (type != null && groupTypes.contains(type)) {
           groupNotificationCount++;
           final message = doc.data()['message'] as String? ?? '';
-          AppLogger.info('  - $type: $message');
+          final timestamp = doc.data()['timestamp'] as Timestamp?;
+          AppLogger.info('  - $type ($timestamp): $message');
         }
       }
 
-      AppLogger.info('📊 [NOTIFICATION] グループ関連未読通知: $groupNotificationCount件');
+      AppLogger.info('📊 [NOTIFICATION] グループ関連通知: $groupNotificationCount件');
       return groupNotificationCount > 0;
     } catch (e) {
-      AppLogger.error('❌ [NOTIFICATION] 未読通知チェックエラー: $e');
+      AppLogger.error('❌ [NOTIFICATION] 通知チェックエラー: $e');
       return false; // エラー時は安全側に倒す（同期しない）
+    }
+  }
+
+  /// 最終同期時刻を更新
+  /// forceSyncProvider完了後に呼び出す
+  Future<void> updateLastSyncTime() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await prefs.setInt('last_firestore_sync_time', now);
+      AppLogger.info(
+          '⏰ [NOTIFICATION] 最終同期時刻を更新: ${DateTime.fromMillisecondsSinceEpoch(now)}');
+    } catch (e) {
+      AppLogger.error('❌ [NOTIFICATION] 最終同期時刻更新エラー: $e');
     }
   }
 

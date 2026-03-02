@@ -270,11 +270,15 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
               _initializationStatus = 'グループデータを同期中...';
             });
 
-            Log.info('🔔 [APP_INIT] 未読グループ通知あり → Firestore同期実行');
+            Log.info('🔔 [APP_INIT] グループ通知検出 → Firestore同期実行');
             await ref.read(forceSyncProvider.future);
+
+            // 🔥 同期完了後に最終同期時刻を更新
+            await notificationService.updateLastSyncTime();
+
             Log.info('✅ [APP_INIT] Firestore同期完了');
           } else {
-            Log.info('✅ [APP_INIT] 未読グループ通知なし → Hiveデータ使用（同期スキップ）');
+            Log.info('✅ [APP_INIT] 新規通知なし → Hiveデータ使用（同期スキップ）');
           }
         } catch (e) {
           Log.warning('⚠️ [APP_INIT] 通知チェックエラー（続行）: $e');
