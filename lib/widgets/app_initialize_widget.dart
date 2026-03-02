@@ -16,6 +16,7 @@ import '../helpers/user_id_change_helper.dart';
 import '../flavors.dart';
 import '../config/app_mode_config.dart';
 import '../providers/user_settings_provider.dart';
+import '../providers/purchase_group_provider.dart'; // forceSyncProvider
 import '../models/shared_group.dart';
 
 /// アプリ初期化を管理するウィジェット
@@ -255,6 +256,30 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
       // 通知リスナーを起動（認証済みの場合のみ）
       final notificationService = ref.read(notificationServiceProvider);
       notificationService.startListening();
+
+      // 🆕 未読グループ通知チェックと条件付きFirestore同期
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null &&
+          (F.appFlavor == Flavor.prod || F.appFlavor == Flavor.dev)) {
+        try {
+          final hasGroupNotifications =
+              await notificationService.hasUnreadGroupNotifications();
+
+          if (hasGroupNotifications) {
+            setState(() {
+              _initializationStatus = 'グループデータを同期中...';
+            });
+
+            Log.info('🔔 [APP_INIT] 未読グループ通知あり → Firestore同期実行');
+            await ref.read(forceSyncProvider.future);
+            Log.info('✅ [APP_INIT] Firestore同期完了');
+          } else {
+            Log.info('✅ [APP_INIT] 未読グループ通知なし → Hiveデータ使用（同期スキップ）');
+          }
+        } catch (e) {
+          Log.warning('⚠️ [APP_INIT] 通知チェックエラー（続行）: $e');
+        }
+      }
 
       // 🆕 定期購入アイテムの自動リセット（アプリ起動時）
       _resetPeriodicPurchaseItems();

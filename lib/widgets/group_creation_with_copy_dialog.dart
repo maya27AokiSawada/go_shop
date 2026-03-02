@@ -586,15 +586,24 @@ class _GroupCreationWithCopyDialogState
       await Future.delayed(const Duration(milliseconds: 300));
       AppLogger.info('✅ [CREATE GROUP DIALOG] UI安定化待機完了');
 
+      // 🔥🔥🔥 CRITICAL DEBUG - このログが表示されれば、この行までは到達している
+      AppLogger.info('🔥🔥🔥 [CRITICAL DEBUG] newGroupId取得ブロック開始');
+      AppLogger.info(
+          '🔥🔥🔥 [CRITICAL DEBUG] hasMembersToAdd: $hasMembersToAdd');
+
       // 🔥 FIX: メンバーコピーがある場合、プロバイダー更新後にメンバーを追加
       // この時点で新しいグループがallGroupsProviderに含まれている
       String? newGroupId;
       if (hasMembersToAdd) {
+        // 🔥🔥🔥 CRITICAL DEBUG - このログが表示されればif分岐に入った
+        AppLogger.info('🔥🔥🔥 [CRITICAL DEBUG] if分岐に入りました - メンバーコピーパス');
         AppLogger.info('🔄 [CREATE GROUP DIALOG] メンバー追加開始');
         newGroupId = await _addMembersToNewGroup(groupName);
         AppLogger.info(
             '✅ [CREATE GROUP DIALOG] メンバー追加完了（グループID: ${AppLogger.maskGroupId(newGroupId, currentUserId: ref.read(authStateProvider).value?.uid)}）');
       } else {
+        // 🔥🔥🔥 CRITICAL DEBUG - このログが表示されればelse分岐に入った
+        AppLogger.info('🔥🔥🔥 [CRITICAL DEBUG] else分岐に入りました - 新規グループ作成パス');
         // 🔥 NEW: 新規グループ作成時もgroupIdを取得
         AppLogger.info('🔄 [CREATE GROUP DIALOG] 新規グループのgroupId取得開始');
         final allGroups = await ref.read(allGroupsProvider.future);

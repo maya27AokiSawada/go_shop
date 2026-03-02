@@ -198,6 +198,55 @@ class NotificationService {
     AppLogger.info('🔕 [NOTIFICATION] リスナー停止');
   }
 
+  /// グループ関連の未読通知があるかチェック
+  ///
+  /// アプリ起動時にFirestore同期が必要か判断するために使用
+  /// グループ作成・更新・削除・招待受諾の通知がある場合にtrueを返す
+  Future<bool> hasUnreadGroupNotifications() async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      AppLogger.info('🔕 [NOTIFICATION] 認証なし - 未読通知チェックスキップ');
+      return false;
+    }
+
+    try {
+      AppLogger.info('🔍 [NOTIFICATION] 未読グループ通知チェック開始...');
+
+      final snapshot = await _firestore
+          .collection('notifications')
+          .where('userId', isEqualTo: currentUser.uid)
+          .where('read', isEqualTo: false)
+          .get()
+          .timeout(const Duration(seconds: 5));
+
+      AppLogger.info('📬 [NOTIFICATION] 未読通知総数: ${snapshot.docs.length}');
+
+      // グループ関連の通知タイプ
+      final groupTypes = [
+        'group_member_added', // グループ作成またはメンバー追加
+        'group_updated', // グループ更新
+        'group_deleted', // グループ削除
+        'invitation_accepted', // 招待受諾
+      ];
+
+      int groupNotificationCount = 0;
+      for (final doc in snapshot.docs) {
+        final type = doc.data()['type'] as String?;
+        if (type != null && groupTypes.contains(type)) {
+          groupNotificationCount++;
+          final message = doc.data()['message'] as String? ?? '';
+          AppLogger.info('  - $type: $message');
+        }
+      }
+
+      AppLogger.info('📊 [NOTIFICATION] グループ関連未読通知: $groupNotificationCount件');
+      return groupNotificationCount > 0;
+    } catch (e) {
+      AppLogger.error('❌ [NOTIFICATION] 未読通知チェックエラー: $e');
+      return false; // エラー時は安全側に倒す（同期しない）
+    }
+  }
+
   /// 通知を処理
   Future<void> _handleNotification(NotificationData notification) async {
     try {
