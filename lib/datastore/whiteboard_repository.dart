@@ -344,6 +344,31 @@ class WhiteboardRepository {
     }
   }
 
+  /// 🔥 NEW: グループ共通ホワイトボードをリアルタイム監視
+  /// コレクション全体を監視してownerIdがnullのものをフィルタリング
+  /// ホワイトボードの新規作成も自動的に検知できる
+  Stream<Whiteboard?> watchGroupWhiteboard(String groupId) {
+    return _collection(groupId).snapshots().map((snapshot) {
+      AppLogger.info(
+          '📡 [WATCH_GROUP_WB] スナップショット受信: ${snapshot.docs.length}件');
+
+      // ownerIdがnullのドキュメントを探す
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final ownerId = data['ownerId'];
+
+        if (ownerId == null) {
+          AppLogger.info('✅ [WATCH_GROUP_WB] グループ共通ホワイトボード検知: ${doc.id}');
+          return Whiteboard.fromFirestore(data, doc.id);
+        }
+      }
+
+      // グループ共通ホワイトボードが見つからない
+      AppLogger.info('📡 [WATCH_GROUP_WB] グループ共通ホワイトボードなし');
+      return null;
+    });
+  }
+
   /// ホワイトボードをリアルタイム監視
   Stream<Whiteboard?> watchWhiteboard(String groupId, String whiteboardId) {
     return _collection(groupId).doc(whiteboardId).snapshots().map((snapshot) {

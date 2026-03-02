@@ -16,18 +16,12 @@ final groupWhiteboardProvider =
 
 /// 🔥 NEW: グループ共通ホワイトボードリアルタイム監視プロバイダー
 final watchGroupWhiteboardProvider =
-    StreamProvider.family<Whiteboard?, String>((ref, groupId) async* {
+    StreamProvider.family<Whiteboard?, String>((ref, groupId) {
   final repository = ref.read(whiteboardRepositoryProvider);
 
-  // まず現在のホワイトボードを取得
-  final currentWhiteboard = await repository.getGroupWhiteboard(groupId);
-  if (currentWhiteboard == null) {
-    yield null;
-    return;
-  }
-
-  // whiteboardIdが分かったのでリアルタイム監視開始
-  yield* repository.watchWhiteboard(groupId, currentWhiteboard.whiteboardId);
+  // 🔥 FIX: コレクション全体を監視してownerIdがnullのものをフィルタリング
+  // これによりホワイトボードの新規作成も自動的に検知できる
+  return repository.watchGroupWhiteboard(groupId);
 });
 
 /// 個人用ホワイトボードプロバイダー
