@@ -42,6 +42,104 @@ flutterfire configure --project=gotoshop-572b7
 
 ---
 
+## Recent Implementations (2026-03-02)
+
+### 1. ホワイトボードプレビュー継続監視バグ修正 ✅
+
+**Purpose**: グループメンバー管理ページのホワイトボードプレビューが新規作成を検知しない問題を修正
+
+**Problem**:
+
+- ホワイトボード未作成時に`StreamProvider`が`null`を`yield`して`return`
+- ストリームが終了し、その後の新規作成イベントを検知できない
+
+**Root Cause**:
+
+```dart
+// ❌ 問題
+StreamProvider.family<Whiteboard?, String>((ref, groupId) async* {
+  final currentWhiteboard = await repository.getGroupWhiteboard(groupId);
+  if (currentWhiteboard == null) {
+    yield null;
+    return;  // ← ストリーム終了！
+  }
+  yield* repository.watchWhiteboard(groupId, currentWhiteboard.whiteboardId);
+});
+```
+
+**Solution**:
+
+```dart
+// ✅ 修正 - 継続的監視
+final watchGroupWhiteboardProvider =
+    StreamProvider.family<Whiteboard?, String>((ref, groupId) {
+  return ref.watch(whiteboardRepositoryProvider).watchGroupWhiteboard(groupId);
+});
+
+// Repository側で動的監視
+Stream<Whiteboard?> watchGroupWhiteboard(String groupId) {
+  return _collection(groupId).snapshots().map((snapshot) {
+    for (final doc in snapshot.docs) {
+      if (doc.data()['ownerId'] == null) {
+        return Whiteboard.fromFirestore(doc.data(), doc.id);
+      }
+    }
+    return null;
+  });
+}
+```
+
+**Benefits**:
+
+- ✅ 新規作成・更新・削除すべてのイベントを自動検知
+- ✅ `async*`ジェネレーターの落とし穴を回避
+- ✅ 実機テスト済み（AIWA/Pixel 9/SH54D: 15/15 PASS）
+
+**Modified Files**:
+
+- `lib/providers/whiteboard_provider.dart`
+- `lib/datastore/whiteboard_repository.dart`
+
+**Commit**: `49032b7`
+
+---
+
+### 2. 同一ユーザー他デバイス同期バグ修正 ✅
+
+**Purpose**: グループ作成時に作成者の他デバイスに即座に反映されない問題を修正
+
+**Problem**:
+
+- `member.memberId != currentUid`条件で作成者自身を除外
+- 作成者の他デバイスが通知を受信できない
+
+**Solution** (`lib/widgets/group_creation_with_copy_dialog.dart` Line 799):
+
+```dart
+// ❌ Before
+if (isSelected && member.memberId != currentUid) {
+  await notificationService.sendNotification(...);
+}
+
+// ✅ After - 自分自身にも通知送信（他デバイス同期用）
+if (isSelected) {
+  await notificationService.sendNotification(...);
+}
+```
+
+**Benefits**:
+
+- ✅ 同一ユーザーの全デバイスでグループ即座に表示
+- ✅ 通知インフラの既存機能を活用
+
+**Commit**: `0923393`
+
+---
+
+**Technical Learning**: `async*`でのreturnはストリーム終了 → 動的監視にはRepository側でsnapshots().map()を使用
+
+---
+
 ## Recent Implementations (2026-02-27)
 
 ### Systematic Testing & QR Scanner Crash Fix ✅

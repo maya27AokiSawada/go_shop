@@ -1,5 +1,186 @@
 # GoShopping - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-03-02)
+
+### 1. ホワイトボードプレビュー継続監視バグ修正 ✅
+
+**Purpose**: グループメンバー管理ページのホワイトボードプレビューが新規作成を検知しない問題を修正
+
+**Problem**:
+
+- ホワイトボード未作成時に`StreamProvider`が`null`を`yield`して`return`
+- ストリームが終了し、その後の新規作成イベントを検知できない
+- ユーザーがホワイトボードを作成してもプレビューが更新されない
+
+**Root Cause**:
+
+```dart
+// ❌ 問題のあったコード
+StreamProvider.family<Whiteboard?, String>((ref, groupId) async* {
+  final currentWhiteboard = await repository.getGroupWhiteboard(groupId);
+  if (currentWhiteboard == null) {
+    yield null;
+    return;  // ← ストリーム終了！新規作成が検知されない
+  }
+  yield* repository.watchWhiteboard(groupId, currentWhiteboard.whiteboardId);
+});
+```
+
+**Solution**:
+
+**1. lib/providers/whiteboard_provider.dart 修正**:
+
+```dart
+// ✅ 修正後 - 継続的監視
+final watchGroupWhiteboardProvider =
+    StreamProvider.family<Whiteboard?, String>((ref, groupId) {
+  final repository = ref.watch(whiteboardRepositoryProvider);
+  return repository.watchGroupWhiteboard(groupId);  // 常に監視
+});
+```
+
+**2. lib/datastore/whiteboard_repository.dart 新規メソッド追加**:
+
+```dart
+/// グループ共通ホワイトボード（ownerId == null）を監視
+Stream<Whiteboard?> watchGroupWhiteboard(String groupId) {
+  return _collection(groupId).snapshots().map((snapshot) {
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      final ownerId = data['ownerId'];
+
+      if (ownerId == null) {
+        return Whiteboard.fromFirestore(data, doc.id);
+      }
+    }
+    return null;  // グループ共通ホワイトボードなし
+  });
+}
+```
+
+**Benefits**:
+
+- ✅ `async*`ジェネレーターパターンを廃止
+- ✅ コレクション全体の`snapshots()`を監視
+- ✅ 新規作成・更新・削除すべてのイベントを自動検知
+- ✅ `ownerId == null`でグループ共通ホワイトボードをフィルタリング
+
+**Test Results**:
+
+- ✅ AIWA (TBA1011, Android 15): プレビュー正常表示・更新
+- ✅ Pixel 9 (Android 16): プレビュー正常表示・更新
+- ✅ SH54D (Android 16): プレビュー正常表示・更新
+
+**Modified Files**:
+
+- `lib/providers/whiteboard_provider.dart`
+- `lib/datastore/whiteboard_repository.dart`
+- `lib/pages/group_member_management_page.dart` (Line 178)
+
+**Commit**: `49032b7`
+**Status**: ✅ 完了・実機テスト済み（3デバイス × 5テストケース = 15/15 PASS）
+
+---
+
+### 2. 同一ユーザー他デバイス同期バグ修正 ✅
+
+**Purpose**: グループ作成時に作成者の他デバイスに即座に反映されない問題を修正
+
+**Problem**:
+
+- グループ作成時、選択されたメンバーのみに通知送信
+- `member.memberId != currentUid`条件で作成者自身を除外
+- 作成者の他デバイスが通知を受信できず、グループが即座に表示されない
+- リスト・アイテム同期は正常動作（こちらは除外なし）
+
+**Root Cause**:
+
+```dart
+// ❌ 問題のあったコード (group_creation_with_copy_dialog.dart Line 799)
+// 現在のユーザー（作成者）は除外
+if (isSelected && member.memberId != currentUid) {
+  await notificationService.sendNotification(
+    targetUserId: member.memberId,
+    type: NotificationType.groupMemberAdded,
+    // ...
+  );
+}
+```
+
+**Solution**:
+
+```dart
+// ✅ 修正後
+// 🔥 FIX: 自分自身にも通知を送信（他デバイス同期用）
+if (isSelected) {  // currentUid除外を削除
+  await notificationService.sendNotification(
+    targetUserId: member.memberId,
+    type: NotificationType.groupMemberAdded,
+    // ...
+  );
+}
+```
+
+**Benefits**:
+
+- ✅ 同一ユーザーの全デバイスでグループ即座に表示
+- ✅ 他メンバーの通知動作に影響なし
+- ✅ 通知インフラの既存機能を活用（追加実装不要）
+- ✅ 作成したデバイスも通知受信（軽微な副作用、UX上問題なし）
+
+**Modified Files**:
+
+- `lib/widgets/group_creation_with_copy_dialog.dart` (Line 799)
+
+**Commit**: `0923393`
+**Status**: ✅ 完了・次回セッションで実機テスト予定
+
+---
+
+### Technical Learnings (2026-03-02)
+
+**StreamProviderでのasync\*ジェネレーターの落とし穴**:
+
+```dart
+// ❌ Wrong: return でストリーム永久終了
+StreamProvider.family<T?, String>((ref, id) async* {
+  final data = await repository.getDataOnce(id);
+  if (data == null) {
+    yield null;
+    return;  // ストリーム終了！その後の変更は検知されない
+  }
+  yield* repository.watchData(id, data.id);
+});
+
+// ✅ Correct: 常に監視
+StreamProvider.family<T?, String>((ref, id) {
+  return repository.watchDataDynamic(id);  // 継続的監視
+});
+```
+
+**Repository側での動的監視パターン**:
+
+```dart
+Stream<T?> watchDataDynamic(String id) {
+  return _collection.snapshots().map((snapshot) {
+    for (final doc in snapshot.docs) {
+      if (/* 条件 */) {
+        return T.fromFirestore(doc.data(), doc.id);
+      }
+    }
+    return null;  // 見つからない場合
+  });
+}
+```
+
+**教訓**:
+
+- Firestoreの`where()`クエリはnull比較に非対応
+- コレクション全体を監視してクライアント側でフィルタリング
+- `async*`は静的データ変換用、動的監視には使わない
+
+---
+
 ## Recent Implementations (2026-02-28)
 
 ### 🔧 AS10L Device Support - GroupListWidget Overflow Fix ✅
