@@ -594,6 +594,18 @@ class _GroupCreationWithCopyDialogState
         newGroupId = await _addMembersToNewGroup(groupName);
         AppLogger.info(
             '✅ [CREATE GROUP DIALOG] メンバー追加完了（グループID: ${AppLogger.maskGroupId(newGroupId, currentUserId: ref.read(authStateProvider).value?.uid)}）');
+      } else {
+        // 🔥 NEW: 新規グループ作成時もgroupIdを取得
+        AppLogger.info('🔄 [CREATE GROUP DIALOG] 新規グループのgroupId取得開始');
+        final allGroups = await ref.read(allGroupsProvider.future);
+        // 最新のグループを取得（作成したばかりのグループ）
+        final latestGroup = allGroups.firstWhere(
+          (group) => group.groupName == groupName,
+          orElse: () => throw Exception('作成したグループが見つかりません'),
+        );
+        newGroupId = latestGroup.groupId;
+        AppLogger.info(
+            '✅ [CREATE GROUP DIALOG] 新規グループのgroupId取得完了: ${AppLogger.maskGroupId(newGroupId, currentUserId: ref.read(authStateProvider).value?.uid)}');
       }
 
       // 🔥 FIX: invalidate()を削除（メンバー追加は_addMembersToNewGroup内で完了）
