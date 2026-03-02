@@ -605,8 +605,8 @@ class _GroupCreationWithCopyDialogState
       }
 
       // 🔥 FIX: メンバーコピーは新グループ作成時に追加済み（_addSelectedMembersは削除）
-      // メンバーに通知を送信
-      if (hasMembersToAdd && newGroupId != null) {
+      // メンバーに通知を送信（新規グループ作成時は作成者自身にも送信）
+      if (newGroupId != null) {
         AppLogger.info('🔄 [CREATE GROUP DIALOG] メンバー通知送信開始');
 
         // 🔥 CRITICAL: Widget dispose前にrefを使用してサービス・ユーザー情報を取得
@@ -616,13 +616,43 @@ class _GroupCreationWithCopyDialogState
         final senderName = currentUser?.displayName ?? 'ユーザー';
 
         if (currentUser != null) {
-          await _sendMemberNotifications(
-            notificationService,
-            currentUser.uid,
-            senderName,
-            newGroupId,
-            groupName,
-          );
+          // 🔥 FIX: メンバーがいる場合は既存ロジック、いない場合は作成者自身に通知
+          if (hasMembersToAdd) {
+            // コピー元グループのメンバーに通知
+            await _sendMemberNotifications(
+              notificationService,
+              currentUser.uid,
+              senderName,
+              newGroupId,
+              groupName,
+            );
+          } else {
+            // 🔥 NEW: 新規グループ作成時は作成者の他デバイスに通知
+            AppLogger.info('🔄 [CREATE GROUP DIALOG] 新規グループ作成 - 作成者に通知送信');
+            try {
+              await notificationService.sendNotification(
+                targetUserId: currentUser.uid,
+                type: NotificationType.groupCreated,
+                groupId: newGroupId,
+                message: '新しいグループ「$groupName」を作成しました',
+                metadata: {
+                  'groupId': newGroupId,
+                  'groupName': groupName,
+                  'createdBy': currentUser.uid,
+                  'createdByName': senderName,
+                },
+              ).timeout(
+                const Duration(seconds: 5),
+                onTimeout: () {
+                  AppLogger.warning('⏱️ [CREATE GROUP DIALOG] 通知送信タイムアウト');
+                  throw TimeoutException('通知送信がタイムアウトしました');
+                },
+              );
+              AppLogger.info('✅ [CREATE GROUP DIALOG] 作成者への通知送信完了');
+            } catch (e) {
+              AppLogger.error('❌ [CREATE GROUP DIALOG] 作成者への通知送信エラー: $e');
+            }
+          }
           AppLogger.info('✅ [CREATE GROUP DIALOG] メンバー通知送信完了');
         } else {
           AppLogger.warning(
