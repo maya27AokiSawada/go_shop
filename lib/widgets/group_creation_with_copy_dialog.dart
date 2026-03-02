@@ -794,8 +794,8 @@ class _GroupCreationWithCopyDialogState
           final memberId = member.memberId;
           final isSelected = _selectedMembers[memberId] ?? false;
 
-          // 現在のユーザー（作成者）は除外
-          if (isSelected && member.memberId != currentUid) {
+          // 🔥 FIX: 自分自身にも通知を送信（他デバイス同期用）
+          if (isSelected) {
             try {
               // 🔥 FIX: タイムアウトを設定（5秒）
               await notificationService.sendNotification(
