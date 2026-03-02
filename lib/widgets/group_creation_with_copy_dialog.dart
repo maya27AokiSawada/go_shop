@@ -632,7 +632,7 @@ class _GroupCreationWithCopyDialogState
             try {
               await notificationService.sendNotification(
                 targetUserId: currentUser.uid,
-                type: NotificationType.groupCreated,
+                type: NotificationType.groupMemberAdded,
                 groupId: newGroupId,
                 message: '新しいグループ「$groupName」を作成しました',
                 metadata: {
