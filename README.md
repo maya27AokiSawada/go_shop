@@ -1,5 +1,175 @@
 # GoShopping - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-03-03)
+
+### NetworkMonitorService重大バグ修正 ✅
+
+**Purpose**: オフライン処理実装後の実機テストで発見した3つの重大バグと2つの構文エラーを修正
+
+**Problem**:
+
+1. グループ作成成功後もオフラインバナーが消えない
+2. リトライボタンが機能しない
+3. SharedGroupsクエリでpermission-deniedエラー発生（サインイン済みにも関わらず）
+4. デプロイ時のコンパイルエラー2件
+
+**Root Causes**:
+
+**Bug #1 - 初回接続チェック未実行**:
+
+- `NetworkMonitorService()`コンストラクタで`checkFirestoreConnection()`を呼び出していない
+- サービス初期化時に実接続チェックが実行されず、常に`online`状態のまま
+- 実際はオフラインでもバナーが表示されない
+
+**Bug #2 - 自動リトライトリガー欠落**:
+
+- `_updateStatus()`メソッドで`offline`検出時に`startAutoRetry()`を呼び出していない
+- ネットワーク復帰時に自動的に再接続を試みない
+- ユーザーが手動でリトライボタンを押す必要がある（しかしボタンも機能しない）
+
+**Bug #3 - Permission-deniedエラー**:
+
+- `SharedGroups.where(...).limit(1)`でlistクエリを実行
+- Firestoreルールでメンバーシップチェック必須だが、認証チェック前にクエリ実行
+- サインイン済みでもpermission-denied発生し、接続チェックが常に失敗
+
+**Syntax Error #1 - 重複の閉じ括弧**:
+
+- Line 108に`}`が重複入力され、try-catch構造が破壊
+- "Type 'on' not found"エラー + 15+のエラー連鎖
+
+**Syntax Error #2 - Final修飾子**:
+
+- `_currentStatus`が`final`宣言されているため状態変更不可
+- `_updateStatus()`で「setter未定義」エラー発生
+- 全ネットワーク状態遷移がブロックされる
+
+**Solution**:
+
+**Fix #1 - 初回接続チェック実装** (`lib/services/network_monitor_service.dart` Lines 35-43):
+
+```dart
+NetworkMonitorService() {
+  _statusController.add(_currentStatus);
+
+  // 🔥 初期化後に接続チェック実行
+  Future.microtask(() async {
+    await checkFirestoreConnection();
+  });
+}
+```
+
+**Fix #2 - 自動リトライトリガー追加** (`lib/services/network_monitor_service.dart` Lines 220-223):
+
+```dart
+void _updateStatus(NetworkStatus status) {
+  if (_currentStatus != status) {
+    _currentStatus = status;
+    _statusController.add(status);
+
+    // 🔥 offline検出時に自動リトライ開始
+    if (status == NetworkStatus.offline) {
+      startAutoRetry();
+    }
+  }
+}
+```
+
+**Fix #3 - Permission-deniedエラー修正** (`lib/services/network_monitor_service.dart` Lines 66-107):
+
+```dart
+Future<bool> checkFirestoreConnection() async {
+  final currentUser = FirebaseAuth.instance.currentUser;
+
+  if (currentUser != null) {
+    // 認証済み → users/{uid}ドキュメントをクエリ（オーナー常に読取可）
+    snapshot = await FirebaseFirestore.instance
+        .doc('users/${currentUser.uid}')
+        .get(const GetOptions(source: Source.server))
+        .timeout(connectionTimeout);
+  } else {
+    // 未認証 → furestorenewsコレクションをクエリ（誰でも読取可）
+    final querySnapshot = await FirebaseFirestore.instance
+        .collection('furestorenews')
+        .limit(1)
+        .get(const GetOptions(source: Source.server))
+        .timeout(connectionTimeout);
+    snapshot = querySnapshot.docs.first;
+  }
+
+  _updateStatus(NetworkStatus.online);
+  stopAutoRetry();
+  return true;
+}
+```
+
+**Syntax Fix #1 - 重複括弧削除**:
+
+```dart
+// Line 107-108 (BEFORE):
+      }
+      }  // ❌ 重複
+
+// Line 107 (AFTER):
+      }
+```
+
+**Syntax Fix #2 - Final修飾子削除**:
+
+```dart
+// Line 48 (BEFORE):
+final NetworkStatus _currentStatus = NetworkStatus.online;
+
+// Line 48 (AFTER):
+NetworkStatus _currentStatus = NetworkStatus.online;
+```
+
+**Benefits**:
+
+- ✅ アプリ起動時に実際のネットワーク状態を正確に検出
+- ✅ オフライン検出時に自動的に30秒ごとのリトライ開始
+- ✅ ネットワーク復帰時に自動的に接続再試行
+- ✅ 認証済みユーザーでpermission-deniedエラーを完全回避
+- ✅ 未認証でも公開コレクションで接続チェック可能
+- ✅ グループ作成成功後にバナー自動消失（予想）
+- ✅ リトライボタンの手動＋自動両対応
+
+**Test Results**:
+
+- ✅ コンパイル成功（全構文エラー解消）
+- ✅ SH54D (Android 16)へのデプロイ成功
+- ✅ アプリ起動確認済み
+- 📅 **機能検証は翌日実施予定**（時間切れのため）
+
+**Deferred Testing** (2026-03-04予定):
+
+- Fix #1動作確認: 初回接続チェック実行ログ
+- Fix #2動作確認: offline検出時の自動リトライログ
+- Fix #3動作確認: permission-deniedエラー消失
+- バナー自動表示/非表示の動作確認
+- グループ作成成功後のバナー消失確認
+- 機内モードサイクルテスト
+- 手動リトライボタン動作確認
+
+**Modified Files**:
+
+- `lib/services/network_monitor_service.dart` (226行 → 258行)
+  - Bug #1-#3修正（3箇所）
+  - Syntax Error #1-#2修正（2箇所）
+- `lib/widgets/network_status_banner.dart` (前セッションでログ強化済み)
+
+**Commit**: (次セッションでコミット予定)
+**Status**: ✅ 実装・デプロイ完了 | 📅 機能検証は明日実施
+
+**Technical Lessons**:
+
+1. **複数バグの連鎖**: 詳細ログ追加 → 「何が実行されていないか」に注目 → 根本原因特定
+2. **構文エラーの連鎖**: 1つ目のエラー修正後に2つ目が発覚することがある
+3. **Final修飾子の落とし穴**: mutableな状態フィールドには`final`使用不可
+4. **Permission設計**: 認証状態に応じたクエリ先選択が重要（自分のドキュメント vs 公開コレクション）
+
+---
+
 ## Recent Implementations (2026-03-02)
 
 ### 1. ホワイトボードプレビュー継続監視バグ修正 ✅

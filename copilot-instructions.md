@@ -727,5 +727,204 @@ AS10L事例の連鎖:
 
 ---
 
-**最終更新**: 2026-02-28
+## 🐛 デバッグ教訓: NetworkMonitorService修正 (2026-03-03)
+
+### 複数バグの連鎖発見プロセス
+
+**状況**: オフライン処理実装後の実機テストで「グループ作成成功後もバナー消えない」＋「リトライボタン効かない」
+
+**調査手法**:
+
+1. **詳細ログ追加**: 実行フローを可視化
+
+   ```dart
+   AppLogger.info('🔍 [NETWORK_MONITOR] 初回接続チェック開始');
+   AppLogger.info('🔄 [NETWORK_MONITOR] オフライン検出 → 自動リトライ開始');
+   ```
+
+2. **ログ分析**: 「何が実行されていないか」に注目
+   - コンストラクタは呼ばれているが、`checkFirestoreConnection()`のログがない → **Bug #1発見**
+   - `_updateStatus()`は呼ばれているが、`startAutoRetry()`のログがない → **Bug #2発見**
+   - `checkFirestoreConnection()`でpermission-deniedエラー → **Bug #3発見**
+
+3. **根本原因特定**: コードを読み解く
+   - Bug #1: コンストラクタで`checkFirestoreConnection()`を呼び出していない
+   - Bug #2: `_updateStatus()`で`startAutoRetry()`を呼び出していない
+   - Bug #3: `SharedGroups.limit(1)`クエリがメンバーシップチェック必須だが認証前に実行
+
+**教訓**:
+
+- ✅ 実行されていないメソッドに注目（ログがないことでバグを特定）
+- ✅ 独立した3つのバグが同時に存在する可能性を考慮
+- ✅ 段階的修正（1つずつ修正・検証）
+
+### 構文エラーの連鎖と影響
+
+**Syntax Error #1 - 重複括弧（Line 108）**:
+
+```dart
+// 修正作業中に`}`を重複入力
+      }
+      }  // ❌ 重複 → try-catch構造破壊
+```
+
+**影響**:
+
+- "Type 'on' not found"エラー
+- 15+のエラー連鎖（catch句、TimeoutException、FirebaseExceptionすべてが未定義扱い）
+
+**教訓**:
+
+- ✅ 複雑構造（try-catch、if-else、switch）編集時は括弧対応を慎重に確認
+- ✅ 1つの構文エラーが複数のエラーメッセージを生成する
+- ✅ エラーメッセージの「最初の1つ」に注目（根本原因はそこにある）
+
+**Syntax Error #2 - Final修飾子（Line 48）**:
+
+```dart
+// 状態フィールドに`final`宣言
+final NetworkStatus _currentStatus = NetworkStatus.online;  // ❌
+
+// ↓ これが呼ばれると...
+_currentStatus = newStatus;  // Error: setter未定義
+```
+
+**影響**:
+
+- 全ネットワーク状態遷移がブロック
+- `online` → `offline`の遷移が不可能
+- 全機能が停止
+
+**教訓**:
+
+- ✅ `final`は「初期化後に変更不可」を意味する
+- ✅ Mutableな状態フィールドには`final`を使用しない
+- ✅ 設計時点で状態管理パターンを明確化
+
+### ベストプラクティス
+
+#### 1. ログファースト開発
+
+問題発生時は「推測」ではなく「ログ」で実行フローを可視化：
+
+```dart
+// ❌ 推測: 「たぶんこのメソッドが呼ばれているはず」
+void someMethod() {
+  doSomething();
+}
+
+// ✅ ログ: 「実際に呼ばれているか確認」
+void someMethod() {
+  AppLogger.info('🔍 [DEBUG] someMethod開始');
+  doSomething();
+  AppLogger.info('✅ [DEBUG] someMethod完了');
+}
+```
+
+#### 2. 段階的修正戦略
+
+複数バグを同時修正せず、1つずつ修正・検証：
+
+```
+❌ 一括修正: Bug #1,#2,#3を同時修正 → どれが効果あったか不明
+
+✅ 段階的修正:
+   1. Bug #1修正 → テスト → ログ確認 → 効果確認
+   2. Bug #2修正 → テスト → ログ確認 → 効果確認
+   3. Bug #3修正 → テスト → ログ確認 → 効果確認
+```
+
+#### 3. 構文チェック原則
+
+編集後は必ずコンパイル確認（ホットリロード不可）：
+
+```bash
+# 編集後すぐに実行
+flutter analyze
+
+# または
+dart analyze
+```
+
+#### 4. 括弧対応確認
+
+複雑構造の編集時は括弧マッチングをチェック：
+
+```dart
+try {
+  if (condition) {
+    doSomething();
+  }
+}  // ← この'}'がtryのものか、ifのものか確認
+catch (e) {
+  // ...
+}
+```
+
+**エディタのサポート機能活用**:
+
+- VS Code: 括弧上にカーソル → 対応する括弧がハイライト
+- VS Code: `Ctrl+Shift+[` で対応する括弧にジャンプ
+
+#### 5. 修飾子の理解
+
+`final`/`const`は用途を理解して使用：
+
+```dart
+// ✅ 定数: finalまたはconst
+final String apiEndpoint = 'https://api.example.com';
+
+// ✅ 初期化後変更なし: final
+final TextEditingController controller = TextEditingController();
+
+// ❌ 状態フィールド: finalは不可
+final NetworkStatus _currentStatus = NetworkStatus.online;  // NG
+NetworkStatus _currentStatus = NetworkStatus.online;  // OK
+```
+
+### Permission設計パターン
+
+**問題**: SharedGroupsクエリでpermission-denied発生（認証済みでも）
+
+**原因**: Firestoreルールでメンバーシップチェック必須だが、認証チェック前にクエリ実行
+
+**解決**: 認証状態に応じたクエリ先選択
+
+```dart
+// ✅ 認証状態別クエリパターン
+if (currentUser != null) {
+  // 認証済み: 自分のドキュメント（オーナー常に読取可）
+  await Firestore.doc('users/${currentUser.uid}').get();
+} else {
+  // 未認証: 公開コレクション（誰でも読取可）
+  await Firestore.collection('furestorenews').limit(1).get();
+}
+```
+
+**教訓**:
+
+- ✅ 接続チェック用のクエリは認証状態に関わらず実行可能なものを選択
+- ✅ 認証済みユーザーは自分のドキュメントをクエリ（permission確実）
+- ✅ 未認証は公開コレクションをクエリ（誰でも読取可）
+
+### 実機テストの重要性
+
+**教訓**: Windows開発環境ではエラーが発生せず、Android実機で初めて発覚
+
+**理由**:
+
+- Windows版はFirestore制限が緩い可能性
+- 実機はネットワーク環境が異なる
+- 実機は認証状態が異なる
+
+**ベストプラクティス**:
+
+- ✅ オフライン処理実装後は必ず実機テスト
+- ✅ 機内モードでのテスト
+- ✅ Wi-Fi/モバイル通信の切り替えテスト
+- ✅ 異なるOSバージョンでのテスト
+
+---
+
+**最終更新**: 2026-03-03
 **Important**: このファイルはAI支援開発のガイドラインです。すべての開発者が従うべき規則を定義しています。

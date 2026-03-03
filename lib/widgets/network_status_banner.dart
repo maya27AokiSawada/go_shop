@@ -70,8 +70,12 @@ class _NetworkStatusBannerState extends ConsumerState<NetworkStatusBanner> {
     // 手動リトライを実行
     final isOnline = await networkMonitor.manualRetry();
 
+    AppLogger.info(
+        '🔄 [BANNER] 手動リトライ結果: ${isOnline ? "オンライン復帰成功" : "まだオフライン"}');
+
     if (isOnline && mounted) {
       // オンラインに復帰した場合、Snackbarで通知
+      AppLogger.info('✅ [BANNER] SnackBar表示: ネットワーク接続が復帰しました');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('✅ ネットワーク接続が復帰しました'),
@@ -89,8 +93,11 @@ class _NetworkStatusBannerState extends ConsumerState<NetworkStatusBanner> {
 
     return networkStatusAsync.when(
       data: (status) {
+        AppLogger.info('📱 [BANNER] データ受信: $status');
+
         // オンライン状態なら非表示
         if (status == NetworkStatus.online) {
+          AppLogger.info('📱 [BANNER] オンライン状態 → バナー非表示');
           return const SizedBox.shrink();
         }
 
@@ -98,9 +105,13 @@ class _NetworkStatusBannerState extends ConsumerState<NetworkStatusBanner> {
         _updateRemainingTime();
 
         // オフラインまたはチェック中の場合、バナーを表示
+        AppLogger.info('📱 [BANNER] オフライン/チェック中 → バナー表示: $status');
         return _buildBanner(context, status);
       },
-      loading: () => const SizedBox.shrink(),
+      loading: () {
+        AppLogger.info('📱 [BANNER] Loading状態 → バナー非表示');
+        return const SizedBox.shrink();
+      },
       error: (error, stack) {
         // エラー時は非表示
         AppLogger.error('❌ [BANNER] ネットワーク状態の監視エラー: $error');
