@@ -12,6 +12,7 @@ import '../flavors.dart';
 import '../config/app_mode_config.dart';
 import '../utils/app_logger.dart';
 import '../widgets/common_app_bar.dart';
+import '../widgets/network_status_banner.dart';
 
 /// SyncStatusからSyncStateを計算するヘルパー関数
 SyncState _getSyncState(SyncStatus syncStatus, bool isAuthenticated) {
@@ -96,7 +97,16 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       appBar: appBar,
       body: SafeArea(
-        child: pages[pageIndex],
+        child: Column(
+          children: [
+            // ネットワーク状態バナー（オフライン時のみ表示）
+            const NetworkStatusBanner(),
+            // メインコンテンツ
+            Expanded(
+              child: pages[pageIndex],
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
