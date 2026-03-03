@@ -221,10 +221,16 @@ class _GroupMemberManagementPageState
     final screenHeight = screenSize.height;
     final aspectRatio = screenWidth / screenHeight;
 
-    final isWideScreen = screenWidth >= 1000;
-    // スマホのランドスケープ: 横長だが高さが狭い（アスペクト比1.5未満）
-    final isNarrowLandscape =
-        aspectRatio > 1.0 && aspectRatio < 1.5 && screenHeight < 600;
+    // 2カラムレイアウト有効条件
+    // - 横幅1000px以上（快適な左右分割）
+    // - 縦幅600px以上（メンバーリストを快適表示）
+    // - アスペクト比1.2以上（横長画面: Pixel 9ポートレート除外）
+    final isWideScreen =
+        screenWidth >= 1000 && screenHeight >= 600 && aspectRatio > 1.2;
+
+    // スマホのランドスケープ警告: 横長だが高さが狭い
+    // - small_Phone (800x480)、通常スマホの横向き含む
+    final isNarrowLandscape = aspectRatio > 1.0 && screenHeight < 600;
 
     // ランドスケープ警告バナー（スマホの横向き時）
     Widget? landscapeWarningBanner;
