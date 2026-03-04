@@ -19,17 +19,34 @@ class NetworkStatusBanner extends ConsumerStatefulWidget {
 }
 
 class _NetworkStatusBannerState extends ConsumerState<NetworkStatusBanner> {
-  /// カウントダウン表示用のタイマー
+  /// カウントダウン表示用のタイマー（オフライン時のみ動作）
   Timer? _countdownTimer;
 
   /// 残り時間の表示テキスト
   String _remainingTimeText = '';
 
+  /// 前回ログ出力したステータス（重複ログ防止）
+  NetworkStatus? _lastLoggedStatus;
+
+  /// 現在オフライン状態かどうか（タイマー制御用）
+  bool _isOffline = false;
+
   @override
   void initState() {
     super.initState();
+    // タイマーはオフライン検出時に開始（_startCountdownTimer）
+    // オンライン時は不要なのでここでは開始しない
+  }
 
-    // カウントダウン表示を1秒ごとに更新
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    super.dispose();
+  }
+
+  /// カウントダウンタイマーを開始（オフライン時のみ）
+  void _startCountdownTimer() {
+    if (_countdownTimer != null) return; // 既に動作中
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (mounted) {
         setState(() {
@@ -37,12 +54,14 @@ class _NetworkStatusBannerState extends ConsumerState<NetworkStatusBanner> {
         });
       }
     });
+    AppLogger.info('⏱️ [BANNER] カウントダウンタイマー開始');
   }
 
-  @override
-  void dispose() {
+  /// カウントダウンタイマーを停止（オンライン復帰時）
+  void _stopCountdownTimer() {
     _countdownTimer?.cancel();
-    super.dispose();
+    _countdownTimer = null;
+    _remainingTimeText = '';
   }
 
   /// 残り時間のテキストを更新
@@ -93,19 +112,32 @@ class _NetworkStatusBannerState extends ConsumerState<NetworkStatusBanner> {
 
     return networkStatusAsync.when(
       data: (status) {
-        AppLogger.info('📱 [BANNER] データ受信: $status');
+        // ステータスが変化した時のみログ出力（毎秒のrebuildでは出力しない）
+        if (_lastLoggedStatus != status) {
+          AppLogger.info('📱 [BANNER] ステータス変化: $_lastLoggedStatus → $status');
+          _lastLoggedStatus = status;
+        }
 
-        // オンライン状態なら非表示
+        // オンライン状態なら非表示 + タイマー停止
         if (status == NetworkStatus.online) {
-          AppLogger.info('📱 [BANNER] オンライン状態 → バナー非表示');
+          if (_isOffline) {
+            AppLogger.info('📱 [BANNER] オンライン復帰 → バナー非表示、タイマー停止');
+            _stopCountdownTimer();
+            _isOffline = false;
+          }
           return const SizedBox.shrink();
+        }
+
+        // オフラインまたはチェック中 → タイマー開始 + バナー表示
+        if (!_isOffline) {
+          AppLogger.info('📱 [BANNER] オフライン検出 → バナー表示、タイマー開始');
+          _isOffline = true;
+          _startCountdownTimer();
         }
 
         // カウントダウンテキストを更新
         _updateRemainingTime();
 
-        // オフラインまたはチェック中の場合、バナーを表示
-        AppLogger.info('📱 [BANNER] オフライン/チェック中 → バナー表示: $status');
         return _buildBanner(context, status);
       },
       loading: () {

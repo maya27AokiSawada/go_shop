@@ -172,6 +172,19 @@ class NetworkMonitorService {
     }
   }
 
+  /// Firestore操作が成功したことを報告
+  ///
+  /// グループ作成やリスト操作など、Firestore操作が成功した時に呼び出す。
+  /// 現在オフライン状態の場合、オンラインに復帰させてバナーを非表示にする。
+  void reportFirestoreSuccess() {
+    if (_currentStatus != NetworkStatus.online) {
+      AppLogger.info(
+          '✅ [NETWORK_MONITOR] Firestore操作成功を検出 → オンライン復帰 (旧状態: $_currentStatus)');
+      _updateStatus(NetworkStatus.online);
+      stopAutoRetry();
+    }
+  }
+
   /// 手動リトライ
   ///
   /// ユーザーが手動でリトライボタンを押した時に呼び出す。

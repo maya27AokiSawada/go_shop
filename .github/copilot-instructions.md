@@ -42,6 +42,159 @@ flutterfire configure --project=gotoshop-572b7
 
 ---
 
+## Recent Implementations (2026-03-04)
+
+### 1. FIX 7: HybridSharedGroupRepository Firestore起動時競合状態修正 ✅
+
+**Purpose**: グループ作成時にFirestoreへ保存されずHiveのみ保存になる問題を根本修正
+
+**Problem**:
+
+- アプリ起動直後コンストラクタが`_safeAsyncFirestoreInitialization()`実行
+- Firebase Authがセッション未復元（`currentUser == null`）のため`_firestoreRepo = null`
+- 同時に`_isInitialized = true`が永続的にセット
+- Auth復帰後もリトライ機構が発動せずすべてのCRUDがHive-onlyパスに流れ続ける
+
+**Root Cause**:
+
+```
+HybridSharedGroupRepository() {
+  _safeAsyncFirestoreInitialization(); // currentUser == null → _firestoreRepo = null
+  // _isInitialized = true ← 永続的にセット済み
+}
+// 後でAuth復元 → でも _isInitialized = true のためリトライしない ❌
+```
+
+**Solution** (`lib/datastore/hybrid_purchase_group_repository.dart`):
+
+```dart
+// waitForSafeInitialization() 末尾に追加
+if (_firestoreRepo == null) {
+  final currentUser = FirebaseAuth.instance.currentUser;
+  if (currentUser != null) {
+    AppLogger.info('🔄 [HYBRID_REPO] 認証復帰検出 - Firestore再初期化試行');
+    _isInitializing = false;
+    _isInitialized = false;
+    await _safeAsyncFirestoreInitialization();
+    if (_firestoreRepo != null) {
+      AppLogger.info('✅ [HYBRID_REPO] Firestore再初期化成功！ハイブリッドモード開始');
+    } else {
+      AppLogger.warning('⚠️ [HYBRID_REPO] Firestore再初期化失敗 - Hiveのみモード継続');
+    }
+  }
+}
+```
+
+**Verification** (SH-54D logcat):
+
+```
+🌐 [HYBRID_REPO] Firestore統合有効化完了 - ハイブリッドモード開始
+🔥 [HYBRID_REPO] Firestore優先モード - Firestoreに作成
+✅ [SYNC] Firestore→Hive同期完了: 2 同期, 0 スキップ
+```
+
+**Benefits**:
+
+- ✅ グループ作成がFirestoreへ正常保存
+- ✅ マルチデバイス同期が即座に機能
+- ✅ Firebase Auth起動タイミング依存を完全解消
+
+**Modified Files**:
+
+- `lib/datastore/hybrid_purchase_group_repository.dart`
+
+**Status**: ✅ 実機検証完了（SH-54D）
+
+---
+
+### 2. NetworkMonitorService FIX 5-6（グループ作成後バナー消えない問題修正）✅
+
+**Purpose**: グループ作成成功後もオフラインバナーが残り続けるバグを修正
+
+**Background**: 前日（2026-03-03）にFIX 1〜4（Riverpod assertion エラー）を修正した後、実機テストのTest 5を実施してFIX 5-6の問題が判明
+
+**Problem**:
+
+- グループ作成成功後に`reportFirestoreSuccess()`が呼ばれていなかった
+- バナー消去条件（Firestore成功）が満たされず永続表示
+
+**Solution**:
+
+```dart
+// lib/providers/purchase_group_provider.dart AllGroupsNotifier.createNewGroup()
+await _repository.createGroup(groupId, groupName, ownerMember);
+// 🔥 FIX 5: 作成成功をNetworkMonitorに通知
+_networkMonitor.reportFirestoreSuccess();
+
+// lib/services/network_monitor_service.dart
+void reportFirestoreSuccess() {
+  if (_firestoreStatus != FirestoreStatus.connected) {
+    _firestoreStatus = FirestoreStatus.connected;
+    _notifyListeners();
+  }
+}
+```
+
+**Modified Files**:
+
+- `lib/providers/purchase_group_provider.dart`
+- `lib/services/network_monitor_service.dart`
+
+**NetworkMonitor テスト結果**: 全6テスト PASS（SH-54D）
+
+---
+
+### 3. 総合実機テストチェックリスト 作成 + セクション1・2 実施 ✅
+
+**チェックリスト**: `docs/daily_reports/2026-03/final_device_test_checklist_20260304.md`（168項目・12セクション）
+
+**Section 1（認証・アカウント管理 14項目）**: 13/14 合格
+
+- ⚠️ SharedPreferences: サインアウト時にクリア不要（設定保存のため） → 仕様として許容
+
+**Section 2（ホーム画面 8項目）**: 6/8 合格
+
+- ⚠️ 起動時間: Firebase初期化3秒待機 → 仕様として許容
+- ⚠️ オフラインバナー: Firestoreアクセス時に初めて検出（ポーリング不要） → 仕様として許容
+
+**Section 3〜12**: ⏳ 翌日実施予定
+
+---
+
+### Technical Learning（2026-03-04）
+
+#### Firebase Auth + Riverpod Providerシングルトンの起動タイミング問題
+
+**問題パターン**:
+
+```dart
+class HybridRepo {
+  HybridRepo() {
+    _safeAsyncFirestoreInitialization(); // currentUser == null の可能性大
+    // _isInitialized = true が永続化 → リトライ不可
+  }
+}
+```
+
+**対策パターン**（使用直前チェック）:
+
+```dart
+Future<void> waitForSafeInitialization() async {
+  // ... 既存の初期化待機 ...
+
+  // 末尾に現在の認証状態を再確認
+  if (_firestoreRepo == null && FirebaseAuth.instance.currentUser != null) {
+    _isInitializing = false;
+    _isInitialized = false;
+    await _safeAsyncFirestoreInitialization(); // 再試行
+  }
+}
+```
+
+**教訓**: コンストラクタで非同期初期化する場合、Firebase Authの起動遅延を考慮し「使用直前チェック」で補完する設計が必須。
+
+---
+
 ## Recent Implementations (2026-03-02)
 
 ### 1. ホワイトボードプレビュー継続監視バグ修正 ✅

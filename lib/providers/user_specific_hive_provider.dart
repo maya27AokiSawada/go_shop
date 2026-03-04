@@ -40,13 +40,22 @@ final currentUserIdProvider = Provider<String?>((ref) {
 });
 
 /// Hiveサービスが初期化されているかどうかを監視するプロバイダー
+///
+/// 🔥 FIX (2026-03-05): FutureProviderのloading状態でも、
+/// app_initialize_widget.dartで直接初期化済みの場合はtrueを返す。
+/// 理由: app_initialize_widget.dartがFutureProviderとは別経路で
+/// UserSpecificHiveService.initializeForDefaultUser()を直接呼び出すため、
+/// FutureProviderがまだloadingでもサービスは既に初期化完了している場合がある。
 final hiveInitializationStatusProvider = Provider<bool>((ref) {
   // hiveUserInitializationProviderの状態を監視
   final initializationState = ref.watch(hiveUserInitializationProvider);
 
   return initializationState.when(
-    data: (_) => true, // 初期化完了
-    loading: () => false, // 初期化中
+    data: (_) => true, // FutureProvider完了 → 確実に初期化済み
+    loading: () {
+      // FutureProviderがloading中でも、直接初期化が完了していればtrue
+      return UserSpecificHiveService.instance.isInitialized;
+    },
     error: (_, __) => false, // エラー
   );
 });

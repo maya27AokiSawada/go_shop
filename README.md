@@ -1,5 +1,84 @@
 # GoShopping - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-03-04)
+
+### FIX 7: HybridSharedGroupRepository Firestore再初期化バグ修正 ✅
+
+**Purpose**: グループ作成時にFirestoreへ保存されず、Hiveのみ保存になる問題を根本修正
+
+**Root Cause（起動時タイミング競合）**:
+
+アプリ起動直後、`HybridSharedGroupRepository`のコンストラクタが`_safeAsyncFirestoreInitialization()`を呼び出す時点では、FirebaseAuthがまだセッションを復元しておらず`currentUser == null`のため`_firestoreRepo = null`のまま初期化完了フラグ（`_isInitialized = true`）がセットされる。その後Authがセッションを復元しても`_isInitialized = true`のためリトライ機構が一切発動せず、すべてのCRUD操作がHive-onlyパスに流れ続ける。
+
+**Solution** (`lib/datastore/hybrid_purchase_group_repository.dart`):
+
+```dart
+// waitForSafeInitialization() 末尾に追加
+// 🔥 FIX 7: アプリ起動時タイミング問題対策
+// _firestoreRepo=null で初期化が完了している場合でも、
+// 現在サインイン中であればFirestoreを再初期化する
+if (_firestoreRepo == null) {
+  final currentUser = FirebaseAuth.instance.currentUser;
+  if (currentUser != null) {
+    AppLogger.info('🔄 [HYBRID_REPO] 認証復帰検出 - Firestore再初期化試行');
+    _isInitializing = false;
+    _isInitialized = false;
+    await _safeAsyncFirestoreInitialization();
+    if (_firestoreRepo != null) {
+      AppLogger.info('✅ [HYBRID_REPO] Firestore再初期化成功！ハイブリッドモード開始');
+    } else {
+      AppLogger.warning('⚠️ [HYBRID_REPO] Firestore再初期化失敗 - Hiveのみモード継続');
+    }
+  }
+}
+```
+
+**検証結果** (SH-54D logcat):
+
+```
+🌐 [HYBRID_REPO] Firestore統合有効化完了 - ハイブリッドモード開始
+🔥 [HYBRID_REPO] Firestore優先モード - Firestoreに作成
+✅ [SYNC] Firestore→Hive同期完了: 2 同期, 0 スキップ
+```
+
+**Benefits**:
+
+- ✅ グループ作成がFirestoreへ正常保存
+- ✅ マルチデバイス同期が即座に機能
+- ✅ Hive-onlyだった全CRUDがFirestore優先に
+- ✅ Firebase Auth起動タイミング依存を完全解消
+
+**Modified Files**:
+
+- `lib/datastore/hybrid_purchase_group_repository.dart` (`waitForSafeInitialization()`末尾)
+
+**Commit**: （本セッション）
+
+**Status**: ✅ 実機検証完了（SH-54D）
+
+---
+
+### 総合実機テストチェックリスト セクション1・2 実施 ✅
+
+**チェックリスト**: `docs/daily_reports/2026-03/final_device_test_checklist_20260304.md`（168項目・12セクション）
+
+| セクション    | 内容                           | 結果                           |
+| ------------- | ------------------------------ | ------------------------------ |
+| Section 1     | 認証・アカウント管理 14項目    | 13/14 ✅（1件は仕様確認→許容） |
+| Section 2     | ホーム画面 8項目               | 6/8 ✅（2件は仕様確認→許容）   |
+| Section 3〜12 | グループ管理〜ホワイトボード等 | ⏳ 翌日実施予定                |
+
+**Section 1 確認事項**: SharedPreferencesはサインアウト時にクリア不要（「メールアドレスを保存」設定等が含まれるため）→ 仕様として許容
+
+**Section 2 確認事項**:
+
+- 起動時間⚠️: Firebase初期化3秒待機のため仕様許容
+- オフラインバナー⚠️: Firestoreアクセスが発生して初めて検出（ポーリング不要）→ 仕様許容
+
+**Technical Learning**: Firebase Auth + Riverpod Providerシングルトンの組み合わせでは、起動タイミング問題が永続化する。`waitForSafeInitialization()`等の「使用直前チェック」パターンで補完する設計が安全。
+
+---
+
 ## Recent Implementations (2026-03-03)
 
 ### NetworkMonitorService重大バグ修正 ✅

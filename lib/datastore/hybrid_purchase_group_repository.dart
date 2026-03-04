@@ -226,6 +226,27 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
     if (_initializationError != null) {
       AppLogger.info('ℹ️ [HYBRID_REPO] 初期化時エラー（回復済み）: $_initializationError');
     }
+
+    // 🔥 FIX 7: Firestore再初期化チェック
+    // アプリ起動時にFirebase Auth未復元 → _firestoreRepo=null で初期化完了した場合でも、
+    // 現在認証済みであればFirestoreを再初期化する（起動時タイミング問題対策）
+    if (_firestoreRepo == null) {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        AppLogger.info(
+            '🔄 [HYBRID_REPO] 認証復帰検出（uid: ${currentUser.uid}）- Firestore再初期化試行');
+        _isInitializing = false; // ガードリセット（再入防止フラグ解除）
+        _isInitialized = false; // 初期化完了フラグリセット
+        await _safeAsyncFirestoreInitialization();
+        if (_firestoreRepo != null) {
+          AppLogger.info(
+              '✅ [HYBRID_REPO] Firestore再初期化成功！ハイブリッドモード開始');
+        } else {
+          AppLogger.warning(
+              '⚠️ [HYBRID_REPO] Firestore再初期化失敗 - Hiveのみモード継続');
+        }
+      }
+    }
   }
 
   /// オンライン状態をチェック

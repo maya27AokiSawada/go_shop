@@ -17,6 +17,7 @@ import '../services/user_initialization_service.dart';
 import '../services/device_id_service.dart'; // 🆕 デバイスID生成用
 // 🔥 REMOVED: import '../services/firestore_user_name_service.dart'; デフォルトグループ機能削除
 import '../services/notification_service.dart';
+import '../services/network_monitor_service.dart';
 import 'auth_provider.dart';
 import 'user_specific_hive_provider.dart';
 import 'current_list_provider.dart';
@@ -420,25 +421,28 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
   Future<List<SharedGroup>> build() async {
     Log.info('🔄 [ALL GROUPS] AllGroupsNotifier.build() 開始');
 
-    // ✅ 最初に全ての依存性を確定する
-    // FutureProvider/StreamProviderは ref.watch() が必須（非同期データ監視）
-    // Provider<T>は ref.read() で十分（同期的なサービス）
+    // ✅ 最初に全ての依存性を確定する（ref.watch()はawait前に全て呼ぶ）
+    // ⚠️ CRITICAL: AsyncNotifier.build()内では、全てのref.watch()/ref.read()を
+    // 最初のawait前に完了すること。awaitの間に監視中のProviderが変更されると
+    // _didChangeDependencyアサーションエラーが発生し、以降のref呼び出しが全て失敗する。
     final hiveReady = ref.watch(hiveInitializationStatusProvider);
-    // 初期化状態も監視（初期化完了時に自動的に再構築される）
-    ref.watch(userInitializationStatusProvider);
+    final authState = ref.watch(authStateProvider);
     final repository = ref.read(SharedGroupRepositoryProvider);
-    final accessControl =
-        ref.read(accessControlServiceProvider); // ← Provider<T>なので read()
+    final accessControl = ref.read(accessControlServiceProvider);
+    // 🔥 FIX: hiveSharedGroupRepositoryProviderもawait前にキャッシュ
+    final hiveRepo = ref.read(hiveSharedGroupRepositoryProvider);
+
+    // 🔥 FIX: Hive未初期化時は空リストを返す（Riverpodが自動再構築する）
+    // 従来: await ref.read(hiveUserInitializationProvider.future) で待機
+    // → hiveInitializationStatusProviderが変更され_didChangeDependencyエラー発生
+    // 修正: 早期return + ref.watch()による自動再構築
+    if (!hiveReady) {
+      Log.info(
+          '🔄 [ALL GROUPS] Hive初期化未完了 → 空リスト返却（初期化完了時に自動再構築）');
+      return [];
+    }
 
     try {
-      // Hiveが初期化されるのを待つ（特にデスクトップでのユーザー固有初期化）
-      if (!hiveReady) {
-        Log.info('🔄 [ALL GROUPS] Hive初期化待機中...');
-        // hiveUserInitializationProvider は FutureProvider なので .future で待機
-        await ref.read(hiveUserInitializationProvider.future);
-        Log.info('🔄 [ALL GROUPS] Hive初期化完了、続行します');
-      }
-
       Log.info('🔄 [ALL GROUPS] リポジトリ取得完了: ${repository.runtimeType}');
 
       // ✅ Hive優先アーキテクチャ
@@ -453,11 +457,9 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
       // - ユーザーが明示的に同期ボタンを押した時（GroupListWidgetの同期ボタン）
       // - グループ作成/更新/削除時（各mutation内で個別に同期）
       Log.info('🔄 [ALL GROUPS] Hive優先モード: ローカルデータを即座に返す');
-
       Log.info('🔄 [ALL GROUPS] Hiveから直接取得開始');
 
-      // Hiveから直接データ取得（初期化待機なし）
-      final hiveRepo = ref.read(hiveSharedGroupRepositoryProvider);
+      // Hiveから直接データ取得（hiveRepoはawait前にキャッシュ済み）
       final allGroupsRaw = await hiveRepo.getAllGroups();
 
       Log.info(
@@ -471,7 +473,8 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
       }
 
       // 🔥 CRITICAL: allowedUidに現在ユーザーが含まれないグループを除外
-      final currentUser = ref.watch(authStateProvider).value;
+      // 🔥 FIX: authStateはbuild()先頭でref.watch()済み（await後にref.watch()禁止）
+      final currentUser = authState.value;
       Log.info(
           '🔍 [ALL GROUPS] 現在のユーザー: ${AppLogger.maskUserId(currentUser?.uid)}');
 
@@ -525,11 +528,10 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
         }
       }
 
-      // デフォルトグループの確認（情報ログのみ）
-      // ⚠️ 注意: デフォルトグループIDはuser.uidなので固定IDではチェックできない
+      // グループ数ログ（デフォルトグループ機能は2026-02-12に廃止済み）
       if (allGroups.isEmpty) {
         Log.info(
-            '🔄 [ALL GROUPS] グループが0個です。UserInitializationServiceでデフォルトグループが作成されます');
+            '🔄 [ALL GROUPS] グループが0個です。初回セットアップ画面(InitialSetupWidget)が表示されます');
       } else {
         Log.info('📊 [ALL GROUPS] グループ数: ${allGroups.length}個');
       }
@@ -686,6 +688,14 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
       );
 
       Log.info('✅ [CREATE GROUP] グループ作成完了: ${newGroup.groupName}');
+
+      // 🔥 Firestore操作成功 → NetworkMonitorにオンライン復帰を通知
+      // オフラインバナーが表示中の場合、自動的に非表示になる
+      try {
+        ref.read(networkMonitorProvider).reportFirestoreSuccess();
+      } catch (e) {
+        Log.warning('⚠️ [CREATE GROUP] NetworkMonitor通知エラー（続行）: $e');
+      }
 
       // 🔥 CRITICAL: HybridRepositoryのcreateGroup()は既にFirestore同期済み
       // 二重のupdateGroup()呼び出しは不要（削除済み）

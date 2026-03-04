@@ -24,6 +24,8 @@ final userInitializationServiceProvider = Provider<UserInitializationService>((
 });
 
 /// 初期化完了状態を監視するStateProvider
+/// 🔥 DEPRECATED (2026-03-05): このプロバイダーはどこからもtrueに設定されないため無効。
+/// 後方互換性のため定義を残すが、使用しないこと。
 final userInitializationStatusProvider = StateProvider<bool>((ref) => false);
 
 /// Firestore同期状態を監視するStateProvider
@@ -97,113 +99,29 @@ class UserInitializationService {
   }
 
   /// ユーザー状態に応じた初期化処理
-  /// 1. AllGroupsProviderに委ねる（デフォルトグループ作成は自動化）
+  /// 1. AllGroupsProviderでグループ一覧を取得
   /// 2. Firebase認証済みの場合はFirestoreと同期
+  /// 3. プロバイダーを更新
+  ///
+  /// ⚠️ デフォルトグループ機能は2026-02-12に廃止済み。
+  /// グループ0個の場合は初回セットアップ画面(initial_setup_widget)を表示。
   Future<void> _initializeBasedOnUserState() async {
     try {
       // STEP1: AllGroupsProviderでグループ一覧を取得（内部でHive初期化を待機する）
       Log.info('🔄 [INIT] グループ一覧を初期化中...');
-      await _ref.read(allGroupsProvider.future);
+      final allGroups = await _ref.read(allGroupsProvider.future);
+      Log.info('📊 [INIT] 現在のグループ数: ${allGroups.length}個');
 
-      // STEP2: デフォルトグループ（groupId = user.uid）の確認・作成
+      // STEP2: Firebase認証チェック
       final user = _auth?.currentUser;
       if (user == null) {
         Log.error('❌ [INIT] Firebase認証が必須です');
         return;
       }
 
-      final defaultGroupId = user.uid;
-      Log.info(
-          '🔍 [INIT] デフォルトグループID: ${AppLogger.maskGroupId(defaultGroupId, currentUserId: user.uid)}');
-
-      final hiveRepository = _ref.read(hiveSharedGroupRepositoryProvider);
-
-      // STEP2-1: デフォルトグループの存在確認
-      bool defaultGroupExists = false;
-      models.SharedGroup? existingDefaultGroup;
-
-      try {
-        existingDefaultGroup =
-            await hiveRepository.getGroupById(defaultGroupId);
-        defaultGroupExists = true;
-
-        Log.info('✅ [INIT] デフォルトグループ確認: ${existingDefaultGroup.groupName}');
-
-        // STEP2-1.1: 削除済みグループの復活
-        if (existingDefaultGroup.isDeleted) {
-          Log.warning(
-              '⚠️ [INIT] 削除済みデフォルトグループを復活: ${existingDefaultGroup.groupName}');
-          final revivedGroup = existingDefaultGroup.copyWith(
-            isDeleted: false,
-            syncStatus: models.SyncStatus.synced, // Firestore同期可能に変更
-            updatedAt: DateTime.now(),
-          );
-          await hiveRepository.saveGroup(revivedGroup);
-          existingDefaultGroup = revivedGroup;
-
-          _ref.invalidate(allGroupsProvider);
-          Log.info('✅ [INIT] デフォルトグループ復活完了');
-        }
-
-        // STEP2-1.2: グループ名とオーナー情報の更新
-        final prefsName = await UserPreferencesService.getUserName();
-        final expectedGroupName = prefsName?.isNotEmpty == true
-            ? prefsName!
-            : (user.displayName?.isNotEmpty == true
-                ? user.displayName!
-                : user.email?.split('@').first ?? 'ユーザー');
-        final expectedDefaultGroupName = '$expectedGroupNameグループ';
-
-        final ownerMember = existingDefaultGroup.members?.firstWhere(
-          (m) => m.role == models.SharedGroupRole.owner,
-          orElse: () => models.SharedGroupMember(
-            memberId: user.uid,
-            name: '',
-            contact: '',
-            role: models.SharedGroupRole.owner,
-          ),
-        );
-
-        final needsUpdate =
-            existingDefaultGroup.groupName != expectedDefaultGroupName ||
-                ownerMember?.name != expectedGroupName ||
-                ownerMember?.contact != (user.email ?? '');
-
-        if (needsUpdate) {
-          Log.info('🔄 [INIT] デフォルトグループ情報更新中...');
-
-          final updatedMembers = existingDefaultGroup.members?.map((m) {
-            if (m.role == models.SharedGroupRole.owner) {
-              return m.copyWith(
-                name: expectedGroupName,
-                contact: user.email ?? m.contact,
-                memberId: user.uid,
-              );
-            }
-            return m;
-          }).toList();
-
-          final updatedGroup = existingDefaultGroup.copyWith(
-            groupName: expectedDefaultGroupName,
-            ownerName: expectedGroupName,
-            members: updatedMembers,
-            syncStatus: models.SyncStatus.synced, // Firestore同期可能
-            updatedAt: DateTime.now(),
-          );
-          await hiveRepository.saveGroup(updatedGroup);
-
-          _ref.invalidate(allGroupsProvider);
-          Log.info('✅ [INIT] デフォルトグループ情報更新完了');
-        }
-      } catch (e) {
-        Log.info('💡 [INIT] デフォルトグループ未検出: $e');
-        defaultGroupExists = false;
-      }
-
-      // STEP2-2: デフォルトグループが存在しない場合は作成
-      if (!defaultGroupExists) {
+      // グループが0個の場合はログのみ（UIはinitial_setup_widgetが表示）
+      if (allGroups.isEmpty) {
         Log.info('🆕 [INIT] グループが0個→初回セットアップ画面表示');
-        // 初回セットアップウィジェットでグループ作成またはQRコード参加を選択
       }
 
       // STEP3: Firestore同期
