@@ -5,7 +5,6 @@ import '../services/user_preferences_service.dart';
 import '../services/firestore_user_name_service.dart';
 import '../providers/user_settings_provider.dart';
 import '../utils/app_logger.dart';
-import '../flavors.dart';
 
 /// ユーザー名管理パネルウィジェット
 class UserNamePanelWidget extends ConsumerStatefulWidget {

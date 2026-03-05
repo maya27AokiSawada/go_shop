@@ -144,7 +144,7 @@ class Example7CombinedText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final memberCount = 5;
+    const memberCount = 5;
 
     return Column(
       children: [

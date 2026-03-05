@@ -107,7 +107,7 @@ class WhiteboardTestChecklist {
     print('');
 
     testItems.forEach((category, items) {
-      print('$category');
+      print(category);
       items.forEach((item, status) {
         final checkbox = status ? '✅' : '☐';
         print('  $checkbox $item');

@@ -94,3 +94,5 @@ debug_info/
 
 # Sentry native lock files
 .sentry-native/*.run.lock
+
+pubspec.lock
