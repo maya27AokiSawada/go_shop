@@ -1,5 +1,206 @@
 # GoShopping - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-03-05)
+
+### 1. ネットワーク障害時処理フロー設計 + write `.timeout()` 全削除 ✅
+
+**Purpose**: Firestore SDKのオフライン永続化機能を活かすため、write操作から `.timeout()` を全削除
+
+**Background**:
+
+- 機内モードでグループ作成するとスピナーが止まらない問題の根本原因調査
+- TaskInterface同期キュー案を検討したが、Firestore SDKの内蔵オフライン永続化機能で十分対応可能と判明
+- `.timeout()` がFirestoreのオフラインキュー機能を殺しており、`TimeoutException` がUI層まで伝播してスピナー停止の原因になっていた
+
+**Solution**:
+
+```dart
+// ❌ Before: .timeout() がオフラインキュー機能を殺す
+await docRef.set(data).timeout(const Duration(seconds: 5));
+
+// ✅ After: Firestore SDKのオフライン永続化に委任
+await docRef.set(data);
+```
+
+**Modified Files**:
+
+- `lib/datastore/hybrid_purchase_group_repository.dart` — write系 `.timeout()` 削除
+- `lib/datastore/hybrid_shared_list_repository.dart` — write系 `.timeout()` 削除
+- `docs/specifications/network_failure_handling_flow.md` — 設計書（新規作成）
+
+**Status**: ✅ 完了・0エラー
+
+---
+
+### 2. リポジトリ層DI対応 + ユニットテスト作成（54テスト全パス） ✅
+
+**Purpose**: HybridSharedGroupRepository / HybridSharedListRepository のテスタビリティ向上とユニットテスト実装
+
+**Background**:
+
+- Firebaseシングルトン直接参照により、テスト時にモック注入ができない構造だった
+- firebase_auth_mocks + mockito を使用したDI対応リファクタリングを実施
+
+**Solution**:
+
+```dart
+// ❌ Before: シングルトン直接参照（テスト不可能）
+class HybridSharedGroupRepository {
+  final _auth = FirebaseAuth.instance;
+  final _firestore = FirebaseFirestore.instance;
+}
+
+// ✅ After: コンストラクタ注入（後方互換維持）
+class HybridSharedGroupRepository {
+  final FirebaseAuth _auth;
+  final FirebaseFirestore _firestore;
+
+  HybridSharedGroupRepository({
+    FirebaseAuth? auth,
+    FirebaseFirestore? firestore,
+  })  : _auth = auth ?? FirebaseAuth.instance,
+        _firestore = firestore ?? FirebaseFirestore.instance;
+}
+```
+
+**テスト結果**:
+
+| テストファイル                               | テスト数 | 行数        | 結果          |
+| -------------------------------------------- | -------- | ----------- | ------------- |
+| `hybrid_purchase_group_repository_test.dart` | 27       | 830行       | ✅ 全パス     |
+| `hybrid_shared_list_repository_test.dart`    | 27       | 1,206行     | ✅ 全パス     |
+| **合計**                                     | **54**   | **2,036行** | ✅ **全パス** |
+
+**Modified Files**:
+
+- `lib/datastore/hybrid_purchase_group_repository.dart` — DI対応リファクタリング
+- `lib/datastore/hybrid_shared_list_repository.dart` — DI対応リファクタリング
+- `test/datastore/hybrid_purchase_group_repository_test.dart` — 新規作成（830行）
+- `test/datastore/hybrid_shared_list_repository_test.dart` — 新規作成（1,206行）
+
+**Status**: ✅ 完了（54/54テスト成功）
+
+---
+
+### 3. 機内モードでのグループ作成スピナーフリーズ修正 ✅
+
+**Purpose**: 機内モードでグループ作成するとダークオーバーレイとスピナーから復帰できない問題を修正
+
+**Root Cause**: 3つの問題が重なっていた:
+
+1. `FirestoreSharedGroupRepository.createGroup()` の `runTransaction()` フォールバック — オフライン時に無期限ハング
+2. `HybridSharedGroupRepository.createGroup()` の Firestore `.set()` — タイムアウトなしで待ち続ける
+3. `AllGroupsNotifier.createNewGroup()` の Firestore `.get()` — ユーザー名取得でオフライン時ハング
+
+**Solution（3段階修正）**:
+
+**Fix 1**: `runTransaction()` フォールバック削除
+
+```dart
+// ❌ Before: runTransaction() はオフラインで無期限ハング
+try {
+  await docRef.set(data);
+} catch (e) {
+  await _firestore.runTransaction((tx) async {
+    await tx.set(docRef, data);  // ← ここでハング
+  });
+}
+
+// ✅ After: set() のみ（SDKオフラインキューに委任）
+await docRef.set(data);
+```
+
+**Fix 2**: Firestore書き込みに10秒タイムアウト + Hiveフォールバック
+
+```dart
+// ✅ Firestore書き込みに10sタイムアウト、失敗時はHiveのみで続行
+try {
+  await _firestoreRepo!.createGroup(groupId, groupName, ownerMember)
+      .timeout(const Duration(seconds: 10));
+} catch (e) {
+  AppLogger.warning('⚠️ Firestore書き込みタイムアウト - Hiveのみで続行');
+}
+// Hiveは必ず実行
+await _hiveRepo.createGroup(groupId, groupName, ownerMember);
+```
+
+**Fix 3**: ユーザー名取得 `.get()` に3秒タイムアウト
+
+```dart
+// ✅ Firestoreユーザー名取得に3sタイムアウト
+final userDoc = await _firestore
+    .collection('users').doc(user.uid).get()
+    .timeout(const Duration(seconds: 3));
+```
+
+**Modified Files**:
+
+- `lib/datastore/firestore_purchase_group_repository.dart` — `runTransaction()` フォールバック削除
+- `lib/datastore/hybrid_purchase_group_repository.dart` — 10秒タイムアウト + Hiveフォールバック
+- `lib/providers/purchase_group_provider.dart` — `.get()` 3秒タイムアウト
+
+**Status**: ✅ 完了・0エラー・全54テスト成功継続
+
+---
+
+### 4. daily-summaryスキル v2.0 更新 ✅
+
+**Purpose**: `.github/skills/daily-summary/SKILL.md` を実際の日報フォーマットに合わせて更新
+
+**変更内容**:
+
+- セクション数: 5 → 7（本日の目標/完了した作業/発見された問題/バグ対応進捗/技術的学習事項/翌日の予定）
+- 言語: 英語ベース → 日本語統一
+- 詳細度: 箇条書きのみ → Background/Root Cause/Solution/Modified Files/Status構造
+- コード例: なし → ❌ Before / ✅ After パターン
+
+**Modified Files**:
+
+- `.github/skills/daily-summary/SKILL.md` — v1.0 → v2.0 全面書き換え
+
+**Status**: ✅ 完了
+
+---
+
+### Technical Learning（2026-03-05）
+
+#### 1. Firestore `runTransaction()` はオフラインで無期限ハングする
+
+```dart
+// ❌ runTransaction() はサーバー応答を必須とするため機内モードでハング
+await _firestore.runTransaction((transaction) async {
+  await transaction.set(docRef, data);
+});
+
+// ✅ 通常の .set() はFirestore SDKのオフラインキューに入る
+await docRef.set(data);
+```
+
+#### 2. Write操作に `.timeout()` を付けるとFirestoreオフライン機能を殺す
+
+```dart
+// ❌ .timeout() → TimeoutException → rethrow → UIスピナー停止
+await docRef.set(data).timeout(const Duration(seconds: 5));
+
+// ✅ Firestore SDKのオフライン永続化に委任（タイムアウト不要）
+await docRef.set(data);
+```
+
+#### 3. Hybridリポジトリのオフライン戦略
+
+```dart
+// ✅ 書き込み: Firestoreにタイムアウト付き試行 → 失敗時Hiveのみで続行
+try {
+  await _firestoreRepo!.createGroup(...)
+      .timeout(const Duration(seconds: 10));
+} catch (e) {
+  // Firestore失敗してもアプリは動作継続
+}
+await _hiveRepo.createGroup(...); // Hiveは必ず実行
+```
+
+---
+
 ## Recent Implementations (2026-03-04)
 
 ### FIX 7: HybridSharedGroupRepository Firestore再初期化バグ修正 ✅

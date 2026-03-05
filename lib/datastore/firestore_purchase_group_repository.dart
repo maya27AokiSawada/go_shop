@@ -66,26 +66,15 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
       developer.log(
           '🔍 [FIRESTORE] allowedUid in groupData: ${groupData['allowedUid']}');
 
-      try {
-        // Windows版Firestoreのスレッド問題を回避
-        await Future.microtask(() async {
-          await groupDocRef.set(groupData);
-        });
-        developer
-            .log('✅ [FIRESTORE] Group write successful: $groupName ($groupId)');
-      } catch (writeError) {
-        developer
-            .log('❌ [FIRESTORE] Write failed, trying transaction: $writeError');
-
-        // setが失敗した場合のみトランザクションを試行
-        await Future.microtask(() async {
-          await _firestore.runTransaction((transaction) async {
-            transaction.set(groupDocRef, groupData);
-          });
-        });
-        developer.log(
-            '✅ [FIRESTORE] Transaction write successful: $groupName ($groupId)');
-      }
+      // Windows版Firestoreのスレッド問題を回避
+      // 🔥 FIX: runTransaction()フォールバックを削除
+      // runTransaction()はサーバー接続必須のため、機内モードで永久にハングする
+      // オフライン永続化が有効な場合、.set()はローカルキャッシュにキューイングされ即座に返る
+      await Future.microtask(() async {
+        await groupDocRef.set(groupData);
+      });
+      developer
+          .log('✅ [FIRESTORE] Group write successful: $groupName ($groupId)');
 
       developer.log(
           '🔥 [FIRESTORE] Created group in root collection: $groupName ($groupId)');

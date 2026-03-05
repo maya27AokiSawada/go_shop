@@ -437,8 +437,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
     // → hiveInitializationStatusProviderが変更され_didChangeDependencyエラー発生
     // 修正: 早期return + ref.watch()による自動再構築
     if (!hiveReady) {
-      Log.info(
-          '🔄 [ALL GROUPS] Hive初期化未完了 → 空リスト返却（初期化完了時に自動再構築）');
+      Log.info('🔄 [ALL GROUPS] Hive初期化未完了 → 空リスト返却（初期化完了時に自動再構築）');
       return [];
     }
 
@@ -617,10 +616,12 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
         // 2. Firestore /users/{uid} から取得を試みる
         if (userName == 'ゲスト') {
           try {
+            // 🔥 FIX: 3秒タイムアウト追加（機内モードでハングしないように）
             final userDoc = await FirebaseFirestore.instance
                 .collection('users')
                 .doc(currentUser.uid)
-                .get();
+                .get()
+                .timeout(const Duration(seconds: 3));
 
             if (userDoc.exists) {
               final userData = userDoc.data();

@@ -7,7 +7,6 @@ import '../datastore/hive_shared_list_repository.dart';
 import '../datastore/firestore_shared_list_repository.dart';
 import '../services/list_notification_batch_service.dart';
 import '../services/device_id_service.dart'; // 🆕 デバイスID生成用
-import '../services/network_monitor_service.dart'; // 🔥 ネットワーク監視
 import '../flavors.dart';
 
 /// Hive（ローカルキャッシュ）+ Firestore（リモート）のハイブリッドSharedListリポジトリ
@@ -32,10 +31,17 @@ class HybridSharedListRepository implements SharedListRepository {
   final List<_SharedListSyncOperation> _syncQueue = [];
   Timer? _syncTimer;
 
-  HybridSharedListRepository(this._ref) {
-    _hiveRepo = HiveSharedListRepository(_ref);
-    // DEVモードではFirestoreリポジトリを初期化しない
-    if (F.appFlavor != Flavor.dev) {
+  HybridSharedListRepository(
+    this._ref, {
+    HiveSharedListRepository? hiveRepo,
+    FirestoreSharedListRepository? firestoreRepo,
+  }) {
+    _hiveRepo = hiveRepo ?? HiveSharedListRepository(_ref);
+    // テスト用: 外部からFirestoreリポジトリが注入された場合はそれを使用
+    if (firestoreRepo != null) {
+      _firestoreRepo = firestoreRepo;
+    } else if (F.appFlavor != Flavor.dev) {
+      // DEVモードではFirestoreリポジトリを初期化しない
       try {
         _firestoreRepo = FirestoreSharedListRepository(_ref);
         developer.log('🌐 [HYBRID_SHOPPING] Firestore統合有効化');
@@ -112,27 +118,9 @@ class HybridSharedListRepository implements SharedListRepository {
     }
 
     try {
-      // 10秒タイムアウトで同期実行
-      await _firestoreRepo!.updateSharedList(list).timeout(
-            const Duration(seconds: 10),
-          );
+      // Firestore SDKオフライン永続化に委任（タイムアウトなし）
+      await _firestoreRepo!.updateSharedList(list);
       developer.log('✅ Firestore同期成功: ${list.listName}');
-    } on TimeoutException {
-      developer.log('⏱️ Firestoreタイムアウト、キューに追加: ${list.listName}');
-      // ネットワーク監視を開始
-      final networkMonitor = _ref.read(networkMonitorProvider);
-      if (networkMonitor.currentStatus == NetworkStatus.online) {
-        await networkMonitor.checkFirestoreConnection();
-        networkMonitor.startAutoRetry();
-      }
-      // 同期キューに追加
-      _addToSyncQueue(_SharedListSyncOperation(
-        type: operationType,
-        listId: list.listId,
-        data: list,
-        timestamp: DateTime.now(),
-        retryCount: 0,
-      ));
     } catch (e) {
       developer.log('⚠️ Firestore同期失敗、キューに追加: $e');
 
@@ -196,25 +184,17 @@ class HybridSharedListRepository implements SharedListRepository {
     }
 
     try {
-      // 10秒タイムアウトで同期実行
+      // Firestore SDKオフライン永続化に委任（タイムアウトなし）
       switch (operationType) {
         case _SharedListSyncOperationType.createItem:
-          await _firestoreRepo!.addItemToList(listId, item).timeout(
-                const Duration(seconds: 10),
-              );
+          await _firestoreRepo!.addItemToList(listId, item);
           break;
         case _SharedListSyncOperationType.updateItem:
-          await _firestoreRepo!
-              .updateItemStatusInList(listId, item,
-                  isPurchased: item.isPurchased)
-              .timeout(
-                const Duration(seconds: 10),
-              );
+          await _firestoreRepo!.updateItemStatusInList(listId, item,
+              isPurchased: item.isPurchased);
           break;
         case _SharedListSyncOperationType.deleteItem:
-          await _firestoreRepo!.removeItemFromList(listId, item).timeout(
-                const Duration(seconds: 10),
-              );
+          await _firestoreRepo!.removeItemFromList(listId, item);
           break;
         default:
           return;
@@ -386,35 +366,22 @@ class HybridSharedListRepository implements SharedListRepository {
       if (_firestoreRepo != null) {
         developer.log('🔥 [HYBRID_LIST] Firestore優先モード - Firestoreに作成');
 
-        try {
-          // 1. Firestoreに作成（5秒タイムアウト）
-          final newList = await _firestoreRepo!
-              .createSharedList(
-                ownerUid: ownerUid,
-                groupId: groupId,
-                listName: listName,
-                description: description,
-                customListId: listIdToUse, // 🆕 カスタムlistIdを使用
-              )
-              .timeout(const Duration(seconds: 5));
-          developer.log(
-              '✅ [HYBRID_LIST] Firestore作成完了: ${newList.listName} (listId: ${newList.listId})');
+        // 1. Firestoreに作成（Firestore SDKオフライン永続化に委任）
+        final newList = await _firestoreRepo!.createSharedList(
+          ownerUid: ownerUid,
+          groupId: groupId,
+          listName: listName,
+          description: description,
+          customListId: listIdToUse, // 🆕 カスタムlistIdを使用
+        );
+        developer.log(
+            '✅ [HYBRID_LIST] Firestore作成完了: ${newList.listName} (listId: ${newList.listId})');
 
-          // 2. Hiveにキャッシュ（読み取り高速化のため）
-          await _hiveRepo.updateSharedList(newList);
-          developer.log('✅ [HYBRID_LIST] Hiveキャッシュ保存完了');
+        // 2. Hiveにキャッシュ（読み取り高速化のため）
+        await _hiveRepo.updateSharedList(newList);
+        developer.log('✅ [HYBRID_LIST] Hiveキャッシュ保存完了');
 
-          return newList;
-        } on TimeoutException {
-          developer.log('⏱️ [HYBRID_LIST] Firestoreタイムアウト - ネットワーク監視開始');
-          // ネットワーク監視を開始
-          final networkMonitor = _ref.read(networkMonitorProvider);
-          if (networkMonitor.currentStatus == NetworkStatus.online) {
-            await networkMonitor.checkFirestoreConnection();
-            networkMonitor.startAutoRetry();
-          }
-          rethrow; // UIで処理させる
-        }
+        return newList;
       } else {
         // dev環境またはFirestore未初期化の場合のみHive
         developer.log('📝 [HYBRID_LIST] dev環境 - Hiveに作成');
@@ -443,8 +410,10 @@ class HybridSharedListRepository implements SharedListRepository {
             .log('🔥 [HYBRID_LIST] Firestore優先モード - Firestoreから取得: $listId');
 
         try {
-          // 1. Firestoreから取得（groupIdなしで検索可能なメソッド使用）
-          final firestoreList = await _firestoreRepo!.getSharedListById(listId);
+          // 1. Firestoreから取得（10秒タイムアウト → Hiveフォールバック）
+          final firestoreList = await _firestoreRepo!
+              .getSharedListById(listId)
+              .timeout(const Duration(seconds: 10));
 
           if (firestoreList != null) {
             developer.log(
@@ -483,9 +452,10 @@ class HybridSharedListRepository implements SharedListRepository {
             .log('🔥 [HYBRID_LIST] Firestore優先モード - Firestoreから取得: $groupId');
 
         try {
-          // 1. Firestoreから最新データを取得
-          final firestoreLists =
-              await _firestoreRepo!.getSharedListsByGroup(groupId);
+          // 1. Firestoreから最新データを取得（10秒タイムアウト → Hiveフォールバック）
+          final firestoreLists = await _firestoreRepo!
+              .getSharedListsByGroup(groupId)
+              .timeout(const Duration(seconds: 10));
           developer
               .log('✅ [HYBRID_LIST] Firestore取得完了: ${firestoreLists.length}件');
 
@@ -520,26 +490,13 @@ class HybridSharedListRepository implements SharedListRepository {
       if (_firestoreRepo != null) {
         developer.log('🔥 [HYBRID_LIST] Firestore優先モード - Firestoreに更新');
 
-        try {
-          // 1. Firestoreに更新（5秒タイムアウト）
-          await _firestoreRepo!
-              .updateSharedList(list)
-              .timeout(const Duration(seconds: 5));
-          developer.log('✅ [HYBRID_LIST] Firestore更新完了: ${list.listName}');
+        // 1. Firestoreに更新（Firestore SDKオフライン永続化に委任）
+        await _firestoreRepo!.updateSharedList(list);
+        developer.log('✅ [HYBRID_LIST] Firestore更新完了: ${list.listName}');
 
-          // 2. Hiveにキャッシュ
-          await _hiveRepo.updateSharedList(list);
-          developer.log('✅ [HYBRID_LIST] Hiveキャッシュ更新完了');
-        } on TimeoutException {
-          developer.log('⏱️ [HYBRID_LIST] Firestoreタイムアウト - ネットワーク監視開始');
-          // ネットワーク監視を開始
-          final networkMonitor = _ref.read(networkMonitorProvider);
-          if (networkMonitor.currentStatus == NetworkStatus.online) {
-            await networkMonitor.checkFirestoreConnection();
-            networkMonitor.startAutoRetry();
-          }
-          rethrow; // UIで処理させる
-        }
+        // 2. Hiveにキャッシュ
+        await _hiveRepo.updateSharedList(list);
+        developer.log('✅ [HYBRID_LIST] Hiveキャッシュ更新完了');
       } else {
         // dev環境またはFirestore未初期化の場合はHive
         developer.log('📝 [HYBRID_LIST] dev環境 - Hiveに更新');
@@ -559,26 +516,13 @@ class HybridSharedListRepository implements SharedListRepository {
       if (_firestoreRepo != null) {
         developer.log('🔥 [HYBRID_LIST] Firestore優先モード - Firestoreから削除');
 
-        try {
-          // 1. Firestoreから削除（5秒タイムアウト）
-          await _firestoreRepo!
-              .deleteSharedList(groupId, listId)
-              .timeout(const Duration(seconds: 5));
-          developer.log('✅ [HYBRID_LIST] Firestore削除完了: listId=$listId');
+        // 1. Firestoreから削除（Firestore SDKオフライン永続化に委任）
+        await _firestoreRepo!.deleteSharedList(groupId, listId);
+        developer.log('✅ [HYBRID_LIST] Firestore削除完了: listId=$listId');
 
-          // 2. Hiveキャッシュからも削除
-          await _hiveRepo.deleteSharedList(groupId, listId);
-          developer.log('✅ [HYBRID_LIST] Hiveキャッシュ削除完了');
-        } on TimeoutException {
-          developer.log('⏱️ [HYBRID_LIST] Firestoreタイムアウト - ネットワーク監視開始');
-          // ネットワーク監視を開始
-          final networkMonitor = _ref.read(networkMonitorProvider);
-          if (networkMonitor.currentStatus == NetworkStatus.online) {
-            await networkMonitor.checkFirestoreConnection();
-            networkMonitor.startAutoRetry();
-          }
-          rethrow; // UIで処理させる
-        }
+        // 2. Hiveキャッシュからも削除
+        await _hiveRepo.deleteSharedList(groupId, listId);
+        developer.log('✅ [HYBRID_LIST] Hiveキャッシュ削除完了');
       } else {
         // dev環境またはFirestore未初期化の場合はHive
         developer.log('📝 [HYBRID_LIST] dev環境 - Hiveから削除');
@@ -705,18 +649,8 @@ class HybridSharedListRepository implements SharedListRepository {
     // オンラインかつFirestoreリポジトリが利用可能な場合、Firestoreでも削除
     if (_isOnline && _firestoreRepo != null && F.appFlavor != Flavor.dev) {
       try {
-        await _firestoreRepo!
-            .deleteSharedListsByGroupId(groupId)
-            .timeout(const Duration(seconds: 5));
+        await _firestoreRepo!.deleteSharedListsByGroupId(groupId);
         developer.log('✅ [HYBRID_LIST] Firestore一括削除完了: groupId=$groupId');
-      } on TimeoutException {
-        developer.log('⏱️ [HYBRID_LIST] Firestoreタイムアウト - ネットワーク監視開始');
-        final networkMonitor = _ref.read(networkMonitorProvider);
-        if (networkMonitor.currentStatus == NetworkStatus.online) {
-          await networkMonitor.checkFirestoreConnection();
-          networkMonitor.startAutoRetry();
-        }
-        rethrow;
       } catch (e) {
         developer.log('⚠️ Firestore deletion failed (continuing): $e');
       }
@@ -784,60 +718,40 @@ class HybridSharedListRepository implements SharedListRepository {
       throw Exception('Firestore repository not available');
     }
 
-    try {
-      switch (operation.type) {
-        case _SharedListSyncOperationType.create:
+    // Firestore SDKオフライン永続化に委任（タイムアウトなし）
+    switch (operation.type) {
+      case _SharedListSyncOperationType.create:
+        await _firestoreRepo!.updateSharedList(operation.data as SharedList);
+        break;
+      case _SharedListSyncOperationType.update:
+        await _firestoreRepo!.updateSharedList(operation.data as SharedList);
+        break;
+      case _SharedListSyncOperationType.delete:
+        // リストIDからgroupIDを取得（Hiveキャッシュから）
+        final listToDelete =
+            await _hiveRepo.getSharedListById(operation.listId);
+        if (listToDelete != null) {
           await _firestoreRepo!
-              .updateSharedList(operation.data as SharedList)
-              .timeout(const Duration(seconds: 10));
-          break;
-        case _SharedListSyncOperationType.update:
-          await _firestoreRepo!
-              .updateSharedList(operation.data as SharedList)
-              .timeout(const Duration(seconds: 10));
-          break;
-        case _SharedListSyncOperationType.delete:
-          // リストIDからgroupIDを取得（Hiveキャッシュから）
-          final listToDelete =
-              await _hiveRepo.getSharedListById(operation.listId);
-          if (listToDelete != null) {
-            await _firestoreRepo!
-                .deleteSharedList(listToDelete.groupId, operation.listId)
-                .timeout(const Duration(seconds: 10));
-          } else {
-            developer.log('⚠️ 削除対象リストがHiveに見つからない: ${operation.listId}');
-          }
-          break;
-        case _SharedListSyncOperationType.createItem:
-          final itemData = operation.data as Map<String, dynamic>;
-          await _firestoreRepo!
-              .addItemToList(operation.listId, itemData['item'] as SharedItem)
-              .timeout(const Duration(seconds: 10));
-          break;
-        case _SharedListSyncOperationType.updateItem:
-          final itemData = operation.data as Map<String, dynamic>;
-          final item = itemData['item'] as SharedItem;
-          await _firestoreRepo!
-              .updateItemStatusInList(operation.listId, item,
-                  isPurchased: item.isPurchased)
-              .timeout(const Duration(seconds: 10));
-          break;
-        case _SharedListSyncOperationType.deleteItem:
-          final item = operation.data as SharedItem;
-          await _firestoreRepo!
-              .removeItemFromList(operation.listId, item)
-              .timeout(const Duration(seconds: 10));
-          break;
-      }
-    } on TimeoutException {
-      developer.log('⏱️ [SYNC_QUEUE] Firestoreタイムアウト - ネットワーク監視開始');
-      // ネットワーク監視を開始（バックグラウンド同期でもUIに通知）
-      final networkMonitor = _ref.read(networkMonitorProvider);
-      if (networkMonitor.currentStatus == NetworkStatus.online) {
-        await networkMonitor.checkFirestoreConnection();
-        networkMonitor.startAutoRetry();
-      }
-      rethrow; // リトライロジックに任せる
+              .deleteSharedList(listToDelete.groupId, operation.listId);
+        } else {
+          developer.log('⚠️ 削除対象リストがHiveに見つからない: ${operation.listId}');
+        }
+        break;
+      case _SharedListSyncOperationType.createItem:
+        final itemData = operation.data as Map<String, dynamic>;
+        await _firestoreRepo!
+            .addItemToList(operation.listId, itemData['item'] as SharedItem);
+        break;
+      case _SharedListSyncOperationType.updateItem:
+        final itemData = operation.data as Map<String, dynamic>;
+        final item = itemData['item'] as SharedItem;
+        await _firestoreRepo!.updateItemStatusInList(operation.listId, item,
+            isPurchased: item.isPurchased);
+        break;
+      case _SharedListSyncOperationType.deleteItem:
+        final item = operation.data as SharedItem;
+        await _firestoreRepo!.removeItemFromList(operation.listId, item);
+        break;
     }
   }
 
