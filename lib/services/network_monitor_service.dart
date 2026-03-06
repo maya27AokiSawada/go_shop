@@ -120,7 +120,32 @@ class NetworkMonitorService {
       _updateStatus(NetworkStatus.offline);
       return false;
     } on FirebaseException catch (e) {
-      // Firebaseエラー
+      // 🔥 P2 FIX: permission-denied / unauthenticated は認証問題であり、
+      // ネットワーク障害ではない。公開コレクションで再チェックする。
+      if (e.code == 'permission-denied' || e.code == 'unauthenticated') {
+        AppLogger.warning(
+            '🔐 [NETWORK_MONITOR] 認証エラー検出（${e.code}）- 公開コレクションで再チェック');
+        try {
+          await FirebaseFirestore.instance
+              .collection('furestorenews')
+              .limit(1)
+              .get(const GetOptions(source: Source.server))
+              .timeout(connectionTimeout);
+          // 公開コレクションアクセス成功 → ネットワークはオンライン
+          AppLogger.info(
+              '✅ [NETWORK_MONITOR] ネットワークはオンライン（認証エラーのみ）');
+          _updateStatus(NetworkStatus.online);
+          stopAutoRetry();
+          return true;
+        } catch (fallbackError) {
+          // 公開コレクションもアクセス不可 → 本当にオフライン
+          AppLogger.warning(
+              '❌ [NETWORK_MONITOR] 公開コレクションもアクセス不可 - オフライン: $fallbackError');
+          _updateStatus(NetworkStatus.offline);
+          return false;
+        }
+      }
+      // その他のFirebaseエラー（unavailable等）はネットワーク障害
       AppLogger.warning(
           '❌ [NETWORK_MONITOR] Firestore接続エラー: ${e.code} - ${e.message}');
       _updateStatus(NetworkStatus.offline);

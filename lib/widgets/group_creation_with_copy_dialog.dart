@@ -515,12 +515,8 @@ class _GroupCreationWithCopyDialogState
 
     try {
       // 🔥 同じ名前のグループが既に存在しないかチェック
-      final allGroupsAsync = ref.watch(allGroupsProvider);
-      final allGroups = await allGroupsAsync.when(
-        data: (groups) async => groups,
-        loading: () async => <SharedGroup>[],
-        error: (_, __) async => <SharedGroup>[],
-      );
+      // 🔥 FIX: ref.watch() → ref.read() に修正（async メソッド内では ref.read() を使用）
+      final allGroups = await ref.read(allGroupsProvider.future);
 
       AppLogger.info('🔍 [CREATE GROUP] グループ数: ${allGroups.length}');
       for (final g in allGroups) {
@@ -647,6 +643,33 @@ class _GroupCreationWithCopyDialogState
               newGroupId,
               groupName,
             );
+            // 🔥 P1 #2 FIX: コピー付き作成でも作成者自身に通知を送信（他デバイス同期用）
+            // _sendMemberNotifications()は_selectedMembersを参照するが、
+            // _updateMemberSelection()で作成者は_selectedMembersから除外されるため
+            // 自分への通知が送信されない問題を修正
+            try {
+              await notificationService.sendNotification(
+                targetUserId: currentUser.uid,
+                type: NotificationType.groupMemberAdded,
+                groupId: newGroupId,
+                message: '新しいグループ「$groupName」を作成しました',
+                metadata: {
+                  'groupId': newGroupId,
+                  'groupName': groupName,
+                  'createdBy': currentUser.uid,
+                  'createdByName': senderName,
+                },
+              ).timeout(
+                const Duration(seconds: 5),
+                onTimeout: () {
+                  AppLogger.warning('⏱️ [CREATE GROUP DIALOG] 作成者通知タイムアウト');
+                  throw TimeoutException('通知送信がタイムアウトしました');
+                },
+              );
+              AppLogger.info('✅ [CREATE GROUP DIALOG] コピー付き作成 - 作成者への通知送信完了');
+            } catch (e) {
+              AppLogger.error('❌ [CREATE GROUP DIALOG] 作成者への通知送信エラー: $e');
+            }
           } else {
             // 🔥 NEW: 新規グループ作成時は作成者の他デバイスに通知
             AppLogger.info('🔄 [CREATE GROUP DIALOG] 新規グループ作成 - 作成者に通知送信');
@@ -736,20 +759,18 @@ class _GroupCreationWithCopyDialogState
         return null;
       }
 
-      final authState = ref.watch(authStateProvider);
-      final currentUser = authState.value;
+      // 🔥 FIX: ref.watch() → ref.read() に修正（async メソッド内では ref.read() を使用）
+      final currentUser = ref.read(authStateProvider).value;
       if (currentUser == null) {
         AppLogger.warning('⚠️ [ADD MEMBERS TO NEW GROUP] currentUserがnull');
         return null;
       }
 
       // 新規作成したグループを取得
-      final allGroupsAsync = ref.watch(allGroupsProvider);
-      final allGroups = await allGroupsAsync.when(
-        data: (groups) async => groups,
-        loading: () async => <SharedGroup>[],
-        error: (_, __) async => <SharedGroup>[],
-      );
+      // 🔥 FIX: ref.watch() + .when() パターン → ref.read(.future) に修正
+      // ref.watch()はasyncメソッド内ではloading状態を返す可能性があり、
+      // 空リストが返されてfirstWhereが失敗する根本原因だった
+      final allGroups = await ref.read(allGroupsProvider.future);
 
       final newGroup = allGroups.firstWhere(
         (g) => g.groupName == groupName,

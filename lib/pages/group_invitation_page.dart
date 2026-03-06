@@ -24,6 +24,7 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
   bool _isLoading = true;
   String? _errorMessage;
   String _invitationType = 'individual'; // 'individual' または 'friend'
+  final int _maxUses = 5; // 招待の最大使用回数
 
   @override
   void initState() {
@@ -256,6 +257,32 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
                           color: Colors.grey[600],
                         ),
                     textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.people_outline,
+                            size: 16, color: Colors.blue.shade700),
+                        const SizedBox(width: 4),
+                        Text(
+                          '招待可能人数: $_maxUses人',
+                          style: TextStyle(
+                            color: Colors.blue.shade700,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),

@@ -501,8 +501,6 @@ class GroupListWidget extends ConsumerWidget {
       defaultValue: null,
     );
 
-    final currentUserId = currentUser?.uid ?? '';
-
     // 🔥 REMOVED: デフォルトグループ削除保護廃止
     // 全てのグループが削除可能
 
@@ -511,34 +509,9 @@ class GroupListWidget extends ConsumerWidget {
       return;
     }
 
-    // グループのオーナーかどうかを確認
-    final members = group.members;
-    final currentMember = members?.firstWhere(
-          (member) => member.memberId == currentUserId,
-          orElse: () => const SharedGroupMember(
-            memberId: '',
-            name: '',
-            contact: '',
-            role: SharedGroupRole.member,
-          ),
-        ) ??
-        const SharedGroupMember(
-          memberId: '',
-          name: '',
-          contact: '',
-          role: SharedGroupRole.member,
-        );
-
-    final isOwner = currentMember.role == SharedGroupRole.owner;
-
-    if (!isOwner) {
-      AppLogger.info(
-          '📋 [GROUP_OPTIONS] オーナーではないため削除権限なし: ${AppLogger.maskUserId(currentUserId)}');
-      SnackBarHelper.showWarning(context, 'グループを削除できるのはオーナーのみです');
-      return;
-    }
-
-    // 削除確認ダイアログを表示
+    // 🔥 P1 #3 FIX: オーナーは削除、メンバーは退出ダイアログを表示
+    // 以前は非オーナーを早期returnしていたため、退出機能に到達できなかった
+    // オーナー判定は_showDeleteConfirmationDialog内でgroup.ownerUidで行う
     _showDeleteConfirmationDialog(context, ref, group);
   }
 

@@ -57,6 +57,7 @@ class _SharedGroupPageState extends ConsumerState<SharedGroupPage> {
         ),
       ),
       floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           FloatingActionButton(
