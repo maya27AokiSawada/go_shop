@@ -27,7 +27,7 @@ class UserSpecificHiveService {
   // スキーマバージョンの管理
   static const String _schemaVersionKey = 'hive_schema_version';
   static const int _currentSchemaVersion =
-      2; // Version 2: SharedGroup.sharedListIds 削除
+      3; // Version 3: 最低バージョン（v1/v2データはFirestore上に存在しない）
 
   /// 前回使用したUIDを保存
   Future<void> saveLastUsedUid(String uid) async {

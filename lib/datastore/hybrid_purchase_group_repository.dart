@@ -954,6 +954,9 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
 
   /// 手動でFirestoreからフル同期
   Future<void> forceSyncFromFirestore() async {
+    // 🔥 FIX 8: サインイン後にFirestore未初期化の場合、Fix 7の再初期化ロジックを発動
+    await waitForSafeInitialization();
+
     if (_firestoreRepo == null) {
       AppLogger.info('🔧 Force sync skipped - Firestore not initialized');
       return;
@@ -1044,6 +1047,9 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
   /// Firestoreから強制的に同期してHiveを更新
   /// Firebase認証済みユーザーのデータ復旧時に使用
   Future<void> syncFromFirestore() async {
+    // 🔥 FIX 8: サインイン後にFirestore未初期化の場合、Fix 7の再初期化ロジックを発動
+    await waitForSafeInitialization();
+
     if (!_isOnline || _firestoreRepo == null) {
       AppLogger.info('💡 Firestore同期スキップ (オフライン)');
       return;

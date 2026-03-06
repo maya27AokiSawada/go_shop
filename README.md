@@ -1,5 +1,41 @@
 # GoShopping - 買い物リスト共有アプリ
 
+## Recent Implementations (2026-03-06)
+
+### 1. 実機テスト6件バグ修正（P0×1, P1×3, P2×2） ✅
+
+**Purpose**: 実機テストで発見された6件のバグを一括修正
+
+**Fixes**: FAB RenderFlexオーバーフロー(P0)、コピー付き作成メンバー未コピー(P1)、コピー付き作成自分に通知なし(P1)、メンバーグループ退出時removeMember()引数誤り(P1)、再インストール後ネットワーク障害バナー誤判定(P2)、招待残り回数非表示(P2)
+
+**テスト結果**: Fix 1-3: 全合格、Fix 4: 6/9 部分合格、Fix 5: 5/8 部分合格
+
+**Modified Files**: `group_list_widget.dart`, `group_creation_with_copy_dialog.dart`, `network_monitor_service.dart`, `group_invitation_dialog.dart`
+
+**Status**: ✅ 完了・コミット済み (`06f9a31`)
+
+### 2. Fix 8: 再インストール時グループ同期遅延の根本修正 ✅
+
+**Purpose**: 再インストール後にサインインしてもグループが同期されない問題を根本修正
+
+**Root Cause**: `forceSyncFromFirestore()` と `syncFromFirestore()` が `waitForSafeInitialization()` を呼んでいなかった。サインイン後も Fix 7 の再初期化ロジックが発動されず、同期がスキップされていた。
+
+**Solution**: 両メソッドの先頭に `await waitForSafeInitialization();` を追加
+
+**Modified Files**: `lib/datastore/hybrid_purchase_group_repository.dart`
+
+**Status**: ✅ 完了・テスト待ち
+
+### 3. Hive Schema Version 3 最低バージョン設定 ✅
+
+**Purpose**: v1/v2データがFirestore上に存在しないため、Schema Version 3を最低バージョンとして設定
+
+**Modified Files**: `lib/services/user_specific_hive_service.dart`
+
+**Status**: ✅ 完了
+
+---
+
 ## Recent Implementations (2026-03-05)
 
 ### 1. ネットワーク障害時処理フロー設計 + write `.timeout()` 全削除 ✅

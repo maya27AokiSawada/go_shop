@@ -1,9 +1,12 @@
-# 開発日報 - 2026年03月06日（午前）
+# 開発日報 - 2026年03月06日
 
 ## 📅 本日の目標
 
 - [x] 最終実機テスト セクション3-4 テスト結果分析・バグ修正（6件）
 - [x] 改修確認テスト用チェックリスト作成
+- [x] 改修確認テスト Fix 1〜5 実機テスト実施
+- [x] Fix 8: 再インストール時グループ同期遅延の根本修正
+- [x] Hive Schema Version 3 最低バージョン設定
 - [ ] 最終実機テスト セクション5-12 実施
 
 ---
@@ -248,20 +251,172 @@ Container(
 
 ---
 
+### 9. 改修確認テスト Fix 1〜5 実施 ✅
+
+**Purpose**: 午前中に修正した6件のバグ修正について、実機で改修確認テストを実施
+
+**テスト実施者**: ユーザー（SH-54D / Pixel 9）
+
+**テスト結果**:
+
+| Fix # | 優先度 | 内容                             | 結果   | 判定        |
+| ----- | ------ | -------------------------------- | ------ | ----------- |
+| 1     | P0     | FAB RenderFlexオーバーフロー     | 5/5    | ✅ 合格     |
+| 2     | P1     | コピー付き作成メンバー未コピー   | 5/5    | ✅ 合格     |
+| 3     | P1     | コピー付き作成自分に通知なし     | 5/5    | ✅ 合格     |
+| 4     | P1     | メンバーグループ退出機能不動作   | 6/9    | ⚠️ 部分合格 |
+| 5     | P2     | 再インストール後ネットワーク障害 | 5/8    | ⚠️ 部分合格 |
+| 6     | P2     | 招待残り回数非表示               | 未実施 | ⏳          |
+
+**Fix 4 で発見された問題 (※1)**:
+
+- 退出した端末とFirestore上では退出済みとなっているが、他端末では通知が来ていないし、UIからも消えていない
+- → 退出通知の他メンバーへの送信処理が未実装の可能性
+
+**Fix 5 で発見された問題 (※2)**:
+
+- 再インストール後にサインインしてもグループが同期されない
+- アプリバーの同期アイコンには異常なし（緑色表示）
+- グループを新規作成したら一緒に古いグループも現れた
+- → **Fix 8 として調査・修正実施**（下記参照）
+
+**Status**: ✅ 5件テスト完了、1件未実施
+
+---
+
+### 10. Fix 8: 再インストール時グループ同期遅延の根本修正 ✅
+
+**Purpose**: 再インストール後にサインインしてもグループが同期されない問題を根本修正
+
+**Background**: Fix 5のテスト中にユーザーが発見。再インストール → サインイン → グループリスト空 → グループ新規作成したら古いグループも同時に出現。
+
+**Root Cause**:
+
+アプリ起動時の初期化フローに問題:
+
+```
+アプリ起動（再インストール後）
+  ↓
+HybridSharedGroupRepository() コンストラクタ
+  ↓
+_safeAsyncFirestoreInitialization()
+  → currentUser == null（Firebase Authセッション未復元）
+  → _firestoreRepo = null
+  → _isInitialized = true
+  ↓
+ユーザーがサインイン → currentUser 利用可能に
+  ↓
+forceSyncFromFirestore() 呼び出し
+  → _firestoreRepo == null をチェック
+  → 即座にreturn（同期スキップ）❌
+  → waitForSafeInitialization() を呼んでいない！
+```
+
+Fix 7で `waitForSafeInitialization()` に認証復帰後の再初期化ロジックを追加済みだったが、`forceSyncFromFirestore()` と `syncFromFirestore()` がそれを呼んでいなかった。
+
+**Solution**:
+
+```dart
+// ❌ Before: waitForSafeInitialization() を呼ばずに _firestoreRepo == null で即return
+Future<void> forceSyncFromFirestore() async {
+  if (_firestoreRepo == null) {
+    AppLogger.info('🔧 Force sync skipped - Firestore not initialized');
+    return;
+  }
+  // ...
+}
+
+// ✅ After: Fix 7の再初期化ロジックを発動させてから判定
+Future<void> forceSyncFromFirestore() async {
+  // 🔥 FIX 8: サインイン後にFirestore未初期化の場合、Fix 7の再初期化ロジックを発動
+  await waitForSafeInitialization();
+
+  if (_firestoreRepo == null) {
+    AppLogger.info('🔧 Force sync skipped - Firestore not initialized');
+    return;
+  }
+  // ...
+}
+```
+
+**Modified Files**:
+
+- `lib/datastore/hybrid_purchase_group_repository.dart`
+  - `forceSyncFromFirestore()` — `await waitForSafeInitialization()` 追加
+  - `syncFromFirestore()` — `await waitForSafeInitialization()` 追加
+
+**Status**: ✅ 完了・Pixel 9でビルド実行済み
+
+---
+
+### 11. Hive Schema Version 3 最低バージョン設定 ✅
+
+**Purpose**: v1/v2データがFirestore上に存在しないため、Schema Version 3を最低バージョンとして設定
+
+**Background**: ユーザーの指示: 「現在、スキーマはVer.3で現在Ver.1と2のデータはFirestore上に存在しないのでVer.3を最低ヴァージョンとして下さい。当分Hiveスキーマのグレードアップは予定なし」
+
+**Solution**:
+
+```dart
+// ❌ Before: Schema Version 2
+static const int _currentSchemaVersion = 2;
+
+// ✅ After: Schema Version 3（最低バージョン）
+static const int _currentSchemaVersion =
+    3; // Version 3: 最低バージョン（v1/v2データはFirestore上に存在しない）
+```
+
+**Effect**: 古いSchemaバージョンのデバイスはHiveキャッシュを自動クリア → Firestoreから再同期
+
+**Modified Files**:
+
+- `lib/services/user_specific_hive_service.dart` — `_currentSchemaVersion` を 2 → 3 に変更
+
+**Status**: ✅ 完了
+
+---
+
+## 🐛 発見された問題
+
+### 1. メンバー退出時の他端末通知・UI未反映（Fix 4 テスト中）
+
+**発見日**: 2026-03-06（午後）
+**優先度**: P1
+**症状**: メンバーがグループ退出を実行した場合、退出した端末とFirestoreでは正常に処理されるが、他のメンバーの端末には通知が送られず、UIにも反映されない
+**想定原因**: グループ退出時に他メンバーへの通知送信処理が未実装の可能性
+**Status**: ⏳ 翌日以降で調査
+
+### 2. ネットワーク障害バナー自動消去とタイマー間隔の検討（Fix 5 テスト中）
+
+**発見日**: 2026-03-06（午後）
+**優先度**: P2
+**症状**: 機内モード解除後にバナーが自動で消えない（手動同期で消える）。タイマー10分は長い可能性
+**ユーザーの疑問**: 「メッセージに手動で確認することもできると表示するか？それとも10分という再確認タイマーを短くするか？」
+**Status**: ⏳ 検討中
+
+---
+
 ## 📊 バグ対応進捗
 
 ### 完了 ✅
 
-1. ✅ P0: FAB RenderFlexオーバーフロー（完了日: 2026-03-06）
-2. ✅ P1: コピー付き作成メンバー未コピー（完了日: 2026-03-06）
-3. ✅ P1: コピー付き作成自分に通知なし（完了日: 2026-03-06）
-4. ✅ P1: メンバーグループ退出機能不動作（完了日: 2026-03-06）
-5. ✅ P2: 再インストール後ネットワーク障害誤判定（完了日: 2026-03-06）
-6. ✅ P2: 招待残り回数非表示（完了日: 2026-03-06）
+1. ✅ P0: FAB RenderFlexオーバーフロー（完了日: 2026-03-06 AM）— テスト 5/5 ✅
+2. ✅ P1: コピー付き作成メンバー未コピー（完了日: 2026-03-06 AM）— テスト 5/5 ✅
+3. ✅ P1: コピー付き作成自分に通知なし（完了日: 2026-03-06 AM）— テスト 5/5 ✅
+4. ✅ P1: メンバーグループ退出機能不動作（完了日: 2026-03-06 AM）— テスト 6/9 ⚠️ 部分合格
+5. ✅ P2: 再インストール後ネットワーク障害誤判定（完了日: 2026-03-06 AM）— テスト 5/8 ⚠️ 部分合格
+6. ✅ P2: 招待残り回数非表示（完了日: 2026-03-06 AM）— テスト未実施
+7. ✅ 再インストール時グループ同期遅延（Fix 8）（完了日: 2026-03-06 PM）— テスト待ち
+8. ✅ Hive Schema v3 最低バージョン設定（完了日: 2026-03-06 PM）
+
+### 対応中 ⏳
+
+9. ⏳ P1: メンバー退出時の他端末通知・UI未反映（Fix 4テスト中に発見）
+10. ⏳ P2: ネットワーク障害バナー自動消去・タイマー間隔検討（Fix 5テスト中に発見）
 
 ### 対応不要 ℹ️
 
-7. ℹ️ Info: 二重送信防止が速すぎて目視確認困難（実質合格）
+11. ℹ️ Info: 二重送信防止が速すぎて目視確認困難（実質合格）
 
 ---
 
@@ -314,10 +469,44 @@ Column(mainAxisSize: MainAxisSize.min, children: [...])
 
 **教訓**: FABなど画面上に浮く要素をColumnで配置する場合、`MainAxisSize.min` を指定しないとRenderFlexオーバーフローが発生する。
 
+### 4. waitForSafeInitialization() の適用範囲
+
+```dart
+// ❌ 初期化済みかどうかだけ確認して即return → 認証復帰後の再初期化がスキップされる
+Future<void> forceSyncFromFirestore() async {
+  if (_firestoreRepo == null) {
+    return;  // Fix 7の再初期化ロジックが発動しない
+  }
+}
+
+// ✅ まずwaitForSafeInitialization()で再初期化を試行してから判定
+Future<void> forceSyncFromFirestore() async {
+  await waitForSafeInitialization();  // Fix 7: 認証復帰検出 → Firestore再初期化
+  if (_firestoreRepo == null) {
+    return;  // 再初期化も失敗した場合のみスキップ
+  }
+}
+```
+
+**教訓**: `_firestoreRepo == null` チェックの前には必ず `waitForSafeInitialization()` を呼ぶ。特にサインイン後のコードパスでは、Firebase Auth起動遅延による初回初期化失敗を補完するため必須。
+
+### 5. Hive Schema Versionの最低バージョン戦略
+
+```dart
+// データマイグレーションが不要になったら → 最低バージョンとして設定
+static const int _currentSchemaVersion = 3;
+// v1/v2のマイグレーションコードは不要 → 古いデバイスはHiveクリア + Firestore再同期
+```
+
+**教訓**: Firestore上にv1/v2データが存在しなくなった時点で、スキーマの最低バージョンを引き上げることで、古いマイグレーションコードの負債を排除できる。
+
 ---
 
-## 🗓 午後の予定
+## 🗓 翌日（2026-03-07）の予定
 
-1. 改修確認テスト実施（37項目）
-2. セクション5-12のテスト実施
-3. 検出された追加バグの修正
+1. Fix 8 実機テスト（再インストール → サインイン → グループ同期確認）
+2. Fix 4 他端末通知問題の調査・修正（メンバー退出通知）
+3. Fix 6 テスト実施（招待残り回数表示）
+4. ネットワーク障害バナーのタイマー間隔検討
+5. 最終実機テスト セクション5-12 実施
+6. 午前修正分 + Fix 8 + Schema v3 のコミット・プッシュ

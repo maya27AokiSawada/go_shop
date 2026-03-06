@@ -42,6 +42,99 @@ flutterfire configure --project=gotoshop-572b7
 
 ---
 
+## Recent Implementations (2026-03-06)
+
+### 1. 実機テスト6件バグ修正（P0×1, P1×3, P2×2） ✅
+
+**Purpose**: 実機テストで発見された6件のバグを一括修正
+
+**Fixes**:
+
+| Fix # | 優先度 | 内容                                         | 修正ファイル                           |
+| ----- | ------ | -------------------------------------------- | -------------------------------------- |
+| 1     | P0     | FAB RenderFlexオーバーフロー                 | `group_list_widget.dart`               |
+| 2     | P1     | コピー付き作成メンバー未コピー               | `group_creation_with_copy_dialog.dart` |
+| 3     | P1     | コピー付き作成自分に通知なし                 | `group_creation_with_copy_dialog.dart` |
+| 4     | P1     | メンバーグループ退出時removeMember()引数誤り | `group_list_widget.dart`               |
+| 5     | P2     | 再インストール後ネットワーク障害バナー誤判定 | `network_monitor_service.dart`         |
+| 6     | P2     | 招待残り回数非表示                           | `group_invitation_dialog.dart`         |
+
+**テスト結果**: Fix 1-3: 全合格、Fix 4: 6/9 部分合格（他端末通知未実装）、Fix 5: 5/8 部分合格（再インストール同期問題発見→Fix 8へ）
+
+**Status**: ✅ 完了・コミット済み (`06f9a31`)
+
+---
+
+### 2. Fix 8: 再インストール時グループ同期遅延の根本修正 ✅
+
+**Purpose**: 再インストール後にサインインしてもグループが同期されない問題を根本修正
+
+**Root Cause**:
+
+`forceSyncFromFirestore()` と `syncFromFirestore()` が `waitForSafeInitialization()` を呼んでいなかった。再インストール後の初期化で `currentUser == null` → `_firestoreRepo = null` となり、サインイン後も Fix 7 の再初期化ロジックが発動されず、同期がスキップされていた。
+
+**Solution**:
+
+```dart
+// ❌ Before: waitForSafeInitialization() を呼ばずに即return
+Future<void> forceSyncFromFirestore() async {
+  if (_firestoreRepo == null) {
+    return;
+  }
+}
+
+// ✅ After: Fix 7の再初期化ロジックを先に発動
+Future<void> forceSyncFromFirestore() async {
+  await waitForSafeInitialization();
+  if (_firestoreRepo == null) {
+    return;
+  }
+}
+```
+
+**Modified Files**:
+
+- `lib/datastore/hybrid_purchase_group_repository.dart` — `forceSyncFromFirestore()` と `syncFromFirestore()` の2メソッド修正
+
+**Status**: ✅ 完了・テスト待ち
+
+---
+
+### 3. Hive Schema Version 3 最低バージョン設定 ✅
+
+**Purpose**: v1/v2データがFirestore上に存在しないため、Schema Version 3を最低バージョンとして設定
+
+**Solution**:
+
+```dart
+static const int _currentSchemaVersion =
+    3; // Version 3: 最低バージョン（v1/v2データはFirestore上に存在しない）
+```
+
+**Modified Files**:
+
+- `lib/services/user_specific_hive_service.dart` — `_currentSchemaVersion` を 2 → 3 に変更
+
+**Status**: ✅ 完了
+
+---
+
+### Technical Learning（2026-03-06）
+
+#### 1. waitForSafeInitialization() の適用範囲
+
+- `_firestoreRepo == null` チェックの前には必ず `waitForSafeInitialization()` を呼ぶ
+- 特にサインイン後のコードパスでは、Firebase Auth起動遅延による初回初期化失敗を補完するため必須
+- `forceSyncFromFirestore()` と `syncFromFirestore()` はユーザーサインイン後に呼ばれるため、Fix 7のリトライロジックの発動が不可欠
+
+#### 2. Hive Schema最低バージョン戦略
+
+- Firestore上にv1/v2データが存在しなくなった時点で、スキーマの最低バージョンを引き上げ可能
+- 古いデバイスはHiveキャッシュを自動クリア → Firestoreから再同期
+- マイグレーションコードの負債を排除できる
+
+---
+
 ## Recent Implementations (2026-03-05)
 
 ### 1. ネットワーク障害時処理フロー設計 + write `.timeout()` 全削除 ✅
