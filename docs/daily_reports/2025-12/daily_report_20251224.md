@@ -1,3 +1,5 @@
+<!-- markdownlint-disable MD022 MD031 MD032 MD034 MD036 MD040 MD058 MD060 -->
+
 # 開発日報 - 2025年12月24日（火）
 
 **作業者**: まや
@@ -32,32 +34,37 @@
 
 **目的**: 年末年始休暇中の実装に向けた包括的な設計書作成
 
-**成果物**: `docs/member_message_feature_design.md`（約900行）
+**成果物**: `docs/knowledge_base/member_message_feature_shelved.md`（約900行、2026-03-09に棚上げ資料として移設）
 
 **設計内容**:
 
 #### データモデル設計
+
 - `MemberMessage` モデル（Freezed + Hive）
   - HiveField(0-8): messageId, groupId, targetMemberId, fromMemberId, fromMemberName, message, createdAt, isRead, readAt
   - TypeID: 7
   - バリデーション: メッセージ1-500文字
 
 #### Firestore構造設計
+
 ```
 /SharedGroups/{groupId}/memberMessages/{messageId}
 ```
 
 **複合インデックス設計**:
+
 1. `targetMemberId` + `isRead` + `createdAt` (未読クエリ用)
 2. `targetMemberId` + `createdAt` (履歴クエリ用)
 
 #### Repository実装設計
+
 - `MemberMessageRepository` (Abstract)
 - `FirestoreMemberMessageRepository` (Firestore実装)
 - `HiveMemberMessageRepository` (キャッシュ実装)
 - `HybridMemberMessageRepository` (Firestore優先、Hiveフォールバック)
 
 **主要メソッド**:
+
 - `sendMessage()`: メッセージ送信
 - `watchMessages()`: リアルタイム監視（Stream）
 - `watchUnreadCount()`: 未読数監視（Stream）
@@ -65,6 +72,7 @@
 - `markAllAsRead()`: 全既読処理
 
 #### UI設計
+
 - **メンバーリスト拡張** (`group_member_management_page.dart`)
   - メッセージアイコン追加
   - 未読バッジ表示（数字またはdot）
@@ -76,6 +84,7 @@
   - エラーハンドリング
 
 #### セキュリティルール
+
 ```javascript
 // 自分宛または自分が送ったメッセージのみ閲覧可能
 function canReadMessage() {
@@ -88,17 +97,19 @@ allow delete: if false;
 ```
 
 #### 実装手順（6フェーズ）
-| Phase | 作業内容 | 見積時間 |
-|-------|---------|---------|
-| Phase 1 | データモデル実装 | 1時間 |
-| Phase 2 | Repository実装 | 2時間 |
-| Phase 3 | Provider実装 | 1時間 |
-| Phase 4 | UI実装 | 2.5時間 |
-| Phase 5 | Firestore設定 | 0.5時間 |
-| Phase 6 | テスト | 1時間 |
-| **合計** | | **8時間** |
+
+| Phase    | 作業内容         | 見積時間  |
+| -------- | ---------------- | --------- |
+| Phase 1  | データモデル実装 | 1時間     |
+| Phase 2  | Repository実装   | 2時間     |
+| Phase 3  | Provider実装     | 1時間     |
+| Phase 4  | UI実装           | 2.5時間   |
+| Phase 5  | Firestore設定    | 0.5時間   |
+| Phase 6  | テスト           | 1時間     |
+| **合計** |                  | **8時間** |
 
 **実装予定スケジュール**:
+
 - 12/28（土）: Phase 1-4（データモデル → UI）
 - 12/29（日）: Phase 5-6（Firestore設定 → テスト）
 
@@ -107,6 +118,7 @@ allow delete: if false;
 ### 2. dev版とprod版のフレーバー違いによるグループ表示問題 ✅
 
 **問題発生**:
+
 - SH-54D: デフォルトグループ + 共有グループ2つ表示（正常）
 - Pixel 9: デフォルトグループのみ表示（異常）
 - 両デバイスとも同じアカウント（まや、fatima.sumomo@gmail.com）でサインイン
@@ -114,6 +126,7 @@ allow delete: if false;
 #### 調査プロセス
 
 **1. デバイス確認**
+
 ```bash
 flutter devices
 # Pixel 9: 192.168.0.14:38977 (prod版)
@@ -121,6 +134,7 @@ flutter devices
 ```
 
 **2. Flavorの違いを発見**
+
 - **SH-54D**: dev版 (`net.sumomo_planning.go_shop.dev`)
 - **Pixel 9**: prod版 (`net.sumomo_planning.go_shop`)
 
@@ -139,6 +153,7 @@ android/app/src/prod/google-services.json
 #### 根本原因
 
 **Firebase AuthenticationはAndroidパッケージ名でアプリを識別**するため：
+
 - dev版サインイン → UID: `abc123`
 - prod版サインイン → UID: `def456`（別UID）
 
@@ -154,6 +169,7 @@ flutter run -d 192.168.0.14:38977 --flavor prod --uninstall-first
 ```
 
 または、Pixel 9で以下を実行：
+
 1. 設定 → アプリ → Go Shop
 2. ストレージとキャッシュ → **データを削除**
 
@@ -182,6 +198,7 @@ flutter run -d 192.168.0.14:38977 --flavor prod --uninstall-first
 **目的**: Firestoreの通知データをリアルタイムで表示し、履歴として管理
 
 **実装ファイル**:
+
 - **新規**: `lib/pages/notification_history_page.dart` (332行)
 - **変更**: `lib/widgets/settings/notification_settings_panel.dart`
 
@@ -221,6 +238,7 @@ flutter run -d 192.168.0.14:38977 --flavor prod --uninstall-first
 #### 現在の設計（改善の余地あり）
 
 **問題点**:
+
 - dev版とprod版で別ユーザー扱い
 - 開発時にdevで作成したデータがprodで見えない
 - テストユーザーをdev/prodで別々に管理する必要がある
@@ -228,6 +246,7 @@ flutter run -d 192.168.0.14:38977 --flavor prod --uninstall-first
 **検討すべき改善案**:
 
 1. **dev版もprod版と同じパッケージ名を使う**
+
    ```kotlin
    // build.gradle.kts
    create("dev") {
@@ -248,6 +267,7 @@ flutter run -d 192.168.0.14:38977 --flavor prod --uninstall-first
    - 完全に分離されるがコスト増
 
 **現時点の運用方針**:
+
 - **全て prod 版で統一する**（今回の解決策）
 - dev版は将来的にEmulator対応時に使用
 - これが最もシンプルで混乱が少ない
