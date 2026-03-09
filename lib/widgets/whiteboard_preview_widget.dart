@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/whiteboard.dart';
 import '../providers/whiteboard_provider.dart';
-import '../providers/auth_provider.dart';
 import '../pages/whiteboard_editor_page.dart';
 import '../utils/app_logger.dart';
 
@@ -19,7 +18,6 @@ class WhiteboardPreviewWidget extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // 🔥 StreamProviderに変更してリアルタイム同期を実現
     final whiteboardAsync = ref.watch(watchGroupWhiteboardProvider(groupId));
-    final currentUser = ref.watch(authStateProvider).value;
 
     return whiteboardAsync.when(
       loading: () => const SizedBox.shrink(),

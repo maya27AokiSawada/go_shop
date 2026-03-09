@@ -38,14 +38,11 @@
 //
 // ==================================================
 
-import 'dart:convert';
-
 import 'package:flutter_test/flutter_test.dart';
-import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mockito/mockito.dart';
-import 'package:mockito/annotations.dart';
 
 import 'package:goshopping/services/notification_service.dart';
 
@@ -56,15 +53,6 @@ import 'package:goshopping/services/notification_service.dart';
 class MockRef extends Mock implements Ref {}
 
 class MockFirebaseFirestore extends Mock implements FirebaseFirestore {}
-
-class MockCollectionReference extends Mock
-    implements CollectionReference<Map<String, dynamic>> {}
-
-class MockDocumentReference extends Mock
-    implements DocumentReference<Map<String, dynamic>> {}
-
-class MockDocumentSnapshot extends Mock
-    implements DocumentSnapshot<Map<String, dynamic>> {}
 
 // ==================================================
 // Tests

@@ -9,20 +9,6 @@ import 'package:goshopping/services/enhanced_invitation_service.dart';
 void main() {
   group('GroupInvitationOption データ構造 Tests', () {
     test('招待可能なグループオプション作成', () {
-      // Arrange
-      final testGroup = SharedGroup.create(
-        groupId: 'test-group-1',
-        groupName: 'テストグループ',
-        members: [
-          const SharedGroupMember(
-            memberId: 'owner-123',
-            name: 'オーナー',
-            contact: 'owner@example.com',
-            role: SharedGroupRole.owner,
-          ),
-        ],
-      );
-
       // Act
       const option = GroupInvitationOption(
         group: SharedGroup(
@@ -293,9 +279,6 @@ void main() {
 
   group('エッジケース Tests', () {
     test('空の招待リスト', () {
-      // Arrange
-      const selectedGroups = <GroupInvitationData>[];
-
       // Act
       const result = InvitationResult(
         success: true, // 空リストは技術的には成功

@@ -9,7 +9,6 @@ import '../services/notification_service.dart';
 import '../services/user_preferences_service.dart';
 import '../services/user_specific_hive_service.dart';
 import '../services/periodic_purchase_service.dart'; // 🆕 定期購入サービス
-import '../services/list_cleanup_service.dart';
 import '../widgets/data_migration_widget.dart';
 import '../utils/app_logger.dart';
 import '../helpers/user_id_change_helper.dart';
@@ -309,23 +308,6 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
       });
     } catch (e) {
       Log.error('❌ 定期購入リセットエラー: $e');
-    }
-  }
-
-  /// 論理削除アイテムのクリーンアップ（バックグラウンド処理）
-  Future<void> _cleanupDeletedItems() async {
-    try {
-      // 10秒待機してからバックグラウンドで実行
-      Future.delayed(const Duration(seconds: 10), () async {
-        final cleanupService = ref.read(listCleanupServiceProvider);
-        final deletedCount = await cleanupService.cleanupAllLists(
-          olderThanDays: 30,
-          forceCleanup: false,
-        );
-        Log.info('🧹 論理削除アイテムクリーンアップ完了: $deletedCount 件');
-      });
-    } catch (e) {
-      Log.error('❌ クリーンアップエラー: $e');
     }
   }
 

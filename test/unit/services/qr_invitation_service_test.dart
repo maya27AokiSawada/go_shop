@@ -30,16 +30,13 @@
 
 import 'dart:convert';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mockito/mockito.dart';
-import 'package:mockito/annotations.dart';
 
 import 'package:goshopping/services/qr_invitation_service.dart';
-import 'package:goshopping/services/invitation_security_service.dart';
-import 'package:goshopping/services/notification_service.dart';
 
 // ==================================================
 // Mock Classes
@@ -50,33 +47,6 @@ class MockRef extends Mock implements Ref {}
 
 // MockFirebaseFirestoreクラス
 class MockFirebaseFirestore extends Mock implements FirebaseFirestore {}
-
-// MockCollectionReferenceクラス
-class MockCollectionReference extends Mock
-    implements CollectionReference<Map<String, dynamic>> {}
-
-// MockDocumentReferenceクラス
-class MockDocumentReference extends Mock
-    implements DocumentReference<Map<String, dynamic>> {}
-
-// MockDocumentSnapshotクラス
-class MockDocumentSnapshot extends Mock
-    implements DocumentSnapshot<Map<String, dynamic>> {}
-
-// MockQuerySnapshotクラス
-class MockQuerySnapshot extends Mock
-    implements QuerySnapshot<Map<String, dynamic>> {}
-
-// MockQueryDocumentSnapshotクラス
-class MockQueryDocumentSnapshot extends Mock
-    implements QueryDocumentSnapshot<Map<String, dynamic>> {}
-
-// MockInvitationSecurityServiceクラス
-class MockInvitationSecurityService extends Mock
-    implements InvitationSecurityService {}
-
-// MockNotificationServiceクラス
-class MockNotificationService extends Mock implements NotificationService {}
 
 // ==================================================
 // Main Test Suite
@@ -224,24 +194,7 @@ void main() {
   // Group 3: _validateLegacyInvitation (レガシー招待検証)
   // ==================================================
   group('QRInvitationService - _validateLegacyInvitation', () {
-    late MockRef mockRef;
-    late MockFirebaseAuth mockAuth;
-    late MockFirebaseFirestore mockFirestore;
-
-    setUp(() {
-      mockRef = MockRef();
-      mockAuth = MockFirebaseAuth(signedIn: true);
-      mockFirestore = MockFirebaseFirestore();
-    });
-
     test('有効なレガシー招待データを受け入れる', () {
-      // Arrange
-      final service = QRInvitationService(
-        mockRef,
-        auth: mockAuth,
-        firestore: mockFirestore,
-      );
-
       final invitationData = {
         'type': 'qr_invitation',
         'inviterUid': 'test-inviter-uid',

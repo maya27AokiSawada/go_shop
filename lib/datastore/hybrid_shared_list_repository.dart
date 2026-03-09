@@ -993,33 +993,6 @@ class HybridSharedListRepository implements SharedListRepository {
     }
   }
 
-  /// 単一アイテムをFirestoreに同期（バックグラウンド）
-  void _syncSingleItemToFirestore(
-    String listId,
-    SharedItem item,
-    _SharedListSyncOperationType operationType,
-  ) {
-    // バックグラウンドで非同期処理
-    _hiveRepo.getSharedListById(listId).then((list) {
-      if (list != null && _firestoreRepo != null) {
-        _firestoreRepo!.updateSharedList(list).then((_) {
-          developer.log('🔄 [HYBRID_DIFF] Firestore synced: $operationType');
-        }).catchError((e) {
-          developer.log('⚠️ [HYBRID_DIFF] Firestore sync failed: $e');
-          // 失敗時は同期キューに追加
-          _addToSyncQueue(_SharedListSyncOperation(
-            type: operationType,
-            listId: listId,
-            data: item,
-            timestamp: DateTime.now(),
-          ));
-        });
-      }
-    }).catchError((e) {
-      developer.log('❌ [HYBRID_DIFF] Failed to get list from Hive: $e');
-    });
-  }
-
   // =================================================================
   // Realtime Sync Methods
   // =================================================================

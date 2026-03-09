@@ -268,7 +268,6 @@ void main() {
 
     testWidgets('✅ Page renders with empty list', (WidgetTester tester) async {
       // ARRANGE: 空のリストを用意
-      final mockGroup = createMockGroup('group_1', 'テストグループ');
       final emptyList = createMockList('group_1', 'list_1', '買い物リスト');
 
       // モックRepositoryを準備

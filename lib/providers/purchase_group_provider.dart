@@ -1209,18 +1209,6 @@ enum SyncStatus {
   synced, // 同期済み
 }
 
-/// SharedGroupRoleをパース（Firestoreデータ変換用）
-SharedGroupRole _parseRole(String? roleString) {
-  switch (roleString) {
-    case 'owner':
-      return SharedGroupRole.owner;
-    case 'member':
-      return SharedGroupRole.member;
-    default:
-      return SharedGroupRole.member;
-  }
-}
-
 /// Hiveから不正なグループを削除（allowedUidに現在ユーザーが含まれないもの）
 /// 内部実装（外部からは cleanupInvalidHiveGroups() を使用）
 Future<void> _cleanupInvalidHiveGroupsInternal(

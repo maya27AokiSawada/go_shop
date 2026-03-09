@@ -411,28 +411,6 @@ class GroupListWidget extends ConsumerWidget {
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(32),
-      child: const Column(
-        children: [
-          Icon(Icons.group_off, size: 64, color: Colors.grey),
-          SizedBox(height: 16),
-          Text(
-            'グループがありません',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-          ),
-          SizedBox(height: 8),
-          Text(
-            '右下の + ボタンから新しいグループを作成してください',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildLoadingWidget() {
     return Center(
       child: Column(
@@ -492,10 +470,7 @@ class GroupListWidget extends ConsumerWidget {
     // 現在のユーザー情報を安全に取得
     final currentUser = ErrorHandler.handleSync<User?>(
       operation: () {
-        {
-          return FirebaseAuth.instance.currentUser;
-        }
-        return null;
+        return FirebaseAuth.instance.currentUser;
       },
       context: 'GROUP_LIST:getCurrentUser',
       defaultValue: null,

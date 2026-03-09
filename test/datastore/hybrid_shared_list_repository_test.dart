@@ -45,13 +45,6 @@ final _dummyList = SharedList(
   updatedAt: DateTime(2020),
 );
 
-final _dummyItem = SharedItem(
-  memberId: '_dummy_',
-  name: '_dummy_',
-  registeredDate: DateTime(2020),
-  itemId: '_dummy_',
-);
-
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Mock Classes
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

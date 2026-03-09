@@ -185,14 +185,6 @@ void main() {
     });
 
     test('ロック状態遷移', () {
-      // Arrange
-      const states = [
-        'unlocked',
-        'acquiring',
-        'locked',
-        'releasing',
-        'unlocked'
-      ];
       var currentState = 'unlocked';
 
       // Act & Assert
@@ -307,11 +299,8 @@ void main() {
       // Arrange
       Map<String, dynamic>? editLock;
 
-      // Act
-      final hasLock = editLock != null;
-
       // Assert
-      expect(hasLock, false);
+      expect(editLock, isNull);
     });
 
     test('期限切れロックの自動クリーンアップ判定', () {

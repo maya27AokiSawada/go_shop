@@ -356,32 +356,6 @@ class _GroupMemberManagementPageState
     }
   }
 
-  /// メンバー削除権限チェック
-  bool _canRemoveMember(SharedGroup group) {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return false;
-
-    // オーナーまたは管理者のみ削除可能
-    return group.ownerUid == currentUser.uid ||
-        group.members?.any((m) =>
-                m.memberId == currentUser.uid &&
-                m.role == SharedGroupRole.manager) ==
-            true;
-  }
-
-  /// メンバー権限編集チェック
-  bool _canEditMemberRole(SharedGroup group) {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return false;
-
-    // オーナーまたは管理者のみ編集可能
-    return group.ownerUid == currentUser.uid ||
-        group.members?.any((m) =>
-                m.memberId == currentUser.uid &&
-                m.role == SharedGroupRole.manager) ==
-            true;
-  }
-
   Widget _buildEmptyMemberList() {
     return Container(
       padding: const EdgeInsets.all(32),
@@ -409,19 +383,6 @@ class _GroupMemberManagementPageState
         ],
       ),
     );
-  }
-
-  String _getRoleDisplayName(SharedGroupRole role) {
-    switch (role) {
-      case SharedGroupRole.owner:
-        return 'オーナー';
-      case SharedGroupRole.manager:
-        return '管理者';
-      case SharedGroupRole.member:
-        return 'メンバー';
-      case SharedGroupRole.partner:
-        return 'パートナー';
-    }
   }
 
   /// 現在のユーザーが招待権限を持っているかチェック
@@ -592,72 +553,6 @@ class _GroupMemberManagementPageState
         backgroundColor: Colors.orange,
       ),
     );
-  }
-
-  void _handleMemberAction(
-      String action, SharedGroupMember member, SharedGroup group) {
-    switch (action) {
-      case 'edit_role':
-        _showRoleEditDialog(member, group);
-        break;
-      case 'remove':
-        _showRemoveMemberDialog(member, group);
-        break;
-    }
-  }
-
-  void _showRoleEditDialog(SharedGroupMember member, SharedGroup group) {
-    // 権限変更機能は将来実装予定
-    AppLogger.info('⚙️ [MEMBER_MGMT] 権限変更（未実装）: ${member.name}');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('権限変更機能は現在開発中です'),
-        backgroundColor: Colors.orange,
-      ),
-    );
-  }
-
-  void _showRemoveMemberDialog(SharedGroupMember member, SharedGroup group) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('メンバーを削除'),
-        content: Text('${member.name} をグループから削除しますか？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('キャンセル'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () {
-              _removeMember(member, group);
-              Navigator.pop(context);
-            },
-            child: const Text('削除', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _removeMember(SharedGroupMember member, SharedGroup group) async {
-    try {
-      await ref.read(SharedGroupRepositoryProvider).removeMember(
-            group.groupId,
-            member,
-          );
-
-      AppLogger.info('✅ [MEMBER_MGMT] メンバー削除完了: ${member.name}');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${member.name} を削除しました')),
-      );
-
-      // 🔥 修正: SnackBar表示後にinvalidate
-      ref.invalidate(selectedGroupProvider);
-    } catch (e) {
-      AppLogger.error('❌ [MEMBER_MGMT] メンバー削除エラー: $e');
-    }
   }
 
   /// グループ名を更新

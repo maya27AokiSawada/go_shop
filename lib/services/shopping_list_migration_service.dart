@@ -78,20 +78,4 @@ class SharedListMigrationService {
       // エラーでも処理を続行（既存の新デフォルトグループは使える状態にする）
     }
   }
-
-  /// 旧リストを削除（安全性のため現在は未使用）
-  static Future<void> _deleteOldLists(
-    CollectionReference collectionRef,
-    List<QueryDocumentSnapshot> docs,
-  ) async {
-    Log.info('🗑️ [MIGRATION] 旧リスト削除開始: ${docs.length}件');
-
-    final batch = _firestore.batch();
-    for (final doc in docs) {
-      batch.delete(doc.reference);
-    }
-
-    await batch.commit();
-    Log.info('✅ [MIGRATION] 旧リスト削除完了');
-  }
 }

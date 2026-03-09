@@ -139,12 +139,6 @@ class UserInitializationService {
     }
   }
 
-  /// FirebaseユーザーIDかどうかを判定
-  bool _isFirebaseUserId(String uid) {
-    // Firebase AuthのUIDは通常28文字の英数字
-    return uid.length >= 20 && RegExp(r'^[a-zA-Z0-9]+$').hasMatch(uid);
-  }
-
   /// Firestoreのユーザープロフィールとローカルのプリファレンスを同期
   Future<void> _syncUserProfile(User user) async {
     try {

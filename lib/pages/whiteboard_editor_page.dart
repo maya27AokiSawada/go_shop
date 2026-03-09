@@ -1505,17 +1505,6 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     );
   }
 
-  /// グリッド線オーバーレイ（オプション）
-  Widget _buildGridOverlay(double width, double height) {
-    return CustomPaint(
-      size: Size(width, height),
-      painter: GridPainter(
-        gridSize: 50.0, // 50pxごとにグリッド線
-        color: Colors.grey.withOpacity(0.2),
-      ),
-    );
-  }
-
   /// 🔒 編集ロック状態表示ウィジェット（グループ共有ボードのみ）
   Widget _buildEditLockStatus() {
     // 個人ボードでは編集ロック状態を表示しない

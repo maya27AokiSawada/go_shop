@@ -29,7 +29,6 @@
 /// - Multiple invitation selection for same email addresses
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/shared_group.dart';
 
 class FirestoreCollections {
   static const String users = 'users';

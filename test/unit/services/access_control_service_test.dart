@@ -25,7 +25,6 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -417,8 +416,10 @@ void main() {
     test('GroupVisibilityMode - 3つの値が定義されている', () {
       expect(GroupVisibilityMode.values.length, 3);
       expect(GroupVisibilityMode.values, contains(GroupVisibilityMode.all));
-      expect(GroupVisibilityMode.values, contains(GroupVisibilityMode.defaultOnly));
-      expect(GroupVisibilityMode.values, contains(GroupVisibilityMode.readOnly));
+      expect(GroupVisibilityMode.values,
+          contains(GroupVisibilityMode.defaultOnly));
+      expect(
+          GroupVisibilityMode.values, contains(GroupVisibilityMode.readOnly));
     });
 
     test('AccessType - 3つの値が定義されている', () {
@@ -477,9 +478,9 @@ void main() {
       final service = AccessControlService(mockRef, auth: mockAuth);
 
       // Act
-      final firstToggle = await service.toggleSecretMode();  // false → true
+      final firstToggle = await service.toggleSecretMode(); // false → true
       final secondToggle = await service.toggleSecretMode(); // true → false
-      final thirdToggle = await service.toggleSecretMode();  // false → true
+      final thirdToggle = await service.toggleSecretMode(); // false → true
 
       // Assert
       expect(firstToggle, isTrue);

@@ -46,13 +46,6 @@ const _dummyGroup = SharedGroup(
   allowedUid: [],
 );
 
-const _dummyMember = SharedGroupMember(
-  memberId: '_dummy_',
-  name: '_dummy_',
-  contact: '_dummy_',
-  role: SharedGroupRole.member,
-);
-
 class MockHiveSharedGroupRepository extends Mock
     implements HiveSharedGroupRepository {
   @override
@@ -142,12 +135,6 @@ class MockHiveSharedGroupRepository extends Mock
         Invocation.method(#cleanupDeletedGroups, []),
         returnValue: Future<int>.value(0),
       ) as Future<int>;
-
-  @override
-  Future<void> saveGroup(SharedGroup group) => super.noSuchMethod(
-        Invocation.method(#saveGroup, [group]),
-        returnValue: Future<void>.value(),
-      ) as Future<void>;
 }
 
 class MockFirestoreSharedGroupRepository extends Mock
@@ -239,12 +226,6 @@ class MockFirestoreSharedGroupRepository extends Mock
         Invocation.method(#cleanupDeletedGroups, []),
         returnValue: Future<int>.value(0),
       ) as Future<int>;
-
-  @override
-  Future<void> saveGroup(SharedGroup group) => super.noSuchMethod(
-        Invocation.method(#saveGroup, [group]),
-        returnValue: Future<void>.value(),
-      ) as Future<void>;
 }
 
 class MockRef extends Fake implements Ref {

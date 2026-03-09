@@ -192,15 +192,6 @@ class UserProfileMigrationService {
     }
   }
 
-  /// 旧プロファイルデータを削除（オプション）
-  Future<void> _deleteOldProfileData(DocumentReference userDocRef) async {
-    try {
-      AppLogger.warning('⚠️ [MIGRATION] 旧データ削除は手動で行ってください');
-    } catch (e) {
-      AppLogger.error('❌ [MIGRATION] 旧データ削除エラー: $e');
-    }
-  }
-
   /// Firebase AuthからUserオブジェクトを取得（内部用）
   Future<User?> _getUser(String uid) async {
     try {

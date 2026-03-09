@@ -497,14 +497,6 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
   // 同期キューとタイマー管理
   // =================================================================
 
-  /// 同期キューに操作を追加
-  void _addToSyncQueue(_SyncOperation operation) {
-    _syncQueue.add(operation);
-    AppLogger.info(
-        '📋 [HYBRID_REPO] 同期キュー追加: ${operation.type} ${operation.groupId}');
-    AppLogger.info('📊 [HYBRID_REPO] キューサイズ: ${_syncQueue.length}');
-  }
-
   /// 同期タイマーをスケジュール（30秒後に再試行）
   void _scheduleSync() {
     _syncTimer?.cancel();
@@ -595,75 +587,6 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
     } catch (e) {
       AppLogger.info('❌ Sync operation failed: $e');
       rethrow;
-    }
-  }
-
-  /// Firestoreへのグループ作成同期（フォールバック付き同期的書き込み）
-  Future<void> _syncCreateGroupToFirestoreWithFallback(
-      SharedGroup group) async {
-    AppLogger.info('🔍 [HYBRID_REPO] Firestore同期的書き込み開始: ${group.groupName}');
-
-    if (_firestoreRepo == null) {
-      AppLogger.info('⚠️ [HYBRID_REPO] Firestore無効 - Hiveのみ');
-      return;
-    }
-
-    try {
-      // 🛡️ Members empty チェック（crash-proof）
-      if (group.members?.isEmpty ?? true) {
-        AppLogger.info(
-            '❌ [HYBRID_REPO] Group members is empty - skipping Firestore sync');
-        return;
-      }
-
-      // 同期的書き込み（ユーザーを待たせてもOK）
-      final ownerMember = group.members!
-          .firstWhere((m) => m.role == SharedGroupRole.owner, orElse: () {
-        AppLogger.info('⚠️ [HYBRID_REPO] No owner found, using first member');
-        return group.members!.first;
-      });
-
-      AppLogger.info('⏳ [HYBRID_REPO] Firestore書き込み中...: ${group.groupName}');
-      AppLogger.info(
-          '🔍 [HYBRID_REPO] Owner member: ${ownerMember.name} (${ownerMember.memberId})');
-
-      await _firestoreRepo!
-          .createGroup(group.groupId, group.groupName, ownerMember);
-
-      AppLogger.info('✅ [HYBRID_REPO] Firestore書き込み成功: ${group.groupName}');
-      _isOnline = true; // オンライン状態を更新
-    } catch (e, stackTrace) {
-      AppLogger.info('❌ [HYBRID_REPO] Firestore書き込み失敗: $e');
-      AppLogger.info('📄 [HYBRID_REPO] StackTrace: $stackTrace');
-
-      // オフライン状態に設定
-      _isOnline = false;
-
-      // 🛡️ Members安全チェック（crash-proof）
-      if (group.members?.isEmpty ?? true) {
-        AppLogger.info('❌ [HYBRID_REPO] Cannot add to sync queue - no members');
-        return;
-      }
-
-      final firstMember = group.members!.first;
-      // 同期キューに追加（タイマーで後で再試行）
-      _addToSyncQueue(_SyncOperation(
-        type: 'create',
-        groupId: group.groupId,
-        data: {
-          'groupName': group.groupName,
-          'ownerMember': {
-            'memberId': firstMember.memberId,
-            'name': firstMember.name,
-            'contact': firstMember.contact,
-            'role': firstMember.role.name,
-          }
-        },
-        timestamp: DateTime.now(),
-      ));
-
-      AppLogger.info('📋 [HYBRID_REPO] 同期キューに追加 - 後で再試行');
-      _scheduleSync();
     }
   }
 
@@ -867,79 +790,6 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
   // =================================================================
   // バックグラウンド同期
   // =================================================================
-
-  /// Firestoreから全グループを非同期で同期
-  void _syncFromFirestoreInBackground() {
-    if (_isSyncing || _firestoreRepo == null) {
-      return;
-    }
-
-    _setSyncing(true);
-    _unawaited(_firestoreRepo!
-        .getAllGroups()
-        .timeout(const Duration(seconds: 10))
-        .then((firestoreGroups) async {
-      // 差分を検出してHiveに同期
-      for (final firestoreGroup in firestoreGroups) {
-        try {
-          final cachedGroup =
-              await _hiveRepo.getGroupById(firestoreGroup.groupId);
-
-          // 簡単な差分検出（実際はtimestamp比較が望ましい）
-          if (cachedGroup.hashCode != firestoreGroup.hashCode) {
-            await _hiveRepo.saveGroup(firestoreGroup);
-            developer
-                .log('🔄 Synced from Firestore: ${firestoreGroup.groupName}');
-          }
-        } catch (e) {
-          // キャッシュにない場合は新規追加
-          await _hiveRepo.saveGroup(firestoreGroup);
-          AppLogger.info('➕ New from Firestore: ${firestoreGroup.groupName}');
-        }
-      }
-    }).catchError((e) {
-      if (e is TimeoutException) {
-        final networkMonitor = _ref.read(networkMonitorProvider);
-        if (networkMonitor.currentStatus == NetworkStatus.online) {
-          networkMonitor.checkFirestoreConnection();
-          networkMonitor.startAutoRetry();
-        }
-      }
-      AppLogger.info('⚠️ Background sync failed: $e');
-      _isOnline = false; // 接続エラーを検出
-    }).whenComplete(() {
-      _setSyncing(false);
-    }));
-  }
-
-  /// 特定グループをFirestoreから同期
-  void _syncGroupFromFirestoreInBackground(String groupId) {
-    if (!_isOnline || _firestoreRepo == null) {
-      return;
-    }
-
-    _unawaited(_firestoreRepo!
-        .getGroupById(groupId)
-        .timeout(const Duration(seconds: 10))
-        .then((firestoreGroup) async {
-      final cachedGroup = await _hiveRepo.getGroupById(groupId);
-
-      if (cachedGroup.hashCode != firestoreGroup.hashCode) {
-        await _hiveRepo.saveGroup(firestoreGroup);
-        developer
-            .log('🔄 Group synced from Firestore: ${firestoreGroup.groupName}');
-      }
-    }).catchError((e) {
-      if (e is TimeoutException) {
-        final networkMonitor = _ref.read(networkMonitorProvider);
-        if (networkMonitor.currentStatus == NetworkStatus.online) {
-          networkMonitor.checkFirestoreConnection();
-          networkMonitor.startAutoRetry();
-        }
-      }
-      AppLogger.info('⚠️ Group sync failed: $e');
-    }));
-  }
 
   /// Fire-and-forget 非同期実行
   void _unawaited(Future<void> operation) {
