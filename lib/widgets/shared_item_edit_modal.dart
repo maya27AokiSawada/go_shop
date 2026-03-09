@@ -77,264 +77,275 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
   Widget build(BuildContext context) {
     final isEditMode = widget.item != null;
 
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-        left: 16,
-        right: 16,
-        top: 16,
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ヘッダー
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return SafeArea(
+      top: false,
+      child: AnimatedPadding(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: FractionallySizedBox(
+          heightFactor: 0.92,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  isEditMode ? 'アイテムを編集' : '買い物アイテムを追加',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // 商品名
-            TextField(
-              controller: _nameController,
-              decoration: InputDecoration(
-                labelText: '商品名',
-                hintText: '例: 牛乳',
-                border: const OutlineInputBorder(),
-                errorText: _validationError?.contains('商品名') == true
-                    ? _validationError
-                    : null,
-                counterText: '${_nameController.text.length}/$maxNameLength',
-              ),
-              maxLength: maxNameLength,
-              autofocus: !isEditMode,
-              onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: 12),
-
-            // 数量
-            TextField(
-              controller: _quantityController,
-              decoration: InputDecoration(
-                labelText: '数量',
-                border: const OutlineInputBorder(),
-                errorText: _validationError?.contains('数量') == true
-                    ? _validationError
-                    : null,
-              ),
-              keyboardType: TextInputType.number,
-              onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: 16),
-
-            // 期限設定
-            InkWell(
-              onTap: _selectDeadline,
-              child: Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                padding: const EdgeInsets.all(12),
-                child: Row(
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Icon(Icons.calendar_today),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _selectedDeadline == null
-                            ? '購入期限を選択（任意）'
-                            : '期限: ${_formatDate(_selectedDeadline!)}',
-                        style: TextStyle(
-                          color: _selectedDeadline == null ? Colors.grey : null,
-                        ),
+                    Text(
+                      isEditMode ? 'アイテムを編集' : '買い物アイテムを追加',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    if (_selectedDeadline != null)
-                      IconButton(
-                        icon: const Icon(Icons.clear, size: 16),
-                        onPressed: () {
-                          setState(() {
-                            _selectedDeadline = null;
-                          });
-                        },
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // 購入間隔設定
-            Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.repeat),
-                      SizedBox(width: 8),
-                      Text('購入間隔（任意）'),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      // 数値ドロップダウン
-                      Expanded(
-                        flex: 2,
-                        child: DropdownButtonFormField<int>(
-                          initialValue: _intervalValue,
-                          decoration: const InputDecoration(
-                            contentPadding: EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
-                            border: OutlineInputBorder(),
-                          ),
-                          items: [
-                            const DropdownMenuItem(
-                              value: 0,
-                              child: Text('0 (なし)'),
-                            ),
-                            ...List.generate(30, (index) => index + 1)
-                                .map((value) => DropdownMenuItem(
-                                      value: value,
-                                      child: Text('$value'),
-                                    ))
-                                .toList(),
-                          ],
-                          onChanged: (value) {
-                            if (value != null) {
-                              setState(() {
-                                _intervalValue = value;
-                              });
-                            }
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      // 単位ドロップダウン
-                      Expanded(
-                        flex: 3,
-                        child: DropdownButtonFormField<String>(
-                          initialValue: _intervalUnit,
-                          decoration: const InputDecoration(
-                            contentPadding: EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
-                            border: OutlineInputBorder(),
-                          ),
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'day',
-                              child: Text('日ごと'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'week',
-                              child: Text('週ごと'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'month',
-                              child: Text('ヶ月ごと'),
-                            ),
-                          ],
-                          onChanged: (value) {
-                            if (value != null) {
-                              setState(() {
-                                _intervalUnit = value;
-                              });
-                            }
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _intervalValue == 0
-                        ? '繰り返し購入なし'
-                        : '${_calculateIntervalDays(_intervalValue, _intervalUnit)}日ごとに購入',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // エラーメッセージ表示
-            if (_validationError != null &&
-                !_validationError!.contains('商品名') &&
-                !_validationError!.contains('数量'))
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: Colors.red.shade300),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.error_outline, color: Colors.red.shade700),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _validationError!,
-                        style:
-                            TextStyle(color: Colors.red.shade700, fontSize: 12),
-                      ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.of(context).pop(),
                     ),
                   ],
                 ),
-              ),
-            if (_validationError != null &&
-                !_validationError!.contains('商品名') &&
-                !_validationError!.contains('数量'))
-              const SizedBox(height: 12),
-
-            // ボタン
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed:
-                      _isSubmitting ? null : () => Navigator.of(context).pop(),
-                  child: const Text('キャンセル'),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: SingleChildScrollView(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextField(
+                          controller: _nameController,
+                          decoration: InputDecoration(
+                            labelText: '商品名',
+                            hintText: '例: 牛乳',
+                            border: const OutlineInputBorder(),
+                            errorText: _validationError?.contains('商品名') == true
+                                ? _validationError
+                                : null,
+                            counterText:
+                                '${_nameController.text.length}/$maxNameLength',
+                          ),
+                          maxLength: maxNameLength,
+                          autofocus: !isEditMode,
+                          onChanged: (_) => setState(() {}),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _quantityController,
+                          decoration: InputDecoration(
+                            labelText: '数量',
+                            border: const OutlineInputBorder(),
+                            errorText: _validationError?.contains('数量') == true
+                                ? _validationError
+                                : null,
+                          ),
+                          keyboardType: TextInputType.number,
+                          onChanged: (_) => setState(() {}),
+                        ),
+                        const SizedBox(height: 16),
+                        InkWell(
+                          onTap: _selectDeadline,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            padding: const EdgeInsets.all(12),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.calendar_today),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _selectedDeadline == null
+                                        ? '購入期限を選択（任意）'
+                                        : '期限: ${_formatDate(_selectedDeadline!)}',
+                                    style: TextStyle(
+                                      color: _selectedDeadline == null
+                                          ? Colors.grey
+                                          : null,
+                                    ),
+                                  ),
+                                ),
+                                if (_selectedDeadline != null)
+                                  IconButton(
+                                    icon: const Icon(Icons.clear, size: 16),
+                                    onPressed: () {
+                                      setState(() {
+                                        _selectedDeadline = null;
+                                      });
+                                    },
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(Icons.repeat),
+                                  SizedBox(width: 8),
+                                  Text('購入間隔（任意）'),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    flex: 2,
+                                    child: DropdownButtonFormField<int>(
+                                      initialValue: _intervalValue,
+                                      decoration: const InputDecoration(
+                                        contentPadding: EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 8),
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      items: [
+                                        const DropdownMenuItem(
+                                          value: 0,
+                                          child: Text('0 (なし)'),
+                                        ),
+                                        ...List.generate(
+                                                30, (index) => index + 1)
+                                            .map(
+                                              (value) => DropdownMenuItem(
+                                                value: value,
+                                                child: Text('$value'),
+                                              ),
+                                            )
+                                            .toList(),
+                                      ],
+                                      onChanged: (value) {
+                                        if (value != null) {
+                                          setState(() {
+                                            _intervalValue = value;
+                                          });
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    flex: 3,
+                                    child: DropdownButtonFormField<String>(
+                                      initialValue: _intervalUnit,
+                                      decoration: const InputDecoration(
+                                        contentPadding: EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 8),
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      items: const [
+                                        DropdownMenuItem(
+                                          value: 'day',
+                                          child: Text('日ごと'),
+                                        ),
+                                        DropdownMenuItem(
+                                          value: 'week',
+                                          child: Text('週ごと'),
+                                        ),
+                                        DropdownMenuItem(
+                                          value: 'month',
+                                          child: Text('ヶ月ごと'),
+                                        ),
+                                      ],
+                                      onChanged: (value) {
+                                        if (value != null) {
+                                          setState(() {
+                                            _intervalUnit = value;
+                                          });
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _intervalValue == 0
+                                    ? '繰り返し購入なし'
+                                    : '${_calculateIntervalDays(_intervalValue, _intervalUnit)}日ごとに購入',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        if (_validationError != null &&
+                            !_validationError!.contains('商品名') &&
+                            !_validationError!.contains('数量'))
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade50,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.red.shade300),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.error_outline,
+                                    color: Colors.red.shade700),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _validationError!,
+                                    style: TextStyle(
+                                      color: Colors.red.shade700,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        if (_validationError != null &&
+                            !_validationError!.contains('商品名') &&
+                            !_validationError!.contains('数量'))
+                          const SizedBox(height: 12),
+                      ],
+                    ),
+                  ),
                 ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submitItem,
-                  child: _isSubmitting
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(isEditMode ? '更新' : '追加'),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: _isSubmitting
+                          ? null
+                          : () => Navigator.of(context).pop(),
+                      child: const Text('キャンセル'),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: _isSubmitting ? null : _submitItem,
+                      child: _isSubmitting
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Text(isEditMode ? '更新' : '追加'),
+                    ),
+                  ],
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-          ],
+          ),
         ),
       ),
     );
