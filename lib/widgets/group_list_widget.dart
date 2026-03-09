@@ -696,43 +696,36 @@ class GroupListWidget extends ConsumerWidget {
         throw Exception('ユーザー情報が取得できません');
       }
 
-      // 自分のメンバー情報を検索
-      final myMember = group.members?.firstWhere(
-        (m) => m.memberId == currentUser.uid,
-        orElse: () => throw Exception('メンバー情報が見つかりません'),
+      if (group.ownerUid == null || group.ownerUid!.isEmpty) {
+        throw Exception('オーナー情報が見つかりません');
+      }
+
+      if (!group.allowedUid.contains(currentUser.uid)) {
+        throw Exception('このグループのメンバーではありません');
+      }
+
+      final requesterName =
+          currentUser.displayName ?? currentUser.email ?? 'ユーザー';
+
+      final notificationService = ref.read(notificationServiceProvider);
+      await notificationService.sendNotification(
+        targetUserId: group.ownerUid!,
+        type: NotificationType.groupLeaveRequested,
+        groupId: group.groupId,
+        message: '$requesterName が「${group.groupName}」からの退出を希望しています',
+        metadata: {
+          'requesterUid': currentUser.uid,
+          'requesterName': requesterName,
+          'groupName': group.groupName,
+        },
       );
 
-      if (myMember == null) {
-        throw Exception('メンバー情報が見つかりません');
-      }
-
-      // リポジトリからメンバー削除実行
-      // 🔥 CRITICAL: removeMember()は members + allowedUid 両方を更新
-      final repository = ref.read(SharedGroupRepositoryProvider);
-      await repository.removeMember(group.groupId, myMember);
-
-      AppLogger.info('✅ [GROUP_LEAVE] Firestore更新完了（members + allowedUid）');
-
-      // ローカル（Hive）から削除
-      // 注: HybridRepositoryが自動的にHiveも更新する
-
-      // 離脱したグループが選択中の場合はクリア
-      final selectedGroupId = ref.read(selectedGroupIdProvider);
-      if (selectedGroupId == group.groupId) {
-        AppLogger.info('🔄 [GROUP_LEAVE] 選択中のグループをクリア: ${group.groupId}');
-        ref.read(selectedGroupIdProvider.notifier).clearSelection();
-        ref.read(currentListProvider.notifier).clearSelection();
-      }
-
-      // プロバイダーを更新（UIから消える）
-      ref.invalidate(allGroupsProvider);
-
-      AppLogger.info('✅ [GROUP_LEAVE] グループ離脱完了: ${group.groupId}');
+      AppLogger.info('✅ [GROUP_LEAVE] 退出リクエスト送信完了: ${group.groupId}');
 
       // 成功メッセージ
       if (context.mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
-        SnackBarHelper.showSuccess(context, '「${group.groupName}」から退出しました');
+        SnackBarHelper.showSuccess(context, '退出リクエストを送信しました。反映後にグループが消えます');
       }
     } catch (error, stackTrace) {
       AppLogger.error('❌ [GROUP_LEAVE] グループ離脱エラー', error, stackTrace);

@@ -403,12 +403,23 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
           Log.info('🔍 [ACCEPT] 招待受諾結果: success=$success, mounted=$mounted');
 
           if (success && mounted) {
-            // 🔥 FIX: rootNavigatorを使用してスキャナー画面を確実に閉じる
+            final navigator = Navigator.of(context);
+            final messenger = ScaffoldMessenger.maybeOf(context);
+
+            try {
+              Log.info('🔍 [ACCEPT] カメラ停止開始...');
+              await _controller.stop();
+              Log.info('✅ [ACCEPT] カメラ停止完了');
+            } catch (e) {
+              Log.warning('⚠️ [ACCEPT] カメラ停止エラー: $e');
+            }
+
+            // 通常のNavigatorで現在のスキャナー画面だけ閉じる
             Log.info('🔍 [ACCEPT] スキャナー画面を閉じます...');
-            Navigator.of(context, rootNavigator: true).pop();
+            navigator.pop();
             Log.info('✅ [ACCEPT] スキャナー画面を閉じました');
 
-            ScaffoldMessenger.of(context).showSnackBar(
+            messenger?.showSnackBar(
               SnackBar(
                 content: Column(
                   mainAxisSize: MainAxisSize.min,

@@ -8,6 +8,7 @@ import 'user_initialization_service.dart';
 import '../providers/purchase_group_provider.dart'; // selectedGroupIdProvider, SharedGroupRepositoryProvider
 import '../providers/current_list_provider.dart'; // currentListProvider
 import '../datastore/hive_shared_group_repository.dart'; // hiveSharedGroupRepositoryProvider
+import '../datastore/firestore_purchase_group_repository.dart';
 import '../models/shared_group.dart';
 
 /// 通知サービスプロバイダー
@@ -19,6 +20,8 @@ final notificationServiceProvider = Provider<NotificationService>((ref) {
 enum NotificationType {
   groupMemberAdded('group_member_added'),
   groupUpdated('group_updated'),
+  groupLeaveRequested('group_leave_requested'),
+  groupLeft('group_left'),
   invitationAccepted('invitation_accepted'),
   groupDeleted('group_deleted'),
   syncConfirmation('sync_confirmation'), // 同期確認通知
@@ -292,6 +295,16 @@ class NotificationService {
 
       // 通知タイプによって処理を分岐
       switch (notification.type) {
+        case NotificationType.groupLeaveRequested:
+          AppLogger.info('🚪 [NOTIFICATION] グループ退出リクエスト受信');
+          await _handleGroupLeaveRequested(notification, currentUser);
+          break;
+
+        case NotificationType.groupLeft:
+          AppLogger.info('🚪 [NOTIFICATION] グループ退出確定通知受信');
+          await _handleGroupLeft(notification);
+          break;
+
         case NotificationType.groupMemberAdded:
           // 🔥 FIX: 詳細なデバッグログを追加
           AppLogger.info('========== groupMemberAdded 通知処理開始 ==========');
@@ -499,6 +512,93 @@ class NotificationService {
     } catch (e) {
       AppLogger.error('❌ [NOTIFICATION] 処理エラー: $e');
     }
+  }
+
+  Future<void> _handleGroupLeaveRequested(
+      NotificationData notification, User currentUser) async {
+    final requesterUid = notification.metadata?['requesterUid'] as String?;
+    final requesterName =
+        notification.metadata?['requesterName'] as String? ?? 'ユーザー';
+
+    if (requesterUid == null || requesterUid.isEmpty) {
+      AppLogger.error('❌ [GROUP_LEAVE_REQUEST] requesterUid がありません');
+      return;
+    }
+
+    final firestoreRepo = FirestoreSharedGroupRepository(_firestore);
+    final currentGroup = await firestoreRepo.getGroupById(notification.groupId);
+
+    if (currentGroup.ownerUid != currentUser.uid) {
+      AppLogger.info('ℹ️ [GROUP_LEAVE_REQUEST] オーナー端末ではないため処理スキップ');
+      return;
+    }
+
+    final existingMember = currentGroup.members
+        ?.where((member) => member.memberId == requesterUid)
+        .toList();
+    final memberToRemove = (existingMember != null && existingMember.isNotEmpty)
+        ? existingMember.first
+        : SharedGroupMember(
+            memberId: requesterUid,
+            name: requesterName,
+            contact: '',
+            role: SharedGroupRole.member,
+            isSignedIn: true,
+            invitationStatus: InvitationStatus.accepted,
+          );
+
+    final updatedGroup = currentGroup.removeMember(memberToRemove);
+
+    await firestoreRepo.updateGroup(currentGroup.groupId, updatedGroup);
+
+    final hiveRepository = _ref.read(hiveSharedGroupRepositoryProvider);
+    await hiveRepository.updateGroup(updatedGroup.groupId, updatedGroup);
+
+    _ref.invalidate(allGroupsProvider);
+    _ref.invalidate(selectedGroupProvider);
+
+    await sendNotification(
+      targetUserId: requesterUid,
+      type: NotificationType.groupLeft,
+      groupId: updatedGroup.groupId,
+      message: '「${updatedGroup.groupName}」から退出しました',
+      metadata: {
+        'groupName': updatedGroup.groupName,
+        'requesterUid': requesterUid,
+        'requesterName': requesterName,
+      },
+    );
+
+    await sendNotificationToGroup(
+      groupId: updatedGroup.groupId,
+      type: NotificationType.groupUpdated,
+      message: '$requesterName が「${updatedGroup.groupName}」から退出しました',
+      metadata: {
+        'groupName': updatedGroup.groupName,
+        'leftUserUid': requesterUid,
+        'leftUserName': requesterName,
+      },
+    );
+
+    AppLogger.info('✅ [GROUP_LEAVE_REQUEST] 退出処理完了: ${updatedGroup.groupId}');
+  }
+
+  Future<void> _handleGroupLeft(NotificationData notification) async {
+    final hiveRepository = _ref.read(hiveSharedGroupRepositoryProvider);
+    await hiveRepository.deleteGroup(notification.groupId);
+
+    final selectedGroupId = _ref.read(selectedGroupIdProvider);
+    if (selectedGroupId == notification.groupId) {
+      _ref.read(selectedGroupIdProvider.notifier).clearSelection();
+      await _ref.read(currentListProvider.notifier).clearListForGroup(
+            notification.groupId,
+          );
+    }
+
+    _ref.invalidate(allGroupsProvider);
+    _ref.invalidate(selectedGroupProvider);
+
+    AppLogger.info('✅ [GROUP_LEFT] Hiveから退出済みグループを削除: ${notification.groupId}');
   }
 
   /// 受諾者をグループに追加（招待元として実行）
