@@ -375,9 +375,10 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
     }
   }
 
-  /// 日付を 'yyyy/MM/dd' 形式の文字列にフォーマット
+  /// 日付を 'yy/MM/dd' 形式の文字列にフォーマット
   String _formatDate(DateTime date) {
-    return '${date.year}/${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}';
+    final shortYear = (date.year % 100).toString().padLeft(2, '0');
+    return '$shortYear/${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}';
   }
 
   /// 購入間隔の数値と単位から日数を計算

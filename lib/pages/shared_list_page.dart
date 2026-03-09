@@ -408,6 +408,7 @@ class _SharedItemTile extends ConsumerWidget {
   }
 
   String _formatDate(DateTime date) {
-    return '${date.year}/${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}';
+    final shortYear = (date.year % 100).toString().padLeft(2, '0');
+    return '$shortYear/${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}';
   }
 }
