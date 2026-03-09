@@ -13,6 +13,7 @@ import '../services/firestore_user_name_service.dart';
 import '../services/password_reset_service.dart';
 import '../services/ad_service.dart';
 import '../services/app_launch_service.dart';
+import '../helpers/user_id_change_helper.dart';
 
 import '../widgets/user_name_panel_widget.dart';
 import '../widgets/news_and_ads_panel_widget.dart';
@@ -189,6 +190,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       // Firestore→Hiveの同期を実行（デフォルトグループをHiveに反映）
       AppLogger.info('🔄 [SIGNUP] Firestore→Hive同期開始...');
       try {
+        ref.invalidate(forceSyncProvider);
         await ref.read(forceSyncProvider.future);
         AppLogger.info('✅ [SIGNUP] Firestore→Hive同期完了');
       } catch (e) {
@@ -261,6 +263,17 @@ class _HomePageState extends ConsumerState<HomePage> {
       await ref.read(authProvider).signIn(email, password);
       AppLogger.info('✅ [SIGNIN] サインイン成功');
 
+      final signedInUser = ref.read(authProvider).currentUser;
+      if (signedInUser != null) {
+        await UserIdChangeHelper.ensureUserContextReady(
+          ref: ref,
+          context: context,
+          user: signedInUser,
+          mounted: mounted,
+        );
+        AppLogger.info('✅ [SIGNIN] ユーザー切り替えコンテキスト準備完了');
+      }
+
       // メールアドレス保存処理
       await UserPreferencesService.saveOrClearEmailForSignIn(
         email: email,
@@ -300,19 +313,11 @@ class _HomePageState extends ConsumerState<HomePage> {
         }
       }
 
-      // Firestoreデータ反映を待つ
-      AppLogger.info('⏳ [SIGNIN] Firestoreデータ反映待機中...');
-      await Future.delayed(const Duration(seconds: 1));
-
-      // Firestore→Hiveの同期を実行（グループデータをHiveに反映）
-      AppLogger.info('🔄 [SIGNIN] Firestore→Hive同期開始...');
-      await ref.read(forceSyncProvider.future);
-      AppLogger.info('✅ [SIGNIN] Firestore→Hive同期完了');
-
-      // プロバイダーを再読み込み（グループリストを更新）
-      ref.invalidate(allGroupsProvider);
-      await Future.delayed(const Duration(milliseconds: 500));
-      AppLogger.info('🔄 [SIGNIN] allGroupsProvider再読み込み完了');
+      // Firestore同期は UserIdChangeHelper 側で完了済み。
+      // ここでは provider 再構築結果を明示的に待つ。
+      await ref.read(allGroupsProvider.notifier).cleanupInvalidHiveGroups();
+      await ref.read(allGroupsProvider.notifier).refresh();
+      AppLogger.info('✅ [SIGNIN] allGroupsProvider再構築完了');
 
       // 🔥 NEW: グループが0個の場合は自動的にグループページ（タブ1）に遷移
       final allGroups = await ref.read(allGroupsProvider.future);
@@ -846,36 +851,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                   child: ElevatedButton.icon(
                     onPressed: () async {
                       try {
-                        // サインアウト前にHiveをクリア（BOXが開いている場合のみ）
-                        if (Hive.isBoxOpen('SharedGroups')) {
-                          final SharedGroupBox =
-                              Hive.box<SharedGroup>('SharedGroups');
-                          await SharedGroupBox.clear();
-                          AppLogger.info('🗑️ [SIGNOUT] SharedGroupsデータをクリア完了');
-                        } else {
-                          AppLogger.info(
-                              'ℹ️ [SIGNOUT] SharedGroups BOXは開いていません');
-                        }
-
-                        if (Hive.isBoxOpen('sharedLists')) {
-                          final sharedListBox =
-                              Hive.box<SharedList>('sharedLists');
-                          await sharedListBox.clear();
-                          AppLogger.info('🗑️ [SIGNOUT] sharedListsデータをクリア完了');
-                        } else {
-                          AppLogger.info(
-                              'ℹ️ [SIGNOUT] sharedLists BOXは開いていません');
-                        }
-
-                        // SharedPreferencesをクリア
-                        await UserPreferencesService.clearAllUserInfo();
-                        AppLogger.info('🗑️ [SIGNOUT] SharedPreferencesをクリア完了');
-
-                        // プロバイダーを無効化
-                        ref.invalidate(allGroupsProvider);
-                        ref.invalidate(selectedGroupProvider);
-                        ref.invalidate(sharedListProvider);
-                        AppLogger.info('🔄 [SIGNOUT] プロバイダー無効化完了');
+                        await UserIdChangeHelper.performSignOutCleanup(
+                            ref: ref);
+                        AppLogger.info('🗑️ [SIGNOUT] ローカル状態クリーンアップ完了');
 
                         // Firebase Authからサインアウト
                         await ref.read(authProvider).signOut();

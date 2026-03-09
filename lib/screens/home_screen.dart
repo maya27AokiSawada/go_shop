@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../providers/page_index_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/app_mode_notifier_provider.dart';
 import '../providers/purchase_group_provider.dart';
+import '../services/network_monitor_service.dart';
 import '../pages/home_page.dart';
 import '../pages/shared_group_page.dart';
 import '../pages/shared_list_page.dart';
@@ -13,6 +15,10 @@ import '../config/app_mode_config.dart';
 import '../utils/app_logger.dart';
 import '../widgets/common_app_bar.dart';
 import '../widgets/network_status_banner.dart';
+import '../services/user_initialization_service.dart';
+import '../providers/shared_list_provider.dart';
+import '../datastore/hybrid_shared_list_repository.dart';
+import '../providers/group_shopping_lists_provider.dart';
 
 /// SyncStatusからSyncStateを計算するヘルパー関数
 SyncState _getSyncState(SyncStatus syncStatus, bool isAuthenticated) {
@@ -31,13 +37,36 @@ SyncState _getSyncState(SyncStatus syncStatus, bool isAuthenticated) {
   }
 }
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  bool _isRecoverySyncRunning = false;
+  bool _hasSeenOffline = false;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final pageIndex = ref.watch(pageIndexProvider);
     // AppMode変更を監視して自動的に再構築
     ref.watch(appModeNotifierProvider);
+    ref.listen<AsyncValue<NetworkStatus>>(networkStatusStreamProvider,
+        (previous, next) {
+      next.whenData((status) {
+        if (status == NetworkStatus.offline) {
+          _hasSeenOffline = true;
+          return;
+        }
+
+        if (status == NetworkStatus.online && _hasSeenOffline) {
+          _hasSeenOffline = false;
+          _runRecoverySync();
+        }
+      });
+    });
 
     AppLogger.info('🔍 [HomeScreen] build() called - pageIndex: $pageIndex');
 
@@ -158,5 +187,44 @@ class HomeScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _runRecoverySync() async {
+    if (_isRecoverySyncRunning) {
+      AppLogger.info('ℹ️ [RECOVERY_SYNC] 既に実行中');
+      return;
+    }
+
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      AppLogger.info('ℹ️ [RECOVERY_SYNC] 未認証のためスキップ');
+      return;
+    }
+
+    _isRecoverySyncRunning = true;
+    try {
+      AppLogger.info('🌐 [RECOVERY_SYNC] ネットワーク復旧を検出 - 再送同期開始');
+
+      final initService = ref.read(userInitializationServiceProvider);
+      await initService.syncHiveToFirestore(currentUser);
+
+      final listRepo = ref.read(sharedListRepositoryProvider);
+      if (listRepo is HybridSharedListRepository) {
+        await listRepo.syncOnNetworkRecovery();
+      }
+
+      ref.invalidate(forceSyncProvider);
+      await ref.read(forceSyncProvider.future);
+
+      ref.invalidate(allGroupsProvider);
+      ref.invalidate(groupSharedListsProvider);
+
+      AppLogger.info('✅ [RECOVERY_SYNC] ネットワーク復旧同期完了');
+    } catch (e, stackTrace) {
+      AppLogger.error('❌ [RECOVERY_SYNC] ネットワーク復旧同期エラー: $e');
+      AppLogger.error('📍 [RECOVERY_SYNC] スタックトレース: $stackTrace');
+    } finally {
+      _isRecoverySyncRunning = false;
+    }
   }
 }

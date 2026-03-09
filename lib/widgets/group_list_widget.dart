@@ -96,6 +96,7 @@ class GroupListWidget extends ConsumerWidget {
 
                           // 2. Firestore→Hive同期（Firestoreから最新データを取得）
                           AppLogger.info('⬇️ [DEBUG] Firestore→Hive同期開始...');
+                          ref.invalidate(forceSyncProvider);
                           await ref.read(forceSyncProvider.future);
                           AppLogger.info('✅ [DEBUG] Firestore→Hive同期完了');
 

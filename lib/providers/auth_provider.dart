@@ -217,33 +217,15 @@ class FirebaseAuthService {
         return;
       }
 
-      // 🔍 UID変更チェック: サインイン成功直後に実行
-      final newUid = userCredential.user?.uid;
-      final storedUid = await UserPreferencesService.getUserId();
-
-      if (newUid != null &&
-          storedUid != null &&
-          storedUid.isNotEmpty &&
-          storedUid != newUid) {
-        Log.info('⚠️ [SIGNIN] UID変更検出: $storedUid → $newUid');
-
-        // UID変更ダイアログを表示
-        await UserIdChangeHelper.handleUserIdChange(
+      final currentUser = userCredential.user;
+      if (currentUser != null) {
+        await UserIdChangeHelper.ensureUserContextReady(
           ref: ref,
           context: context,
-          newUserId: newUid,
-          userEmail: email,
+          user: currentUser,
           mounted: true,
         );
-
-        // ダイアログ処理後にUID保存は完了しているので、ここでは保存不要
-        Log.info('✅ [SIGNIN] UID変更処理完了');
-      } else {
-        // UID変更なし or 初回ログイン
-        if (newUid != null) {
-          await UserPreferencesService.saveUserId(newUid);
-          Log.info('💾 [SIGNIN] UID保存完了: $newUid');
-        }
+        Log.info('✅ [SIGNIN] ユーザーコンテキスト準備完了');
       }
 
       // メールアドレスの保存処理

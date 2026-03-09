@@ -79,66 +79,13 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
       final currentEmail = user.email ?? 'Unknown';
       Log.info('🔑 [UID_WATCH] Current UID: $currentUid, Email: $currentEmail');
 
-      // 前回のUIDと比較してユーザー変更をチェック
-      final storedUid = await UserPreferencesService.getUserId();
-      Log.info(
-          '🔍 [UID_CHECK] Stored UID: "$storedUid", Current UID: "$currentUid"');
-
-      if (storedUid != null &&
-          storedUid.isNotEmpty &&
-          storedUid != currentUid) {
-        // UID変更検出 → 前のユーザーのHiveデータをクリア
-        Log.info('⚠️ [UID_CHANGE] ユーザー変更検出: $storedUid → $currentUid');
-        Log.info('🗑️ [UID_CHANGE] 前ユーザーのHiveデータをクリア中...');
-
-        try {
-          final box = await Hive.openBox<SharedGroup>('purchase_groups');
-          final groupCount = box.length;
-          await box.clear();
-          Log.info('✅ [UID_CHANGE] Hiveグループデータクリア完了 ($groupCount件削除)');
-        } catch (e) {
-          Log.error('⚠️ [UID_CHANGE] Hiveグループデータクリア失敗: $e');
-        }
-
-        Log.info('🔄 [UID_CHANGE] 新ユーザーのデータをFirestoreから同期します');
-      } else if (storedUid == null || storedUid.isEmpty) {
-        Log.info('🆕 [UID_CHECK] 初回ログイン検出');
-      } else {
-        Log.info('✅ [UID_CHECK] 同じユーザーの再ログイン（Hiveキャッシュ利用）');
-      }
-
-      // UID変更を検出してダイアログ表示判定
-      bool hasChanged = false;
-      if (storedUid == null || storedUid.isEmpty) {
-        // 初回ログイン - ダイアログ不要
-        hasChanged = false;
-      } else if (storedUid != currentUid) {
-        // UID変更 - ダイアログ表示
-        Log.info('⚠️ [UID_CHECK] UID変更を検知: $storedUid → $currentUid');
-        hasChanged = true;
-      }
-
-      Log.info('🔍 [UID_WATCH] UID変更チェック結果: $hasChanged');
-
-      if (hasChanged && mounted) {
-        Log.info('🚨 [UID_WATCH] UID変更検出 - 自動クリア実行');
-
-        // UID変更検出 → 自動的にローカルデータをクリア
-        // （別アカウントでサインインした場合、前のユーザーのデータを引き継がない）
-        await UserIdChangeHelper.handleUserIdChangeAutomatic(
-          ref: ref,
-          context: context,
-          newUserId: currentUid,
-          userEmail: user.email ?? 'Unknown User',
-          mounted: mounted,
-        );
-      } else {
-        Log.info('✅ [UID_WATCH] UID変更なし or 初回ログイン: $currentUid');
-
-        // UID変更なしの場合のみ、ここでUID保存
-        await UserPreferencesService.saveUserId(currentUid);
-        Log.info('💾 [UID_WATCH] UID保存完了: $currentUid');
-      }
+      await UserIdChangeHelper.ensureUserContextReady(
+        ref: ref,
+        context: context,
+        user: user,
+        mounted: mounted,
+      );
+      Log.info('✅ [UID_WATCH] ユーザーコンテキスト確認完了: $currentUid');
     });
   }
 
@@ -270,6 +217,7 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
             });
 
             Log.info('🔔 [APP_INIT] グループ通知検出 → Firestore同期実行');
+            ref.invalidate(forceSyncProvider);
             await ref.read(forceSyncProvider.future);
 
             // 🔥 同期完了後に最終同期時刻を更新

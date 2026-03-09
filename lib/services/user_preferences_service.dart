@@ -11,6 +11,9 @@ class UserPreferencesService {
   static const String _keyUserId = 'user_id';
   static const String _keySavedEmailForSignIn =
       'saved_email_for_signin'; // ホーム画面ログイン用
+  static const String _keySelectedGroupId = 'selected_group_id';
+  static const String _keyCurrentListId = 'current_list_id';
+  static const String _keyGroupListMap = 'group_list_map';
 
   // UserSettings相当のキー（Hive Boxから移行）
   static const String _keyLastUsedGroupId = 'last_used_group_id';
@@ -195,6 +198,31 @@ class UserPreferencesService {
             return true;
           },
           context: 'USER_PREFS:clearAllUserInfo',
+          defaultValue: false,
+        ) ??
+        false;
+  }
+
+  /// ユーザー切り替え時のローカル状態をクリア
+  ///
+  /// 記憶したサインイン用メールアドレスやアプリ設定は保持し、
+  /// 前ユーザーに紐づく表示・選択・キャッシュ参照キーだけを削除する。
+  static Future<bool> clearUserSwitchState() async {
+    return await ErrorHandler.handleAsync(
+          operation: () async {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove(_keyUserName);
+            await prefs.remove(_keyUserEmail);
+            await prefs.remove(_keyUserId);
+            await prefs.remove(_keySelectedGroupId);
+            await prefs.remove(_keyLastUsedGroupId);
+            await prefs.remove(_keyLastUsedSharedListId);
+            await prefs.remove(_keyCurrentListId);
+            await prefs.remove(_keyGroupListMap);
+            Log.info('🗑️ SharedPreferences ユーザー切り替え状態をクリア完了');
+            return true;
+          },
+          context: 'USER_PREFS:clearUserSwitchState',
           defaultValue: false,
         ) ??
         false;

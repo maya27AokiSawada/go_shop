@@ -30,6 +30,7 @@ class GroupSelectorWidget extends ConsumerWidget {
                   onPressed: () async {
                     AppLogger.info('🔄 [DEBUG] Firestore強制同期開始');
                     try {
+                      ref.invalidate(forceSyncProvider);
                       await ref.read(forceSyncProvider.future);
                       AppLogger.info('✅ [DEBUG] Firestore同期完了');
                       SnackBarHelper.showSuccess(context, '同期完了');

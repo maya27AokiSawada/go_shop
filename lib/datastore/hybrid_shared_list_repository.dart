@@ -7,6 +7,7 @@ import '../datastore/hive_shared_list_repository.dart';
 import '../datastore/firestore_shared_list_repository.dart';
 import '../services/list_notification_batch_service.dart';
 import '../services/device_id_service.dart'; // 🆕 デバイスID生成用
+import '../providers/group_shopping_lists_provider.dart';
 import '../flavors.dart';
 
 /// Hive（ローカルキャッシュ）+ Firestore（リモート）のハイブリッドSharedListリポジトリ
@@ -326,10 +327,38 @@ class HybridSharedListRepository implements SharedListRepository {
 
     _isSyncing = true;
     try {
-      // TODO: 実際の実装では全グループのリストを取得して同期する必要がある
-      // 現在は接続テストのみ実行
+      if (_firestoreRepo == null) {
+        developer.log('⚠️ [HYBRID_LIST] Firestore repository not available');
+        return;
+      }
 
-      developer.log('🔄 Force bidirectional sync completed');
+      final localLists = _hiveRepo.getAllLists();
+      developer
+          .log('⬆️ [HYBRID_LIST] Hive→Firestore復旧同期開始: ${localLists.length}件');
+
+      for (final list in localLists) {
+        try {
+          await _firestoreRepo!.updateSharedList(list);
+          developer.log(
+              '✅ [HYBRID_LIST] リスト復旧同期完了: ${list.listName} (${list.listId})');
+        } catch (e) {
+          developer.log(
+              '⚠️ [HYBRID_LIST] リスト復旧同期失敗: ${list.listName} (${list.listId}) - $e');
+          _addToSyncQueue(_SharedListSyncOperation(
+            type: _SharedListSyncOperationType.update,
+            listId: list.listId,
+            data: list,
+            timestamp: DateTime.now(),
+            retryCount: 0,
+          ));
+        }
+      }
+
+      if (_syncQueue.isNotEmpty) {
+        _scheduleSync();
+      }
+
+      developer.log('🔄 [HYBRID_LIST] Force bidirectional sync completed');
       _isOnline = true;
     } catch (e) {
       developer.log('❌ Force sync error: $e');
@@ -773,6 +802,16 @@ class HybridSharedListRepository implements SharedListRepository {
         developer.log('❌ App exit sync failed: ${operation.type} - $e');
       }
     }
+  }
+
+  /// ネットワーク復旧時の再送同期
+  Future<void> syncOnNetworkRecovery() async {
+    developer.log('🌐 [HYBRID_LIST] ネットワーク復旧同期開始');
+    await forceSyncBidirectional();
+
+    // グループ配下の一覧UIを最新化
+    _ref.invalidate(groupSharedListsProvider);
+    developer.log('✅ [HYBRID_LIST] ネットワーク復旧同期完了');
   }
 
   // === Realtime Sync Methods ===

@@ -5186,6 +5186,45 @@ Consumer(
 - **UI shows stale data after invalidate**: Wait for provider refresh with `await ref.read(provider.future)`
 - **List deletion not syncing**: Use `deleteSharedList(groupId, listId)` with both parameters to avoid collection group query PERMISSION_DENIED
 - **Wrong user's groups showing**: Clear Hive + SharedPreferences before sign-out, use Firestore-first reads on sign-in
+- **Windows user switch shows 0 groups then old groups reappear after creating a new group**: Never treat empty Hive state immediately after `initializeForDefaultUser()` / `initializeForUser()` as the source of truth. On sign-in, force Firestore→Hive recovery first, run Hive cleanup for the signed-in UID, then explicitly refresh `allGroupsProvider`. Do not rely on Hive-first reads alone during account switching.
+
+### Anti-Pattern: Windows user switch + Hive-first empty state
+
+```dart
+// ❌ Wrong: user switch後に空のHiveをそのまま正とみなす
+await hiveService.initializeForUser(newUid);
+ref.invalidate(allGroupsProvider);
+final groups = await ref.read(allGroupsProvider.future); // [] をそのまま採用
+
+// 後で新規グループ作成などの別トリガーで Firestore データが戻り、
+// 「消えていたグループがまとめて再出現」する。
+```
+
+```dart
+// ✅ Correct: sign-in直後に Firestore を source of truth として再同期
+await hiveService.initializeForUser(newUid);
+await ref.read(forceSyncProvider.future);
+await ref.read(allGroupsProvider.notifier).cleanupInvalidHiveGroups();
+await ref.read(allGroupsProvider.notifier).refresh();
+final groups = await ref.read(allGroupsProvider.future);
+```
+
+**Rule**: Windows のユーザー切替では、`initializeForUser()` 後の空 Hive を見て「グループ0件」と確定してはいけない。切替直後は必ず Firestore 優先で復元し、その完了後に UI 判定を行うこと。
+
+### Anti-Pattern: imperative `forceSyncProvider` without invalidate
+
+```dart
+// ❌ Wrong: FutureProvider の前回結果を再利用してしまう可能性がある
+await ref.read(forceSyncProvider.future);
+```
+
+```dart
+// ✅ Correct: 明示的な再同期では毎回 invalidate してから待つ
+ref.invalidate(forceSyncProvider);
+await ref.read(forceSyncProvider.future);
+```
+
+**Rule**: `forceSyncProvider` を「命令的な再同期トリガー」として使う場合は、必ず `ref.invalidate(forceSyncProvider)` を先に呼ぶこと。特にサインイン直後、ユーザー切替直後、手動同期ボタンでは必須。
 
 ## 🔐 Authentication & Data Management (December 2025)
 

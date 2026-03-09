@@ -977,6 +977,23 @@ class SelectedGroupIdNotifier extends StateNotifier<String?> {
   void clearSelection() {
     Log.info('🔄 SelectedGroupIdNotifier: 選択クリア');
     state = null;
+    unawaited(_clearFromPreferences());
+  }
+
+  Future<void> clearSelectionAndPersistence() async {
+    Log.info('🔄 SelectedGroupIdNotifier: 永続化状態を含めて選択クリア');
+    state = null;
+    await _clearFromPreferences();
+  }
+
+  Future<void> _clearFromPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_selectedGroupIdKey);
+      Log.info('✅ SelectedGroupIdNotifier: 保存済みグループID削除完了');
+    } catch (e) {
+      Log.error('❌ SelectedGroupIdNotifier: グループID削除エラー: $e');
+    }
   }
 }
 

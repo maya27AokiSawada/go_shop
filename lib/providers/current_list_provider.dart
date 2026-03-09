@@ -1,4 +1,5 @@
 // lib/providers/current_list_provider.dart
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -104,6 +105,25 @@ class CurrentListNotifier extends StateNotifier<SharedList?> {
   void clearSelection() {
     Log.info('🔄 カレントリストをクリア');
     state = null;
+    unawaited(_clearPersistedSelection());
+  }
+
+  /// リスト選択を永続化状態ごとクリア
+  Future<void> clearSelectionAndPersistence() async {
+    Log.info('🔄 カレントリストの永続化状態をクリア');
+    state = null;
+    await _clearPersistedSelection();
+  }
+
+  Future<void> _clearPersistedSelection() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_currentListIdKey);
+      await prefs.remove(_groupListMapKey);
+      Log.info('✅ カレントリストの永続化状態を削除完了');
+    } catch (e) {
+      Log.error('❌ カレントリスト永続化状態削除エラー: $e');
+    }
   }
 
   /// 特定グループの最終使用リストをクリア（新規グループ作成時用）
