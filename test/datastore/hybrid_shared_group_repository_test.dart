@@ -666,6 +666,34 @@ void main() {
       verify(mockFirestore.updateGroup('sync-group-missing-remote', localGroup))
           .called(1);
     });
+
+    test('Firestore側が削除済みなら: updatedAtに関係なくHiveへ削除反映する', () async {
+      final localGroup = _makeGroup(
+        groupId: 'sync-group-remote-deleted',
+        updatedAt: DateTime(2025, 1, 3),
+      );
+      final deletedFirestoreGroup = _makeGroup(
+        groupId: 'sync-group-remote-deleted',
+        updatedAt: DateTime(2025, 1, 1),
+      ).copyWith(isDeleted: true);
+
+      when(mockHive.getAllGroups()).thenAnswer((_) async => [localGroup]);
+      when(mockFirestore.getGroupById('sync-group-remote-deleted'))
+          .thenAnswer((_) async => deletedFirestoreGroup);
+      when(mockHive.saveGroup(deletedFirestoreGroup)).thenAnswer((_) async {});
+
+      final repo = HybridSharedGroupRepository(
+        mockRef,
+        hiveRepo: mockHive,
+        firestoreRepo: mockFirestore,
+      );
+
+      await repo.pushLocalChangesToFirestore();
+
+      verify(mockHive.saveGroup(deletedFirestoreGroup)).called(1);
+      verifyNever(
+          mockFirestore.updateGroup('sync-group-remote-deleted', localGroup));
+    });
   });
 
   // ================================================================

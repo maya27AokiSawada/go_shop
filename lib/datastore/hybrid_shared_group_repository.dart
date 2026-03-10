@@ -886,6 +886,12 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
             continue;
           }
 
+          if (firestoreGroup.isDeleted) {
+            await _hiveRepo.saveGroup(firestoreGroup);
+            AppLogger.info('🪦 Firestoreで削除済みのためHiveへ削除反映: ${group.groupName}');
+            continue;
+          }
+
           final timestampComparison =
               _compareUpdatedAt(group.updatedAt, firestoreGroup.updatedAt);
 
