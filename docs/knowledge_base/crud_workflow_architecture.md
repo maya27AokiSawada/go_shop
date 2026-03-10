@@ -65,6 +65,7 @@ if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
 ```
 
 **特徴**:
+
 - ✅ 認証必須アプリ（常にオンライン前提）
 - ✅ Firestoreが常に最新のデータソース
 - ✅ Hiveは読み取り高速化用キャッシュ
@@ -77,18 +78,21 @@ if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
 ### 📂 関連ファイル
 
 #### Repository層
+
 - **Abstract**: [`lib/datastore/shared_group_repository.dart`](../lib/datastore/shared_group_repository.dart)
-- **Hybrid**: [`lib/datastore/hybrid_purchase_group_repository.dart`](../lib/datastore/hybrid_purchase_group_repository.dart) ⭐ **メイン実装**
-- **Firestore**: [`lib/datastore/firestore_purchase_group_repository.dart`](../lib/datastore/firestore_purchase_group_repository.dart)
+- **Hybrid**: [`lib/datastore/hybrid_shared_group_repository.dart`](../lib/datastore/hybrid_shared_group_repository.dart) ⭐ **メイン実装**
+- **Firestore**: [`lib/datastore/firestore_shared_group_repository.dart`](../lib/datastore/firestore_shared_group_repository.dart)
 - **Hive**: [`lib/datastore/hive_shared_group_repository.dart`](../lib/datastore/hive_shared_group_repository.dart)
 
 #### Provider層
-- **Main**: [`lib/providers/purchase_group_provider.dart`](../lib/providers/purchase_group_provider.dart)
+
+- **Main**: [`lib/providers/shared_group_provider.dart`](../lib/providers/shared_group_provider.dart)
   - `allGroupsProvider` - 全グループ取得
   - `selectedGroupProvider` - 選択中グループ
   - `selectedGroupIdProvider` - 選択中グループID
 
 #### UI層
+
 - **Page**: [`lib/pages/shared_group_page.dart`](../lib/pages/shared_group_page.dart)
 - **Widgets**:
   - [`lib/widgets/group_list_widget.dart`](../lib/widgets/group_list_widget.dart) - グループ一覧
@@ -96,6 +100,7 @@ if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
   - [`lib/widgets/group_selector_widget.dart`](../lib/widgets/group_selector_widget.dart) - 選択ドロップダウン
 
 #### メンバー管理
+
 - **Page**: [`lib/pages/group_member_management_page.dart`](../lib/pages/group_member_management_page.dart)
 
 ### 🔄 CRUD ワークフロー
@@ -107,12 +112,12 @@ if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
   ↓ ユーザーがグループ名入力
   ↓ ref.read(allGroupsProvider.notifier).createGroup()
   ↓
-[Provider] purchase_group_provider.dart
+[Provider] shared_group_provider.dart
   ↓ AllGroupsNotifier.createGroup()
   ↓
-[Repository] hybrid_purchase_group_repository.dart
+[Repository] hybrid_shared_group_repository.dart
   ↓ HybridSharedGroupRepository.createGroup()
-  ├─→ [Firestore] firestore_purchase_group_repository.dart
+  ├─→ [Firestore] firestore_shared_group_repository.dart
   │     ├─ collection('SharedGroups').doc(groupId).set()
   │     └─ allowedUid配列にownerUidを追加
   └─→ [Hive] hive_shared_group_repository.dart
@@ -122,6 +127,7 @@ if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
 ```
 
 **コード例**:
+
 ```dart
 // UI側
 await ref.read(allGroupsProvider.notifier).createGroup(
@@ -154,10 +160,10 @@ Future<void> createGroup(String groupId, String groupName, SharedGroupMember own
 [UI] group_list_widget.dart
   ↓ ref.watch(allGroupsProvider)
   ↓
-[Provider] purchase_group_provider.dart
+[Provider] shared_group_provider.dart
   ↓ AllGroupsNotifier.build()
   ↓
-[Repository] hybrid_purchase_group_repository.dart
+[Repository] hybrid_shared_group_repository.dart
   ↓ HybridSharedGroupRepository.getAllGroups()
   ├─→ [Firestore] allowedUid配列でフィルタリング
   │     ├─ where('allowedUid', arrayContains: currentUserId)
@@ -168,6 +174,7 @@ Future<void> createGroup(String groupId, String groupName, SharedGroupMember own
 ```
 
 **フィルタリング**:
+
 ```dart
 // allowedUidフィルタリング（二重安全策）
 final currentUser = ref.read(authStateProvider).value;
@@ -185,10 +192,10 @@ if (currentUser != null) {
   ↓ メンバー追加/削除/ロール変更
   ↓ ref.read(allGroupsProvider.notifier).updateGroup()
   ↓
-[Provider] purchase_group_provider.dart
+[Provider] shared_group_provider.dart
   ↓ AllGroupsNotifier.updateGroup()
   ↓
-[Repository] hybrid_purchase_group_repository.dart
+[Repository] hybrid_shared_group_repository.dart
   ↓ HybridSharedGroupRepository.updateGroup()
   ├─→ [Firestore] doc(groupId).update()
   │     └─ members配列、allowedUid配列更新
@@ -204,11 +211,11 @@ if (currentUser != null) {
   ↓ 削除確認ダイアログ
   ↓ ref.read(allGroupsProvider.notifier).deleteGroup()
   ↓
-[Provider] purchase_group_provider.dart
+[Provider] shared_group_provider.dart
   ↓ AllGroupsNotifier.deleteGroup()
   ↓ デフォルトグループチェック（削除禁止）
   ↓
-[Repository] hybrid_purchase_group_repository.dart
+[Repository] hybrid_shared_group_repository.dart
   ↓ HybridSharedGroupRepository.deleteGroup()
   ├─→ [Firestore] doc(groupId).delete()
   │     ├─ グループドキュメント削除
@@ -219,6 +226,7 @@ if (currentUser != null) {
 ```
 
 **デフォルトグループ保護**:
+
 ```dart
 // UI/Repository/Providerの3層で保護
 if (isDefaultGroup(group, currentUser)) {
@@ -233,12 +241,14 @@ if (isDefaultGroup(group, currentUser)) {
 ### 📂 関連ファイル
 
 #### Repository層
+
 - **Abstract**: [`lib/datastore/shared_list_repository.dart`](../lib/datastore/shared_list_repository.dart)
 - **Hybrid**: [`lib/datastore/hybrid_shared_list_repository.dart`](../lib/datastore/hybrid_shared_list_repository.dart) ⭐ **メイン実装**
 - **Firestore**: [`lib/datastore/firestore_shared_list_repository.dart`](../lib/datastore/firestore_shared_list_repository.dart)
 - **Hive**: [`lib/datastore/hive_shared_list_repository.dart`](../lib/datastore/hive_shared_list_repository.dart)
 
 #### Provider層
+
 - **Main**: [`lib/providers/shared_list_provider.dart`](../lib/providers/shared_list_provider.dart)
   - `sharedListRepositoryProvider` - Repository取得
   - `groupSharedListsProvider` - グループ内リスト一覧
@@ -246,6 +256,7 @@ if (isDefaultGroup(group, currentUser)) {
   - `currentListProvider` - 現在選択中のリスト
 
 #### UI層
+
 - **Page**: [`lib/pages/shared_list_page.dart`](../lib/pages/shared_list_page.dart)
 - **Widget**: [`lib/widgets/shared_list_header_widget.dart`](../lib/widgets/shared_list_header_widget.dart)
 
@@ -278,6 +289,7 @@ if (isDefaultGroup(group, currentUser)) {
 ```
 
 **タイミング制御**:
+
 ```dart
 // ❌ Wrong: UI再構築が早すぎる
 ref.invalidate(groupSharedListsProvider);
@@ -309,6 +321,7 @@ await ref.read(groupSharedListsProvider.future);  // 🔥 待機
 ```
 
 **StreamBuilder統合**:
+
 ```dart
 StreamBuilder<SharedList?>(
   stream: repository.watchSharedList(groupId, listId),
@@ -377,6 +390,7 @@ StreamBuilder<SharedList?>(
 ```
 
 **2025-12-08修正**:
+
 ```dart
 // ❌ Old: Collection group query（PERMISSION_DENIED）
 await collectionGroup('sharedLists')
@@ -394,6 +408,7 @@ await _collection(groupId).doc(listId).delete();
 ### 📂 関連ファイル
 
 #### Repository層（SharedListRepositoryと統合）
+
 - **Abstract**: [`lib/datastore/shared_list_repository.dart`](../lib/datastore/shared_list_repository.dart)
   - `addSingleItem()` - 単一アイテム追加
   - `updateSingleItem()` - 単一アイテム更新
@@ -402,6 +417,7 @@ await _collection(groupId).doc(listId).delete();
 - **Firestore**: [`lib/datastore/firestore_shared_list_repository.dart`](../lib/datastore/firestore_shared_list_repository.dart) - Map形式差分更新
 
 #### UI層
+
 - **Page**: [`lib/pages/shared_list_page.dart`](../lib/pages/shared_list_page.dart)
   - `_SharedItemsListWidget` - アイテム一覧
   - `_SharedItemTile` - アイテム1件表示
@@ -494,6 +510,7 @@ class SharedItem {
 | 同期速度 | 500ms | 50ms | 10倍高速 |
 
 **コード例**:
+
 ```dart
 // ❌ Old: リスト全体送信
 final updatedItems = {...currentList.items, newItem.itemId: newItem};
@@ -523,6 +540,7 @@ await repository.addSingleItem(currentList.listId, newItem);
 ```
 
 **アクティブアイテムフィルタリング**:
+
 ```dart
 // ✅ Correct: 論理削除されたアイテムを除外
 final activeItems = sortItems(liveList.activeItems);
@@ -596,6 +614,7 @@ for (var item in liveList.items.values) { ... }
 ```
 
 **クリーンアップ（30日以上前の削除済みアイテム）**:
+
 ```
 [Service] list_cleanup_service.dart
   ↓ アプリ起動時に自動実行
@@ -614,6 +633,7 @@ for (var item in liveList.items.values) { ... }
 ## 関連ファイル一覧
 
 ### 📦 Model層
+
 - [`lib/models/shared_group.dart`](../lib/models/shared_group.dart) - グループモデル
 - [`lib/models/shared_list.dart`](../lib/models/shared_list.dart) - リストモデル（items: Map<String, SharedItem>）
 - [`lib/models/shared_item.dart`](../lib/models/shared_item.dart) - アイテムモデル（含: itemId, isDeleted）
@@ -621,12 +641,14 @@ for (var item in liveList.items.values) { ... }
 ### 🗄️ Repository層
 
 #### SharedGroup
+
 - [`lib/datastore/shared_group_repository.dart`](../lib/datastore/shared_group_repository.dart) - Abstract
-- [`lib/datastore/hybrid_purchase_group_repository.dart`](../lib/datastore/hybrid_purchase_group_repository.dart) - Hybrid (メイン)
-- [`lib/datastore/firestore_purchase_group_repository.dart`](../lib/datastore/firestore_purchase_group_repository.dart) - Firestore実装
+- [`lib/datastore/hybrid_shared_group_repository.dart`](../lib/datastore/hybrid_shared_group_repository.dart) - Hybrid (メイン)
+- [`lib/datastore/firestore_shared_group_repository.dart`](../lib/datastore/firestore_shared_group_repository.dart) - Firestore実装
 - [`lib/datastore/hive_shared_group_repository.dart`](../lib/datastore/hive_shared_group_repository.dart) - Hiveキャッシュ
 
 #### SharedList
+
 - [`lib/datastore/shared_list_repository.dart`](../lib/datastore/shared_list_repository.dart) - Abstract
 - [`lib/datastore/hybrid_shared_list_repository.dart`](../lib/datastore/hybrid_shared_list_repository.dart) - Hybrid (メイン)
 - [`lib/datastore/firestore_shared_list_repository.dart`](../lib/datastore/firestore_shared_list_repository.dart) - Firestore実装（差分同期）
@@ -635,13 +657,15 @@ for (var item in liveList.items.values) { ... }
 ### 🎛️ Provider層
 
 #### SharedGroup
-- [`lib/providers/purchase_group_provider.dart`](../lib/providers/purchase_group_provider.dart)
+
+- [`lib/providers/shared_group_provider.dart`](../lib/providers/shared_group_provider.dart)
   - `allGroupsProvider` - AsyncNotifierProvider<AllGroupsNotifier, List<SharedGroup>>
   - `selectedGroupProvider` - Provider<SharedGroup?>
   - `selectedGroupIdProvider` - StateNotifierProvider<SelectedGroupIdNotifier, String?>
   - `syncStatusProvider` - Provider<SyncStatus>
 
 #### SharedList
+
 - [`lib/providers/shared_list_provider.dart`](../lib/providers/shared_list_provider.dart)
   - `sharedListRepositoryProvider` - Provider<SharedListRepository>
   - `groupSharedListsProvider` - FutureProvider.family<List<SharedList>, String>
@@ -649,31 +673,37 @@ for (var item in liveList.items.values) { ... }
   - `currentListProvider` - StateNotifierProvider<CurrentListNotifier, SharedList?>
 
 #### 認証
+
 - [`lib/providers/auth_provider.dart`](../lib/providers/auth_provider.dart)
   - `authStateProvider` - StreamProvider<User?>
 
 ### 🖥️ UI層
 
 #### Pages
+
 - [`lib/pages/shared_group_page.dart`](../lib/pages/shared_group_page.dart) - グループ一覧画面
 - [`lib/pages/shared_list_page.dart`](../lib/pages/shared_list_page.dart) - リスト＆アイテム画面
 - [`lib/pages/group_member_management_page.dart`](../lib/pages/group_member_management_page.dart) - メンバー管理
 
 #### Widgets - SharedGroup
+
 - [`lib/widgets/group_list_widget.dart`](../lib/widgets/group_list_widget.dart) - グループ一覧カード
 - [`lib/widgets/group_creation_with_copy_dialog.dart`](../lib/widgets/group_creation_with_copy_dialog.dart) - グループ作成ダイアログ
 - [`lib/widgets/group_selector_widget.dart`](../lib/widgets/group_selector_widget.dart) - グループ選択ドロップダウン
 - [`lib/widgets/group_invitation_dialog.dart`](../lib/widgets/group_invitation_dialog.dart) - QR招待管理
 
 #### Widgets - SharedList
+
 - [`lib/widgets/shared_list_header_widget.dart`](../lib/widgets/shared_list_header_widget.dart) - リスト選択ヘッダー
 
 ### 🛠️ Services
+
 - [`lib/services/sync_service.dart`](../lib/services/sync_service.dart) - Firestore⇄Hive同期管理
 - [`lib/services/periodic_purchase_service.dart`](../lib/services/periodic_purchase_service.dart) - 定期購入リセット
 - [`lib/services/list_cleanup_service.dart`](../lib/services/list_cleanup_service.dart) - 削除アイテムクリーンアップ
 
 ### 🧪 Helper
+
 - [`lib/utils/group_helpers.dart`](../lib/utils/group_helpers.dart) - `isDefaultGroup()` など
 
 ---
@@ -798,6 +828,7 @@ ListView に新アイテム表示（1秒以内）
 ### ✅ DO
 
 1. **Firestore-First原則を守る**
+
    ```dart
    // ✅ Correct
    if (F.appFlavor == Flavor.prod && _firestoreRepo != null) {
@@ -808,6 +839,7 @@ ListView に新アイテム表示（1秒以内）
    ```
 
 2. **差分同期メソッドを使う**
+
    ```dart
    // ✅ Correct: 単一アイテム送信
    await repository.addSingleItem(listId, newItem);
@@ -817,6 +849,7 @@ ListView に新アイテム表示（1秒以内）
    ```
 
 3. **activeItemsゲッターを使う**
+
    ```dart
    // ✅ Correct: 論理削除除外
    final items = liveList.activeItems;
@@ -826,6 +859,7 @@ ListView に新アイテム表示（1秒以内）
    ```
 
 4. **StreamBuilderでリアルタイム同期**
+
    ```dart
    // ✅ Correct: 自動更新
    StreamBuilder<SharedList?>(
@@ -845,6 +879,7 @@ ListView に新アイテム表示（1秒以内）
 ### ❌ DON'T
 
 1. **Hiveを優先しない**
+
    ```dart
    // ❌ Wrong: Hive優先
    final hiveData = await _hiveRepo.getData();
@@ -852,12 +887,14 @@ ListView に新アイテム表示（1秒以内）
    ```
 
 2. **リスト全体を送信しない**
+
    ```dart
    // ❌ Wrong: 5KB送信
    await repository.updateSharedList(listWithAllItems);
    ```
 
 3. **Map直接変更しない**
+
    ```dart
    // ❌ Wrong: 直接変更
    currentList.items[itemId] = updatedItem;
@@ -877,12 +914,12 @@ ListView に新アイテム表示（1秒以内）
 
 ## 📊 パフォーマンス指標
 
-| 項目 | Before | After | 改善率 |
-|------|--------|-------|--------|
-| **アイテム追加** | リスト全体送信 (~5KB) | 単一アイテム送信 (~500B) | 90%削減 |
-| **同期速度** | 500ms | < 1秒 | - |
-| **ネットワーク効率** | 低（全体送信） | 高（差分のみ） | 90%向上 |
-| **リアルタイム性** | 手動invalidate | 自動Stream更新 | 即座 |
+| 項目                 | Before                | After                    | 改善率  |
+| -------------------- | --------------------- | ------------------------ | ------- |
+| **アイテム追加**     | リスト全体送信 (~5KB) | 単一アイテム送信 (~500B) | 90%削減 |
+| **同期速度**         | 500ms                 | < 1秒                    | -       |
+| **ネットワーク効率** | 低（全体送信）        | 高（差分のみ）           | 90%向上 |
+| **リアルタイム性**   | 手動invalidate        | 自動Stream更新           | 即座    |
 
 ---
 
@@ -895,6 +932,7 @@ ListView に新アイテム表示（1秒以内）
 **原因**: StreamBuilderの使用忘れ or invalidate不要なのに使用
 
 **解決**:
+
 ```dart
 // ✅ Correct: StreamBuilderを使用
 StreamBuilder<SharedList?>(
@@ -913,6 +951,7 @@ StreamBuilder<SharedList?>(
 **原因**: `updateSharedList()` を使用している
 
 **解決**:
+
 ```dart
 // ❌ Wrong
 await repository.updateSharedList(list.copyWith(items: {...}));
@@ -928,6 +967,7 @@ await repository.addSingleItem(listId, newItem);
 **原因**: `activeItems` ゲッター未使用
 
 **解決**:
+
 ```dart
 // ❌ Wrong
 final items = liveList.items.values.toList();

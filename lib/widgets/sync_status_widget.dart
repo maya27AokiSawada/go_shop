@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/purchase_group_provider.dart';
+import '../providers/shared_group_provider.dart';
 
 /// 同期状態を表示するウィジェット
 /// AppBarやDrawerで使用して、ユーザーに現在の同期状態を伝える

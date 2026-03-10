@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/shared_group.dart';
 import '../datastore/shared_group_repository.dart';
-import '../providers/purchase_group_provider.dart';
+import '../providers/shared_group_provider.dart';
 import '../utils/app_logger.dart';
 import '../flavors.dart';
 import 'error_log_service.dart';
@@ -41,11 +41,11 @@ class SyncService {
           .where('allowedUid', arrayContains: user.uid)
           .get()
           .timeout(
-            const Duration(seconds: 30),
-            onTimeout: () {
-              throw TimeoutException('Firestore同期がタイムアウトしました（30秒）');
-            },
-          );
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw TimeoutException('Firestore同期がタイムアウトしました（30秒）');
+        },
+      );
 
       AppLogger.info('📊 [SYNC] Firestoreクエリ完了: ${snapshot.docs.length}個のグループ');
 
@@ -112,11 +112,11 @@ class SyncService {
           .doc(groupId)
           .get()
           .timeout(
-            const Duration(seconds: 10),
-            onTimeout: () {
-              throw TimeoutException('グループ同期がタイムアウトしました（10秒）');
-            },
-          );
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw TimeoutException('グループ同期がタイムアウトしました（10秒）');
+        },
+      );
 
       if (!groupDoc.exists) {
         AppLogger.warning(

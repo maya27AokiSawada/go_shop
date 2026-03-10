@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:goshopping/models/shared_list.dart';
 import 'package:goshopping/datastore/shared_list_repository.dart';
 import 'package:goshopping/services/periodic_purchase_service.dart';
-import 'package:goshopping/providers/purchase_group_provider.dart';
+import 'package:goshopping/providers/shared_group_provider.dart';
 import 'package:goshopping/providers/shared_list_provider.dart';
 import 'package:goshopping/models/shared_group.dart';
 
@@ -562,8 +562,7 @@ void main() {
 
       // Assert - エラーが発生せず、必要なキーが存在することを確認
       expect(info, isNotNull, reason: '統計情報が返される');
-      expect(info.containsKey('totalLists'), true,
-          reason: 'totalListsキーが存在する');
+      expect(info.containsKey('totalLists'), true, reason: 'totalListsキーが存在する');
       expect(info.containsKey('totalPeriodicItems'), true,
           reason: 'totalPeriodicItemsキーが存在する');
       expect(info.containsKey('readyToResetItems'), true,

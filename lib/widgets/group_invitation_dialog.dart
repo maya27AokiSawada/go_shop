@@ -9,7 +9,7 @@ import 'dart:convert';
 import '../models/shared_group.dart';
 import '../models/invitation.dart';
 import '../services/qr_invitation_service.dart';
-import '../providers/purchase_group_provider.dart';
+import '../providers/shared_group_provider.dart';
 import '../utils/app_logger.dart';
 import '../utils/snackbar_helper.dart';
 

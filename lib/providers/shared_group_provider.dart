@@ -8,7 +8,7 @@ import '../models/shared_group.dart' hide SyncStatus;
 import '../models/shared_group.dart' as models show SyncStatus;
 import '../datastore/shared_group_repository.dart';
 import '../datastore/hive_shared_group_repository.dart';
-import '../datastore/hybrid_purchase_group_repository.dart';
+import '../datastore/hybrid_shared_group_repository.dart';
 import '../flavors.dart';
 import '../helpers/security_validator.dart';
 import '../services/access_control_service.dart';

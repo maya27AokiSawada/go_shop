@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../providers/auth_provider.dart';
-import '../providers/purchase_group_provider.dart';
+import '../providers/shared_group_provider.dart';
 import '../services/qr_invitation_service.dart';
 import '../utils/app_logger.dart';
 import '../utils/error_handler.dart';

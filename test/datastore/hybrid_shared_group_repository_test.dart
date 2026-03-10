@@ -1,4 +1,4 @@
-// test/datastore/hybrid_purchase_group_repository_test.dart
+// test/datastore/hybrid_shared_group_repository_test.dart
 //
 // ✅ HybridSharedGroupRepository Unit Tests
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -23,9 +23,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:goshopping/models/shared_group.dart';
-import 'package:goshopping/datastore/hybrid_purchase_group_repository.dart';
+import 'package:goshopping/datastore/hybrid_shared_group_repository.dart';
 import 'package:goshopping/datastore/hive_shared_group_repository.dart';
-import 'package:goshopping/datastore/firestore_purchase_group_repository.dart';
+import 'package:goshopping/datastore/firestore_shared_group_repository.dart';
 import 'package:goshopping/flavors.dart';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

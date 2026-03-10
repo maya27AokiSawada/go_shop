@@ -2,7 +2,7 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import '../utils/app_logger.dart';
 import '../models/shared_list.dart';
-import '../providers/purchase_group_provider.dart';
+import '../providers/shared_group_provider.dart';
 import '../datastore/shared_list_repository.dart';
 import '../datastore/hybrid_shared_list_repository.dart';
 

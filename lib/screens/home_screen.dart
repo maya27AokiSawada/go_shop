@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../providers/page_index_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/app_mode_notifier_provider.dart';
-import '../providers/purchase_group_provider.dart';
+import '../providers/shared_group_provider.dart';
 import '../services/network_monitor_service.dart';
 import '../pages/home_page.dart';
 import '../pages/shared_group_page.dart';

@@ -5,7 +5,7 @@ import '../providers/enhanced_group_provider.dart';
 import '../widgets/multi_group_invitation_dialog.dart';
 import '../widgets/group_creation_with_copy_dialog.dart';
 import '../services/enhanced_invitation_service.dart';
-import '../providers/purchase_group_provider.dart';
+import '../providers/shared_group_provider.dart';
 
 /// Test page for enhanced invitation system
 class EnhancedInvitationTestPage extends ConsumerStatefulWidget {

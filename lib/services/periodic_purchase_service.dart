@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shared_list.dart';
 import '../providers/shared_list_provider.dart';
-import '../providers/purchase_group_provider.dart';
+import '../providers/shared_group_provider.dart';
 import '../utils/app_logger.dart';
 
 /// 定期購入アイテムの自動リセットサービス

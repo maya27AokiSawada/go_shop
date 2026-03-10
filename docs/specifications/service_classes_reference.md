@@ -230,7 +230,7 @@
 
 **使用場所**:
 
-- `purchase_group_provider.dart` - グループ作成時
+- `shared_group_provider.dart` - グループ作成時
 - `hybrid_shared_list_repository.dart` - リスト作成時
 
 **技術詳細**:

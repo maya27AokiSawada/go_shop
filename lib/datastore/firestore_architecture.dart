@@ -3,10 +3,10 @@
 ///
 /// Owner UID Collection Structure:
 ///
-/// /users/{ownerUid}/SharedGroups/{groupId} - Purchase Group Document
+/// /users/{ownerUid}/SharedGroups/{groupId} - Shared Group Document
 /// /users/{ownerUid}/sharedLists/{listId} - Shopping List Document
 ///
-/// Each Purchase Group contains:
+/// Each Shared Group contains:
 /// - Basic group info (name, creation date, etc.)
 /// - Members list with roles
 /// - AcceptedUids list (users who accepted invitations)
@@ -35,7 +35,7 @@ class FirestoreCollections {
   static const String SharedGroups = 'SharedGroups';
   static const String sharedLists = 'sharedLists';
 
-  /// Get user's purchase groups collection reference
+  /// Get user's shared groups collection reference
   static CollectionReference<Map<String, dynamic>> getUserSharedGroups(
       String ownerUid) {
     return FirebaseFirestore.instance
@@ -53,7 +53,7 @@ class FirestoreCollections {
         .collection(sharedLists);
   }
 
-  /// Get specific purchase group document reference
+  /// Get specific shared group document reference
   static DocumentReference<Map<String, dynamic>> getSharedGroupDoc(
       String ownerUid, String groupId) {
     return getUserSharedGroups(ownerUid).doc(groupId);

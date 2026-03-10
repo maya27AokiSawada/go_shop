@@ -2,7 +2,7 @@ import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shared_list.dart';
 import '../providers/shared_list_provider.dart';
-import '../providers/purchase_group_provider.dart';
+import '../providers/shared_group_provider.dart';
 
 /// 買い物リストの論理削除アイテムクリーンアップサービス
 ///

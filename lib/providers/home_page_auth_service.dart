@@ -8,7 +8,7 @@ import '../services/user_preferences_service.dart';
 import '../services/email_management_service.dart';
 import '../services/group_management_service.dart';
 import '../helpers/qr_code_helper.dart';
-import '../providers/purchase_group_provider.dart';
+import '../providers/shared_group_provider.dart';
 import 'auth_provider.dart';
 
 /// Home Page用の認証・UI操作を拡張したサービス

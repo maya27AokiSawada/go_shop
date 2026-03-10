@@ -12,7 +12,7 @@ import '../services/user_preferences_service.dart';
 import '../services/firestore_group_sync_service.dart';
 import '../providers/user_name_provider.dart';
 import '../providers/subscription_provider.dart';
-import '../providers/purchase_group_provider.dart';
+import '../providers/shared_group_provider.dart';
 import '../providers/user_settings_provider.dart';
 import '../providers/hive_provider.dart';
 import '../services/group_management_service.dart';

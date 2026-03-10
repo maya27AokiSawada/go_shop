@@ -6,11 +6,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/app_logger.dart';
 import '../utils/firestore_converter.dart'; // Firestore変換ユーティリティ
 import '../models/shared_group.dart' as models;
-import '../providers/purchase_group_provider.dart';
+import '../providers/shared_group_provider.dart';
 import '../providers/hive_provider.dart'; // Hive Box プロバイダー
 import '../datastore/hive_shared_group_repository.dart'
     show hiveSharedGroupRepositoryProvider;
-import '../datastore/firestore_purchase_group_repository.dart'; // Repository型チェック用
+import '../datastore/firestore_shared_group_repository.dart'; // Repository型チェック用
 import '../flavors.dart';
 import 'notification_service.dart';
 import 'list_notification_batch_service.dart';

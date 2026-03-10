@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../utils/app_logger.dart';
 import '../models/shared_group.dart';
-import '../providers/purchase_group_provider.dart';
+import '../providers/shared_group_provider.dart';
 
 /// メンバーのRole管理ウィジェット（オーナー専用）
 class MemberRoleManagementWidget extends ConsumerWidget {

@@ -7,7 +7,7 @@ import 'dart:math' as math;
 import '../models/shared_group.dart';
 import '../datastore/shared_group_repository.dart';
 import '../datastore/hive_shared_group_repository.dart';
-import '../datastore/firestore_purchase_group_repository.dart';
+import '../datastore/firestore_shared_group_repository.dart';
 import '../providers/hive_provider.dart';
 import '../providers/firestore_provider.dart';
 import '../flavors.dart';
@@ -121,7 +121,7 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
     // 🔥 isSyncingProviderを更新してsyncStatusProviderを再評価させる
     // これにより、UI側のアイコンが即座に更新される
     try {
-      // purchase_group_provider.dartからisSyncingProviderをインポートして使用
+      // shared_group_provider.dartからisSyncingProviderをインポートして使用
       // （注: 循環参照を避けるため、動的インポートまたは遅延評価が必要）
       // ここでは_refを使ってproviderを無効化
       // _ref.invalidate(isSyncingProvider);  // これは循環参照になる

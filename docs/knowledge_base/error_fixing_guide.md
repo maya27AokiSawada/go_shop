@@ -2,9 +2,10 @@
 
 ## 現在発生中の主要エラー
 
-### 1. purchase_group_page.dart のエラー
+### 1. shared_group_page.dart のエラー
 
 #### エラー内容
+
 ```dart
 // エラー: memberID プロパティが存在しない
 = editedMember.copyWith(memberID: member.memberID);
@@ -17,6 +18,7 @@ itemCount: SharedGroup.members.length,  // members が null の可能性
 ```
 
 #### 修正方法
+
 ```dart
 // 1. memberID → memberId に修正
 = editedMember.copyWith(memberId: member.memberId);
@@ -32,6 +34,7 @@ final member = SharedGroup.members![index];
 ### 2. home_page.dart のエラー
 
 #### エラー内容
+
 ```dart
 // エラー: email 変数未定義
 if (userName.isNotEmpty && email.isNotEmpty) {
@@ -41,6 +44,7 @@ await ref.read(saveDefaultGroupProvider(defaultGroup).future);
 ```
 
 #### 修正方法
+
 ```dart
 // 1. email 変数の定義
 final email = emailController.text;
@@ -55,12 +59,14 @@ final saveDefaultGroupProvider = FutureProvider.family<void, SharedGroup>((ref, 
 ### 3. Riverpod Generator エラー
 
 #### エラー内容
+
 ```dart
 // エラー: FutureProviderRef が未定義
 Future<Box<SharedGroup>> SharedGroupBox(SharedGroupBoxRef ref) async {
 ```
 
 #### 修正方法
+
 ```dart
 // Generator を使わない従来の方法
 final SharedGroupBoxProvider = FutureProvider<Box<SharedGroup>>((ref) async {
@@ -71,16 +77,19 @@ final SharedGroupBoxProvider = FutureProvider<Box<SharedGroup>>((ref) async {
 ## 修正優先度
 
 ### 最高優先度
+
 1. ビルドエラーの解消（コンパイル不可状態）
 2. プロパティ名の統一（memberId vs memberID）
 3. null安全性対応
 
 ### 高優先度
+
 1. Riverpod Generator の問題解決
 2. 未定義変数・メソッドの実装
 3. 状態管理の一貫性確保
 
 ### 中優先度
+
 1. エラーハンドリングの改善
 2. UI/UXの向上
 3. コードの最適化
@@ -88,17 +97,20 @@ final SharedGroupBoxProvider = FutureProvider<Box<SharedGroup>>((ref) async {
 ## 修正後の動作確認手順
 
 1. ビルドエラー確認
+
 ```bash
 flutter analyze
 dart run build_runner build --delete-conflicting-outputs
 ```
 
 2. 実行テスト
+
 ```bash
 flutter run
 ```
 
 3. 機能テスト
+
 - 認証フロー
 - グループ作成・編集
 - メンバー管理
@@ -107,16 +119,19 @@ flutter run
 ## 技術的注意点
 
 ### Riverpod 3.0 の変更点
+
 - StateProvider の構文変更
 - Generator の安定性問題
 - 旧バージョンとの互換性
 
 ### Hive データベース
+
 - Box の初期化タイミング
 - TypeAdapter の登録
 - データマイグレーション
 
 ### Firebase 設定
+
 - 認証設定の確認
 - Firestore ルール
 - セキュリティ設定

@@ -15,7 +15,7 @@ import 'package:goshopping/models/shared_group.dart';
 import 'package:goshopping/models/shared_list.dart';
 import 'package:goshopping/pages/shared_list_page.dart';
 import 'package:goshopping/providers/current_list_provider.dart';
-import 'package:goshopping/providers/purchase_group_provider.dart'; // selectedGroupIdProvider
+import 'package:goshopping/providers/shared_group_provider.dart'; // selectedGroupIdProvider
 import 'package:goshopping/providers/shared_list_provider.dart'; // sharedListRepositoryProvider
 
 /// ============================================================================

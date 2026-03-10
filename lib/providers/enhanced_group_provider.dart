@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shared_group.dart';
 import '../services/enhanced_invitation_service.dart';
 
-import '../providers/purchase_group_provider.dart';
+import '../providers/shared_group_provider.dart';
 import 'dart:developer' as developer;
 
 /// Enhanced group management with invitation features

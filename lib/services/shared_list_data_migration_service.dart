@@ -5,7 +5,7 @@ import 'package:uuid/uuid.dart';
 import 'dart:developer' as developer;
 import '../models/shared_list.dart';
 import '../providers/shared_list_provider.dart';
-import '../providers/purchase_group_provider.dart';
+import '../providers/shared_group_provider.dart';
 import '../flavors.dart';
 import '../utils/app_logger.dart';
 

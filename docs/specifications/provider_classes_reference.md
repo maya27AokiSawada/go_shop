@@ -41,7 +41,7 @@ Provider種別による分類:
 
 #### 🟠 allGroupsProvider {#allGroupsProvider}
 
-**ファイル**: `lib/providers/purchase_group_provider.dart` (Line 1060)
+**ファイル**: `lib/providers/shared_group_provider.dart` (Line 1060)
 **種別**: 🔴 AsyncNotifierProvider<AllGroupsNotifier, List<SharedGroup>>
 **目的**: 現在ログイン中ユーザーの全グループを管理
 
@@ -304,7 +304,7 @@ return authState.when(
 
 #### 🟠 forceSyncProvider {#forceSyncProvider}
 
-**ファイル**: `lib/providers/purchase_group_provider.dart`
+**ファイル**: `lib/providers/shared_group_provider.dart`
 **種別**: 🟠 FutureProvider<void>
 **目的**: 手動同期トリガー（Firestore→Hive強制同期）
 
@@ -398,7 +398,7 @@ if (groupLists.length == 1) {
 
 #### 🔵 hybridRepositoryProvider {#hybridRepositoryProvider}
 
-**ファイル**: `lib/providers/purchase_group_provider.dart`
+**ファイル**: `lib/providers/shared_group_provider.dart`
 **種別**: 🔵 Provider<HybridSharedGroupRepository?>
 **目的**: HybridSharedGroupRepositoryインスタンス提供
 
@@ -434,7 +434,7 @@ if (groupLists.length == 1) {
 
 #### 🟣 isSyncingProvider {#isSyncingProvider}
 
-**ファイル**: `lib/providers/purchase_group_provider.dart`
+**ファイル**: `lib/providers/shared_group_provider.dart`
 **種別**: 🟣 StreamProvider<bool>
 **目的**: 同期中かどうかをリアルタイム監視
 
@@ -474,7 +474,7 @@ if (groupLists.length == 1) {
 
 #### 🔵 memberPoolProvider {#memberPoolProvider}
 
-**ファイル**: `lib/providers/purchase_group_provider.dart`
+**ファイル**: `lib/providers/shared_group_provider.dart`
 **種別**: 🟠 FutureProvider<List<SharedGroupMember>>
 **目的**: 全グループのメンバープールを取得
 
@@ -555,7 +555,7 @@ if (groupLists.length == 1) {
 
 #### 🔵 selectedGroupIdProvider {#selectedGroupIdProvider}
 
-**ファイル**: `lib/providers/purchase_group_provider.dart`
+**ファイル**: `lib/providers/shared_group_provider.dart`
 **種別**: 🟡 StateNotifierProvider<SelectedGroupIdNotifier, String?>
 **目的**: 選択中のグループIDを管理（SharedPreferences永続化）
 
@@ -575,7 +575,7 @@ if (groupLists.length == 1) {
 
 #### 🔴 selectedGroupNotifierProvider {#selectedGroupNotifierProvider}
 
-**ファイル**: `lib/providers/purchase_group_provider.dart`
+**ファイル**: `lib/providers/shared_group_provider.dart`
 **種別**: 🔴 AsyncNotifierProvider<SelectedGroupNotifier, SharedGroup?>
 **目的**: 選択中のグループの詳細情報管理
 
@@ -614,7 +614,7 @@ Future<SharedGroup?> build() async {
 
 #### 🔵 selectedGroupProvider {#selectedGroupProvider}
 
-**ファイル**: `lib/providers/purchase_group_provider.dart`
+**ファイル**: `lib/providers/shared_group_provider.dart`
 **種別**: 🔵 Provider<AsyncValue<SharedGroup?>>
 **目的**: selectedGroupNotifierProviderの状態を取得（ショートカット）
 
@@ -636,7 +636,7 @@ Future<SharedGroup?> build() async {
 
 #### 🔵 SharedGroupRepositoryProvider {#SharedGroupRepositoryProvider}
 
-**ファイル**: `lib/providers/purchase_group_provider.dart`
+**ファイル**: `lib/providers/shared_group_provider.dart`
 **種別**: 🔵 Provider<SharedGroupRepository>
 **目的**: SharedGroupRepositoryインスタンス提供（Hybrid構成）
 
@@ -777,7 +777,7 @@ return (state.isTrialActive && state.remainingTrialDays <= 3) ||
 
 #### 🔵 syncStatusProvider {#syncStatusProvider}
 
-**ファイル**: `lib/providers/purchase_group_provider.dart`
+**ファイル**: `lib/providers/shared_group_provider.dart`
 **種別**: 🔵 Provider<SyncStatus>
 **目的**: 同期状態を取得（online/offline/syncing/error）
 
@@ -993,7 +993,7 @@ return (state.isTrialActive && state.remainingTrialDays <= 3) ||
 
 | 行数範囲    | ファイル数 | 主要ファイル                                                          |
 | ----------- | ---------- | --------------------------------------------------------------------- |
-| **1000+**   | 1          | purchase_group_provider.dart (1227行)                                 |
+| **1000+**   | 1          | shared_group_provider.dart (1227行)                                   |
 | **500-999** | 1          | auth_provider.dart (661行)                                            |
 | **300-499** | 2          | shared_list_provider.dart (442行), subscription_provider.dart (304行) |
 | **100-299** | 9          | current_list_provider.dart (143行), user_name_provider.dart (140行)等 |

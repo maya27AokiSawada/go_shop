@@ -33,7 +33,7 @@ class _FixMayaGroupScreenState extends ConsumerState<FixMayaGroupScreen> {
       _addLog('===== mayaグループ修正開始 =====');
 
       // Hive Boxを開く
-      final box = await Hive.openBox<SharedGroup>('purchase_groups');
+      final box = await Hive.openBox<SharedGroup>('SharedGroups');
       _addLog('Hive Box opened: ${box.length} groups');
 
       // 全グループをチェック

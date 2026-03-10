@@ -89,7 +89,7 @@ flutter run
 **原因**: Firestore書き込みエラー
 **対処**:
 ```dart
-// lib/providers/purchase_group_provider.dart の
+// lib/providers/shared_group_provider.dart の
 // _ensureDefaultGroupExists() メソッドを確認
 ```
 
@@ -136,5 +136,6 @@ Firestore Database
 ```
 
 ---
+
 **最終更新**: 2025-11-17
 **作成者**: GitHub Copilot

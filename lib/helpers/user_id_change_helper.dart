@@ -6,7 +6,7 @@ import '../utils/app_logger.dart';
 
 import '../models/shared_group.dart';
 import '../providers/user_settings_provider.dart';
-import '../providers/purchase_group_provider.dart';
+import '../providers/shared_group_provider.dart';
 import '../providers/current_list_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/shared_list_provider.dart' hide sharedListBoxProvider;

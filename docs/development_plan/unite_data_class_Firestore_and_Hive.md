@@ -40,7 +40,7 @@
 
 - ✅ **Freezed + Hive対応済み** (lib/models/shared_group.dart, 433行)
 - ✅ **Firestore互換性あり** (`fromJson()` / `toJson()` 実装済み)
-- ✅ **本番実績あり** (`firestore_purchase_group_repository.dart`で使用中)
+- ✅ **本番実績あり** (`firestore_shared_group_repository.dart`で使用中)
 - ✅ **26フィールドの完全な機能** (hierarchy, permissions, members管理含む)
 
 ---
@@ -365,7 +365,7 @@ adb logcat | grep -i firestore
 ### なぜSharedGroupで統一するのか
 
 1. **既に実装済み**: fromJson/toJsonでFirestore互換性あり
-2. **本番実績**: firestore_purchase_group_repositoryで使用中
+2. **本番実績**: firestore_shared_group_repositoryで使用中
 3. **機能的完全性**: 26フィールド、階層、権限システム完備
 4. **Hive統合**: typeId: 2で永続化対応済み
 5. **Freezedの恩恵**: copyWith(), ==演算子, immutable保証
@@ -384,7 +384,7 @@ adb logcat | grep -i firestore
 - `docs/specifications/data_classes_reference.md` - データクラス一覧
 - `docs/knowledge_base/riverpod_best_practices.md` - Riverpodパターン
 - `lib/models/shared_group.dart` - SharedGroup実装
-- `lib/datastore/firestore_purchase_group_repository.dart` - Firestore連携の参考実装
+- `lib/datastore/firestore_shared_group_repository.dart` - Firestore連携の参考実装
 
 ---
 

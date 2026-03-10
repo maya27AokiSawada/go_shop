@@ -15,7 +15,7 @@ import '../helpers/user_id_change_helper.dart';
 import '../flavors.dart';
 import '../config/app_mode_config.dart';
 import '../providers/user_settings_provider.dart';
-import '../providers/purchase_group_provider.dart'; // forceSyncProvider
+import '../providers/shared_group_provider.dart'; // forceSyncProvider
 import '../models/shared_group.dart';
 
 /// アプリ初期化を管理するウィジェット

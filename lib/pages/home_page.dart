@@ -5,7 +5,7 @@ import '../models/shared_group.dart';
 import '../models/shared_list.dart';
 import '../providers/auth_provider.dart';
 import '../providers/hive_provider.dart';
-import '../providers/purchase_group_provider.dart';
+import '../providers/shared_group_provider.dart';
 import '../providers/shared_list_provider.dart' hide sharedListBoxProvider;
 import '../providers/page_index_provider.dart';
 import '../services/user_preferences_service.dart';

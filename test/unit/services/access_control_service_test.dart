@@ -30,7 +30,7 @@ import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:goshopping/services/access_control_service.dart';
 import 'package:goshopping/flavors.dart';
-import 'package:goshopping/providers/purchase_group_provider.dart';
+import 'package:goshopping/providers/shared_group_provider.dart';
 
 // Firebase Mock Setup
 Future<void> initializeFirebaseForTest() async {
