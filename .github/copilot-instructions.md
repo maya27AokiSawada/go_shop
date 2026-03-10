@@ -42,6 +42,202 @@ flutterfire configure --project=gotoshop-572b7
 
 ---
 
+## Recurring Anti-Patterns To Avoid (Observed Since 2025-11)
+
+以下は日報で何度も再発した失敗パターン。AI は同じ問題を再導入しないよう、修正前に必ず該当ルールを確認すること。
+
+### 1. Hive を即時の真実として扱うな
+
+**Anti-pattern**:
+
+```dart
+// ❌ ユーザー切替直後の空Hiveをそのまま採用
+await hiveService.initializeForUser(newUid);
+final groups = await ref.read(allGroupsProvider.future);
+```
+
+**Correct pattern**:
+
+```dart
+// ✅ Firestoreを source of truth として先に復元
+await hiveService.initializeForUser(newUid);
+ref.invalidate(forceSyncProvider);
+await ref.read(forceSyncProvider.future);
+await ref.read(allGroupsProvider.notifier).cleanupInvalidHiveGroups();
+await ref.read(allGroupsProvider.notifier).refresh();
+```
+
+**Why**: Windows の user-specific Hive 切替直後は空または古いキャッシュが見える瞬間がある。ここで Hive を真実扱いすると「0件表示 → 後で旧データ再出現」の回帰が起きる。Hybrid リポジトリでは Firestore が source of truth、Hive はキャッシュである。
+
+### 2. 破棄されうる Widget から async 後に `ref` / `context` を使うな
+
+**Anti-pattern**:
+
+```dart
+// ❌ 自分自身が消える可能性のあるwidget内でasync後に操作継続
+await ref.read(allGroupsProvider.notifier).createNewGroup(groupName);
+await ref.read(allGroupsProvider.future);
+
+if (context.mounted) {
+  ref.invalidate(allGroupsProvider);
+  Navigator.pop(context);
+}
+```
+
+**Correct pattern**:
+
+```dart
+// ✅ 破棄が起きうる場合は以降の処理をしない、または永続的な親側へ移す
+await ref.read(allGroupsProvider.notifier).createNewGroup(groupName);
+await ref.read(allGroupsProvider.future);
+// Nothing more: UIはprovider watchで自動更新
+```
+
+**Why**: `context.mounted` は親 Navigator の生存確認であり、現在の Widget が未破棄である保証ではない。`ref.invalidate()`、`ref.read()`、`setState()`、`Navigator.pop()` は widget 廃棄後に二次障害を起こし、`_dependents.isEmpty` や `Cannot use ref after the widget was disposed` に繋がる。5回以上の小手先修正より、フローの再設計を優先すること。
+
+### 3. Riverpod の文脈を混同するな
+
+**Anti-pattern**:
+
+```dart
+// ❌ AsyncNotifier.build() で late final Ref を再代入
+late final Ref _ref;
+
+Future<Data> build() async {
+  _ref = ref;
+  return fetchData();
+}
+
+// ❌ 命令的再同期なのに invalidate せず前回Futureを読む
+await ref.read(forceSyncProvider.future);
+
+// ❌ asyncメソッド内で ref.watch()
+final auth = ref.watch(authStateProvider);
+```
+
+**Correct pattern**:
+
+```dart
+// ✅ build()外で必要なら null-aware に一度だけ保持
+Ref? _ref;
+
+Future<Data> build() async {
+  _ref ??= ref;
+  return fetchData();
+}
+
+// ✅ 命令的再実行は invalidate → await
+ref.invalidate(forceSyncProvider);
+await ref.read(forceSyncProvider.future);
+
+// ✅ asyncメソッドやcallbackでは ref.read()
+final auth = ref.read(authStateProvider);
+```
+
+**Why**: `AsyncNotifier.build()` は複数回呼ばれうる。`late final Ref` は LateInitializationError を起こし、`watch()` を build 外で使うと依存関係の前提が壊れる。`FutureProvider` は結果を保持するため、命令的な再同期では `invalidate()` が必須。
+
+### 4. Firestore の権限主体を間違えるな
+
+**Anti-pattern**:
+
+```dart
+// ❌ owner-only な更新を受諾者側から直接実行
+await groupDoc.update({...});
+
+// ❌ permission-denied をネットワーク障害と誤判定
+catch (e) {
+  showOfflineBanner();
+}
+```
+
+**Correct pattern**:
+
+```dart
+// ✅ 権限を持つ側だけが更新し、他方は通知や要求送信に留める
+await notificationService.sendNotification(...);
+
+// ✅ permission-denied / unauthenticated は認証・Rules問題として分岐
+if (e.code == 'permission-denied' || e.code == 'unauthenticated') {
+  // 公開コレクション等で真の接続状態を再確認
+}
+```
+
+**Why**: Firestore Rules が owner-only なのに受諾者や非オーナーが更新すると必ず `permission-denied` になる。これはネットワーク不良ではない。認証状態・権限主体・クエリ先を先に設計しないと、通知不達、誤バナー、同期失敗が連鎖する。
+
+### 5. Firestore のオフライン書き込み機能を殺すな
+
+**Anti-pattern**:
+
+```dart
+// ❌ write-only 処理に runTransaction() や .timeout() を付ける
+await _firestore.runTransaction((tx) async {
+  await tx.set(docRef, data);
+});
+
+await docRef.set(data).timeout(const Duration(seconds: 5));
+```
+
+**Correct pattern**:
+
+```dart
+// ✅ write-only なら SDK のオフラインキューに委任
+await docRef.set(data);
+
+// ✅ Hybridでは Firestore試行失敗後も Hive は必ず続行
+try {
+  await _firestoreRepo!.createGroup(...);
+} catch (_) {}
+await _hiveRepo.createGroup(...);
+```
+
+**Why**: `runTransaction()` はサーバー応答必須なのでオフラインでハングし、Windows では SDK 側クラッシュもあった。write 操作への `.timeout()` は Firestore のローカルキュー機能を `TimeoutException` で中断し、UI スピナー停止や保存失敗の原因になる。
+
+### 6. 「未保存キー」を「旧バージョン」と誤解するな
+
+**Anti-pattern**:
+
+```dart
+// ❌ 未保存なのに旧版扱い
+final version = prefs.getInt(_dataVersionKey) ?? 1;
+final schemaVersion = prefs.getInt(_schemaVersionKey) ?? 0;
+```
+
+**Correct pattern**:
+
+```dart
+// ✅ 未保存 = 初回起動。現在版を書き込んで終了
+if (!prefs.containsKey(_dataVersionKey)) {
+  await prefs.setInt(_dataVersionKey, _currentDataVersion);
+  return _currentDataVersion;
+}
+```
+
+**Why**: キー未保存は旧データの存在を意味しない。これを旧版扱いすると、再インストール直後でも `v1 → v3` の誤マイグレーションUIが出る。初回起動と旧版移行は必ず分けて扱うこと。
+
+### 7. catch ブロックで二次例外を起こすな
+
+**Anti-pattern**:
+
+```dart
+// ❌ エラー処理自体がさらに落ちる
+catch (e, stackTrace) {
+  Log.error('failed', stackTrace);
+}
+```
+
+**Correct pattern**:
+
+```dart
+// ✅ 元例外とstack traceを正しい位置で渡す
+catch (e, stackTrace) {
+  Log.error('failed: $e', e, stackTrace);
+}
+```
+
+**Why**: 障害時の最後の砦はログとエラーハンドリング。ここで二次例外が出ると、本来の根本原因が隠れて Crashlytics には「ロガーが落ちた」事実しか残らない。catch / finally / logger は「絶対に落ちないコード」として扱うこと。
+
+---
+
 ## Recent Implementations (2026-03-06)
 
 ### 1. 実機テスト6件バグ修正（P0×1, P1×3, P2×2） ✅
