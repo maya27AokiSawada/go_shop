@@ -1,4 +1,4 @@
-// lib/services/shopping_list_migration_service.dart
+// lib/services/shared_list_migration_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/app_logger.dart';
 

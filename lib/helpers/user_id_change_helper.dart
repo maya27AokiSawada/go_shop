@@ -16,7 +16,7 @@ import '../widgets/user_data_migration_dialog.dart';
 import '../services/firestore_group_sync_service.dart';
 import '../services/firestore_user_name_service.dart';
 import '../services/user_preferences_service.dart';
-import '../services/shopping_list_migration_service.dart';
+import '../services/shared_list_migration_service.dart';
 import '../flavors.dart';
 
 class UserIdChangeHelper {

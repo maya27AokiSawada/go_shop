@@ -10,7 +10,7 @@ import '../providers/user_specific_hive_provider.dart';
 import '../services/user_preferences_service.dart';
 import '../services/user_initialization_service.dart';
 import '../services/list_cleanup_service.dart';
-import '../services/shopping_list_data_migration_service.dart';
+import '../services/shared_list_data_migration_service.dart';
 import '../services/periodic_purchase_service.dart';
 import '../services/user_profile_migration_service.dart';
 import '../services/app_launch_service.dart';

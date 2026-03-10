@@ -5,7 +5,7 @@ import '../models/shared_list.dart';
 import '../providers/current_list_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/shared_list_provider.dart';
-import '../widgets/shopping_list_header_widget.dart';
+import '../widgets/shared_list_header_widget.dart';
 import '../widgets/shared_item_edit_modal.dart';
 import '../utils/app_logger.dart';
 import '../utils/snackbar_helper.dart';

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shared_list.dart';
 import '../providers/current_list_provider.dart';
-import '../providers/group_shopping_lists_provider.dart';
+import '../providers/group_shared_lists_provider.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/shared_list_provider.dart';
 import '../utils/app_logger.dart';

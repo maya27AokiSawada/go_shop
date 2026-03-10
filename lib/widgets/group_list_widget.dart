@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/shared_group.dart';
 import '../providers/purchase_group_provider.dart';
 import '../providers/current_list_provider.dart';
-import '../providers/group_shopping_lists_provider.dart';
+import '../providers/group_shared_lists_provider.dart';
 import '../utils/app_logger.dart';
 import '../utils/error_handler.dart';
 import '../utils/snackbar_helper.dart';

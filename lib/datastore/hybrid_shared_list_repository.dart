@@ -7,7 +7,7 @@ import '../datastore/hive_shared_list_repository.dart';
 import '../datastore/firestore_shared_list_repository.dart';
 import '../services/list_notification_batch_service.dart';
 import '../services/device_id_service.dart'; // 🆕 デバイスID生成用
-import '../providers/group_shopping_lists_provider.dart';
+import '../providers/group_shared_lists_provider.dart';
 import '../flavors.dart';
 
 /// Hive（ローカルキャッシュ）+ Firestore（リモート）のハイブリッドSharedListリポジトリ

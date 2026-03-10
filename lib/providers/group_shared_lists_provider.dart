@@ -1,4 +1,4 @@
-// lib/providers/group_shopping_lists_provider.dart
+// lib/providers/group_shared_lists_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shared_list.dart';
 import '../providers/shared_list_provider.dart';

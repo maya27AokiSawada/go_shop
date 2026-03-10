@@ -18,7 +18,7 @@ import '../widgets/network_status_banner.dart';
 import '../services/user_initialization_service.dart';
 import '../providers/shared_list_provider.dart';
 import '../datastore/hybrid_shared_list_repository.dart';
-import '../providers/group_shopping_lists_provider.dart';
+import '../providers/group_shared_lists_provider.dart';
 
 /// SyncStatusからSyncStateを計算するヘルパー関数
 SyncState _getSyncState(SyncStatus syncStatus, bool isAuthenticated) {
