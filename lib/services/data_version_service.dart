@@ -33,12 +33,18 @@ class DataVersionService {
   Future<int> getSavedDataVersion() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final version = prefs.getInt(_dataVersionKey) ?? 1; // デフォルトは1
+      if (!prefs.containsKey(_dataVersionKey)) {
+        await prefs.setInt(_dataVersionKey, _currentDataVersion);
+        Log.info('🆕 データバージョン未保存のため現在バージョンを保存: $_currentDataVersion');
+        return _currentDataVersion;
+      }
+
+      final version = prefs.getInt(_dataVersionKey) ?? _currentDataVersion;
       Log.info('📊 保存されているデータバージョン: $version');
       return version;
     } catch (e) {
       Log.error('❌ データバージョン取得エラー: $e');
-      return 1; // エラー時はバージョン1とみなす
+      return _currentDataVersion;
     }
   }
 
@@ -56,6 +62,13 @@ class DataVersionService {
   /// データバージョンをチェックし、必要に応じて古いデータを削除
   Future<bool> checkAndMigrateData() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!prefs.containsKey(_dataVersionKey)) {
+        await UserPreferencesService.saveDataVersion(currentDataVersion);
+        Log.info('🆕 データバージョン未保存のため現在バージョンを保存して終了');
+        return false;
+      }
+
       // SharedPreferences経由でデータバージョンを管理
       final savedVersion = await UserPreferencesService.getDataVersion();
       final currentVersion = currentDataVersion;
@@ -150,33 +163,33 @@ class DataVersionService {
   Future<bool> _executeDataMigration(int fromVersion, int toVersion) async {
     try {
       Log.info('🔄 データマイグレーション開始: v$fromVersion → v$toVersion');
-      
+
       // 1. バックアップ作成
       await _backupDataBeforeMigration();
-      
+
       // 2. バージョン別マイグレーション
       for (int version = fromVersion; version < toVersion; version++) {
         await _migrateFromVersionToNext(version);
       }
-      
+
       // 3. 検証
       final isValid = await _validateMigratedData();
       if (!isValid) {
         await _rollbackOnFailure();
         return false;
       }
-      
+
       await saveDataVersion(toVersion);
       Log.info('✅ データマイグレーション完了');
       return true;
-      
+
     } catch (e) {
       Log.error('❌ データマイグレーションエラー: $e');
       await _rollbackOnFailure();
       return false;
     }
   }
-  
+
   /// v1→v2マイグレーション: InvitationStatus追加
   Future<void> _migrateFromV1ToV2() async {
     // 既存のSharedGroupMemberにInvitationStatusを追加

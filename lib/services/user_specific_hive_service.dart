@@ -358,7 +358,15 @@ class UserSpecificHiveService {
   /// Firestore優先設計：スキーマバージョン不一致時はHive全削除→Firestoreから自動再同期
   Future<void> _runMigrationIfNeeded() async {
     final prefs = await SharedPreferences.getInstance();
-    final currentVersion = prefs.getInt(_schemaVersionKey) ?? 0;
+    if (!prefs.containsKey(_schemaVersionKey)) {
+      await prefs.setInt(_schemaVersionKey, _currentSchemaVersion);
+      Log.info(
+          '🆕 Hive schema version未保存のため現在バージョンを保存: $_currentSchemaVersion');
+      return;
+    }
+
+    final currentVersion =
+        prefs.getInt(_schemaVersionKey) ?? _currentSchemaVersion;
     Log.info(
         '🔄 Current Hive schema version: $currentVersion, App schema version: $_currentSchemaVersion');
 

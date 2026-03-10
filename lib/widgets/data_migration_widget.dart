@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/app_logger.dart';
 import '../services/data_version_service.dart';
 import '../services/user_preferences_service.dart';
@@ -370,6 +371,15 @@ class DataMigrationNotifier extends StateNotifier<bool> {
   /// マイグレーションが必要かチェック
   Future<bool> checkMigrationNeeded() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!prefs.containsKey('data_version')) {
+        await UserPreferencesService.saveDataVersion(
+            DataVersionService.currentDataVersion);
+        Log.info('🆕 data_version未保存のため現在バージョンを保存して終了');
+        state = false;
+        return false;
+      }
+
       final savedVersion = await UserPreferencesService.getDataVersion();
       final currentVersion = DataVersionService.currentDataVersion;
 
