@@ -313,8 +313,29 @@ class HybridSharedListRepository implements SharedListRepository {
       SharedList? hiveList, SharedList firestoreList) {
     if (hiveList == null) return true;
 
-    // アイテム数で簡易比較（実際のアプリでは更新日時を使用すべき）
+    final timestampComparison =
+        _compareUpdatedAt(firestoreList.updatedAt, hiveList.updatedAt);
+
+    if (timestampComparison != 0) {
+      return timestampComparison > 0;
+    }
+
+    // タイムスタンプが同じ場合のみ保守的にFirestoreを優先する。
     return firestoreList.items.length != hiveList.items.length;
+  }
+
+  /// updatedAt の比較。
+  ///
+  /// 戻り値:
+  /// - `> 0`: left の方が新しい
+  /// - `< 0`: right の方が新しい
+  /// - `0`: 同一または比較不能
+  int _compareUpdatedAt(DateTime? left, DateTime? right) {
+    if (left == null && right == null) return 0;
+    if (left != null && right == null) return 1;
+    if (left == null && right != null) return -1;
+
+    return left!.compareTo(right!);
   }
 
   // =================================================================
@@ -338,9 +359,35 @@ class HybridSharedListRepository implements SharedListRepository {
 
       for (final list in localLists) {
         try {
-          await _firestoreRepo!.updateSharedList(list);
-          developer.log(
-              '✅ [HYBRID_LIST] リスト復旧同期完了: ${list.listName} (${list.listId})');
+          final firestoreList =
+              await _firestoreRepo!.getSharedListById(list.listId);
+
+          if (firestoreList == null) {
+            await _firestoreRepo!.updateSharedList(list);
+            developer.log(
+                '✅ [HYBRID_LIST] Firestore未存在のためHive→Firestore復旧同期: ${list.listName} (${list.listId})');
+            continue;
+          }
+
+          final timestampComparison =
+              _compareUpdatedAt(list.updatedAt, firestoreList.updatedAt);
+
+          if (timestampComparison > 0) {
+            await _firestoreRepo!.updateSharedList(list);
+            developer.log(
+                '✅ [HYBRID_LIST] Hiveの方が新しいためFirestoreへ反映: ${list.listName} (${list.listId})');
+            continue;
+          }
+
+          if (_shouldUpdateFromFirestore(list, firestoreList)) {
+            await _hiveRepo.updateSharedList(firestoreList);
+            developer.log(
+                '✅ [HYBRID_LIST] Firestoreの方が新しいためHiveへ反映: ${firestoreList.listName} (${firestoreList.listId})');
+            continue;
+          }
+
+          developer
+              .log('ℹ️ [HYBRID_LIST] 同期不要: ${list.listName} (${list.listId})');
         } catch (e) {
           developer.log(
               '⚠️ [HYBRID_LIST] リスト復旧同期失敗: ${list.listName} (${list.listId}) - $e');

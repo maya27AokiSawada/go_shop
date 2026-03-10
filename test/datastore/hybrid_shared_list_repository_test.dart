@@ -103,6 +103,12 @@ class MockHiveSharedListRepository extends Mock
         returnValue: Future<SharedList>.value(_dummyList),
       ) as Future<SharedList>;
 
+  @override
+  List<SharedList> getAllLists() => super.noSuchMethod(
+        Invocation.method(#getAllLists, []),
+        returnValue: <SharedList>[],
+      ) as List<SharedList>;
+
   // --- New Multi-List methods ---
   @override
   Future<SharedList> createSharedList({
@@ -529,6 +535,7 @@ SharedList _makeList({
   String ownerUid = 'owner-1',
   String groupName = 'テストグループ',
   Map<String, SharedItem>? items,
+  DateTime? updatedAt,
 }) {
   return SharedList(
     ownerUid: ownerUid,
@@ -538,7 +545,7 @@ SharedList _makeList({
     listName: listName,
     items: items ?? {},
     createdAt: DateTime(2025, 1, 1),
-    updatedAt: DateTime(2025, 1, 1),
+    updatedAt: updatedAt ?? DateTime(2025, 1, 1),
   );
 }
 
@@ -1351,6 +1358,88 @@ void main() {
       expect(results.length, equals(2));
       expect(results[0]?.listName, equals('Watch1'));
       expect(results[1]?.listName, equals('Watch2'));
+    });
+  });
+
+  // ================================================================
+  // forceSyncBidirectional / syncOnNetworkRecovery
+  // ================================================================
+  group('forceSyncBidirectional', () {
+    late MockHiveSharedListRepository mockHive;
+    late MockFirestoreSharedListRepository mockFirestore;
+    late MockListNotificationBatchService mockNotification;
+    late MockRef mockRef;
+    late HybridSharedListRepository repo;
+
+    setUp(() {
+      mockHive = MockHiveSharedListRepository();
+      mockFirestore = MockFirestoreSharedListRepository();
+      mockNotification = MockListNotificationBatchService();
+      mockRef = MockRef(mockNotification);
+      repo = HybridSharedListRepository(
+        mockRef,
+        hiveRepo: mockHive,
+        firestoreRepo: mockFirestore,
+      );
+    });
+
+    test('Hiveの方が新しい時: Firestoreへpushする', () async {
+      final localList = _makeList(
+        listId: 'sync-local-newer',
+        updatedAt: DateTime(2025, 1, 2),
+      );
+      final firestoreList = _makeList(
+        listId: 'sync-local-newer',
+        updatedAt: DateTime(2025, 1, 1),
+      );
+
+      when(mockHive.getAllLists()).thenReturn([localList]);
+      when(mockFirestore.getSharedListById('sync-local-newer'))
+          .thenAnswer((_) async => firestoreList);
+
+      await repo.forceSyncBidirectional();
+
+      expect(mockFirestore.updateSharedListCalls, hasLength(1));
+      expect(mockFirestore.updateSharedListCalls.single.listId,
+          'sync-local-newer');
+      expect(mockHive.updateSharedListCalls, isEmpty);
+    });
+
+    test('Firestoreの方が新しい時: Hiveへpullする', () async {
+      final localList = _makeList(
+        listId: 'sync-remote-newer',
+        updatedAt: DateTime(2025, 1, 1),
+      );
+      final firestoreList = _makeList(
+        listId: 'sync-remote-newer',
+        listName: 'Firestore最新版',
+        updatedAt: DateTime(2025, 1, 2),
+      );
+
+      when(mockHive.getAllLists()).thenReturn([localList]);
+      when(mockFirestore.getSharedListById('sync-remote-newer'))
+          .thenAnswer((_) async => firestoreList);
+
+      await repo.forceSyncBidirectional();
+
+      expect(mockFirestore.updateSharedListCalls, isEmpty);
+      expect(mockHive.updateSharedListCalls, hasLength(1));
+      expect(mockHive.updateSharedListCalls.single.listName, 'Firestore最新版');
+    });
+
+    test('Firestoreに未存在時: Hiveのリストを作成相当でpushする', () async {
+      final localList = _makeList(listId: 'sync-missing-remote');
+
+      when(mockHive.getAllLists()).thenReturn([localList]);
+      when(mockFirestore.getSharedListById('sync-missing-remote'))
+          .thenAnswer((_) async => null);
+
+      await repo.forceSyncBidirectional();
+
+      expect(mockFirestore.updateSharedListCalls, hasLength(1));
+      expect(mockFirestore.updateSharedListCalls.single.listId,
+          'sync-missing-remote');
+      expect(mockHive.updateSharedListCalls, isEmpty);
     });
   });
 
