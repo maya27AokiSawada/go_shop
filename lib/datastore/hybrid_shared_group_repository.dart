@@ -798,6 +798,20 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
     });
   }
 
+  /// updatedAt の比較。
+  ///
+  /// 戻り値:
+  /// - `> 0`: left の方が新しい
+  /// - `< 0`: right の方が新しい
+  /// - `0`: 同一または比較不能
+  int _compareUpdatedAt(DateTime? left, DateTime? right) {
+    if (left == null && right == null) return 0;
+    if (left != null && right == null) return 1;
+    if (left == null && right != null) return -1;
+
+    return left!.compareTo(right!);
+  }
+
   // =================================================================
   // 手動同期・管理機能
   // =================================================================
@@ -854,10 +868,42 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
 
       for (final group in localGroups) {
         try {
-          await _firestoreRepo!
-              .updateGroup(group.groupId, group)
-              .timeout(const Duration(seconds: 10));
-          AppLogger.info('📤 Pushed to Firestore: ${group.groupName}');
+          SharedGroup? firestoreGroup;
+
+          try {
+            firestoreGroup = await _firestoreRepo!
+                .getGroupById(group.groupId)
+                .timeout(const Duration(seconds: 10));
+          } catch (_) {
+            firestoreGroup = null;
+          }
+
+          if (firestoreGroup == null) {
+            await _firestoreRepo!
+                .updateGroup(group.groupId, group)
+                .timeout(const Duration(seconds: 10));
+            AppLogger.info('📤 Firestore未存在のためpush: ${group.groupName}');
+            continue;
+          }
+
+          final timestampComparison =
+              _compareUpdatedAt(group.updatedAt, firestoreGroup.updatedAt);
+
+          if (timestampComparison > 0) {
+            await _firestoreRepo!
+                .updateGroup(group.groupId, group)
+                .timeout(const Duration(seconds: 10));
+            AppLogger.info('📤 Hiveの方が新しいためpush: ${group.groupName}');
+            continue;
+          }
+
+          if (timestampComparison < 0) {
+            await _hiveRepo.saveGroup(firestoreGroup);
+            AppLogger.info('📥 Firestoreの方が新しいためHiveへ反映: ${group.groupName}');
+            continue;
+          }
+
+          AppLogger.info('ℹ️ 同期不要: ${group.groupName}');
         } on TimeoutException catch (e) {
           AppLogger.info('⏱️ Push timeout for ${group.groupName}: $e');
           final networkMonitor = _ref.read(networkMonitorProvider);

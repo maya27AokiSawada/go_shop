@@ -49,6 +49,12 @@ const _dummyGroup = SharedGroup(
 class MockHiveSharedGroupRepository extends Mock
     implements HiveSharedGroupRepository {
   @override
+  Future<void> saveGroup(SharedGroup group) => super.noSuchMethod(
+        Invocation.method(#saveGroup, [group]),
+        returnValue: Future<void>.value(),
+      ) as Future<void>;
+
+  @override
   Future<SharedGroup> getGroupById(String groupId) => super.noSuchMethod(
         Invocation.method(#getGroupById, [groupId]),
         returnValue: Future<SharedGroup>.value(_dummyGroup),
@@ -268,6 +274,7 @@ SharedGroup _makeGroup({
   String groupName = 'テストグループ',
   String ownerUid = 'owner-uid',
   List<SharedGroupMember>? members,
+  DateTime? updatedAt,
 }) {
   return SharedGroup(
     groupId: groupId,
@@ -285,6 +292,7 @@ SharedGroup _makeGroup({
           ),
         ],
     allowedUid: [ownerUid],
+    updatedAt: updatedAt,
   );
 }
 
@@ -563,6 +571,100 @@ void main() {
       // saveGroup called: (1) Hive-first + (2) Firestore diff sync back
       verify(mockHive.saveGroup(group)).called(1);
       verify(mockHive.saveGroup(updatedGroup)).called(1);
+    });
+  });
+
+  // ================================================================
+  // pushLocalChangesToFirestore — timestamp-based recovery sync
+  // ================================================================
+  group('pushLocalChangesToFirestore', () {
+    late MockHiveSharedGroupRepository mockHive;
+    late MockFirestoreSharedGroupRepository mockFirestore;
+    late MockRef mockRef;
+
+    setUp(() {
+      mockHive = MockHiveSharedGroupRepository();
+      mockFirestore = MockFirestoreSharedGroupRepository();
+      mockRef = MockRef();
+    });
+
+    test('Hiveの方が新しい時: Firestoreへpushする', () async {
+      final localGroup = _makeGroup(
+        groupId: 'sync-group-local-newer',
+        updatedAt: DateTime(2025, 1, 2),
+      );
+      final firestoreGroup = _makeGroup(
+        groupId: 'sync-group-local-newer',
+        updatedAt: DateTime(2025, 1, 1),
+      );
+
+      when(mockHive.getAllGroups()).thenAnswer((_) async => [localGroup]);
+      when(mockFirestore.getGroupById('sync-group-local-newer'))
+          .thenAnswer((_) async => firestoreGroup);
+      when(mockFirestore.updateGroup('sync-group-local-newer', localGroup))
+          .thenAnswer((_) async => localGroup);
+
+      final repo = HybridSharedGroupRepository(
+        mockRef,
+        hiveRepo: mockHive,
+        firestoreRepo: mockFirestore,
+      );
+
+      await repo.pushLocalChangesToFirestore();
+
+      verify(mockFirestore.updateGroup('sync-group-local-newer', localGroup))
+          .called(1);
+      verifyNever(mockHive.saveGroup(firestoreGroup));
+    });
+
+    test('Firestoreの方が新しい時: Hiveへpullする', () async {
+      final localGroup = _makeGroup(
+        groupId: 'sync-group-remote-newer',
+        updatedAt: DateTime(2025, 1, 1),
+      );
+      final firestoreGroup = _makeGroup(
+        groupId: 'sync-group-remote-newer',
+        groupName: 'Firestore最新版',
+        updatedAt: DateTime(2025, 1, 2),
+      );
+
+      when(mockHive.getAllGroups()).thenAnswer((_) async => [localGroup]);
+      when(mockFirestore.getGroupById('sync-group-remote-newer'))
+          .thenAnswer((_) async => firestoreGroup);
+      when(mockHive.saveGroup(firestoreGroup)).thenAnswer((_) async {});
+
+      final repo = HybridSharedGroupRepository(
+        mockRef,
+        hiveRepo: mockHive,
+        firestoreRepo: mockFirestore,
+      );
+
+      await repo.pushLocalChangesToFirestore();
+
+      verify(mockHive.saveGroup(firestoreGroup)).called(1);
+      verifyNever(
+          mockFirestore.updateGroup('sync-group-remote-newer', localGroup));
+    });
+
+    test('Firestoreに未存在時: Hiveのグループをpushする', () async {
+      final localGroup = _makeGroup(groupId: 'sync-group-missing-remote');
+
+      when(mockHive.getAllGroups()).thenAnswer((_) async => [localGroup]);
+      when(mockFirestore.getGroupById('sync-group-missing-remote'))
+          .thenThrow(Exception('Group not found'));
+      when(mockFirestore.updateGroup('sync-group-missing-remote', localGroup))
+          .thenAnswer((_) async => localGroup);
+
+      final repo = HybridSharedGroupRepository(
+        mockRef,
+        hiveRepo: mockHive,
+        firestoreRepo: mockFirestore,
+      );
+
+      await repo.pushLocalChangesToFirestore();
+
+      verify(mockFirestore.updateGroup('sync-group-missing-remote', localGroup))
+          .called(1);
     });
   });
 
