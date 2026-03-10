@@ -17,7 +17,9 @@ class UserPreferencesService {
 
   // UserSettings相当のキー（Hive Boxから移行）
   static const String _keyLastUsedGroupId = 'last_used_group_id';
-  static const String _keyLastUsedSharedListId = 'last_used_shopping_list_id';
+  static const String _keyLastUsedSharedListId = 'last_used_shared_list_id';
+  static const String _legacyKeyLastUsedSharedListId =
+      'last_used_shopping_list_id';
   static const String _keyAppMode = 'app_mode'; // 0=shopping, 1=todo
   static const String _keyEnableListNotifications = 'enable_list_notifications';
 
@@ -344,7 +346,9 @@ class UserPreferencesService {
     return await ErrorHandler.handleAsync(
           operation: () async {
             final prefs = await SharedPreferences.getInstance();
-            final listId = prefs.getString(_keyLastUsedSharedListId) ?? '';
+            final listId = prefs.getString(_keyLastUsedSharedListId) ??
+                prefs.getString(_legacyKeyLastUsedSharedListId) ??
+                '';
             Log.info('📱 最後に使用したリストID: $listId');
             return listId;
           },
@@ -361,6 +365,9 @@ class UserPreferencesService {
             final prefs = await SharedPreferences.getInstance();
             final success =
                 await prefs.setString(_keyLastUsedSharedListId, listId);
+            if (success) {
+              await prefs.remove(_legacyKeyLastUsedSharedListId);
+            }
             Log.info('💾 最後に使用したリストID保存: $listId - 成功: $success');
             return success;
           },

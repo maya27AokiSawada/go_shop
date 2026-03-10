@@ -30,7 +30,7 @@ StreamBuilder<QuerySnapshot>(
 
 ### 1. Firestore構造（変更なし）
 
-```
+```text
 /SharedGroups/{groupId}/sharedLists/{listId}
   ├─ listId: String
   ├─ listName: String
@@ -88,9 +88,9 @@ Stream<SharedList?> watchSharedList(String groupId, String listId) {
 
 #### 2-2. UI層（StreamBuilder）
 
-**shopping_list_page_v2.dart**を修正:
+**shared_list_page.dart**を修正:
 
-**パターンA（推奨）: StreamBuilderを直接使用**
+#### パターンA（推奨）: StreamBuilderを直接使用
 
 ```dart
 // _SharedItemsListWidget の build メソッド内
@@ -131,10 +131,10 @@ Widget build(BuildContext context, WidgetRef ref) {
 }
 ```
 
-**パターンB: StreamProviderを使用（より複雑）**
+#### パターンB: StreamProviderを使用（より複雑）
 
 ```dart
-// lib/providers/shopping_list_provider.dart に追加
+// lib/providers/current_list_provider.dart に追加
 final liveSharedListProvider = StreamProvider.family<SharedList?, (String, String)>(
   (ref, params) {
     final (groupId, listId) = params;
@@ -143,7 +143,7 @@ final liveSharedListProvider = StreamProvider.family<SharedList?, (String, Strin
   },
 );
 
-// shopping_list_page_v2.dart で使用
+// shared_list_page.dart で使用
 final liveListAsync = ref.watch(liveSharedListProvider((selectedGroupId, currentList.listId)));
 return liveListAsync.when(
   data: (liveList) => /* UI */,
@@ -154,7 +154,7 @@ return liveListAsync.when(
 
 ### 3. データフロー
 
-```
+```text
 [デバイスA] アイテム追加
     ↓
 Hiveに保存（即座）
@@ -266,7 +266,7 @@ class _SharedItemsListWidgetState extends ConsumerState<_SharedItemsListWidget>
 
 1. `FirestoreSharedListRepository.watchSharedList()` メソッド追加
 2. `HybridSharedListRepository.watchSharedList()` メソッド追加
-3. `shopping_list_page_v2.dart`の`_SharedItemsListWidget`を`StreamBuilder`に変更
+3. `shared_list_page.dart`の`_SharedItemsListWidget`を`StreamBuilder`に変更
 
 #### Phase 2（最適化）
 
@@ -338,7 +338,7 @@ class _SharedItemsListWidgetState extends ConsumerState<_SharedItemsListWidget>
 
 - [ ] FirestoreのSharedListコレクション構造を確認
 - [ ] 現在のFirestore Rulesで`sharedLists`サブコレクションの読み取り権限を確認
-- [ ] `shopping_list_repository.dart`インターフェースに`watchSharedList`メソッドを追加
+- [ ] `shared_list_repository.dart`インターフェースに`watchSharedList`メソッドを追加
 - [ ] Phase 1の実装範囲を最終確認
 - [ ] テスト用のグループ・リストを準備
 - [ ] Firestore使用量の現状を確認（Firebase Console）

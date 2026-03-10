@@ -17,7 +17,7 @@
 - [authentication_flow_analysis.md](authentication_flow_analysis.md)
 - [crud_workflow_architecture.md](crud_workflow_architecture.md)
 - [firestore_architecture.md](firestore_architecture.md)
-- [shopping_list_realtime_sync_design.md](shopping_list_realtime_sync_design.md)
+- [shared_list_realtime_sync_design.md](shared_list_realtime_sync_design.md)
 - [signin_state_analysis.md](signin_state_analysis.md)
 - [sync_architecture.md](sync_architecture.md)
 - [sync_confirmation_system.md](sync_confirmation_system.md)

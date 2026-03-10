@@ -16,7 +16,7 @@ final _logger = Logger();
 /// このスクリプトは以下のコレクションをクリアします:
 /// - users
 /// - purchase_groups
-/// - shopping_lists
+/// - sharedLists
 /// - invitations
 /// - その他全てのコレクション
 
@@ -35,7 +35,7 @@ Future<void> main() async {
     final collections = [
       'users',
       'purchase_groups',
-      'shopping_lists',
+      'sharedLists',
       'invitations',
       'accepted_invitations',
       'user_settings',

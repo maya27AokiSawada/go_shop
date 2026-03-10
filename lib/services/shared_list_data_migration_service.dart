@@ -126,7 +126,7 @@ class SharedListDataMigrationService {
             .doc(user.uid)
             .collection('groups')
             .doc(group.groupId)
-            .collection('shopping_lists');
+            .collection('sharedLists');
 
         final listsSnapshot = await listsCollection.get();
 
@@ -230,7 +230,7 @@ class SharedListDataMigrationService {
           .collection('users')
           .doc(userId)
           .collection('backups')
-          .doc('shopping_lists_migration')
+          .doc('shared_lists_migration')
           .collection(groupId)
           .doc(listId);
 
@@ -262,7 +262,7 @@ class SharedListDataMigrationService {
           .collection('users')
           .doc(user.uid)
           .collection('backups')
-          .doc('shopping_lists_migration')
+          .doc('shared_lists_migration')
           .collection('all');
 
       final backupSnapshot = await backupCollection.get();
@@ -278,7 +278,7 @@ class SharedListDataMigrationService {
             .doc(user.uid)
             .collection('groups')
             .doc(groupId)
-            .collection('shopping_lists')
+            .collection('sharedLists')
             .doc(listId);
 
         // バックアップメタデータを削除してから復元
