@@ -90,6 +90,14 @@ class AppLogger {
   /// - Log.error('エラーメッセージ', e)
   /// - Log.error('エラーメッセージ', e, stackTrace)
   static void error(String message, [dynamic error, StackTrace? stackTrace]) {
+    // Backward-compatible guard: some older call sites pass StackTrace as the
+    // second positional argument. The logger package rejects a StackTrace in
+    // the error slot, so normalize it here instead of crashing while logging.
+    if (error is StackTrace && stackTrace == null) {
+      stackTrace = error;
+      error = null;
+    }
+
     if (error != null && stackTrace != null) {
       _instance.e(message, error: error, stackTrace: stackTrace);
     } else if (error != null) {

@@ -49,7 +49,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _hasSeenOffline = false;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final pageIndex = ref.watch(pageIndexProvider);
     // AppMode変更を監視して自動的に再構築
     ref.watch(appModeNotifierProvider);

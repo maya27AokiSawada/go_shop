@@ -329,7 +329,7 @@ class _SharedItemTile extends ConsumerWidget {
             groupId: list.groupId,
           );
     } catch (e, stackTrace) {
-      Log.error('❌ 購入状態保存エラー: $e', stackTrace);
+      Log.error('❌ 購入状態保存エラー: $e', e, stackTrace);
       if (context.mounted) {
         SnackBarHelper.showError(context, '購入状態の更新に失敗しました: $e');
       }
@@ -380,7 +380,7 @@ class _SharedItemTile extends ConsumerWidget {
                   SnackBarHelper.showSuccess(context, '「${item.name}」を削除しました');
                 }
               } catch (e, stackTrace) {
-                Log.error('❌ アイテム削除エラー: $e', stackTrace);
+                Log.error('❌ アイテム削除エラー: $e', e, stackTrace);
                 if (dialogContext.mounted) {
                   Navigator.of(dialogContext).pop();
                 }
