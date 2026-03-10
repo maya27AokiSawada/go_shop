@@ -236,6 +236,110 @@ catch (e, stackTrace) {
 
 **Why**: 障害時の最後の砦はログとエラーハンドリング。ここで二次例外が出ると、本来の根本原因が隠れて Crashlytics には「ロガーが落ちた」事実しか残らない。catch / finally / logger は「絶対に落ちないコード」として扱うこと。
 
+### 8. 反復操作の成功スナックバーを長く出しすぎるな
+
+**Anti-pattern**:
+
+```dart
+// ❌ アイテム連続追加なのに成功メッセージが長く残る
+ScaffoldMessenger.of(context).showSnackBar(
+  const SnackBar(
+    content: Text('アイテムを追加しました'),
+    duration: Duration(seconds: 2),
+  ),
+);
+```
+
+**Correct pattern**:
+
+```dart
+// ✅ 反復操作では短時間表示にして操作テンポを優先
+ScaffoldMessenger.of(context).showSnackBar(
+  const SnackBar(
+    content: Text('追加しました'),
+    duration: Duration(milliseconds: 600),
+  ),
+);
+```
+
+**Why**: アイテム追加のような高頻度操作では、成功フィードバックが長すぎるだけで操作感が重くなる。特に連続追加では「確認メッセージ」より「次の入力にすぐ移れること」が UX 上重要である。
+
+---
+
+## Recent Implementations (2026-03-10)
+
+### 1. 初回起動時の誤マイグレーション表示修正 ✅
+
+**Purpose**: 再インストール直後や初回起動時に `v1 → v3` マイグレーション画面が誤表示される問題を修正。
+
+**Root Cause**: `data_version` / `hive_schema_version` の未保存状態を旧版として扱っていた。
+
+**Solution**:
+
+```dart
+// ✅ 未保存 = 初回起動。現在版を書き込んで終了
+if (!prefs.containsKey(_dataVersionKey)) {
+  await prefs.setInt(_dataVersionKey, _currentDataVersion);
+  return _currentDataVersion;
+}
+```
+
+**Modified Files**:
+
+- `lib/services/data_version_service.dart`
+- `lib/widgets/data_migration_widget.dart`
+- `lib/services/user_specific_hive_service.dart`
+
+**Commit**: `ed8cb25`
+
+---
+
+### 2. 削除エラー経路のログ二次クラッシュ対策 ✅
+
+**Purpose**: `Log.error()` に `StackTrace` が誤渡しされた場合でも二次クラッシュしないようにする。
+
+**Solution**:
+
+```dart
+// ✅ 後方互換ガード
+if (error is StackTrace && stackTrace == null) {
+  stackTrace = error;
+  error = null;
+}
+```
+
+**Modified Files**:
+
+- `lib/pages/shared_list_page.dart`
+- `lib/utils/app_logger.dart`
+- `lib/screens/home_screen.dart`
+
+**Commit**: `812eea7`
+
+---
+
+### 3. 実機テスト重点項目の整理 ✅
+
+**Confirmed on device**:
+
+- アイテム削除でハングしない
+- グループ / リスト / アイテムの基本 CRUD
+- 招待で 3 人グループ作成まで
+- グループ共有ホワイトボードの他端末反映
+- ホワイトボードプレビュー表示
+
+**Next focus**:
+
+- ネットワーク回復同期
+- 削除トゥームストーン優先
+- 再インストール直後復元
+- アイテム追加成功スナックバーの短時間化
+
+**Related Files**:
+
+- `docs/daily_reports/2026-03/daily_report_20260310.md`
+- `docs/daily_reports/2026-03/tomorrow_device_test_checklist_20260311.md`
+
 ---
 
 ## Recent Implementations (2026-03-06)
