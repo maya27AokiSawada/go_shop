@@ -438,9 +438,6 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
 
         if (mounted && context.mounted) {
           Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('「$name」を追加しました')),
-          );
         }
       } else {
         // 更新
