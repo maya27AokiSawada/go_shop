@@ -320,7 +320,17 @@ class _HomePageState extends ConsumerState<HomePage> {
       AppLogger.info('✅ [SIGNIN] allGroupsProvider再構築完了');
 
       // 🔥 NEW: グループが0個の場合は自動的にグループページ（タブ1）に遷移
-      final allGroups = await ref.read(allGroupsProvider.future);
+      var allGroups = await ref.read(allGroupsProvider.future);
+      if (allGroups.isEmpty) {
+        AppLogger.info('⏳ [SIGNIN] 初回判定で0件 - Firestore復元完了確認を再実行');
+        ref.invalidate(forceSyncProvider);
+        await ref.read(forceSyncProvider.future);
+        await ref.read(allGroupsProvider.notifier).cleanupInvalidHiveGroups();
+        await ref.read(allGroupsProvider.notifier).refresh();
+        allGroups = await ref.read(allGroupsProvider.future);
+        AppLogger.info('📊 [SIGNIN] Firestore復元後のグループ数: ${allGroups.length}件');
+      }
+
       if (allGroups.isEmpty) {
         AppLogger.info('📋 [SIGNIN] グループ0個 → グループページ（タブ1）に遷移');
         ProviderScope.containerOf(context)

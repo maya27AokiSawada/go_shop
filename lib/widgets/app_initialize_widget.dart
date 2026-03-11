@@ -16,6 +16,7 @@ import '../flavors.dart';
 import '../config/app_mode_config.dart';
 import '../providers/user_settings_provider.dart';
 import '../providers/shared_group_provider.dart'; // forceSyncProvider
+import '../providers/hive_provider.dart';
 import '../models/shared_group.dart';
 
 /// アプリ初期化を管理するウィジェット
@@ -208,22 +209,34 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
       if (currentUser != null &&
           (F.appFlavor == Flavor.prod || F.appFlavor == Flavor.dev)) {
         try {
+          final groupBox = ref.read(SharedGroupBoxProvider);
+          final needsColdStartRestore = groupBox.isEmpty;
           final hasGroupNotifications =
               await notificationService.hasUnreadGroupNotifications();
 
-          if (hasGroupNotifications) {
+          if (hasGroupNotifications || needsColdStartRestore) {
             setState(() {
               _initializationStatus = 'グループデータを同期中...';
             });
 
-            Log.info('🔔 [APP_INIT] グループ通知検出 → Firestore同期実行');
+            if (needsColdStartRestore) {
+              Log.info('🚀 [APP_INIT] 認証済み cold start + ローカル空 → Firestore復元実行');
+            } else {
+              Log.info('🔔 [APP_INIT] グループ通知検出 → Firestore同期実行');
+            }
+
             ref.invalidate(forceSyncProvider);
             await ref.read(forceSyncProvider.future);
+
+            await ref
+                .read(allGroupsProvider.notifier)
+                .cleanupInvalidHiveGroups();
+            await ref.read(allGroupsProvider.notifier).refresh();
 
             // 🔥 同期完了後に最終同期時刻を更新
             await notificationService.updateLastSyncTime();
 
-            Log.info('✅ [APP_INIT] Firestore同期完了');
+            Log.info('✅ [APP_INIT] Firestore復元/同期完了');
           } else {
             Log.info('✅ [APP_INIT] 新規通知なし → Hiveデータ使用（同期スキップ）');
           }

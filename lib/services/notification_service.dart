@@ -966,6 +966,33 @@ class NotificationService {
     }
   }
 
+  /// グループ名変更通知を送信
+  Future<void> sendGroupRenamedNotification({
+    required String groupId,
+    required String oldName,
+    required String newName,
+    required String renamerName,
+  }) async {
+    try {
+      AppLogger.info('✏️ [NOTIFICATION] グループ名変更通知送信: $oldName → $newName');
+
+      await sendNotificationToGroup(
+        groupId: groupId,
+        type: NotificationType.groupUpdated,
+        message: '$renamerName が「$oldName」を「$newName」に変更しました',
+        metadata: {
+          'oldGroupName': oldName,
+          'newGroupName': newName,
+          'renamerName': renamerName,
+        },
+      );
+
+      AppLogger.info('✅ [NOTIFICATION] グループ名変更通知送信完了');
+    } catch (e) {
+      AppLogger.error('❌ [NOTIFICATION] グループ名変更通知エラー: $e');
+    }
+  }
+
   /// グループ削除通知を送信
   Future<void> sendGroupDeletedNotification({
     required String groupId,

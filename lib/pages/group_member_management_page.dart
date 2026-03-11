@@ -29,15 +29,47 @@ class GroupMemberManagementPage extends ConsumerStatefulWidget {
 class _GroupMemberManagementPageState
     extends ConsumerState<GroupMemberManagementPage> {
   // 🔥 REMOVED: デフォルトグループ機能廃止
+  late final TextEditingController _groupNameController;
+  late String _displayGroupName;
+
+  @override
+  void initState() {
+    super.initState();
+    _displayGroupName = widget.group.groupName;
+    _groupNameController = TextEditingController(text: widget.group.groupName);
+  }
+
+  @override
+  void dispose() {
+    _groupNameController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     // allGroupsProviderから対象グループを取得（リアルタイム更新対応）
     final allGroupsAsync = ref.watch(allGroupsProvider);
 
+    allGroupsAsync.whenData((groups) {
+      final latestGroup = groups.firstWhere(
+        (g) => g.groupId == widget.group.groupId,
+        orElse: () => widget.group,
+      );
+
+      if (_displayGroupName != latestGroup.groupName) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          setState(() {
+            _displayGroupName = latestGroup.groupName;
+            _groupNameController.text = latestGroup.groupName;
+          });
+        });
+      }
+    });
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.group.groupName),
+        title: Text(_displayGroupName),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         actions: [
@@ -157,7 +189,7 @@ class _GroupMemberManagementPageState
               const Text('グループ名: '),
               Expanded(
                 child: TextField(
-                  controller: TextEditingController(text: group.groupName),
+                  controller: _groupNameController,
                   decoration: const InputDecoration(
                     isDense: true,
                     contentPadding:
@@ -573,16 +605,25 @@ class _GroupMemberManagementPageState
     }
 
     try {
+      final trimmedName = newName.trim();
+
       // グループ名を更新
-      final updatedGroup = group.copyWith(groupName: newName);
+      final updatedGroup = group.copyWith(groupName: trimmedName);
       await ref.read(SharedGroupRepositoryProvider).updateGroup(
             group.groupId,
             updatedGroup,
           );
 
-      AppLogger.info('✅ [GROUP_MGMT] グループ名更新完了: $newName');
+      if (!mounted) return;
+
+      setState(() {
+        _displayGroupName = trimmedName;
+        _groupNameController.text = trimmedName;
+      });
+
+      AppLogger.info('✅ [GROUP_MGMT] グループ名更新完了: $trimmedName');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('グループ名を「$newName」に変更しました')),
+        SnackBar(content: Text('グループ名を「$trimmedName」に変更しました')),
       );
 
       // 🔥 修正: SnackBar表示後にinvalidate（プロバイダーを更新）

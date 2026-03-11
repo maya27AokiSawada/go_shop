@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart'; // ValueNotifier用
 import 'dart:async';
 import 'dart:developer' as developer;
@@ -65,6 +66,8 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
 
   // 初期化進捗コールバック（UI表示用）
   Function(InitializationStatus, String?)? _onInitializationProgress;
+  Future<void>? _firestoreInitializationFuture;
+  Future<void>? _safeInitializationWaitFuture;
 
   HybridSharedGroupRepository(
     this._ref, {
@@ -135,11 +138,53 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
 
   /// 完全にクラッシュ防止のFirestore初期化（非同期・安全）
   Future<void> _safeAsyncFirestoreInitialization() async {
-    if (_isInitializing) {
-      AppLogger.info('⚠️ [HYBRID_REPO] Firestore初期化既に進行中 - スキップ');
+    if (_firestoreRepo != null) {
       return;
     }
 
+    final existingFuture = _firestoreInitializationFuture;
+    if (existingFuture != null) {
+      AppLogger.info('⚠️ [HYBRID_REPO] Firestore初期化既に進行中 - 完了待機');
+      await existingFuture;
+      return;
+    }
+
+    final initializationFuture = _performFirestoreInitialization();
+    _firestoreInitializationFuture = initializationFuture;
+
+    try {
+      await initializationFuture;
+    } finally {
+      if (identical(_firestoreInitializationFuture, initializationFuture)) {
+        _firestoreInitializationFuture = null;
+      }
+    }
+  }
+
+  bool _shouldRecoverFirestoreForAuthenticatedUser() {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    return currentUser != null && _firestoreRepo == null;
+  }
+
+  Future<void> _ensureFirestoreReadyForAuthenticatedUser() async {
+    if (!_shouldRecoverFirestoreForAuthenticatedUser()) {
+      return;
+    }
+
+    final currentUser = FirebaseAuth.instance.currentUser;
+    AppLogger.info(
+        '🔄 [HYBRID_REPO] 認証済みユーザーのFirestore再初期化開始: ${AppLogger.maskUserId(currentUser?.uid)}');
+
+    await _safeAsyncFirestoreInitialization();
+
+    if (_firestoreRepo != null) {
+      AppLogger.info('✅ [HYBRID_REPO] 認証済みユーザーのFirestore再初期化完了');
+    } else {
+      AppLogger.warning('⚠️ [HYBRID_REPO] Firestore再初期化後もHiveのみモード継続');
+    }
+  }
+
+  Future<void> _performFirestoreInitialization() async {
     _isInitializing = true;
     AppLogger.info('🔄 [HYBRID_REPO] 安全なFirestore初期化開始...');
 
@@ -193,6 +238,30 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
 
   /// 初期化完了まで安全に待機（ローディングスピナー表示推奨）
   Future<void> waitForSafeInitialization() async {
+    if (_isInitialized) {
+      await _ensureFirestoreReadyForAuthenticatedUser();
+      return;
+    }
+
+    final existingWaitFuture = _safeInitializationWaitFuture;
+    if (existingWaitFuture != null) {
+      await existingWaitFuture;
+      return;
+    }
+
+    final waitFuture = _performSafeInitializationWait();
+    _safeInitializationWaitFuture = waitFuture;
+
+    try {
+      await waitFuture;
+    } finally {
+      if (identical(_safeInitializationWaitFuture, waitFuture)) {
+        _safeInitializationWaitFuture = null;
+      }
+    }
+  }
+
+  Future<void> _performSafeInitializationWait() async {
     _initStartTime = DateTime.now();
     _initStatus = InitializationStatus.initializingHive;
     _notifyProgress(InitializationStatus.initializingHive, 'Hive初期化中...');
@@ -205,7 +274,7 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
 
     // Firestoreリトライ開始
     if (!_isInitialized) {
-      _attemptFirestoreInitializationWithRetry(); // awaitしない（バックグラウンド実行）
+      unawaited(_attemptFirestoreInitializationWithRetry());
     }
     int attempts = 0;
     const maxAttempts = 30; // 15秒間待機（500ms × 30）
@@ -243,24 +312,7 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
       AppLogger.info('ℹ️ [HYBRID_REPO] 初期化時エラー（回復済み）: $_initializationError');
     }
 
-    // 🔥 FIX 7: Firestore再初期化チェック
-    // アプリ起動時にFirebase Auth未復元 → _firestoreRepo=null で初期化完了した場合でも、
-    // 現在認証済みであればFirestoreを再初期化する（起動時タイミング問題対策）
-    if (_firestoreRepo == null) {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser != null) {
-        AppLogger.info(
-            '🔄 [HYBRID_REPO] 認証復帰検出（uid: ${currentUser.uid}）- Firestore再初期化試行');
-        _isInitializing = false; // ガードリセット（再入防止フラグ解除）
-        _isInitialized = false; // 初期化完了フラグリセット
-        await _safeAsyncFirestoreInitialization();
-        if (_firestoreRepo != null) {
-          AppLogger.info('✅ [HYBRID_REPO] Firestore再初期化成功！ハイブリッドモード開始');
-        } else {
-          AppLogger.warning('⚠️ [HYBRID_REPO] Firestore再初期化失敗 - Hiveのみモード継続');
-        }
-      }
-    }
+    await _ensureFirestoreReadyForAuthenticatedUser();
   }
 
   /// オンライン状態をチェック
@@ -580,7 +632,21 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
             ownerMember,
           );
           break;
-        // TODO: update, delete操作も実装
+        case 'update':
+          final group = operation.data['group'] as SharedGroup;
+          await _firestoreRepo!.updateGroup(operation.groupId, group);
+
+          final renameNotification =
+              operation.data['renameNotification'] as Map<String, dynamic>?;
+          if (renameNotification != null) {
+            await _sendGroupRenameNotifications(
+              group: group,
+              oldName: renameNotification['oldName'] as String,
+              newName: renameNotification['newName'] as String,
+              renamerName: renameNotification['renamerName'] as String,
+            );
+          }
+          break;
         default:
           throw Exception('Unknown sync operation: ${operation.type}');
       }
@@ -596,6 +662,19 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
       AppLogger.info(
           '🔍 [HYBRID UPDATE] groupId: $groupId, allowedUid: ${group.allowedUid}');
 
+      SharedGroup? previousGroup;
+      try {
+        previousGroup = await _hiveRepo.getGroupById(groupId);
+      } catch (_) {
+        previousGroup = null;
+      }
+
+      final isGroupRenamed =
+          previousGroup != null && previousGroup.groupName != group.groupName;
+      final renamerName = FirebaseAuth.instance.currentUser?.displayName ??
+          FirebaseAuth.instance.currentUser?.email ??
+          'ユーザー';
+
       // 1. Hiveを即座に更新
       await _hiveRepo.saveGroup(group);
       AppLogger.info('✅ [HYBRID UPDATE] Hive保存完了');
@@ -603,6 +682,24 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
       if (!_isOnline || _firestoreRepo == null) {
         AppLogger.info(
             '💡 [HYBRID UPDATE] Firestore同期スキップ (online=$_isOnline)');
+
+        _syncQueue.add(
+          _SyncOperation(
+            type: 'update',
+            groupId: groupId,
+            data: {
+              'group': group,
+              if (isGroupRenamed)
+                'renameNotification': {
+                  'oldName': previousGroup.groupName,
+                  'newName': group.groupName,
+                  'renamerName': renamerName,
+                },
+            },
+            timestamp: DateTime.now(),
+          ),
+        );
+        _scheduleSync();
         return group;
       }
 
@@ -615,6 +712,16 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
       try {
         final updatedGroup = await _firestoreRepo!.updateGroup(groupId, group);
         AppLogger.info('✅ [HYBRID UPDATE] Firestore同期完了');
+
+        if (isGroupRenamed) {
+          await _sendGroupRenameNotifications(
+            group: updatedGroup,
+            oldName: previousGroup.groupName,
+            newName: updatedGroup.groupName,
+            renamerName: renamerName,
+          );
+        }
+
         // Firestoreで更新された場合、差分をHiveに反映
         if (updatedGroup.hashCode != group.hashCode) {
           await _hiveRepo.saveGroup(updatedGroup);
@@ -623,6 +730,23 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
         return updatedGroup;
       } catch (e) {
         AppLogger.info('⚠️ [HYBRID UPDATE] Firestore同期失敗: $e');
+        _syncQueue.add(
+          _SyncOperation(
+            type: 'update',
+            groupId: groupId,
+            data: {
+              'group': group,
+              if (isGroupRenamed)
+                'renameNotification': {
+                  'oldName': previousGroup.groupName,
+                  'newName': group.groupName,
+                  'renamerName': renamerName,
+                },
+            },
+            timestamp: DateTime.now(),
+          ),
+        );
+        _scheduleSync();
         // Hiveは既に保存済みなので継続
         return group;
       } finally {
@@ -820,6 +944,7 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
   Future<void> forceSyncFromFirestore() async {
     // 🔥 FIX 8: サインイン後にFirestore未初期化の場合、Fix 7の再初期化ロジックを発動
     await waitForSafeInitialization();
+    await _ensureFirestoreReadyForAuthenticatedUser();
 
     if (_firestoreRepo == null) {
       AppLogger.info('🔧 Force sync skipped - Firestore not initialized');
@@ -951,6 +1076,7 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
   Future<void> syncFromFirestore() async {
     // 🔥 FIX 8: サインイン後にFirestore未初期化の場合、Fix 7の再初期化ロジックを発動
     await waitForSafeInitialization();
+    await _ensureFirestoreReadyForAuthenticatedUser();
 
     if (!_isOnline || _firestoreRepo == null) {
       AppLogger.info('💡 Firestore同期スキップ (オフライン)');
@@ -1008,6 +1134,54 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
     }
   }
 
+  Future<void> _sendGroupRenameNotifications({
+    required SharedGroup group,
+    required String oldName,
+    required String newName,
+    required String renamerName,
+  }) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      AppLogger.info('⚠️ [HYBRID UPDATE] 認証なし - グループ名変更通知スキップ');
+      return;
+    }
+
+    final firestore = _ref.read(firestoreProvider);
+    final memberIds = group.members
+            ?.map((member) => member.memberId)
+            .where((memberId) => memberId.isNotEmpty)
+            .toSet()
+            .toList() ??
+        <String>[];
+
+    if (memberIds.isEmpty) {
+      AppLogger.info('⚠️ [HYBRID UPDATE] 通知対象メンバーなし - グループ名変更通知スキップ');
+      return;
+    }
+
+    AppLogger.info('✏️ [HYBRID UPDATE] グループ名変更通知送信開始: $oldName → $newName');
+
+    for (final memberId in memberIds) {
+      await firestore.collection('notifications').add({
+        'userId': memberId,
+        'type': 'group_updated',
+        'groupId': group.groupId,
+        'message': '$renamerName が「$oldName」を「$newName」に変更しました',
+        'timestamp': FieldValue.serverTimestamp(),
+        'read': false,
+        'senderId': currentUser.uid,
+        'senderName': currentUser.displayName ?? currentUser.email ?? 'Unknown',
+        'metadata': {
+          'oldGroupName': oldName,
+          'newGroupName': newName,
+          'renamerName': renamerName,
+        },
+      });
+    }
+
+    AppLogger.info('✅ [HYBRID UPDATE] グループ名変更通知送信完了: ${memberIds.length}件');
+  }
+
   /// 📊 初期化進行状況の通知
   void _notifyProgress(InitializationStatus status, String? message) {
     _initStatus = status;
@@ -1020,9 +1194,11 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
     _firestoreRetryCount = 0;
 
     while (_firestoreRetryCount < _maxRetries) {
+      _firestoreRetryCount++;
+
       try {
         _notifyProgress(InitializationStatus.initializingFirestore,
-            'Firestore接続試行 ${_firestoreRetryCount + 1}/$_maxRetries');
+            'Firestore接続試行 $_firestoreRetryCount/$_maxRetries');
 
         await _safeAsyncFirestoreInitialization();
 
@@ -1031,16 +1207,15 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
           return;
         }
       } catch (e) {
-        _firestoreRetryCount++;
         AppLogger.error(
             '🔄 [HybridRepo] Firestore retry $_firestoreRetryCount/$_maxRetries failed: $e');
+      }
 
-        if (_firestoreRetryCount < _maxRetries) {
-          // 指数バックオフ: 1秒, 2秒, 4秒
-          final delay =
-              Duration(seconds: math.pow(2, _firestoreRetryCount - 1).toInt());
-          await Future.delayed(delay);
-        }
+      if (_firestoreRetryCount < _maxRetries) {
+        // 指数バックオフ: 1秒, 2秒, 4秒
+        final delay =
+            Duration(seconds: math.pow(2, _firestoreRetryCount - 1).toInt());
+        await Future.delayed(delay);
       }
     }
 
