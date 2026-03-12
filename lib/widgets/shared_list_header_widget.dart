@@ -16,6 +16,23 @@ import '../utils/snackbar_helper.dart';
 class SharedListHeaderWidget extends ConsumerWidget {
   const SharedListHeaderWidget({super.key});
 
+  String _truncateListName(String name, {required int maxLength}) {
+    final trimmed = name.trim();
+    if (trimmed.length <= maxLength) {
+      return trimmed;
+    }
+    return '${trimmed.substring(0, maxLength)}...';
+  }
+
+  int _listDropdownMaxLength(double width) {
+    // Google smartphone emulator portrait width is typically 393-412dp.
+    // This row also contains add/delete buttons, so keep the baseline shorter.
+    if (width < 360) return 10;
+    if (width < 430) return 12;
+    if (width < 520) return 14;
+    return 18;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedGroupId = ref.watch(selectedGroupIdProvider);
@@ -166,63 +183,95 @@ class SharedListHeaderWidget extends ConsumerWidget {
     Log.info(
         '🔍 [DEBUG] _buildListDropdown - currentList: ${currentList?.listName}, currentListId: $currentListId, validValue: $validValue, lists.length: ${lists.length}');
 
-    return Row(
-      children: [
-        Icon(Icons.list, color: Colors.blue.shade700, size: 20),
-        const SizedBox(width: 8),
-        Expanded(
-          child: DropdownButtonFormField<String>(
-            initialValue: validValue,
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 8,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.blue.shade300),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxLength = _listDropdownMaxLength(constraints.maxWidth);
+
+        return Row(
+          children: [
+            Icon(Icons.list, color: Colors.blue.shade700, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                initialValue: validValue,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.blue.shade300),
+                  ),
+                ),
+                hint: const Text('リストを選択'),
+                selectedItemBuilder: (context) {
+                  return lists.map((list) {
+                    return Align(
+                      alignment: Alignment.centerLeft,
+                      child: Tooltip(
+                        message: list.listName,
+                        child: Text(
+                          _truncateListName(
+                            list.listName,
+                            maxLength: maxLength,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    );
+                  }).toList();
+                },
+                items: lists.map((list) {
+                  return DropdownMenuItem<String>(
+                    value: list.listId,
+                    child: Tooltip(
+                      message: list.listName,
+                      child: Text(
+                        _truncateListName(
+                          list.listName,
+                          maxLength: maxLength,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (listId) {
+                  if (listId != null) {
+                    final selectedList = lists.firstWhere(
+                      (list) => list.listId == listId,
+                    );
+                    ref.read(currentListProvider.notifier).selectList(
+                          selectedList,
+                          groupId: currentGroupId,
+                        );
+                    Log.info(
+                        '📝 リスト選択: ${selectedList.listName} (グループ: $currentGroupId)');
+                  }
+                },
               ),
             ),
-            hint: const Text('リストを選択'),
-            items: lists.map((list) {
-              return DropdownMenuItem<String>(
-                value: list.listId,
-                child: Text(
-                  list.listName,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              );
-            }).toList(),
-            onChanged: (listId) {
-              if (listId != null) {
-                final selectedList = lists.firstWhere(
-                  (list) => list.listId == listId,
-                );
-                ref.read(currentListProvider.notifier).selectList(
-                      selectedList,
-                      groupId: currentGroupId,
-                    );
-                Log.info(
-                    '📝 リスト選択: ${selectedList.listName} (グループ: $currentGroupId)');
-              }
-            },
-          ),
-        ),
-        IconButton(
-          icon: Icon(Icons.add_circle, color: Colors.blue.shade700),
-          onPressed: () => _showCreateListDialog(context, ref),
-          tooltip: '新しいリストを作成',
-        ),
-        // リスト削除ボタン（現在のリストが選択されている場合のみ表示）
-        if (currentList != null)
-          IconButton(
-            icon: Icon(Icons.delete_outline, color: Colors.red.shade700),
-            onPressed: () => _showDeleteListDialog(context, ref, currentList),
-            tooltip: 'リストを削除',
-          ),
-      ],
+            IconButton(
+              icon: Icon(Icons.add_circle, color: Colors.blue.shade700),
+              onPressed: () => _showCreateListDialog(context, ref),
+              tooltip: '新しいリストを作成',
+            ),
+            if (currentList != null)
+              IconButton(
+                icon: Icon(Icons.delete_outline, color: Colors.red.shade700),
+                onPressed: () =>
+                    _showDeleteListDialog(context, ref, currentList),
+                tooltip: 'リストを削除',
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -232,128 +281,144 @@ class SharedListHeaderWidget extends ConsumerWidget {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('新しい買い物リストを作成'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'リスト名',
-                hintText: '例: 週末の買い物',
-              ),
-              autofocus: true,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: descriptionController,
-              decoration: const InputDecoration(
-                labelText: '説明（任意）',
-                hintText: '例: 土曜日のスーパーで',
-              ),
-              maxLines: 2,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('キャンセル'),
+      builder: (context) {
+        final screenSize = MediaQuery.of(context).size;
+        final isNarrowLandscape =
+            screenSize.width > screenSize.height && screenSize.height < 430;
+
+        return AlertDialog(
+          scrollable: true,
+          insetPadding: EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: isNarrowLandscape ? 8 : 24,
           ),
-          ElevatedButton(
-            onPressed: () async {
-              final name = nameController.text.trim();
-              if (name.isEmpty) {
-                SnackBarHelper.showError(context, 'リスト名を入力してください');
-                return;
-              }
-
-              final selectedGroupId = ref.read(selectedGroupIdProvider);
-              if (selectedGroupId == null) {
-                SnackBarHelper.showError(context, 'グループが選択されていません');
-                return;
-              }
-
-              // allGroupsProviderからcurrentGroupを取得
-              final allGroupsAsync = ref.read(allGroupsProvider);
-              final currentGroup = await allGroupsAsync.when(
-                data: (groups) async => groups
-                    .where((g) => g.groupId == selectedGroupId)
-                    .firstOrNull,
-                loading: () async => null,
-                error: (_, __) async => null,
-              );
-
-              if (currentGroup == null) {
-                SnackBarHelper.showError(context, 'グループ情報の取得に失敗しました');
-                return;
-              }
-
-              try {
-                // 🔥 同じ名前のリストが既に存在しないかチェック
-                final repository = ref.read(sharedListRepositoryProvider);
-                final existingLists = await repository
-                    .getSharedListsByGroup(currentGroup.groupId);
-                final duplicateName =
-                    existingLists.any((list) => list.listName == name);
-
-                if (duplicateName) {
-                  // エラーログに記録
-                  await ErrorLogService.logValidationError(
-                    'リスト作成',
-                    '「$name」という名前のリストは既に存在します',
-                  );
-
-                  if (!context.mounted) return;
-                  SnackBarHelper.showWarning(
-                      context, '「$name」という名前のリストは既に存在します');
+          title: const Text('新しい買い物リストを作成'),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'リスト名',
+                      hintText: '例: 週末の買い物',
+                    ),
+                    autofocus: true,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: descriptionController,
+                    decoration: const InputDecoration(
+                      labelText: '説明（任意）',
+                      hintText: '例: 土曜日のスーパーで',
+                    ),
+                    maxLines: 2,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('キャンセル'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final name = nameController.text.trim();
+                if (name.isEmpty) {
+                  SnackBarHelper.showError(context, 'リスト名を入力してください');
                   return;
                 }
 
-                // リポジトリから新しいリストを作成
-                final newList = await repository.createSharedList(
-                  ownerUid: currentGroup.members?.isNotEmpty == true
-                      ? currentGroup.members!.first.memberId
-                      : 'dev_user',
-                  groupId: currentGroup.groupId,
-                  listName: name,
-                  description: descriptionController.text.trim().isEmpty
-                      ? null
-                      : descriptionController.text.trim(),
+                final selectedGroupId = ref.read(selectedGroupIdProvider);
+                if (selectedGroupId == null) {
+                  SnackBarHelper.showError(context, 'グループが選択されていません');
+                  return;
+                }
+
+                // allGroupsProviderからcurrentGroupを取得
+                final allGroupsAsync = ref.read(allGroupsProvider);
+                final currentGroup = await allGroupsAsync.when(
+                  data: (groups) async => groups
+                      .where((g) => g.groupId == selectedGroupId)
+                      .firstOrNull,
+                  loading: () async => null,
+                  error: (_, __) async => null,
                 );
 
-                Log.info(
-                    '✅ 新しいリスト作成成功: ${newList.listName} (ID: ${newList.listId})');
+                if (currentGroup == null) {
+                  SnackBarHelper.showError(context, 'グループ情報の取得に失敗しました');
+                  return;
+                }
 
-                // 作成したリストをカレントリストに設定（Preferencesに保存）
-                await ref.read(currentListProvider.notifier).selectList(
-                      newList,
-                      groupId: currentGroup.groupId,
+                try {
+                  // 🔥 同じ名前のリストが既に存在しないかチェック
+                  final repository = ref.read(sharedListRepositoryProvider);
+                  final existingLists = await repository
+                      .getSharedListsByGroup(currentGroup.groupId);
+                  final duplicateName =
+                      existingLists.any((list) => list.listName == name);
+
+                  if (duplicateName) {
+                    // エラーログに記録
+                    await ErrorLogService.logValidationError(
+                      'リスト作成',
+                      '「$name」という名前のリストは既に存在します',
                     );
-                Log.info('📝 カレントリストに設定完了: ${newList.listName}');
 
-                if (!context.mounted) return;
-                Navigator.of(context).pop();
+                    if (!context.mounted) return;
+                    SnackBarHelper.showWarning(
+                        context, '「$name」という名前のリストは既に存在します');
+                    return;
+                  }
 
-                // リスト一覧を無効化（次回アクセス時に再取得）
-                ref.invalidate(groupSharedListsProvider);
-                Log.info('✅ リスト一覧を無効化 - 次回アクセス時に自動更新');
+                  // リポジトリから新しいリストを作成
+                  final newList = await repository.createSharedList(
+                    ownerUid: currentGroup.members?.isNotEmpty == true
+                        ? currentGroup.members!.first.memberId
+                        : 'dev_user',
+                    groupId: currentGroup.groupId,
+                    listName: name,
+                    description: descriptionController.text.trim().isEmpty
+                        ? null
+                        : descriptionController.text.trim(),
+                  );
 
-                // 🔥 Windows環境でのフリーズ回避のため、await削除
-                // StreamBuilderが次回アクセス時に自動的に最新データを取得
+                  Log.info(
+                      '✅ 新しいリスト作成成功: ${newList.listName} (ID: ${newList.listId})');
 
-                if (!context.mounted) return;
-                SnackBarHelper.showSuccess(context, '「$name」を作成しました');
-              } catch (e, stackTrace) {
-                Log.error('❌ リスト作成エラー: $e', stackTrace);
-                SnackBarHelper.showError(context, 'リスト作成に失敗しました: $e');
-              }
-            },
-            child: const Text('作成'),
-          ),
-        ],
-      ),
+                  // 作成したリストをカレントリストに設定（Preferencesに保存）
+                  await ref.read(currentListProvider.notifier).selectList(
+                        newList,
+                        groupId: currentGroup.groupId,
+                      );
+                  Log.info('📝 カレントリストに設定完了: ${newList.listName}');
+
+                  if (!context.mounted) return;
+                  Navigator.of(context).pop();
+
+                  // リスト一覧を無効化（次回アクセス時に再取得）
+                  ref.invalidate(groupSharedListsProvider);
+                  Log.info('✅ リスト一覧を無効化 - 次回アクセス時に自動更新');
+
+                  // 🔥 Windows環境でのフリーズ回避のため、await削除
+                  // StreamBuilderが次回アクセス時に自動的に最新データを取得
+
+                  if (!context.mounted) return;
+                  SnackBarHelper.showSuccess(context, '「$name」を作成しました');
+                } catch (e, stackTrace) {
+                  Log.error('❌ リスト作成エラー: $e', stackTrace);
+                  SnackBarHelper.showError(context, 'リスト作成に失敗しました: $e');
+                }
+              },
+              child: const Text('作成'),
+            ),
+          ],
+        );
+      },
     );
   }
 

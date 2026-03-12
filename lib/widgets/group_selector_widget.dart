@@ -9,6 +9,30 @@ import '../utils/snackbar_helper.dart';
 class GroupSelectorWidget extends ConsumerWidget {
   const GroupSelectorWidget({super.key});
 
+  String _truncateGroupName(String name, {required int maxLength}) {
+    final trimmed = name.trim();
+    if (trimmed.length <= maxLength) {
+      return trimmed;
+    }
+    return '${trimmed.substring(0, maxLength)}...';
+  }
+
+  int _selectedGroupNameMaxLength(double width) {
+    // Google smartphone emulator baseline: portrait width around 393-412dp.
+    if (width < 360) return 11;
+    if (width < 430) return 14;
+    if (width < 520) return 18;
+    return 22;
+  }
+
+  int _groupMenuNameMaxLength(double width) {
+    // Menu rows have less usable width because of icon + member count badge.
+    if (width < 360) return 9;
+    if (width < 430) return 12;
+    if (width < 520) return 14;
+    return 18;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final allGroupsAsync = ref.watch(allGroupsProvider);
@@ -165,75 +189,128 @@ class GroupSelectorWidget extends ConsumerWidget {
                   border: Border.all(color: Colors.grey.shade300),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: validSelectedGroupId,
-                    isExpanded: true,
-                    icon: const Icon(Icons.keyboard_arrow_down),
-                    iconSize: 24,
-                    elevation: 16,
-                    style: const TextStyle(color: Colors.black87, fontSize: 14),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    items: groups
-                        .map<DropdownMenuItem<String>>((SharedGroup group) {
-                      return DropdownMenuItem<String>(
-                        value: group.groupId,
-                        child: Row(
-                          children: [
-                            Icon(
-                              group.groupId == 'default_group'
-                                  ? Icons.home
-                                  : Icons.group,
-                              size: 16,
-                              color: group.groupId == 'default_group'
-                                  ? Colors.orange
-                                  : Colors.blue,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                group.groupName,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 14),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final selectedMaxLength =
+                        _selectedGroupNameMaxLength(constraints.maxWidth);
+                    final menuMaxLength =
+                        _groupMenuNameMaxLength(constraints.maxWidth);
+
+                    return DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: validSelectedGroupId,
+                        isExpanded: true,
+                        icon: const Icon(Icons.keyboard_arrow_down),
+                        iconSize: 24,
+                        elevation: 16,
+                        style: const TextStyle(
+                            color: Colors.black87, fontSize: 14),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        selectedItemBuilder: (context) {
+                          return groups.map((group) {
+                            return Align(
+                              alignment: Alignment.centerLeft,
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    group.groupId == 'default_group'
+                                        ? Icons.home
+                                        : Icons.group,
+                                    size: 16,
+                                    color: group.groupId == 'default_group'
+                                        ? Colors.orange
+                                        : Colors.blue,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Tooltip(
+                                      message: group.groupName,
+                                      child: Text(
+                                        _truncateGroupName(
+                                          group.groupName,
+                                          maxLength: selectedMaxLength,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
+                            );
+                          }).toList();
+                        },
+                        items: groups
+                            .map<DropdownMenuItem<String>>((SharedGroup group) {
+                          return DropdownMenuItem<String>(
+                            value: group.groupId,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  group.groupId == 'default_group'
+                                      ? Icons.home
+                                      : Icons.group,
+                                  size: 16,
+                                  color: group.groupId == 'default_group'
+                                      ? Colors.orange
+                                      : Colors.blue,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Tooltip(
+                                    message: group.groupName,
+                                    child: Text(
+                                      _truncateGroupName(
+                                        group.groupName,
+                                        maxLength: menuMaxLength,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 14),
+                                    ),
+                                  ),
+                                ),
+                                if (group.members?.isNotEmpty == true) ...[
+                                  const SizedBox(width: 4),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade200,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      '${group.members!.length}',
+                                      style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w500),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
-                            if (group.members?.isNotEmpty == true) ...[
-                              const SizedBox(width: 4),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.shade200,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  '${group.members!.length}',
-                                  style: const TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w500),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (String? newValue) {
-                      if (newValue != null && newValue != selectedGroupId) {
-                        AppLogger.info(
-                            '📋 [GROUP_SELECTOR] ドロップダウン選択: $selectedGroupId -> $newValue');
-                        try {
-                          ref
-                              .read(selectedGroupIdProvider.notifier)
-                              .selectGroup(newValue);
-                          AppLogger.info('📋 [GROUP_SELECTOR] 選択完了: $newValue');
-                        } catch (e) {
-                          AppLogger.error('📋 [GROUP_SELECTOR] 選択エラー: $e');
-                        }
-                      }
-                    },
-                  ),
+                          );
+                        }).toList(),
+                        onChanged: (String? newValue) {
+                          if (newValue != null && newValue != selectedGroupId) {
+                            AppLogger.info(
+                                '📋 [GROUP_SELECTOR] ドロップダウン選択: $selectedGroupId -> $newValue');
+                            try {
+                              ref
+                                  .read(selectedGroupIdProvider.notifier)
+                                  .selectGroup(newValue);
+                              AppLogger.info(
+                                  '📋 [GROUP_SELECTOR] 選択完了: $newValue');
+                            } catch (e) {
+                              AppLogger.error('📋 [GROUP_SELECTOR] 選択エラー: $e');
+                            }
+                          }
+                        },
+                      ),
+                    );
+                  },
                 ),
               ),
             ],

@@ -1,140 +1,168 @@
 {
-	"version": "2.0.0",
-	"tasks": [
-		{
-			"label": "Run Flutter App",
-			"type": "shell",
-			"command": "flutter",
-			"args": [
-				"run"
-			],
-			"isBackground": true,
-			"problemMatcher": [
-				"$flutter-watch"
-			],
-			"group": "run"
-		},
-		{
-			"label": "Build Windows",
-			"type": "shell",
-			"command": "flutter",
-			"args": [
-				"build",
-				"windows"
-			],
-			"problemMatcher": [],
-			"group": {
-				"kind": "build",
-				"isDefault": false
-			},
-			"presentation": {
-				"reveal": "always",
-				"panel": "new"
-			}
-		},
-		{
-			"label": "Build Android (APK)",
-			"type": "shell",
-			"command": "flutter",
-			"args": [
-				"build",
-				"apk",
-				"--release"
-			],
-			"problemMatcher": [],
-			"group": {
-				"kind": "build",
-				"isDefault": false
-			},
-			"presentation": {
-				"reveal": "always",
-				"panel": "new"
-			}
-		},
-		{
-			"label": "Build Android (Debug APK)",
-			"type": "shell",
-			"command": "flutter",
-			"args": [
-				"build",
-				"apk",
-				"--debug"
-			],
-			"problemMatcher": [],
-			"group": {
-				"kind": "build",
-				"isDefault": false
-			},
-			"presentation": {
-				"reveal": "always",
-				"panel": "new"
-			}
-		},
-		{
-			"label": "Build Web",
-			"type": "shell",
-			"command": "flutter",
-			"args": [
-				"build",
-				"web"
-			],
-			"problemMatcher": [],
-			"group": {
-				"kind": "build",
-				"isDefault": false
-			},
-			"presentation": {
-				"reveal": "always",
-				"panel": "new"
-			}
-		},
-		{
-			"label": "Build All Platforms",
-			"dependsOn": [
-				"Build Windows",
-				"Build Android (APK)",
-				"Build Web"
-			],
-			"problemMatcher": [],
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			}
-		},
-		{
-			"label": "Build Debug APK Prod",
-			"type": "shell",
-			"command": "flutter build apk --debug --flavor prod",
-			"isBackground": false,
-			"group": "build"
-		},
-		{
-			"label": "Install APK to AS10L",
-			"type": "shell",
-			"command": "adb -s 192.168.0.26:46285 install -r build\\app\\outputs\\flutter-apk\\app-prod-debug.apk",
-			"isBackground": false,
-			"group": "deploy"
-		},
-		{
-			"label": "Rebuild APK with Fix",
-			"type": "shell",
-			"command": "flutter build apk --debug --flavor prod",
-			"isBackground": false,
-			"group": "build"
-		},
-		{
-			"label": "Rebuild APK Final",
-			"type": "shell",
-			"command": "flutter build apk --debug --flavor prod",
-			"isBackground": false,
-			"group": "build"
-		},
-		{
-			"label": "Install Fixed APK",
-			"type": "shell",
-			"command": "adb -s 192.168.0.26:46285 install -r build\\app\\outputs\\flutter-apk\\app-prod-debug.apk",
-			"isBackground": false,
-			"group": "deploy"
-		}
-	]
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run Flutter App",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["run"],
+      "isBackground": true,
+      "problemMatcher": ["$flutter-watch"],
+      "group": "run"
+    },
+    {
+      "label": "Run on SH-54D (dev)",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["run", "--flavor", "dev", "-d", "359705470227530"],
+      "isBackground": true,
+      "problemMatcher": ["$flutter-watch"],
+      "group": "run"
+    },
+    {
+      "label": "Run on SH-54D (prod)",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["run", "--flavor", "prod", "-d", "359705470227530"],
+      "isBackground": true,
+      "problemMatcher": ["$flutter-watch"],
+      "group": "run"
+    },
+    {
+      "label": "Run on Pixel 9 (dev)",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["run", "--flavor", "dev", "-d", "51040DLAQ001K0"],
+      "isBackground": true,
+      "problemMatcher": ["$flutter-watch"],
+      "group": "run"
+    },
+    {
+      "label": "Run on Pixel 9 (prod)",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["run", "--flavor", "prod", "-d", "51040DLAQ001K0"],
+      "isBackground": true,
+      "problemMatcher": ["$flutter-watch"],
+      "group": "run"
+    },
+    {
+      "label": "Build Windows",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["build", "windows"],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    },
+    {
+      "label": "Build Android (APK)",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["build", "apk", "--release"],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    },
+    {
+      "label": "Build Android (Debug APK)",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["build", "apk", "--debug"],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    },
+    {
+      "label": "Build Web",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["build", "web"],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    },
+    {
+      "label": "Build All Platforms",
+      "dependsOn": ["Build Windows", "Build Android (APK)", "Build Web"],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "Build Debug APK Prod",
+      "type": "shell",
+      "command": "flutter build apk --debug --flavor prod",
+      "isBackground": false,
+      "group": "build"
+    },
+    {
+      "label": "Install APK to SH-54D",
+      "type": "shell",
+      "command": "adb -s 359705470227530 install -r build\\app\\outputs\\flutter-apk\\app-prod-debug.apk",
+      "isBackground": false,
+      "group": "deploy"
+    },
+    {
+      "label": "Install APK to Pixel 9",
+      "type": "shell",
+      "command": "adb -s 51040DLAQ001K0 install -r build\\app\\outputs\\flutter-apk\\app-prod-debug.apk",
+      "isBackground": false,
+      "group": "deploy"
+    },
+    {
+      "label": "Install APK to AS10L",
+      "type": "shell",
+      "command": "adb -s 192.168.0.26:46285 install -r build\\app\\outputs\\flutter-apk\\app-prod-debug.apk",
+      "isBackground": false,
+      "group": "deploy"
+    },
+    {
+      "label": "Rebuild APK with Fix",
+      "type": "shell",
+      "command": "flutter build apk --debug --flavor prod",
+      "isBackground": false,
+      "group": "build"
+    },
+    {
+      "label": "Rebuild APK Final",
+      "type": "shell",
+      "command": "flutter build apk --debug --flavor prod",
+      "isBackground": false,
+      "group": "build"
+    },
+    {
+      "label": "Install Fixed APK",
+      "type": "shell",
+      "command": "adb -s 192.168.0.26:46285 install -r build\\app\\outputs\\flutter-apk\\app-prod-debug.apk",
+      "isBackground": false,
+      "group": "deploy"
+    }
+  ]
 }

@@ -371,383 +371,405 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Widget _buildSignInScreen() {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 400),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // アプリロゴ・タイトル
-              const Icon(
-                Icons.shopping_bag,
-                size: 80,
-                color: Colors.blue,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'GoShopping',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                '買い物リスト共有アプリ',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                ),
-              ),
-              const SizedBox(height: 48),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompactHeight = constraints.maxHeight < 700;
+        final isNarrowLandscape =
+            constraints.maxWidth > constraints.maxHeight &&
+                constraints.maxHeight < 500;
 
-              // プライバシー情報
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.blue.shade200),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.privacy_tip,
-                            color: Colors.blue.shade700, size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          'プライバシーについて',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue.shade900,
-                          ),
-                        ),
-                      ],
+        final outerPadding = isNarrowLandscape ? 16.0 : 24.0;
+        final sectionSpacing = isCompactHeight ? 20.0 : 32.0;
+        final smallSpacing = isCompactHeight ? 12.0 : 16.0;
+        final titleSpacing = isCompactHeight ? 32.0 : 48.0;
+        final logoSize = isCompactHeight ? 64.0 : 80.0;
+
+        return SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            outerPadding,
+            isNarrowLandscape ? 12.0 : outerPadding,
+            outerPadding,
+            outerPadding,
+          ),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // アプリロゴ・タイトル
+                  Icon(
+                    Icons.shopping_bag,
+                    size: logoSize,
+                    color: Colors.blue,
+                  ),
+                  SizedBox(height: smallSpacing),
+                  const Text(
+                    'GoShopping',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
                     ),
-                    const SizedBox(height: 12),
-                    _buildPrivacyPoint('最初に共有される情報は、ログイン情報と表示名のみです'),
-                    _buildPrivacyPoint('買い物リストは、あなたが共有したユーザーとのみ共有されます'),
-                    _buildPrivacyPoint('グループに参加するユーザーも同じポリシーが適用されます'),
-                    _buildPrivacyPoint('アプリの利用にはFirebaseアカウントが必須です'),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 32),
-
-              // モード選択ボタン
-              if (!_showEmailSignIn) ...[
-                ElevatedButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _showEmailSignIn = true;
-                      _isSignUpMode = true; // デフォルトはアカウント作成
-                    });
-                  },
-                  icon: const Icon(Icons.person_add, size: 20),
-                  label: const Text('アカウント作成'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    textStyle: const TextStyle(fontSize: 16),
-                    backgroundColor: Colors.blue,
                   ),
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _showEmailSignIn = true;
-                      _isSignUpMode = false; // サインインモード
-                    });
-                  },
-                  icon: const Icon(Icons.login, size: 20),
-                  label: const Text('サインイン'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    textStyle: const TextStyle(fontSize: 16),
+                  const SizedBox(height: 8),
+                  const Text(
+                    '買い物リスト共有アプリ',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey,
+                    ),
                   ),
-                ),
-              ],
+                  SizedBox(height: titleSpacing),
 
-              // メール/パスワードフォーム
-              if (_showEmailSignIn) ...[
-                // モード表示
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: _isSignUpMode
-                        ? Colors.blue.shade50
-                        : Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        _isSignUpMode ? Icons.person_add : Icons.login,
-                        color:
-                            _isSignUpMode ? Colors.blue : Colors.grey.shade700,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _isSignUpMode ? 'アカウント作成' : 'サインイン',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: _isSignUpMode
-                              ? Colors.blue.shade900
-                              : Colors.grey.shade700,
-                        ),
-                      ),
-                      const Spacer(),
-                      TextButton(
-                        onPressed: () {
-                          setState(() {
-                            _isSignUpMode = !_isSignUpMode;
-                            _formKey.currentState?.reset();
-                          });
-                        },
-                        child: Text(_isSignUpMode ? 'サインインへ' : 'アカウント作成へ'),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // ディスプレイネーム（アカウント作成時のみ必須）
-                      if (_isSignUpMode)
-                        Column(
+                  // プライバシー情報
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
                           children: [
-                            TextFormField(
-                              controller: userNameController,
-                              decoration: InputDecoration(
-                                labelText: 'ディスプレイネーム（必須）',
-                                hintText: '例: 太郎',
-                                prefixIcon: const Icon(Icons.person),
-                                helperText: 'グループメンバーに表示される名前です',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
+                            Icon(Icons.privacy_tip,
+                                color: Colors.blue.shade700, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              'プライバシーについて',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue.shade900,
                               ),
-                              validator: (value) {
-                                if (_isSignUpMode &&
-                                    (value == null || value.trim().isEmpty)) {
-                                  return 'ディスプレイネームを入力してください';
-                                }
-                                return null;
-                              },
                             ),
-                            const SizedBox(height: 16),
                           ],
                         ),
+                        const SizedBox(height: 12),
+                        _buildPrivacyPoint('最初に共有される情報は、ログイン情報と表示名のみです'),
+                        _buildPrivacyPoint('買い物リストは、あなたが共有したユーザーとのみ共有されます'),
+                        _buildPrivacyPoint('グループに参加するユーザーも同じポリシーが適用されます'),
+                        _buildPrivacyPoint('アプリの利用にはFirebaseアカウントが必須です'),
+                      ],
+                    ),
+                  ),
 
-                      // メールアドレス
-                      TextFormField(
-                        controller: emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: InputDecoration(
-                          labelText: 'メールアドレス',
-                          hintText: 'example@email.com',
-                          prefixIcon: const Icon(Icons.email),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'メールアドレスを入力してください';
-                          }
-                          if (!value.contains('@')) {
-                            return '有効なメールアドレスを入力してください';
-                          }
-                          return null;
-                        },
+                  SizedBox(height: sectionSpacing),
+
+                  // モード選択ボタン
+                  if (!_showEmailSignIn) ...[
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _showEmailSignIn = true;
+                          _isSignUpMode = true; // デフォルトはアカウント作成
+                        });
+                      },
+                      icon: const Icon(Icons.person_add, size: 20),
+                      label: const Text('アカウント作成'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        textStyle: const TextStyle(fontSize: 16),
+                        backgroundColor: Colors.blue,
                       ),
-                      const SizedBox(height: 16),
+                    ),
+                    SizedBox(height: isCompactHeight ? 10.0 : 12.0),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _showEmailSignIn = true;
+                          _isSignUpMode = false; // サインインモード
+                        });
+                      },
+                      icon: const Icon(Icons.login, size: 20),
+                      label: const Text('サインイン'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        textStyle: const TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ],
 
-                      // パスワード
-                      TextFormField(
-                        controller: passwordController,
-                        obscureText: !_isPasswordVisible,
-                        decoration: InputDecoration(
-                          labelText: 'パスワード',
-                          hintText: '6文字以上',
-                          prefixIcon: const Icon(Icons.lock),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _isPasswordVisible
-                                  ? Icons.visibility
-                                  : Icons.visibility_off,
+                  // メール/パスワードフォーム
+                  if (_showEmailSignIn) ...[
+                    // モード表示
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _isSignUpMode
+                            ? Colors.blue.shade50
+                            : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            _isSignUpMode ? Icons.person_add : Icons.login,
+                            color: _isSignUpMode
+                                ? Colors.blue
+                                : Colors.grey.shade700,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _isSignUpMode ? 'アカウント作成' : 'サインイン',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: _isSignUpMode
+                                  ? Colors.blue.shade900
+                                  : Colors.grey.shade700,
                             ),
+                          ),
+                          const Spacer(),
+                          TextButton(
                             onPressed: () {
                               setState(() {
-                                _isPasswordVisible = !_isPasswordVisible;
+                                _isSignUpMode = !_isSignUpMode;
+                                _formKey.currentState?.reset();
                               });
                             },
+                            child: Text(_isSignUpMode ? 'サインインへ' : 'アカウント作成へ'),
                           ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'パスワードを入力してください';
-                          }
-                          if (value.length < 6) {
-                            return 'パスワードは6文字以上で入力してください';
-                          }
-                          return null;
-                        },
+                        ],
                       ),
-                      const SizedBox(height: 8),
+                    ),
+                    SizedBox(height: smallSpacing),
 
-                      // パスワードリセットリンク（サインイン時のみ）
-                      if (!_isSignUpMode)
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: () async {
-                              final email = emailController.text.trim();
-                              if (email.isEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('メールアドレスを入力してください'),
-                                    backgroundColor: Colors.orange,
+                    Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // ディスプレイネーム（アカウント作成時のみ必須）
+                          if (_isSignUpMode)
+                            Column(
+                              children: [
+                                TextFormField(
+                                  controller: userNameController,
+                                  decoration: InputDecoration(
+                                    labelText: 'ディスプレイネーム（必須）',
+                                    hintText: '例: 太郎',
+                                    prefixIcon: const Icon(Icons.person),
+                                    helperText: 'グループメンバーに表示される名前です',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
                                   ),
-                                );
-                                return;
-                              }
-
-                              // パスワードリセットメール送信
-                              final service = PasswordResetService();
-                              final result =
-                                  await service.sendPasswordResetEmail(email);
-
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(result.message),
-                                    backgroundColor: result.success
-                                        ? Colors.green
-                                        : Colors.red,
-                                  ),
-                                );
-                              }
-                            },
-                            child: const Text(
-                              'パスワードを忘れた場合',
-                              style: TextStyle(fontSize: 13),
+                                  validator: (value) {
+                                    if (_isSignUpMode &&
+                                        (value == null ||
+                                            value.trim().isEmpty)) {
+                                      return 'ディスプレイネームを入力してください';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                SizedBox(height: smallSpacing),
+                              ],
                             ),
+
+                          // メールアドレス
+                          TextFormField(
+                            controller: emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            decoration: InputDecoration(
+                              labelText: 'メールアドレス',
+                              hintText: 'example@email.com',
+                              prefixIcon: const Icon(Icons.email),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'メールアドレスを入力してください';
+                              }
+                              if (!value.contains('@')) {
+                                return '有効なメールアドレスを入力してください';
+                              }
+                              return null;
+                            },
                           ),
-                        ),
-                      const SizedBox(height: 8),
+                          SizedBox(height: smallSpacing),
 
-                      // メールアドレス保存チェックボックス（サインイン時のみ）
-                      if (!_isSignUpMode)
-                        CheckboxListTile(
-                          value: _rememberEmail,
-                          onChanged: (value) {
-                            setState(() {
-                              _rememberEmail = value ?? false;
-                            });
-                          },
-                          title: const Text(
-                            'メールアドレスを保存',
-                            style: TextStyle(fontSize: 14),
+                          // パスワード
+                          TextFormField(
+                            controller: passwordController,
+                            obscureText: !_isPasswordVisible,
+                            decoration: InputDecoration(
+                              labelText: 'パスワード',
+                              hintText: '6文字以上',
+                              prefixIcon: const Icon(Icons.lock),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _isPasswordVisible
+                                      ? Icons.visibility
+                                      : Icons.visibility_off,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _isPasswordVisible = !_isPasswordVisible;
+                                  });
+                                },
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'パスワードを入力してください';
+                              }
+                              if (value.length < 6) {
+                                return 'パスワードは6文字以上で入力してください';
+                              }
+                              return null;
+                            },
                           ),
-                          controlAffinity: ListTileControlAffinity.leading,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      const SizedBox(height: 8),
+                          SizedBox(height: isCompactHeight ? 4.0 : 8.0),
 
-                      // 実行ボタン
-                      ElevatedButton(
-                        onPressed: _isLoading
-                            ? null
-                            : (_isSignUpMode ? _signUp : _signIn),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          textStyle: const TextStyle(fontSize: 16),
-                          backgroundColor: _isSignUpMode ? Colors.blue : null,
-                        ),
-                        child: _isLoading
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : Text(_isSignUpMode ? 'アカウントを作成' : 'サインイン'),
+                          // パスワードリセットリンク（サインイン時のみ）
+                          if (!_isSignUpMode)
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: () async {
+                                  final email = emailController.text.trim();
+                                  if (email.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('メールアドレスを入力してください'),
+                                        backgroundColor: Colors.orange,
+                                      ),
+                                    );
+                                    return;
+                                  }
+
+                                  // パスワードリセットメール送信
+                                  final service = PasswordResetService();
+                                  final result = await service
+                                      .sendPasswordResetEmail(email);
+
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(result.message),
+                                        backgroundColor: result.success
+                                            ? Colors.green
+                                            : Colors.red,
+                                      ),
+                                    );
+                                  }
+                                },
+                                child: const Text(
+                                  'パスワードを忘れた場合',
+                                  style: TextStyle(fontSize: 13),
+                                ),
+                              ),
+                            ),
+                          SizedBox(height: isCompactHeight ? 4.0 : 8.0),
+
+                          // メールアドレス保存チェックボックス（サインイン時のみ）
+                          if (!_isSignUpMode)
+                            CheckboxListTile(
+                              value: _rememberEmail,
+                              onChanged: (value) {
+                                setState(() {
+                                  _rememberEmail = value ?? false;
+                                });
+                              },
+                              title: const Text(
+                                'メールアドレスを保存',
+                                style: TextStyle(fontSize: 14),
+                              ),
+                              controlAffinity: ListTileControlAffinity.leading,
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          SizedBox(height: isCompactHeight ? 4.0 : 8.0),
+
+                          // 実行ボタン
+                          ElevatedButton(
+                            onPressed: _isLoading
+                                ? null
+                                : (_isSignUpMode ? _signUp : _signIn),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              textStyle: const TextStyle(fontSize: 16),
+                              backgroundColor:
+                                  _isSignUpMode ? Colors.blue : null,
+                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  )
+                                : Text(_isSignUpMode ? 'アカウントを作成' : 'サインイン'),
+                          ),
+                          SizedBox(height: smallSpacing),
+
+                          // 戻るボタン
+                          TextButton(
+                            onPressed: () {
+                              setState(() => _showEmailSignIn = false);
+                            },
+                            child: const Text('戻る'),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 16),
+                    ),
+                  ],
 
-                      // 戻るボタン
-                      TextButton(
-                        onPressed: () {
-                          setState(() => _showEmailSignIn = false);
-                        },
-                        child: const Text('戻る'),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                  SizedBox(height: sectionSpacing),
 
-              const SizedBox(height: 32),
-
-              // 注意事項
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+                  // 注意事項
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.info_outline,
-                            size: 16, color: Colors.grey.shade700),
-                        const SizedBox(width: 8),
+                        Row(
+                          children: [
+                            Icon(Icons.info_outline,
+                                size: 16, color: Colors.grey.shade700),
+                            const SizedBox(width: 8),
+                            Text(
+                              '初めての方へ',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey.shade800,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
                         Text(
-                          '初めての方へ',
+                          'メールアドレスとパスワードでアカウント作成・ログインができます。\n'
+                          '既にアカウントをお持ちの方は同じ情報でログインしてください。',
                           style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey.shade800,
-                            fontSize: 13,
+                            fontSize: 12,
+                            color: Colors.grey.shade700,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'メールアドレスとパスワードでアカウント作成・ログインができます。\n'
-                      '既にアカウントをお持ちの方は同じ情報でログインしてください。',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade700,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 

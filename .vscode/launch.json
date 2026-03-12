@@ -1,68 +1,58 @@
 {
-    // IntelliSense を使用して利用可能な属性を学べます。
-    // 既存の属性の説明をホバーして表示します。
-    // 詳細情報は次を確認してください: https://go.microsoft.com/fwlink/?linkid=830387
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "go_shop (dev)",
-            "request": "launch",
-            "type": "dart",
-            "args": [
-                "--flavor",
-                "dev"
-            ]
-        },
-        {
-            "name": "go_shop (prod)",
-            "request": "launch",
-            "type": "dart",
-            "args": [
-                "--flavor",
-                "prod"
-            ]
-        },
-        {
-            "name": "go_shop (dev) - SH 54D",
-            "request": "launch",
-            "type": "dart",
-            "args": [
-                "--flavor",
-                "dev",
-                "-d",
-                "adb-359705470227530-zcWeB5._adb-tls-connect._tcp"
-            ]
-        },
-        {
-            "name": "go_shop (dev) - TBA1011",
-            "request": "launch",
-            "type": "dart",
-            "args": [
-                "--flavor",
-                "dev",
-                "-d",
-                "192.168.0.25:40109"
-            ]
-        },
-        {
-            "name": "go_shop (profile mode)",
-            "request": "launch",
-            "type": "dart",
-            "flutterMode": "profile",
-            "args": [
-                "--flavor",
-                "dev"
-            ]
-        },
-        {
-            "name": "go_shop (release mode)",
-            "request": "launch",
-            "type": "dart",
-            "flutterMode": "release",
-            "args": [
-                "--flavor",
-                "prod"
-            ]
-        }
-    ]
+  // IntelliSense を使用して利用可能な属性を学べます。
+  // 既存の属性の説明をホバーして表示します。
+  // 詳細情報は次を確認してください: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "go_shop (dev)",
+      "request": "launch",
+      "type": "dart",
+      "args": ["--flavor", "dev"]
+    },
+    {
+      "name": "go_shop (prod)",
+      "request": "launch",
+      "type": "dart",
+      "args": ["--flavor", "prod"]
+    },
+    {
+      "name": "go_shop (dev) - SH 54D",
+      "request": "launch",
+      "type": "dart",
+      "args": ["--flavor", "dev", "-d", "359705470227530"]
+    },
+    {
+      "name": "go_shop (prod) - SH 54D",
+      "request": "launch",
+      "type": "dart",
+      "args": ["--flavor", "prod", "-d", "359705470227530"]
+    },
+    {
+      "name": "go_shop (dev) - Pixel 9",
+      "request": "launch",
+      "type": "dart",
+      "args": ["--flavor", "dev", "-d", "51040DLAQ001K0"]
+    },
+    {
+      "name": "go_shop (prod) - Pixel 9",
+      "request": "launch",
+      "type": "dart",
+      "args": ["--flavor", "prod", "-d", "51040DLAQ001K0"]
+    },
+    {
+      "name": "go_shop (profile mode)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "profile",
+      "args": ["--flavor", "dev"]
+    },
+    {
+      "name": "go_shop (release mode)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "release",
+      "args": ["--flavor", "prod"]
+    }
+  ]
 }
