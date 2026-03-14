@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../utils/app_logger.dart';
 
 import '../models/shared_group.dart';
@@ -99,7 +100,53 @@ class UserIdChangeHelper {
     await UserPreferencesService.saveUserId(newUserId);
     Log.info('💾 [USER_SWITCH] 現在UID保存完了: ${AppLogger.maskUserId(newUserId)}');
 
+    await _ensureHiveBoxesReady(ref, newUserId);
     await _restoreSignedInUserGroups(ref, newUserId);
+  }
+
+  static Future<void> _ensureHiveBoxesReady(
+    WidgetRef ref,
+    String userId,
+  ) async {
+    final hiveService = ref.read(userSpecificHiveProvider);
+    final sharedGroupsReady = Hive.isBoxOpen('SharedGroups');
+    final sharedListsReady = Hive.isBoxOpen('sharedLists');
+    final userSettingsReady = Hive.isBoxOpen('userSettings');
+
+    if (hiveService.isInitialized &&
+        sharedGroupsReady &&
+        sharedListsReady &&
+        userSettingsReady) {
+      Log.info('✅ [USER_SWITCH] Hive box準備済み');
+      return;
+    }
+
+    Log.warning(
+        '⚠️ [USER_SWITCH] Hive box未準備 - 初期化を待機します (groups=$sharedGroupsReady, lists=$sharedListsReady, settings=$userSettingsReady, initialized=${hiveService.isInitialized})');
+
+    if (Platform.isWindows) {
+      await hiveService.initializeForUser(userId);
+      await hiveService.saveLastUsedUid(userId);
+    } else {
+      await hiveService.initializeForDefaultUser();
+    }
+
+    for (var attempt = 1; attempt <= 10; attempt++) {
+      final ready = Hive.isBoxOpen('SharedGroups') &&
+          Hive.isBoxOpen('sharedLists') &&
+          Hive.isBoxOpen('userSettings');
+      if (ready) {
+        Log.info('✅ [USER_SWITCH] Hive box準備完了 (試行$attempt)');
+        return;
+      }
+
+      if (attempt < 10) {
+        await Future.delayed(const Duration(milliseconds: 200));
+      }
+    }
+
+    throw StateError(
+        'Hive boxes are not ready after user context initialization.');
   }
 
   /// ログアウト時のローカル状態クリーンアップ

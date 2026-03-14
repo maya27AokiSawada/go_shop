@@ -85,6 +85,37 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   // 🗑️ 全クリア処理中フラグ（Firestoreリスナーの上書きを防ぐ）
   bool _isClearing = false;
 
+  SignatureController _createSignatureController({
+    required Color penColor,
+    required double strokeWidth,
+  }) {
+    return SignatureController(
+      penStrokeWidth: strokeWidth * _canvasScale,
+      penColor: penColor,
+      onDrawStart: () async {
+        AppLogger.info('🎨 [SIGNATURE] 描画開始検出 - onDrawStart');
+
+        if (_controller != null && _controller!.isNotEmpty) {
+          AppLogger.info('✋ [PEN_DOWN] 前回の描画をキャプチャ（履歴なし）');
+          _captureCurrentStrokeWithoutHistory();
+        }
+
+        final canDraw = await _onDrawingStart();
+        if (!canDraw && mounted) {
+          _controller?.clear();
+        }
+      },
+      onDrawEnd: () {
+        AppLogger.info('🎨 [SIGNATURE] 描画完了検出 - onDrawEnd');
+
+        if (_controller != null && _controller!.isNotEmpty) {
+          AppLogger.info('✋ [PEN_UP] 描画完了 - ストロークをキャプチャして履歴に保存');
+          _captureCurrentDrawing();
+        }
+      },
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -109,9 +140,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     _saveToHistory();
 
     // 空のコントローラーでスタート
-    _controller = SignatureController(
-      penStrokeWidth: _strokeWidth,
+    _controller = _createSignatureController(
       penColor: _selectedColor,
+      strokeWidth: _strokeWidth,
     );
 
     AppLogger.info('✅ [INIT] SignatureController初期化完了 - モード切り替えによるロック制御');
@@ -1420,17 +1451,10 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
 
                                   // コントローラーを再作成（ペン幅をスケーリングに合わせる）
                                   _controller?.dispose();
-                                  _controller = SignatureController(
-                                    penStrokeWidth: _strokeWidth * _canvasScale,
+                                  _controller = _createSignatureController(
                                     penColor: _selectedColor,
+                                    strokeWidth: _strokeWidth,
                                   );
-                                  // 🔒 描画開始時に編集ロックをチェック
-                                  _controller?.onDrawStart = () async {
-                                    final canDraw = await _onDrawingStart();
-                                    if (!canDraw && mounted) {
-                                      _controller?.clear();
-                                    }
-                                  };
                                   _controllerKey++;
                                 });
                               }
@@ -1459,17 +1483,10 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
 
                                   // コントローラーを再作成（ペン幅をスケーリングに合わせる）
                                   _controller?.dispose();
-                                  _controller = SignatureController(
-                                    penStrokeWidth: _strokeWidth * _canvasScale,
+                                  _controller = _createSignatureController(
                                     penColor: _selectedColor,
+                                    strokeWidth: _strokeWidth,
                                   );
-                                  // 🔒 描画開始時に編集ロックをチェック
-                                  _controller?.onDrawStart = () async {
-                                    final canDraw = await _onDrawingStart();
-                                    if (!canDraw && mounted) {
-                                      _controller?.clear();
-                                    }
-                                  };
                                   _controllerKey++;
                                 });
                               }
@@ -1624,9 +1641,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                   // SignatureControllerは再作成が必要（空でスタート）
                   // ペン幅はスケーリングを考慮
                   _controller?.dispose();
-                  _controller = SignatureController(
-                    penStrokeWidth: _strokeWidth * _canvasScale,
+                  _controller = _createSignatureController(
                     penColor: color,
+                    strokeWidth: _strokeWidth,
                   );
                   _controllerKey++; // キー更新でウィジェット再構築
                 });
@@ -1685,17 +1702,10 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                         // SignatureControllerは再作成が必要（空でスタート）
                         // ペン幅はスケーリングを考慮
                         _controller?.dispose();
-                        _controller = SignatureController(
-                          penStrokeWidth: width * _canvasScale,
+                        _controller = _createSignatureController(
                           penColor: _selectedColor,
+                          strokeWidth: width,
                         );
-                        // 🔒 描画開始時に編集ロックをチェック
-                        _controller?.onDrawStart = () async {
-                          final canDraw = await _onDrawingStart();
-                          if (!canDraw && mounted) {
-                            _controller?.clear();
-                          }
-                        };
                         _controllerKey++; // キー更新でウィジェット再構築
                       });
                     }
@@ -1747,38 +1757,10 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         width: _fixedCanvasWidth * _canvasScale,
         height: _fixedCanvasHeight * _canvasScale,
         color: Colors.green.withOpacity(0.1), // 🔥 デバッグ用背景色
-        child: GestureDetector(
-          onPanStart: (details) async {
-            AppLogger.info('🎨 [GESTURE] 描画開始検出 - onPanStart');
-
-            // 🔥 SignatureControllerに残っている描画があればキャプチャ（履歴保存なし）
-            if (_controller != null && _controller!.isNotEmpty) {
-              AppLogger.info('✋ [PEN_DOWN] 新しい描画開始 - 前回の描画をキャプチャ（履歴なし）');
-              _captureCurrentStrokeWithoutHistory();
-            }
-
-            // 描画開始時の編集ロックチェックを実行
-            final canDraw = await _onDrawingStart();
-            if (!canDraw && mounted) {
-              _controller?.clear();
-              return;
-            }
-          },
-          onPanEnd: (details) {
-            AppLogger.info('🎨 [GESTURE] 描画完了検出 - onPanEnd');
-
-            // 🔥 NEW: ペンアップ時に現在のストロークを履歴に保存
-            // これによりスクロールモードでもすぐにundo可能になる
-            if (_controller != null && _controller!.isNotEmpty) {
-              AppLogger.info('✋ [PEN_UP] 描画完了 - ストロークをキャプチャして履歴に保存');
-              _captureCurrentDrawing();
-            }
-          },
-          child: Signature(
-            key: ValueKey('signature_$_controllerKey'),
-            controller: _controller!,
-            backgroundColor: Colors.transparent,
-          ),
+        child: Signature(
+          key: ValueKey('signature_$_controllerKey'),
+          controller: _controller!,
+          backgroundColor: Colors.transparent,
         ),
       );
     }

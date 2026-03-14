@@ -8,7 +8,8 @@ const _uuid = Uuid();
 /// signature パッケージと カスタムモデル の変換ユーティリティ
 class DrawingConverter {
   /// SignatureController から DrawingStroke リストを生成
-  /// ペンを離した箇所で自動的に分割
+  /// SignatureパッケージのPointType境界でストロークを分割する。
+  /// 距離しきい値による分割は、高速描画時に連続ストロークが点状に分断されやすいため使わない。
   static List<DrawingStroke> captureFromSignatureController({
     required SignatureController controller,
     required String authorId,
@@ -21,46 +22,41 @@ class DrawingConverter {
       final points = controller.points;
       if (points.isEmpty) return [];
 
-      // 🔥 ペンアップ検出のための距離ベース分割
-      // 閾値を30pxに設定：ひらがな等の小さな文字でも確実に分割
-      const double breakThreshold = 30.0;
-
       final List<DrawingStroke> strokes = [];
       List<DrawingPoint> currentStrokePoints = [];
 
-      for (int i = 0; i < points.length; i++) {
-        final point = points[i];
-
-        if (currentStrokePoints.isNotEmpty && i > 0) {
-          // 前の点との距離を計算
-          final prevPoint = points[i - 1];
-          final distance = (point.offset - prevPoint.offset).distance;
-
-          // 距離が50px以上離れていたら別ストローク（ペンアップした可能性）
-          if (distance > breakThreshold) {
-            // 現在のストロークを保存
-            strokes.add(DrawingStroke(
-              strokeId: _uuid.v4(),
-              points: List.from(currentStrokePoints),
-              colorValue: strokeColor.value,
-              strokeWidth: strokeWidth,
-              createdAt: DateTime.now(),
-              authorId: authorId,
-              authorName: authorName,
-            ));
-            // 新しいストローク開始
-            currentStrokePoints = [];
-          }
-        }
-
-        // 座標をスケーリング前の座標系に変換
-        currentStrokePoints.add(DrawingPoint(
+      for (final point in points) {
+        final drawingPoint = DrawingPoint(
           x: point.offset.dx / scale,
           y: point.offset.dy / scale,
-        ));
+        );
+
+        final hasPreviousPoint = currentStrokePoints.isNotEmpty;
+        final isDuplicatePoint = hasPreviousPoint &&
+            currentStrokePoints.last.x == drawingPoint.x &&
+            currentStrokePoints.last.y == drawingPoint.y;
+
+        if (!isDuplicatePoint) {
+          currentStrokePoints.add(drawingPoint);
+        }
+
+        // signature は 1ストロークにつき「tap(start) -> move... -> tap(end)」を流す。
+        // 先頭tapではなく、2点目以降のtapを終端として扱う。
+        if (point.type == PointType.tap && currentStrokePoints.length > 1) {
+          strokes.add(DrawingStroke(
+            strokeId: _uuid.v4(),
+            points: List.from(currentStrokePoints),
+            colorValue: strokeColor.value,
+            strokeWidth: strokeWidth,
+            createdAt: DateTime.now(),
+            authorId: authorId,
+            authorName: authorName,
+          ));
+          currentStrokePoints = [];
+        }
       }
 
-      // 最後のストロークを追加
+      // 念のため終端tapを取り逃したケースも拾う
       if (currentStrokePoints.isNotEmpty) {
         strokes.add(DrawingStroke(
           strokeId: _uuid.v4(),
