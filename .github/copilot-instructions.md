@@ -264,6 +264,52 @@ ScaffoldMessenger.of(context).showSnackBar(
 
 **Why**: アイテム追加のような高頻度操作では、成功フィードバックが長すぎるだけで操作感が重くなる。特に連続追加では「確認メッセージ」より「次の入力にすぐ移れること」が UX 上重要である。
 
+### 9. サインイン復元を Hive box 未準備のまま走らせるな
+
+**Anti-pattern**:
+
+```dart
+// ❌ UID保存後すぐに復元。auth listener が Hive reopen より先に進む
+await UserPreferencesService.saveUserId(newUserId);
+await _restoreSignedInUserGroups(ref, newUserId);
+```
+
+**Correct pattern**:
+
+```dart
+// ✅ SharedGroups / sharedLists / userSettings の box open を確認してから復元
+await UserPreferencesService.saveUserId(newUserId);
+await _ensureHiveBoxesReady(ref, newUserId);
+await _restoreSignedInUserGroups(ref, newUserId);
+```
+
+**Why**: `authStateChanges()` は AppInitializeWidget の Hive 初期化完了より先に飛ぶことがある。このタイミングで `forceSyncProvider` や `allGroupsProvider` が Hive に触ると `SharedGroup box is not open` で失敗し、サインイン直後のグループ0件誤判定を再導入する。
+
+### 10. ホワイトボードの stroke 分割を距離しきい値で判定するな
+
+**Anti-pattern**:
+
+```dart
+// ❌ サンプリング間隔に依存して誤分割する
+const double breakThreshold = 30.0;
+if (distance > breakThreshold) {
+  strokes.add(DrawingStroke(...));
+  currentStrokePoints = [];
+}
+```
+
+**Correct pattern**:
+
+```dart
+// ✅ signature パッケージが流す PointType の境界をそのまま使う
+if (point.type == PointType.tap && currentStrokePoints.length > 1) {
+  strokes.add(DrawingStroke(...));
+  currentStrokePoints = [];
+}
+```
+
+**Why**: iOS では point サンプリング密度の違いで距離が大きくなりやすく、1本の線が点状に分断される。`signature` は stroke の開始・終了を `PointType` で表現しているため、独自ヒューリスティックよりそれを信頼した方が安定する。
+
 ---
 
 ## Recent Implementations (2026-03-10)
