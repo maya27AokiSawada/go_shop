@@ -22,12 +22,13 @@ class MemberTileWithWhiteboard extends ConsumerWidget {
     final currentUser = ref.watch(authStateProvider).value;
     final isCurrentUser = currentUser?.uid == member.memberId;
 
-    // 個人用ホワイトボードの状態を監視
+    // 個人用ホワイトボードの状態をリアルタイム監視
     final whiteboardAsync = ref.watch(
       personalWhiteboardProvider((groupId: groupId, userId: member.memberId)),
     );
 
     return InkWell(
+      onTap: () => _openPersonalWhiteboard(context, ref),
       onDoubleTap: () => _openPersonalWhiteboard(context, ref),
       child: ListTile(
         leading: CircleAvatar(
@@ -73,7 +74,7 @@ class MemberTileWithWhiteboard extends ConsumerWidget {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      'ダブルタップ',
+                      'タップで開く',
                       style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                     ),
                   ],
@@ -113,7 +114,7 @@ class MemberTileWithWhiteboard extends ConsumerWidget {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  isCurrentUser ? 'ダブルタップ' : '編集可',
+                  isCurrentUser ? 'タップで開く' : '編集可',
                   style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                 ),
               ],
@@ -139,7 +140,7 @@ class MemberTileWithWhiteboard extends ConsumerWidget {
               ),
               const SizedBox(width: 4),
               Text(
-                isCurrentUser ? 'ダブルタップ' : '編集可',
+                isCurrentUser ? 'タップで開く' : '編集可',
                 style: TextStyle(fontSize: 10, color: Colors.grey[600]),
               ),
             ],
@@ -155,6 +156,9 @@ class MemberTileWithWhiteboard extends ConsumerWidget {
     WidgetRef ref,
   ) async {
     try {
+      AppLogger.info(
+          '📝 [PERSONAL_WB] オープン要求: member=${AppLogger.maskUserId(member.memberId)}, group=${AppLogger.maskGroupId(groupId)}');
+
       final repository = ref.read(whiteboardRepositoryProvider);
 
       // 既存の個人用ホワイトボードを取得
@@ -170,6 +174,9 @@ class MemberTileWithWhiteboard extends ConsumerWidget {
           ownerId: member.memberId, // 個人用
         );
         AppLogger.info('✅ 個人用ホワイトボード作成: ${member.name}');
+      } else {
+        AppLogger.info(
+            '📋 [PERSONAL_WB] 既存個人ボードを使用: ${whiteboard.whiteboardId}, isPrivate=${whiteboard.isPrivate}');
       }
 
       if (context.mounted) {

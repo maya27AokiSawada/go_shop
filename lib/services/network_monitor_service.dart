@@ -31,6 +31,9 @@ enum NetworkStatus {
 /// });
 /// ```
 class NetworkMonitorService {
+  static const offlineFailureThreshold = 2;
+  static const transientRetryDelay = Duration(milliseconds: 700);
+
   NetworkMonitorService() {
     // 🔥 初期状態をStreamに流す（StreamProviderのloading状態を解消）
     _statusController.add(_currentStatus);
@@ -63,6 +66,12 @@ class NetworkMonitorService {
   /// 接続タイムアウト（5秒）
   static const connectionTimeout = Duration(seconds: 5);
 
+  /// 直近の接続チェック失敗回数
+  int _consecutiveCheckFailures = 0;
+
+  /// 最後に接続成功した時刻
+  DateTime? _lastSuccessTime;
+
   /// Firestore接続をチェック
   ///
   /// 認証済みユーザーの場合は自分のユーザードキュメント（users/{uid}）を取得。
@@ -73,90 +82,152 @@ class NetworkMonitorService {
   Future<bool> checkFirestoreConnection() async {
     AppLogger.info('🔍 [NETWORK_MONITOR] Firestore接続チェック開始');
 
-    // 状態を「チェック中」に更新
-    _updateStatus(NetworkStatus.checking);
+    final previousStatus = _currentStatus;
+
+    // 既にオフライン系状態の時だけ「チェック中」をUIへ反映する。
+    // オンライン中の単発失敗ではバナーを出さないため、通常時は状態を維持する。
+    if (previousStatus != NetworkStatus.online) {
+      _updateStatus(NetworkStatus.checking);
+    }
     _lastCheckTime = DateTime.now();
 
-    try {
-      // Firestoreからデータ取得を試行（キャッシュを使わず、サーバーから取得）
-      AppLogger.info('🔍 [NETWORK_MONITOR] Firestoreクエリ実行中...');
-
-      final currentUser = FirebaseAuth.instance.currentUser;
-      final DocumentSnapshot snapshot;
-
-      if (currentUser != null) {
-        // 認証済み：自分のユーザードキュメントを取得（必ず読み取り可能）
+    for (var attempt = 1; attempt <= offlineFailureThreshold; attempt++) {
+      try {
+        // Firestoreからデータ取得を試行（キャッシュを使わず、サーバーから取得）
         AppLogger.info(
-            '🔍 [NETWORK_MONITOR] 認証済み - ユーザードキュメントで接続チェック: ${AppLogger.maskUserId(currentUser.uid)}');
-        snapshot = await FirebaseFirestore.instance
-            .doc('users/${currentUser.uid}')
-            .get(const GetOptions(source: Source.server))
-            .timeout(connectionTimeout);
-      } else {
-        // 未認証：公開ニュースコレクションを取得（誰でも読み取り可能）
-        AppLogger.info('🔍 [NETWORK_MONITOR] 未認証 - 公開ニュースで接続チェック');
-        final querySnapshot = await FirebaseFirestore.instance
-            .collection('furestorenews')
-            .limit(1)
-            .get(const GetOptions(source: Source.server))
-            .timeout(connectionTimeout);
-        snapshot = querySnapshot.docs.isNotEmpty
-            ? querySnapshot.docs.first
-            : throw Exception('No documents');
-      }
+            '🔍 [NETWORK_MONITOR] Firestoreクエリ実行中... (attempt $attempt/$offlineFailureThreshold)');
 
-      // 接続成功
-      AppLogger.info(
-          '✅ [NETWORK_MONITOR] Firestore接続成功 - ドキュメント存在: ${snapshot.exists}');
-      _updateStatus(NetworkStatus.online);
+        final currentUser = FirebaseAuth.instance.currentUser;
+        final DocumentSnapshot snapshot;
 
-      // 自動リトライを停止（オンラインに復帰したため）
-      stopAutoRetry();
-
-      return true;
-    } on TimeoutException catch (e) {
-      // タイムアウト
-      AppLogger.warning('⏱️ [NETWORK_MONITOR] Firestore接続タイムアウト（5秒）: $e');
-      _updateStatus(NetworkStatus.offline);
-      return false;
-    } on FirebaseException catch (e) {
-      // 🔥 P2 FIX: permission-denied / unauthenticated は認証問題であり、
-      // ネットワーク障害ではない。公開コレクションで再チェックする。
-      if (e.code == 'permission-denied' || e.code == 'unauthenticated') {
-        AppLogger.warning(
-            '🔐 [NETWORK_MONITOR] 認証エラー検出（${e.code}）- 公開コレクションで再チェック');
-        try {
-          await FirebaseFirestore.instance
+        if (currentUser != null) {
+          // 認証済み：自分のユーザードキュメントを取得（必ず読み取り可能）
+          AppLogger.info(
+              '🔍 [NETWORK_MONITOR] 認証済み - ユーザードキュメントで接続チェック: ${AppLogger.maskUserId(currentUser.uid)}');
+          snapshot = await FirebaseFirestore.instance
+              .doc('users/${currentUser.uid}')
+              .get(const GetOptions(source: Source.server))
+              .timeout(connectionTimeout);
+        } else {
+          // 未認証：公開ニュースコレクションを取得（誰でも読み取り可能）
+          AppLogger.info('🔍 [NETWORK_MONITOR] 未認証 - 公開ニュースで接続チェック');
+          final querySnapshot = await FirebaseFirestore.instance
               .collection('furestorenews')
               .limit(1)
               .get(const GetOptions(source: Source.server))
               .timeout(connectionTimeout);
-          // 公開コレクションアクセス成功 → ネットワークはオンライン
-          AppLogger.info(
-              '✅ [NETWORK_MONITOR] ネットワークはオンライン（認証エラーのみ）');
-          _updateStatus(NetworkStatus.online);
-          stopAutoRetry();
-          return true;
-        } catch (fallbackError) {
-          // 公開コレクションもアクセス不可 → 本当にオフライン
-          AppLogger.warning(
-              '❌ [NETWORK_MONITOR] 公開コレクションもアクセス不可 - オフライン: $fallbackError');
-          _updateStatus(NetworkStatus.offline);
-          return false;
+          snapshot = querySnapshot.docs.isNotEmpty
+              ? querySnapshot.docs.first
+              : throw Exception('No documents');
         }
+
+        // 接続成功
+        _consecutiveCheckFailures = 0;
+        _lastSuccessTime = DateTime.now();
+        AppLogger.info(
+            '✅ [NETWORK_MONITOR] Firestore接続成功 - ドキュメント存在: ${snapshot.exists}');
+        _updateStatus(NetworkStatus.online);
+
+        // 自動リトライを停止（オンラインに復帰したため）
+        stopAutoRetry();
+
+        return true;
+      } on TimeoutException catch (e) {
+        AppLogger.warning(
+            '⏱️ [NETWORK_MONITOR] Firestore接続タイムアウト（5秒）: $e (attempt $attempt/$offlineFailureThreshold)');
+
+        if (_shouldRetryTransientFailure(previousStatus, attempt)) {
+          AppLogger.warning(
+              '⚠️ [NETWORK_MONITOR] 単発タイムアウトの可能性 - ${transientRetryDelay.inMilliseconds}ms 後に再試行');
+          await Future.delayed(transientRetryDelay);
+          continue;
+        }
+
+        _recordFailedCheckAndGoOffline();
+        return false;
+      } on FirebaseException catch (e) {
+        // 🔥 P2 FIX: permission-denied / unauthenticated は認証問題であり、
+        // ネットワーク障害ではない。公開コレクションで再チェックする。
+        if (e.code == 'permission-denied' || e.code == 'unauthenticated') {
+          AppLogger.warning(
+              '🔐 [NETWORK_MONITOR] 認証エラー検出（${e.code}）- 公開コレクションで再チェック');
+          try {
+            await FirebaseFirestore.instance
+                .collection('furestorenews')
+                .limit(1)
+                .get(const GetOptions(source: Source.server))
+                .timeout(connectionTimeout);
+            // 公開コレクションアクセス成功 → ネットワークはオンライン
+            _consecutiveCheckFailures = 0;
+            _lastSuccessTime = DateTime.now();
+            AppLogger.info('✅ [NETWORK_MONITOR] ネットワークはオンライン（認証エラーのみ）');
+            _updateStatus(NetworkStatus.online);
+            stopAutoRetry();
+            return true;
+          } catch (fallbackError) {
+            AppLogger.warning(
+                '❌ [NETWORK_MONITOR] 公開コレクションもアクセス不可: $fallbackError (attempt $attempt/$offlineFailureThreshold)');
+
+            if (_shouldRetryTransientFailure(previousStatus, attempt)) {
+              AppLogger.warning(
+                  '⚠️ [NETWORK_MONITOR] 単発の名前解決失敗の可能性 - ${transientRetryDelay.inMilliseconds}ms 後に再試行');
+              await Future.delayed(transientRetryDelay);
+              continue;
+            }
+
+            _recordFailedCheckAndGoOffline();
+            return false;
+          }
+        }
+
+        AppLogger.warning(
+            '❌ [NETWORK_MONITOR] Firestore接続エラー: ${e.code} - ${e.message} (attempt $attempt/$offlineFailureThreshold)');
+
+        if (_shouldRetryTransientFailure(previousStatus, attempt)) {
+          AppLogger.warning(
+              '⚠️ [NETWORK_MONITOR] 一時的なFirebase接続失敗の可能性 - ${transientRetryDelay.inMilliseconds}ms 後に再試行');
+          await Future.delayed(transientRetryDelay);
+          continue;
+        }
+
+        _recordFailedCheckAndGoOffline();
+        return false;
+      } catch (e, stackTrace) {
+        AppLogger.error(
+            '❌ [NETWORK_MONITOR] Firestore接続エラー（予期しない）: $e (attempt $attempt/$offlineFailureThreshold)');
+        AppLogger.error('📍 [NETWORK_MONITOR] スタックトレース: $stackTrace');
+
+        if (_shouldRetryTransientFailure(previousStatus, attempt)) {
+          AppLogger.warning(
+              '⚠️ [NETWORK_MONITOR] 単発の予期しない失敗の可能性 - ${transientRetryDelay.inMilliseconds}ms 後に再試行');
+          await Future.delayed(transientRetryDelay);
+          continue;
+        }
+
+        _recordFailedCheckAndGoOffline();
+        return false;
       }
-      // その他のFirebaseエラー（unavailable等）はネットワーク障害
-      AppLogger.warning(
-          '❌ [NETWORK_MONITOR] Firestore接続エラー: ${e.code} - ${e.message}');
-      _updateStatus(NetworkStatus.offline);
-      return false;
-    } catch (e, stackTrace) {
-      // その他のエラー
-      AppLogger.error('❌ [NETWORK_MONITOR] Firestore接続エラー（予期しない）: $e');
-      AppLogger.error('📍 [NETWORK_MONITOR] スタックトレース: $stackTrace');
-      _updateStatus(NetworkStatus.offline);
-      return false;
     }
+
+    return false;
+  }
+
+  bool _shouldRetryTransientFailure(
+    NetworkStatus previousStatus,
+    int attempt,
+  ) {
+    return previousStatus == NetworkStatus.online &&
+        attempt < offlineFailureThreshold;
+  }
+
+  void _recordFailedCheckAndGoOffline() {
+    _consecutiveCheckFailures += 1;
+    final elapsedSinceLastSuccess = _lastSuccessTime == null
+        ? 'unknown'
+        : '${DateTime.now().difference(_lastSuccessTime!).inSeconds}s';
+    AppLogger.warning(
+        '📉 [NETWORK_MONITOR] オフライン判定: failures=$_consecutiveCheckFailures, lastSuccessAgo=$elapsedSinceLastSuccess');
+    _updateStatus(NetworkStatus.offline);
   }
 
   /// 自動リトライを開始
@@ -202,6 +273,8 @@ class NetworkMonitorService {
   /// グループ作成やリスト操作など、Firestore操作が成功した時に呼び出す。
   /// 現在オフライン状態の場合、オンラインに復帰させてバナーを非表示にする。
   void reportFirestoreSuccess() {
+    _consecutiveCheckFailures = 0;
+    _lastSuccessTime = DateTime.now();
     if (_currentStatus != NetworkStatus.online) {
       AppLogger.info(
           '✅ [NETWORK_MONITOR] Firestore操作成功を検出 → オンライン復帰 (旧状態: $_currentStatus)');

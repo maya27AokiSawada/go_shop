@@ -965,11 +965,25 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       // 現在の状態を保存（メッセージ表示用）
       final wasPrivate = _currentWhiteboard.isPrivate;
 
-      // Firestoreで更新
-      await repository.togglePrivate(_currentWhiteboard);
+      if (_currentWhiteboard.isPersonalWhiteboard &&
+          _currentWhiteboard.ownerId != null) {
+        final updated = await repository.togglePersonalWhiteboardPrivate(
+          groupId: widget.groupId,
+          ownerId: _currentWhiteboard.ownerId!,
+        );
 
-      // 🔥 CRITICAL: Firestoreから最新データを明示的に取得してUIを更新
-      await _reloadWhiteboardFromFirestore(reason: 'privacy toggle');
+        if (mounted) {
+          setState(() {
+            _currentWhiteboard = updated;
+          });
+        }
+      } else {
+        // Firestoreで更新
+        await repository.togglePrivate(_currentWhiteboard);
+
+        // 🔥 CRITICAL: Firestoreから最新データを明示的に取得してUIを更新
+        await _reloadWhiteboardFromFirestore(reason: 'privacy toggle');
+      }
 
       if (mounted) {
         SnackBarHelper.showSuccess(
@@ -981,6 +995,73 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       AppLogger.info('✅ [PRIVATE] プライベート設定変更完了: $wasPrivate → ${!wasPrivate}');
     } catch (e) {
       AppLogger.error('❌ プライベート設定エラー: $e');
+      if (mounted) {
+        SnackBarHelper.showError(context, '編集制限の変更に失敗しました: $e');
+      }
+    }
+  }
+
+  Future<void> _setPrivate(bool isPrivate) async {
+    final previousWhiteboard = _currentWhiteboard;
+
+    try {
+      final repository = ref.read(whiteboardRepositoryProvider);
+
+      if (_currentWhiteboard.isPrivate == isPrivate) {
+        return;
+      }
+
+      final wasPrivate = _currentWhiteboard.isPrivate;
+
+      if (mounted) {
+        setState(() {
+          _currentWhiteboard = _currentWhiteboard.copyWith(
+            isPrivate: isPrivate,
+            updatedAt: DateTime.now(),
+          );
+        });
+      }
+
+      if (_currentWhiteboard.isPersonalWhiteboard &&
+          _currentWhiteboard.ownerId != null) {
+        final updated = await repository.setWhiteboardPrivate(
+          groupId: widget.groupId,
+          whiteboardId: previousWhiteboard.whiteboardId,
+          isPrivate: isPrivate,
+          ownerId: previousWhiteboard.ownerId!,
+          fallbackWhiteboard: previousWhiteboard,
+        );
+
+        if (mounted) {
+          setState(() {
+            _currentWhiteboard = updated;
+          });
+        }
+      } else {
+        await repository.togglePrivate(
+          _currentWhiteboard.copyWith(isPrivate: !isPrivate),
+        );
+        await _reloadWhiteboardFromFirestore(reason: 'privacy set');
+      }
+
+      if (mounted) {
+        SnackBarHelper.showSuccess(
+          context,
+          wasPrivate ? '他の人も編集できるようになりました' : '自分だけ編集できるようになりました',
+        );
+      }
+
+      AppLogger.info('✅ [PRIVATE] 明示設定完了: $wasPrivate → $isPrivate');
+    } catch (e) {
+      AppLogger.error('❌ プライベート設定明示更新エラー: $e');
+      if (mounted) {
+        setState(() {
+          _currentWhiteboard = previousWhiteboard;
+        });
+      }
+      if (mounted) {
+        SnackBarHelper.showError(context, '編集制限の変更に失敗しました: $e');
+      }
     }
   }
 
@@ -1123,7 +1204,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
                   const Text('編集制限', style: TextStyle(fontSize: 12)),
                   Switch(
                     value: _currentWhiteboard.isPrivate,
-                    onChanged: (_) => _togglePrivate(),
+                    onChanged: _setPrivate,
                   ),
                 ],
               ),

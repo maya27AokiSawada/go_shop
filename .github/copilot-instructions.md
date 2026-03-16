@@ -310,6 +310,131 @@ if (point.type == PointType.tap && currentStrokePoints.length > 1) {
 
 **Why**: iOS では point サンプリング密度の違いで距離が大きくなりやすく、1本の線が点状に分断される。`signature` は stroke の開始・終了を `PointType` で表現しているため、独自ヒューリスティックよりそれを信頼した方が安定する。
 
+### 11. 接続監視で単発失敗を即 offline と判定するな
+
+**Anti-pattern**:
+
+```dart
+// ❌ 単発のタイムアウトや名前解決失敗で即 offline に落とす
+} on TimeoutException catch (e) {
+  _updateStatus(NetworkStatus.offline);
+  return false;
+} on FirebaseException catch (e) {
+  _updateStatus(NetworkStatus.offline);
+  return false;
+}
+```
+
+**Correct pattern**:
+
+```dart
+// ✅ 直前が online の場合は短い再試行を挟み、連続失敗でのみ offline 判定
+if (_shouldRetryTransientFailure(previousStatus, attempt)) {
+  await Future.delayed(transientRetryDelay);
+  continue;
+}
+
+_recordFailedCheckAndGoOffline();
+return false;
+```
+
+**Why**: Firestore / gRPC の `Failed to resolve name` は一時的な DNS / 名前解決失敗のことがある。同期や書き込みが成功しているのに接続バナーだけ出る回帰を防ぐには、単発失敗をそのまま offline と見なさない方がよい。
+
+### 12. `Switch` の更新で現在値を反転するな
+
+**Anti-pattern**:
+
+```dart
+// ❌ 表示中の現在値を見て toggle すると realtime 更新と競合しやすい
+Switch(
+  value: _currentWhiteboard.isPrivate,
+  onChanged: (_) => _togglePrivate(),
+);
+```
+
+**Correct pattern**:
+
+```dart
+// ✅ Switch が渡す目標値をそのまま保存し、失敗時だけロールバック
+Switch(
+  value: _currentWhiteboard.isPrivate,
+  onChanged: _setPrivate,
+);
+
+setState(() {
+  _currentWhiteboard = _currentWhiteboard.copyWith(
+    isPrivate: isPrivate,
+    updatedAt: DateTime.now(),
+  );
+});
+```
+
+**Why**: realtime listener が走る画面では、`toggle` は stale state を元に逆向き更新しやすい。`Switch` の callback はユーザーの意図した最終値を直接渡すため、その値を保存対象にした方が race を避けやすい。
+
+---
+
+## Recent Implementations (2026-03-16)
+
+### 1. ネットワーク監視バナーの誤検知緩和 ✅
+
+**Purpose**: 一時的な Firestore 名前解決失敗でオレンジの offline バナーが出続ける問題を緩和。
+
+**Solution**:
+
+```dart
+static const offlineFailureThreshold = 2;
+static const transientRetryDelay = Duration(milliseconds: 700);
+
+if (_shouldRetryTransientFailure(previousStatus, attempt)) {
+  await Future.delayed(transientRetryDelay);
+  continue;
+}
+
+_recordFailedCheckAndGoOffline();
+```
+
+**Modified Files**:
+
+- `lib/services/network_monitor_service.dart`
+
+**Status**: ✅ 実装完了・実機再確認待ち
+
+---
+
+### 2. 個人用ホワイトボードの即時反映経路改善 ✅
+
+**Purpose**: 個人用ホワイトボードの `編集可 / 編集不可` が Windows / Android 間で一覧と editor に即時反映されるようにする。
+
+**Solution**:
+
+```dart
+final personalWhiteboardProvider = StreamProvider.autoDispose
+    .family<Whiteboard?, ({String groupId, String userId})>((ref, params) {
+  return repository.watchPersonalWhiteboard(params.groupId, params.userId);
+});
+
+return InkWell(
+  onTap: () => _openPersonalWhiteboard(context, ref),
+  onDoubleTap: () => _openPersonalWhiteboard(context, ref),
+);
+```
+
+```dart
+Switch(
+  value: _currentWhiteboard.isPrivate,
+  onChanged: _setPrivate,
+);
+```
+
+**Modified Files**:
+
+- `lib/datastore/whiteboard_repository.dart`
+- `lib/providers/whiteboard_provider.dart`
+- `lib/widgets/member_tile_with_whiteboard.dart`
+- `lib/pages/whiteboard_editor_page.dart`
+
+**Status**: ✅ 一覧側の即時反映完了・SH-54D 最終実機確認待ち
+
 ---
 
 ## Recent Implementations (2026-03-10)

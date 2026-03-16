@@ -78,22 +78,146 @@ class WhiteboardRepository {
     String userId,
   ) async {
     try {
-      final querySnapshot = await _collection(groupId)
-          .where('ownerId', isEqualTo: userId)
-          .limit(1)
-          .get();
+      final querySnapshot =
+          await _collection(groupId).where('ownerId', isEqualTo: userId).get();
 
       if (querySnapshot.docs.isEmpty) {
         AppLogger.info('📋 個人用ホワイトボード未作成: userId=$userId');
         return null;
       }
 
-      final doc = querySnapshot.docs.first;
-      return Whiteboard.fromFirestore(doc.data(), doc.id);
+      return _pickLatestPersonalWhiteboard(querySnapshot.docs, userId);
     } catch (e) {
       AppLogger.error('❌ 個人用ホワイトボード取得エラー: $e');
       return null;
     }
+  }
+
+  /// 個人用ホワイトボードをリアルタイム監視
+  Stream<Whiteboard?> watchPersonalWhiteboard(
+    String groupId,
+    String userId,
+  ) {
+    return _collection(groupId)
+        .where('ownerId', isEqualTo: userId)
+        .snapshots()
+        .map((snapshot) {
+      if (snapshot.docs.isEmpty) {
+        AppLogger.info(
+            '📡 [WATCH_PERSONAL_WB] 個人用ホワイトボード未作成: ${AppLogger.maskUserId(userId)}');
+        return null;
+      }
+
+      final whiteboard = _pickLatestPersonalWhiteboard(snapshot.docs, userId);
+      AppLogger.info(
+          '📡 [WATCH_PERSONAL_WB] 個人用ホワイトボード更新検知: ${AppLogger.maskUserId(userId)}, isPrivate=${whiteboard.isPrivate}');
+      return whiteboard;
+    });
+  }
+
+  Whiteboard _pickLatestPersonalWhiteboard(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+    String userId,
+  ) {
+    final whiteboards =
+        docs.map((doc) => Whiteboard.fromFirestore(doc.data(), doc.id)).toList()
+          ..sort((a, b) {
+            final updatedComparison = b.updatedAt.compareTo(a.updatedAt);
+            if (updatedComparison != 0) {
+              return updatedComparison;
+            }
+            return b.createdAt.compareTo(a.createdAt);
+          });
+
+    if (whiteboards.length > 1) {
+      AppLogger.warning(
+          '⚠️ [PERSONAL_WB] 重複個人ボード検出: user=${AppLogger.maskUserId(userId)}, count=${whiteboards.length}, latest=${whiteboards.first.whiteboardId}');
+    }
+
+    return whiteboards.first;
+  }
+
+  /// 個人用ホワイトボードのプライベート設定を切り替え
+  /// stale な whiteboardId を保持していても、ownerId に紐づく最新ボードを更新する
+  Future<Whiteboard> togglePersonalWhiteboardPrivate({
+    required String groupId,
+    required String ownerId,
+  }) async {
+    final current = await getPersonalWhiteboard(groupId, ownerId);
+    if (current == null) {
+      throw Exception('個人用ホワイトボードが存在しません');
+    }
+
+    await _collection(groupId).doc(current.whiteboardId).update({
+      'isPrivate': !current.isPrivate,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    AppLogger.info(
+        '✅ [PERSONAL_WB] プライベート設定切り替え: ${AppLogger.maskUserId(ownerId)} ${!current.isPrivate ? "ON" : "OFF"} target=${current.whiteboardId}');
+
+    final reloaded = await getWhiteboardById(groupId, current.whiteboardId);
+    return reloaded ??
+        current.copyWith(
+          isPrivate: !current.isPrivate,
+          updatedAt: DateTime.now(),
+        );
+  }
+
+  /// 個人用ホワイトボードのプライベート設定を明示的に設定
+  Future<Whiteboard> setPersonalWhiteboardPrivate({
+    required String groupId,
+    required String ownerId,
+    required bool isPrivate,
+  }) async {
+    final current = await getPersonalWhiteboard(groupId, ownerId);
+    if (current == null) {
+      throw Exception('個人用ホワイトボードが存在しません');
+    }
+
+    return setWhiteboardPrivate(
+      groupId: groupId,
+      whiteboardId: current.whiteboardId,
+      isPrivate: isPrivate,
+      ownerId: ownerId,
+      fallbackWhiteboard: current,
+    );
+  }
+
+  /// 指定ホワイトボードのプライベート設定を明示的に更新
+  Future<Whiteboard> setWhiteboardPrivate({
+    required String groupId,
+    required String whiteboardId,
+    required bool isPrivate,
+    String? ownerId,
+    Whiteboard? fallbackWhiteboard,
+  }) async {
+    await _collection(groupId).doc(whiteboardId).update({
+      'isPrivate': isPrivate,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    AppLogger.info(
+        '✅ [PERSONAL_WB] プライベート設定を明示更新: ${AppLogger.maskUserId(ownerId)} value=$isPrivate target=$whiteboardId');
+
+    final reloaded = await getWhiteboardById(groupId, whiteboardId);
+    return reloaded ??
+        (fallbackWhiteboard ??
+                Whiteboard(
+                  whiteboardId: whiteboardId,
+                  groupId: groupId,
+                  ownerId: ownerId,
+                  strokes: const [],
+                  isPrivate: isPrivate,
+                  createdAt: DateTime.now(),
+                  updatedAt: DateTime.now(),
+                  canvasWidth: 1280.0,
+                  canvasHeight: 720.0,
+                ))
+            .copyWith(
+          isPrivate: isPrivate,
+          updatedAt: DateTime.now(),
+        );
   }
 
   /// ホワイトボード作成

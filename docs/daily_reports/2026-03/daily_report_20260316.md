@@ -6,7 +6,8 @@
 - [x] 個人用ホワイトボード保存時に残っていたスピナー問題と UI 劣化を解消する
 - [x] ホワイトボードプレビューとユーザー切替まわりの Android / Windows 実機回帰を確認する
 - [x] 本日分の実機テストチェックリストを作成し、確認結果を反映する
-- [ ] ネットワーク監視バナーの誤検知を修正する
+- [x] ネットワーク監視バナーの誤検知を緩和する
+- [x] 個人用ホワイトボードの編集可 / 編集不可の即時反映経路を改善する
 - [ ] iOS ホワイトボード描画連続性を確認する
 
 ---
@@ -214,14 +215,157 @@ error: (error, stack) {
 
 ---
 
+### 5. ネットワーク監視バナーの誤検知を緩和 ✅
+
+**Purpose**: 一時的な Firestore 名前解決失敗だけでオフラインバナーへ落ちる頻度を減らし、実際の接続状況に近い表示へ寄せる。
+
+**Background**: 実機では Firestore 操作や同期自体が成功しているのに、オレンジの接続エラーバナーだけ出るケースがあった。ログを見ると `Failed to resolve name` や一時的タイムアウトが混在していた。
+
+**Problem / Root Cause**:
+
+単発の `TimeoutException` や一時的な `FirebaseException` をそのまま offline 判定しており、オンライン中の瞬断を UI が過剰にバナー表示していた。
+
+```dart
+// ❌ Before
+} on TimeoutException catch (e) {
+  _updateStatus(NetworkStatus.offline);
+  return false;
+} on FirebaseException catch (e) {
+  _updateStatus(NetworkStatus.offline);
+  return false;
+}
+```
+
+**Solution**:
+
+オンライン状態からの接続チェック失敗では即 offline に落とさず、閾値 2 回まで再試行するよう変更した。成功時には失敗回数をリセットし、単発失敗でバナーが出ないようにした。
+
+```dart
+// ✅ After
+static const offlineFailureThreshold = 2;
+static const transientRetryDelay = Duration(milliseconds: 700);
+
+for (var attempt = 1; attempt <= offlineFailureThreshold; attempt++) {
+  try {
+    // Firestore check
+    _consecutiveCheckFailures = 0;
+    _lastSuccessTime = DateTime.now();
+    _updateStatus(NetworkStatus.online);
+    return true;
+  } on TimeoutException catch (e) {
+    if (_shouldRetryTransientFailure(previousStatus, attempt)) {
+      await Future.delayed(transientRetryDelay);
+      continue;
+    }
+    _recordFailedCheckAndGoOffline();
+    return false;
+  }
+}
+```
+
+**検証結果**:
+
+| テスト                         | 結果          |
+| ------------------------------ | ------------- |
+| `flutter analyze` 対象ファイル | ✅ エラーなし |
+| 実機でのバナー誤検知減少       | 未確認        |
+
+**Modified Files**:
+
+- `lib/services/network_monitor_service.dart` - 単発失敗を再試行し、連続失敗時のみ offline 判定するよう変更
+
+**Status**: ✅ 実装完了・実機再確認待ち
+
+---
+
+### 6. 個人用ホワイトボードの即時反映経路を改善 ✅
+
+**Purpose**: Windows / Android 間で、個人用ホワイトボードの編集可 / 編集不可表示と editor 遷移を即時反映できるようにする。
+
+**Background**: Windows ではグループ詳細画面の trailing 表示が即時更新されず、SH-54D ではダブルタップだけだと個人ボード editor に入りにくいケースがあった。
+
+**Problem / Root Cause**:
+
+個人用ホワイトボードは `FutureProvider` の一回読み切りだったため、`isPrivate` が変わっても一覧側はページを開き直すまで古い状態を保持していた。また Android 実機ではダブルタップ認識が安定せず、オーナーが editor に入れないことがあった。
+
+```dart
+// ❌ Before
+final personalWhiteboardProvider = FutureProvider.autoDispose
+    .family<Whiteboard?, ({String groupId, String userId})>(
+  (ref, params) async {
+    return await repository.getPersonalWhiteboard(params.groupId, params.userId);
+  },
+);
+
+return InkWell(
+  onDoubleTap: () => _openPersonalWhiteboard(context, ref),
+);
+```
+
+**Solution**:
+
+個人用ホワイトボードを `StreamProvider` に切り替えて Firestore `snapshots()` を監視し、メンバータイルでは通常タップでも editor を開けるようにした。さらに個人ボード取得時は `updatedAt` / `createdAt` の新しいものを選ぶようにして、重複時でも最新 doc を採用するよう補強した。
+
+```dart
+// ✅ After
+final personalWhiteboardProvider = StreamProvider.autoDispose
+    .family<Whiteboard?, ({String groupId, String userId})>((ref, params) {
+  return repository.watchPersonalWhiteboard(params.groupId, params.userId);
+});
+
+return InkWell(
+  onTap: () => _openPersonalWhiteboard(context, ref),
+  onDoubleTap: () => _openPersonalWhiteboard(context, ref),
+);
+```
+
+```dart
+// ✅ 最新 personal board を採用
+final whiteboards = docs
+    .map((doc) => Whiteboard.fromFirestore(doc.data(), doc.id))
+    .toList()
+  ..sort((a, b) {
+    final updatedComparison = b.updatedAt.compareTo(a.updatedAt);
+    if (updatedComparison != 0) {
+      return updatedComparison;
+    }
+    return b.createdAt.compareTo(a.createdAt);
+  });
+```
+
+**検証結果**:
+
+| テスト                                                | 結果                |
+| ----------------------------------------------------- | ------------------- |
+| Windows グループ詳細画面で編集可 / 編集不可の即時反映 | ✅ 確認済み         |
+| SH-54D で個人ボード editor に入れること               | ✅ タップで回避可能 |
+| SH-54D で `編集不可 → 編集可` を戻す動作              | 未確認              |
+
+**Modified Files**:
+
+- `lib/datastore/whiteboard_repository.dart` - personal board の watch と最新 doc 選択ロジックを追加
+- `lib/providers/whiteboard_provider.dart` - `personalWhiteboardProvider` を `StreamProvider` 化
+- `lib/widgets/member_tile_with_whiteboard.dart` - タップで個人ボードを開けるよう変更、状態ログ追加
+
+**Status**: ✅ 一覧側の即時反映は完了・SH-54D スイッチ挙動は翌日継続
+
+---
+
 ## 🐛 発見された問題
 
-### ネットワーク監視バナーが一時的な名前解決失敗をオフラインと誤判定する可能性 ⚠️
+### ネットワーク監視バナーが一時的な名前解決失敗をオフラインと誤判定する可能性 ✅
 
 - **症状**: オレンジの接続エラーバナーが出ることがあるが、同期自体は通り、手動同期で解消する
 - **原因**: Firestore / gRPC の `Failed to resolve name` が一時的に発生し、`network_monitor_service.dart` が強めに offline 判定している可能性が高い
-- **対処**: 今日は原因整理まで実施。判定ロジックの緩和は未着手
-- **状態**: 調査完了・修正未着手
+- **対処**: 単発失敗では即 offline へ落とさず、2 回連続失敗時のみオフライン判定するロジックへ変更
+- **状態**: 実装完了・実機再確認待ち
+
+### SH-54D で個人用ホワイトボードの `編集不可 → 編集可` 戻しが未確認 ⚠️
+
+- **症状**: Windows 側には `編集不可` の反映が届くが、SH-54D のオーナー editor でスイッチを戻す最終確認が本日中に完了していない
+- **原因**: Firebase 全体の同期不良というより、個人ボードのスイッチ操作と Firestore 書き込み経路の追跡が必要。ログ上は `WATCH_PERSONAL_WB` が `isPrivate=false` を返しており、表示状態とスイッチ操作経路の差分確認が必要
+- **対処**: 個人ボードのプライベート設定変更は server 再問い合わせを避け、開いている `whiteboardId` へ直接反映する経路へ変更した。失敗時は楽観更新をロールバックするようにした
+- **状態**: 調査 / 実装完了・実機最終確認待ち
 
 ### iOS ホワイトボード描画連続性は未確認 ⏳
 
@@ -240,10 +384,12 @@ error: (error, stack) {
 2. ✅ 個人用ホワイトボード保存後のスピナー残留と UI 劣化を修正（完了日: 2026-03-16）
 3. ✅ ホワイトボード Provider / プレビューの回帰耐性改善（完了日: 2026-03-16）
 4. ✅ 3/16 実機テストチェックリスト作成と結果反映（完了日: 2026-03-16）
+5. ✅ ネットワーク監視バナーの誤検知緩和を実装（完了日: 2026-03-16）
+6. ✅ 個人用ホワイトボード一覧の即時反映と editor 遷移経路を改善（完了日: 2026-03-16）
 
 ### 対応中 🔄
 
-1. 🔄 ネットワーク監視バナーの誤検知整理（Priority: Medium）
+1. 🔄 SH-54D で個人用ホワイトボード `編集不可 → 編集可` 戻しの最終確認（Priority: High）
 
 ### 未着手 ⏳
 
@@ -254,7 +400,7 @@ error: (error, stack) {
 
 ### 翌日継続 ⏳
 
-- ⏳ ネットワーク監視バナー判定の緩和方針整理
+- ⏳ SH-54D で個人用ホワイトボード `編集不可 → 編集可` 戻しの実機確認
 - ⏳ iOS 環境でのホワイトボード線分断確認
 
 ---
@@ -338,9 +484,43 @@ V/NativeCrypto: Broken pipe
 
 ---
 
+### 個人用ホワイトボードの UI 切り替えは「現在値の反転」より「目標値の明示設定」を優先する
+
+**問題パターン**:
+
+```dart
+// ❌ 現在値を見て反転すると、表示更新タイミングと競合しやすい
+Switch(
+  value: _currentWhiteboard.isPrivate,
+  onChanged: (_) => _togglePrivate(),
+);
+```
+
+**正しいパターン**:
+
+```dart
+// ✅ Switch が渡す目標値をそのまま保存し、失敗時だけロールバックする
+Switch(
+  value: _currentWhiteboard.isPrivate,
+  onChanged: _setPrivate,
+);
+
+setState(() {
+  _currentWhiteboard = _currentWhiteboard.copyWith(
+    isPrivate: isPrivate,
+    updatedAt: DateTime.now(),
+  );
+});
+```
+
+**教訓**: リアルタイム監視中の UI では、`toggle` より `set(targetValue)` の方が race を起こしにくい。特に `Switch` は意図された最終値を直接受け取れるため、その値を保存対象にする方が安全。
+
+---
+
 ## 🗓 翌日（2026-03-17）の予定
 
-1. `network_monitor_service.dart` の offline 判定を見直し、オレンジバナーの誤検知を減らす
-2. 自宅 Mac 環境で iOS ホワイトボード描画連続性を確認する
-3. 閲覧専用時の描画禁止と再保存後の重複ストローク有無を実機確認する
-4. `SharedGroup box is not open` の再発ログ有無を確認する
+1. SH-54D で個人用ホワイトボードの `編集不可 → 編集可` 戻しを実機確認する
+2. `network_monitor_service.dart` の誤検知緩和後にオレンジバナーの挙動を再確認する
+3. 自宅 Mac 環境で iOS ホワイトボード描画連続性を確認する
+4. 閲覧専用時の描画禁止と再保存後の重複ストローク有無を実機確認する
+5. `SharedGroup box is not open` の再発ログ有無を確認する

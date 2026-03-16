@@ -24,13 +24,12 @@ final watchGroupWhiteboardProvider =
   return repository.watchGroupWhiteboard(groupId);
 });
 
-/// 個人用ホワイトボードプロバイダー
-final personalWhiteboardProvider = FutureProvider.autoDispose
+/// 個人用ホワイトボードリアルタイム監視プロバイダー
+final personalWhiteboardProvider = StreamProvider.autoDispose
     .family<Whiteboard?, ({String groupId, String userId})>(
-  (ref, params) async {
+  (ref, params) {
     final repository = ref.read(whiteboardRepositoryProvider);
-    return await repository.getPersonalWhiteboard(
-        params.groupId, params.userId);
+    return repository.watchPersonalWhiteboard(params.groupId, params.userId);
   },
 );
 
