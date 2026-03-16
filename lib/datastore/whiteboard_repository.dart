@@ -153,89 +153,17 @@ class WhiteboardRepository {
     if (newStrokes.isEmpty) return;
 
     try {
-      // 🔥 Windows版対策: runTransactionでクラッシュするため通常のupdateを使用
-      if (Platform.isWindows) {
-        AppLogger.info('💻 [WINDOWS] 通常のupdate処理を使用（トランザクション回避）');
-        await _addStrokesWithoutTransaction(
-          groupId: groupId,
-          whiteboardId: whiteboardId,
-          newStrokes: newStrokes,
-        );
-        return;
-      }
-
-      AppLogger.info('🔄 [REPO] Firestoreトランザクション開始...');
-
-      // Firestoreトランザクションで安全に追加
-      await _firestore.runTransaction((transaction) async {
-        AppLogger.info('🔄 [REPO] トランザクション内部処理開始');
-
-        final docRef = _collection(groupId).doc(whiteboardId);
-
-        AppLogger.info('🔄 [REPO] ドキュメント取得中...');
-        // 現在のホワイトボードを取得
-        final snapshot = await transaction.get(docRef);
-
-        AppLogger.info('🔄 [REPO] ドキュメント取得完了 - exists: ${snapshot.exists}');
-
-        if (!snapshot.exists) {
-          throw Exception('ホワイトボードが存在しません');
-        }
-
-        final currentData = snapshot.data()!;
-
-        AppLogger.info('🔄 [REPO] 既存ストローク解析中...');
-        final currentStrokes = (currentData['strokes'] as List<dynamic>?)
-                ?.map((s) =>
-                    DrawingStroke.fromFirestore(s as Map<String, dynamic>))
-                .toList() ??
-            [];
-
-        AppLogger.info('🔄 [REPO] 既存ストローク数: ${currentStrokes.length}');
-
-        // 🔥 重複チェック: strokeIdが既に存在するストロークは除外
-        AppLogger.info('🔄 [REPO] 重複チェック開始...');
-        final existingStrokeIds = currentStrokes.map((s) => s.strokeId).toSet();
-        final uniqueNewStrokes = newStrokes
-            .where((stroke) => !existingStrokeIds.contains(stroke.strokeId))
-            .toList();
-
-        AppLogger.info('🔄 [REPO] ユニークな新規ストローク数: ${uniqueNewStrokes.length}');
-
-        if (uniqueNewStrokes.isEmpty) {
-          AppLogger.info('📋 [CONFLICT] 重複ストローク検出、追加をスキップ');
-          return;
-        }
-
-        // 新しいストロークを追加
-        AppLogger.info('🔄 [REPO] ストロークマージ開始...');
-        final mergedStrokes = [...currentStrokes, ...uniqueNewStrokes];
-
-        AppLogger.info('🔄 [REPO] Firestoreデータ変換開始...');
-        // ドキュメントを更新
-        final updateData = {
-          'strokes': mergedStrokes
-              .map((s) => {
-                    'strokeId': s.strokeId,
-                    'points': s.points.map((p) => p.toMap()).toList(),
-                    'colorValue': s.colorValue,
-                    'strokeWidth': s.strokeWidth,
-                    'createdAt': Timestamp.fromDate(s.createdAt),
-                    'authorId': s.authorId,
-                    'authorName': s.authorName,
-                  })
-              .toList(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        };
-
-        AppLogger.info('🔄 [REPO] トランザクション更新実行中...');
-        transaction.update(docRef, updateData);
-
-        AppLogger.info(
-            '✅ [REPO] トランザクション内部処理完了: ${uniqueNewStrokes.length}個のストロークを追加（計${mergedStrokes.length}個）');
-      });
-
-      AppLogger.info('✅ [REPO] Firestoreトランザクション完了');
+      // write-only 操作で runTransaction() を使うと、端末や回線状態によって
+      // サーバー応答待ちのまま保存スピナーが復帰しないことがある。
+      // グループ共有ボードは編集ロック前提、個人ボードは単独編集前提のため、
+      // ここでは通常の get + update で差分追加する。
+      AppLogger.info('💾 [REPO] 通常のupdate処理でストローク追加開始');
+      await _addStrokesWithoutTransaction(
+        groupId: groupId,
+        whiteboardId: whiteboardId,
+        newStrokes: newStrokes,
+      );
+      AppLogger.info('✅ [REPO] 通常のupdate処理でストローク追加完了');
     } catch (e, stackTrace) {
       AppLogger.error('❌ [REPO] ストローク追加エラー: $e');
       AppLogger.error('📍 [REPO] スタックトレース: $stackTrace');
@@ -243,7 +171,7 @@ class WhiteboardRepository {
     }
   }
 
-  /// Windows版専用: トランザクションを使わない保存処理
+  /// トランザクションを使わない保存処理
   Future<void> _addStrokesWithoutTransaction({
     required String groupId,
     required String whiteboardId,

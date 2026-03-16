@@ -23,7 +23,7 @@ class WhiteboardPreviewWidget extends ConsumerWidget {
       loading: () => const SizedBox.shrink(),
       error: (error, stack) {
         AppLogger.error('❌ ホワイトボードプレビューエラー: $error');
-        return const SizedBox.shrink();
+        return _buildErrorPlaceholder();
       },
       data: (whiteboard) {
         // ホワイトボードがまだ作成されていない場合は作成ボタン表示
@@ -119,6 +119,34 @@ class WhiteboardPreviewWidget extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildErrorPlaceholder() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.orange[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange[200]!),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.warning_amber_rounded, color: Colors.orange[700]),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'ホワイトボードプレビューを取得できませんでした',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.orange[800],
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

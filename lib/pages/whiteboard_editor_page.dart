@@ -85,6 +85,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
   // 🗑️ 全クリア処理中フラグ（Firestoreリスナーの上書きを防ぐ）
   bool _isClearing = false;
 
+  // 👤 個人用ホワイトボード保存直後の自己反映スナップショット抑止
+  bool _suppressNextPersonalSnapshot = false;
+
   SignatureController _createSignatureController({
     required Color penColor,
     required double strokeWidth,
@@ -226,6 +229,16 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         .watchWhiteboard(widget.groupId, _currentWhiteboard.whiteboardId)
         .listen((latest) {
       if (!mounted || latest == null) return;
+
+      // 個人用ホワイトボードでは、自分の保存直後に同じ内容のスナップショットを
+      // 再処理して履歴保存・再描画を二重実行すると、スピナー復帰遅延やUI劣化を招く。
+      if (_suppressNextPersonalSnapshot &&
+          _currentWhiteboard.isPersonalWhiteboard) {
+        AppLogger.info('[LISTENER] 個人用ホワイトボードの自己反映スナップショットをスキップ');
+        _suppressNextPersonalSnapshot = false;
+        _currentWhiteboard = latest;
+        return;
+      }
 
       // 自分が編集中（ロック保持中）の場合は上書きしない
       if (_hasEditLock) return;
@@ -798,6 +811,8 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     AppLogger.info('💾 [SAVE] 保存処理開始');
     setState(() => _isSaving = true);
 
+    var spinnerReleased = false;
+
     try {
       final currentUser = ref.read(authStateProvider).value;
       if (currentUser == null) {
@@ -838,6 +853,11 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
 
       // 🔥 差分ストローク追加でFirestoreに安全に保存
       final repository = ref.read(whiteboardRepositoryProvider);
+
+      if (_currentWhiteboard.isPersonalWhiteboard) {
+        _suppressNextPersonalSnapshot = true;
+      }
+
       await repository.addStrokesToWhiteboard(
         groupId: widget.groupId,
         whiteboardId: _currentWhiteboard.whiteboardId,
@@ -845,6 +865,11 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       );
 
       AppLogger.info('✅ [SAVE] Firestore保存完了: ${newStrokes.length}個のストローク');
+
+      if (mounted) {
+        setState(() => _isSaving = false);
+        spinnerReleased = true;
+      }
 
       // 🔥 Windows版対策: Firestore保存後にmountedチェック
       if (!mounted) return;
@@ -868,13 +893,20 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       if (!Platform.isWindows) {
         try {
           final notificationService = ref.read(notificationServiceProvider);
-          await notificationService.sendWhiteboardUpdateNotification(
-            groupId: widget.groupId,
-            whiteboardId: _currentWhiteboard.whiteboardId,
-            isGroupWhiteboard: _currentWhiteboard.isGroupWhiteboard,
-            ownerId: _currentWhiteboard.ownerId,
+          unawaited(
+            notificationService
+                .sendWhiteboardUpdateNotification(
+              groupId: widget.groupId,
+              whiteboardId: _currentWhiteboard.whiteboardId,
+              isGroupWhiteboard: _currentWhiteboard.isGroupWhiteboard,
+              ownerId: _currentWhiteboard.ownerId,
+            )
+                .then((_) {
+              AppLogger.info('✅ ホワイトボード更新通知送信完了');
+            }).catchError((notificationError) {
+              AppLogger.error('⚠️ 通知送信エラー（保存は成功）: $notificationError');
+            }),
           );
-          AppLogger.info('✅ ホワイトボード更新通知送信完了');
         } catch (notificationError) {
           // 通知送信エラーは無視（保存自体は成功している）
           AppLogger.error('⚠️ 通知送信エラー（保存は成功）: $notificationError');
@@ -887,6 +919,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         SnackBarHelper.showSuccess(context, '保存しました');
       }
     } catch (e, stackTrace) {
+      _suppressNextPersonalSnapshot = false;
       AppLogger.error('❌ ホワイトボード保存エラー: $e');
 
       // 🔥 Sentry/Crashlyticsにエラー送信（Platform判定）
@@ -918,7 +951,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         SnackBarHelper.showError(context, '保存に失敗しました: $e');
       }
     } finally {
-      if (mounted) {
+      if (mounted && !spinnerReleased) {
         setState(() => _isSaving = false);
       }
     }

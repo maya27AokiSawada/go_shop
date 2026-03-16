@@ -8,15 +8,15 @@ final whiteboardRepositoryProvider = Provider<WhiteboardRepository>((ref) {
 });
 
 /// グループ共通ホワイトボードプロバイダー
-final groupWhiteboardProvider =
-    FutureProvider.family<Whiteboard?, String>((ref, groupId) async {
+final groupWhiteboardProvider = FutureProvider.autoDispose
+    .family<Whiteboard?, String>((ref, groupId) async {
   final repository = ref.read(whiteboardRepositoryProvider);
   return await repository.getGroupWhiteboard(groupId);
 });
 
 /// 🔥 NEW: グループ共通ホワイトボードリアルタイム監視プロバイダー
 final watchGroupWhiteboardProvider =
-    StreamProvider.family<Whiteboard?, String>((ref, groupId) {
+    StreamProvider.autoDispose.family<Whiteboard?, String>((ref, groupId) {
   final repository = ref.read(whiteboardRepositoryProvider);
 
   // 🔥 FIX: コレクション全体を監視してownerIdがnullのものをフィルタリング
@@ -25,8 +25,8 @@ final watchGroupWhiteboardProvider =
 });
 
 /// 個人用ホワイトボードプロバイダー
-final personalWhiteboardProvider =
-    FutureProvider.family<Whiteboard?, ({String groupId, String userId})>(
+final personalWhiteboardProvider = FutureProvider.autoDispose
+    .family<Whiteboard?, ({String groupId, String userId})>(
   (ref, params) async {
     final repository = ref.read(whiteboardRepositoryProvider);
     return await repository.getPersonalWhiteboard(
@@ -35,8 +35,8 @@ final personalWhiteboardProvider =
 );
 
 /// ホワイトボードリアルタイム監視プロバイダー
-final watchWhiteboardProvider =
-    StreamProvider.family<Whiteboard?, ({String groupId, String whiteboardId})>(
+final watchWhiteboardProvider = StreamProvider.autoDispose
+    .family<Whiteboard?, ({String groupId, String whiteboardId})>(
   (ref, params) {
     final repository = ref.read(whiteboardRepositoryProvider);
     return repository.watchWhiteboard(params.groupId, params.whiteboardId);
@@ -44,8 +44,8 @@ final watchWhiteboardProvider =
 );
 
 /// グループの全ホワイトボード取得プロバイダー
-final allWhiteboardsProvider =
-    FutureProvider.family<List<Whiteboard>, String>((ref, groupId) async {
+final allWhiteboardsProvider = FutureProvider.autoDispose
+    .family<List<Whiteboard>, String>((ref, groupId) async {
   final repository = ref.read(whiteboardRepositoryProvider);
   return await repository.getAllWhiteboards(groupId);
 });
