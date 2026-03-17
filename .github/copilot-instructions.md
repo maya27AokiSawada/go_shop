@@ -371,6 +371,117 @@ setState(() {
 
 **Why**: realtime listener が走る画面では、`toggle` は stale state を元に逆向き更新しやすい。`Switch` の callback はユーザーの意図した最終値を直接渡すため、その値を保存対象にした方が race を避けやすい。
 
+### 13. ホワイトボード編集ロックを `userId` だけで所有判定するな
+
+**Anti-pattern**:
+
+```dart
+// ❌ 同一ユーザー別端末を自分自身の編集中と誤認する
+final isMyLock = lockInfo?.userId == currentUser?.uid;
+
+if (currentUserId == userId) {
+  return true; // 別端末 lock まで延長してしまう
+}
+```
+
+**Correct pattern**:
+
+```dart
+// ✅ userId + deviceId で所有者を判定する
+final isMyLock = lockInfo != null &&
+    lockInfo.userId == currentUser?.uid &&
+    (lockInfo.deviceId == null ||
+        lockInfo.deviceId == currentDeviceId);
+```
+
+**Why**: マルチデバイス前提の編集ロックは「ユーザー」ではなく「端末セッション」を識別単位にしないと、Pixel 9 / SH-54D / Windows 間で stale lock を自分自身の編集中と誤認しやすい。legacy データの `deviceId == null` は互換扱いで読めるようにしておく。
+
+---
+
+## Recent Implementations (2026-03-17)
+
+### 1. ホワイトボードのペンモード編集ロックを全ボード種別へ拡張 ✅
+
+**Purpose**: グループ共有ボードだけでなく個人用ホワイトボードでも、ある端末がペンモード中は他端末を編集不可にする。
+
+**Solution**:
+
+```dart
+_watchEditLock();
+
+final isEnabled = !_isEditingLocked;
+
+if (_isEditingLocked && _isScrollLocked) {
+  _isScrollLocked = false;
+  _controller?.clear();
+}
+```
+
+**Modified Files**:
+
+- `lib/pages/whiteboard_editor_page.dart`
+
+**Commit**: `71fa277`
+**Status**: ✅ 実装完了・実機最終確認待ち
+
+---
+
+### 2. 同一ユーザー別端末 lock 誤認を deviceId ベースで修正 ✅
+
+**Purpose**: 同じ Firebase ユーザーでも別端末の lock を「自分の lock」と誤認しないようにする。
+
+**Solution**:
+
+```dart
+final deviceId = await DeviceIdService.getDevicePrefix();
+
+'editLock': {
+  'userId': userId,
+  'userName': userName,
+  'deviceId': deviceId,
+}
+```
+
+```dart
+final isMyLock = lockInfo != null &&
+    lockInfo.userId == currentUser?.uid &&
+    (lockInfo.deviceId == null ||
+        lockInfo.deviceId == _currentDeviceId);
+```
+
+**Modified Files**:
+
+- `lib/services/whiteboard_edit_lock_service.dart`
+- `lib/pages/whiteboard_editor_page.dart`
+
+**Commit**: `71fa277`
+**Status**: ✅ 実装完了・legacy lock 互換あり
+
+---
+
+### 3. ペンモード終了時の UI 先行復帰を実装 ✅
+
+**Purpose**: SH-54D でペンモード OFF 時に UI が戻らず詰まる体感を減らす。
+
+**Solution**:
+
+```dart
+setState(() {
+  _isScrollLocked = false;
+});
+
+await _releaseEditLock().timeout(
+  const Duration(seconds: 3),
+);
+```
+
+**Modified Files**:
+
+- `lib/pages/whiteboard_editor_page.dart`
+
+**Commit**: `71fa277`
+**Status**: ✅ 実装完了・SH-54D 実機再確認待ち
+
 ---
 
 ## Recent Implementations (2026-03-16)
