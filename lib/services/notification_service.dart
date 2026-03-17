@@ -37,7 +37,9 @@ enum NotificationType {
   itemPurchased('item_purchased'), // 購入完了
 
   // ホワイトボード関連通知（即時送信）
-  whiteboardUpdated('whiteboard_updated'); // ホワイトボード更新
+  whiteboardUpdated('whiteboard_updated'), // ホワイトボード更新
+  whiteboardEditStarted('whiteboard_edit_started'), // ペンモード開始
+  whiteboardEditEnded('whiteboard_edit_ended'); // ペンモード終了
 
   const NotificationType(this.value);
   final String value;
@@ -504,6 +506,20 @@ class NotificationService {
         case NotificationType.whiteboardUpdated:
           // ホワイトボード更新通知
           await _handleWhiteboardUpdated(notification);
+          break;
+
+        case NotificationType.whiteboardEditStarted:
+          await _handleWhiteboardEditModeChanged(
+            notification,
+            isEntering: true,
+          );
+          break;
+
+        case NotificationType.whiteboardEditEnded:
+          await _handleWhiteboardEditModeChanged(
+            notification,
+            isEntering: false,
+          );
           break;
       }
 
@@ -1289,6 +1305,29 @@ class NotificationService {
     }
   }
 
+  Future<void> _handleWhiteboardEditModeChanged(
+    NotificationData notification, {
+    required bool isEntering,
+  }) async {
+    try {
+      final editorName =
+          notification.metadata?['editorName'] as String? ?? 'ユーザー';
+      final whiteboardId = notification.metadata?['whiteboardId'] as String?;
+      final isGroupWhiteboard =
+          notification.metadata?['isGroupWhiteboard'] as bool? ?? false;
+
+      AppLogger.info(
+          '🖊️ [NOTIFICATION] ペンモード通知受信: ${isEntering ? '開始' : '終了'}');
+      AppLogger.info('🖊️ [NOTIFICATION] whiteboardId: $whiteboardId');
+      AppLogger.info(
+          '🖊️ [NOTIFICATION] editorName: ${AppLogger.maskName(editorName)}');
+      AppLogger.info(
+          '🖊️ [NOTIFICATION] isGroupWhiteboard: $isGroupWhiteboard');
+    } catch (e) {
+      AppLogger.error('❌ [NOTIFICATION] ペンモード通知処理エラー: $e');
+    }
+  }
+
   /// ホワイトボード更新通知を送信
   Future<void> sendWhiteboardUpdateNotification({
     required String groupId,
@@ -1369,6 +1408,48 @@ class NotificationService {
       }
     } catch (e) {
       AppLogger.error('❌ [WHITEBOARD] ホワイトボード更新通知送信エラー: $e');
+    }
+  }
+
+  Future<void> sendWhiteboardEditModeNotification({
+    required String groupId,
+    required String whiteboardId,
+    required bool isGroupWhiteboard,
+    required bool isEntering,
+    String? ownerId,
+  }) async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        AppLogger.error('❌ [WHITEBOARD] ユーザー未認証 - ペンモード通知送信スキップ');
+        return;
+      }
+
+      final editorName = currentUser.displayName ?? 'ユーザー';
+      final notificationType = isEntering
+          ? NotificationType.whiteboardEditStarted
+          : NotificationType.whiteboardEditEnded;
+
+      AppLogger.info(
+          '📤 [WHITEBOARD] ペンモード通知送信開始: ${isEntering ? '開始' : '終了'}');
+
+      await sendNotificationToGroup(
+        groupId: groupId,
+        type: notificationType,
+        message: isEntering
+            ? '${AppLogger.maskName(editorName)}さんがホワイトボードの描画を開始しました'
+            : '${AppLogger.maskName(editorName)}さんがホワイトボードの描画を終了しました',
+        excludeUserIds: [currentUser.uid],
+        metadata: {
+          'whiteboardId': whiteboardId,
+          'editorUid': currentUser.uid,
+          'editorName': editorName,
+          'isGroupWhiteboard': isGroupWhiteboard,
+          if (ownerId != null) 'ownerId': ownerId,
+        },
+      );
+    } catch (e) {
+      AppLogger.error('❌ [WHITEBOARD] ペンモード通知送信エラー: $e');
     }
   }
 

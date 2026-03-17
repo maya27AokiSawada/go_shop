@@ -1,5 +1,6 @@
 import 'dart:io' show Platform;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'device_id_service.dart';
 import '../utils/app_logger.dart';
 
 /// ホワイトボード編集ロック管理
@@ -27,6 +28,8 @@ class WhiteboardEditLock {
     required String userName,
   }) async {
     try {
+      final deviceId = await DeviceIdService.getDevicePrefix();
+
       // 🔥 Windows版対策: runTransactionでクラッシュするため通常の処理を使用
       if (Platform.isWindows) {
         return await _acquireEditLockWithoutTransaction(
@@ -34,6 +37,7 @@ class WhiteboardEditLock {
           whiteboardId: whiteboardId,
           userId: userId,
           userName: userName,
+          deviceId: deviceId,
         );
       }
 
@@ -53,17 +57,27 @@ class WhiteboardEditLock {
 
         if (editLock != null) {
           final currentUserId = editLock['userId'] as String?;
+          final currentDeviceId = editLock['deviceId'] as String?;
           final createdAt = (editLock['createdAt'] as Timestamp?)?.toDate();
 
-          // 同じユーザーの場合は延長
+          // 同じユーザーかつ同じ端末、または legacy lock（deviceIdなし）は延長
           if (currentUserId == userId) {
-            transaction.update(whiteboardDocRef, {
-              'editLock.expiresAt': Timestamp.fromDate(lockExpiry),
-              'editLock.updatedAt': FieldValue.serverTimestamp(),
-            });
-            AppLogger.info(
-                '🔒 [LOCK] 編集ロック延長: ${AppLogger.maskUserId(userId)}');
-            return true;
+            if (currentDeviceId == null || currentDeviceId == deviceId) {
+              transaction.update(whiteboardDocRef, {
+                'editLock.userId': userId,
+                'editLock.userName': userName,
+                'editLock.deviceId': deviceId,
+                'editLock.expiresAt': Timestamp.fromDate(lockExpiry),
+                'editLock.updatedAt': FieldValue.serverTimestamp(),
+              });
+              AppLogger.info(
+                  '🔒 [LOCK] 編集ロック延長: ${AppLogger.maskUserId(userId)}@$deviceId');
+              return true;
+            }
+
+            AppLogger.warning(
+                '⚠️ [LOCK] 同一ユーザーの別端末が編集中: ${AppLogger.maskUserId(userId)}@$currentDeviceId');
+            return false;
           }
 
           // ロックが有効期限内かチェック（1時間）
@@ -85,6 +99,7 @@ class WhiteboardEditLock {
           'editLock': {
             'userId': userId,
             'userName': userName,
+            'deviceId': deviceId,
             'groupId': groupId,
             'whiteboardId': whiteboardId,
             'createdAt': FieldValue.serverTimestamp(),
@@ -109,12 +124,15 @@ class WhiteboardEditLock {
     required String userId,
   }) async {
     try {
+      final deviceId = await DeviceIdService.getDevicePrefix();
+
       // 🔥 Windows版対策: runTransactionでクラッシュするため通常の処理を使用
       if (Platform.isWindows) {
         await _releaseEditLockWithoutTransaction(
           groupId: groupId,
           whiteboardId: whiteboardId,
           userId: userId,
+          deviceId: deviceId,
         );
         return;
       }
@@ -131,17 +149,21 @@ class WhiteboardEditLock {
 
         if (editLock != null) {
           final currentUserId = editLock['userId'] as String?;
+          final currentDeviceId = editLock['deviceId'] as String?;
 
           // 自分のロックの場合のみ削除
-          if (currentUserId == userId) {
+          if (currentUserId == userId &&
+              (currentDeviceId == null || currentDeviceId == deviceId)) {
             transaction.update(whiteboardDocRef, {
               'editLock': FieldValue.delete(),
+              'updatedAt': FieldValue.serverTimestamp(),
+              'editLockReleasedAt': FieldValue.serverTimestamp(),
             });
             AppLogger.info(
-                '🔓 [LOCK] 編集ロック解除: ${AppLogger.maskUserId(userId)}');
+                '🔓 [LOCK] 編集ロック解除: ${AppLogger.maskUserId(userId)}@$deviceId');
           } else {
             AppLogger.warning(
-                '⚠️ [LOCK] 他ユーザーのロック解除試行: ${AppLogger.maskUserId(userId)}');
+                '⚠️ [LOCK] 他端末または他ユーザーのロック解除試行: ${AppLogger.maskUserId(userId)}@$deviceId');
           }
         }
       });
@@ -193,7 +215,7 @@ class WhiteboardEditLock {
   }) {
     return _whiteboardsCollection(groupId)
         .doc(whiteboardId)
-        .snapshots()
+        .snapshots(includeMetadataChanges: true)
         .map((snapshot) {
       if (!snapshot.exists) return null;
 
@@ -300,6 +322,7 @@ class WhiteboardEditLock {
     required String whiteboardId,
     required String userId,
     required String userName,
+    required String deviceId,
   }) async {
     try {
       final whiteboardDocRef =
@@ -317,17 +340,27 @@ class WhiteboardEditLock {
 
       if (editLock != null) {
         final currentUserId = editLock['userId'] as String?;
+        final currentDeviceId = editLock['deviceId'] as String?;
         final createdAt = (editLock['createdAt'] as Timestamp?)?.toDate();
 
-        // 同じユーザーの場合は延長
+        // 同じユーザーかつ同じ端末、または legacy lock（deviceIdなし）は延長
         if (currentUserId == userId) {
-          await whiteboardDocRef.update({
-            'editLock.expiresAt': Timestamp.fromDate(lockExpiry),
-            'editLock.updatedAt': FieldValue.serverTimestamp(),
-          });
-          AppLogger.info(
-              '🔒 [WINDOWS] 編集ロック延長: ${AppLogger.maskUserId(userId)}');
-          return true;
+          if (currentDeviceId == null || currentDeviceId == deviceId) {
+            await whiteboardDocRef.update({
+              'editLock.userId': userId,
+              'editLock.userName': userName,
+              'editLock.deviceId': deviceId,
+              'editLock.expiresAt': Timestamp.fromDate(lockExpiry),
+              'editLock.updatedAt': FieldValue.serverTimestamp(),
+            });
+            AppLogger.info(
+                '🔒 [WINDOWS] 編集ロック延長: ${AppLogger.maskUserId(userId)}@$deviceId');
+            return true;
+          }
+
+          AppLogger.warning(
+              '⚠️ [WINDOWS] 同一ユーザーの別端末が編集中: ${AppLogger.maskUserId(userId)}@$currentDeviceId');
+          return false;
         }
 
         // ロックが有効期限内かチェック（1時間）
@@ -347,6 +380,7 @@ class WhiteboardEditLock {
         'editLock': {
           'userId': userId,
           'userName': userName,
+          'deviceId': deviceId,
           'groupId': groupId,
           'whiteboardId': whiteboardId,
           'createdAt': FieldValue.serverTimestamp(),
@@ -368,6 +402,7 @@ class WhiteboardEditLock {
     required String groupId,
     required String whiteboardId,
     required String userId,
+    required String deviceId,
   }) async {
     try {
       final whiteboardDocRef =
@@ -381,17 +416,21 @@ class WhiteboardEditLock {
 
       if (editLock != null) {
         final currentUserId = editLock['userId'] as String?;
+        final currentDeviceId = editLock['deviceId'] as String?;
 
         // 自分のロックの場合のみ削除
-        if (currentUserId == userId) {
+        if (currentUserId == userId &&
+            (currentDeviceId == null || currentDeviceId == deviceId)) {
           await whiteboardDocRef.update({
             'editLock': FieldValue.delete(),
+            'updatedAt': FieldValue.serverTimestamp(),
+            'editLockReleasedAt': FieldValue.serverTimestamp(),
           });
           AppLogger.info(
-              '🔓 [WINDOWS] 編集ロック解除: ${AppLogger.maskUserId(userId)}');
+              '🔓 [WINDOWS] 編集ロック解除: ${AppLogger.maskUserId(userId)}@$deviceId');
         } else {
           AppLogger.warning(
-              '⚠️ [WINDOWS] 他ユーザーのロック解除試行: ${AppLogger.maskUserId(userId)}');
+              '⚠️ [WINDOWS] 他端末または他ユーザーのロック解除試行: ${AppLogger.maskUserId(userId)}@$deviceId');
         }
       }
     } catch (e) {
@@ -410,6 +449,8 @@ class WhiteboardEditLock {
 
       await whiteboardDocRef.update({
         'editLock': FieldValue.delete(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'editLockReleasedAt': FieldValue.serverTimestamp(),
       });
 
       AppLogger.info('💀 [WINDOWS] 編集ロック強制削除: $whiteboardId');
@@ -424,6 +465,7 @@ class WhiteboardEditLock {
 class EditLockInfo {
   final String userId;
   final String userName;
+  final String? deviceId;
   final String groupId;
   final String whiteboardId;
   final DateTime createdAt;
@@ -432,6 +474,7 @@ class EditLockInfo {
   const EditLockInfo({
     required this.userId,
     required this.userName,
+    this.deviceId,
     required this.groupId,
     required this.whiteboardId,
     required this.createdAt,
@@ -442,6 +485,7 @@ class EditLockInfo {
     return EditLockInfo(
       userId: data['userId'] as String,
       userName: data['userName'] as String,
+      deviceId: data['deviceId'] as String?,
       groupId: data['groupId'] as String,
       whiteboardId: data['whiteboardId'] as String,
       createdAt: (data['createdAt'] as Timestamp).toDate(),
