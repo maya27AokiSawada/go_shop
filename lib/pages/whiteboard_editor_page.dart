@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io' show Platform;
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,8 +11,11 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import '../models/whiteboard.dart';
 import '../providers/whiteboard_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/shared_group_provider.dart';
 import '../providers/user_settings_provider.dart';
+import '../pages/group_member_management_page.dart';
 import '../services/notification_service.dart';
+import '../services/network_monitor_service.dart';
 import '../services/whiteboard_edit_lock_service.dart';
 import '../utils/snackbar_helper.dart';
 import '../utils/drawing_converter.dart';
@@ -45,6 +49,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
 
   SignatureController? _controller;
   bool _isSaving = false;
+  bool _showSaveSpinner = false;
   Color _selectedColor = Colors.black;
   double _strokeWidth = 4.0; // 🎨 初期値は「中」の太さ
   int _controllerKey = 0; // コントローラー再作成カウンター
@@ -808,23 +813,59 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     // 🔥 CRITICAL: Windows版クラッシュ対策 - mounted チェックを徹底
     if (!mounted) return;
 
+    final currentUser = ref.read(authStateProvider).value;
+    if (currentUser == null) {
+      SnackBarHelper.showError(context, 'サインイン状態を確認できないため保存できません');
+      return;
+    }
+
+    final canEdit = _currentWhiteboard.canEdit(currentUser.uid);
+    if (!canEdit) {
+      AppLogger.warning(
+          '⛔ [SAVE] 編集不可のため保存を中止: user=${AppLogger.maskUserId(currentUser.uid)}, owner=${AppLogger.maskUserId(_currentWhiteboard.ownerId)}');
+      SnackBarHelper.showWarning(context, 'このホワイトボードは保存できません（編集不可）');
+      return;
+    }
+
+    final networkMonitor = ref.read(networkMonitorProvider);
+    if (networkMonitor.currentStatus == NetworkStatus.offline) {
+      AppLogger.warning('⛔ [SAVE] オフラインのため保存を中止');
+      SnackBarHelper.showWarning(context, 'ネットワーク障害のため保存できません');
+      return;
+    }
+
     AppLogger.info('💾 [SAVE] 保存処理開始');
-    setState(() => _isSaving = true);
+    setState(() {
+      _isSaving = true;
+      _showSaveSpinner = true;
+    });
 
     var spinnerReleased = false;
+    Timer? spinnerWatchdog;
+
+    spinnerWatchdog = Timer(const Duration(seconds: 4), () {
+      if (!mounted || !_isSaving || !_showSaveSpinner) return;
+
+      AppLogger.warning('⏳ [SAVE] 保存リクエスト継続中 - AppBarスピナーのみ解除');
+      setState(() {
+        _showSaveSpinner = false;
+      });
+      SnackBarHelper.showInfo(context, '保存処理は継続中です');
+    });
 
     try {
-      final currentUser = ref.read(authStateProvider).value;
-      if (currentUser == null) {
-        throw Exception('ユーザーが認証されていません');
-      }
-
       AppLogger.info('💾 [SAVE] ユーザー認証OK: ${currentUser.uid}');
 
       // 🔥 Windows版対策：controller null チェック
       if (_controller == null) {
         AppLogger.error('❌ [SAVE] SignatureController が null です');
-        if (mounted) setState(() => _isSaving = false);
+        spinnerWatchdog.cancel();
+        if (mounted) {
+          setState(() {
+            _isSaving = false;
+            _showSaveSpinner = false;
+          });
+        }
         return;
       }
 
@@ -845,7 +886,13 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
 
       if (newStrokes.isEmpty) {
         AppLogger.info('📋 [SAVE] 新しいストロークなし、保存をスキップ');
-        if (mounted) setState(() => _isSaving = false);
+        spinnerWatchdog.cancel();
+        if (mounted) {
+          setState(() {
+            _isSaving = false;
+            _showSaveSpinner = false;
+          });
+        }
         return;
       }
 
@@ -865,9 +912,13 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       );
 
       AppLogger.info('✅ [SAVE] Firestore保存完了: ${newStrokes.length}個のストローク');
+      spinnerWatchdog.cancel();
 
       if (mounted) {
-        setState(() => _isSaving = false);
+        setState(() {
+          _isSaving = false;
+          _showSaveSpinner = false;
+        });
         spinnerReleased = true;
       }
 
@@ -918,7 +969,43 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
       if (mounted) {
         SnackBarHelper.showSuccess(context, '保存しました');
       }
+    } on FirebaseException catch (e, stackTrace) {
+      spinnerWatchdog.cancel();
+      _suppressNextPersonalSnapshot = false;
+      AppLogger.error('❌ ホワイトボード保存 Firebase エラー: ${e.code} - ${e.message}');
+
+      if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+        try {
+          await Sentry.captureException(
+            e,
+            stackTrace: stackTrace,
+            hint: Hint.withMap({
+              'whiteboard_id': _currentWhiteboard.whiteboardId,
+              'group_id': widget.groupId,
+              'firestore_code': e.code,
+              'is_group_whiteboard': _currentWhiteboard.isGroupWhiteboard,
+              'platform': Platform.operatingSystem,
+            }),
+          );
+        } catch (sentryError) {
+          AppLogger.error('⚠️ [Sentry] レポート送信失敗: $sentryError');
+        }
+      } else {
+        FirebaseCrashlytics.instance.recordError(e, stackTrace);
+      }
+
+      if (mounted) {
+        if (e.code == 'permission-denied') {
+          SnackBarHelper.showWarning(context, 'このホワイトボードは保存できません（編集権限なし）');
+        } else if (e.code == 'unavailable' || e.code == 'deadline-exceeded') {
+          SnackBarHelper.showWarning(context, 'ネットワーク障害のため保存できません');
+        } else {
+          SnackBarHelper.showError(
+              context, '保存に失敗しました: ${e.message ?? e.code}');
+        }
+      }
     } catch (e, stackTrace) {
+      spinnerWatchdog.cancel();
       _suppressNextPersonalSnapshot = false;
       AppLogger.error('❌ ホワイトボード保存エラー: $e');
 
@@ -951,8 +1038,12 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
         SnackBarHelper.showError(context, '保存に失敗しました: $e');
       }
     } finally {
+      spinnerWatchdog.cancel();
       if (mounted && !spinnerReleased) {
-        setState(() => _isSaving = false);
+        setState(() {
+          _isSaving = false;
+          _showSaveSpinner = false;
+        });
       }
     }
   }
@@ -1151,6 +1242,55 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
     }
   }
 
+  Future<void> _navigateToGroupDetail({required bool canEdit}) async {
+    if (!mounted) return;
+
+    if (_isSaving && _showSaveSpinner) {
+      AppLogger.info('⏳ [WHITEBOARD] 保存中のため戻る処理を一時保留');
+      SnackBarHelper.showInfo(context, '保存完了を待っています');
+      return;
+    }
+
+    if (_isSaving && !_showSaveSpinner) {
+      AppLogger.warning('↩️ [WHITEBOARD] 保存要求継続中だが、画面離脱を許可');
+    }
+
+    AppLogger.info('↩️ [WHITEBOARD] グループ詳細画面へ戻る処理開始');
+
+    if (Platform.isWindows && canEdit) {
+      AppLogger.info('🪟 [WINDOWS] 戻る前に自動保存を実行');
+      await _saveWhiteboard();
+      if (!mounted) return;
+    }
+
+    await _releaseEditLock();
+    if (!mounted) return;
+
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      AppLogger.info('↩️ [WHITEBOARD] 既存のグループ詳細画面へpopで戻る');
+      navigator.pop();
+      return;
+    }
+
+    final groups = ref.read(allGroupsProvider).valueOrNull ?? const [];
+    final targetGroup =
+        groups.where((g) => g.groupId == widget.groupId).firstOrNull;
+
+    if (targetGroup == null) {
+      AppLogger.warning('⚠️ [WHITEBOARD] 戻り先グループが見つからないため通常popを実行');
+      navigator.pop();
+      return;
+    }
+
+    AppLogger.warning('⚠️ [WHITEBOARD] 戻り先がスタックにないため詳細画面を再生成');
+    navigator.pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => GroupMemberManagementPage(group: targetGroup),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentUser = ref.watch(authStateProvider).value;
@@ -1168,18 +1308,16 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
 
     return WillPopScope(
       onWillPop: () async {
-        // 🔥 Windows版安定化: エディター終了時に自動保存
-        if (Platform.isWindows && canEdit && !_isSaving) {
-          AppLogger.info('🪟 [WINDOWS] エディター終了時に自動保存実行');
-          await _saveWhiteboard();
-        }
-
-        // ページ離脱時に編集ロックを解除（保持中のみ）
-        await _releaseEditLock();
-        return true;
+        await _navigateToGroupDetail(canEdit: canEdit);
+        return false;
       },
       child: Scaffold(
         appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => _navigateToGroupDetail(canEdit: canEdit),
+            tooltip: 'グループ詳細へ戻る',
+          ),
           title: Text(
             _currentWhiteboard.isGroupWhiteboard
                 ? 'グループ共通ホワイトボード'
@@ -1211,7 +1349,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage> {
             // 保存ボタン（🪟 Windows版は非表示 - エディター終了時に自動保存）
             if (canEdit && !Platform.isWindows)
               IconButton(
-                icon: _isSaving
+                icon: _showSaveSpinner
                     ? const SizedBox(
                         width: 20,
                         height: 20,

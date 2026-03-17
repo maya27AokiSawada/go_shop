@@ -5,6 +5,7 @@ import 'dart:async';
 import '../models/shared_group.dart';
 import '../providers/shared_group_provider.dart';
 import '../utils/app_logger.dart';
+import '../utils/group_display_helper.dart';
 import '../services/error_log_service.dart';
 import '../utils/snackbar_helper.dart';
 import '../services/notification_service.dart';
@@ -212,7 +213,7 @@ class _GroupCreationWithCopyDialogState
                                   (group) => DropdownMenuItem<SharedGroup>(
                                     value: group,
                                     child: Text(
-                                      '${group.groupName} (${group.members?.length ?? 0}人)',
+                                      '${GroupDisplayHelper.displayName(group, existingGroups)} (${group.members?.length ?? 0}人)',
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),

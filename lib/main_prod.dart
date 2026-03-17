@@ -23,6 +23,8 @@ import 'adapters/shopping_item_adapter_override.dart';
 import 'adapters/user_settings_adapter_override.dart';
 import 'utils/app_logger.dart';
 
+const _androidFirebaseWarmupDelay = Duration(seconds: 3);
+
 void main() async {
   // 🔥 Windows/Linux/macOS用 Sentry初期化
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
@@ -95,9 +97,10 @@ Future<void> _initializeApp() async {
       AppLogger.info('🔄 Firebase初期化開始...');
 
       // Android環境でのネットワークスタック初期化待機（DNS解決問題対策）
+      // まずは 3 秒待機で再検証する。
       if (defaultTargetPlatform == TargetPlatform.android) {
-        AppLogger.info('⏳ Android環境 - ネットワークスタック初期化待機中（2秒）...');
-        await Future.delayed(const Duration(seconds: 2));
+        AppLogger.info('⏳ Android環境 - ネットワークスタック初期化待機中（3秒）...');
+        await Future.delayed(_androidFirebaseWarmupDelay);
         AppLogger.info('✅ ネットワークスタック初期化待機完了');
       }
 

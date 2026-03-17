@@ -33,14 +33,20 @@ enum NetworkStatus {
 class NetworkMonitorService {
   static const offlineFailureThreshold = 2;
   static const transientRetryDelay = Duration(milliseconds: 700);
+  static const initialCheckDelay = Duration(seconds: 2);
 
   NetworkMonitorService() {
     // 🔥 初期状態をStreamに流す（StreamProviderのloading状態を解消）
     _statusController.add(_currentStatus);
     AppLogger.info('🌐 [NETWORK_MONITOR] 初期化完了 - 初期状態: $_currentStatus');
 
-    // 🔥 初回接続チェックを非同期で実行（実際の接続状態を検証）
+    // 🔥 初回接続チェックは少し待ってから実行。
+    // 起動直後は Firebase / Firestore / DNS のウォームアップ中で、
+    // 手動リトライだけ成功する偽オフラインが出やすいため。
     Future.microtask(() async {
+      AppLogger.info(
+          '🔍 [NETWORK_MONITOR] 初回接続チェック待機開始（${initialCheckDelay.inSeconds}秒）');
+      await Future.delayed(initialCheckDelay);
       AppLogger.info('🔍 [NETWORK_MONITOR] 初回接続チェック開始');
       await checkFirestoreConnection();
     });

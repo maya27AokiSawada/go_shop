@@ -13,6 +13,7 @@ import '../pages/group_member_management_page.dart';
 import '../services/user_initialization_service.dart';
 import '../services/notification_service.dart';
 import '../providers/auth_provider.dart';
+import '../utils/group_display_helper.dart';
 // 🔥 REMOVED: import 'initial_setup_widget.dart'; グループページ内にメッセージ表示に変更
 
 /// グループをリスト表示するウィジェット
@@ -184,15 +185,22 @@ class GroupListWidget extends ConsumerWidget {
       padding:
           const EdgeInsets.only(bottom: 80), // FloatingActionButtonの分の余白を追加
       itemBuilder: (context, index) {
-        return _buildGroupTile(context, ref, groups[index], selectedGroupId);
+        return _buildGroupTile(
+          context,
+          ref,
+          groups[index],
+          selectedGroupId,
+          groups,
+        );
       },
     );
   }
 
   Widget _buildGroupTile(BuildContext context, WidgetRef ref, SharedGroup group,
-      String selectedGroupId) {
+      String selectedGroupId, List<SharedGroup> allGroups) {
     final memberCount = group.members?.length ?? 0;
     final isCurrentGroup = selectedGroupId == group.groupId;
+    final displayGroupName = GroupDisplayHelper.displayName(group, allGroups);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -226,7 +234,7 @@ class GroupListWidget extends ConsumerWidget {
             children: [
               Expanded(
                 child: Text(
-                  group.groupName,
+                  displayGroupName,
                   style: TextStyle(
                     fontWeight: FontWeight.w500,
                     color: isCurrentGroup ? Colors.blue.shade800 : null,
@@ -353,10 +361,14 @@ class GroupListWidget extends ConsumerWidget {
     AppLogger.info(
         '📋 [GROUP_SELECT] カレントグループを変更: ${group.groupName} (${group.groupId})');
 
+    final allGroups =
+        ref.read(allGroupsProvider).valueOrNull ?? const <SharedGroup>[];
+    final displayGroupName = GroupDisplayHelper.displayName(group, allGroups);
+
     // 成功メッセージを表示
     SnackBarHelper.showCustom(
       context,
-      message: '「${group.groupName}」を選択しました',
+      message: '「$displayGroupName」を選択しました',
       icon: Icons.check_circle,
       backgroundColor: Colors.green[700],
       duration: const Duration(seconds: 2),
@@ -510,6 +522,10 @@ class GroupListWidget extends ConsumerWidget {
   /// オーナー用: グループ削除確認ダイアログ
   static void _showOwnerDeleteDialog(
       BuildContext context, WidgetRef ref, SharedGroup group) {
+    final allGroups =
+        ref.read(allGroupsProvider).valueOrNull ?? const <SharedGroup>[];
+    final displayGroupName = GroupDisplayHelper.displayName(group, allGroups);
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -519,7 +535,7 @@ class GroupListWidget extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('「${group.groupName}」を削除しますか？'),
+              Text('「$displayGroupName」を削除しますか？'),
               const SizedBox(height: 8),
               const Text(
                 'この操作は取り消せません。\nグループ内のすべてのデータが削除されます。',
@@ -552,6 +568,10 @@ class GroupListWidget extends ConsumerWidget {
   /// メンバー用: グループ離脱確認ダイアログ
   static void _showMemberLeaveDialog(
       BuildContext context, WidgetRef ref, SharedGroup group) {
+    final allGroups =
+        ref.read(allGroupsProvider).valueOrNull ?? const <SharedGroup>[];
+    final displayGroupName = GroupDisplayHelper.displayName(group, allGroups);
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -561,7 +581,7 @@ class GroupListWidget extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('「${group.groupName}」から退出しますか？'),
+              Text('「$displayGroupName」から退出しますか？'),
               const SizedBox(height: 8),
               const Text(
                 'あなたの情報がこのグループから削除されます。\n再度参加するには、招待が必要です。',
@@ -595,6 +615,9 @@ class GroupListWidget extends ConsumerWidget {
   static void _deleteGroup(
       BuildContext context, WidgetRef ref, SharedGroup group) async {
     AppLogger.info('🗑️ [GROUP_DELETE] グループ削除開始: ${group.groupId}');
+    final allGroups =
+        ref.read(allGroupsProvider).valueOrNull ?? const <SharedGroup>[];
+    final displayGroupName = GroupDisplayHelper.displayName(group, allGroups);
 
     try {
       // ローディング表示
@@ -639,7 +662,7 @@ class GroupListWidget extends ConsumerWidget {
       // 成功メッセージ
       if (context.mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
-        SnackBarHelper.showSuccess(context, '「${group.groupName}」を削除しました');
+        SnackBarHelper.showSuccess(context, '「$displayGroupName」を削除しました');
       }
     } catch (error, stackTrace) {
       AppLogger.error('❌ [GROUP_DELETE] グループ削除エラー', error, stackTrace);
@@ -655,6 +678,9 @@ class GroupListWidget extends ConsumerWidget {
   static void _leaveGroup(
       BuildContext context, WidgetRef ref, SharedGroup group) async {
     AppLogger.info('🚪 [GROUP_LEAVE] グループ離脱開始: ${group.groupId}');
+    final allGroups =
+        ref.read(allGroupsProvider).valueOrNull ?? const <SharedGroup>[];
+    final displayGroupName = GroupDisplayHelper.displayName(group, allGroups);
 
     try {
       // ローディング表示
@@ -688,7 +714,7 @@ class GroupListWidget extends ConsumerWidget {
         targetUserId: group.ownerUid!,
         type: NotificationType.groupLeaveRequested,
         groupId: group.groupId,
-        message: '$requesterName が「${group.groupName}」からの退出を希望しています',
+        message: '$requesterName が「$displayGroupName」からの退出を希望しています',
         metadata: {
           'requesterUid': currentUser.uid,
           'requesterName': requesterName,

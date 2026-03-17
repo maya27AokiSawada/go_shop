@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shared_group.dart';
 import '../providers/shared_group_provider.dart';
 import '../utils/app_logger.dart';
+import '../utils/group_display_helper.dart';
 import '../utils/snackbar_helper.dart';
 
 /// グループ選択専用ウィジェット
@@ -209,6 +210,8 @@ class GroupSelectorWidget extends ConsumerWidget {
                             horizontal: 12, vertical: 8),
                         selectedItemBuilder: (context) {
                           return groups.map((group) {
+                            final displayGroupName =
+                                GroupDisplayHelper.displayName(group, groups);
                             return Align(
                               alignment: Alignment.centerLeft,
                               child: Row(
@@ -225,10 +228,10 @@ class GroupSelectorWidget extends ConsumerWidget {
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Tooltip(
-                                      message: group.groupName,
+                                      message: displayGroupName,
                                       child: Text(
                                         _truncateGroupName(
-                                          group.groupName,
+                                          displayGroupName,
                                           maxLength: selectedMaxLength,
                                         ),
                                         maxLines: 1,
@@ -244,6 +247,8 @@ class GroupSelectorWidget extends ConsumerWidget {
                         },
                         items: groups
                             .map<DropdownMenuItem<String>>((SharedGroup group) {
+                          final displayGroupName =
+                              GroupDisplayHelper.displayName(group, groups);
                           return DropdownMenuItem<String>(
                             value: group.groupId,
                             child: Row(
@@ -260,10 +265,10 @@ class GroupSelectorWidget extends ConsumerWidget {
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Tooltip(
-                                    message: group.groupName,
+                                    message: displayGroupName,
                                     child: Text(
                                       _truncateGroupName(
-                                        group.groupName,
+                                        displayGroupName,
                                         maxLength: menuMaxLength,
                                       ),
                                       maxLines: 1,
