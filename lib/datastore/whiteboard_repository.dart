@@ -201,23 +201,23 @@ class WhiteboardRepository {
         '✅ [PERSONAL_WB] プライベート設定を明示更新: ${AppLogger.maskUserId(ownerId)} value=$isPrivate target=$whiteboardId');
 
     final reloaded = await getWhiteboardById(groupId, whiteboardId);
-    return reloaded ??
-        (fallbackWhiteboard ??
-                Whiteboard(
-                  whiteboardId: whiteboardId,
-                  groupId: groupId,
-                  ownerId: ownerId,
-                  strokes: const [],
-                  isPrivate: isPrivate,
-                  createdAt: DateTime.now(),
-                  updatedAt: DateTime.now(),
-                  canvasWidth: 1280.0,
-                  canvasHeight: 720.0,
-                ))
-            .copyWith(
-          isPrivate: isPrivate,
-          updatedAt: DateTime.now(),
-        );
+    return (reloaded ??
+            fallbackWhiteboard ??
+            Whiteboard(
+              whiteboardId: whiteboardId,
+              groupId: groupId,
+              ownerId: ownerId,
+              strokes: const [],
+              isPrivate: isPrivate,
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+              canvasWidth: 1280.0,
+              canvasHeight: 720.0,
+            ))
+        .copyWith(
+      isPrivate: isPrivate,
+      updatedAt: DateTime.now(),
+    );
   }
 
   /// ホワイトボード作成
@@ -423,7 +423,11 @@ class WhiteboardRepository {
 
   /// ホワイトボードをリアルタイム監視
   Stream<Whiteboard?> watchWhiteboard(String groupId, String whiteboardId) {
-    return _collection(groupId).doc(whiteboardId).snapshots().map((snapshot) {
+    return _collection(groupId)
+        .doc(whiteboardId)
+        .snapshots()
+        .where((snapshot) => !snapshot.metadata.hasPendingWrites)
+        .map((snapshot) {
       if (!snapshot.exists) return null;
       return Whiteboard.fromFirestore(snapshot.data()!, snapshot.id);
     });

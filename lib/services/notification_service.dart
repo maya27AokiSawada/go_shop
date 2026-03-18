@@ -233,12 +233,25 @@ class NotificationService {
       AppLogger.info(
           '📅 [NOTIFICATION] 最終同期: ${DateTime.fromMillisecondsSinceEpoch(lastSyncMs)}');
 
-      final snapshot = await _firestore
-          .collection('notifications')
-          .where('userId', isEqualTo: currentUser.uid)
-          .where('timestamp', isGreaterThan: lastSyncTime) // ← 時刻ベース
-          .get()
-          .timeout(const Duration(seconds: 5));
+      // 🔥 FIX: .timeout() はネイティブ Firestore SDK がブロックすると効かない場合がある
+      // Future.any() で確実にタイムアウトを保証する
+      final QuerySnapshot<Map<String, dynamic>> snapshot;
+      try {
+        snapshot = await Future.any([
+          _firestore
+              .collection('notifications')
+              .where('userId', isEqualTo: currentUser.uid)
+              .where('timestamp', isGreaterThan: lastSyncTime)
+              .get(),
+          Future<QuerySnapshot<Map<String, dynamic>>>.delayed(
+            const Duration(seconds: 5),
+            () => throw TimeoutException('Firestore通知クエリが5秒でタイムアウト'),
+          ),
+        ]);
+      } on TimeoutException {
+        AppLogger.warning('⏱️ [NOTIFICATION] 通知チェックタイムアウト（5秒） - スキップ');
+        return false;
+      }
 
       AppLogger.info('📬 [NOTIFICATION] 最終同期以降の通知総数: ${snapshot.docs.length}');
 

@@ -151,19 +151,18 @@ class WhiteboardEditLock {
           final currentUserId = editLock['userId'] as String?;
           final currentDeviceId = editLock['deviceId'] as String?;
 
-          // 自分のロックの場合のみ削除
-          if (currentUserId == userId &&
-              (currentDeviceId == null || currentDeviceId == deviceId)) {
+          // 🔥 FIX: 同一ユーザーなら別端末からでも解除を許可
+          if (currentUserId == userId) {
             transaction.update(whiteboardDocRef, {
               'editLock': FieldValue.delete(),
               'updatedAt': FieldValue.serverTimestamp(),
               'editLockReleasedAt': FieldValue.serverTimestamp(),
             });
             AppLogger.info(
-                '🔓 [LOCK] 編集ロック解除: ${AppLogger.maskUserId(userId)}@$deviceId');
+                '🔓 [LOCK] 編集ロック解除: ${AppLogger.maskUserId(userId)}@$deviceId (lock was @$currentDeviceId)');
           } else {
             AppLogger.warning(
-                '⚠️ [LOCK] 他端末または他ユーザーのロック解除試行: ${AppLogger.maskUserId(userId)}@$deviceId');
+                '⚠️ [LOCK] 他ユーザーのロック解除試行: lock=${AppLogger.maskUserId(currentUserId)}@$currentDeviceId, requester=${AppLogger.maskUserId(userId)}@$deviceId');
           }
         }
       });
@@ -215,9 +214,16 @@ class WhiteboardEditLock {
   }) {
     return _whiteboardsCollection(groupId)
         .doc(whiteboardId)
-        .snapshots(includeMetadataChanges: true)
+        .snapshots()
         .map((snapshot) {
       if (!snapshot.exists) return null;
+
+      // 🔥 FIX: ローカルキャッシュのみの変更（pending write）は無視する
+      // サーバー確認前の stale データでロック誤判定を防ぐ
+      if (snapshot.metadata.hasPendingWrites) {
+        AppLogger.info('🔒 [LOCK_WATCH] pending write検出 - スキップ');
+        return null;
+      }
 
       final whiteboardData = snapshot.data()!;
       final editLock = whiteboardData['editLock'] as Map<String, dynamic>?;
@@ -418,19 +424,18 @@ class WhiteboardEditLock {
         final currentUserId = editLock['userId'] as String?;
         final currentDeviceId = editLock['deviceId'] as String?;
 
-        // 自分のロックの場合のみ削除
-        if (currentUserId == userId &&
-            (currentDeviceId == null || currentDeviceId == deviceId)) {
+        // 🔥 FIX: 同一ユーザーなら別端末からでも解除を許可
+        if (currentUserId == userId) {
           await whiteboardDocRef.update({
             'editLock': FieldValue.delete(),
             'updatedAt': FieldValue.serverTimestamp(),
             'editLockReleasedAt': FieldValue.serverTimestamp(),
           });
           AppLogger.info(
-              '🔓 [WINDOWS] 編集ロック解除: ${AppLogger.maskUserId(userId)}@$deviceId');
+              '🔓 [WINDOWS] 編集ロック解除: ${AppLogger.maskUserId(userId)}@$deviceId (lock was @$currentDeviceId)');
         } else {
           AppLogger.warning(
-              '⚠️ [WINDOWS] 他端末または他ユーザーのロック解除試行: ${AppLogger.maskUserId(userId)}@$deviceId');
+              '⚠️ [WINDOWS] 他ユーザーのロック解除試行: lock=${AppLogger.maskUserId(currentUserId)}@$currentDeviceId, requester=${AppLogger.maskUserId(userId)}@$deviceId');
         }
       }
     } catch (e) {

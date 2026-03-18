@@ -157,18 +157,23 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
       strokeWidth: _strokeWidth,
     );
 
-    unawaited(_loadCurrentDeviceId());
+    // 🔥 FIX: deviceId を先にロードしてから watchEditLock を開始する
+    // unawaited だと _currentDeviceId == null の状態で lock 判定が走り
+    // 自分のロックを「他端末のロック」と誤認する
+    _loadCurrentDeviceId().then((_) {
+      if (!mounted) return;
+      AppLogger.info(
+          '🔒 [LOCK] ホワイトボード編集ロック機能を初期化 (deviceId=$_currentDeviceId)');
+      _watchEditLock();
+    });
 
     AppLogger.info('✅ [INIT] SignatureController初期化完了 - モード切り替えによるロック制御');
 
     // Firestoreリアルタイム監視を開始（他端末更新の即時反映）
     _startWhiteboardListener();
 
-    // 🔒 編集ロック状態を監視
     AppLogger.info(
         '🎨 [WHITEBOARD] ボードタイプ: isGroupWhiteboard=${_currentWhiteboard.isGroupWhiteboard}, isPersonalWhiteboard=${_currentWhiteboard.isPersonalWhiteboard}');
-    AppLogger.info('🔒 [LOCK] ホワイトボード編集ロック機能を初期化');
-    _watchEditLock();
 
     // 🗑️ 古いeditLocksコレクションをクリーンアップ（マイグレーション対応）
     _cleanupLegacyLocks();
@@ -375,13 +380,24 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
         _currentEditor = lockInfo;
 
         final currentUser = ref.read(authStateProvider).value;
+        // 🔥 FIX: _currentDeviceId がまだ null の場合、userId が一致すれば
+        // 自分のロックとみなす（deviceId 未取得で誤ロック判定を防ぐ）
         final isMyLock = lockInfo != null &&
             lockInfo.userId == currentUser?.uid &&
-            (lockInfo.deviceId == null ||
+            (_currentDeviceId == null ||
+                lockInfo.deviceId == null ||
                 lockInfo.deviceId == _currentDeviceId);
 
         _isEditingLocked = lockInfo != null && !isMyLock;
         _hasEditLock = lockInfo != null && isMyLock;
+
+        if (lockInfo != null) {
+          AppLogger.info(
+              '🔒 [LOCK] 判定詳細: lockUserId=${AppLogger.maskUserId(lockInfo.userId)}, '
+              'myUid=${AppLogger.maskUserId(currentUser?.uid)}, '
+              'lockDeviceId=${lockInfo.deviceId}, myDeviceId=$_currentDeviceId, '
+              'isMyLock=$isMyLock');
+        }
 
         if (_isEditingLocked && _isScrollLocked) {
           _isScrollLocked = false;
@@ -460,6 +476,15 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
     final currentUser = ref.read(authStateProvider).value;
     if (currentUser == null) return;
 
+    // 🔥 FIX: ローカル状態を先にクリア（UIの即時復帰を保証）
+    if (mounted) {
+      setState(() {
+        _hasEditLock = false;
+        _isEditingLocked = false;
+        _currentEditor = null;
+      });
+    }
+
     try {
       final lockService = ref.read(whiteboardEditLockProvider);
       await lockService
@@ -471,25 +496,23 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
           .timeout(
         const Duration(seconds: 3),
         onTimeout: () {
-          AppLogger.warning('⏳ [LOCK] 編集ロック解除タイムアウト - ローカル状態だけ先に戻す');
+          AppLogger.warning('⏳ [LOCK] 編集ロック解除タイムアウト（3秒）');
         },
       );
 
-      // 🔥 CRITICAL: mountedチェック（dispose後のsetState呼び出し防止）
-      if (mounted) {
-        setState(() {
-          _hasEditLock = false;
-          _isEditingLocked = false;
-          _currentEditor = null;
-        });
-      }
+      AppLogger.info('🔓 [LOCK] 編集ロック解除成功');
     } catch (e) {
       AppLogger.error('❌ [LOCK] 編集ロック解除エラー: $e');
-
-      if (mounted) {
-        setState(() {
-          _hasEditLock = false;
-        });
+      // 🔥 FIX: エラー時はFirestoreに直接deleteを試みる（stale lock防止）
+      try {
+        final lockService = ref.read(whiteboardEditLockProvider);
+        await lockService.forceReleaseEditLock(
+          groupId: widget.groupId,
+          whiteboardId: _currentWhiteboard.whiteboardId,
+        );
+        AppLogger.info('🔓 [LOCK] フォールバック強制解除成功');
+      } catch (e2) {
+        AppLogger.error('❌ [LOCK] フォールバック強制解除も失敗: $e2');
       }
     }
   }
@@ -1199,7 +1222,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
 
         if (mounted) {
           setState(() {
-            _currentWhiteboard = updated;
+            _currentWhiteboard = updated.copyWith(isPrivate: isPrivate);
           });
         }
       } else {
@@ -1464,12 +1487,14 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
                       notificationPredicate: (notification) =>
                           notification.depth == 1,
                       child: SingleChildScrollView(
+                        key: ValueKey('h_scroll_$_isScrollLocked'),
                         controller: _horizontalScrollController,
                         scrollDirection: Axis.horizontal,
                         physics: _isScrollLocked && canEdit
                             ? const NeverScrollableScrollPhysics()
                             : const AlwaysScrollableScrollPhysics(),
                         child: SingleChildScrollView(
+                          key: ValueKey('v_scroll_$_isScrollLocked'),
                           controller: _verticalScrollController,
                           scrollDirection: Axis.vertical,
                           physics: _isScrollLocked && canEdit
