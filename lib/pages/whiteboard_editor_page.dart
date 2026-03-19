@@ -83,6 +83,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
   // スクロールロック（trueでスクロール無効、falseでスクロール有効）
   bool _isScrollLocked = false;
 
+  // 🔥 FIX: モード切り替え中フラグ（二重タップ防止）
+  bool _isTogglingMode = false;
+
   // カスタム色（設定から読み込み、キャッシュする）
   late Color _customColor5;
   late Color _customColor6;
@@ -1636,61 +1639,86 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
                 IconButton(
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
-                  icon: Icon(
-                    _isScrollLocked ? Icons.brush : Icons.open_with,
-                    color: _isScrollLocked
-                        ? Colors.blue
-                        : Colors.red.shade600, // 🎨 スクロールモードは赤系（ペンモードの青と対比）
-                    size: 20,
-                  ),
-                  onPressed: () async {
-                    AppLogger.info(
-                        '🎨 [MODE_TOGGLE] モード切り替え: ${_isScrollLocked ? 'スクロールモード' : '描画モード'}へ');
+                  icon: _isTogglingMode
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(
+                          _isScrollLocked ? Icons.brush : Icons.open_with,
+                          color: _isScrollLocked
+                              ? Colors.blue
+                              : Colors.red.shade600,
+                          size: 20,
+                        ),
+                  onPressed: _isTogglingMode
+                      ? null // 🔥 切り替え中は無効化（二重タップ防止）
+                      : () async {
+                          AppLogger.info(
+                              '🎨 [MODE_TOGGLE] モード切り替え: ${_isScrollLocked ? 'スクロールモード' : '描画モード'}へ');
 
-                    if (_isScrollLocked) {
-                      AppLogger.info('🔓 [MODE_TOGGLE] 描画モード終了 - 描画保存');
+                          if (mounted) {
+                            setState(() {
+                              _isTogglingMode = true;
+                            });
+                          }
 
-                      try {
-                        _captureCurrentDrawing();
-                      } catch (e) {
-                        AppLogger.error('❌ [MODE_TOGGLE] 描画キャプチャエラー: $e');
-                      }
+                          try {
+                            if (_isScrollLocked) {
+                              AppLogger.info('🔓 [MODE_TOGGLE] 描画モード終了 - 描画保存');
 
-                      final hadLock = _hasEditLock;
+                              try {
+                                _captureCurrentDrawing();
+                              } catch (e) {
+                                AppLogger.error(
+                                    '❌ [MODE_TOGGLE] 描画キャプチャエラー: $e');
+                              }
 
-                      if (!mounted) return;
-                      setState(() {
-                        _isScrollLocked = false;
-                      });
+                              final hadLock = _hasEditLock;
 
-                      await _releaseEditLock();
-                      if (hadLock) {
-                        _notifyPenModeChanged(isEntering: false);
-                      }
-                    } else {
-                      AppLogger.info('🔒 [MODE_TOGGLE] 描画モード開始 - ロック取得試行');
-                      final success = await _acquireEditLock();
-                      if (!success && mounted) {
-                        AppLogger.warning(
-                            '❌ [MODE_TOGGLE] ロック取得失敗 - モード切り替えをキャンセル');
-                        if (_isEditingLocked && _currentEditor != null) {
-                          _showEditingInProgressDialog();
-                        } else {
-                          SnackBarHelper.showWarning(
-                              context, '他の端末が編集中のため描画モードに入れません');
-                        }
-                        return;
-                      }
-                      _notifyPenModeChanged(isEntering: true);
-                      if (!mounted) return;
-                      setState(() {
-                        _isScrollLocked = true;
-                      });
-                    }
+                              if (!mounted) return;
+                              setState(() {
+                                _isScrollLocked = false;
+                              });
 
-                    AppLogger.info(
-                        '✅ [MODE_TOGGLE] モード切り替え完了: ${_isScrollLocked ? '描画モード' : 'スクロールモード'}');
-                  },
+                              await _releaseEditLock();
+                              if (hadLock) {
+                                _notifyPenModeChanged(isEntering: false);
+                              }
+                            } else {
+                              AppLogger.info(
+                                  '🔒 [MODE_TOGGLE] 描画モード開始 - ロック取得試行');
+                              final success = await _acquireEditLock();
+                              if (!success && mounted) {
+                                AppLogger.warning(
+                                    '❌ [MODE_TOGGLE] ロック取得失敗 - モード切り替えをキャンセル');
+                                if (_isEditingLocked &&
+                                    _currentEditor != null) {
+                                  _showEditingInProgressDialog();
+                                } else {
+                                  SnackBarHelper.showWarning(
+                                      context, '他の端末が編集中のため描画モードに入れません');
+                                }
+                                return;
+                              }
+                              _notifyPenModeChanged(isEntering: true);
+                              if (!mounted) return;
+                              setState(() {
+                                _isScrollLocked = true;
+                              });
+                            }
+
+                            AppLogger.info(
+                                '✅ [MODE_TOGGLE] モード切り替え完了: ${_isScrollLocked ? '描画モード' : 'スクロールモード'}');
+                          } finally {
+                            if (mounted) {
+                              setState(() {
+                                _isTogglingMode = false;
+                              });
+                            }
+                          }
+                        },
                   tooltip: _isScrollLocked ? '描画モード（筆）' : 'スクロールモード（十字）',
                 ),
                 const SizedBox(width: 12),

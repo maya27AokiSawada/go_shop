@@ -1,3 +1,4 @@
+import 'dart:async' show TimeoutException;
 import 'dart:io' show Platform;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'device_id_service.dart';
@@ -41,76 +42,98 @@ class WhiteboardEditLock {
         );
       }
 
-      return await _firestore.runTransaction<bool>((transaction) async {
-        final whiteboardDocRef =
-            _whiteboardsCollection(groupId).doc(whiteboardId);
-        final snapshot = await transaction.get(whiteboardDocRef);
+      // 🔥 FIX: runTransactionがハングする問題対策 - 5秒タイムアウトでフォールバック
+      try {
+        return await Future.any([
+          _firestore.runTransaction<bool>((transaction) async {
+            final whiteboardDocRef =
+                _whiteboardsCollection(groupId).doc(whiteboardId);
+            final snapshot = await transaction.get(whiteboardDocRef);
 
-        if (!snapshot.exists) {
-          throw Exception('ホワイトボードが存在しません');
-        }
-
-        final whiteboardData = snapshot.data()!;
-        final editLock = whiteboardData['editLock'] as Map<String, dynamic>?;
-        final now = DateTime.now();
-        final lockExpiry = now.add(const Duration(hours: 1));
-
-        if (editLock != null) {
-          final currentUserId = editLock['userId'] as String?;
-          final currentDeviceId = editLock['deviceId'] as String?;
-          final createdAt = (editLock['createdAt'] as Timestamp?)?.toDate();
-
-          // 同じユーザーかつ同じ端末、または legacy lock（deviceIdなし）は延長
-          if (currentUserId == userId) {
-            if (currentDeviceId == null || currentDeviceId == deviceId) {
-              transaction.update(whiteboardDocRef, {
-                'editLock.userId': userId,
-                'editLock.userName': userName,
-                'editLock.deviceId': deviceId,
-                'editLock.expiresAt': Timestamp.fromDate(lockExpiry),
-                'editLock.updatedAt': FieldValue.serverTimestamp(),
-              });
-              AppLogger.info(
-                  '🔒 [LOCK] 編集ロック延長: ${AppLogger.maskUserId(userId)}@$deviceId');
-              return true;
+            if (!snapshot.exists) {
+              throw Exception('ホワイトボードが存在しません');
             }
 
-            AppLogger.warning(
-                '⚠️ [LOCK] 同一ユーザーの別端末が編集中: ${AppLogger.maskUserId(userId)}@$currentDeviceId');
-            return false;
-          }
+            final whiteboardData = snapshot.data()!;
+            final editLock =
+                whiteboardData['editLock'] as Map<String, dynamic>?;
+            final now = DateTime.now();
+            final lockExpiry = now.add(const Duration(hours: 1));
 
-          // ロックが有効期限内かチェック（1時間）
-          if (createdAt != null && now.difference(createdAt).inHours < 1) {
-            final currentUserName =
-                editLock['userName'] as String? ?? 'Unknown';
-            AppLogger.warning(
-                '⚠️ [LOCK] 編集中ユーザー存在: ${AppLogger.maskName(currentUserName)}');
-            return false; // 他ユーザーが編集中
-          }
+            if (editLock != null) {
+              final currentUserId = editLock['userId'] as String?;
+              final currentDeviceId = editLock['deviceId'] as String?;
+              final createdAt = (editLock['createdAt'] as Timestamp?)?.toDate();
 
-          // 期限切れのロックを削除して新しいロックを作成
-          AppLogger.info(
-              '🗑️ [LOCK] 期限切れロック削除: ${AppLogger.maskUserId(currentUserId)}');
-        }
+              // 同じユーザーかつ同じ端末、または legacy lock（deviceIdなし）は延長
+              if (currentUserId == userId) {
+                if (currentDeviceId == null || currentDeviceId == deviceId) {
+                  transaction.update(whiteboardDocRef, {
+                    'editLock.userId': userId,
+                    'editLock.userName': userName,
+                    'editLock.deviceId': deviceId,
+                    'editLock.expiresAt': Timestamp.fromDate(lockExpiry),
+                    'editLock.updatedAt': FieldValue.serverTimestamp(),
+                  });
+                  AppLogger.info(
+                      '🔒 [LOCK] 編集ロック延長: ${AppLogger.maskUserId(userId)}@$deviceId');
+                  return true;
+                }
 
-        // 新しい編集ロックを作成
-        transaction.update(whiteboardDocRef, {
-          'editLock': {
-            'userId': userId,
-            'userName': userName,
-            'deviceId': deviceId,
-            'groupId': groupId,
-            'whiteboardId': whiteboardId,
-            'createdAt': FieldValue.serverTimestamp(),
-            'expiresAt': Timestamp.fromDate(lockExpiry),
-            'updatedAt': FieldValue.serverTimestamp(),
-          },
-        });
+                AppLogger.warning(
+                    '⚠️ [LOCK] 同一ユーザーの別端末が編集中: ${AppLogger.maskUserId(userId)}@$currentDeviceId');
+                return false;
+              }
 
-        AppLogger.info('✅ [LOCK] 編集ロック取得成功: ${AppLogger.maskName(userName)}');
-        return true;
-      });
+              // ロックが有効期限内かチェック（1時間）
+              if (createdAt != null && now.difference(createdAt).inHours < 1) {
+                final currentUserName =
+                    editLock['userName'] as String? ?? 'Unknown';
+                AppLogger.warning(
+                    '⚠️ [LOCK] 編集中ユーザー存在: ${AppLogger.maskName(currentUserName)}');
+                return false; // 他ユーザーが編集中
+              }
+
+              // 期限切れのロックを削除して新しいロックを作成
+              AppLogger.info(
+                  '🗑️ [LOCK] 期限切れロック削除: ${AppLogger.maskUserId(currentUserId)}');
+            }
+
+            // 新しい編集ロックを作成
+            transaction.update(whiteboardDocRef, {
+              'editLock': {
+                'userId': userId,
+                'userName': userName,
+                'deviceId': deviceId,
+                'groupId': groupId,
+                'whiteboardId': whiteboardId,
+                'createdAt': FieldValue.serverTimestamp(),
+                'expiresAt': Timestamp.fromDate(lockExpiry),
+                'updatedAt': FieldValue.serverTimestamp(),
+              },
+            });
+
+            AppLogger.info(
+                '✅ [LOCK] 編集ロック取得成功: ${AppLogger.maskName(userName)}');
+            return true;
+          }),
+          Future<bool>.delayed(
+            const Duration(seconds: 5),
+            () => throw TimeoutException('runTransaction 5秒タイムアウト'),
+          ),
+        ]);
+      } on TimeoutException {
+        // runTransactionがハング → トランザクションなし方式にフォールバック
+        AppLogger.warning(
+            '⏳ [LOCK] runTransactionタイムアウト（5秒）- 非トランザクション方式にフォールバック');
+        return await _acquireEditLockWithoutTransaction(
+          groupId: groupId,
+          whiteboardId: whiteboardId,
+          userId: userId,
+          userName: userName,
+          deviceId: deviceId,
+        );
+      }
     } catch (e) {
       AppLogger.error('❌ [LOCK] 編集ロック取得エラー: $e');
       return false;
@@ -215,15 +238,11 @@ class WhiteboardEditLock {
     return _whiteboardsCollection(groupId)
         .doc(whiteboardId)
         .snapshots()
+        // 🔥 FIX: pending write スナップショットをフィルター（streamから除外）
+        // map内でnullを返す旧方式はページ側の _hasEditLock を誤リセットしていた
+        .where((snapshot) => !snapshot.metadata.hasPendingWrites)
         .map((snapshot) {
       if (!snapshot.exists) return null;
-
-      // 🔥 FIX: ローカルキャッシュのみの変更（pending write）は無視する
-      // サーバー確認前の stale データでロック誤判定を防ぐ
-      if (snapshot.metadata.hasPendingWrites) {
-        AppLogger.info('🔒 [LOCK_WATCH] pending write検出 - スキップ');
-        return null;
-      }
 
       final whiteboardData = snapshot.data()!;
       final editLock = whiteboardData['editLock'] as Map<String, dynamic>?;
@@ -333,7 +352,45 @@ class WhiteboardEditLock {
     try {
       final whiteboardDocRef =
           _whiteboardsCollection(groupId).doc(whiteboardId);
-      final snapshot = await whiteboardDocRef.get();
+      final now = DateTime.now();
+      final lockExpiry = now.add(const Duration(hours: 1));
+
+      // 🔥 FIX: get() に3秒タイムアウト + キャッシュフォールバック
+      DocumentSnapshot<Map<String, dynamic>> snapshot;
+      try {
+        snapshot = await Future.any<DocumentSnapshot<Map<String, dynamic>>>([
+          whiteboardDocRef.get(),
+          Future.delayed(
+            const Duration(seconds: 3),
+            () => throw TimeoutException('get() 3秒タイムアウト'),
+          ),
+        ]);
+      } on TimeoutException {
+        AppLogger.warning('⏳ [FALLBACK] get() 3秒タイムアウト - キャッシュから読み込み試行');
+        try {
+          snapshot = await whiteboardDocRef.get(
+            const GetOptions(source: Source.cache),
+          );
+        } catch (_) {
+          // キャッシュも取得不可 - 楽観的ロック書き込み
+          AppLogger.warning('⚠️ [FALLBACK] キャッシュも取得不可 - 楽観的ロック書き込み実行');
+          await whiteboardDocRef.update({
+            'editLock': {
+              'userId': userId,
+              'userName': userName,
+              'deviceId': deviceId,
+              'groupId': groupId,
+              'whiteboardId': whiteboardId,
+              'createdAt': FieldValue.serverTimestamp(),
+              'expiresAt': Timestamp.fromDate(lockExpiry),
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
+          });
+          AppLogger.info(
+              '✅ [FALLBACK] 楽観的ロック書き込み完了: ${AppLogger.maskName(userName)}');
+          return true;
+        }
+      }
 
       if (!snapshot.exists) {
         throw Exception('ホワイトボードが存在しません');
@@ -341,8 +398,6 @@ class WhiteboardEditLock {
 
       final whiteboardData = snapshot.data()!;
       final editLock = whiteboardData['editLock'] as Map<String, dynamic>?;
-      final now = DateTime.now();
-      final lockExpiry = now.add(const Duration(hours: 1));
 
       if (editLock != null) {
         final currentUserId = editLock['userId'] as String?;
