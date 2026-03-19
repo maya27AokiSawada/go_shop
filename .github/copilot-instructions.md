@@ -398,6 +398,165 @@ final isMyLock = lockInfo != null &&
 
 ---
 
+## Recent Implementations (2026-03-18)
+
+### 1. `setWhiteboardPrivate()` の stale return を修正 ✅
+
+**Purpose**: `isPrivate` 切替後に Firestore 再取得の結果にかかわらず常に意図した値が返るようにする。
+
+**Problem**: `reloaded` が non-null の場合 `.copyWith()` を適用せずそのまま返していたため、`isPrivate` が古い値に戻されることがあった。
+
+**Solution**:
+
+```dart
+// ✅ 常に isPrivate を上書き
+return (reloaded ?? fallbackWhiteboard ?? Whiteboard(...))
+    .copyWith(
+      isPrivate: isPrivate,
+      updatedAt: DateTime.now(),
+    );
+```
+
+**Modified Files**:
+
+- `lib/datastore/whiteboard_repository.dart`
+
+**Commit**: `3a34843`
+**Status**: ✅ 実装完了
+
+---
+
+### 2. `watchWhiteboard()` に `hasPendingWrites` フィルターを追加 ✅
+
+**Purpose**: Firestore SDK が `update()` / `set()` 直後に流す pending write スナップショットで楽観的 UI 更新が上書きされる問題を防ぐ。
+
+**Solution**:
+
+```dart
+// ✅ pending write スナップショットはスキップ
+return _collection(groupId).doc(whiteboardId)
+    .snapshots()
+    .where((snapshot) => !snapshot.metadata.hasPendingWrites)
+    .map((snapshot) { ... });
+```
+
+**Modified Files**:
+
+- `lib/datastore/whiteboard_repository.dart`
+- `lib/services/whiteboard_edit_lock_service.dart` (watchEditLock にも同フィルター追加)
+
+**Commit**: `3a34843`
+**Status**: ✅ 実装完了
+
+---
+
+### 3. `_loadCurrentDeviceId()` 完了後に `_watchEditLock()` を起動する順序修正 ✅
+
+**Purpose**: `_currentDeviceId == null` の状態で `_watchEditLock()` が走り、自端末の lock を他端末のものと誤判定する問題を解消する。
+
+**Solution**:
+
+```dart
+// ✅ deviceId 取得完了後に lock 監視を開始
+_loadCurrentDeviceId().then((_) {
+  if (!mounted) return;
+  _watchEditLock();
+});
+```
+
+**Modified Files**:
+
+- `lib/pages/whiteboard_editor_page.dart`
+
+**Commit**: `3a34843`
+**Status**: ✅ 実装完了
+
+---
+
+### 4. `_releaseEditLock()` の UI 状態先行リセット ✅
+
+**Purpose**: Firestore 通信遅延があっても画面は即座にスクロールモードへ戻れるようにする。
+
+**Solution**:
+
+```dart
+// ✅ UI を try ブロック前にリセット
+if (mounted) {
+  setState(() {
+    _hasEditLock = false;
+    _isEditingLocked = false;
+    _currentEditor = null;
+  });
+}
+
+try {
+  await lockService.releaseEditLock(...)
+      .timeout(const Duration(seconds: 3));
+} catch (e) {
+  // fallback: forceReleaseEditLock
+}
+```
+
+**Modified Files**:
+
+- `lib/pages/whiteboard_editor_page.dart`
+
+**Commit**: `3a34843`
+**Status**: ✅ 実装完了
+
+---
+
+### 5. `releaseEditLock()` を同一ユーザー別端末からも解除可能に ✅
+
+**Purpose**: 同一 Firebase アカウントの別端末が残した stale lock を自端末から解除できるようにする。
+
+**Solution**:
+
+```dart
+// ✅ userId が一致すれば deviceId が違っても解除を許可
+if (currentUserId == userId) {
+  // 解除
+}
+```
+
+**Modified Files**:
+
+- `lib/services/whiteboard_edit_lock_service.dart`
+
+**Commit**: `3a34843`
+**Status**: ✅ 実装完了
+
+---
+
+### 6. 通知クエリのタイムアウトを `Future.any()` で確実に保証 ✅
+
+**Purpose**: ネイティブ SDK がブロックすると `.timeout()` が効かない場合があるため `Future.any()` で Dart レベルのタイムアウトを保証する。
+
+**Solution**:
+
+```dart
+// ✅ Future.any() で確実にタイムアウト
+final snapshot = await Future.any([
+  _firestore.collection('notifications')
+      .where('userId', isEqualTo: currentUser.uid)
+      .where('timestamp', isGreaterThan: lastSyncTime)
+      .get(),
+  Future<QuerySnapshot<Map<String, dynamic>>>.delayed(
+    const Duration(seconds: 5),
+    () => throw TimeoutException('Firestore通知クエリが5秒でタイムアウト'),
+  ),
+]);
+```
+
+**Modified Files**:
+
+- `lib/services/notification_service.dart`
+
+**Commit**: `3a34843`
+**Status**: ✅ 実装完了
+
+---
+
 ## Recent Implementations (2026-03-17)
 
 ### 1. ホワイトボードのペンモード編集ロックを全ボード種別へ拡張 ✅
