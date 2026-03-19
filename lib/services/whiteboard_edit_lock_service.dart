@@ -80,9 +80,17 @@ class WhiteboardEditLock {
                   return true;
                 }
 
+                // 同一ユーザーの別端末が持つstaleロックは強制引き継ぎ
                 AppLogger.warning(
-                    '⚠️ [LOCK] 同一ユーザーの別端末が編集中: ${AppLogger.maskUserId(userId)}@$currentDeviceId');
-                return false;
+                    '⚠️ [LOCK] 同一ユーザーの別端末からロック引き継ぎ: ${AppLogger.maskUserId(userId)} $currentDeviceId → $deviceId');
+                transaction.update(whiteboardDocRef, {
+                  'editLock.userId': userId,
+                  'editLock.userName': userName,
+                  'editLock.deviceId': deviceId,
+                  'editLock.expiresAt': Timestamp.fromDate(lockExpiry),
+                  'editLock.updatedAt': FieldValue.serverTimestamp(),
+                });
+                return true;
               }
 
               // ロックが有効期限内かチェック（1時間）
@@ -419,9 +427,17 @@ class WhiteboardEditLock {
             return true;
           }
 
+          // 同一ユーザーの別端末が持つstaleロックは強制引き継ぎ
           AppLogger.warning(
-              '⚠️ [WINDOWS] 同一ユーザーの別端末が編集中: ${AppLogger.maskUserId(userId)}@$currentDeviceId');
-          return false;
+              '⚠️ [WINDOWS] 同一ユーザーの別端末からロック引き継ぎ: ${AppLogger.maskUserId(userId)} $currentDeviceId → $deviceId');
+          await whiteboardDocRef.update({
+            'editLock.userId': userId,
+            'editLock.userName': userName,
+            'editLock.deviceId': deviceId,
+            'editLock.expiresAt': Timestamp.fromDate(lockExpiry),
+            'editLock.updatedAt': FieldValue.serverTimestamp(),
+          });
+          return true;
         }
 
         // ロックが有効期限内かチェック（1時間）

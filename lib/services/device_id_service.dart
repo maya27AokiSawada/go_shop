@@ -44,8 +44,9 @@ class DeviceIdService {
         final androidInfo = await deviceInfo.androidInfo;
         final androidId = androidInfo.id; // Android固有ID
 
-        // androidIdの最初の8文字を使用（短縮）
-        prefix = _sanitizePrefix(androidId.substring(0, 8));
+        // androidIdの最初の8文字を使用（短縮）。8文字未満の場合は全文字を使用
+        final useLength = androidId.length >= 8 ? 8 : androidId.length;
+        prefix = _sanitizePrefix(androidId.substring(0, useLength));
         AppLogger.info(
             '📱 [DEVICE_ID] Android ID取得: $androidId → プレフィックス: $prefix');
       } else if (Platform.isIOS) {
@@ -112,6 +113,12 @@ class DeviceIdService {
       final fallbackPrefix =
           const Uuid().v4().replaceAll('-', '').substring(0, 8);
       AppLogger.info('⚠️ [DEVICE_ID] フォールバックUUID使用: $fallbackPrefix');
+
+      // SharedPreferencesに保存して次回起動でも同じIDを使う
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_prefixKey, fallbackPrefix);
+      } catch (_) {}
 
       _cachedPrefix = fallbackPrefix;
       return fallbackPrefix;

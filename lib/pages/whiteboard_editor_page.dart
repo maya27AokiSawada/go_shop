@@ -449,11 +449,22 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
 
     try {
       final lockService = ref.read(whiteboardEditLockProvider);
-      final success = await lockService.acquireEditLock(
+      // 🔥 FIX: 8秒タイムアウト追加（runTransaction 5s + フォールバック処理 3s 相当）
+      // _releaseEditLock の 3s タイムアウトと対称的に、acquireにも上限を設ける
+      // これにより「ペンモード数回ON/OFFでスピナー消えず」を防ぐ
+      final success = await lockService
+          .acquireEditLock(
         groupId: widget.groupId,
         whiteboardId: _currentWhiteboard.whiteboardId,
         userId: currentUser.uid,
         userName: currentUser.displayName ?? 'Unknown',
+      )
+          .timeout(
+        const Duration(seconds: 8),
+        onTimeout: () {
+          AppLogger.warning('⏳ [LOCK] 編集ロック取得タイムアウト（8秒）- スピナー解除のため false を返す');
+          return false;
+        },
       );
 
       AppLogger.info('🔒 [LOCK] 編集ロック取得結果: $success');
@@ -620,14 +631,17 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
         // 編集中ユーザーがいる場合はダイアログ表示
         AppLogger.warning('⚠️ [ON_DRAW_START] 他ユーザー編集中 - ダイアログ表示');
         _showEditingInProgressDialog();
+        return false;
       } else {
-        // その他のエラー（Firestore接続問題など）
-        AppLogger.error('❌ [ON_DRAW_START] ロック取得エラー - スナックバー表示');
+        // タイムアウト/ネットワーク問題 & 他端末の編集なし → 楽観的に描画許可
+        AppLogger.warning('⚠️ [ON_DRAW_START] ロック取得失敗（タイムアウト想定）- 楽観的に描画許可');
         if (mounted) {
-          SnackBarHelper.showWarning(context, '編集ロックの取得に失敗しました');
+          setState(() {
+            _hasEditLock = true;
+          });
         }
+        return true;
       }
-      return false; // 描画をブロック
     }
 
     return true; // 描画を許可
@@ -1664,6 +1678,19 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
                             });
                           }
 
+                          // 🔥 安全弁ウォッチドッグ: 何らかの原因でfinallyが遅延しても
+                          // 最大8秒でスピナーを強制解除（保存ウォッチドッグと同方式）
+                          Timer? toggleWatchdog;
+                          toggleWatchdog =
+                              Timer(const Duration(seconds: 8), () {
+                            if (!mounted || !_isTogglingMode) return;
+                            AppLogger.warning(
+                                '⏳ [MODE_TOGGLE] ウォッチドッグ発動（8秒）- スピナー強制解除');
+                            setState(() {
+                              _isTogglingMode = false;
+                            });
+                          });
+
                           try {
                             if (_isScrollLocked) {
                               AppLogger.info('🔓 [MODE_TOGGLE] 描画モード終了 - 描画保存');
@@ -1691,16 +1718,25 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
                                   '🔒 [MODE_TOGGLE] 描画モード開始 - ロック取得試行');
                               final success = await _acquireEditLock();
                               if (!success && mounted) {
-                                AppLogger.warning(
-                                    '❌ [MODE_TOGGLE] ロック取得失敗 - モード切り替えをキャンセル');
                                 if (_isEditingLocked &&
                                     _currentEditor != null) {
+                                  // 他端末が実際にアクティブ編集中 → ブロック
+                                  AppLogger.warning(
+                                      '❌ [MODE_TOGGLE] 他端末編集中 - ブロック');
                                   _showEditingInProgressDialog();
-                                } else {
-                                  SnackBarHelper.showWarning(
-                                      context, '他の端末が編集中のため描画モードに入れません');
+                                  return;
                                 }
-                                return;
+                                // ロック取得失敗はタイムアウト/ネットワーク問題
+                                // かつ UI 上は誰も編集していない → 楽観的にペンモードへ
+                                // _hasEditLock を先行 true にして _onDrawingStart での
+                                // 再ロック試行を防ぐ（Firestore接続回復後に watchEditLock で補正）
+                                AppLogger.warning(
+                                    '⚠️ [MODE_TOGGLE] ロック取得失敗（タイムアウト想定）- 楽観的にペンモードへ');
+                                if (mounted) {
+                                  setState(() {
+                                    _hasEditLock = true;
+                                  });
+                                }
                               }
                               _notifyPenModeChanged(isEntering: true);
                               if (!mounted) return;
@@ -1712,6 +1748,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
                             AppLogger.info(
                                 '✅ [MODE_TOGGLE] モード切り替え完了: ${_isScrollLocked ? '描画モード' : 'スクロールモード'}');
                           } finally {
+                            toggleWatchdog.cancel();
                             if (mounted) {
                               setState(() {
                                 _isTogglingMode = false;
