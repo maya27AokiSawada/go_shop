@@ -1,75 +1,82 @@
 {
-    "cSpell.words": [
-        "Cupertino",
-        "Firestore",
-        "Hive",
-        "Riverpod",
-        "Schyler",
-        "sumomo"
-    ],
-    "terminal.integrated.defaultProfile.windows": "PowerShell",
-    "terminal.integrated.profiles.windows": {
-        "PowerShell": {
-            "source": "PowerShell",
-            "icon": "terminal-powershell"
-        },
-        "WSL": {
-            "path": "C:\\WINDOWS\\System32\\wsl.exe",
-            "args": [],
-            "icon": "terminal-ubuntu"
-        },
-        "Command Prompt": {
-            "path": "C:\\WINDOWS\\System32\\cmd.exe",
-            "args": [],
-            "icon": "terminal-cmd"
-        }
+  "cSpell.words": [
+    "Crashlytics",
+    "Cupertino",
+    "Firestore",
+    "Freezed",
+    "goshopping",
+    "GoShopping",
+    "Hive",
+    "Riverpod",
+    "Schyler",
+    "Sentry",
+    "sumomo"
+  ],
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "terminal.integrated.profiles.windows": {
+    "PowerShell": {
+      "source": "PowerShell",
+      "icon": "terminal-powershell"
     },
-    "files.eol": "\n",
-    "files.insertFinalNewline": true,
-    "files.trimTrailingWhitespace": true,
-    "editor.formatOnSave": true,
-    "editor.codeActionsOnSave": {
-        "source.fixAll": "explicit"
+    "WSL": {
+      "path": "C:\\WINDOWS\\System32\\wsl.exe",
+      "args": [],
+      "icon": "terminal-ubuntu"
     },
-    "dart.enableSdkFormatter": true,
-    "dart.lineLength": 80,
-    "dart.runPubGetOnPubspecChanges": "always",
-    "dart.previewFlutterUiGuides": true,
-    "dart.previewFlutterUiGuidesCustomTracking": true,
-    "[dart]": {
-        "editor.formatOnSave": true,
-        "editor.formatOnType": true,
-        "editor.rulers": [80],
-        "editor.selectionHighlight": false,
-        "editor.suggest.snippetsPreventQuickSuggestions": false,
-        "editor.suggestSelection": "first",
-        "editor.tabCompletion": "onlySnippets",
-        "editor.wordBasedSuggestions": "off"
-    },
-    "flutter.copyProfilerUrl": true,
-    "git.autofetch": true,
-    "git.confirmSync": false,
-    "chat.agent.maxRequests": 10,
-    "chat.tools.terminal.autoApprove": {
-        "^npm": true,
-        "git status": true,
-        "git log": true,
-        "echo": true,
-        "ls": true,
-        "dir": true,
-        "flutter run": true,
-        "flutter analyze": true,
-        "^rm": false,
-        "git push": false,
-        "git reset": false,
-        "flutter build": false,
-        "firebase deploy": false
-    },
-    "mcpServers": {
-        "firebase": {
-            "type": "stdio",
-            "command": "npx",
-            "args": ["-y", "firebase-tools@latest", "mcp"]
-        }
+    "Command Prompt": {
+      "path": "C:\\WINDOWS\\System32\\cmd.exe",
+      "args": [],
+      "icon": "terminal-cmd"
     }
+  },
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit"
+  },
+  "dart.enableSdkFormatter": true,
+  "dart.lineLength": 80,
+  "dart.runPubGetOnPubspecChanges": "always",
+  "dart.previewFlutterUiGuides": true,
+  "dart.previewFlutterUiGuidesCustomTracking": true,
+  "[dart]": {
+    "editor.defaultFormatter": "Dart-Code.dart-code",
+    "editor.formatOnSave": true,
+    "editor.formatOnType": true,
+    "editor.rulers": [80],
+    "editor.selectionHighlight": false,
+    "editor.suggest.snippetsPreventQuickSuggestions": false,
+    "editor.suggestSelection": "first",
+    "editor.tabCompletion": "onlySnippets",
+    "editor.wordBasedSuggestions": "off"
+  },
+  "flutter.copyProfilerUrl": true,
+  "git.autofetch": true,
+  "git.confirmSync": false,
+  "chat.agent.maxRequests": 20,
+  "chat.tools.terminal.autoApprove": {
+    "^npm": true,
+    "git status": true,
+    "git log": true,
+    "echo": true,
+    "ls": true,
+    "dir": true,
+    "flutter run": true,
+    "flutter analyze": true,
+    "^rm": false,
+    "git push": false,
+    "git reset": false,
+    "flutter build": false,
+    "firebase deploy": false
+  },
+  "mcpServers": {
+    "firebase": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "firebase-tools@latest", "mcp"]
+    }
+  },
+  "accessibility.hideAccessibleView": true
 }
