@@ -396,6 +396,51 @@ final isMyLock = lockInfo != null &&
 
 **Why**: マルチデバイス前提の編集ロックは「ユーザー」ではなく「端末セッション」を識別単位にしないと、Pixel 9 / SH-54D / Windows 間で stale lock を自分自身の編集中と誤認しやすい。legacy データの `deviceId == null` は互換扱いで読めるようにしておく。
 
+### 14. `watchWhiteboard()` / `watchEditLock()` で `hasPendingWrites` スナップショットをスキップしろ
+
+**Anti-pattern**:
+
+```dart
+// ❌ pending write スナップショットをそのまま流す
+return _collection(groupId).doc(whiteboardId)
+    .snapshots()
+    .map((snapshot) { ... });
+```
+
+**Correct pattern**:
+
+```dart
+// ✅ pending write スナップショットはスキップ
+return _collection(groupId).doc(whiteboardId)
+    .snapshots()
+    .where((snapshot) => !snapshot.metadata.hasPendingWrites)
+    .map((snapshot) { ... });
+```
+
+**Why**: Firestore SDK は `update()` / `set()` 直後に `hasPendingWrites = true` のローカル書き込みスナップショットを流す。これをそのまま UI に反映すると、楽観的 UI 更新が自分自身の書き込みで上書きされ、`isPrivate` などのトグル値が一瞬古い値に戻る現象が起きる。`watchWhiteboard()` と `watchEditLock()` の両方に適用すること。
+
+### 15. `_watchEditLock()` は `_loadCurrentDeviceId()` 完了後に起動しろ
+
+**Anti-pattern**:
+
+```dart
+// ❌ deviceId 未確定のまま lock 監視を開始
+_loadCurrentDeviceId(); // 非同期、完了を待たない
+_watchEditLock();       // _currentDeviceId == null の状態で実行
+```
+
+**Correct pattern**:
+
+```dart
+// ✅ deviceId 取得完了後に lock 監視を開始
+_loadCurrentDeviceId().then((_) {
+  if (!mounted) return;
+  _watchEditLock();
+});
+```
+
+**Why**: `_currentDeviceId == null` のまま `_watchEditLock()` が走ると、自端末の lock を `isMyLock` 判定できず他端末の lock と誤認する。`initState()` での起動順序を必ず守ること。
+
 ---
 
 ## Recent Implementations (2026-03-18)
