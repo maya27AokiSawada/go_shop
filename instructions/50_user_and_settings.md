@@ -90,9 +90,38 @@ batch2.update(group.reference, {
 
 ---
 
-## 6. 禁止事項
+## 6. 設定画面のウィジェット構成
+
+`lib/pages/settings_page.dart` は薄いオーケストレーターとして機能し、
+実装の実体は `lib/widgets/settings/` の各ファイルに分割されている。
+
+| ファイル                           | 役割                                               | Widget 種別              |
+| ---------------------------------- | -------------------------------------------------- | ------------------------ |
+| `auth_status_panel.dart`           | 認証状態表示パネル                                 | `ConsumerWidget`         |
+| `firestore_sync_status_panel.dart` | Firestore 同期状態表示                             | `ConsumerWidget`         |
+| `app_mode_switcher_panel.dart`     | アプリモード切替（リスト ⇄ TODO）                  | `ConsumerWidget`         |
+| `notification_settings_panel.dart` | 通知設定                                           | `ConsumerWidget`         |
+| `privacy_settings_panel.dart`      | プライバシー設定                                   | `ConsumerWidget`         |
+| `whiteboard_settings_panel.dart`   | ホワイトボードカラー設定                           | `ConsumerWidget`         |
+| `feedback_section.dart`            | フィードバックフォームリンク                       | `StatefulWidget`         |
+| `feedback_debug_section.dart`      | フィードバックデバッグ情報（dev のみ）             | `StatefulWidget`         |
+| `developer_tools_section.dart`     | 開発者ツールパネル（dev のみ）                     | `ConsumerWidget`         |
+| `data_maintenance_section.dart`    | データクリーンアップ・マイグレーション（dev のみ） | `ConsumerStatefulWidget` |
+| `account_deletion_section.dart`    | アカウント削除（認証済みのみ）                     | `ConsumerStatefulWidget` |
+
+### ルール
+
+- 新しい設定機能は `settings_page.dart` に直接書かず、`lib/widgets/settings/` に専用ファイルを作成すること
+- `dev` 専用 UI は `if (F.appFlavor == Flavor.dev) ...` ブロックで囲む
+- `AccountDeletionSection` は `User user`（non-nullable）を受け取る
+- `DataMaintenanceSection` / `DeveloperToolsSection` は `User? user` を受け取る
+
+---
+
+## 7. 禁止事項
 
 - サインアウト前に Hive / SharedPreferences をクリアしないまま Auth を解除する
 - Firestore 同期前に「グループ0件」と確定してページ遷移・UI 構築する
 - アカウント削除を再認証なしで実行する
 - Batch 分割なしにサブコレクションと親を同時削除する
+- 設定機能のロジックを `settings_page.dart` 本体に直接書く（→ `lib/widgets/settings/` に分割する）
