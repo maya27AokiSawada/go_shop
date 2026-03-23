@@ -443,6 +443,111 @@ _loadCurrentDeviceId().then((_) {
 
 ---
 
+## Recent Implementations (2026-03-19)
+
+### 1. ペンモード繰り返しで詰まる問題を3点修正 ✅
+
+**Purpose**: ペンモードを何度も ON/OFF すると操作を受け付けなくなる問題を根本解決する。
+
+**Problem**: 3 つのバグが重なっていた。
+
+1. `watchEditLock` の `.map()` 内 null 返却 → page 側が `_hasEditLock = false` にリセット
+2. Windows 版 `_acquireEditLockWithoutTransaction` の `get()` にタイムアウトがなくオフライン時にハング
+3. ツールバーボタンへの二重タップで処理が重複
+
+**Solution**:
+
+```dart
+// ✅ Fix1: .where() フィルターで null スナップショットを除外
+stream
+    .where((snapshot) => snapshot != null)
+    .map((snapshot) => WhiteboardEditLock.fromSnapshot(snapshot!));
+
+// ✅ Fix2: get() に 3 秒タイムアウト + キャッシュフォールバック
+final snapshot = await Future.any([
+  whiteboardDocRef.get(),
+  Future.delayed(const Duration(seconds: 3))
+      .then((_) => throw TimeoutException('get timeout')),
+]);
+
+// ✅ Fix3: _isTogglingMode フラグで二重タップ防止・処理中は CircularProgressIndicator
+bool _isTogglingMode = false;
+
+icon: _isTogglingMode
+    ? const SizedBox(width: 20, height: 20,
+        child: CircularProgressIndicator(strokeWidth: 2))
+    : Icon(_isScrollLocked ? Icons.brush : Icons.open_with),
+onPressed: _isTogglingMode ? null : () async {
+  setState(() { _isTogglingMode = true; });
+  try { /* ... */ } finally { setState(() { _isTogglingMode = false; }); }
+},
+```
+
+**Modified Files**:
+
+- `lib/pages/whiteboard_editor_page.dart`
+- `lib/services/whiteboard_edit_lock_service.dart`
+
+**Commit**: `746c32d`
+**Status**: ✅ 実装完了
+
+---
+
+### 2. 編集ロックのタイムアウト・楽観的UI・staleロック引き継ぎを改善 ✅
+
+**Purpose**: Fix 1 後も残存した「スピナーが 8 秒以上消えない」「同一ユーザー別端末の stale ロックで入れない」問題を解消する。
+
+**Solution**:
+
+```dart
+// ✅ acquireEditLock に 8 秒タイムアウト
+final success = await lockService.acquireEditLock(...)
+    .timeout(const Duration(seconds: 8), onTimeout: () => false);
+
+// ✅ モード切替ウォッチドッグ（8 秒で強制スピナー解除）
+Timer? toggleWatchdog = Timer(const Duration(seconds: 8), () {
+  if (!mounted || !_isTogglingMode) return;
+  setState(() { _isTogglingMode = false; });
+});
+try { ... } finally { toggleWatchdog.cancel(); }
+
+// ✅ ロック取得失敗 & 他端末の実編集なし → 楽観的にペンモードへ
+if (!success && !(_isEditingLocked && _currentEditor != null)) {
+  setState(() { _hasEditLock = true; }); // watchEditLock で後から補正
+}
+
+// ✅ 同一ユーザー別端末の stale ロックを強制引き継ぎ
+if (currentUserId == userId && currentDeviceId != deviceId) {
+  transaction.update(whiteboardDocRef, {
+    'editLock.deviceId': deviceId, // 現在の端末に付け替え
+    'editLock.updatedAt': FieldValue.serverTimestamp(),
+  });
+  return true;
+}
+```
+
+**DeviceIdService 修正**:
+
+```dart
+// ✅ Android ID が 8 文字未満でも安全に処理
+final useLength = androidId.length >= 8 ? 8 : androidId.length;
+prefix = _sanitizePrefix(androidId.substring(0, useLength));
+
+// ✅ フォールバック UUID を SharedPreferences に永続化
+await prefs.setString(_prefixKey, fallbackPrefix);
+```
+
+**Modified Files**:
+
+- `lib/pages/whiteboard_editor_page.dart`
+- `lib/services/whiteboard_edit_lock_service.dart`
+- `lib/services/device_id_service.dart`
+
+**Commit**: `bf5a2dd`
+**Status**: ✅ 実装完了
+
+---
+
 ## Recent Implementations (2026-03-18)
 
 ### 1. `setWhiteboardPrivate()` の stale return を修正 ✅
