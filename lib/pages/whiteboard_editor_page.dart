@@ -1095,14 +1095,12 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
                       notificationPredicate: (notification) =>
                           notification.depth == 1,
                       child: SingleChildScrollView(
-                        key: ValueKey('h_scroll_$_isScrollLocked'),
                         controller: _horizontalScrollController,
                         scrollDirection: Axis.horizontal,
                         physics: _isScrollLocked && canEdit
                             ? const NeverScrollableScrollPhysics()
                             : const AlwaysScrollableScrollPhysics(),
                         child: SingleChildScrollView(
-                          key: ValueKey('v_scroll_$_isScrollLocked'),
                           controller: _verticalScrollController,
                           scrollDirection: Axis.vertical,
                           physics: _isScrollLocked && canEdit
