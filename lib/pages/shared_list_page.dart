@@ -7,6 +7,7 @@ import '../providers/shared_group_provider.dart';
 import '../providers/shared_list_provider.dart';
 import '../widgets/shared_list_header_widget.dart';
 import '../widgets/shared_item_edit_modal.dart';
+import '../providers/auth_provider.dart';
 import '../utils/app_logger.dart';
 import '../utils/snackbar_helper.dart';
 
@@ -267,7 +268,14 @@ class _SharedItemTile extends ConsumerWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onDoubleTap: () => _showEditItemModal(context),
+        onDoubleTap: () {
+          final currentUser = ref.read(authStateProvider).value;
+          if (currentUser == null) return;
+          final canEdit = list.ownerUid == currentUser.uid ||
+              item.memberId == currentUser.uid;
+          if (!canEdit) return;
+          _showEditItemModal(context);
+        },
         onLongPress: () => _confirmDelete(context, ref),
         child: ListTile(
           leading: Checkbox(
