@@ -13,6 +13,7 @@ import '../services/firestore_user_name_service.dart';
 import '../services/password_reset_service.dart';
 import '../services/ad_service.dart';
 import '../services/app_launch_service.dart';
+import '../services/error_log_service.dart';
 import '../helpers/user_id_change_helper.dart';
 
 import '../widgets/user_name_panel_widget.dart';
@@ -236,6 +237,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         } else if (e.toString().contains('invalid-email')) {
           errorMessage = 'メールアドレスの形式が正しくありません';
         }
+        await ErrorLogService.logOperationError('アカウント作成', '$e');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMessage),
@@ -356,6 +358,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             e.toString().contains('invalid-credential')) {
           errorMessage = 'メールアドレスまたはパスワードが正しくありません';
         }
+        await ErrorLogService.logOperationError('サインイン', '$e');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMessage),

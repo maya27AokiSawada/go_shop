@@ -10,6 +10,7 @@ import '../widgets/shared_item_edit_modal.dart';
 import '../providers/auth_provider.dart';
 import '../utils/app_logger.dart';
 import '../utils/snackbar_helper.dart';
+import '../services/error_log_service.dart';
 
 /// 共有リスト画面
 /// カレントグループとカレントリストを使用したシンプルな実装
@@ -338,6 +339,7 @@ class _SharedItemTile extends ConsumerWidget {
           );
     } catch (e, stackTrace) {
       Log.error('❌ 購入状態保存エラー: $e', e, stackTrace);
+      await ErrorLogService.logOperationError('購入状態更新', '$e', stackTrace);
       if (context.mounted) {
         SnackBarHelper.showError(context, '購入状態の更新に失敗しました: $e');
       }
@@ -389,6 +391,8 @@ class _SharedItemTile extends ConsumerWidget {
                 }
               } catch (e, stackTrace) {
                 Log.error('❌ アイテム削除エラー: $e', e, stackTrace);
+                await ErrorLogService.logOperationError(
+                    'アイテム削除', '$e', stackTrace);
                 if (dialogContext.mounted) {
                   Navigator.of(dialogContext).pop();
                 }

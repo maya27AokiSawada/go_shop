@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/app_logger.dart';
 import '../helpers/ui_helper.dart';
 import '../services/authentication_service.dart';
+import '../services/error_log_service.dart';
 import '../services/user_preferences_service.dart';
 import 'auth_provider.dart';
 
@@ -11,12 +12,12 @@ import 'auth_provider.dart';
 class HomePageAuthService {
   final WidgetRef ref;
   final BuildContext context;
-  
+
   HomePageAuthService({
     required this.ref,
     required this.context,
   });
-  
+
   /// サインイン処理
   Future<void> performSignIn(String email, String password) async {
     if (email.isEmpty || password.isEmpty) {
@@ -26,29 +27,33 @@ class HomePageAuthService {
 
     try {
       Log.info('🔧 サインイン開始: $email');
-      
-      final userCredential = await AuthenticationService.signInWithEmailAndPassword(
+
+      final userCredential =
+          await AuthenticationService.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-      
+
       if (userCredential == null) {
+        await ErrorLogService.logOperationError(
+            'サインイン', 'ログインに失敗しました (userCredential == null)');
         UiHelper.showErrorMessage(context, 'ログインに失敗しました');
         return;
       }
-      
+
       UiHelper.showSuccessMessage(context, 'ログインしました');
-      
     } on FirebaseAuthException catch (e) {
       await handleFirebaseAuthError(e, email);
     } catch (e) {
       Log.error('❌ サインイン中に予期しないエラー: $e');
+      await ErrorLogService.logOperationError('サインイン', '$e');
       UiHelper.showErrorMessage(context, 'サインインに失敗しました: $e');
     }
   }
-  
+
   /// サインアップ処理
-  Future<void> performSignUp(String email, String password, String userName) async {
+  Future<void> performSignUp(
+      String email, String password, String userName) async {
     if (email.isEmpty || password.isEmpty || userName.isEmpty) {
       UiHelper.showWarningMessage(context, 'すべての項目を入力してください');
       return;
@@ -56,11 +61,11 @@ class HomePageAuthService {
 
     try {
       Log.info('🆕 サインアップ開始: $email');
-      
+
       // FirebaseAuthServiceを使用してサインアップ
       final authService = ref.read(authProvider);
       final user = await authService.signUp(email, password);
-      
+
       if (user != null) {
         Log.info('✅ サインアップ成功: ${user.uid}');
         UiHelper.showSuccessMessage(context, 'アカウントを作成しました');
@@ -68,13 +73,16 @@ class HomePageAuthService {
     } on FirebaseAuthException catch (e) {
       Log.error('❌ サインアップ FirebaseAuthException: ${e.code}, ${e.message}');
       String errorMessage = getFirebaseAuthErrorMessage(e);
+      await ErrorLogService.logOperationError(
+          'アカウント作成', 'Firebase認証エラー: ${e.code} - ${e.message}');
       UiHelper.showErrorMessage(context, errorMessage);
     } catch (e) {
       Log.error('❌ サインアップ中に予期しないエラー: $e');
+      await ErrorLogService.logOperationError('アカウント作成', '$e');
       UiHelper.showErrorMessage(context, 'アカウント作成に失敗しました: $e');
     }
   }
-  
+
   /// パスワードリセットメール送信
   Future<void> sendPasswordResetEmail(String email) async {
     if (email.isEmpty) {
@@ -88,10 +96,11 @@ class HomePageAuthService {
       UiHelper.showSuccessMessage(context, 'パスワードリセットメールを送信しました');
     } catch (e) {
       Log.error('❌ パスワードリセットメール送信エラー: $e');
+      await ErrorLogService.logOperationError('パスワードリセット', '$e');
       UiHelper.showErrorMessage(context, 'メール送信に失敗しました: $e');
     }
   }
-  
+
   /// ユーザー名保存処理
   Future<void> saveUserName(String userName) async {
     if (userName.isEmpty) {
@@ -101,18 +110,19 @@ class HomePageAuthService {
 
     try {
       Log.info('💾 ユーザー名保存開始: $userName');
-      
+
       // SharedPreferencesに保存
       await UserPreferencesService.saveUserName(userName);
       Log.info('✅ SharedPreferencesに保存完了');
-      
+
       UiHelper.showSuccessMessage(context, 'ユーザー名「$userName」を保存しました');
     } catch (e) {
       Log.error('❌ ユーザー名保存エラー: $e');
+      await ErrorLogService.logOperationError('ユーザー名保存', '$e');
       UiHelper.showErrorMessage(context, 'ユーザー名の保存に失敗しました: $e');
     }
   }
-  
+
   /// About Dialog表示
   void showAppAboutDialog() {
     showAboutDialog(
@@ -148,14 +158,15 @@ class HomePageAuthService {
       ],
     );
   }
-  
+
   /// Firebase認証エラー処理
-  Future<void> handleFirebaseAuthError(FirebaseAuthException e, String email) async {
+  Future<void> handleFirebaseAuthError(
+      FirebaseAuthException e, String email) async {
     Log.error('❌ Firebase認証エラー: ${e.code}');
     Log.error('❌ エラーメッセージ: ${e.message}');
-    
+
     String errorMessage = getFirebaseAuthErrorMessage(e);
-    
+
     if (e.code == 'user-not-found') {
       // ユーザーが見つからない場合、サインアップを提案
       await offerSignUp(email);
@@ -163,7 +174,7 @@ class HomePageAuthService {
       UiHelper.showErrorMessage(context, errorMessage);
     }
   }
-  
+
   /// サインアップ提案ダイアログ
   Future<void> offerSignUp(String email) async {
     final result = await showDialog<bool>(
@@ -183,13 +194,13 @@ class HomePageAuthService {
         ],
       ),
     );
-    
+
     if (result == true) {
       // サインアップフォームに切り替える処理をここに追加
       Log.info('ユーザーがサインアップを選択しました');
     }
   }
-  
+
   /// Firebase Auth エラーメッセージ取得
   String getFirebaseAuthErrorMessage(FirebaseAuthException e) {
     switch (e.code) {

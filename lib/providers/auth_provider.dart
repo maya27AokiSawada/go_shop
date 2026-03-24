@@ -10,6 +10,7 @@ import '../services/user_info_service.dart';
 import '../services/email_management_service.dart';
 import '../services/user_preferences_service.dart';
 import '../services/firestore_group_sync_service.dart';
+import '../services/error_log_service.dart';
 import '../providers/user_name_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/shared_group_provider.dart';
@@ -257,6 +258,7 @@ class FirebaseAuthService {
           emailController, userNameController);
     } catch (e) {
       Log.error('🚨 ログイン失敗: $e');
+      await ErrorLogService.logOperationError('サインイン', '$e');
       UiHelper.showErrorMessage(context, 'ログインに失敗しました: $e');
     }
   }
@@ -335,10 +337,13 @@ class FirebaseAuthService {
     } on FirebaseAuthException catch (e) {
       Log.error('🚨 Firebase認証エラー: ${e.code} - ${e.message}');
       String errorMessage = _getFirebaseAuthErrorMessage(e);
+      await ErrorLogService.logOperationError(
+          'アカウント作成', 'Firebase認証エラー: ${e.code} - ${e.message}');
       UiHelper.showErrorMessage(context, errorMessage,
           duration: const Duration(seconds: 4));
     } catch (e) {
       Log.error('🚨 サインアップ失敗: $e');
+      await ErrorLogService.logOperationError('アカウント作成', '$e');
       UiHelper.showErrorMessage(context, 'アカウント作成に失敗しました: $e');
     }
   }
@@ -372,6 +377,7 @@ class FirebaseAuthService {
       UiHelper.showSuccessMessage(context, 'ユーザー名「$userName」を保存しました');
     } catch (e) {
       Log.error('❌ ユーザー名保存エラー: $e');
+      await ErrorLogService.logOperationError('ユーザー名保存', '$e');
       UiHelper.showErrorMessage(context, 'ユーザー名の保存に失敗しました: $e');
     }
   }
@@ -398,6 +404,7 @@ class FirebaseAuthService {
       );
     } catch (e) {
       Log.error('❌ パスワードリセットメール送信エラー: $e');
+      await ErrorLogService.logOperationError('パスワードリセット', '$e');
       UiHelper.showErrorMessage(
         context,
         'メール送信に失敗しました: $e',

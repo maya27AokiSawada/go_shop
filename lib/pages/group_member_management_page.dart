@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/shared_group.dart';
 import '../providers/shared_group_provider.dart';
 import '../utils/app_logger.dart';
+import '../services/error_log_service.dart';
 // 🔥 REMOVED: import '../utils/group_helpers.dart'; デフォルトグループ機能削除
 import '../widgets/member_selection_dialog.dart';
 import '../pages/group_invitation_page.dart';
@@ -565,6 +566,7 @@ class _GroupMemberManagementPageState
       ref.invalidate(selectedGroupProvider);
     } catch (e) {
       AppLogger.error('❌ [MEMBER_MGMT] メンバー追加エラー: $e');
+      await ErrorLogService.logOperationError('メンバー追加', '$e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('追加に失敗しました: $e')),
       );
@@ -625,8 +627,9 @@ class _GroupMemberManagementPageState
       ref.invalidate(allGroupsProvider);
     } catch (e) {
       AppLogger.error('❌ [GROUP_MGMT] グループ名更新エラー: $e');
+      await ErrorLogService.logOperationError('グループ名更新', '$e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('削除に失敗しました: $e')),
+        SnackBar(content: Text('グループ名の更新に失敗しました: $e')),
       );
     }
   }

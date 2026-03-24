@@ -19,6 +19,7 @@ import '../services/network_monitor_service.dart';
 import '../utils/snackbar_helper.dart';
 import '../utils/drawing_converter.dart';
 import '../utils/app_logger.dart';
+import '../services/error_log_service.dart';
 import '../widgets/whiteboard/whiteboard_painters.dart';
 import '../widgets/whiteboard/whiteboard_toolbar.dart';
 
@@ -704,6 +705,12 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
         FirebaseCrashlytics.instance.recordError(e, stackTrace);
       }
 
+      await ErrorLogService.logOperationError(
+        'ホワイトボード保存',
+        'Firebase エラー: ${e.code} - ${e.message}',
+        stackTrace,
+      );
+
       if (mounted) {
         if (e.code == 'permission-denied') {
           SnackBarHelper.showWarning(context, 'このホワイトボードは保存できません（編集権限なし）');
@@ -743,6 +750,12 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
         FirebaseCrashlytics.instance.recordError(e, stackTrace);
         AppLogger.info('📤 [Crashlytics] エラーレポート送信完了');
       }
+
+      await ErrorLogService.logOperationError(
+        'ホワイトボード保存',
+        '$e',
+        stackTrace,
+      );
 
       if (mounted) {
         SnackBarHelper.showError(context, '保存に失敗しました: $e');
@@ -839,6 +852,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
         });
       }
       AppLogger.error('❌ [DELETE] 全消去エラー: $e');
+      await ErrorLogService.logOperationError('ホワイトボード全消去', '$e');
       if (mounted) {
         SnackBarHelper.showError(context, '全消去に失敗しました: $e');
       }
