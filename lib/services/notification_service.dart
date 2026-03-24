@@ -188,6 +188,18 @@ class NotificationService {
       onError: (error) {
         AppLogger.error('❌ [NOTIFICATION] リスナーエラー: $error');
         AppLogger.error('❌ [NOTIFICATION] エラー詳細: ${error.toString()}');
+        // 🔥 FIX: エラーでストリームが終了した場合に _isListening をリセットし、
+        // 次回 startListening() 呼び出し時に再起動できるようにする
+        _isListening = false;
+        _notificationSubscription = null;
+
+        // 🔥 FIX: 30秒後に自動再起動（一時的なネットワーク障害・インデックス問題に対応）
+        Future.delayed(const Duration(seconds: 30), () {
+          if (!_isListening) {
+            AppLogger.info('🔄 [NOTIFICATION] リスナー自動再起動を試みます...');
+            startListening();
+          }
+        });
       },
     );
 

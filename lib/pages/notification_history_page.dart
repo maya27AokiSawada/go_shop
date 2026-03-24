@@ -18,6 +18,23 @@ class _NotificationHistoryPageState
     extends ConsumerState<NotificationHistoryPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  // ストリームを State に保持することで build() のたびに再生成されないようにする。
+  // authStateProvider のリフレッシュ等で build() が再呼び出されても
+  // StreamBuilder が waiting にリセットされるのを防ぐ。
+  Stream<QuerySnapshot>? _notificationStream;
+  String? _streamUserId;
+
+  void _initStreamIfNeeded(String userId) {
+    if (_streamUserId == userId && _notificationStream != null) return;
+    _streamUserId = userId;
+    _notificationStream = _firestore
+        .collection('notifications')
+        .where('userId', isEqualTo: userId)
+        .orderBy('timestamp', descending: true)
+        .limit(100)
+        .snapshots();
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentUser = ref.watch(authStateProvider).value;
@@ -33,6 +50,8 @@ class _NotificationHistoryPageState
       );
     }
 
+    _initStreamIfNeeded(currentUser.uid);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('通知履歴'),
@@ -45,12 +64,7 @@ class _NotificationHistoryPageState
         ],
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: _firestore
-            .collection('notifications')
-            .where('userId', isEqualTo: currentUser.uid)
-            .orderBy('timestamp', descending: true)
-            .limit(100)
-            .snapshots(),
+        stream: _notificationStream,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             AppLogger.error('通知履歴取得エラー: ${snapshot.error}');
