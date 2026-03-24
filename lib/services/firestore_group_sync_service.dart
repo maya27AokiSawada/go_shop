@@ -6,6 +6,7 @@ import '../utils/app_logger.dart';
 import '../models/shared_group.dart';
 import '../flavors.dart';
 import 'user_preferences_service.dart';
+import 'error_log_service.dart';
 
 /// Firestore・Hive間のグループデータ同期サービス
 class FirestoreGroupSyncService {
@@ -45,6 +46,7 @@ class FirestoreGroupSyncService {
     } catch (e, stackTrace) {
       Log.error('❌ サインイン時グループ同期エラー: $e');
       Log.info('スタックトレース: $stackTrace');
+      await ErrorLogService.logSyncError('サインイン時グループ同期', '$e');
       return [];
     }
   }
@@ -109,6 +111,7 @@ class FirestoreGroupSyncService {
     } catch (e, stackTrace) {
       Log.error('❌ グループ[$groupId]の同期エラー: $e');
       Log.info('スタックトレース: $stackTrace');
+      await ErrorLogService.logSyncError('グループ個別同期', '$e');
       return null;
     }
   }
@@ -155,6 +158,7 @@ class FirestoreGroupSyncService {
     } catch (e, stackTrace) {
       Log.error('❌ グループ[${group.groupName}]のFirestore保存エラー: $e');
       Log.info('スタックトレース: $stackTrace');
+      await ErrorLogService.logSyncError('Firestoreグループ保存', '$e');
       return false;
     }
   }
@@ -204,6 +208,7 @@ class FirestoreGroupSyncService {
       Log.info('✅ [FETCH] 合計${groups.length}件のグループを取得完了');
     } catch (e) {
       Log.error('❌ ユーザーグループ取得エラー: $e');
+      await ErrorLogService.logSyncError('ユーザーグループ取得', '$e');
     }
 
     return groups;
@@ -264,6 +269,7 @@ class FirestoreGroupSyncService {
       Log.info('✅ サインアウト時クリア完了');
     } catch (e) {
       Log.error('❌ サインアウト時クリアエラー: $e');
+      await ErrorLogService.logOperationError('サインアウト時クリア', '$e');
     }
   }
 }

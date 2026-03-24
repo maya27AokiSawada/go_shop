@@ -4,10 +4,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../utils/app_logger.dart';
+import 'error_log_service.dart';
 import '../models/accepted_invitation.dart';
 
 /// 受諾招待サービスプロバイダー
-final acceptedInvitationServiceProvider = Provider<AcceptedInvitationService>((ref) {
+final acceptedInvitationServiceProvider =
+    Provider<AcceptedInvitationService>((ref) {
   return AcceptedInvitationService();
 });
 
@@ -61,6 +63,7 @@ class AcceptedInvitationService {
       Log.info('✅ 招待受諾を記録: $inviterUid → $acceptorUid');
     } catch (e) {
       Log.error('❌ 招待受諾記録エラー: $e');
+      await ErrorLogService.logOperationError('招待受諾記録', '$e');
       rethrow;
     }
   }
@@ -87,6 +90,7 @@ class AcceptedInvitationService {
           .toList();
     } catch (e) {
       Log.error('❌ 未処理招待取得エラー: $e');
+      await ErrorLogService.logOperationError('未処理招待取得', '$e');
       return [];
     }
   }
@@ -116,6 +120,7 @@ class AcceptedInvitationService {
       Log.info('✅ 招待処理完了: $acceptorUid');
     } catch (e) {
       Log.error('❌ 招待処理エラー: $e');
+      await ErrorLogService.logOperationError('招待処理済みマーク', '$e');
       rethrow;
     }
   }
@@ -160,6 +165,7 @@ class AcceptedInvitationService {
       Log.info('✅ 受諾招待削除: $acceptorUid');
     } catch (e) {
       Log.error('❌ 受諾招待削除エラー: $e');
+      await ErrorLogService.logOperationError('受諾招待削除', '$e');
       rethrow;
     }
   }

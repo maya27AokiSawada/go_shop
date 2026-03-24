@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/app_logger.dart';
+import 'error_log_service.dart';
 
 /// ユーザー名をFirestoreで管理するサービス
 ///
@@ -37,6 +38,7 @@ class FirestoreUserNameService {
       }
     } catch (e) {
       Log.error('❌ Firestoreユーザー名取得エラー: $e');
+      await ErrorLogService.logOperationError('Firestoreユーザー名取得', '$e');
       return null;
     }
   }
@@ -101,6 +103,7 @@ class FirestoreUserNameService {
       return true;
     } catch (e) {
       Log.error('❌ Firestoreユーザー名保存エラー: $e');
+      await ErrorLogService.logOperationError('Firestoreユーザー名保存', '$e');
       return false;
     }
   }
@@ -123,6 +126,7 @@ class FirestoreUserNameService {
       return true;
     } catch (e) {
       Log.error('❌ Firestoreユーザー名削除エラー: $e');
+      await ErrorLogService.logOperationError('Firestoreユーザー名削除', '$e');
       return false;
     }
   }
@@ -267,6 +271,7 @@ class FirestoreUserNameService {
       }
     } catch (e) {
       Log.error('❌ [PROFILE] ユーザープロファイル作成エラー: $e');
+      await ErrorLogService.logOperationError('ユーザープロファイル作成', '$e');
     }
   }
 }

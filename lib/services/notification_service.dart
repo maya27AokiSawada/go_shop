@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/app_logger.dart';
+import 'error_log_service.dart';
 import 'user_initialization_service.dart';
 import '../providers/shared_group_provider.dart'; // selectedGroupIdProvider, SharedGroupRepositoryProvider
 import '../providers/current_list_provider.dart'; // currentListProvider
@@ -799,6 +800,7 @@ class NotificationService {
       }
     } catch (e) {
       AppLogger.error('❌ [OWNER] グループ更新エラー: $e');
+      await ErrorLogService.logOperationError('グループメンバー更新', '$e');
       rethrow;
     }
   }
@@ -858,6 +860,7 @@ class NotificationService {
     } catch (e, stackTrace) {
       AppLogger.error('❌ [NOTIFICATION] 送信エラー: $e');
       AppLogger.error('❌ [NOTIFICATION] スタックトレース: $stackTrace');
+      await ErrorLogService.logOperationError('通知送信', '$e', stackTrace);
       rethrow;
     }
   }

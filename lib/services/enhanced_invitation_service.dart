@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shared_group.dart';
 import '../providers/auth_provider.dart';
 import 'dart:developer' as developer;
+import 'error_log_service.dart';
 
 /// Enhanced invitation service with multi-group selection and role-based permissions
 class EnhancedInvitationService {
@@ -67,6 +68,7 @@ class EnhancedInvitationService {
       return invitableGroups;
     } catch (e) {
       developer.log('❌ 招待可能グループ検索エラー: $e');
+      await ErrorLogService.logOperationError('招待可能グループ検索', '$e');
       rethrow;
     }
   }
@@ -113,6 +115,7 @@ class EnhancedInvitationService {
       );
     } catch (e) {
       developer.log('❌ 招待送信エラー: $e');
+      await ErrorLogService.logOperationError('招待送信', '$e');
       return InvitationResult(
         success: false,
         results: {},
@@ -230,6 +233,7 @@ class EnhancedInvitationService {
       developer.log('✅ 招待受諾完了: UID $userUid → グループ「${group.groupName}」');
     } catch (e) {
       developer.log('❌ 招待受諾エラー: $e');
+      await ErrorLogService.logOperationError('招待受諾', '$e');
       rethrow;
     }
   }
@@ -248,6 +252,7 @@ class EnhancedInvitationService {
       return pendingInvitations;
     } catch (e) {
       developer.log('❌ 未受諾招待検索エラー: $e');
+      await ErrorLogService.logOperationError('未受諾招待検索', '$e');
       rethrow;
     }
   }

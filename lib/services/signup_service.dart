@@ -8,6 +8,7 @@ import '../providers/shared_group_provider.dart';
 import '../providers/user_name_provider.dart';
 import '../datastore/hybrid_shared_group_repository.dart';
 import 'user_preferences_service.dart';
+import 'error_log_service.dart';
 
 /// サインアップ時のデータ移行を処理するサービス
 class SignupService {
@@ -47,6 +48,7 @@ class SignupService {
     } catch (e, stackTrace) {
       Log.error('❌ [SIGNUP_SERVICE] サインアップ処理エラー: $e');
       Log.error('❌ [SIGNUP_SERVICE] スタックトレース: $stackTrace');
+      await ErrorLogService.logOperationError('サインアップ処理', '$e', stackTrace);
       return false;
     }
   }

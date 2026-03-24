@@ -12,6 +12,7 @@ import 'invitation_security_service.dart';
 import 'user_preferences_service.dart';
 import 'notification_service.dart';
 import '../providers/user_settings_provider.dart';
+import 'error_log_service.dart';
 
 // QRコード招待サービスプロバイダー
 final qrInvitationServiceProvider = Provider<QRInvitationService>((ref) {
@@ -166,6 +167,7 @@ class QRInvitationService {
         Log.info('✅ [INVITATION] リトライ成功: $invitationId');
       } else {
         Log.error('❌ [INVITATION] 招待データ保存エラー: $e');
+        await ErrorLogService.logOperationError('QR招待作成', '$e');
         rethrow;
       }
     }
@@ -221,6 +223,7 @@ class QRInvitationService {
       Log.error('❌ [QR_DECODE] スタックトレース: $stackTrace');
       Log.error(
           '❌ [QR_DECODE] 問題のあるデータ: ${qrData.substring(0, qrData.length > 100 ? 100 : qrData.length)}');
+      await ErrorLogService.logOperationError('QRコードデコード', '$e', stackTrace);
       return null;
     }
   }
@@ -285,6 +288,7 @@ class QRInvitationService {
       return invitationData;
     } catch (e) {
       Log.error('❌ 招待詳細取得エラー: $e');
+      await ErrorLogService.logOperationError('QR招待詳細取得', '$e');
       return null;
     }
   }
@@ -544,6 +548,7 @@ class QRInvitationService {
       return true;
     } catch (e) {
       Log.error('QR招待受諾エラー: $e');
+      await ErrorLogService.logOperationError('QR招待受諾', '$e');
       return false;
     }
   }

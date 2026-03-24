@@ -6,6 +6,7 @@ import '../providers/shared_group_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/user_name_provider.dart';
 import 'user_preferences_service.dart';
+import 'error_log_service.dart';
 
 final groupManagementServiceProvider = Provider<GroupManagementService>((ref) {
   return GroupManagementService(ref);
@@ -122,6 +123,7 @@ class GroupManagementService {
       );
     } catch (e) {
       Log.info('❌ ユーザー名の読み込みに失敗: $e');
+      await ErrorLogService.logOperationError('ユーザー名読み込み', '$e');
       return null;
     } finally {
       Log.info('🏁 loadUserNameFromDefaultGroup 終了');
@@ -221,6 +223,7 @@ class GroupManagementService {
       Log.info('✅ updateUserNameInAllGroups完了');
     } catch (e) {
       Log.error('❌ updateUserNameInAllGroups エラー: $e');
+      await ErrorLogService.logOperationError('全グループユーザー名更新', '$e');
       rethrow;
     }
   }
@@ -287,6 +290,7 @@ class GroupManagementService {
       return null;
     } catch (e) {
       Log.error('❌ getUserNameFromGroup エラー: $e');
+      await ErrorLogService.logOperationError('グループユーザー名取得', '$e');
       return null;
     }
   }
@@ -299,6 +303,7 @@ class GroupManagementService {
       return group.members ?? [];
     } catch (e) {
       Log.error('❌ getGroupMembers エラー: $e');
+      await ErrorLogService.logOperationError('グループメンバー取得', '$e');
       return [];
     }
   }
