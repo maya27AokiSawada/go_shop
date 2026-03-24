@@ -7,7 +7,6 @@ import '../utils/app_logger.dart';
 // 🔥 REMOVED: import '../utils/group_helpers.dart'; デフォルトグループ機能削除
 import '../widgets/member_selection_dialog.dart';
 import '../pages/group_invitation_page.dart';
-import '../widgets/whiteboard_preview_widget.dart';
 import '../widgets/member_tile_with_whiteboard.dart';
 import '../widgets/group_creation_with_copy_dialog.dart';
 
@@ -205,11 +204,6 @@ class _GroupMemberManagementPageState
           Text('メンバー数: ${members.length}人'),
           if (group.ownerName?.isNotEmpty == true)
             Text('オーナー: ${group.ownerName}'),
-          const SizedBox(height: 16),
-          // グループ用ホワイトボードプレビュー
-          WhiteboardPreviewWidget(
-            groupId: group.groupId,
-          ),
         ],
       ),
     );

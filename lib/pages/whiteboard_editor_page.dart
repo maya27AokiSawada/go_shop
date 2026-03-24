@@ -19,6 +19,8 @@ import '../services/network_monitor_service.dart';
 import '../utils/snackbar_helper.dart';
 import '../utils/drawing_converter.dart';
 import '../utils/app_logger.dart';
+import '../widgets/whiteboard/whiteboard_painters.dart';
+import '../widgets/whiteboard/whiteboard_toolbar.dart';
 
 /// ホワイトボード編集画面（フルスクリーン）
 class WhiteboardEditorPage extends ConsumerStatefulWidget {
@@ -757,113 +759,6 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
   }
 
   /// プライベート設定切り替え
-  Future<void> _togglePrivate() async {
-    try {
-      final repository = ref.read(whiteboardRepositoryProvider);
-
-      // 現在の状態を保存（メッセージ表示用）
-      final wasPrivate = _currentWhiteboard.isPrivate;
-
-      if (_currentWhiteboard.isPersonalWhiteboard &&
-          _currentWhiteboard.ownerId != null) {
-        final updated = await repository.togglePersonalWhiteboardPrivate(
-          groupId: widget.groupId,
-          ownerId: _currentWhiteboard.ownerId!,
-        );
-
-        if (mounted) {
-          setState(() {
-            _currentWhiteboard = updated;
-          });
-        }
-      } else {
-        // Firestoreで更新
-        await repository.togglePrivate(_currentWhiteboard);
-
-        // 🔥 CRITICAL: Firestoreから最新データを明示的に取得してUIを更新
-        await _reloadWhiteboardFromFirestore(reason: 'privacy toggle');
-      }
-
-      if (mounted) {
-        SnackBarHelper.showSuccess(
-          context,
-          wasPrivate ? '他の人も編集できるようになりました' : '自分だけ編集できるようになりました',
-        );
-      }
-
-      AppLogger.info('✅ [PRIVATE] プライベート設定変更完了: $wasPrivate → ${!wasPrivate}');
-    } catch (e) {
-      AppLogger.error('❌ プライベート設定エラー: $e');
-      if (mounted) {
-        SnackBarHelper.showError(context, '編集制限の変更に失敗しました: $e');
-      }
-    }
-  }
-
-  Future<void> _setPrivate(bool isPrivate) async {
-    final previousWhiteboard = _currentWhiteboard;
-
-    try {
-      final repository = ref.read(whiteboardRepositoryProvider);
-
-      if (_currentWhiteboard.isPrivate == isPrivate) {
-        return;
-      }
-
-      final wasPrivate = _currentWhiteboard.isPrivate;
-
-      if (mounted) {
-        setState(() {
-          _currentWhiteboard = _currentWhiteboard.copyWith(
-            isPrivate: isPrivate,
-            updatedAt: DateTime.now(),
-          );
-        });
-      }
-
-      if (_currentWhiteboard.isPersonalWhiteboard &&
-          _currentWhiteboard.ownerId != null) {
-        final updated = await repository.setWhiteboardPrivate(
-          groupId: widget.groupId,
-          whiteboardId: previousWhiteboard.whiteboardId,
-          isPrivate: isPrivate,
-          ownerId: previousWhiteboard.ownerId!,
-          fallbackWhiteboard: previousWhiteboard,
-        );
-
-        if (mounted) {
-          setState(() {
-            _currentWhiteboard = updated.copyWith(isPrivate: isPrivate);
-          });
-        }
-      } else {
-        await repository.togglePrivate(
-          _currentWhiteboard.copyWith(isPrivate: !isPrivate),
-        );
-        await _reloadWhiteboardFromFirestore(reason: 'privacy set');
-      }
-
-      if (mounted) {
-        SnackBarHelper.showSuccess(
-          context,
-          wasPrivate ? '他の人も編集できるようになりました' : '自分だけ編集できるようになりました',
-        );
-      }
-
-      AppLogger.info('✅ [PRIVATE] 明示設定完了: $wasPrivate → $isPrivate');
-    } catch (e) {
-      AppLogger.error('❌ プライベート設定明示更新エラー: $e');
-      if (mounted) {
-        setState(() {
-          _currentWhiteboard = previousWhiteboard;
-        });
-      }
-      if (mounted) {
-        SnackBarHelper.showError(context, '編集制限の変更に失敗しました: $e');
-      }
-    }
-  }
-
   /// 全消去確認ダイアログ
   void _showDeleteConfirmationDialog() {
     showDialog(
@@ -998,6 +893,62 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
     );
   }
 
+  /// スクロール/描画モード切り替え
+  Future<void> _toggleScrollMode() async {
+    AppLogger.info(
+        '🎨 [MODE_TOGGLE] モード切り替え: ${_isScrollLocked ? 'スクロールモード' : '描画モード'}へ');
+
+    if (mounted) {
+      setState(() {
+        _isTogglingMode = true;
+      });
+    }
+
+    // 🔥 安全弁ウォッチドッグ: 何らかの原因でfinallyが遅延しても
+    // 最大8秒でスピナーを強制解除（保存ウォッチドッグと同方式）
+    Timer? toggleWatchdog;
+    toggleWatchdog = Timer(const Duration(seconds: 8), () {
+      if (!mounted || !_isTogglingMode) return;
+      AppLogger.warning('⏳ [MODE_TOGGLE] ウォッチドッグ発動（8秒）- スピナー強制解除');
+      setState(() {
+        _isTogglingMode = false;
+      });
+    });
+
+    try {
+      if (_isScrollLocked) {
+        AppLogger.info('🔓 [MODE_TOGGLE] 描画モード終了 - 描画保存');
+
+        try {
+          _captureCurrentDrawing();
+        } catch (e) {
+          AppLogger.error('❌ [MODE_TOGGLE] 描画キャプチャエラー: $e');
+        }
+
+        if (!mounted) return;
+        setState(() {
+          _isScrollLocked = false;
+        });
+      } else {
+        AppLogger.info('🔒 [MODE_TOGGLE] 描画モード開始');
+        if (!mounted) return;
+        setState(() {
+          _isScrollLocked = true;
+        });
+      }
+
+      AppLogger.info(
+          '✅ [MODE_TOGGLE] モード切り替え完了: ${_isScrollLocked ? '描画モード' : 'スクロールモード'}');
+    } finally {
+      toggleWatchdog.cancel();
+      if (mounted) {
+        setState(() {
+          _isTogglingMode = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentUser = ref.watch(authStateProvider).value;
@@ -1031,19 +982,6 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
                 : '個人用ホワイトボード',
           ),
           actions: [
-            // プライベート設定スイッチ（個人用のみ）
-            if (_currentWhiteboard.isPersonalWhiteboard &&
-                _currentWhiteboard.ownerId == currentUser?.uid)
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('編集制限', style: TextStyle(fontSize: 12)),
-                  Switch(
-                    value: _currentWhiteboard.isPrivate,
-                    onChanged: _setPrivate,
-                  ),
-                ],
-              ),
             // 保存ボタン（🪟 Windows版は非表示 - エディター終了時に自動保存）
             if (canEdit && !Platform.isWindows)
               IconButton(
@@ -1071,7 +1009,76 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
         body: Column(
           children: [
             // 編集可能な場合のみツールバー表示
-            if (canEdit) _buildToolbar(),
+            if (canEdit)
+              WhiteboardToolbar(
+                selectedColor: _selectedColor,
+                strokeWidth: _strokeWidth,
+                canUndo: _canUndo(),
+                canRedo: _canRedo(),
+                isScrollLocked: _isScrollLocked,
+                isTogglingMode: _isTogglingMode,
+                canvasScale: _canvasScale,
+                customColor5: _customColor5,
+                customColor6: _customColor6,
+                onColorChanged: (color) {
+                  setState(() {
+                    _captureCurrentDrawing();
+                    _selectedColor = color;
+                    _controller?.dispose();
+                    _controller = _createSignatureController(
+                      penColor: color,
+                      strokeWidth: _strokeWidth,
+                    );
+                    _controllerKey++;
+                  });
+                },
+                onStrokeWidthChanged: (width) {
+                  setState(() {
+                    _captureCurrentDrawing();
+                    _strokeWidth = width;
+                    _controller?.dispose();
+                    _controller = _createSignatureController(
+                      penColor: _selectedColor,
+                      strokeWidth: width,
+                    );
+                    _controllerKey++;
+                  });
+                },
+                onUndo: _undo,
+                onRedo: _redo,
+                onToggleScrollMode: _toggleScrollMode,
+                onZoomIn: () {
+                  if (_canvasScale < 4.0) {
+                    _captureCurrentDrawing();
+                    setState(() {
+                      _canvasScale += 0.5;
+                      print('🔍 ズームイン: ${_canvasScale}x');
+                      _controller?.dispose();
+                      _controller = _createSignatureController(
+                        penColor: _selectedColor,
+                        strokeWidth: _strokeWidth,
+                      );
+                      _controllerKey++;
+                    });
+                  }
+                },
+                onZoomOut: () {
+                  if (_canvasScale > 0.5) {
+                    _captureCurrentDrawing();
+                    setState(() {
+                      _canvasScale -= 0.5;
+                      print('🔍 ズームアウト: ${_canvasScale}x');
+                      _controller?.dispose();
+                      _controller = _createSignatureController(
+                        penColor: _selectedColor,
+                        strokeWidth: _strokeWidth,
+                      );
+                      _controllerKey++;
+                    });
+                  }
+                },
+                onClearWhiteboard: _showDeleteConfirmationDialog,
+              ),
 
             // キャンバス（閲覧専用または編集可能）
             Expanded(
@@ -1175,216 +1182,6 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
     );
   }
 
-  /// 描画ツールバー（2段構成）
-  Widget _buildToolbar() {
-    return Container(
-      width: double.infinity, // 親の幅いっぱいに広げる
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      color: Colors.grey[200],
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 上段：色選択（6色） + スクロール/描画モード切り替え
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.start, // 左寄せ
-              children: [
-                // 🔄 モード切り替えボタン（左側に配置して常に見えるように）
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  icon: _isTogglingMode
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Icon(
-                          _isScrollLocked ? Icons.brush : Icons.open_with,
-                          color: _isScrollLocked
-                              ? Colors.blue
-                              : Colors.red.shade600,
-                          size: 20,
-                        ),
-                  onPressed: _isTogglingMode
-                      ? null // 🔥 切り替え中は無効化（二重タップ防止）
-                      : () async {
-                          AppLogger.info(
-                              '🎨 [MODE_TOGGLE] モード切り替え: ${_isScrollLocked ? 'スクロールモード' : '描画モード'}へ');
-
-                          if (mounted) {
-                            setState(() {
-                              _isTogglingMode = true;
-                            });
-                          }
-
-                          // 🔥 安全弁ウォッチドッグ: 何らかの原因でfinallyが遅延しても
-                          // 最大8秒でスピナーを強制解除（保存ウォッチドッグと同方式）
-                          Timer? toggleWatchdog;
-                          toggleWatchdog =
-                              Timer(const Duration(seconds: 8), () {
-                            if (!mounted || !_isTogglingMode) return;
-                            AppLogger.warning(
-                                '⏳ [MODE_TOGGLE] ウォッチドッグ発動（8秒）- スピナー強制解除');
-                            setState(() {
-                              _isTogglingMode = false;
-                            });
-                          });
-
-                          try {
-                            if (_isScrollLocked) {
-                              AppLogger.info('🔓 [MODE_TOGGLE] 描画モード終了 - 描画保存');
-
-                              try {
-                                _captureCurrentDrawing();
-                              } catch (e) {
-                                AppLogger.error(
-                                    '❌ [MODE_TOGGLE] 描画キャプチャエラー: $e');
-                              }
-
-                              if (!mounted) return;
-                              setState(() {
-                                _isScrollLocked = false;
-                              });
-                            } else {
-                              AppLogger.info(
-                                  '🔒 [MODE_TOGGLE] 描画モード開始');
-                              if (!mounted) return;
-                              setState(() {
-                                _isScrollLocked = true;
-                              });
-                            }
-
-                            AppLogger.info(
-                                '✅ [MODE_TOGGLE] モード切り替え完了: ${_isScrollLocked ? '描画モード' : 'スクロールモード'}');
-                          } finally {
-                            toggleWatchdog.cancel();
-                            if (mounted) {
-                              setState(() {
-                                _isTogglingMode = false;
-                              });
-                            }
-                          }
-                        },
-                  tooltip: _isScrollLocked ? '描画モード（筆）' : 'スクロールモード（十字）',
-                ),
-                const SizedBox(width: 12),
-                const Text('色:',
-                    style:
-                        TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                const SizedBox(width: 4),
-                _buildColorButton(Colors.black),
-                _buildColorButton(Colors.red),
-                _buildColorButton(Colors.green),
-                _buildColorButton(Colors.yellow),
-                _buildColorButton(_getCustomColor5()), // 設定から取得
-                _buildColorButton(_getCustomColor6()), // 設定から取得
-                const SizedBox(width: 16),
-              ],
-            ),
-          ),
-          const SizedBox(height: 4),
-          // 下段：線幅3段階 + Undo/Redo + ズーム + 消去
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.start, // 左寄せ
-              children: [
-                // ペン太さ3段階（細・中・太）
-                _buildStrokeWidthButton(2.0, 1, label: '細'),
-                _buildStrokeWidthButton(4.0, 2, label: '中'),
-                _buildStrokeWidthButton(6.0, 3, label: '太'),
-                const SizedBox(width: 16),
-                // Undoボタン
-                IconButton(
-                  icon: const Icon(Icons.undo, size: 20),
-                  onPressed: _canUndo() ? _undo : null,
-                  tooltip: !_canUndo()
-                      ? 'これ以上戻せません'
-                      : '元に戻す',
-                ),
-                // Redoボタン
-                IconButton(
-                  icon: const Icon(Icons.redo, size: 20),
-                  onPressed: _canRedo() ? _redo : null,
-                  tooltip: !_canRedo()
-                      ? 'これ以上進めません'
-                      : 'やり直す',
-                ),
-                const SizedBox(width: 16),
-                // ズームアウト
-                IconButton(
-                  icon: const Icon(Icons.zoom_out, size: 20),
-                  onPressed: () {
-                          if (_canvasScale > 0.5) {
-                            // 現在の描画を保存
-                            _captureCurrentDrawing();
-
-                            setState(() {
-                              _canvasScale -= 0.5;
-                              print('🔍 ズームアウト: ${_canvasScale}x');
-
-                              // コントローラーを再作成（ペン幅をスケーリングに合わせる）
-                              _controller?.dispose();
-                              _controller = _createSignatureController(
-                                penColor: _selectedColor,
-                                strokeWidth: _strokeWidth,
-                              );
-                              _controllerKey++;
-                            });
-                          }
-                        },
-                  tooltip: 'ズームアウト',
-                ),
-                // ズーム倍率表示
-                Text('${_canvasScale.toStringAsFixed(1)}x'),
-                // ズームイン
-                IconButton(
-                  icon: const Icon(Icons.zoom_in, size: 20),
-                  onPressed: () {
-                          if (_canvasScale < 4.0) {
-                            // 現在の描画を保存
-                            _captureCurrentDrawing();
-
-                            setState(() {
-                              _canvasScale += 0.5;
-                              print('🔍 ズームイン: ${_canvasScale}x');
-
-                              // コントローラーを再作成（ペン幅をスケーリングに合わせる）
-                              _controller?.dispose();
-                              _controller = _createSignatureController(
-                                penColor: _selectedColor,
-                                strokeWidth: _strokeWidth,
-                              );
-                              _controllerKey++;
-                            });
-                          }
-                        },
-                  tooltip: 'ズームイン',
-                ),
-                const SizedBox(width: 16), // Spacerの代わりに固定幅
-                // 消去ボタン
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  icon: const Icon(Icons.delete_outline, size: 20),
-                  onPressed: () async {
-                          // 全消去ボタン押下時の処理
-                          _showDeleteConfirmationDialog();
-                        },
-                  tooltip: '全消去',
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   /// カスタム色5を読み込み（初期化時のみ）
   Color _loadCustomColor5() {
     final settings = ref.read(userSettingsProvider).value;
@@ -1403,103 +1200,6 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
     return Colors.orange; // デフォルト：オレンジ
   }
 
-  /// カスタム色5を取得（キャッシュから）
-  Color _getCustomColor5() => _customColor5;
-
-  /// カスタム色6を取得（キャッシュから）
-  Color _getCustomColor6() => _customColor6;
-
-  /// 色選択ボタン
-  Widget _buildColorButton(Color color) {
-    // 色の比較はvalueで行う（インスタンスではなく色値で比較）
-    final isSelected = _selectedColor.value == color.value;
-
-    return GestureDetector(
-      onTap: () {
-              setState(() {
-                // 🔥 色変更前に現在の描画を保存
-                _captureCurrentDrawing();
-
-                _selectedColor = color;
-                // SignatureControllerは再作成が必要（空でスタート）
-                // ペン幅はスケーリングを考慮
-                _controller?.dispose();
-                _controller = _createSignatureController(
-                  penColor: color,
-                  strokeWidth: _strokeWidth,
-                );
-                _controllerKey++; // キー更新でウィジェット再構築
-              });
-            },
-      child: Container(
-        width: 32,
-        height: 32,
-        margin: const EdgeInsets.symmetric(horizontal: 2),
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: isSelected ? Colors.blue : Colors.grey,
-            width: isSelected ? 3 : 1,
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// ペン太さボタン（3段階：細・中・太）
-  Widget _buildStrokeWidthButton(double width, int level, {String? label}) {
-    final isSelected = _strokeWidth == width;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2.0),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-            icon: Container(
-              width: 8.0 + (level * 3), // レベルに応じてサイズ変更
-              height: 8.0 + (level * 3),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? Colors.blue.shade700
-                    : Colors.grey.shade400, // 🎨 選択時は濃い青、非選択時は薄いグレー
-                shape: BoxShape.circle,
-              ),
-            ),
-            onPressed: () {
-                    setState(() {
-                      // 🔥 太さ変更前に現在の描画を保存
-                      _captureCurrentDrawing();
-                      _strokeWidth = width;
-                      // SignatureControllerは再作成が必要（空でスタート）
-                      // ペン幅はスケーリングを考慮
-                      _controller?.dispose();
-                      _controller = _createSignatureController(
-                        penColor: _selectedColor,
-                        strokeWidth: width,
-                      );
-                      _controllerKey++; // キー更新でウィジェット再構築
-                    });
-                  },
-            tooltip: '太さ $level',
-          ),
-          if (label != null)
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                color: isSelected ? Colors.blue : Colors.grey,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
   /// 描画エリアをビルド（編集ロック状態を考慮）
   Widget _buildDrawingArea() {
     AppLogger.info(
@@ -1508,7 +1208,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
     // 🎨 通常の描画モード
     if (_isScrollLocked) {
       AppLogger.info('🎨 [DRAWING_AREA] 描画モード有効 - Signatureウィジェット配置');
-      return Container(
+      return SizedBox(
         width: _fixedCanvasWidth * _canvasScale,
         height: _fixedCanvasHeight * _canvasScale,
         child: Signature(
@@ -1521,7 +1221,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
 
     // 📱 スクロールモード
     AppLogger.info('📱 [DRAWING_AREA] スクロールモード - 描画無効');
-    return Container(
+    return SizedBox(
       width: _fixedCanvasWidth * _canvasScale,
       height: _fixedCanvasHeight * _canvasScale,
       child: Center(
@@ -1532,94 +1232,5 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
         ),
       ),
     );
-  }
-}
-
-/// 保存済みストロークを描画するCustomPainter
-class DrawingStrokePainter extends CustomPainter {
-  final List<DrawingStroke> strokes;
-
-  DrawingStrokePainter(this.strokes);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    for (final stroke in strokes) {
-      if (stroke.points.isEmpty) continue;
-
-      final paint = Paint()
-        ..color = Color(stroke.colorValue)
-        ..strokeWidth = stroke.strokeWidth
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round
-        ..style = PaintingStyle.stroke;
-
-      // ストロークの各点を線で結ぶ
-      for (int i = 0; i < stroke.points.length - 1; i++) {
-        final p1 = stroke.points[i];
-        final p2 = stroke.points[i + 1];
-        canvas.drawLine(
-          Offset(p1.x, p1.y),
-          Offset(p2.x, p2.y),
-          paint,
-        );
-      }
-
-      // 単一点の場合は点を描画
-      if (stroke.points.length == 1) {
-        final p = stroke.points[0];
-        canvas.drawCircle(
-          Offset(p.x, p.y),
-          stroke.strokeWidth / 2,
-          paint..style = PaintingStyle.fill,
-        );
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(DrawingStrokePainter oldDelegate) {
-    return strokes != oldDelegate.strokes;
-  }
-}
-
-/// グリッド線を描画するCustomPainter
-class GridPainter extends CustomPainter {
-  final double gridSize;
-  final Color color;
-
-  GridPainter({
-    required this.gridSize,
-    required this.color,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1.0
-      ..style = PaintingStyle.stroke;
-
-    // 縦線
-    for (double x = 0; x <= size.width; x += gridSize) {
-      canvas.drawLine(
-        Offset(x, 0),
-        Offset(x, size.height),
-        paint,
-      );
-    }
-
-    // 横線
-    for (double y = 0; y <= size.height; y += gridSize) {
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width, y),
-        paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(GridPainter oldDelegate) {
-    return gridSize != oldDelegate.gridSize || color != oldDelegate.color;
   }
 }

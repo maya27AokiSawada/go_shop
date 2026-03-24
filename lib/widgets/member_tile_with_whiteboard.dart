@@ -87,23 +87,19 @@ class MemberTileWithWhiteboard extends ConsumerWidget {
                 ],
               );
             } else {
-              // 他人のホワイトボード
-              final canEdit = !whiteboard.isPrivate;
+              // 他人のホワイトボード：閲覧のみ
               return Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    canEdit ? Icons.edit : Icons.visibility,
+                    Icons.visibility,
                     size: 16,
-                    color: canEdit ? Colors.green[600] : Colors.orange[600],
+                    color: Colors.grey[600],
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    canEdit ? '編集可' : '編集不可',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: canEdit ? Colors.green[600] : Colors.orange[600],
-                    ),
+                    '閲覧のみ',
+                    style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                   ),
                 ],
               );
