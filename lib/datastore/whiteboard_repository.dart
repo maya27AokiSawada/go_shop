@@ -296,6 +296,8 @@ class WhiteboardRepository {
   }
 
   /// トランザクションを使わない保存処理
+  /// arrayUnion を使って既存ストロークを読み込まずに直接追記する。
+  /// これにより docRef.get() の遅延（ネットワーク待機）を排除する。
   Future<void> _addStrokesWithoutTransaction({
     required String groupId,
     required String whiteboardId,
@@ -304,56 +306,27 @@ class WhiteboardRepository {
     try {
       final docRef = _collection(groupId).doc(whiteboardId);
 
-      AppLogger.info('💻 [WINDOWS] ドキュメント取得中...');
-      // 現在のホワイトボードを取得
-      final snapshot = await docRef.get();
-
-      if (!snapshot.exists) {
-        throw Exception('ホワイトボードが存在しません');
-      }
-
-      final currentData = snapshot.data()!;
-      final currentStrokes = (currentData['strokes'] as List<dynamic>?)
-              ?.map(
-                  (s) => DrawingStroke.fromFirestore(s as Map<String, dynamic>))
-              .toList() ??
-          [];
-
-      AppLogger.info('💻 [WINDOWS] 既存ストローク数: ${currentStrokes.length}');
-
-      // 🔥 重複チェック
-      final existingStrokeIds = currentStrokes.map((s) => s.strokeId).toSet();
-      final uniqueNewStrokes = newStrokes
-          .where((stroke) => !existingStrokeIds.contains(stroke.strokeId))
+      // 🔥 get() を廃止: arrayUnion で直接追記（重複はFirestoreが排除）
+      final newStrokeMaps = newStrokes
+          .map((s) => {
+                'strokeId': s.strokeId,
+                'points': s.points.map((p) => p.toMap()).toList(),
+                'colorValue': s.colorValue,
+                'strokeWidth': s.strokeWidth,
+                'createdAt': Timestamp.fromDate(s.createdAt),
+                'authorId': s.authorId,
+                'authorName': s.authorName,
+              })
           .toList();
 
-      if (uniqueNewStrokes.isEmpty) {
-        AppLogger.info('💻 [WINDOWS] 重複ストローク検出、追加をスキップ');
-        return;
-      }
-
-      // 新しいストロークを追加
-      final mergedStrokes = [...currentStrokes, ...uniqueNewStrokes];
-
-      AppLogger.info('💻 [WINDOWS] Firestore更新中...');
-      // 直接update（トランザクションなし）
+      AppLogger.info(
+          '💾 [REPO] arrayUnionでFirestore更新中... (${newStrokes.length}個)');
       await docRef.update({
-        'strokes': mergedStrokes
-            .map((s) => {
-                  'strokeId': s.strokeId,
-                  'points': s.points.map((p) => p.toMap()).toList(),
-                  'colorValue': s.colorValue,
-                  'strokeWidth': s.strokeWidth,
-                  'createdAt': Timestamp.fromDate(s.createdAt),
-                  'authorId': s.authorId,
-                  'authorName': s.authorName,
-                })
-            .toList(),
+        'strokes': FieldValue.arrayUnion(newStrokeMaps),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      AppLogger.info(
-          '✅ [WINDOWS] Firestore更新完了: ${uniqueNewStrokes.length}個のストロークを追加（計${mergedStrokes.length}個）');
+      AppLogger.info('✅ [REPO] Firestore更新完了: ${newStrokes.length}個のストロークを追加');
     } catch (e, stackTrace) {
       AppLogger.error('❌ [WINDOWS] ストローク追加エラー: $e');
       AppLogger.error('📍 [WINDOWS] スタックトレース: $stackTrace');

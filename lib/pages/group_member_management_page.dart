@@ -297,6 +297,7 @@ class _GroupMemberManagementPageState
           if (landscapeWarningBanner != null) landscapeWarningBanner,
           Expanded(
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // 左側: グループ情報＋ホワイトボードプレビュー
                 Expanded(
