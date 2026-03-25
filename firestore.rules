@@ -137,12 +137,21 @@ service cloud.firestore {
           request.auth.uid in get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.allowedUid
         );
 
-        // 作成・更新：グループメンバーのみ
-        // ownerId=nullはグループ共通、ownerId=uidは個人用
-        allow create, update: if request.auth != null && (
-          get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid ||
-          request.auth.uid in get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.allowedUid
-        );
+        // 作成：グループメンバーかつ、個人用ボード(ownerId != null)は自分のボードのみ作成可
+        // グループ共通ボード(ownerId=null)は廃止済みのため新規作成不可
+        allow create: if request.auth != null &&
+          (get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid ||
+           request.auth.uid in get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.allowedUid) &&
+          request.resource.data.ownerId != null &&
+          request.resource.data.ownerId == request.auth.uid;
+
+        // 更新：グループメンバーかつ、個人用ボード(ownerId != null)はオーナーのみ更新可
+        // ownerId=nullの既存グループ共通ボードはメンバー全員が更新可（後方互換）
+        allow update: if request.auth != null &&
+          (get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid ||
+           request.auth.uid in get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.allowedUid) &&
+          (resource.data.ownerId == null ||
+           resource.data.ownerId == request.auth.uid);
 
         // 削除：グループオーナーまたは個人用ホワイトボードの所有者のみ
         // 注意：batch削除時は親グループが存在しても検証できないため、exists()チェックを追加
@@ -151,6 +160,28 @@ service cloud.firestore {
           get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid ||
           (resource.data.ownerId != null && resource.data.ownerId == request.auth.uid)
         );
+
+        // strokesサブコレクション：個別ドキュメント保存（arrayUnion廃止版）
+        match /strokes/{strokeId} {
+          // 読み取り：グループメンバーのみ
+          allow read: if request.auth != null && (
+            get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid ||
+            request.auth.uid in get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.allowedUid
+          );
+
+          // 作成：グループメンバーかつ自分のストロークのみ
+          allow create: if request.auth != null &&
+            (get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid ||
+             request.auth.uid in get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.allowedUid) &&
+            request.resource.data.authorId == request.auth.uid;
+
+          // 削除：グループメンバーかつ自分のストローク、またはグループオーナー
+          allow delete: if request.auth != null && (
+            !exists(/databases/$(database)/documents/SharedGroups/$(groupId)) ||
+            get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid ||
+            resource.data.authorId == request.auth.uid
+          );
+        }
       }
     }
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -20,6 +21,143 @@ class WhiteboardRepository {
         .collection('SharedGroups')
         .doc(groupId)
         .collection('whiteboards');
+  }
+
+  /// 🔥 ストロークサブコレクション参照
+  /// SharedGroups/{groupId}/whiteboards/{whiteboardId}/strokes/{strokeId}
+  CollectionReference<Map<String, dynamic>> _strokesCollection(
+      String groupId, String whiteboardId) {
+    return _collection(groupId).doc(whiteboardId).collection('strokes');
+  }
+
+  /// 🔥 ストロークをサブコレクションに保存（常にO(1)・配列サイズ無制限）
+  /// 各ストロークは独立したドキュメントなので、保存速度はストローク総数に依存しない
+  Future<void> addStrokesToSubcollection({
+    required String groupId,
+    required String whiteboardId,
+    required List<DrawingStroke> newStrokes,
+  }) async {
+    if (newStrokes.isEmpty) return;
+
+    try {
+      // Firestoreの1バッチ上限は500件。1回の保存は数本程度なので余裕あり
+      final batch = _firestore.batch();
+
+      for (final stroke in newStrokes) {
+        final docRef =
+            _strokesCollection(groupId, whiteboardId).doc(stroke.strokeId);
+        batch.set(docRef, {
+          'strokeId': stroke.strokeId,
+          'points': stroke.points.map((p) => p.toMap()).toList(),
+          'colorValue': stroke.colorValue,
+          'strokeWidth': stroke.strokeWidth,
+          'createdAt': Timestamp.fromDate(stroke.createdAt),
+          'authorId': stroke.authorId,
+          'authorName': stroke.authorName,
+        });
+      }
+
+      // 親ドキュメントのupdatedAtも更新
+      batch.update(_collection(groupId).doc(whiteboardId), {
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      AppLogger.info('💾 [REPO] サブコレクション書き込み発火: (${newStrokes.length}本)');
+      // Fire-and-forget で呼ばれるためタイムアウトは不要
+      // Firestoreオフライン永続化によりローカルへの書き込みは即時完了する
+      await batch.commit();
+
+      AppLogger.info('✅ [REPO] サブコレクション保存完了: ${newStrokes.length}本');
+    } catch (e, stackTrace) {
+      AppLogger.error('❌ [REPO] サブコレクション保存エラー: $e');
+      AppLogger.error('📍 [REPO] スタックトレース: $stackTrace');
+      rethrow;
+    }
+  }
+
+  /// 🔥 ストロークサブコレクションをリアルタイム監視
+  Stream<List<DrawingStroke>> watchStrokesSubcollection(
+      String groupId, String whiteboardId) {
+    AppLogger.info(
+        '🔭 [WATCH_STROKES] リスナー開始: groupId=$groupId, wbId=$whiteboardId');
+    // orderBy をクエリから除去 → クライアントソートで代替。
+    // Firestore auto-index の遅延や FAILED_PRECONDITION でクエリが
+    // 無音でエラー終了するのを防ぐ。
+    return _strokesCollection(groupId, whiteboardId)
+        .snapshots()
+        .handleError((Object error, StackTrace stack) {
+      AppLogger.error('❌ [WATCH_STROKES] ストリームエラー: $error\n$stack');
+    }).map((snapshot) {
+      try {
+        AppLogger.info(
+            '📡 [WATCH_STROKES] スナップショット受信: ${snapshot.docs.length}件 pending=${snapshot.metadata.hasPendingWrites}');
+        final strokes = snapshot.docs
+            .map((doc) => DrawingStroke.fromFirestore(doc.data()))
+            .toList()
+          // createdAt 昇順でクライアントソート
+          ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        AppLogger.info('📡 [WATCH_STROKES] パース完了: ${strokes.length}本');
+        return strokes;
+      } catch (e, stack) {
+        AppLogger.error('❌ [WATCH_STROKES] パースエラー: $e\n$stack');
+        return <DrawingStroke>[];
+      }
+    });
+  }
+
+  /// 🔥 ストロークサブコレクション全消去（＋レガシー配列もクリア）
+  Future<void> clearStrokesSubcollection({
+    required String groupId,
+    required String whiteboardId,
+  }) async {
+    try {
+      final strokeDocs = await _strokesCollection(groupId, whiteboardId).get();
+
+      AppLogger.info('🗑️ [REPO] サブコレクション全消去開始: ${strokeDocs.docs.length}件');
+
+      const batchLimit = 400;
+      final docRefs = strokeDocs.docs.map((d) => d.reference).toList();
+
+      if (docRefs.isEmpty) {
+        // サブコレクションが空 → レガシー配列だけクリア
+        await _collection(groupId).doc(whiteboardId).update({
+          'strokes': [],
+          'updatedAt': FieldValue.serverTimestamp(),
+        }).timeout(
+          const Duration(seconds: 10),
+          onTimeout: () =>
+              throw TimeoutException('全消去タイムアウト(10s): $whiteboardId'),
+        );
+      } else {
+        for (var i = 0; i < docRefs.length; i += batchLimit) {
+          final end = (i + batchLimit < docRefs.length)
+              ? i + batchLimit
+              : docRefs.length;
+          final batch = _firestore.batch();
+          for (final ref in docRefs.sublist(i, end)) {
+            batch.delete(ref);
+          }
+          // 最後のバッチでレガシー配列もクリア
+          if (end == docRefs.length) {
+            batch.update(_collection(groupId).doc(whiteboardId), {
+              'strokes': [],
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          }
+          await batch.commit().timeout(
+                const Duration(seconds: 10),
+                onTimeout: () =>
+                    throw TimeoutException('全消去タイムアウト(10s): $whiteboardId'),
+              );
+        }
+      }
+
+      AppLogger.info(
+          '✅ [REPO] 全消去完了: $whiteboardId (${strokeDocs.docs.length}件)');
+    } catch (e) {
+      AppLogger.error('❌ [REPO] サブコレクション全消去エラー: $e');
+      rethrow;
+    }
   }
 
   /// グループ共通ホワイトボード取得
@@ -324,7 +462,11 @@ class WhiteboardRepository {
       await docRef.update({
         'strokes': FieldValue.arrayUnion(newStrokeMaps),
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+      }).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () =>
+            throw TimeoutException('ホワイトボード保存タイムアウト(10s): $whiteboardId'),
+      );
 
       AppLogger.info('✅ [REPO] Firestore更新完了: ${newStrokes.length}個のストロークを追加');
     } catch (e, stackTrace) {
@@ -360,7 +502,11 @@ class WhiteboardRepository {
       await _collection(groupId).doc(whiteboardId).update({
         'strokes': [], // ストローク全削除
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+      }).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () =>
+            throw TimeoutException('ホワイトボード全消去タイムアウト(10s): $whiteboardId'),
+      );
 
       AppLogger.info('✅ ホワイトボード全消去: $whiteboardId');
     } catch (e) {

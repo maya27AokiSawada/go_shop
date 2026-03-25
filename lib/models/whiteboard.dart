@@ -116,9 +116,9 @@ class Whiteboard with _$Whiteboard {
   bool get isPersonalWhiteboard => ownerId != null;
 
   /// ユーザーが編集可能か判定
-  /// 個人用ホワイトボードはオーナーのみ編集可。他ユーザーは閲覧のみ。
+  /// 全ボードは個人用（グループ共通ボードは廃止）。オーナーのみ編集可、他ユーザーは閲覧のみ。
   bool canEdit(String userId) {
-    return isPersonalWhiteboard && ownerId == userId;
+    return ownerId == userId;
   }
 
   /// Firestoreへの保存用Map
