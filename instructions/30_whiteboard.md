@@ -12,9 +12,10 @@
 
 ---
 
-## 2. strokeId ベース差分保存
+## 2. strokeId ベース差分保存（サブコレクション + fire-and-forget）
 
-保存時は **未保存 strokeId のみを送信**する（全件送信禁止）。
+ストロークは `strokes/{strokeId}` **サブコレクション**に個別ドキュメントとして保存する。
+保存時は **未保存 strokeId のみを送信**し（全件送信禁止）、`unawaited` で fire-and-forget する。
 
 ```dart
 // 未保存 strokeId を追跡する Set
@@ -27,31 +28,70 @@ void _captureCurrentStroke() {
   }
 }
 
-// 保存時は未保存分のみ抽出
+// 保存時は未保存分のみ抽出 → fire-and-forget
 final newStrokes = _workingStrokes
     .where((s) => _unsavedStrokeIds.contains(s.strokeId))
     .toList();
-await repository.addStrokesToWhiteboard(
-  groupId: groupId,
-  whiteboardId: whiteboardId,
-  newStrokes: newStrokes,
+// ✅ unawaited: Firestoreオフライン永続化でローカルへの書き込みは即時完了
+// サーバーACKを await する必要はなく、UIをブロックしない
+unawaited(
+  repository.addStrokesToSubcollection(
+    groupId: groupId,
+    whiteboardId: whiteboardId,
+    newStrokes: newStrokes,
+  ).catchError((e) {
+    if (mounted) SnackBarHelper.showError(context, '保存に失敗しました');
+  }),
 );
-// 保存後にリストから削除
-newStrokes.forEach((s) => _unsavedStrokeIds.remove(s.strokeId));
+strokeIds.forEach((s) => _unsavedStrokeIds.remove(s.strokeId));
 ```
+
+**サブコレクション パス**: `SharedGroups/{groupId}/whiteboards/{wbId}/strokes/{strokeId}`
+
+**注**: 旧 `addStrokesToWhiteboard`（arrayUnion）は廃止。strokes は全て subcollection で管理する。
 
 ---
 
-## 3. Firestore リスナーのマージ処理
+## 3. Firestore リスナーの実装ルール
 
-`watchWhiteboard()` / `watchEditLock()` は **`hasPendingWrites` スナップショットをスキップ**する。
+### 3-1. `watchStrokesSubcollection` — hasPendingWrites フィルター禁止
+
+fire-and-forget 保存後のストロークは **pending write 状態**（サーバー未同期）のまま Stream に流れてくる。
+`.where(!hasPendingWrites)` でフィルターすると**保存したばかりのストロークが表示されない**。
 
 ```dart
-// ✅ 必須
-return docRef.snapshots()
-    .where((snapshot) => !snapshot.metadata.hasPendingWrites)
-    .map((snapshot) => Whiteboard.fromFirestore(snapshot.data()!, snapshot.id));
+// ✅ 正しい — hasPendingWrites フィルターなし、クライアントソート
+return _strokesCollection(groupId, whiteboardId)
+    .snapshots()                       // orderBy は使わない（インデックス不要、FAILED_PRECONDITION回避）
+    .handleError((e, stack) { AppLogger.error('Stream error: $e'); })
+    .map((snapshot) => snapshot.docs
+        .map((d) => DrawingStroke.fromFirestore(d.data()))
+        .toList()
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt))); // クライアントソート
+
+// ❌ 禁止 — strokes サブコレクションで hasPendingWrites フィルターを使う
+.where((s) => !s.metadata.hasPendingWrites) // pending write = fire-and-forget の書き込みを弾く
+
+// ❌ 禁止 — .orderBy() をクエリに含める（インデックス未作成時に FAILED_PRECONDITION で無音終了）
+.orderBy('createdAt')
 ```
+
+### 3-2. リスナーの onError と cancelOnError
+
+```dart
+// ✅ 必須 — onError + cancelOnError: false でリスナーを継続させる
+stream.listen(
+  (data) { /* 処理 */ },
+  onError: (e, stack) { AppLogger.error('リスナーエラー: $e'); },
+  cancelOnError: false, // エラーが起きてもリスナーを継続
+);
+// ❌ 禁止 — onError なしの .listen() はエラーで無音終了する
+```
+
+### 3-3. `watchWhiteboard()` — hasPendingWrites スキップは任意
+
+ホワイトボードのメタデータ（タイトル等）を監視する `watchWhiteboard()` は
+pending write が問題にならない場合はフィルターしても良いが、必須ではない。
 
 リスナーでストロークを受信した際は `strokeId` ベースでマージし、
 **未保存のローカルストロークを消さない**ようにする。
@@ -107,11 +147,13 @@ onPressed: _isTogglingMode ? null : () async {
 
 ## 5. プラットフォーム差異
 
-| 処理                     | Windows                       | Android / iOS      |
-| ------------------------ | ----------------------------- | ------------------ |
-| `addStrokesToWhiteboard` | 通常 `update()`               | `runTransaction()` |
-| `runTransaction`         | **禁止**（abort クラッシュ）  | 使用可             |
-| ペンモード終了時 UI      | UI 先行リセット（3s timeout） | 同左               |
+| 処理                        | Windows                         | Android / iOS |
+| --------------------------- | ------------------------------- | ------------- |
+| `addStrokesToSubcollection` | `batch.set()` — fire-and-forget | 同左          |
+| `runTransaction`            | **禁止**（abort クラッシュ）    | 使用可        |
+| ペンモード終了時 UI         | UI 先行リセット                 | 同左          |
+
+**注**: 旧 `addStrokesToWhiteboard`（`arrayUnion` を使う `update()`）は廃止。全プラットフォームで `batch.set()` に統一。
 
 ---
 
@@ -119,7 +161,9 @@ onPressed: _isTogglingMode ? null : () async {
 
 - 点間距離（distance）による stroke 分割（iOS で誤分割が多発する）
   - `signature` パッケージの `PointType` 境界を使うこと
-- `hasPendingWrites = true` スナップショットをそのまま UI に流す
+- strokes サブコレクションで `.where(!hasPendingWrites)` フィルターを使う（fire-and-forget の pending write を弾くため）
+- `watchStrokesSubcollection` に `.orderBy()` を追加する（インデックス未作成時に FAILED_PRECONDITION で無音終了するため）
+- strokes 以外のリスナー（`watchWhiteboard()` 等）で hasPendingWrites 状態のスナップショットをそのまま UI に流すのは非推奨
 - `_currentDeviceId` 未確定状態での `_watchEditLock()` 起動
 - Windows で `runTransaction()` を使う
 - `isPrivate` 等トグル値を「現在値の反転」で保存する（目標値を直接保存すること）
