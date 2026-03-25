@@ -37,7 +37,7 @@ class NewsWidget extends ConsumerWidget {
         }
 
         // 通常のニュース表示
-        final newsAsync = ref.watch(newsStreamProvider);
+        final newsAsync = ref.watch(currentNewsProvider);
         return newsAsync.when(
           data: (news) => _buildNewsCard(context, news),
           loading: () => _buildLoadingCard(),

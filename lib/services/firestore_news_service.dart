@@ -54,9 +54,9 @@ class FirestoreNewsService {
           .doc(_documentName)
           .snapshots()
           .timeout(
-        const Duration(seconds: 10), // タイムアウトを10秒に延長
+        const Duration(seconds: 30),
         onTimeout: (sink) {
-          Log.warning('📰 Firestoreタイムアウト（10秒）');
+          Log.warning('📰 Firestoreタイムアウト（30秒）: デフォルトニュースを使用');
           sink.close();
         },
       ).map((doc) {
