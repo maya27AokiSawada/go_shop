@@ -75,3 +75,38 @@
 **Reasoning**: シグネチャ変更は広範囲に影響し、コンパイルエラーやランタイムエラーの原因となるため、ユーザーの明示的な承認が必要です。
 
 ---
+
+### Sensitive Information Policy
+
+⚠️ **機密情報の取り扱いルール**:
+
+このリポジトリは**公開リポジトリ**のため、機密情報の管理を徹底すること。
+
+**gitignore 対象（コミット禁止）**:
+
+- `google-services.json`, `GoogleService-Info.plist`（Firebase設定）
+- `lib/firebase_options.dart`（APIキー含む）
+- `*.env`, `key.properties`（認証情報）
+- `*.txt`（ログ・デバッグファイル）
+
+**ドキュメント・コード内の禁止事項**:
+
+- ❌ APIキー・シークレットキーを平文で記載しない
+- ❌ メールアドレス・個人情報を不必要に記載しない
+- ❌ パスワード・トークンを記載しない
+- ❌ `// TEMPORARY` などの本番不適切なコードをコミットしない
+
+**必須対応**:
+
+- ✅ 機密情報が既にコミット済みの場合はマスキング（`AIzaSy********************`など）して再コミット
+- ✅ APIキーはローテーション後にローカルファイル（gitignore済み）のみに保存
+- ✅ Firestore Security Rulesは本番前に必ず厳格版を適用・デプロイ
+- ✅ APIキーの受け渡しはチャット外（ローカルファイル参照）で行う
+
+**APIキー更新手順**:
+
+- prod: `android/app/google-services.json`（gitignore済み）
+- dev: `android/app/google-services-my.json`（gitignore済み）
+- 新キーは `C:\Users\fatim\secret.txt` を参照すること
+
+---
