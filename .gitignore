@@ -78,6 +78,9 @@ extensions/*.env
 *.jks
 *.keystore
 key.properties
+
+# Log & debug files (機密情報・不要ファイル)
+*.txt
 android/key.properties
 
 # Logs & Debug files

@@ -80,9 +80,9 @@ git push --force --all
 
 **対象API Keys**:
 
-- Android prod: `AIzaSyCOrH6NiWn6nUhpdgnZ328hQ9Yel-ECFf4`
-- Android dev: `AIzaSyAMlVtmR4t0tEkWoD32xbTfKBnjAjQUbFU`
-- iOS prod: `AIzaSyCgauCbShRE1og3U3_a6EQWmycZqgu4y6w`
+- Android prod: `AIzaSy********************` (Google Cloud Consoleで制限済み)
+- Android dev: `AIzaSy********************` (Google Cloud Consoleで制限済み)
+- iOS prod: `AIzaSy********************` (Google Cloud Consoleで制限済み)
 
 ### 6. Sentry DSNのセキュリティ設定（2026-02-17完了）
 
@@ -134,7 +134,7 @@ git push --force --all
 ```bash
 # Git履歴全体を検索
 git log --all --full-history -p -S "hlcptkurwoftnple"
-git log --all --full-history -p -S "AIzaSyCOrH6NiWn6nUhpdgnZ328hQ9Yel-ECFf4"
+git log --all --full-history -p -S "<FIREBASE_API_KEY>"
 
 # ファイル履歴を確認
 git log --all --full-history -- lib/firebase_options_goshopping.dart
