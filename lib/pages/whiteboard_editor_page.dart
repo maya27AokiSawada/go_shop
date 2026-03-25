@@ -28,10 +28,14 @@ class WhiteboardEditorPage extends ConsumerStatefulWidget {
   final Whiteboard whiteboard;
   final String groupId;
 
+  /// 個人用ホワイトボードのオーナー名（AppBarタイトル用）。nullの場合はfallback表示。
+  final String? ownerName;
+
   const WhiteboardEditorPage({
     super.key,
     required this.whiteboard,
     required this.groupId,
+    this.ownerName,
   });
 
   @override
@@ -82,12 +86,17 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
 
   // Firestoreリアルタイム監視
   StreamSubscription<Whiteboard?>? _whiteboardSubscription;
+  // 🔥 ストロークサブコレクション監視
+  StreamSubscription<List<DrawingStroke>>? _strokesSubscription;
 
   // 🗑️ 全クリア処理中フラグ（Firestoreリスナーの上書きを防ぐ）
   bool _isClearing = false;
 
   // 👤 個人用ホワイトボード保存直後の自己反映スナップショット抑止
   bool _suppressNextPersonalSnapshot = false;
+
+  // 🔄 初回ストローク読み込み中フラグ
+  bool _isLoadingStrokes = true;
 
   SignatureController _createSignatureController({
     required Color penColor,
@@ -163,6 +172,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _whiteboardSubscription?.cancel();
+    _strokesSubscription?.cancel();
     _controller?.dispose();
     _horizontalScrollController.dispose();
     _verticalScrollController.dispose();
@@ -205,45 +215,75 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
   /// Firestoreのホワイトボードをリアルタイム監視してUIに反映
   void _startWhiteboardListener() {
     _whiteboardSubscription?.cancel();
+    _strokesSubscription?.cancel();
 
     final repository = ref.read(whiteboardRepositoryProvider);
 
+    // 1. メタデータ監視（isPrivate等の変更のみ検知。ストロークはサブコレクションが管理）
     _whiteboardSubscription = repository
         .watchWhiteboard(widget.groupId, _currentWhiteboard.whiteboardId)
         .listen((latest) {
       if (!mounted || latest == null) return;
+      if (_isClearing) return;
 
-      // 個人用ホワイトボードでは、自分の保存直後に同じ内容のスナップショットを
-      // 再処理して履歴保存・再描画を二重実行すると、スピナー復帰遅延やUI劣化を招く。
-      if (_suppressNextPersonalSnapshot &&
-          _currentWhiteboard.isPersonalWhiteboard) {
-        AppLogger.info('[LISTENER] 個人用ホワイトボードの自己反映スナップショットをスキップ');
-        _suppressNextPersonalSnapshot = false;
-        _currentWhiteboard = latest;
-        return;
-      }
-
-      // 全クリア処理中はFirestoreリスナーからの更新を無視
-      if (_isClearing) {
-        AppLogger.info(
-            '[LISTENER] 全クリア処理中 - Firestore更新を無視（strokes=${latest.strokes.length}）');
-        return;
-      }
-
+      // メタデータのみ更新（strokes配列は参照しない）
       setState(() {
-        // 🔥 CRITICAL: ホワイトボード全体を更新（isPrivateなどのプロパティも含む）
-        _currentWhiteboard = latest;
-
-        // 🔥 改善: ストロークをインテリジェントにマージ（strokeIdベース）
-        _mergeStrokesFromFirestore(latest.strokes);
-
-        // 📚 Firestore更新後の状態を履歴に記録（他ユーザーの変更も履歴に含める）
-        _saveToHistory();
+        _currentWhiteboard = _currentWhiteboard.copyWith(
+          isPrivate: latest.isPrivate,
+          updatedAt: latest.updatedAt,
+        );
       });
-
-      AppLogger.info(
-          '🛰️ [WHITEBOARD] Firestore最新ストロークを反映: ${latest.strokes.length}本（ローカル${_workingStrokes.length}本）');
+      AppLogger.info('🛰️ [METADATA] 更新: isPrivate=${latest.isPrivate}');
     });
+
+    // 2. ストロークサブコレクション監視（常にO(1)・ストローク数に依存しない）
+    AppLogger.info(
+        '🔭 [LISTENER] strokesサブコレクション監視開始: ${_currentWhiteboard.whiteboardId}');
+    _strokesSubscription = repository
+        .watchStrokesSubcollection(
+            widget.groupId, _currentWhiteboard.whiteboardId)
+        .listen(
+      (firestoreStrokes) {
+        if (!mounted) return;
+
+        // 保存直後の自己反映スナップショットをスキップ
+        if (_suppressNextPersonalSnapshot &&
+            _currentWhiteboard.isPersonalWhiteboard) {
+          AppLogger.info('[LISTENER] 個人用ホワイトボードの自己反映スナップショットをスキップ');
+          _suppressNextPersonalSnapshot = false;
+          return;
+        }
+
+        // 全クリア処理中は無視
+        if (_isClearing) {
+          AppLogger.info('[LISTENER] 全クリア処理中 - サブコレクション更新を無視');
+          return;
+        }
+
+        if (mounted && _isLoadingStrokes) {
+          setState(() {
+            _isLoadingStrokes = false;
+          });
+        }
+
+        setState(() {
+          _mergeStrokesFromFirestore(firestoreStrokes);
+          _saveToHistory();
+        });
+
+        AppLogger.info(
+            '🛰️ [STROKES] サブコレクション反映: ${firestoreStrokes.length}本（ローカル${_workingStrokes.length}本）');
+      },
+      onError: (Object error, StackTrace stack) {
+        AppLogger.error('❌ [LISTENER] strokesサブコレクション監視エラー: $error\n$stack');
+        if (mounted && _isLoadingStrokes) {
+          setState(() {
+            _isLoadingStrokes = false;
+          });
+        }
+      },
+      cancelOnError: false, // エラーが起きてもリスナーを継続
+    );
   }
 
   /// 🔥 新機能: Firestoreストロークとローカルストロークをインテリジェントにマージ
@@ -521,6 +561,13 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
   Future<void> _saveWhiteboard() async {
     if (_isSaving) return;
 
+    // 🔥 FIX: 全クリア処理中は保存をブロック（clearのFirestore writeと競合防止）
+    if (_isClearing) {
+      AppLogger.warning('⛔ [SAVE] 全クリア処理中のため保存を中止');
+      SnackBarHelper.showWarning(context, '消去処理中です。しばらく待ってから保存してください');
+      return;
+    }
+
     // 🔥 CRITICAL: Windows版クラッシュ対策 - mounted チェックを徹底
     if (!mounted) return;
 
@@ -551,26 +598,12 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
       _showSaveSpinner = true;
     });
 
-    var spinnerReleased = false;
-    Timer? spinnerWatchdog;
-
-    spinnerWatchdog = Timer(const Duration(seconds: 4), () {
-      if (!mounted || !_isSaving || !_showSaveSpinner) return;
-
-      AppLogger.warning('⏳ [SAVE] 保存リクエスト継続中 - AppBarスピナーのみ解除');
-      setState(() {
-        _showSaveSpinner = false;
-      });
-      SnackBarHelper.showInfo(context, '保存処理は継続中です');
-    });
-
     try {
       AppLogger.info('💾 [SAVE] ユーザー認証OK: ${currentUser.uid}');
 
       // 🔥 Windows版対策：controller null チェック
       if (_controller == null) {
         AppLogger.error('❌ [SAVE] SignatureController が null です');
-        spinnerWatchdog.cancel();
         if (mounted) {
           setState(() {
             _isSaving = false;
@@ -580,14 +613,12 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
         return;
       }
 
-      AppLogger.info('💾 [SAVE] 保存前に最後の描画をキャプチャ');
-
-      // 🔥 保存前に最後の描画をキャプチャ（ペンダウン時と同じ処理）
+      // 保存前に最後の描画をキャプチャ
       if (_controller!.isNotEmpty) {
         _captureCurrentStroke();
       }
 
-      // 🔥 改善: 未保存のストロークのみを抽出（差分保存）
+      // 未保存のストロークのみを抽出（差分保存）
       final newStrokes = _workingStrokes
           .where((stroke) => _unsavedStrokeIds.contains(stroke.strokeId))
           .toList();
@@ -597,7 +628,6 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
 
       if (newStrokes.isEmpty) {
         AppLogger.info('📋 [SAVE] 新しいストロークなし、保存をスキップ');
-        spinnerWatchdog.cancel();
         if (mounted) {
           setState(() {
             _isSaving = false;
@@ -607,48 +637,49 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
         return;
       }
 
-      AppLogger.info('💾 [SAVE] Firestore保存開始...');
-
-      // 🔥 差分ストローク追加でFirestoreに安全に保存
       final repository = ref.read(whiteboardRepositoryProvider);
 
       if (_currentWhiteboard.isPersonalWhiteboard) {
         _suppressNextPersonalSnapshot = true;
       }
 
-      await repository.addStrokesToWhiteboard(
-        groupId: widget.groupId,
-        whiteboardId: _currentWhiteboard.whiteboardId,
-        newStrokes: newStrokes,
+      // 🔥 FIRE-AND-FORGET: Firestoreオフライン永続化によりローカルへの書き込みは
+      // 即時完了する。サーバーACK（数秒〜10秒）を待たずUIをリセットする。
+      unawaited(
+        repository
+            .addStrokesToSubcollection(
+          groupId: widget.groupId,
+          whiteboardId: _currentWhiteboard.whiteboardId,
+          newStrokes: newStrokes,
+        )
+            .catchError((e) {
+          _suppressNextPersonalSnapshot = false;
+          AppLogger.error('❌ [SAVE] バックグラウンド保存エラー: $e');
+          if (mounted) {
+            SnackBarHelper.showError(context, '保存に失敗しました。再試行してください');
+          }
+        }),
       );
 
-      AppLogger.info('✅ [SAVE] Firestore保存完了: ${newStrokes.length}個のストローク');
-      spinnerWatchdog.cancel();
+      AppLogger.info(
+          '✅ [SAVE] ローカル書き込み発火: ${newStrokes.length}個（サーバー同期はバックグラウンド）');
 
-      if (mounted) {
-        setState(() {
-          _isSaving = false;
-          _showSaveSpinner = false;
-        });
-        spinnerReleased = true;
-      }
-
-      // 🔥 Windows版対策: Firestore保存後にmountedチェック
       if (!mounted) return;
 
-      // 🔥 改善: 保存成功後、未保存リストから削除
+      // ローカルに即時書き込み済み → UIをすぐにリセット
+      setState(() {
+        _isSaving = false;
+        _showSaveSpinner = false;
+      });
+
+      // 未保存リストをクリア（ローカルに書き込み済みなので安全）
       for (final stroke in newStrokes) {
         _unsavedStrokeIds.remove(stroke.strokeId);
       }
       AppLogger.info('📐 [SAVE] 未保存リストから削除: 残り${_unsavedStrokeIds.length}個');
 
-      // 📚 保存後の状態を履歴に記録
       _saveToHistory();
-
-      // SignatureControllerのみクリア（新規描画開始のため）
       _controller?.clear();
-
-      // 変更を反映（mounted チェック済み）
       setState(() {});
 
       // 🔔 他メンバーに更新通知を送信（Windows版ではスキップ）
@@ -670,7 +701,6 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
             }),
           );
         } catch (notificationError) {
-          // 通知送信エラーは無視（保存自体は成功している）
           AppLogger.error('⚠️ 通知送信エラー（保存は成功）: $notificationError');
         }
       } else {
@@ -680,89 +710,31 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
       if (mounted) {
         SnackBarHelper.showSuccess(context, '保存しました');
       }
-    } on FirebaseException catch (e, stackTrace) {
-      spinnerWatchdog.cancel();
-      _suppressNextPersonalSnapshot = false;
-      AppLogger.error('❌ ホワイトボード保存 Firebase エラー: ${e.code} - ${e.message}');
-
-      if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-        try {
-          await Sentry.captureException(
-            e,
-            stackTrace: stackTrace,
-            hint: Hint.withMap({
-              'whiteboard_id': _currentWhiteboard.whiteboardId,
-              'group_id': widget.groupId,
-              'firestore_code': e.code,
-              'is_group_whiteboard': _currentWhiteboard.isGroupWhiteboard,
-              'platform': Platform.operatingSystem,
-            }),
-          );
-        } catch (sentryError) {
-          AppLogger.error('⚠️ [Sentry] レポート送信失敗: $sentryError');
-        }
-      } else {
-        FirebaseCrashlytics.instance.recordError(e, stackTrace);
-      }
-
-      await ErrorLogService.logOperationError(
-        'ホワイトボード保存',
-        'Firebase エラー: ${e.code} - ${e.message}',
-        stackTrace,
-      );
-
-      if (mounted) {
-        if (e.code == 'permission-denied') {
-          SnackBarHelper.showWarning(context, 'このホワイトボードは保存できません（編集権限なし）');
-        } else if (e.code == 'unavailable' || e.code == 'deadline-exceeded') {
-          SnackBarHelper.showWarning(context, 'ネットワーク障害のため保存できません');
-        } else {
-          SnackBarHelper.showError(
-              context, '保存に失敗しました: ${e.message ?? e.code}');
-        }
-      }
     } catch (e, stackTrace) {
-      spinnerWatchdog.cancel();
+      // 同期処理内のエラー（captureCurrentStroke等）
       _suppressNextPersonalSnapshot = false;
       AppLogger.error('❌ ホワイトボード保存エラー: $e');
 
-      // 🔥 Sentry/Crashlyticsにエラー送信（Platform判定）
       if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-        // Windows/Linux/macOS: Sentry
         try {
-          await Sentry.captureException(
-            e,
-            stackTrace: stackTrace,
-            hint: Hint.withMap({
-              'whiteboard_id': _currentWhiteboard.whiteboardId,
-              'group_id': widget.groupId,
-              'stroke_count': _workingStrokes.length,
-              'is_group_whiteboard': _currentWhiteboard.isGroupWhiteboard,
-              'platform': Platform.operatingSystem,
-            }),
-          );
-          AppLogger.info('📤 [Sentry] エラーレポート送信完了');
-        } catch (sentryError) {
-          AppLogger.error('⚠️ [Sentry] レポート送信失敗: $sentryError');
-        }
+          await Sentry.captureException(e, stackTrace: stackTrace);
+        } catch (_) {}
       } else {
-        // Android/iOS: Firebase Crashlytics
         FirebaseCrashlytics.instance.recordError(e, stackTrace);
-        AppLogger.info('📤 [Crashlytics] エラーレポート送信完了');
       }
 
-      await ErrorLogService.logOperationError(
-        'ホワイトボード保存',
-        '$e',
-        stackTrace,
-      );
+      await ErrorLogService.logOperationError('ホワイトボード保存', '$e', stackTrace);
 
       if (mounted) {
+        setState(() {
+          _isSaving = false;
+          _showSaveSpinner = false;
+        });
         SnackBarHelper.showError(context, '保存に失敗しました: $e');
       }
     } finally {
-      spinnerWatchdog.cancel();
-      if (mounted && !spinnerReleased) {
+      // 安全策：何らかの理由でフラグが残った場合にリセット
+      if (mounted && _isSaving) {
         setState(() {
           _isSaving = false;
           _showSaveSpinner = false;
@@ -823,7 +795,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
 
       // 次にFirestoreに保存（非同期）
       final repository = ref.read(whiteboardRepositoryProvider);
-      await repository.clearWhiteboard(
+      await repository.clearStrokesSubcollection(
         groupId: widget.groupId,
         whiteboardId: _currentWhiteboard.whiteboardId,
       );
@@ -993,7 +965,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
           title: Text(
             _currentWhiteboard.isGroupWhiteboard
                 ? 'グループ共通ホワイトボード'
-                : '個人用ホワイトボード',
+                : widget.ownerName != null
+                    ? '${widget.ownerName}さんのボード'
+                    : '個人ボード',
           ),
           actions: [
             // 保存ボタン（🪟 Windows版は非表示 - エディター終了時に自動保存）
@@ -1093,6 +1067,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
                 },
                 onClearWhiteboard: _showDeleteConfirmationDialog,
               ),
+
+            // 初回ストローク読み込み中スピナー
+            if (_isLoadingStrokes) const LinearProgressIndicator(minHeight: 2),
 
             // キャンバス（閲覧専用または編集可能）
             Expanded(

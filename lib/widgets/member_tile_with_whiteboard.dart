@@ -219,6 +219,7 @@ class MemberTileWithWhiteboard extends ConsumerWidget {
             builder: (_) => WhiteboardEditorPage(
               whiteboard: whiteboard!,
               groupId: groupId,
+              ownerName: member.name,
             ),
           ),
         );
