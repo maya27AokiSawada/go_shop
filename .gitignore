@@ -42,6 +42,8 @@ migrate_working_dir/
 *.dll
 *.exe
 
+/android/build/
+
 # Symbolication related
 app.*.symbols
 
