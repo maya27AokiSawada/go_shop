@@ -63,6 +63,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
 
   // ↩️ Undo/Redo履歴管理
   final List<List<DrawingStroke>> _history = []; // 履歴スタック
+  final List<Set<String>> _unsavedHistory = []; // 各履歴時点の未保存strokeId
   int _historyIndex = -1; // 現在の履歴位置
 
   //  CRITICAL: 最新のホワイトボードデータをStateで管理（isPrivate更新対応）
@@ -556,18 +557,35 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
 
   /// 📚 現在の状態を履歴に保存
   void _saveToHistory() {
+    final currentSnapshot = List<DrawingStroke>.from(_workingStrokes);
+    final currentUnsavedSnapshot = Set<String>.from(_unsavedStrokeIds);
+
+    if (_historyIndex >= 0 &&
+        _historyIndex < _history.length &&
+        _areStrokeSnapshotsEqual(_history[_historyIndex], currentSnapshot)) {
+      _unsavedHistory[_historyIndex]
+        ..clear()
+        ..addAll(currentUnsavedSnapshot);
+      AppLogger.info(
+          '📚 [HISTORY] 同一状態のため履歴追加をスキップ: ${_history.length}個 (現在位置: $_historyIndex)');
+      return;
+    }
+
     // 現在位置より後ろの履歴を削除（新しい分岐を作る）
     if (_historyIndex < _history.length - 1) {
       _history.removeRange(_historyIndex + 1, _history.length);
+      _unsavedHistory.removeRange(_historyIndex + 1, _unsavedHistory.length);
     }
 
     // 現在の状態を履歴に追加
-    _history.add(List<DrawingStroke>.from(_workingStrokes));
+    _history.add(currentSnapshot);
+    _unsavedHistory.add(currentUnsavedSnapshot);
     _historyIndex = _history.length - 1;
 
     // 履歴が多すぎる場合は古いものを削除（メモリ節約）
     if (_history.length > 50) {
       _history.removeAt(0);
+      _unsavedHistory.removeAt(0);
       _historyIndex--;
     }
 
@@ -591,6 +609,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
       _workingStrokes
         ..clear()
         ..addAll(_history[_historyIndex]);
+      _unsavedStrokeIds
+        ..clear()
+        ..addAll(_unsavedHistory[_historyIndex]);
 
       // SignatureControllerをクリア
       _controller?.clear();
@@ -613,6 +634,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
       _workingStrokes
         ..clear()
         ..addAll(_history[_historyIndex]);
+      _unsavedStrokeIds
+        ..clear()
+        ..addAll(_unsavedHistory[_historyIndex]);
 
       // SignatureControllerをクリア
       _controller?.clear();
@@ -627,6 +651,40 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
 
   /// Redoが可能かチェック
   bool _canRedo() => _historyIndex < _history.length - 1;
+
+  bool _areStrokeSnapshotsEqual(
+    List<DrawingStroke> left,
+    List<DrawingStroke> right,
+  ) {
+    if (left.length != right.length) {
+      return false;
+    }
+
+    for (var index = 0; index < left.length; index++) {
+      final leftStroke = left[index];
+      final rightStroke = right[index];
+
+      if (leftStroke.strokeId != rightStroke.strokeId ||
+          leftStroke.colorValue != rightStroke.colorValue ||
+          leftStroke.strokeWidth != rightStroke.strokeWidth ||
+          leftStroke.points.length != rightStroke.points.length) {
+        return false;
+      }
+
+      for (var pointIndex = 0;
+          pointIndex < leftStroke.points.length;
+          pointIndex++) {
+        final leftPoint = leftStroke.points[pointIndex];
+        final rightPoint = rightStroke.points[pointIndex];
+
+        if (leftPoint.x != rightPoint.x || leftPoint.y != rightPoint.y) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
 
   /// 保存処理（🔥 差分ストローク追加方式）
   Future<void> _saveWhiteboard() async {
@@ -852,6 +910,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
 
         // 📚 履歴をリセット
         _history.clear();
+        _unsavedHistory.clear();
         _historyIndex = -1;
         _saveToHistory(); // 空の状態を履歴に保存
       });
