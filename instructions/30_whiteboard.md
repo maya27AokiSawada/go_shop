@@ -94,7 +94,57 @@ stream.listen(
 pending write が問題にならない場合はフィルターしても良いが、必須ではない。
 
 リスナーでストロークを受信した際は `strokeId` ベースでマージし、
-**未保存のローカルストロークを消さない**ようにする。
+**未保存のローカルストロークだけを保持する**ようにする。
+
+```dart
+// ✅ 正しい — Firestoreにないローカルstrokeのうち、未保存strokeIdだけ残す
+final unsavedLocalMap = {
+  for (final entry in localMap.entries)
+    if (_unsavedStrokeIds.contains(entry.key)) entry.key: entry.value,
+};
+
+for (final entry in unsavedLocalMap.entries) {
+  if (!firestoreMap.containsKey(entry.key)) {
+    mergedMap[entry.key] = entry.value;
+  }
+}
+
+// ❌ 禁止 — Firestoreにないローカルstrokeを全部残す
+// 全消去後に他端末で旧描画が復活する
+for (final entry in localMap.entries) {
+  if (!firestoreMap.containsKey(entry.key)) {
+    mergedMap[entry.key] = entry.value;
+  }
+}
+```
+
+### 3-4. 個人用ホワイトボードの再入時は未保存 strokeId を復元する
+
+一時的なネット障害で保存に失敗した後、個人用ホワイトボードを再入しても
+**未保存 strokeId が失われない**ように、キャッシュへ別保存して復元する。
+
+```dart
+// ✅ 正しい — ボード本体キャッシュと未保存strokeIdを両方保存
+PersonalWhiteboardCacheService.saveWhiteboard(
+  cacheKey,
+  whiteboard.copyWith(strokes: List<DrawingStroke>.from(_workingStrokes)),
+);
+PersonalWhiteboardCacheService.savePendingStrokeIds(
+  cacheKey,
+  _unsavedStrokeIds,
+);
+
+// 再入時に復元
+final pendingStrokeIds =
+    await PersonalWhiteboardCacheService.loadPendingStrokeIds(cacheKey);
+_unsavedStrokeIds.addAll(
+  _workingStrokes
+      .where((stroke) => pendingStrokeIds.contains(stroke.strokeId))
+      .map((stroke) => stroke.strokeId),
+);
+```
+
+保存失敗後の再入でも、表示中の描画が保存ボタンの対象として残っていること。
 
 ---
 
@@ -164,6 +214,7 @@ onPressed: _isTogglingMode ? null : () async {
 - strokes サブコレクションで `.where(!hasPendingWrites)` フィルターを使う（fire-and-forget の pending write を弾くため）
 - `watchStrokesSubcollection` に `.orderBy()` を追加する（インデックス未作成時に FAILED_PRECONDITION で無音終了するため）
 - strokes 以外のリスナー（`watchWhiteboard()` 等）で hasPendingWrites 状態のスナップショットをそのまま UI に流すのは非推奨
+- Firestoreに存在しないローカルstrokeを無条件にマージする（全消去後に旧描画が復活するため）
 - `_currentDeviceId` 未確定状態での `_watchEditLock()` 起動
 - Windows で `runTransaction()` を使う
 - `isPrivate` 等トグル値を「現在値の反転」で保存する（目標値を直接保存すること）
