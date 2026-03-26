@@ -6,6 +6,7 @@ import 'firestore_group_sync_service.dart';
 import 'firestore_user_name_service.dart';
 import 'firestore_migration_service.dart';
 import 'data_version_service.dart';
+import 'personal_whiteboard_cache_service.dart';
 
 /// 認証関連の処理を統合管理するサービス
 class AuthenticationService {
@@ -80,6 +81,8 @@ class AuthenticationService {
   static Future<void> signOut() async {
     try {
       Log.info('🚪 サインアウト開始');
+
+      await PersonalWhiteboardCacheService.clearAllCaches();
 
       // Firestoreの同期データをクリア
       await FirestoreGroupSyncService.clearSyncDataOnSignOut();

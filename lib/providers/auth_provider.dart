@@ -17,6 +17,7 @@ import '../providers/shared_group_provider.dart';
 import '../providers/user_settings_provider.dart';
 import '../providers/hive_provider.dart';
 import '../services/group_management_service.dart';
+import '../services/personal_whiteboard_cache_service.dart';
 import '../flavors.dart';
 
 // Logger instance
@@ -80,6 +81,8 @@ class FirebaseAuthService {
   }
 
   Future<void> signOut() async {
+    await PersonalWhiteboardCacheService.clearAllCaches();
+
     if (_auth == null) {
       Log.warning('🔧 DEV環境: Firebase認証は利用できません');
       return;

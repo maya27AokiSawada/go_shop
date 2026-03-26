@@ -16,6 +16,7 @@ import '../providers/user_settings_provider.dart';
 import '../pages/group_member_management_page.dart';
 import '../services/notification_service.dart';
 import '../services/network_monitor_service.dart';
+import '../services/personal_whiteboard_cache_service.dart';
 import '../utils/snackbar_helper.dart';
 import '../utils/drawing_converter.dart';
 import '../utils/app_logger.dart';
@@ -92,9 +93,6 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
   // 🗑️ 全クリア処理中フラグ（Firestoreリスナーの上書きを防ぐ）
   bool _isClearing = false;
 
-  // 👤 個人用ホワイトボード保存直後の自己反映スナップショット抑止
-  bool _suppressNextPersonalSnapshot = false;
-
   // 🔄 初回ストローク読み込み中フラグ
   bool _isLoadingStrokes = true;
 
@@ -141,6 +139,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
       _workingStrokes.addAll(_currentWhiteboard.strokes);
       // 🔥 既存ストロークは保存済みなので、未保存リストには追加しない
       _unsavedStrokeIds.clear();
+      _isLoadingStrokes = false;
       AppLogger.info(
           '🎨 [WHITEBOARD] ${_currentWhiteboard.strokes.length}個のストロークを復元（全て保存済み）');
     }
@@ -156,6 +155,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
 
     // Firestoreリアルタイム監視を開始（他端末更新の即時反映）
     _startWhiteboardListener();
+    if (_currentWhiteboard.strokes.isEmpty) {
+      unawaited(_loadInitialStrokes());
+    }
 
     AppLogger.info(
         '🎨 [WHITEBOARD] ボードタイプ: isGroupWhiteboard=${_currentWhiteboard.isGroupWhiteboard}, isPersonalWhiteboard=${_currentWhiteboard.isPersonalWhiteboard}');
@@ -166,6 +168,38 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
     });
 
     AppLogger.info('🎨 [WHITEBOARD] SignatureController初期化完了');
+  }
+
+  Future<void> _loadInitialStrokes() async {
+    try {
+      final repository = ref.read(whiteboardRepositoryProvider);
+      final initialStrokes = await repository.getStrokesSubcollection(
+        widget.groupId,
+        _currentWhiteboard.whiteboardId,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _mergeStrokesFromFirestore(initialStrokes);
+        _saveToHistory();
+        _isLoadingStrokes = false;
+      });
+      _syncPersonalWhiteboardCache();
+
+      AppLogger.info('📥 [WHITEBOARD] 初回ストローク読込完了: ${initialStrokes.length}本');
+    } catch (e, stack) {
+      AppLogger.error('❌ [WHITEBOARD] 初回ストローク読込エラー: $e\n$stack');
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isLoadingStrokes = false;
+      });
+    }
   }
 
   @override
@@ -217,6 +251,24 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
     _whiteboardSubscription?.cancel();
     _strokesSubscription?.cancel();
 
+    final currentUser = ref.read(authStateProvider).value;
+    final isEditablePersonalWhiteboard =
+        _currentWhiteboard.isPersonalWhiteboard &&
+            currentUser != null &&
+            _currentWhiteboard.canEdit(currentUser.uid);
+
+    if (isEditablePersonalWhiteboard) {
+      _isLoadingStrokes = false;
+      AppLogger.info(
+          '🔕 [LISTENER] 編集者本人の個人用ホワイトボードのため編集画面リスナーを開始しない: ${_currentWhiteboard.whiteboardId}');
+      return;
+    }
+
+    if (_currentWhiteboard.isPersonalWhiteboard) {
+      AppLogger.info(
+          '👀 [LISTENER] 閲覧中の個人用ホワイトボードをリアルタイム監視: ${_currentWhiteboard.whiteboardId}');
+    }
+
     final repository = ref.read(whiteboardRepositoryProvider);
 
     // 1. メタデータ監視（isPrivate等の変更のみ検知。ストロークはサブコレクションが管理）
@@ -233,6 +285,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
           updatedAt: latest.updatedAt,
         );
       });
+      _syncPersonalWhiteboardCache();
       AppLogger.info('🛰️ [METADATA] 更新: isPrivate=${latest.isPrivate}');
     });
 
@@ -245,14 +298,6 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
         .listen(
       (firestoreStrokes) {
         if (!mounted) return;
-
-        // 保存直後の自己反映スナップショットをスキップ
-        if (_suppressNextPersonalSnapshot &&
-            _currentWhiteboard.isPersonalWhiteboard) {
-          AppLogger.info('[LISTENER] 個人用ホワイトボードの自己反映スナップショットをスキップ');
-          _suppressNextPersonalSnapshot = false;
-          return;
-        }
 
         // 全クリア処理中は無視
         if (_isClearing) {
@@ -270,6 +315,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
           _mergeStrokesFromFirestore(firestoreStrokes);
           _saveToHistory();
         });
+        _syncPersonalWhiteboardCache();
 
         AppLogger.info(
             '🛰️ [STROKES] サブコレクション反映: ${firestoreStrokes.length}本（ローカル${_workingStrokes.length}本）');
@@ -283,6 +329,31 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
         }
       },
       cancelOnError: false, // エラーが起きてもリスナーを継続
+    );
+  }
+
+  void _syncPersonalWhiteboardCache() {
+    final currentUser = ref.read(authStateProvider).value;
+    final ownerId = _currentWhiteboard.ownerId;
+
+    if (!_currentWhiteboard.isPersonalWhiteboard ||
+        currentUser == null ||
+        ownerId == null) {
+      return;
+    }
+
+    final cacheKey = PersonalWhiteboardCacheService.buildCacheKey(
+      currentUserId: currentUser.uid,
+      groupId: widget.groupId,
+      memberId: ownerId,
+    );
+
+    unawaited(
+      PersonalWhiteboardCacheService.saveWhiteboard(
+        cacheKey,
+        _currentWhiteboard.copyWith(
+            strokes: List<DrawingStroke>.from(_workingStrokes)),
+      ),
     );
   }
 
@@ -639,10 +710,6 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
 
       final repository = ref.read(whiteboardRepositoryProvider);
 
-      if (_currentWhiteboard.isPersonalWhiteboard) {
-        _suppressNextPersonalSnapshot = true;
-      }
-
       // 🔥 FIRE-AND-FORGET: Firestoreオフライン永続化によりローカルへの書き込みは
       // 即時完了する。サーバーACK（数秒〜10秒）を待たずUIをリセットする。
       unawaited(
@@ -653,7 +720,6 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
           newStrokes: newStrokes,
         )
             .catchError((e) {
-          _suppressNextPersonalSnapshot = false;
           AppLogger.error('❌ [SAVE] バックグラウンド保存エラー: $e');
           if (mounted) {
             SnackBarHelper.showError(context, '保存に失敗しました。再試行してください');
@@ -712,7 +778,6 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
       }
     } catch (e, stackTrace) {
       // 同期処理内のエラー（captureCurrentStroke等）
-      _suppressNextPersonalSnapshot = false;
       AppLogger.error('❌ ホワイトボード保存エラー: $e');
 
       if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
@@ -855,9 +920,13 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
     if (!mounted) return;
 
     final navigator = Navigator.of(context);
+    final latestWhiteboard = _currentWhiteboard.copyWith(
+      strokes: List<DrawingStroke>.from(_workingStrokes),
+      updatedAt: DateTime.now(),
+    );
     if (navigator.canPop()) {
       AppLogger.info('↩️ [WHITEBOARD] 既存のグループ詳細画面へpopで戻る');
-      navigator.pop();
+      navigator.pop(latestWhiteboard);
       return;
     }
 
@@ -867,7 +936,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
 
     if (targetGroup == null) {
       AppLogger.warning('⚠️ [WHITEBOARD] 戻り先グループが見つからないため通常popを実行');
-      navigator.pop();
+      navigator.pop(latestWhiteboard);
       return;
     }
 

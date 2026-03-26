@@ -105,6 +105,26 @@ class WhiteboardRepository {
     });
   }
 
+  Future<List<DrawingStroke>> getStrokesSubcollection(
+    String groupId,
+    String whiteboardId,
+  ) async {
+    try {
+      final snapshot = await _strokesCollection(groupId, whiteboardId).get();
+      final strokes = snapshot.docs
+          .map((doc) => DrawingStroke.fromFirestore(doc.data()))
+          .toList()
+        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+      AppLogger.info(
+          '📥 [GET_STROKES] サブコレクション取得: wbId=$whiteboardId, ${strokes.length}本');
+      return strokes;
+    } catch (e, stack) {
+      AppLogger.error('❌ [GET_STROKES] サブコレクション取得エラー: $e\n$stack');
+      return <DrawingStroke>[];
+    }
+  }
+
   /// 🔥 ストロークサブコレクション全消去（＋レガシー配列もクリア）
   Future<void> clearStrokesSubcollection({
     required String groupId,
@@ -224,7 +244,11 @@ class WhiteboardRepository {
         return null;
       }
 
-      return _pickLatestPersonalWhiteboard(querySnapshot.docs, userId);
+      return await _pickLatestPersonalWhiteboard(
+        groupId,
+        querySnapshot.docs,
+        userId,
+      );
     } catch (e) {
       AppLogger.error('❌ 個人用ホワイトボード取得エラー: $e');
       return null;
@@ -246,17 +270,28 @@ class WhiteboardRepository {
         return null;
       }
 
-      final whiteboard = _pickLatestPersonalWhiteboard(snapshot.docs, userId);
+      final whiteboards = snapshot.docs
+          .map((doc) => Whiteboard.fromFirestore(doc.data(), doc.id))
+          .toList()
+        ..sort((a, b) {
+          final updatedComparison = b.updatedAt.compareTo(a.updatedAt);
+          if (updatedComparison != 0) {
+            return updatedComparison;
+          }
+          return b.createdAt.compareTo(a.createdAt);
+        });
+      final whiteboard = whiteboards.first;
       AppLogger.info(
           '📡 [WATCH_PERSONAL_WB] 個人用ホワイトボード更新検知: ${AppLogger.maskUserId(userId)}, isPrivate=${whiteboard.isPrivate}');
       return whiteboard;
     });
   }
 
-  Whiteboard _pickLatestPersonalWhiteboard(
+  Future<Whiteboard> _pickLatestPersonalWhiteboard(
+    String groupId,
     List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
     String userId,
-  ) {
+  ) async {
     final whiteboards =
         docs.map((doc) => Whiteboard.fromFirestore(doc.data(), doc.id)).toList()
           ..sort((a, b) {
@@ -270,9 +305,29 @@ class WhiteboardRepository {
     if (whiteboards.length > 1) {
       AppLogger.warning(
           '⚠️ [PERSONAL_WB] 重複個人ボード検出: user=${AppLogger.maskUserId(userId)}, count=${whiteboards.length}, latest=${whiteboards.first.whiteboardId}');
+
+      for (final whiteboard in whiteboards) {
+        if (await _hasAnyStroke(groupId, whiteboard.whiteboardId)) {
+          AppLogger.info(
+              '✅ [PERSONAL_WB] ストロークあり個人ボードを優先選択: ${whiteboard.whiteboardId}');
+          return whiteboard;
+        }
+      }
     }
 
     return whiteboards.first;
+  }
+
+  Future<bool> _hasAnyStroke(String groupId, String whiteboardId) async {
+    try {
+      final snapshot =
+          await _strokesCollection(groupId, whiteboardId).limit(1).get();
+      return snapshot.docs.isNotEmpty;
+    } catch (e) {
+      AppLogger.warning(
+          '⚠️ [PERSONAL_WB] ストローク有無確認失敗: wbId=$whiteboardId error=$e');
+      return false;
+    }
   }
 
   /// 個人用ホワイトボードのプライベート設定を切り替え

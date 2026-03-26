@@ -7,6 +7,7 @@ import '../models/whiteboard.dart';
 import '../providers/whiteboard_provider.dart';
 import '../providers/auth_provider.dart';
 import '../pages/whiteboard_editor_page.dart';
+import '../services/personal_whiteboard_cache_service.dart';
 import '../utils/app_logger.dart';
 import '../utils/snackbar_helper.dart';
 
@@ -14,6 +15,7 @@ import '../utils/snackbar_helper.dart';
 class MemberTileWithWhiteboard extends ConsumerWidget {
   final SharedGroupMember member;
   final String groupId;
+  static const Duration _personalWhiteboardFetchTimeout = Duration(seconds: 10);
 
   const MemberTileWithWhiteboard({
     super.key,
@@ -26,17 +28,10 @@ class MemberTileWithWhiteboard extends ConsumerWidget {
     final currentUser = ref.watch(authStateProvider).value;
     final isCurrentUser = currentUser?.uid == member.memberId;
 
-    // 個人用ホワイトボードの状態をリアルタイム監視
-    final whiteboardAsync = ref.watch(
-      personalWhiteboardProvider((groupId: groupId, userId: member.memberId)),
-    );
-    final currentWhiteboard = whiteboardAsync.valueOrNull;
-
     return ListTile(
       onTap: () => _openPersonalWhiteboard(
         context,
         ref,
-        currentWhiteboard: currentWhiteboard,
       ),
       leading: CircleAvatar(
         backgroundColor: _getRoleColor(member.role),
@@ -65,89 +60,20 @@ class MemberTileWithWhiteboard extends ConsumerWidget {
         ],
       ),
       subtitle: Text(_getRoleLabel(member.role)),
-      trailing: whiteboardAsync.when(
-        data: (whiteboard) {
-          // ホワイトボードが存在する場合、isPrivateに応じた表示
-          if (whiteboard != null) {
-            if (isCurrentUser) {
-              // 自分のホワイトボード
-              return Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.draw,
-                    size: 16,
-                    color: Colors.grey[600],
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'タップで開く',
-                    style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-                  ),
-                ],
-              );
-            } else {
-              // 他人のホワイトボード：閲覧のみ
-              return Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.visibility,
-                    size: 16,
-                    color: Colors.grey[600],
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '閲覧のみ',
-                    style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-                  ),
-                ],
-              );
-            }
-          }
-
-          // ホワイトボードが未作成の場合
-          return Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                isCurrentUser ? Icons.draw : Icons.do_not_disturb_alt,
-                size: 16,
-                color: Colors.grey[600],
-              ),
-              const SizedBox(width: 4),
-              Text(
-                isCurrentUser ? 'タップで開く' : '未作成',
-                style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-              ),
-            ],
-          );
-        },
-        loading: () => const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: 12,
-              height: 12,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          ],
-        ),
-        error: (_, __) => Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isCurrentUser ? Icons.draw : Icons.visibility,
-              size: 16,
-              color: Colors.grey[600],
-            ),
-            const SizedBox(width: 4),
-            Text(
-              isCurrentUser ? 'タップで開く' : '編集可',
-              style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-            ),
-          ],
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isCurrentUser ? Icons.draw : Icons.visibility,
+            size: 16,
+            color: Colors.grey[600],
+          ),
+          const SizedBox(width: 4),
+          Text(
+            isCurrentUser ? 'タップで開く' : 'タップで確認',
+            style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+          ),
+        ],
       ),
     );
   }
@@ -171,20 +97,72 @@ class MemberTileWithWhiteboard extends ConsumerWidget {
           '📝 [PERSONAL_WB] オープン要求: member=${AppLogger.maskUserId(member.memberId)}, group=${AppLogger.maskGroupId(groupId)}');
 
       final repository = ref.read(whiteboardRepositoryProvider);
+      final cacheKey = PersonalWhiteboardCacheService.buildCacheKey(
+        currentUserId: currentUser.uid,
+        groupId: groupId,
+        memberId: member.memberId,
+      );
 
-      var whiteboard = currentWhiteboard;
+      final cachedWhiteboard = currentWhiteboard ??
+          PersonalWhiteboardCacheService.getMemoryCachedWhiteboard(cacheKey) ??
+          await PersonalWhiteboardCacheService.loadWhiteboard(cacheKey);
 
-      if (whiteboard != null) {
-        AppLogger.info(
-            '⚡ [PERSONAL_WB] 監視中の個人ボードを即使用: ${whiteboard.whiteboardId}, isPrivate=${whiteboard.isPrivate}');
-      } else {
-        AppLogger.info('🔄 [PERSONAL_WB] タップ時に直接ボード取得');
+      Whiteboard? whiteboard;
+
+      if (isCurrentUser) {
+        AppLogger.info('🔄 [PERSONAL_WB] オーナー本人のため最新ボードを優先取得');
         whiteboard = await repository
             .getPersonalWhiteboard(
               groupId,
               member.memberId,
             )
-            .timeout(const Duration(seconds: 3));
+            .timeout(_personalWhiteboardFetchTimeout);
+        if (whiteboard != null) {
+          if (cachedWhiteboard != null &&
+              cachedWhiteboard.whiteboardId == whiteboard.whiteboardId &&
+              cachedWhiteboard.strokes.isNotEmpty &&
+              whiteboard.strokes.isEmpty) {
+            whiteboard = whiteboard.copyWith(
+              strokes: List<DrawingStroke>.from(cachedWhiteboard.strokes),
+            );
+            AppLogger.info(
+                '⚡ [PERSONAL_WB] 同一ボードのキャッシュ済みストロークを初期表示に使用: ${whiteboard.whiteboardId}, strokes=${whiteboard.strokes.length}');
+          }
+          await PersonalWhiteboardCacheService.saveWhiteboard(
+              cacheKey, whiteboard);
+        } else {
+          whiteboard = cachedWhiteboard;
+        }
+      } else {
+        whiteboard = cachedWhiteboard;
+        if (whiteboard != null) {
+          await PersonalWhiteboardCacheService.saveWhiteboard(
+              cacheKey, whiteboard);
+          AppLogger.info(
+              '⚡ [PERSONAL_WB] キャッシュ済み個人ボードを即使用: ${whiteboard.whiteboardId}, isPrivate=${whiteboard.isPrivate}');
+        } else {
+          AppLogger.info('🔄 [PERSONAL_WB] タップ時に直接ボード取得');
+          whiteboard = await repository
+              .getPersonalWhiteboard(
+                groupId,
+                member.memberId,
+              )
+              .timeout(_personalWhiteboardFetchTimeout);
+          if (whiteboard != null) {
+            if (cachedWhiteboard != null &&
+                cachedWhiteboard.whiteboardId == whiteboard.whiteboardId &&
+                cachedWhiteboard.strokes.isNotEmpty &&
+                whiteboard.strokes.isEmpty) {
+              whiteboard = whiteboard.copyWith(
+                strokes: List<DrawingStroke>.from(cachedWhiteboard.strokes),
+              );
+              AppLogger.info(
+                  '⚡ [PERSONAL_WB] 同一ボードのキャッシュ済みストロークを初期表示に使用: ${whiteboard.whiteboardId}, strokes=${whiteboard.strokes.length}');
+            }
+            await PersonalWhiteboardCacheService.saveWhiteboard(
+                cacheKey, whiteboard);
+          }
+        }
       }
 
       // なければ作成（自分のボードのみ）
@@ -204,7 +182,9 @@ class MemberTileWithWhiteboard extends ConsumerWidget {
               groupId: groupId,
               ownerId: member.memberId, // 個人用
             )
-            .timeout(const Duration(seconds: 3));
+            .timeout(_personalWhiteboardFetchTimeout);
+        await PersonalWhiteboardCacheService.saveWhiteboard(
+            cacheKey, whiteboard);
         AppLogger.info('✅ 個人用ホワイトボード作成: ${member.name}');
       } else {
         AppLogger.info(
@@ -214,7 +194,7 @@ class MemberTileWithWhiteboard extends ConsumerWidget {
       if (context.mounted) {
         AppLogger.info(
             '🚪 [PERSONAL_WB] エディター遷移開始: whiteboardId=${whiteboard.whiteboardId}, isPrivate=${whiteboard.isPrivate}, isCurrentUser=$isCurrentUser');
-        await Navigator.of(context).push(
+        final updatedWhiteboard = await Navigator.of(context).push<Whiteboard?>(
           MaterialPageRoute(
             builder: (_) => WhiteboardEditorPage(
               whiteboard: whiteboard!,
@@ -223,8 +203,40 @@ class MemberTileWithWhiteboard extends ConsumerWidget {
             ),
           ),
         );
+        if (updatedWhiteboard != null) {
+          await PersonalWhiteboardCacheService.saveWhiteboard(
+            cacheKey,
+            updatedWhiteboard,
+          );
+        }
       }
     } on TimeoutException {
+      final currentUser = ref.read(authStateProvider).value;
+      final fallbackWhiteboard = currentUser == null
+          ? null
+          : await PersonalWhiteboardCacheService.loadWhiteboard(
+              PersonalWhiteboardCacheService.buildCacheKey(
+                currentUserId: currentUser.uid,
+                groupId: groupId,
+                memberId: member.memberId,
+              ),
+            );
+
+      if (fallbackWhiteboard != null && context.mounted) {
+        AppLogger.warning(
+            '⚠️ [PERSONAL_WB] Firestore取得タイムアウトのためキャッシュから起動: ${fallbackWhiteboard.whiteboardId}');
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => WhiteboardEditorPage(
+              whiteboard: fallbackWhiteboard,
+              groupId: groupId,
+              ownerName: member.name,
+            ),
+          ),
+        );
+        return;
+      }
+
       AppLogger.error('❌ 個人用ホワイトボード取得タイムアウト');
       if (context.mounted) {
         SnackBarHelper.showWarning(context, 'ホワイトボードの取得がタイムアウトしました');
