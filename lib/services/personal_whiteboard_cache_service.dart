@@ -7,7 +7,10 @@ import '../utils/app_logger.dart';
 
 class PersonalWhiteboardCacheService {
   static final Map<String, Whiteboard> _memoryCache = {};
+  static final Map<String, Set<String>> _pendingStrokeIdsMemoryCache = {};
   static const String _cachePrefix = 'personal_whiteboard_cache:';
+  static const String _pendingStrokeIdsPrefix =
+      'personal_whiteboard_pending_stroke_ids:';
 
   static String buildCacheKey({
     required String currentUserId,
@@ -62,15 +65,73 @@ class PersonalWhiteboardCacheService {
     }
   }
 
-  static Future<void> clearAllCaches() async {
-    _memoryCache.clear();
+  static Set<String> getMemoryCachedPendingStrokeIds(String cacheKey) {
+    return Set<String>.from(_pendingStrokeIdsMemoryCache[cacheKey] ?? const {});
+  }
+
+  static Future<Set<String>> loadPendingStrokeIds(String cacheKey) async {
+    final memoryCached = _pendingStrokeIdsMemoryCache[cacheKey];
+    if (memoryCached != null) {
+      return Set<String>.from(memoryCached);
+    }
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final keysToRemove = prefs
-          .getKeys()
-          .where((key) => key.startsWith(_cachePrefix))
-          .toList(growable: false);
+      final strokeIds =
+          prefs.getStringList('$_pendingStrokeIdsPrefix$cacheKey');
+      final restored = Set<String>.from(strokeIds ?? const <String>[]);
+      _pendingStrokeIdsMemoryCache[cacheKey] = restored;
+      return Set<String>.from(restored);
+    } catch (e) {
+      AppLogger.warning('⚠️ [PERSONAL_WB] 未保存strokeId読込失敗: $e');
+      return <String>{};
+    }
+  }
+
+  static Future<void> savePendingStrokeIds(
+    String cacheKey,
+    Iterable<String> strokeIds,
+  ) async {
+    final normalized = Set<String>.from(strokeIds);
+    _pendingStrokeIdsMemoryCache[cacheKey] = normalized;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (normalized.isEmpty) {
+        await prefs.remove('$_pendingStrokeIdsPrefix$cacheKey');
+        return;
+      }
+
+      await prefs.setStringList(
+        '$_pendingStrokeIdsPrefix$cacheKey',
+        normalized.toList(growable: false),
+      );
+    } catch (e) {
+      AppLogger.warning('⚠️ [PERSONAL_WB] 未保存strokeId保存失敗: $e');
+    }
+  }
+
+  static Future<void> clearPendingStrokeIds(String cacheKey) async {
+    _pendingStrokeIdsMemoryCache.remove(cacheKey);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('$_pendingStrokeIdsPrefix$cacheKey');
+    } catch (e) {
+      AppLogger.warning('⚠️ [PERSONAL_WB] 未保存strokeId削除失敗: $e');
+    }
+  }
+
+  static Future<void> clearAllCaches() async {
+    _memoryCache.clear();
+    _pendingStrokeIdsMemoryCache.clear();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final keysToRemove = prefs.getKeys().where((key) {
+        return key.startsWith(_cachePrefix) ||
+            key.startsWith(_pendingStrokeIdsPrefix);
+      }).toList(growable: false);
 
       for (final key in keysToRemove) {
         await prefs.remove(key);

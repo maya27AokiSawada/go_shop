@@ -97,6 +97,23 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
   // 🔄 初回ストローク読み込み中フラグ
   bool _isLoadingStrokes = true;
 
+  String? get _personalWhiteboardCacheKey {
+    final currentUser = ref.read(authStateProvider).value;
+    final ownerId = _currentWhiteboard.ownerId;
+
+    if (!_currentWhiteboard.isPersonalWhiteboard ||
+        currentUser == null ||
+        ownerId == null) {
+      return null;
+    }
+
+    return PersonalWhiteboardCacheService.buildCacheKey(
+      currentUserId: currentUser.uid,
+      groupId: widget.groupId,
+      memberId: ownerId,
+    );
+  }
+
   SignatureController _createSignatureController({
     required Color penColor,
     required double strokeWidth,
@@ -138,12 +155,26 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
     // 既存のストロークを作業リストに読み込む
     if (_currentWhiteboard.strokes.isNotEmpty) {
       _workingStrokes.addAll(_currentWhiteboard.strokes);
-      // 🔥 既存ストロークは保存済みなので、未保存リストには追加しない
-      _unsavedStrokeIds.clear();
+
+      final cachedPendingStrokeIds = _personalWhiteboardCacheKey == null
+          ? <String>{}
+          : PersonalWhiteboardCacheService.getMemoryCachedPendingStrokeIds(
+              _personalWhiteboardCacheKey!,
+            );
+      _unsavedStrokeIds
+        ..clear()
+        ..addAll(
+          _workingStrokes
+              .where(
+                  (stroke) => cachedPendingStrokeIds.contains(stroke.strokeId))
+              .map((stroke) => stroke.strokeId),
+        );
       _isLoadingStrokes = false;
       AppLogger.info(
-          '🎨 [WHITEBOARD] ${_currentWhiteboard.strokes.length}個のストロークを復元（全て保存済み）');
+          '🎨 [WHITEBOARD] ${_currentWhiteboard.strokes.length}個のストロークを復元（未保存${_unsavedStrokeIds.length}個）');
     }
+
+    unawaited(_restorePendingStrokeIdsFromCache());
 
     // 📚 初期状態を履歴に保存
     _saveToHistory();
@@ -334,20 +365,10 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
   }
 
   void _syncPersonalWhiteboardCache() {
-    final currentUser = ref.read(authStateProvider).value;
-    final ownerId = _currentWhiteboard.ownerId;
-
-    if (!_currentWhiteboard.isPersonalWhiteboard ||
-        currentUser == null ||
-        ownerId == null) {
+    final cacheKey = _personalWhiteboardCacheKey;
+    if (cacheKey == null) {
       return;
     }
-
-    final cacheKey = PersonalWhiteboardCacheService.buildCacheKey(
-      currentUserId: currentUser.uid,
-      groupId: widget.groupId,
-      memberId: ownerId,
-    );
 
     unawaited(
       PersonalWhiteboardCacheService.saveWhiteboard(
@@ -356,6 +377,53 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
             strokes: List<DrawingStroke>.from(_workingStrokes)),
       ),
     );
+    unawaited(
+      PersonalWhiteboardCacheService.savePendingStrokeIds(
+        cacheKey,
+        _unsavedStrokeIds,
+      ),
+    );
+  }
+
+  Future<void> _restorePendingStrokeIdsFromCache() async {
+    final cacheKey = _personalWhiteboardCacheKey;
+    if (cacheKey == null) {
+      return;
+    }
+
+    final pendingStrokeIds =
+        await PersonalWhiteboardCacheService.loadPendingStrokeIds(cacheKey);
+    if (!mounted || pendingStrokeIds.isEmpty) {
+      return;
+    }
+
+    final restorableStrokeIds = _workingStrokes
+        .where((stroke) => pendingStrokeIds.contains(stroke.strokeId))
+        .map((stroke) => stroke.strokeId)
+        .toSet();
+    if (restorableStrokeIds.isEmpty) {
+      unawaited(PersonalWhiteboardCacheService.clearPendingStrokeIds(cacheKey));
+      return;
+    }
+
+    var changed = false;
+    for (final strokeId in restorableStrokeIds) {
+      if (_unsavedStrokeIds.add(strokeId)) {
+        changed = true;
+      }
+    }
+
+    if (!changed) {
+      return;
+    }
+
+    setState(() {
+      _saveToHistory();
+    });
+
+    AppLogger.info(
+      '♻️ [WHITEBOARD] 未保存strokeIdをキャッシュから復元: ${restorableStrokeIds.length}個',
+    );
   }
 
   /// 🔥 新機能: Firestoreストロークとローカルストロークをインテリジェントにマージ
@@ -363,6 +431,10 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
     // strokeIdでストロークをマップ化
     final firestoreMap = {for (var s in firestoreStrokes) s.strokeId: s};
     final localMap = {for (var s in _workingStrokes) s.strokeId: s};
+    final unsavedLocalMap = {
+      for (final entry in localMap.entries)
+        if (_unsavedStrokeIds.contains(entry.key)) entry.key: entry.value,
+    };
 
     // マージ結果
     final mergedMap = <String, DrawingStroke>{};
@@ -374,8 +446,10 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
       _unsavedStrokeIds.remove(entry.key);
     }
 
-    // 2. ローカルの未保存ストロークを追加（Firestoreにまだないもの）
-    for (final entry in localMap.entries) {
+    // 2. ローカルの未保存ストロークのみ追加（Firestoreにまだないもの）
+    // Firestore全消去後に保存済みローカルstrokeを復活させないため、
+    // 未保存strokeIdに含まれるものだけを保持する。
+    for (final entry in unsavedLocalMap.entries) {
       if (!firestoreMap.containsKey(entry.key)) {
         mergedMap[entry.key] = entry.value;
         // まだFirestoreにないので、未保存リストに保持
@@ -388,7 +462,8 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
       ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
     AppLogger.info('🔄 [MERGE] マージ完了: Firestore=${firestoreStrokes.length}本, '
-        'ローカル=${localMap.length}本, 結果=${_workingStrokes.length}本, 未保存=${_unsavedStrokeIds.length}本');
+        'ローカル=${localMap.length}本, 未保存ローカル=${unsavedLocalMap.length}本, '
+        '結果=${_workingStrokes.length}本, 未保存=${_unsavedStrokeIds.length}本');
   }
 
   /// Firestoreから最新のホワイトボードを再取得（ロック解除直後などの明示的リロード用）
@@ -459,6 +534,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
 
         // 📚 履歴に保存
         _saveToHistory();
+        _syncPersonalWhiteboardCache();
 
         // 🔥 CRITICAL: ペンアップ後はSignatureControllerをクリア
         // 次回描画時に新しいストロークとして開始
@@ -501,6 +577,8 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
 
         AppLogger.info(
             '✋ [PEN_DOWN] ${strokes.length}個のストロークを確定（履歴保存なし、計${_workingStrokes.length}個、未保存${_unsavedStrokeIds.length}個）');
+
+        _syncPersonalWhiteboardCache();
 
         // 🔥 CRITICAL: SignatureControllerをクリア
         _controller?.clear();
@@ -545,6 +623,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
 
         // 📚 履歴に保存
         _saveToHistory();
+        _syncPersonalWhiteboardCache();
 
         // 🔥 CRITICAL: キャプチャ後はSignatureControllerをクリア
         _controller?.clear();
@@ -617,6 +696,8 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
       _controller?.clear();
     });
 
+    _syncPersonalWhiteboardCache();
+
     AppLogger.info(
         '↩️ [UNDO] 履歴位置: $_historyIndex/${_history.length - 1}, ストローク数: ${_workingStrokes.length}');
   }
@@ -641,6 +722,8 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
       // SignatureControllerをクリア
       _controller?.clear();
     });
+
+    _syncPersonalWhiteboardCache();
 
     AppLogger.info(
         '↪️ [REDO] 履歴位置: $_historyIndex/${_history.length - 1}, ストローク数: ${_workingStrokes.length}');
@@ -803,6 +886,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
       AppLogger.info('📐 [SAVE] 未保存リストから削除: 残り${_unsavedStrokeIds.length}個');
 
       _saveToHistory();
+      _syncPersonalWhiteboardCache();
       _controller?.clear();
       setState(() {});
 
@@ -925,6 +1009,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
       );
 
       AppLogger.info('✅ [DELETE] Firestoreホワイトボード全消去成功');
+      _syncPersonalWhiteboardCache();
 
       // 🔥 Firestoreへの保存完了後、少し待ってからフラグを解除
       await Future.delayed(const Duration(milliseconds: 500));
@@ -983,6 +1068,8 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
       strokes: List<DrawingStroke>.from(_workingStrokes),
       updatedAt: DateTime.now(),
     );
+    _syncPersonalWhiteboardCache();
+
     if (navigator.canPop()) {
       AppLogger.info('↩️ [WHITEBOARD] 既存のグループ詳細画面へpopで戻る');
       navigator.pop(latestWhiteboard);
