@@ -118,33 +118,39 @@ for (final entry in localMap.entries) {
 }
 ```
 
-### 3-4. 個人用ホワイトボードの再入時は未保存 strokeId を復元する
+### 3-4. 終了時に自動保存する（全プラットフォーム）
 
-一時的なネット障害で保存に失敗した後、個人用ホワイトボードを再入しても
-**未保存 strokeId が失われない**ように、キャッシュへ別保存して復元する。
+`_navigateToGroupDetail`（戻る処理）で `canEdit == true` の場合は
+**全プラットフォームで `_saveWhiteboard(silent: true)` を呼び出してから**画面を閉じる。
+これにより「描いたのに保存せず閉じて消えた」問題を防ぐ。
 
 ```dart
-// ✅ 正しい — ボード本体キャッシュと未保存strokeIdを両方保存
-PersonalWhiteboardCacheService.saveWhiteboard(
-  cacheKey,
-  whiteboard.copyWith(strokes: List<DrawingStroke>.from(_workingStrokes)),
-);
-PersonalWhiteboardCacheService.savePendingStrokeIds(
-  cacheKey,
-  _unsavedStrokeIds,
-);
+// ✅ 正しい — 全プラットフォームで終了時に silent 自動保存
+Future<void> _navigateToGroupDetail() async {
+  if (canEdit) {
+    debugPrint('💾 [AUTO_SAVE] 終了時自動保存を実行');
+    await _saveWhiteboard(silent: true); // スナックバーは出さない
+  }
+  // ... Navigator.pop()
+}
 
-// 再入時に復元
-final pendingStrokeIds =
-    await PersonalWhiteboardCacheService.loadPendingStrokeIds(cacheKey);
-_unsavedStrokeIds.addAll(
-  _workingStrokes
-      .where((stroke) => pendingStrokeIds.contains(stroke.strokeId))
-      .map((stroke) => stroke.strokeId),
-);
+// silent: true のとき「保存しました」スナックバーを表示しない
+Future<void> _saveWhiteboard({bool silent = false}) async {
+  // ...
+  if (mounted && !silent) SnackBarHelper.showSuccess(context, '保存しました');
+}
 ```
 
-保存失敗後の再入でも、表示中の描画が保存ボタンの対象として残っていること。
+```dart
+// ❌ 禁止 — Windows 限定にしない（Android / iOS でも同じ仕様）
+if (Platform.isWindows && canEdit) {
+  await _saveWhiteboard();
+}
+```
+
+**Note**: 以前あった「未保存 strokeId をキャッシュして再入時に復元する」処理
+（`loadPendingStrokeIds` / `canReuseCachedStrokes`）は終了時自動保存の実装に伴い削除済み。
+`MemberTileWithWhiteboard` でこれらのキャッシュ復元コードを追加しないこと。
 
 ---
 
@@ -197,11 +203,12 @@ onPressed: _isTogglingMode ? null : () async {
 
 ## 5. プラットフォーム差異
 
-| 処理                        | Windows                         | Android / iOS |
-| --------------------------- | ------------------------------- | ------------- |
-| `addStrokesToSubcollection` | `batch.set()` — fire-and-forget | 同左          |
-| `runTransaction`            | **禁止**（abort クラッシュ）    | 使用可        |
-| ペンモード終了時 UI         | UI 先行リセット                 | 同左          |
+| 処理                        | Windows                         | Android / iOS                  |
+| --------------------------- | ------------------------------- | ------------------------------ |
+| `addStrokesToSubcollection` | `batch.set()` — fire-and-forget | 同左                           |
+| `runTransaction`            | **禁止**（abort クラッシュ）    | 使用可                         |
+| ペンモード終了時 UI         | UI 先行リセット                 | 同左                           |
+| 終了時自動保存              | `_saveWhiteboard(silent: true)` | 同左（全プラットフォーム共通） |
 
 **注**: 旧 `addStrokesToWhiteboard`（`arrayUnion` を使う `update()`）は廃止。全プラットフォームで `batch.set()` に統一。
 
