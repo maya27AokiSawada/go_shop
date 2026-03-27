@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
@@ -121,7 +120,7 @@ class WhiteboardRepository {
       return strokes;
     } catch (e, stack) {
       AppLogger.error('❌ [GET_STROKES] サブコレクション取得エラー: $e\n$stack');
-      return <DrawingStroke>[];
+      rethrow;
     }
   }
 
