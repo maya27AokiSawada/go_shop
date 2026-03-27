@@ -65,6 +65,17 @@ class PersonalWhiteboardCacheService {
     }
   }
 
+  static Future<void> clearWhiteboard(String cacheKey) async {
+    _memoryCache.remove(cacheKey);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('$_cachePrefix$cacheKey');
+    } catch (e) {
+      AppLogger.warning('⚠️ [PERSONAL_WB] ホワイトボードキャッシュ削除失敗: $e');
+    }
+  }
+
   static Set<String> getMemoryCachedPendingStrokeIds(String cacheKey) {
     return Set<String>.from(_pendingStrokeIdsMemoryCache[cacheKey] ?? const {});
   }

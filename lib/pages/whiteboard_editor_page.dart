@@ -1,9 +1,6 @@
 import 'dart:async';
 import 'dart:io' show Platform;
-
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:signature/signature.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -187,9 +184,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
 
     // Firestoreリアルタイム監視を開始（他端末更新の即時反映）
     _startWhiteboardListener();
-    if (_currentWhiteboard.strokes.isEmpty) {
-      unawaited(_loadInitialStrokes());
-    }
+    // 初期表示がキャッシュ由来でも、実データはstrokesサブコレクションにあるため
+    // 起動時に必ず再取得して最新状態へ寄せる。
+    unawaited(_loadInitialStrokes());
 
     AppLogger.info(
         '🎨 [WHITEBOARD] ボードタイプ: isGroupWhiteboard=${_currentWhiteboard.isGroupWhiteboard}, isPersonalWhiteboard=${_currentWhiteboard.isPersonalWhiteboard}');
@@ -216,7 +213,11 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
 
       setState(() {
         _mergeStrokesFromFirestore(initialStrokes);
-        _saveToHistory();
+        if (_history.isEmpty ||
+            !_areStrokeSnapshotsEqual(
+                _history[_historyIndex], _workingStrokes)) {
+          _saveToHistory();
+        }
         _isLoadingStrokes = false;
       });
       _syncPersonalWhiteboardCache();
@@ -464,40 +465,6 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
     AppLogger.info('🔄 [MERGE] マージ完了: Firestore=${firestoreStrokes.length}本, '
         'ローカル=${localMap.length}本, 未保存ローカル=${unsavedLocalMap.length}本, '
         '結果=${_workingStrokes.length}本, 未保存=${_unsavedStrokeIds.length}本');
-  }
-
-  /// Firestoreから最新のホワイトボードを再取得（ロック解除直後などの明示的リロード用）
-  Future<void> _reloadWhiteboardFromFirestore({String reason = ''}) async {
-    try {
-      final repository = ref.read(whiteboardRepositoryProvider);
-      final latest = await repository.getWhiteboardById(
-        widget.groupId,
-        _currentWhiteboard.whiteboardId,
-      );
-
-      if (latest == null) return;
-
-      setState(() {
-        // 🔥 CRITICAL: ホワイトボード全体を更新（isPrivateも含む）
-        _currentWhiteboard = latest;
-
-        _workingStrokes
-          ..clear()
-          ..addAll(latest.strokes);
-
-        // 📚 リロード後の状態を履歴に記録
-        _saveToHistory();
-
-        _workingStrokes
-          ..clear()
-          ..addAll(latest.strokes);
-      });
-
-      AppLogger.info(
-          '🔄 [WHITEBOARD] Firestoreから再取得して反映: ${latest.strokes.length}本 ${reason.isNotEmpty ? '($reason)' : ''}');
-    } catch (e) {
-      AppLogger.error('❌ [WHITEBOARD] Firestore再取得エラー: $e');
-    }
   }
 
   /// ✋ ペンアップ時に現在のストロークを確定（履歴保存あり）
@@ -770,7 +737,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
   }
 
   /// 保存処理（🔥 差分ストローク追加方式）
-  Future<void> _saveWhiteboard() async {
+  Future<void> _saveWhiteboard({bool silent = false}) async {
     if (_isSaving) return;
 
     // 🔥 FIX: 全クリア処理中は保存をブロック（clearのFirestore writeと競合防止）
@@ -915,7 +882,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
         AppLogger.info('💻 [WINDOWS] 通知送信をスキップ（クラッシュ防止）');
       }
 
-      if (mounted) {
+      if (mounted && !silent) {
         SnackBarHelper.showSuccess(context, '保存しました');
       }
     } catch (e, stackTrace) {
@@ -1055,9 +1022,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
 
     AppLogger.info('↩️ [WHITEBOARD] グループ詳細画面へ戻る処理開始');
 
-    if (Platform.isWindows && canEdit) {
-      AppLogger.info('🪟 [WINDOWS] 戻る前に自動保存を実行');
-      await _saveWhiteboard();
+    if (canEdit) {
+      AppLogger.info('💾 [AUTO_SAVE] 終了時自動保存を実行');
+      await _saveWhiteboard(silent: true);
       if (!mounted) return;
     }
 
@@ -1167,6 +1134,10 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
 
     return WillPopScope(
       onWillPop: () async {
+        if (_isClearing) {
+          SnackBarHelper.showWarning(context, '全消去中です。完了までお待ちください');
+          return false;
+        }
         await _navigateToGroupDetail(canEdit: canEdit);
         return false;
       },
@@ -1174,7 +1145,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
         appBar: AppBar(
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () => _navigateToGroupDetail(canEdit: canEdit),
+            onPressed: _isClearing
+                ? null
+                : () => _navigateToGroupDetail(canEdit: canEdit),
             tooltip: 'グループ詳細へ戻る',
           ),
           title: Text(
@@ -1195,7 +1168,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.save),
-                onPressed: _isSaving ? null : _saveWhiteboard,
+                onPressed: (_isSaving || _isClearing) ? null : _saveWhiteboard,
                 tooltip: '保存',
               ),
             // 🪟 Windows版: 自動保存情報表示
@@ -1209,175 +1182,215 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
               ),
           ],
         ),
-        body: Column(
+        body: Stack(
           children: [
-            // 編集可能な場合のみツールバー表示
-            if (canEdit)
-              WhiteboardToolbar(
-                selectedColor: _selectedColor,
-                strokeWidth: _strokeWidth,
-                canUndo: _canUndo(),
-                canRedo: _canRedo(),
-                isScrollLocked: _isScrollLocked,
-                isTogglingMode: _isTogglingMode,
-                canvasScale: _canvasScale,
-                customColor5: _customColor5,
-                customColor6: _customColor6,
-                onColorChanged: (color) {
-                  setState(() {
-                    _captureCurrentDrawing();
-                    _selectedColor = color;
-                    _controller?.dispose();
-                    _controller = _createSignatureController(
-                      penColor: color,
+            AbsorbPointer(
+              absorbing: _isClearing,
+              child: Column(
+                children: [
+                  // 編集可能な場合のみツールバー表示
+                  if (canEdit)
+                    WhiteboardToolbar(
+                      selectedColor: _selectedColor,
                       strokeWidth: _strokeWidth,
-                    );
-                    _controllerKey++;
-                  });
-                },
-                onStrokeWidthChanged: (width) {
-                  setState(() {
-                    _captureCurrentDrawing();
-                    _strokeWidth = width;
-                    _controller?.dispose();
-                    _controller = _createSignatureController(
-                      penColor: _selectedColor,
-                      strokeWidth: width,
-                    );
-                    _controllerKey++;
-                  });
-                },
-                onUndo: _undo,
-                onRedo: _redo,
-                onToggleScrollMode: _toggleScrollMode,
-                onZoomIn: () {
-                  if (_canvasScale < 4.0) {
-                    _captureCurrentDrawing();
-                    setState(() {
-                      _canvasScale += 0.5;
-                      print('🔍 ズームイン: ${_canvasScale}x');
-                      _controller?.dispose();
-                      _controller = _createSignatureController(
-                        penColor: _selectedColor,
-                        strokeWidth: _strokeWidth,
-                      );
-                      _controllerKey++;
-                    });
-                  }
-                },
-                onZoomOut: () {
-                  if (_canvasScale > 0.5) {
-                    _captureCurrentDrawing();
-                    setState(() {
-                      _canvasScale -= 0.5;
-                      print('🔍 ズームアウト: ${_canvasScale}x');
-                      _controller?.dispose();
-                      _controller = _createSignatureController(
-                        penColor: _selectedColor,
-                        strokeWidth: _strokeWidth,
-                      );
-                      _controllerKey++;
-                    });
-                  }
-                },
-                onClearWhiteboard: _showDeleteConfirmationDialog,
-              ),
+                      canUndo: _canUndo(),
+                      canRedo: _canRedo(),
+                      isScrollLocked: _isScrollLocked,
+                      isTogglingMode: _isTogglingMode,
+                      canvasScale: _canvasScale,
+                      customColor5: _customColor5,
+                      customColor6: _customColor6,
+                      onColorChanged: (color) {
+                        setState(() {
+                          _captureCurrentDrawing();
+                          _selectedColor = color;
+                          _controller?.dispose();
+                          _controller = _createSignatureController(
+                            penColor: color,
+                            strokeWidth: _strokeWidth,
+                          );
+                          _controllerKey++;
+                        });
+                      },
+                      onStrokeWidthChanged: (width) {
+                        setState(() {
+                          _captureCurrentDrawing();
+                          _strokeWidth = width;
+                          _controller?.dispose();
+                          _controller = _createSignatureController(
+                            penColor: _selectedColor,
+                            strokeWidth: width,
+                          );
+                          _controllerKey++;
+                        });
+                      },
+                      onUndo: _undo,
+                      onRedo: _redo,
+                      onToggleScrollMode: _toggleScrollMode,
+                      onZoomIn: () {
+                        if (_canvasScale < 4.0) {
+                          _captureCurrentDrawing();
+                          setState(() {
+                            _canvasScale += 0.5;
+                            print('🔍 ズームイン: ${_canvasScale}x');
+                            _controller?.dispose();
+                            _controller = _createSignatureController(
+                              penColor: _selectedColor,
+                              strokeWidth: _strokeWidth,
+                            );
+                            _controllerKey++;
+                          });
+                        }
+                      },
+                      onZoomOut: () {
+                        if (_canvasScale > 0.5) {
+                          _captureCurrentDrawing();
+                          setState(() {
+                            _canvasScale -= 0.5;
+                            print('🔍 ズームアウト: ${_canvasScale}x');
+                            _controller?.dispose();
+                            _controller = _createSignatureController(
+                              penColor: _selectedColor,
+                              strokeWidth: _strokeWidth,
+                            );
+                            _controllerKey++;
+                          });
+                        }
+                      },
+                      onClearWhiteboard: _showDeleteConfirmationDialog,
+                    ),
 
-            // 初回ストローク読み込み中スピナー
-            if (_isLoadingStrokes) const LinearProgressIndicator(minHeight: 2),
+                  // 初回ストローク読み込み中スピナー
+                  if (_isLoadingStrokes)
+                    const LinearProgressIndicator(minHeight: 2),
 
-            // キャンバス（閲覧専用または編集可能）
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return Scrollbar(
-                    controller: _horizontalScrollController,
-                    thumbVisibility: true, // 常にスクロールバーを表示
-                    trackVisibility: true,
-                    child: Scrollbar(
-                      controller: _verticalScrollController,
-                      thumbVisibility: true,
-                      trackVisibility: true,
-                      notificationPredicate: (notification) =>
-                          notification.depth == 1,
-                      child: SingleChildScrollView(
-                        controller: _horizontalScrollController,
-                        scrollDirection: Axis.horizontal,
-                        physics: _isScrollLocked && canEdit
-                            ? const NeverScrollableScrollPhysics()
-                            : const AlwaysScrollableScrollPhysics(),
-                        child: SingleChildScrollView(
-                          controller: _verticalScrollController,
-                          scrollDirection: Axis.vertical,
-                          physics: _isScrollLocked && canEdit
-                              ? const NeverScrollableScrollPhysics()
-                              : const AlwaysScrollableScrollPhysics(),
-                          child: Container(
-                            width: _fixedCanvasWidth * _canvasScale,
-                            height: _fixedCanvasHeight * _canvasScale,
-                            color: Colors.white,
-                            child: Stack(
-                              children: [
-                                // グリッド線（最背面）- スケーリングされたサイズに合わせる
-                                Positioned.fill(
-                                  child: CustomPaint(
-                                    painter: GridPainter(
-                                      gridSize: 50.0 *
-                                          _canvasScale, // ズームに応じてグリッドサイズも変更
-                                      color: Colors.grey.withOpacity(0.2),
-                                    ),
+                  // キャンバス（閲覧専用または編集可能）
+                  Expanded(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        return Scrollbar(
+                          controller: _horizontalScrollController,
+                          thumbVisibility: true, // 常にスクロールバーを表示
+                          trackVisibility: true,
+                          child: Scrollbar(
+                            controller: _verticalScrollController,
+                            thumbVisibility: true,
+                            trackVisibility: true,
+                            notificationPredicate: (notification) =>
+                                notification.depth == 1,
+                            child: SingleChildScrollView(
+                              controller: _horizontalScrollController,
+                              scrollDirection: Axis.horizontal,
+                              physics: _isScrollLocked && canEdit
+                                  ? const NeverScrollableScrollPhysics()
+                                  : const AlwaysScrollableScrollPhysics(),
+                              child: SingleChildScrollView(
+                                controller: _verticalScrollController,
+                                scrollDirection: Axis.vertical,
+                                physics: _isScrollLocked && canEdit
+                                    ? const NeverScrollableScrollPhysics()
+                                    : const AlwaysScrollableScrollPhysics(),
+                                child: Container(
+                                  width: _fixedCanvasWidth * _canvasScale,
+                                  height: _fixedCanvasHeight * _canvasScale,
+                                  color: Colors.white,
+                                  child: Stack(
+                                    children: [
+                                      // グリッド線（最背面）- スケーリングされたサイズに合わせる
+                                      Positioned.fill(
+                                        child: CustomPaint(
+                                          painter: GridPainter(
+                                            gridSize: 50.0 *
+                                                _canvasScale, // ズームに応じてグリッドサイズも変更
+                                            color: Colors.grey.withOpacity(0.2),
+                                          ),
+                                        ),
+                                      ),
+                                      // 背景：保存済みストロークを描画（スケーリング付き）
+                                      Positioned.fill(
+                                        child: Transform.scale(
+                                          scale: _canvasScale,
+                                          alignment: Alignment.topLeft,
+                                          child: CustomPaint(
+                                            size: const Size(_fixedCanvasWidth,
+                                                _fixedCanvasHeight),
+                                            painter: DrawingStrokePainter(
+                                                _workingStrokes),
+                                          ),
+                                        ),
+                                      ),
+                                      // 前景：現在の描画セッション（編集可能な場合のみ）
+                                      if (canEdit)
+                                        Positioned.fill(
+                                          child: _buildDrawingArea(),
+                                        ),
+                                    ],
                                   ),
                                 ),
-                                // 背景：保存済みストロークを描画（スケーリング付き）
-                                Positioned.fill(
-                                  child: Transform.scale(
-                                    scale: _canvasScale,
-                                    alignment: Alignment.topLeft,
-                                    child: CustomPaint(
-                                      size: const Size(_fixedCanvasWidth,
-                                          _fixedCanvasHeight),
-                                      painter:
-                                          DrawingStrokePainter(_workingStrokes),
-                                    ),
-                                  ),
-                                ),
-                                // 前景：現在の描画セッション（編集可能な場合のみ）
-                                if (canEdit)
-                                  Positioned.fill(
-                                    child: _buildDrawingArea(),
-                                  ),
-                              ],
+                              ),
                             ),
                           ),
-                        ),
+                        );
+                      },
+                    ),
+                  ),
+
+                  // 閲覧専用インジケーター
+                  if (!canEdit)
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      color: Colors.orange[100],
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.visibility,
+                              size: 16, color: Colors.orange[900]),
+                          const SizedBox(width: 8),
+                          Text(
+                            _currentWhiteboard.isPrivate
+                                ? '閲覧専用: このホワイトボードは編集制限されています'
+                                : '閲覧専用',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.orange[900],
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  );
-                },
+                ],
               ),
             ),
-
-            // 閲覧専用インジケーター
-            if (!canEdit)
-              Container(
-                padding: const EdgeInsets.all(8),
-                color: Colors.orange[100],
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.visibility, size: 16, color: Colors.orange[900]),
-                    const SizedBox(width: 8),
-                    Text(
-                      _currentWhiteboard.isPrivate
-                          ? '閲覧専用: このホワイトボードは編集制限されています'
-                          : '閲覧専用',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.orange[900],
-                        fontWeight: FontWeight.bold,
+            if (_isClearing)
+              Positioned.fill(
+                child: ColoredBox(
+                  color: Colors.black26,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 20,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text(
+                            '全消去中です...',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          SizedBox(height: 8),
+                          Text('Firestore の削除完了までお待ちください'),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ),
           ],
