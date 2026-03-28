@@ -1131,14 +1131,15 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
     AppLogger.info(
         '🎨 [WHITEBOARD] AppBar title will be: ${_currentWhiteboard.isGroupWhiteboard ? "グループ共通" : "個人用"}');
 
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (didPop) return;
         if (_isClearing) {
           SnackBarHelper.showWarning(context, '全消去中です。完了までお待ちください');
-          return false;
+          return;
         }
         await _navigateToGroupDetail(canEdit: canEdit);
-        return false;
       },
       child: Scaffold(
         appBar: AppBar(
