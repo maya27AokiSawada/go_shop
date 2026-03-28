@@ -166,7 +166,6 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
                   (stroke) => cachedPendingStrokeIds.contains(stroke.strokeId))
               .map((stroke) => stroke.strokeId),
         );
-      _isLoadingStrokes = false;
       AppLogger.info(
           '🎨 [WHITEBOARD] ${_currentWhiteboard.strokes.length}個のストロークを復元（未保存${_unsavedStrokeIds.length}個）');
     }
