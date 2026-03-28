@@ -291,7 +291,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
             _currentWhiteboard.canEdit(currentUser.uid);
 
     if (isEditablePersonalWhiteboard) {
-      _isLoadingStrokes = false;
+      // _isLoadingStrokes は _loadInitialStrokes() が完了した時点で false にする
       AppLogger.info(
           '🔕 [LISTENER] 編集者本人の個人用ホワイトボードのため編集画面リスナーを開始しない: ${_currentWhiteboard.whiteboardId}');
       return;
@@ -1266,72 +1266,97 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
 
                   // キャンバス（閲覧専用または編集可能）
                   Expanded(
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        return Scrollbar(
-                          controller: _horizontalScrollController,
-                          thumbVisibility: true, // 常にスクロールバーを表示
-                          trackVisibility: true,
-                          child: Scrollbar(
-                            controller: _verticalScrollController,
-                            thumbVisibility: true,
-                            trackVisibility: true,
-                            notificationPredicate: (notification) =>
-                                notification.depth == 1,
-                            child: SingleChildScrollView(
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            return Scrollbar(
                               controller: _horizontalScrollController,
-                              scrollDirection: Axis.horizontal,
-                              physics: _isScrollLocked && canEdit
-                                  ? const NeverScrollableScrollPhysics()
-                                  : const AlwaysScrollableScrollPhysics(),
-                              child: SingleChildScrollView(
+                              thumbVisibility: true, // 常にスクロールバーを表示
+                              trackVisibility: true,
+                              child: Scrollbar(
                                 controller: _verticalScrollController,
-                                scrollDirection: Axis.vertical,
-                                physics: _isScrollLocked && canEdit
-                                    ? const NeverScrollableScrollPhysics()
-                                    : const AlwaysScrollableScrollPhysics(),
-                                child: Container(
-                                  width: _fixedCanvasWidth * _canvasScale,
-                                  height: _fixedCanvasHeight * _canvasScale,
-                                  color: Colors.white,
-                                  child: Stack(
-                                    children: [
-                                      // グリッド線（最背面）- スケーリングされたサイズに合わせる
-                                      Positioned.fill(
-                                        child: CustomPaint(
-                                          painter: GridPainter(
-                                            gridSize: 50.0 *
-                                                _canvasScale, // ズームに応じてグリッドサイズも変更
-                                            color: Colors.grey.withOpacity(0.2),
+                                thumbVisibility: true,
+                                trackVisibility: true,
+                                notificationPredicate: (notification) =>
+                                    notification.depth == 1,
+                                child: SingleChildScrollView(
+                                  controller: _horizontalScrollController,
+                                  scrollDirection: Axis.horizontal,
+                                  physics: _isScrollLocked && canEdit
+                                      ? const NeverScrollableScrollPhysics()
+                                      : const AlwaysScrollableScrollPhysics(),
+                                  child: SingleChildScrollView(
+                                    controller: _verticalScrollController,
+                                    scrollDirection: Axis.vertical,
+                                    physics: _isScrollLocked && canEdit
+                                        ? const NeverScrollableScrollPhysics()
+                                        : const AlwaysScrollableScrollPhysics(),
+                                    child: Container(
+                                      width: _fixedCanvasWidth * _canvasScale,
+                                      height: _fixedCanvasHeight * _canvasScale,
+                                      color: Colors.white,
+                                      child: Stack(
+                                        children: [
+                                          // グリッド線（最背面）- スケーリングされたサイズに合わせる
+                                          Positioned.fill(
+                                            child: CustomPaint(
+                                              painter: GridPainter(
+                                                gridSize: 50.0 *
+                                                    _canvasScale, // ズームに応じてグリッドサイズも変更
+                                                color: Colors.grey
+                                                    .withOpacity(0.2),
+                                              ),
+                                            ),
                                           ),
-                                        ),
-                                      ),
-                                      // 背景：保存済みストロークを描画（スケーリング付き）
-                                      Positioned.fill(
-                                        child: Transform.scale(
-                                          scale: _canvasScale,
-                                          alignment: Alignment.topLeft,
-                                          child: CustomPaint(
-                                            size: const Size(_fixedCanvasWidth,
-                                                _fixedCanvasHeight),
-                                            painter: DrawingStrokePainter(
-                                                _workingStrokes),
+                                          // 背景：保存済みストロークを描画（スケーリング付き）
+                                          Positioned.fill(
+                                            child: Transform.scale(
+                                              scale: _canvasScale,
+                                              alignment: Alignment.topLeft,
+                                              child: CustomPaint(
+                                                size: const Size(
+                                                    _fixedCanvasWidth,
+                                                    _fixedCanvasHeight),
+                                                painter: DrawingStrokePainter(
+                                                    _workingStrokes),
+                                              ),
+                                            ),
                                           ),
-                                        ),
+                                          // 前景：現在の描画セッション（編集可能な場合のみ）
+                                          if (canEdit)
+                                            Positioned.fill(
+                                              child: _buildDrawingArea(),
+                                            ),
+                                        ],
                                       ),
-                                      // 前景：現在の描画セッション（編集可能な場合のみ）
-                                      if (canEdit)
-                                        Positioned.fill(
-                                          child: _buildDrawingArea(),
-                                        ),
-                                    ],
+                                    ),
                                   ),
                                 ),
                               ),
+                            );
+                          },
+                        ),
+                        // 初回ストローク読み込みオーバーレイ
+                        if (_isLoadingStrokes)
+                          const ColoredBox(
+                            color: Color(0x1A000000), // 半透明黒 (black12)
+                            child: Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  CircularProgressIndicator(),
+                                  SizedBox(height: 12),
+                                  Text(
+                                    'ストロークを読み込み中...',
+                                    style: TextStyle(color: Colors.black54),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        );
-                      },
+                      ],
                     ),
                   ),
 
