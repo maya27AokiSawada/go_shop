@@ -340,8 +340,15 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
           if (existingGroup.allowedUid.contains(user.uid)) {
             Log.info('💡 [QR_SCAN] すでにグループメンバー: ${user.uid}');
             if (mounted) {
-              Navigator.of(context).pop(); // スキャナー画面を閉じる
-              ScaffoldMessenger.of(context).showSnackBar(
+              final navigator = Navigator.of(context);
+              final messenger = ScaffoldMessenger.maybeOf(context);
+              try {
+                await _controller.stop();
+              } catch (e) {
+                Log.warning('⚠️ [QR_SCAN] カメラ停止エラー: $e');
+              }
+              navigator.pop(); // スキャナー画面を閉じる
+              messenger?.showSnackBar(
                 SnackBar(
                   content: Text('すでに「$groupName」に参加しています'),
                   backgroundColor: Colors.blue,

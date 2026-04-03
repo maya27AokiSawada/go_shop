@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shared_list.dart';
 import '../providers/current_list_provider.dart';
 import '../providers/group_shared_lists_provider.dart';
+import '../providers/auth_provider.dart';
 import '../providers/shared_group_provider.dart';
 import '../providers/shared_list_provider.dart';
 import '../utils/app_logger.dart';
@@ -45,6 +46,13 @@ class SharedListHeaderWidget extends ConsumerWidget {
       data: (groups) =>
           groups.where((g) => g.groupId == selectedGroupId).firstOrNull,
     );
+
+    // 削除権限: グループオーナー または リスト作成者（ownerUid）
+    final currentUid = ref.watch(authStateProvider).valueOrNull?.uid;
+    final canDeleteCurrentList = currentUid != null &&
+        currentList != null &&
+        (currentUid == currentGroup?.ownerUid ||
+            currentUid == currentList.ownerUid);
 
     return Container(
       padding: const EdgeInsets.all(16.0),
@@ -102,6 +110,7 @@ class SharedListHeaderWidget extends ConsumerWidget {
                   lists,
                   currentList,
                   currentGroup.groupId,
+                  canDeleteCurrentList,
                 );
               },
               loading: () => const Center(
@@ -166,6 +175,7 @@ class SharedListHeaderWidget extends ConsumerWidget {
     List<SharedList> lists,
     SharedList? currentList,
     String? currentGroupId,
+    bool canDelete,
   ) {
     // currentListIdがlists内に存在するかチェック
     final currentListId = currentList?.listId;
@@ -262,7 +272,7 @@ class SharedListHeaderWidget extends ConsumerWidget {
               onPressed: () => _showCreateListDialog(context, ref),
               tooltip: '新しいリストを作成',
             ),
-            if (currentList != null)
+            if (currentList != null && canDelete)
               IconButton(
                 icon: Icon(Icons.delete_outline, color: Colors.red.shade700),
                 onPressed: () =>
@@ -424,6 +434,18 @@ class SharedListHeaderWidget extends ConsumerWidget {
 
   void _showDeleteListDialog(
       BuildContext context, WidgetRef ref, SharedList listToDelete) {
+    // 二重チェック: 権限なしの場合は何もしない
+    final currentUid = ref.read(authStateProvider).valueOrNull?.uid;
+    final allGroups = ref.read(allGroupsProvider).valueOrNull ?? [];
+    final group =
+        allGroups.where((g) => g.groupId == listToDelete.groupId).firstOrNull;
+    final canDelete = currentUid != null &&
+        (currentUid == group?.ownerUid || currentUid == listToDelete.ownerUid);
+    if (!canDelete) {
+      Log.warning(
+          '⚠️ [LIST_DELETE] 権限なし: uid=$currentUid, listOwner=${listToDelete.ownerUid}, groupOwner=${group?.ownerUid}');
+      return;
+    }
     showDialog(
       context: context,
       builder: (context) => AlertDialog(

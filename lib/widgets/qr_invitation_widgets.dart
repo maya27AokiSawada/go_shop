@@ -324,6 +324,20 @@ class _QRScannerPageState extends ConsumerState<QRScannerPage> {
 
         // 招待受諾確認ダイアログを表示
         if (mounted && invitationData != null) {
+          // 自分自身の招待コードをスキャンした場合は無視
+          final currentUser = ref.read(firebaseAuthProvider).currentUser;
+          final inviterUid = invitationData['inviterUid'] as String?;
+          if (currentUser != null && inviterUid == currentUser.uid) {
+            debugPrint('⚠️ [QR_SCAN] 自分自身の招待コードをスキャン - 無視');
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('自分自身の招待コードはスキャンできません'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+            return;
+          }
+
           final result = await showDialog<bool>(
             context: context,
             builder: (context) => QRInvitationAcceptDialog(

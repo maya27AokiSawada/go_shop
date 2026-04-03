@@ -274,7 +274,16 @@ class _SharedItemTile extends ConsumerWidget {
           if (currentUser == null) return;
           final canEdit = list.ownerUid == currentUser.uid ||
               item.memberId == currentUser.uid;
-          if (!canEdit) return;
+          if (!canEdit) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('編集権限がありません'),
+                backgroundColor: Colors.red,
+                duration: Duration(milliseconds: 500),
+              ),
+            );
+            return;
+          }
           _showEditItemModal(context);
         },
         onLongPress: () => _confirmDelete(context, ref),

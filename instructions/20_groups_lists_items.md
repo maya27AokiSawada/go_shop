@@ -105,6 +105,24 @@ items: existingGroups
 
 ---
 
+## 5.1 リスト削除権限
+
+- **削除可能なユーザー**: グループオーナー（`group.ownerUid == currentUid`）または リスト作成者（`list.ownerUid == currentUid`）
+- **削除ボタンは権限あり時のみ表示する**（UI で非表示 + `_showDeleteListDialog` 内でも二重チェック）
+
+```dart
+// ✅ build() で canDelete を計算
+final canDelete = currentUid != null &&
+    (currentUid == currentGroup?.ownerUid ||
+        currentUid == currentList.ownerUid);
+
+// ✅ ボタン表示制御
+if (currentList != null && canDelete)
+  IconButton(icon: Icon(Icons.delete_outline), ...)
+```
+
+---
+
 ## 6. Hive クリーンアップ
 
 `allowedUid` に現在ユーザーが含まれないグループは Hive から削除する。

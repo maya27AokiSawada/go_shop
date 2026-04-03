@@ -44,6 +44,18 @@ await _firestore.collection('invitations').doc(invitationId).update({
 
 ### 既に参加済みの場合はダイアログを出さずスキャン画面を閉じる
 
+- `accept_invitation_widget.dart` の「すでにグループメンバー」分岐を含む**すべての分岐**（正常・スキップ・エラー）で必ず `_controller.stop()` を呼んでから `Navigator.pop()` すること
+- `stop()` なしで `pop()` するとカメラプレビューが残留しブラックアウトになる
+
+```dart
+// ✅ 正しいパターン（全分岐共通）
+final navigator = Navigator.of(context);
+final messenger = ScaffoldMessenger.maybeOf(context);
+try { await _controller.stop(); } catch (e) { Log.warning(...); }
+navigator.pop();
+messenger?.showSnackBar(...);
+```
+
 ---
 
 ## 2. 通知
