@@ -183,9 +183,39 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
 
     // Firestoreリアルタイム監視を開始（他端末更新の即時反映）
     _startWhiteboardListener();
-    // 初期表示がキャッシュ由来でも、実データはstrokesサブコレクションにあるため
-    // 起動時に必ず再取得して最新状態へ寄せる。
-    unawaited(_loadInitialStrokes());
+    // ストロークバージョン（updatedAt）チェック:
+    // キャッシュ済みバージョンがリモートと一致していればFirestoreからの
+    // 再読み込みをスキップしてキャッシュのストロークをそのまま使用する。
+    final vCheckCacheKey = _personalWhiteboardCacheKey;
+    if (vCheckCacheKey != null) {
+      final cachedVersion =
+          PersonalWhiteboardCacheService.getMemoryCachedStrokesVersion(
+              vCheckCacheKey);
+      if (cachedVersion != null &&
+          cachedVersion.isAtSameMomentAs(_currentWhiteboard.updatedAt)) {
+        final cachedWb =
+            PersonalWhiteboardCacheService.getMemoryCachedWhiteboard(
+                vCheckCacheKey);
+        if (cachedWb != null && cachedWb.strokes.isNotEmpty) {
+          // キャッシュからストロークを復元してFirestore読み込みをスキップ
+          _workingStrokes
+            ..clear()
+            ..addAll(cachedWb.strokes);
+          AppLogger.info('⚡ [WHITEBOARD] ストロークバージョン一致 → '
+              'キャッシュから${cachedWb.strokes.length}本復元 '
+              '(updatedAt=${_currentWhiteboard.updatedAt.toIso8601String()})');
+          _isLoadingStrokes = false;
+        } else {
+          // メモリキャッシュにストロークがない場合はFirestoreから読み込み
+          AppLogger.info('⚠️ [WHITEBOARD] バージョン一致だがキャッシュ空 → Firestore読み込み');
+          unawaited(_loadInitialStrokes());
+        }
+      } else {
+        unawaited(_loadInitialStrokes());
+      }
+    } else {
+      unawaited(_loadInitialStrokes());
+    }
 
     AppLogger.info(
         '🎨 [WHITEBOARD] ボードタイプ: isGroupWhiteboard=${_currentWhiteboard.isGroupWhiteboard}, isPersonalWhiteboard=${_currentWhiteboard.isPersonalWhiteboard}');
@@ -220,6 +250,17 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
         _isLoadingStrokes = false;
       });
       _syncPersonalWhiteboardCache();
+
+      // 読み込み完了時点の updatedAt をキャッシュしてバージョン管理
+      final cacheKey = _personalWhiteboardCacheKey;
+      if (cacheKey != null) {
+        unawaited(PersonalWhiteboardCacheService.saveStrokesVersion(
+          cacheKey,
+          _currentWhiteboard.updatedAt,
+        ));
+        AppLogger.info('💾 [WHITEBOARD] ストロークバージョンをキャッシュ: '
+            '${_currentWhiteboard.updatedAt.toIso8601String()}');
+      }
 
       AppLogger.info('📥 [WHITEBOARD] 初回ストローク読込完了: ${initialStrokes.length}本');
     } catch (e, stack) {
@@ -289,16 +330,14 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
             currentUser != null &&
             _currentWhiteboard.canEdit(currentUser.uid);
 
-    if (isEditablePersonalWhiteboard) {
-      // _isLoadingStrokes は _loadInitialStrokes() が完了した時点で false にする
-      AppLogger.info(
-          '🔕 [LISTENER] 編集者本人の個人用ホワイトボードのため編集画面リスナーを開始しない: ${_currentWhiteboard.whiteboardId}');
-      return;
-    }
-
     if (_currentWhiteboard.isPersonalWhiteboard) {
-      AppLogger.info(
-          '👀 [LISTENER] 閲覧中の個人用ホワイトボードをリアルタイム監視: ${_currentWhiteboard.whiteboardId}');
+      if (isEditablePersonalWhiteboard) {
+        AppLogger.info(
+            '🔭 [LISTENER] 編集者本人の個人用ホワイトボード: 別端末同期のためstrokesリスナーを開始: ${_currentWhiteboard.whiteboardId}');
+      } else {
+        AppLogger.info(
+            '👀 [LISTENER] 閲覧中の個人用ホワイトボードをリアルタイム監視: ${_currentWhiteboard.whiteboardId}');
+      }
     }
 
     final repository = ref.read(whiteboardRepositoryProvider);

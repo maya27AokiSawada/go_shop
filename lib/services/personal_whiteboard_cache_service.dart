@@ -8,9 +8,12 @@ import '../utils/app_logger.dart';
 class PersonalWhiteboardCacheService {
   static final Map<String, Whiteboard> _memoryCache = {};
   static final Map<String, Set<String>> _pendingStrokeIdsMemoryCache = {};
+  static final Map<String, DateTime> _strokesVersionCache = {};
   static const String _cachePrefix = 'personal_whiteboard_cache:';
   static const String _pendingStrokeIdsPrefix =
       'personal_whiteboard_pending_stroke_ids:';
+  static const String _strokesVersionPrefix =
+      'personal_whiteboard_strokes_version:';
 
   static String buildCacheKey({
     required String currentUserId,
@@ -133,15 +136,62 @@ class PersonalWhiteboardCacheService {
     }
   }
 
+  // ──────────────────────────────────────────────
+  // ストロークバージョン（updatedAt）キャッシュ
+  // ──────────────────────────────────────────────
+
+  /// メモリキャッシュから strokes の updatedAt を同期取得
+  static DateTime? getMemoryCachedStrokesVersion(String cacheKey) {
+    return _strokesVersionCache[cacheKey];
+  }
+
+  /// strokes の updatedAt をメモリ + SharedPreferences に保存
+  static Future<void> saveStrokesVersion(
+    String cacheKey,
+    DateTime updatedAt,
+  ) async {
+    _strokesVersionCache[cacheKey] = updatedAt;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        '$_strokesVersionPrefix$cacheKey',
+        updatedAt.toIso8601String(),
+      );
+    } catch (e) {
+      AppLogger.warning('⚠️ [PERSONAL_WB] ストロークバージョン保存失敗: $e');
+    }
+  }
+
+  /// SharedPreferences から strokes の updatedAt を非同期ロード（起動時用）
+  static Future<DateTime?> loadStrokesVersion(String cacheKey) async {
+    final memoryCached = _strokesVersionCache[cacheKey];
+    if (memoryCached != null) return memoryCached;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('$_strokesVersionPrefix$cacheKey');
+      if (raw == null) return null;
+      final dt = DateTime.tryParse(raw);
+      if (dt != null) _strokesVersionCache[cacheKey] = dt;
+      return dt;
+    } catch (e) {
+      AppLogger.warning('⚠️ [PERSONAL_WB] ストロークバージョン読込失敗: $e');
+      return null;
+    }
+  }
+
   static Future<void> clearAllCaches() async {
     _memoryCache.clear();
     _pendingStrokeIdsMemoryCache.clear();
+    _strokesVersionCache.clear();
 
     try {
       final prefs = await SharedPreferences.getInstance();
       final keysToRemove = prefs.getKeys().where((key) {
         return key.startsWith(_cachePrefix) ||
-            key.startsWith(_pendingStrokeIdsPrefix);
+            key.startsWith(_pendingStrokeIdsPrefix) ||
+            key.startsWith(_strokesVersionPrefix);
       }).toList(growable: false);
 
       for (final key in keysToRemove) {
