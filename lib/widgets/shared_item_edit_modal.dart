@@ -422,7 +422,7 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
       final currentMemberId = currentUser?.uid ?? 'anonymous';
 
       if (widget.item == null) {
-        // 新規作成
+        // 新規作成: fire-and-forget（ローカルキャッシュ書き込み後に即時クローズ）
         final newItem = SharedItem.createNow(
           memberId: currentMemberId,
           name: name,
@@ -432,13 +432,18 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
               _calculateIntervalDays(_intervalValue, _intervalUnit),
         );
 
-        await repository.addSingleItem(widget.listId, newItem);
+        // Hiveキャッシュへの書き込みを含むため、awaitせずに即時クローズする。
+        // オフライン時は Firestore SDK がキューイングし、復帰後に自動同期する。
+        repository.addSingleItem(widget.listId, newItem).catchError((e, st) {
+          Log.error('❌ アイテム追加エラー (background): $e', st);
+        });
         Log.info(
-            '✅ アイテム追加成功: ${AppLogger.maskItem(name, newItem.itemId)} x $quantity');
+            '✅ アイテム追加開始: ${AppLogger.maskItem(name, newItem.itemId)} x $quantity');
 
         if (mounted && context.mounted) {
           Navigator.of(context).pop();
         }
+        return;
       } else {
         // 更新
         final updatedItem = widget.item!.copyWith(

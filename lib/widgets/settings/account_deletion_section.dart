@@ -174,6 +174,48 @@ class _AccountDeletionSectionState
 
       if (confirm2 != true) return;
 
+      // ステップ3: 再認証（Firestoreデータ削除前に完了させる）
+      if (!mounted) return;
+      final password = await _showReauthDialog();
+      if (password == null || password.isEmpty) return;
+
+      final credential = EmailAuthProvider.credential(
+        email: user.email!,
+        password: password,
+      );
+
+      try {
+        await user.reauthenticateWithCredential(credential);
+        AppLogger.info('✅ [DELETE_ACCOUNT] 再認証成功');
+      } on FirebaseAuthException catch (e) {
+        AppLogger.error('❌ [DELETE_ACCOUNT] 再認証失敗: ${e.code}');
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.error, color: Colors.red),
+                SizedBox(width: 8),
+                Text('認証エラー'),
+              ],
+            ),
+            content: Text(
+              e.code == 'wrong-password'
+                  ? 'パスワードが正しくありません。'
+                  : '認証に失敗しました。\n\nエラー: ${e.message}',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('閉じる'),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+
       // ローディング表示
       if (!mounted) return;
       showDialog(
@@ -324,91 +366,9 @@ class _AccountDeletionSectionState
       await UserPreferencesService.clearAllUserInfo();
       AppLogger.info('✅ [DELETE_ACCOUNT] SharedPreferences削除完了');
 
-      // 4. Firebase Authアカウント削除
-      try {
-        await user.delete();
-        AppLogger.info('✅ [DELETE_ACCOUNT] Firebase Authアカウント削除完了');
-      } on FirebaseAuthException catch (e) {
-        if (e.code == 'requires-recent-login') {
-          AppLogger.warning('⚠️ [DELETE_ACCOUNT] 再認証が必要です');
-
-          if (!mounted) return;
-          Navigator.of(context).pop();
-
-          final password = await _showReauthDialog();
-          if (password == null || password.isEmpty) {
-            if (!mounted) return;
-            showDialog(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('キャンセルされました'),
-                content: const Text('アカウント削除をキャンセルしました。'),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('OK'),
-                  ),
-                ],
-              ),
-            );
-            return;
-          }
-
-          final credential = EmailAuthProvider.credential(
-            email: user.email!,
-            password: password,
-          );
-
-          try {
-            await user.reauthenticateWithCredential(credential);
-            AppLogger.info('✅ [DELETE_ACCOUNT] 再認証成功');
-
-            if (!mounted) return;
-            showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (context) => const Center(
-                child: CircularProgressIndicator(),
-              ),
-            );
-
-            await user.delete();
-            AppLogger.info('✅ [DELETE_ACCOUNT] Firebase Authアカウント削除完了（再認証後）');
-          } on FirebaseAuthException catch (e) {
-            if (mounted) Navigator.of(context).pop();
-
-            AppLogger.error('❌ [DELETE_ACCOUNT] 再認証失敗: ${e.code}');
-
-            if (!mounted) return;
-            showDialog(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Row(
-                  children: [
-                    Icon(Icons.error, color: Colors.red),
-                    SizedBox(width: 8),
-                    Text('認証エラー'),
-                  ],
-                ),
-                content: Text(
-                  e.code == 'wrong-password'
-                      ? 'パスワードが正しくありません。'
-                      : '認証に失敗しました。\n\nエラー: ${e.message}',
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('閉じる'),
-                  ),
-                ],
-              ),
-            );
-            return;
-          }
-        } else {
-          rethrow;
-        }
-      }
+      // 4. Firebase Authアカウント削除（再認証済みのため requires-recent-login は発生しない）
+      await user.delete();
+      AppLogger.info('✅ [DELETE_ACCOUNT] Firebase Authアカウント削除完了');
 
       // 5. Provider無効化
       ref.invalidate(authStateProvider);

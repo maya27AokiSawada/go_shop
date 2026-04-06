@@ -1411,8 +1411,8 @@ class NotificationService {
           'type': NotificationType.whiteboardUpdated.value,
           'groupId': groupId,
           'message': isGroupWhiteboard
-              ? '${AppLogger.maskName(editorName)}さんがグループホワイトボードを更新しました'
-              : '${AppLogger.maskName(editorName)}さんがホワイトボードを更新しました',
+              ? '$editorNameさんがグループホワイトボードを更新しました'
+              : '$editorNameさんがホワイトボードを更新しました',
           'timestamp': FieldValue.serverTimestamp(),
           'read': false,
           'metadata': {

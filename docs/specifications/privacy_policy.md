@@ -64,6 +64,18 @@ Go Shop（以下「本アプリ」）は、maya27AokiSawada（以下「開発者
 - クラッシュレポート: Firebase Crashlytics
 - データセンター: 東京リージョン（asia-northeast1）
 
+#### Cloud Firestore に保存される具体的なデータ
+
+以下のデータが Cloud Firestore に保存されます。
+
+| データ種別     | 保存内容                                      |
+| -------------- | --------------------------------------------- |
+| アカウント情報 | メールアドレス、ディスプレイネーム            |
+| グループ情報   | グループ名、グループID、メンバーのUID・表示名 |
+| 買い物リスト   | リスト名、各アイテム名・購入状態              |
+| ホワイトボード | 描画ストロークデータ                          |
+| 通知履歴       | 通知本文、送受信者UID、タイムスタンプ         |
+
 ### 3.2 ローカルストレージ（デバイス内）
 
 - オフライン時のキャッシュデータ
@@ -71,16 +83,22 @@ Go Shop（以下「本アプリ」）は、maya27AokiSawada（以下「開発者
 
 ## 4. 情報の共有
 
-### 4.1 共有する場合
+### 4.1 データの隔離
+
+Cloud Firestore に保存されたデータは **本アプリのプロジェクト専用のデータベースに格納されており、他のアプリやサービスとは隔離されています**。本アプリとは無関係の第三者サービスや他のアプリが当該データベースに直接アクセスすることはできません。
+
+### 4.2 共有する場合
 
 本アプリは以下の場合を除き、個人情報を第三者に提供しません。
 
 - **ユーザーの同意がある場合**: グループ招待機能を利用した場合
 - **法令に基づく場合**: 法的要請がある場合
 
-### 4.2 第三者サービス
+### 4.3 将来的なデータ活用について
 
-本アプリは以下のサービスを利用しています。
+将来的に、流通・小売業者など外部サービスへの統計データ（購買傾向・人気アイテムの集計など）の提供を検討する可能性があります。その際は**個人を特定できない形に加工したうえで**提供し、実施前に**改めてユーザーの同意を取得します**。同意なしに統計データを外部提供することはありません。
+
+### 4.4 第三者サービス
 
 #### Firebase（Google LLC）
 
@@ -92,14 +110,16 @@ Go Shop（以下「本アプリ」）は、maya27AokiSawada（以下「開発者
 - 目的: 広告配信
 - プライバシーポリシー: <https://support.google.com/admob/answer/6128543>
 
-### 4.3 運営者によるアクセス
+### 4.5 運営者によるアクセス
 
-運営者は以下の目的に限り、最小限の範囲でユーザーデータにアクセスする場合があります。
+運営者（システム管理者）がユーザーデータにアクセスする目的は、**デバッグ・障害対応（バグの原因調査、クラッシュ解析など）およびバックアップ運用に限定されます**。マーケティング利用・第三者への販売・目的外の分析など、上記以外の目的でユーザーデータにアクセスすることはありません。
 
-- **システムメンテナンス**: データベーススキーマ更新、不具合修正、バージョンアップ対応
-- **データ整合性チェック**: データベース最適化、バックアップ運用
+アクセスする場合も以下の目的の範囲内のみです。
+
+- **デバッグ・障害対応**: バグ原因調査、クラッシュログ解析、不具合再現
+- **バックアップ運用**: データの安全性確保、バージョンアップ時のスキーマ移行
 - **セキュリティ監査**: 不正利用の検出、脆弱性対応
-- **ユーザーサポート**: 問い合わせ対応時のデータ確認
+- **ユーザーサポート**: 問い合わせ対応時の事実確認（ユーザーの要請がある場合のみ）
 
 これらのアクセスは暗号化された通信で行われ、アクセスログが記録されます。個人情報は必要最小限のみ閲覧し、第三者への提供や目的外利用は一切行いません。
 
@@ -147,6 +167,19 @@ Go Shop（以下「本アプリ」）は、maya27AokiSawada（以下「開発者
 - 通信の暗号化（HTTPS/TLS）
 - Firebase Security Rules によるアクセス制御
 - 定期的なセキュリティ更新
+
+### 7.1 データのアクセス制御
+
+Cloud Firestore に保存されたデータへのアクセスは Firebase Security Rules により厳格に制御されています。
+
+- **グループデータ（グループ名・リスト名・アイテム名など）**: そのグループに所属するメンバー（`allowedUid` に登録されたユーザー）のみ読み書きが可能です。グループに参加していないユーザーは一切アクセスできません。
+- **ユーザープロファイル（メールアドレス・ディスプレイネーム）**: 本人のみ読み書きが可能です。
+- **通知データ**: 送信先として指定されたユーザー本人のみ読み取りが可能です。
+- **システム管理者（開発者）によるアクセス**: §4.3 に記載した目的（メンテナンス・セキュリティ監査・ユーザーサポート）に限り、最小限の範囲でアクセスします。
+
+### 7.2 ディスプレイネームについて
+
+ディスプレイネームはグループメンバー全員に表示されます。プライバシー保護のため、**本名ではなくニックネームの使用を強く推奨します**。本名を設定した場合でも本アプリの機能は正常に動作しますが、グループを共有するすべてのメンバーにその名前が表示されることをご了承ください。
 
 ## 8. 子どものプライバシー
 
@@ -243,6 +276,18 @@ Go Shop (hereinafter "the App") is a shopping list sharing application provided 
 - Crash reports: Firebase Crashlytics
 - Data center: Tokyo region (asia-northeast1)
 
+#### Data Specifically Stored in Cloud Firestore
+
+The following data is stored in Cloud Firestore:
+
+| Data Type           | Content                                                |
+| ------------------- | ------------------------------------------------------ |
+| Account information | Email address, display name                            |
+| Group information   | Group name, group ID, member UIDs and display names    |
+| Shopping lists      | List names, item names, purchase status                |
+| Whiteboard          | Drawing stroke data                                    |
+| Notifications       | Notification message, sender/recipient UIDs, timestamp |
+
 ### 3.2 Local Storage (On Device)
 
 - Offline cache data
@@ -250,14 +295,22 @@ Go Shop (hereinafter "the App") is a shopping list sharing application provided 
 
 ## 4. Information Sharing
 
-### 4.1 When We Share
+### 4.1 Data Isolation
+
+Data stored in Cloud Firestore is **stored in a database dedicated exclusively to this app's project and is isolated from all other apps and services**. Third-party services or other apps unrelated to this app cannot directly access this database.
+
+### 4.2 When We Share
 
 We do not provide personal information to third parties except in the following cases:
 
 - **With user consent**: When using group invitation features
 - **Legal requirements**: When legally required
 
-### 4.2 Third-Party Services
+### 4.3 Future Data Utilization
+
+We may consider providing statistical data (such as purchase trends or popular item aggregates) to external services such as distribution or retail operators in the future. In such cases, data will be **anonymized so that individuals cannot be identified**, and **we will obtain your explicit consent before doing so**. We will never share statistical data with external parties without your consent.
+
+### 4.4 Third-Party Services
 
 The App uses the following services:
 
@@ -271,14 +324,16 @@ The App uses the following services:
 - Purpose: Ad delivery
 - Privacy Policy: <https://support.google.com/admob/answer/6128543>
 
-### 4.3 Operator Access
+### 4.5 Operator Access
 
-Operators may access user data to the minimum extent necessary for the following purposes only:
+The operator (system administrator) accesses user data **solely for the purposes of debugging and incident response (e.g., investigating bug causes, analyzing crash logs) and backup operations**. User data will never be accessed for marketing purposes, sold to third parties, or analyzed for any purpose other than those stated above.
 
-- **System Maintenance**: Database schema updates, bug fixes, version upgrades
-- **Data Integrity Checks**: Database optimization, backup operations
+When access is required, it is strictly limited to the following purposes:
+
+- **Debugging & Incident Response**: Bug investigation, crash log analysis, issue reproduction
+- **Backup Operations**: Ensuring data safety, schema migration during version upgrades
 - **Security Audits**: Detection of unauthorized use, vulnerability response
-- **User Support**: Data verification when responding to inquiries
+- **User Support**: Fact-checking when responding to inquiries (only upon user request)
 
 These accesses are conducted via encrypted communication and access logs are recorded. Personal information is accessed only to the minimum extent necessary and is never provided to third parties or used for purposes other than those stated.
 
@@ -326,6 +381,19 @@ The App implements the following security measures:
 - Encrypted communication (HTTPS/TLS)
 - Access control via Firebase Security Rules
 - Regular security updates
+
+### 7.1 Data Access Control
+
+Access to data stored in Cloud Firestore is strictly controlled by Firebase Security Rules.
+
+- **Group data (group names, list names, item names, etc.)**: Only members belonging to that group (users registered in `allowedUid`) can read or write. Users not in the group have no access whatsoever.
+- **User profile (email address, display name)**: Accessible only by the account holder.
+- **Notification data**: Only the intended recipient can read their own notifications.
+- **System administrator (developer) access**: Limited to the purposes described in §4.3 (maintenance, security audits, user support), with access minimized to what is strictly necessary.
+
+### 7.2 About Display Names
+
+Display names are visible to all members of any group you join. To protect your privacy, **we strongly recommend using a nickname rather than your real name**. The app works normally even if you use your real name, but please be aware that it will be visible to all members of shared groups.
 
 ## 8. Children's Privacy
 
