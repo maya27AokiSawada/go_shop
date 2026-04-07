@@ -624,6 +624,10 @@ class FirebaseAuthService {
         break;
       case 'too-many-requests':
         errorMessage = 'ログイン試行回数が多すぎます。しばらく待ってから再試行してください';
+        await ErrorLogService.logOperationError(
+          'サインイン（過多試行）',
+          'too-many-requests: ${email.contains('@') ? '***@${email.split('@').last}' : '***'}',
+        );
         break;
       default:
         errorMessage = 'ログインに失敗しました';

@@ -14,7 +14,7 @@ enum NetworkStatus {
 /// ネットワーク監視サービス
 ///
 /// Firestoreへの接続状態をチェックし、オフライン時には自動的に
-/// 10分間隔でリトライを実行する。
+/// 初回3分・2回目5分・3回目以降10分間隔でリトライを実行する。
 ///
 /// 使用例:
 /// ```dart
@@ -66,8 +66,10 @@ class NetworkMonitorService {
   /// 最後にチェックした時刻
   DateTime? _lastCheckTime;
 
-  /// リトライ間隔（10分）
-  static const retryInterval = Duration(minutes: 10);
+  /// リトライ間隔（初回: 3分、2回目: 5分、3回目以降: 10分）
+  static const _retryInterval1 = Duration(minutes: 3);
+  static const _retryInterval2 = Duration(minutes: 5);
+  static const _retryIntervalN = Duration(minutes: 10);
 
   /// 接続タイムアウト（5秒）
   static const connectionTimeout = Duration(seconds: 5);
@@ -77,6 +79,12 @@ class NetworkMonitorService {
 
   /// 最後に接続成功した時刻
   DateTime? _lastSuccessTime;
+
+  /// 自動リトライの試行回数（startAutoRetry 呼び出しからの累計）
+  int _retryAttemptCount = 0;
+
+  /// 現在スケジュール中のリトライ間隔（timeUntilNextRetry 計算用）
+  Duration _currentRetryInterval = _retryInterval1;
 
   /// Firestore接続をチェック
   ///
@@ -238,7 +246,7 @@ class NetworkMonitorService {
 
   /// 自動リトライを開始
   ///
-  /// 10分間隔でFirestore接続チェックを実行する。
+  /// 初回3分・2回目5分・3回目以降10分間隔で Firestore 接続チェックを実行する。
   /// オンラインに復帰すると自動的に停止する。
   void startAutoRetry() {
     // 既に実行中なら何もしない
@@ -247,21 +255,36 @@ class NetworkMonitorService {
       return;
     }
 
-    AppLogger.info('🔄 [NETWORK_MONITOR] 自動リトライ開始（10分間隔）');
+    _retryAttemptCount = 0;
+    _scheduleNextRetry();
+  }
 
-    // 10分間隔のタイマーを作成
-    _retryTimer = Timer.periodic(retryInterval, (timer) async {
-      AppLogger.info('🔄 [NETWORK_MONITOR] 自動リトライ実行中...');
+  void _scheduleNextRetry() {
+    final Duration interval;
+    if (_retryAttemptCount == 0) {
+      interval = _retryInterval1;
+    } else if (_retryAttemptCount == 1) {
+      interval = _retryInterval2;
+    } else {
+      interval = _retryIntervalN;
+    }
+    _currentRetryInterval = interval;
+
+    AppLogger.info(
+        '🔄 [NETWORK_MONITOR] 自動リトライスケジュール（${interval.inMinutes}分後、試行${_retryAttemptCount + 1}回目）');
+
+    _retryTimer = Timer(interval, () async {
+      _retryAttemptCount++;
+      AppLogger.info(
+          '🔄 [NETWORK_MONITOR] 自動リトライ実行中（試行$_retryAttemptCount回目）...');
 
       final isOnline = await checkFirestoreConnection();
 
-      if (isOnline) {
-        // オンラインに復帰したのでタイマーを停止
-        AppLogger.info('✅ [NETWORK_MONITOR] オンライン復帰のため自動リトライ停止');
-        timer.cancel();
-      } else {
-        AppLogger.info('❌ [NETWORK_MONITOR] まだオフライン、次回リトライまで10分');
+      if (!isOnline) {
+        // checkFirestoreConnection 内で stopAutoRetry() が呼ばれないため次をスケジュール
+        _scheduleNextRetry();
       }
+      // isOnline の場合は checkFirestoreConnection 内で stopAutoRetry() が呼ばれる
     });
   }
 
@@ -272,6 +295,7 @@ class NetworkMonitorService {
       _retryTimer?.cancel();
       _retryTimer = null;
     }
+    _retryAttemptCount = 0;
   }
 
   /// Firestore操作が成功したことを報告
@@ -318,7 +342,7 @@ class NetworkMonitorService {
     }
 
     final elapsed = DateTime.now().difference(_lastCheckTime!);
-    final remaining = retryInterval - elapsed;
+    final remaining = _currentRetryInterval - elapsed;
 
     // 残り時間がマイナスになる場合は0を返す
     return remaining.isNegative ? Duration.zero : remaining;

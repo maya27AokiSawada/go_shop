@@ -68,8 +68,11 @@ service cloud.firestore {
         );
       }
 
-      // 読み取り権限を get と list に分離
-      allow get: if request.auth != null;
+      // 読み取り権限：グループメンバーのみ
+      allow get: if request.auth != null && (
+        resource.data.ownerUid == request.auth.uid ||
+        request.auth.uid in resource.data.allowedUid
+      );
 
       // list（クエリ）：自分がメンバーのグループのみ取得可能
       // アカウント削除時に ownerUid でクエリするため、ownerUid もチェック
