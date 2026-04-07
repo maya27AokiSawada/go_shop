@@ -57,6 +57,7 @@ app.*.map.json
 
 # Firebase & Google Services (機密情報)
 google-services.json
+google-services-my.json
 GoogleService-Info.plist
 ios/GoogleService-Info.plist
 ios/GoogleService-Info-dev.plist
