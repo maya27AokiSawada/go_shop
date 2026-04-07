@@ -1,0 +1,7 @@
+title: GoShopping
+description: 家族の買い物リストを共有するアプリ
+theme: minima
+lang: ja
+
+# Markdownファイルをそのまま処理
+markdown: kramdown
