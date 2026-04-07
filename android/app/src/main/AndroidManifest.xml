@@ -32,7 +32,7 @@
         <meta-data android:name="flutterEmbedding" android:value="2" />
 
         <!-- AdMob App ID -->
-        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-7163325066755382~9574681576" />
+        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-7163325066755382~2053597705" />
     </application>
 
     <!-- Queries declaration to allow querying other apps that support ACTION_PROCESS_TEXT.

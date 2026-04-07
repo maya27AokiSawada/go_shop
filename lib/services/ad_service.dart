@@ -26,16 +26,21 @@ class AdService {
   InterstitialAd? _interstitialAd;
   bool _isAdLoaded = false;
 
-  /// 広告IDを環境別に取得（開発中は常にテスト広告IDを使用）
+  /// 広告IDを環境別に取得
   String get _bannerAdUnitId {
-    // 🔥 開発中は常にテスト広告IDを使用（本番IDは審査後に切り替え）
-    return dotenv.env['ADMOB_TEST_BANNER_AD_UNIT_ID'] ??
-        'ca-app-pub-3940256099942544/6300978111'; // テスト広告ID
+    if (F.appFlavor == Flavor.prod) {
+      return dotenv.env['ADMOB_BANNER_AD_UNIT_ID'] ??
+          'ca-app-pub-3940256099942544/6300978111';
+    } else {
+      return dotenv.env['ADMOB_TEST_BANNER_AD_UNIT_ID'] ??
+          'ca-app-pub-3940256099942544/6300978111';
+    }
   }
 
   String get _interstitialAdUnitId {
     if (F.appFlavor == Flavor.prod) {
-      return 'ca-app-pub-YOUR_ACTUAL_ID/interstitial'; // TODO: 環境変数化
+      return dotenv.env['ADMOB_INTERSTITIAL_AD_UNIT_ID'] ??
+          'ca-app-pub-3940256099942544/1033173712';
     } else {
       return dotenv.env['ADMOB_TEST_BANNER_AD_UNIT_ID'] ??
           'ca-app-pub-3940256099942544/1033173712';
