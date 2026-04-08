@@ -32,6 +32,7 @@
 - [firestore_data_clear_guide.md](firestore_data_clear_guide.md)
 - [firestore_debug_checklist.md](firestore_debug_checklist.md)
 - [github_actions_ci_cd.md](github_actions_ci_cd.md)
+- [jekyll_github_pages_guide.md](jekyll_github_pages_guide.md)
 - [ios_flavor_setup.md](ios_flavor_setup.md)
 - [privacy_protection.md](privacy_protection.md)
 - [riverpod_best_practices.md](riverpod_best_practices.md)
