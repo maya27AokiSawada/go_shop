@@ -5,10 +5,6 @@ lang: ja
 # Markdownファイルをそのまま処理
 markdown: kramdown
 
-# README.md をディレクトリの index として扱う
-readme_index:
-  enabled: true
-
 # Liquid エラーを警告扱いにして ${{ }} などで build が止まらないようにする
 liquid:
   error_mode: lax
