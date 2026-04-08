@@ -2,6 +2,8 @@ title: GoShopping
 description: 家族の買い物リストを共有するアプリ
 theme: minima
 lang: ja
+baseurl: /go_shop
+url: https://maya27aokisawada.github.io
 
 # Markdownファイルをそのまま処理
 markdown: kramdown
