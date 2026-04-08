@@ -15,3 +15,8 @@ defaults:
       path: ""
     values:
       render_with_liquid: false
+
+# daily_reports は大量の ${{ }} を含むため Jekyll 処理対象から除外
+# ※ specifications / knowledge_base / troubleshooting は公開対象
+exclude:
+  - daily_reports
