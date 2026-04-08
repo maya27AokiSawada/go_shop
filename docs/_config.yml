@@ -6,7 +6,9 @@ lang: ja
 liquid:
   error_mode: lax
 
-# daily_reports は大量の ${{ }} を含むため Jekyll 処理対象から除外
-# ※ specifications / knowledge_base / troubleshooting は公開対象
-exclude:
-  - daily_reports
+# daily_reports は ${{ }} を含むため Liquid 処理を無効化して公開
+defaults:
+  - scope:
+      path: "daily_reports"
+    values:
+      render_with_liquid: false
