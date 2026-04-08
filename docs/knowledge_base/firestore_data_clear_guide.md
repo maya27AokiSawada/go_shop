@@ -1,18 +1,20 @@
----
 # Firestoreデータ全クリア手順
 
 ## 目的
+
 Firebaseコンソールから全データを削除し、アプリを初期状態に戻す
 
 ## 🔥 Firebase Consoleでの操作手順
 
 ### 1. Firebase Consoleにアクセス
+
 1. [Firebase Console](https://console.firebase.google.com/) にアクセス
 2. `go_shop` プロジェクトを選択
 
 ### 2. Firestore Databaseで削除
 
 #### コレクション削除順序（重要）
+
 以下の順番で削除してください：
 
 1. **`invitations`** コレクション
@@ -46,6 +48,7 @@ Firebaseコンソールから全データを削除し、アプリを初期状態
 4. **確認ダイアログで「削除」をクリック**
 
 ⚠️ **注意事項**:
+
 - サブコレクションがある場合は先にサブコレクションを削除
 - ドキュメント数が多い場合、削除に時間がかかる場合があります
 - 削除は不可逆的です - 必ずバックアップを確認
@@ -58,11 +61,13 @@ Firebaseコンソールから全データを削除し、アプリを初期状態
 ## 📱 アプリでの確認手順
 
 ### 1. アプリを完全終了
+
 ```powershell
 # Windows の場合、タスクマネージャーでプロセスを終了
 ```
 
 ### 2. アプリデータをクリア（オプション）
+
 ```powershell
 # Hiveのローカルキャッシュもクリアする場合
 flutter clean
@@ -70,6 +75,7 @@ flutter pub get
 ```
 
 ### 3. アプリを再起動
+
 ```powershell
 flutter run
 ```
@@ -77,6 +83,7 @@ flutter run
 ### 4. 初回起動時の動作確認
 
 ✅ **期待される動作**:
+
 1. ログイン画面が表示される
 2. ログイン後、デフォルトグループが自動作成される
    - グループ名: `{ユーザー名}さんのグループ` または `MyLists`
@@ -86,16 +93,20 @@ flutter run
 ## 🔧 トラブルシューティング
 
 ### ケース1: デフォルトグループが作成されない
+
 **原因**: Firestore書き込みエラー
 **対処**:
+
 ```dart
 // lib/providers/shared_group_provider.dart の
 // _ensureDefaultGroupExists() メソッドを確認
 ```
 
 ### ケース2: 古いデータが残っている
+
 **原因**: Hiveキャッシュが残存
 **対処**:
+
 ```powershell
 flutter clean
 # アプリをアンインストール
@@ -103,9 +114,11 @@ flutter run
 ```
 
 ### ケース3: 認証エラー
+
 **原因**: Firestore Rulesで書き込みが拒否
 **対処**:
 Firebase Console > Firestore Database > ルール で以下を確認:
+
 ```
 allow create: if request.auth != null;
 ```
