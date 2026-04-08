@@ -26,7 +26,7 @@ Firebaseコンソールから全データを削除し、アプリを初期状態
    - Path: `/sharedLists`
 
 3. **`SharedGroups`** コレクション
-   - グループ情報（デフォルトグループ含む）
+   - グループ情報
    - Path: `/SharedGroups`
 
 4. **`users`** コレクション
@@ -85,21 +85,19 @@ flutter run
 ✅ **期待される動作**:
 
 1. ログイン画面が表示される
-2. ログイン後、デフォルトグループが自動作成される
-   - グループ名: `{ユーザー名}さんのグループ` または `MyLists`
-   - `groupId` = `currentUser.uid`
-3. 空の買い物リストが表示される
+2. ログイン後、グループ一覧は空（ユーザーが手動でグループを作成する）
+3. 「初回セットアップ」画面が表示される
 
 ## 🔧 トラブルシューティング
 
-### ケース1: デフォルトグループが作成されない
+### ケース1: グループが表示されない
 
-**原因**: Firestore書き込みエラー
+**原因**: Hive同期待ちまたはFirestore書き込みエラー
 **対処**:
 
 ```dart
 // lib/providers/shared_group_provider.dart の
-// _ensureDefaultGroupExists() メソッドを確認
+// AllGroupsNotifier.build() → forceSyncProvider の実行状態を確認
 ```
 
 ### ケース2: 古いデータが残っている
@@ -131,15 +129,14 @@ allow create: if request.auth != null;
 - [ ] `users` コレクションが空
 - [ ] アプリを再起動済み
 - [ ] ログイン成功
-- [ ] デフォルトグループ自動作成確認
-- [ ] デフォルトグループが削除不可能であることを確認
+- [ ] 初回セットアップ画面（InitialSetupWidget）が表示される
 
 ## 🎯 完了後の状態
 
 ```
 Firestore Database
 ├── SharedGroups/
-│   └── {uid}/  # デフォルトグループ（自動作成）
+│   └── （空・ユーザーがグループを作成すると追加される）
 ├── sharedLists/
 │   └── （空）
 ├── invitations/

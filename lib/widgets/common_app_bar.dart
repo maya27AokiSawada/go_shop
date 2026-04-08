@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart';
 import '../services/user_preferences_service.dart';
 import '../models/shared_group.dart';
@@ -248,6 +249,10 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
                     '⚪ グレー: 未ログイン',
                   ],
                 ),
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 8),
+                _buildLegalLinksSection(context),
               ],
             ),
           ),
@@ -259,6 +264,73 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
           ),
         ],
       ),
+    );
+  }
+
+  /// 法的リンクセクションを構築
+  Widget _buildLegalLinksSection(BuildContext context) {
+    final links = [
+      (
+        icon: Icons.privacy_tip_outlined,
+        label: 'プライバシーポリシー',
+        url:
+            'https://maya27aokisawada.github.io/go_shop/specifications/privacy_policy',
+      ),
+      (
+        icon: Icons.description_outlined,
+        label: '利用規約',
+        url:
+            'https://maya27aokisawada.github.io/go_shop/specifications/terms_of_service',
+      ),
+      (
+        icon: Icons.delete_outline,
+        label: 'データ・アカウント削除',
+        url:
+            'https://maya27aokisawada.github.io/go_shop/specifications/data_deletion',
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '法的情報',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        const SizedBox(height: 8),
+        ...links.map(
+          (link) => InkWell(
+            onTap: () async {
+              final uri = Uri.parse(link.url);
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+            borderRadius: BorderRadius.circular(6),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+              child: Row(
+                children: [
+                  Icon(link.icon, size: 18, color: Colors.blue.shade600),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      link.label,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.blue.shade700,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.open_in_new,
+                      size: 14, color: Colors.blue.shade400),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

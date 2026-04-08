@@ -3,6 +3,7 @@
 ## 現在の流れ (Windows アプリ起動時)
 
 ### 1. main.dart
+
 ```dart
 // Firebase初期化
 await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -12,6 +13,7 @@ home: const AppInitializeWidget(child: HomeScreen())
 ```
 
 ### 2. AppInitializeWidget
+
 ```dart
 // 初期化処理の実行順序:
 1. _checkAndHandleMigration()         // データマイグレーション
@@ -21,6 +23,7 @@ home: const AppInitializeWidget(child: HomeScreen())
 ```
 
 ### 3. UserInitializationService.startAuthStateListener()
+
 ```dart
 // アプリ起動時に一度実行
 WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -35,9 +38,11 @@ _auth.authStateChanges().listen((User? user) {
 });
 ```
 
-### 4. _initializeBasedOnUserState()
+### 4. \_initializeBasedOnUserState()
+
 ```dart
-// STEP1: AllGroupsProvider でグループ一覧取得（デフォルトグループ自動作成）
+// STEP1: AllGroupsProvider でグループ一覧取得（Hive優先、デフォルトグループ自動作成なし）
+// ※ デフォルトグループ機能は 2026-02-12 廃止済み
 await _ref.read(allGroupsProvider.future);
 
 // STEP2: Firebase認証状態チェック
@@ -45,27 +50,32 @@ final currentUser = _auth.currentUser;
 if (currentUser != null && _isFirebaseUserId(currentUser.uid)) {
   // サインイン済み → Firestoreと同期
   await _syncWithFirestore(currentUser);
-} else {
-  // 未サインイン → ローカルのみ
 }
+// 未サインイン時はログイン画面へ誘導（グループ自動作成は行わない）
 ```
 
-### 5. AllGroupsNotifier.build()
-```dart
-// グループ一覧取得
-final groups = await repository.getAllGroups();
+### 5. AllGroupsNotifier.build() （現在の実装）
 
-// デフォルトグループが存在しない場合は作成
-if (groups.isEmpty || !groups.any((g) => g.groupId == 'default_group')) {
-  await _ensureDefaultGroupExists();
-  // 作成後に再度取得
-  return await repository.getAllGroups();
+```dart
+// Hive優先アーキテクチャ: Hiveから即座にデータを返す
+// デフォルトグループ自動作成は廃止済み（_ensureDefaultGroupExists()は削除）
+final allGroupsRaw = await hiveRepo.getAllGroups();
+var allGroups = allGroupsRaw.where((g) => !g.isDeleted).toList();
+
+// allowedUid によるフィルタリング
+if (currentUser != null) {
+  allGroups = allGroups
+      .where((g) => g.allowedUid.contains(currentUser.uid))
+      .toList();
 }
+
+// グループが0個の場合は InitialSetupWidget が表示される
 ```
 
 ## 問題点の分析
 
 ### サインイン状態でアプリ起動時の課題
+
 1. **Firebase Auth currentUser が即座に取得できない可能性**
    - Firebase初期化直後は `currentUser` が `null` かもしれない
    - `authStateChanges()` ストリームの最初のイベントを待つ必要
@@ -80,6 +90,7 @@ if (groups.isEmpty || !groups.any((g) => g.groupId == 'default_group')) {
 ## 推奨改善案
 
 ### Option 1: Auth状態を待ってからグループ初期化
+
 ```dart
 // AppInitializeWidget で Auth状態を先に確認
 final authState = await ref.read(authStateProvider.future);
@@ -88,6 +99,7 @@ await ref.read(allGroupsProvider.future);
 ```
 
 ### Option 2: AllGroupsNotifier で Auth状態を監視
+
 ```dart
 @override
 Future<List<SharedGroup>> build() async {
@@ -105,6 +117,7 @@ Future<List<SharedGroup>> build() async {
 ```
 
 ### Option 3: Firebase Auth初期化完了を待つ
+
 ```dart
 // main.dart でFirebase Auth完全初期化を待つ
 await FirebaseAuth.instance.authStateChanges().first;

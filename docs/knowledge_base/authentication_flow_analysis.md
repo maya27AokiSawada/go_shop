@@ -1,4 +1,7 @@
-# 認証フロー分析と改善提案
+# 認証フロー分析（2026-02-12 更新）
+
+> ⚠️ **注意**: デフォルトグループ機能は 2026-02-12 に廃止済み。
+> 未サインイン状態での自動グループ作成は行わない。認証必須アーキテクチャに移行済み。
 
 ## 現在の実装状況
 
@@ -6,7 +9,7 @@
 
 1. **アプリ起動時**
    - サインイン状態: Firestoreからバックグラウンド同期 ✅
-   - 未サインイン: Hiveのみでデフォルトグループ作成 ✅
+   - 未サインイン: ログイン画面を表示（グループ作成は行わない）✅
 
 2. **基本的なデータ管理**
    - HybridSharedGroupRepository で Hive + Firestore ✅
@@ -14,71 +17,37 @@
 
 ### ❌ 未実装・要改善
 
-1. **サインアップ時のデータ移行**
-   - Hiveローカルデータ → Firestore への移行が不完全
-   - 現在はFirestore側で新規デフォルトグループ作成のみ
-
-2. **サインイン時の完全同期**
+1. **サインイン時の完全同期**
    - マージロジックが部分的
    - 競合解決の仕組みが不足
 
-3. **アクセス制御**
-   - 未サインイン時のデフォルトグループ制限が未実装
-   - 全ての機能がアクセス可能になっている
+## 廃止済み機能
 
-## 推奨改善方針
+- ~~未サインイン: Hiveのみでデフォルトグループ作成~~ → **廃止**
+- ~~デフォルトグループ(default_group) への自動移行~~ → **廃止**
+- ~~未サインイン時のデフォルトグループ制限~~ → **廃止**（認証必須に変更）
 
-### 1. サインアップ時のデータ移行強化
-
-```dart
-// 未サインイン → サインアップ時
-1. ローカルの default_group を検出
-2. Firestore に同じ内容でアップロード
-3. ローカルグループID を Firebase形式に変更
-4. 既存の買い物リストも移行
-```
-
-### 2. アクセス制御の実装
+## 現在の認証フロー
 
 ```dart
-// 未サインイン時の制限
-- デフォルトグループ(default_group)のみアクセス
-- 新規グループ作成を制限
-- 招待機能を無効化
-- クラウド同期機能を無効化
+// サインアップ時
+1. SharedPreferences + Hive を全クリア（Firebase Auth登録より先）
+2. Firebase Auth.signUp()
+3. UserPreferencesService.saveUserName()
+4. user.updateDisplayName()
+5. ref.invalidate(allGroupsProvider) 等
+6. forceSyncProvider で Firestore → Hive 同期
+
+// サインイン時
+1. Firebase Auth.signIn()
+2. Firestore からユーザー名取得 → SharedPreferences 保存
+3. forceSyncProvider（invalidate してから await）
+4. ref.invalidate(allGroupsProvider)
 ```
-
-### 3. 完全同期ロジック
-
-```dart
-// サインイン時の処理
-1. Firestore データ取得
-2. ローカル データ取得
-3. タイムスタンプベースの競合解決
-4. 双方向マージ実行
-5. 重複グループの統合
-```
-
-### 4. 実装優先度
-
-1. **高**: アクセス制御 (ユーザー体験の統一)
-2. **中**: サインアップ時データ移行 (データ損失防止)
-3. **低**: 完全同期ロジック (現状で基本動作は可能)
 
 ## 修正すべきファイル
-
-### アクセス制御
-
-- `lib/widgets/group_selector_widget.dart`
-- `lib/widgets/group_creation_with_copy_dialog.dart`
-- `lib/pages/shared_group_page.dart`
 
 ### データ移行
 
 - `lib/services/user_initialization_service.dart`
 - `lib/datastore/hybrid_shared_group_repository.dart`
-
-### UI制限
-
-- `lib/providers/shared_group_provider.dart` (createNewGroup制限)
-- `lib/widgets/invitation_dialog.dart` (招待機能制限)

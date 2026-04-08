@@ -213,7 +213,6 @@ if (currentUser != null) {
   ↓
 [Provider] shared_group_provider.dart
   ↓ AllGroupsNotifier.deleteGroup()
-  ↓ デフォルトグループチェック（削除禁止）
   ↓
 [Repository] hybrid_shared_group_repository.dart
   ↓ HybridSharedGroupRepository.deleteGroup()
@@ -225,14 +224,7 @@ if (currentUser != null) {
 [Result] Firestore削除 → Hiveキャッシュ削除
 ```
 
-**デフォルトグループ保護**:
-
-```dart
-// UI/Repository/Providerの3層で保護
-if (isDefaultGroup(group, currentUser)) {
-  throw Exception('デフォルトグループは削除できません');
-}
-```
+> ⚠️ **デフォルトグループ保護は 2026-02-12 に廃止済み**。全グループが削除可能（オーナー権限チェックのみ）。
 
 ---
 

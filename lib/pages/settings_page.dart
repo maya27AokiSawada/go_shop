@@ -76,10 +76,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 const SizedBox(height: 20),
                 const AppModeSwitcherPanel(),
                 const SizedBox(height: 20),
-                // if (isAuthenticated || true) ...[
-                //   const PrivacySettingsPanel(),
-                //   const SizedBox(height: 20),
-                // ],
+                const PrivacySettingsPanel(),
+                const SizedBox(height: 20),
                 const WhiteboardSettingsPanel(),
                 const SizedBox(height: 20),
                 if (F.appFlavor == Flavor.dev) ...[

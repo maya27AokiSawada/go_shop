@@ -23,23 +23,23 @@
 
 ### Hive TypeID 一覧（新規追加時は必ず確認）
 
-| typeId | クラス               |
-| ------ | -------------------- |
-| 0      | SharedGroupRole      |
-| 1      | SharedGroupMember    |
-| 2      | SharedGroup          |
-| 3      | SharedItem           |
-| 4      | SharedList           |
-| 6      | UserSettings         |
-| 7      | AcceptedInvitation   |
-| 8      | SyncStatus           |
-| 9      | GroupType            |
-| 10     | Permission           |
-| 11     | GroupStructureConfig |
-| 12     | ListType             |
-| 15     | DrawingStroke        |
-| 16     | DrawingPoint         |
-| 17     | Whiteboard           |
+| typeId | クラス             |
+| ------ | ------------------ |
+| 0      | SharedGroupRole    |
+| 1      | SharedGroupMember  |
+| 2      | SharedGroup        |
+| 3      | SharedItem         |
+| 4      | SharedList         |
+| 6      | UserSettings       |
+| 7      | AcceptedInvitation |
+| 8      | InvitationStatus   |
+| 9      | InvitationType     |
+| 10     | SyncStatus         |
+| 11     | GroupType          |
+| 12     | ListType           |
+| 15     | DrawingStroke      |
+| 16     | DrawingPoint       |
+| 17     | Whiteboard         |
 
 空き番号: 5、13、14、18 以降
 
