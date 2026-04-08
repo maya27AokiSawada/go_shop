@@ -15,15 +15,3 @@ defaults:
       path: ""
     values:
       render_with_liquid: false
-
-# 大量の日報・詳細ドキュメントを Jekyll 処理対象から除外（Liquid エラー回避）
-exclude:
-  - daily_reports
-  - knowledge_base
-  - specifications
-  - troubleshooting
-  - development_plan
-  - SECURITY_ACTION_REQUIRED.md
-  - sentry_setup.md
-  - qiita_article_closed_test_journey.md
-  - whiteboard_stroke_save_flow.md
