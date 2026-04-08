@@ -162,8 +162,12 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
   }
 
   bool _shouldRecoverFirestoreForAuthenticatedUser() {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    return currentUser != null && _firestoreRepo == null;
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      return currentUser != null && _firestoreRepo == null;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> _ensureFirestoreReadyForAuthenticatedUser() async {
@@ -671,9 +675,12 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
 
       final isGroupRenamed =
           previousGroup != null && previousGroup.groupName != group.groupName;
-      final renamerName = FirebaseAuth.instance.currentUser?.displayName ??
-          FirebaseAuth.instance.currentUser?.email ??
-          'ユーザー';
+      String renamerName = 'ユーザー';
+      try {
+        renamerName = FirebaseAuth.instance.currentUser?.displayName ??
+            FirebaseAuth.instance.currentUser?.email ??
+            'ユーザー';
+      } catch (_) {}
 
       // 1. Hiveを即座に更新
       await _hiveRepo.saveGroup(group);
