@@ -52,11 +52,11 @@ jobs:
           echo "✅ Total: 76 tests"
 
       - name: Build Android APK (dev flavor)
-        run: flutter build apk --release --flavor dev
+        run: flutter build apk --debug --flavor dev
 
       # APKをアーティファクトとしてアップロード
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: release-apk-dev
-          path: build/app/outputs/flutter-apk/app-dev-release.apk
+          name: debug-apk-dev
+          path: build/app/outputs/flutter-apk/app-dev-debug.apk
