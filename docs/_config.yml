@@ -2,19 +2,9 @@ title: GoShopping
 description: 家族の買い物リストを共有するアプリ
 lang: ja
 
-# Markdownファイルをそのまま処理
-markdown: kramdown
-
 # Liquid エラーを警告扱いにして ${{ }} などで build が止まらないようにする
 liquid:
   error_mode: lax
-
-# ${{ }} などの GitHub Actions 式が Liquid テンプレートとして解釈されないよう無効化
-defaults:
-  - scope:
-      path: ""
-    values:
-      render_with_liquid: false
 
 # daily_reports は大量の ${{ }} を含むため Jekyll 処理対象から除外
 # ※ specifications / knowledge_base / troubleshooting は公開対象
