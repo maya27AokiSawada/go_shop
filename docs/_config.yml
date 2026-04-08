@@ -5,3 +5,10 @@ lang: ja
 
 # Markdownファイルをそのまま処理
 markdown: kramdown
+
+# ${{ }} などの GitHub Actions 式が Liquid テンプレートとして解釈されないよう無効化
+defaults:
+  - scope:
+      path: ""
+    values:
+      render_with_liquid: false
