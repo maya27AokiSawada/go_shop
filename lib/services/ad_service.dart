@@ -42,8 +42,8 @@ class AdService {
       return dotenv.env['ADMOB_INTERSTITIAL_AD_UNIT_ID'] ??
           'ca-app-pub-3940256099942544/1033173712';
     } else {
-      return dotenv.env['ADMOB_TEST_BANNER_AD_UNIT_ID'] ??
-          'ca-app-pub-3940256099942544/1033173712';
+      // dev: インタースティシャル専用テストID（バナーのテストIDと別物）
+      return 'ca-app-pub-3940256099942544/1033173712';
     }
   }
 

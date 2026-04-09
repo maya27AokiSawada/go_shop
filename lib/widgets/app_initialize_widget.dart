@@ -9,6 +9,8 @@ import '../services/notification_service.dart';
 import '../services/user_preferences_service.dart';
 import '../services/user_specific_hive_service.dart';
 import '../services/periodic_purchase_service.dart'; // 🆕 定期購入サービス
+import '../services/ad_service.dart';
+import 'dart:io' show Platform;
 import '../widgets/data_migration_widget.dart';
 import '../utils/app_logger.dart';
 import '../helpers/user_id_change_helper.dart';
@@ -242,6 +244,17 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
           }
         } catch (e) {
           Log.warning('⚠️ [APP_INIT] 通知チェックエラー（続行）: $e');
+        }
+      }
+
+      // AdMob SDK 初期化（Android/iOSのみ）
+      if (Platform.isAndroid || Platform.isIOS) {
+        try {
+          final adService = ref.read(adServiceProvider);
+          await adService.initialize();
+          Log.info('✅ AdMob SDK 初期化完了');
+        } catch (e) {
+          Log.warning('⚠️ AdMob SDK 初期化エラー（続行）: $e');
         }
       }
 
