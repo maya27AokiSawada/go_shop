@@ -78,5 +78,6 @@
       "args": ["-y", "firebase-tools@latest", "mcp"]
     }
   },
-  "accessibility.hideAccessibleView": true
+  "accessibility.hideAccessibleView": true,
+  "java.configuration.updateBuildConfiguration": "interactive"
 }
