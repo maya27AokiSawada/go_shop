@@ -26,14 +26,10 @@ service cloud.firestore {
                                resource.data.userId == request.auth.uid;
     }
 
-    // 招待コレクション（トップレベル）：QR招待システム用
+    // 招待コレクション（トップレベル）：レガシー。QR招待（v3.x）では使用しない
+    // SharedGroups/{groupId}/invitations/ サブコレクションに移行済み
     match /invitations/{invitationId} {
-      // 認証済みユーザーは招待の読み取り・作成・更新が可能
-      allow read, create, update: if request.auth != null;
-
-      // 削除は招待作成者のみ可能
-      allow delete: if request.auth != null &&
-                       resource.data.invitedBy == request.auth.uid;
+      allow read, write: if false;
     }
 
     // 招待ログコレクション：招待受諾の記録用
@@ -203,12 +199,10 @@ service cloud.firestore {
     }
 
     // テストステータスコレクション：テスト実施状態を管理
+    // 読み取りは認証済みユーザーのみ、書き込みはAdmin SDKからのみ（Firebase Console）
     match /testingStatus/{document=**} {
-      // 読み取り：認証済みユーザーのみ
       allow read: if request.auth != null;
-
-      // 書き込み：認証済みユーザーのみ（デバッグボタン用）
-      allow write: if request.auth != null;
+      allow write: if false;  // 管理者のみ（Firebase Console / Admin SDK 経由）
     }
   }
 }
