@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../config/app_mode_config.dart';
 
 class AuthStateHelper {
-  
-
   /// 認証状態に基づいてUI機能を制限する
   static bool canUseAdvancedFeatures(User? user) {
     return user != null && !_isTemporaryUser(user);
@@ -21,7 +20,9 @@ class AuthStateHelper {
 
   /// 一時ユーザー（サインアップ前）かどうかを判定
   static bool _isTemporaryUser(User user) {
-    return user.isAnonymous || user.uid.startsWith('temp_') || user.uid.startsWith('mock_');
+    return user.isAnonymous ||
+        user.uid.startsWith('temp_') ||
+        user.uid.startsWith('mock_');
   }
 
   /// サインアップ前の制限付きUIを構築
@@ -81,7 +82,7 @@ class AuthStateHelper {
         label: const Text('QRコードスキャン'),
       );
     }
-    
+
     return ElevatedButton.icon(
       onPressed: onSignUpPrompt,
       icon: const Icon(Icons.lock),
@@ -106,7 +107,7 @@ class AuthStateHelper {
         label: const Text('メンバー招待'),
       );
     }
-    
+
     return ElevatedButton.icon(
       onPressed: onSignUpPrompt,
       icon: const Icon(Icons.lock),
@@ -143,7 +144,7 @@ class AuthStateHelper {
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 32),
           child: Text(
-            '家族やグループで買い物リストを共有して、\nより便利にお買い物を楽しみましょう',
+            '家族やグループでリストを共有して、\nより便利に管理しましょう',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 16,
@@ -166,11 +167,12 @@ class AuthStateHelper {
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Row(
+                Row(
                   children: [
-                    Icon(Icons.check_circle, color: Colors.green, size: 20),
-                    SizedBox(width: 8),
-                    Text('個人用買い物リスト作成'),
+                    const Icon(Icons.check_circle,
+                        color: Colors.green, size: 20),
+                    const SizedBox(width: 8),
+                    Text('個人用${AppModeSettings.config.sharedList}作成'),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -214,7 +216,7 @@ class AuthStateHelper {
         content: const Text(
           'この機能を利用するには、アカウント作成が必要です。\n'
           'サインアップすると以下の機能が利用できます：\n\n'
-          '• グループでの買い物リスト共有\n'
+          '• グループでのリスト共有\n'
           '• QRコードでの簡単招待\n'
           '• メンバー管理機能\n'
           '• バックアップとデータ同期',

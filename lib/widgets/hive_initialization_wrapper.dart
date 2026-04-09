@@ -113,7 +113,7 @@ class _HiveInitializationWrapperState
 
             // サブタイトル
             Text(
-              '家族の買い物リスト',
+              '家族のリスト',
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.blue.shade600,

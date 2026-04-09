@@ -10,6 +10,7 @@ import '../providers/shared_list_provider.dart';
 import '../utils/app_logger.dart';
 import '../services/error_log_service.dart';
 import '../utils/snackbar_helper.dart';
+import '../config/app_mode_config.dart';
 
 /// 買い物リスト画面のヘッダーウィジェット
 /// - カレントグループ表示
@@ -152,7 +153,7 @@ class SharedListHeaderWidget extends ConsumerWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '買い物リストがありません',
+              '${AppModeSettings.config.sharedList}がありません',
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.amber.shade900,
@@ -302,7 +303,7 @@ class SharedListHeaderWidget extends ConsumerWidget {
             horizontal: 16,
             vertical: isNarrowLandscape ? 8 : 24,
           ),
-          title: const Text('新しい買い物リストを作成'),
+          title: Text('新しい${AppModeSettings.config.sharedList}を作成'),
           content: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
             child: SingleChildScrollView(

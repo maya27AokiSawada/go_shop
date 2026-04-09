@@ -7,6 +7,7 @@ import '../models/shared_group.dart';
 import '../pages/notification_history_page.dart';
 import '../pages/error_history_page.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import '../config/app_mode_config.dart';
 
 /// 同期状態の種類
 enum SyncState {
@@ -226,7 +227,7 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
                   '基本的な使い方',
                   [
                     'グループを作成して、メンバーを招待できます',
-                    '買い物リストを共有して、リアルタイムで同期します',
+                    '${AppModeSettings.config.sharedList}を共有して、リアルタイムで同期します',
                     'アイテムを追加・購入完了マークで管理できます',
                   ],
                 ),
@@ -397,9 +398,9 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
                   _buildVersionRow('ビルド番号', packageInfo.buildNumber),
                   _buildVersionRow('パッケージ名', packageInfo.packageName),
                   const SizedBox(height: 16),
-                  const Text(
-                    '買い物リスト共有アプリ',
-                    style: TextStyle(color: Colors.grey),
+                  Text(
+                    '${AppModeSettings.config.sharedList}共有アプリ',
+                    style: const TextStyle(color: Colors.grey),
                   ),
                   const SizedBox(height: 8),
                   const Text(

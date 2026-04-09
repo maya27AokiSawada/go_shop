@@ -6,6 +6,7 @@ import '../providers/page_index_provider.dart';
 import '../widgets/accept_invitation_widget.dart';
 import '../utils/app_logger.dart';
 import '../utils/snackbar_helper.dart';
+import '../config/app_mode_config.dart';
 
 /// 初回セットアップ画面
 ///
@@ -41,7 +42,7 @@ class InitialSetupWidget extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                '買い物リストをグループで共有できるアプリです。\nまずはグループを作成するか、\n既存のグループに参加してください。',
+                '${AppModeSettings.config.sharedList}をグループで共有できます。\nまずはグループを作成するか、\n既存のグループに参加してください。',
                 style: Theme.of(context).textTheme.bodyLarge,
                 textAlign: TextAlign.center,
               ),

@@ -7,6 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/shared_group_provider.dart';
 import '../../services/user_preferences_service.dart';
 import '../../utils/app_logger.dart';
+import '../../config/app_mode_config.dart';
 
 /// アカウント削除セクション（認証済みユーザー向け）
 class AccountDeletionSection extends ConsumerStatefulWidget {
@@ -114,16 +115,16 @@ class _AccountDeletionSectionState
               Text('アカウント削除'),
             ],
           ),
-          content: const Text(
+          content: Text(
             '⚠️ この操作は取り消せません\n\n'
             '以下のデータが完全に削除されます:\n'
             '• アカウント情報\n'
-            '• 全ての買い物リスト\n'
+            '• 全ての${AppModeSettings.config.sharedList}\n'
             '• 作成したグループ（オーナーの場合）\n'
             '• ホワイトボードデータ\n'
             '• 通知履歴\n\n'
             '本当に削除しますか？',
-            style: TextStyle(fontSize: 15),
+            style: const TextStyle(fontSize: 15),
           ),
           actions: [
             TextButton(

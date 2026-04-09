@@ -15,6 +15,7 @@ import '../services/ad_service.dart';
 import '../services/app_launch_service.dart';
 import '../services/error_log_service.dart';
 import '../helpers/user_id_change_helper.dart';
+import '../config/app_mode_config.dart';
 
 import '../widgets/user_name_panel_widget.dart';
 import '../widgets/news_and_ads_panel_widget.dart';
@@ -418,7 +419,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    '買い物リスト共有アプリ',
+                    'リスト共有アプリ',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 16,
@@ -454,7 +455,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                         ),
                         const SizedBox(height: 12),
                         _buildPrivacyPoint('最初に共有される情報は、ログイン情報と表示名のみです'),
-                        _buildPrivacyPoint('買い物リストは、あなたが共有したユーザーとのみ共有されます'),
+                        _buildPrivacyPoint('リストは、あなたが共有したユーザーとのみ共有されます'),
                         _buildPrivacyPoint('グループに参加するユーザーも同じポリシーが適用されます'),
                         _buildPrivacyPoint('アプリの利用にはFirebaseアカウントが必須です'),
                       ],
@@ -872,7 +873,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                       ),
                       const SizedBox(height: 12),
                       _buildInfoPoint('画面下の「グループ」タブでグループを管理できます'),
-                      _buildInfoPoint('グループを選択すると買い物リストが表示されます'),
+                      _buildInfoPoint(
+                          'グループを選択すると${AppModeSettings.config.sharedList}が表示されます'),
                       _buildInfoPoint('QRコードで家族や友達を招待できます'),
                       _buildInfoPoint('「設定」タブでアプリの設定ができます'),
                     ],
