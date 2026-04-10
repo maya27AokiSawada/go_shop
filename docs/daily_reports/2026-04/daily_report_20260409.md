@@ -20,7 +20,7 @@
 
 **Problem / Root Cause**:
 
-```
+```firestore
 // ❌ 問題1: レガシー /invitations コレクション（トップレベル）が全認証ユーザに読み書き可能
 match /invitations/{invitationId} {
   allow read, write: if request.auth != null;
@@ -35,7 +35,7 @@ match /testingStatus/{document=**} {
 
 **Solution**:
 
-```
+```firestore
 // ✅ 修正後: /invitations トップレベルをロック（QR招待はサブパス使用のため不要）
 match /invitations/{invitationId} {
   allow read, write: if false;
