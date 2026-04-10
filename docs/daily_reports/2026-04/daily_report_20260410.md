@@ -4,6 +4,10 @@
 
 - [x] `home_page.dart` 未使用 import の整理（引き継ぎより）
 - [x] `use_build_context_synchronously` lint 警告を修正
+- [x] デバッグスクリプトの整理（`deprecated/` へ移動）
+- [x] Firebase Cloud Functions: Firestore 自動バックアップ機能実装
+- [x] ToDoモード UI の表示切り替え修正（タスク/買い物の表示を動的に変更）
+- [x] `firebase_auth` バージョンアップ（Windowsビルドエラー修正）
 - [ ] TODOモード UI の通しテスト（実機確認）
 
 ---
@@ -112,9 +116,135 @@ if (context.mounted) {
 
 ---
 
+### 3. デバッグスクリプト整理 ✅
+
+**Purpose**: ルートに散在していたデバッグ用 Dart スクリプトを `deprecated/` フォルダへ移動し、`analysis_options.yaml` から除外
+
+**Background**: `debug_*.dart` などのデバッグ専用スクリプトがプロジェクトルートに残存しており、`flutter analyze` の対象になっていた。
+
+**Solution**:
+
+- `debug_android_groups.dart` 等 12ファイルを `deprecated/` へ移動
+- `analysis_options.yaml` に `exclude: [deprecated/**]` を追加
+
+**Modified Files**:
+
+- `deprecated/` （12ファイル移動先）
+- `analysis_options.yaml`
+
+**Commits**: `58daab1`, `cd02773`
+**Status**: ✅ 完了
+
+---
+
+### 4. Firebase Cloud Functions: Firestore 自動バックアップ機能実装 ✅
+
+**Purpose**: 毎日 JST 00:00 に Firestore データを GCS へ自動バックアップする Cloud Functions 実装
+
+**Background**: データ消失リスクへの対策として、スケジュール実行によるバックアップと、管理者・ユーザー向けリストア関数を追加。
+
+**Implementation**:
+
+| 関数名                     | 種別                       | 内容                                                                                                            |
+| -------------------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `scheduledFirestoreBackup` | Scheduled (毎日 00:00 JST) | SharedGroups / SharedLists / items / whiteboards / notifications を GCS へ JSON スナップショット保存。5日分保持 |
+| `listBackups`              | Callable                   | バックアップ一覧取得                                                                                            |
+| `restoreUserData`          | Callable                   | `ownerUid` 指定でユーザーのグループをリストア                                                                   |
+| `restoreAllData`           | Callable                   | 全データリストア（管理者シークレット保護）                                                                      |
+
+**Modified Files**:
+
+- `functions/index.js`（新規）
+- `functions/package.json`（新規）
+- `functions/package-lock.json`（新規）
+- `functions/.gitignore`（新規）
+- `firebase.json`（functions 設定追加）
+
+**Commit**: `cd444a9`
+**Push**: `origin/future` + `origin/oneness` へ反映済み
+**Status**: ✅ 完了（デプロイは別途必要）
+
+---
+
+### 5. ToDoモード UI 表示切り替え修正 ✅
+
+**Purpose**: ToDoモード時にリスト画面・編集モーダルの文言やアイコンをタスク向けに切り替え
+
+**Background**: ToDoモードでも「買い物アイテムを追加」「買い物アイテムがありません」等、買い物向けのテキストがそのまま表示されていた。
+
+**Problem / Root Cause**:
+
+```dart
+// ❌ 常に買い物向けテキストを使用
+return const _SharedListPlaceholder(
+  icon: Icons.add_shopping_cart,
+  message: '買い物アイテムがありません',
+);
+
+// ❌ モーダルも同様
+Text(isEditMode ? 'アイテムを編集' : '買い物アイテムを追加')
+```
+
+**Solution**:
+
+```dart
+// ✅ listType で分岐（まず実装）→ appModeNotifierProvider で判定に修正
+final isTodo = ref.watch(appModeNotifierProvider) == AppMode.todo;
+
+return _SharedListPlaceholder(
+  icon: isTodo ? Icons.checklist : Icons.add_shopping_cart,
+  message: isTodo ? 'タスクがありません' : '買い物アイテムがありません',
+);
+
+// モーダルタイトルも動的に
+isTodo ? (isEditMode ? 'タスクを編集' : 'タスクを追加')
+       : (isEditMode ? 'アイテムを編集' : '買い物アイテムを追加')
+```
+
+**Note**: 最初は `currentListProvider?.listType == ListType.todo` で実装したが、より正確な `appModeNotifierProvider` を使う方式に修正。
+
+**Modified Files**:
+
+- `lib/pages/shared_list_page.dart`
+- `lib/widgets/shared_item_edit_modal.dart`
+
+**Commits**: `2921332`, `e5dacda`
+**Status**: ✅ 実装完了（実機通しテストは翌日）
+
+---
+
+### 6. firebase_auth バージョンアップ（Windows ビルドエラー修正）✅
+
+**Purpose**: `firebase_auth ^6.1.0` → `^6.3.0` にアップグレードして Windows ビルドエラーを解消
+
+**Background**: `flutter build apk --release --flavor prod` を試みた際に Windows ビルド側でも依存関係エラーが発生。`firebase_auth 6.3.0` で修正済みだったため更新。
+
+**Solution**:
+
+```yaml
+# ❌ Before
+firebase_auth: ^6.1.0
+
+# ✅ After
+firebase_auth: ^6.3.0
+```
+
+**Modified Files**:
+
+- `pubspec.yaml`
+
+**Commit**: `9244266`
+**Status**: ✅ 完了
+
+---
+
 ## 🐛 発見された問題
 
-（なし）
+### リリースビルド失敗 ⚠️
+
+- **症状**: `flutter build apk --release --flavor prod` が exit code 1 で失敗
+- **原因**: 調査中（`firebase_auth` アップグレード後も継続するか未確認）
+- **状態**: 未解決・翌日調査予定
 
 ---
 
@@ -127,16 +257,17 @@ if (context.mounted) {
 3. ✅ TODOモード時の「買い物リスト」ハードコード表示（2026-04-09）
 4. ✅ lint 警告: 非推奨API・unused_import・avoid_print（2026-04-10 commit `351356e`）
 5. ✅ lint 警告: use_build_context_synchronously（2026-04-10 commit `4ea4b0d`）
+6. ✅ ToDoモード UI テキスト/アイコン切り替え漏れ（2026-04-10 commits `2921332`, `e5dacda`）
 
-### 未着手 ⏳
+### 対応中 🔄
 
-（なし）
+1. 🔄 リリースAPK ビルドエラー（Priority: High）
 
----
+### 翌日継続 ⏳
 
-## 💡 技術的学習事項
-
-### `context.mounted` vs `isMounted` コールバック
+- ⏳ TODOモード UI 通しテスト（実機確認）
+- ⏳ Firebase Functions デプロイ
+- ⏳ リリースAPK ビルドエラー原因調査
 
 **問題パターン**:
 
@@ -175,13 +306,14 @@ ScaffoldMessenger.of(context).showSnackBar(...);
 
 ## 🗓 翌日（2026-04-11）の予定
 
-1. TODOモード UI の通しテスト（実機確認）
-2. 残存 lint 警告のスキャン（`flutter analyze` で確認）
+1. リリースAPK ビルドエラー原因調査・修正（Priority: High）
+2. TODOモード UI の通しテスト（実機確認）
+3. Firebase Functions デプロイ（`firebase deploy --only functions`）
 
 ---
 
 ## 📝 ドキュメント更新
 
-| ドキュメント           | 更新内容                                                      |
-| ---------------------- | ------------------------------------------------------------- |
-| `instructions/` その他 | 更新なし（理由: lint 修正のみ、アーキテクチャ・仕様変更なし） |
+| ドキュメント           | 更新内容                                                                               |
+| ---------------------- | -------------------------------------------------------------------------------------- |
+| `instructions/` その他 | 更新なし（理由: lint 修正・UI テキスト修正・バックアップ関数は仕様書レベルの変更なし） |
