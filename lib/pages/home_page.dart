@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive/hive.dart';
-import '../models/shared_group.dart';
-import '../models/shared_list.dart';
 import '../providers/auth_provider.dart';
 import '../providers/hive_provider.dart';
 import '../providers/shared_group_provider.dart';

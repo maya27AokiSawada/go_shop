@@ -3,19 +3,19 @@ import '../models/shared_list.dart';
 
 abstract class SharedListRepository {
   // === Legacy Methods (for backward compatibility) ===
-  @deprecated
+  @Deprecated('Use createSharedList / getSharedLists instead')
   Future<SharedList?> getSharedList(String groupId);
   Future<void> addItem(SharedList list);
-  @deprecated
+  @Deprecated('Use deleteSharedList instead')
   Future<void> clearSharedList(String groupId);
-  @deprecated
+  @Deprecated('Use addItem instead')
   Future<void> addSharedItem(String groupId, SharedItem item);
-  @deprecated
+  @Deprecated('Use removeItem instead')
   Future<void> removeSharedItem(String groupId, SharedItem item);
-  @deprecated
+  @Deprecated('Use updateItemStatus instead')
   Future<void> updateSharedItemStatus(String groupId, SharedItem item,
       {required bool isPurchased});
-  @deprecated
+  @Deprecated('Use getOrCreateSharedList instead')
   Future<SharedList> getOrCreateList(String groupId, String groupName);
 
   // === New Multi-List Methods ===

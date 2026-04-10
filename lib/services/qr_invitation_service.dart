@@ -401,10 +401,8 @@ class QRInvitationService {
         embeddedImage: null,
         embeddedImageStyle: null,
         errorStateBuilder: (cxt, err) {
-          return Container(
-            child: const Center(
-              child: Text('QRコードの生成に失敗しました'),
-            ),
+          return const Center(
+            child: Text('QRコードの生成に失敗しました'),
           );
         },
       ),

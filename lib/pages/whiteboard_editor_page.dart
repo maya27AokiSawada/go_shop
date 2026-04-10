@@ -1172,7 +1172,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
 
     return PopScope(
       canPop: false,
-      onPopInvoked: (didPop) async {
+      onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
         if (_isClearing) {
           SnackBarHelper.showWarning(context, '全消去中です。完了までお待ちください');
@@ -1271,7 +1271,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
                           _captureCurrentDrawing();
                           setState(() {
                             _canvasScale += 0.5;
-                            print('🔍 ズームイン: ${_canvasScale}x');
+                            AppLogger.debug('🔍 ズームイン: ${_canvasScale}x');
                             _controller?.dispose();
                             _controller = _createSignatureController(
                               penColor: _selectedColor,
@@ -1286,7 +1286,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
                           _captureCurrentDrawing();
                           setState(() {
                             _canvasScale -= 0.5;
-                            print('🔍 ズームアウト: ${_canvasScale}x');
+                            AppLogger.debug('🔍 ズームアウト: ${_canvasScale}x');
                             _controller?.dispose();
                             _controller = _createSignatureController(
                               penColor: _selectedColor,
@@ -1345,7 +1345,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
                                                 gridSize: 50.0 *
                                                     _canvasScale, // ズームに応じてグリッドサイズも変更
                                                 color: Colors.grey
-                                                    .withOpacity(0.2),
+                                                    .withValues(alpha: 0.2),
                                               ),
                                             ),
                                           ),
@@ -1508,7 +1508,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
       child: Center(
         child: Icon(
           Icons.pan_tool,
-          color: Colors.grey.withOpacity(0.5),
+          color: Colors.grey.withValues(alpha: 0.5),
           size: 32,
         ),
       ),

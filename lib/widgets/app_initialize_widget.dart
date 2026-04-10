@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 
 import '../services/data_version_service.dart';
 import '../services/user_initialization_service.dart';
 import '../services/notification_service.dart';
-import '../services/user_preferences_service.dart';
 import '../services/user_specific_hive_service.dart';
 import '../services/periodic_purchase_service.dart'; // 🆕 定期購入サービス
 import '../services/ad_service.dart';
@@ -19,7 +17,6 @@ import '../config/app_mode_config.dart';
 import '../providers/user_settings_provider.dart';
 import '../providers/shared_group_provider.dart'; // forceSyncProvider
 import '../providers/hive_provider.dart';
-import '../models/shared_group.dart';
 
 /// アプリ初期化を管理するウィジェット
 ///

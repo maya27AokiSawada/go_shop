@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:signature/signature.dart';
 import 'package:uuid/uuid.dart';
 import '../models/whiteboard.dart';
+import '../utils/app_logger.dart';
 
 const _uuid = Uuid();
 
@@ -46,7 +47,7 @@ class DrawingConverter {
           strokes.add(DrawingStroke(
             strokeId: _uuid.v4(),
             points: List.from(currentStrokePoints),
-            colorValue: strokeColor.value,
+            colorValue: strokeColor.toARGB32(),
             strokeWidth: strokeWidth,
             createdAt: DateTime.now(),
             authorId: authorId,
@@ -61,7 +62,7 @@ class DrawingConverter {
         strokes.add(DrawingStroke(
           strokeId: _uuid.v4(),
           points: currentStrokePoints,
-          colorValue: strokeColor.value,
+          colorValue: strokeColor.toARGB32(),
           strokeWidth: strokeWidth,
           createdAt: DateTime.now(),
           authorId: authorId,
@@ -72,8 +73,9 @@ class DrawingConverter {
       return strokes;
     } catch (e, stackTrace) {
       // 🔥 Windows版クラッシュ対策：詳細なエラーログ
-      print('❌ [DRAWING_CONVERTER] captureFromSignatureController エラー: $e');
-      print('📍 [DRAWING_CONVERTER] スタックトレース: $stackTrace');
+      AppLogger.error(
+          '❌ [DRAWING_CONVERTER] captureFromSignatureController エラー: $e');
+      AppLogger.error('📍 [DRAWING_CONVERTER] スタックトレース: $stackTrace');
       return []; // 空リストを返して処理継続
     }
   }

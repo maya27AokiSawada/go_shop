@@ -57,7 +57,6 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
   // 🛡️ 本格的初期化状態管理
   InitializationStatus _initStatus = InitializationStatus.notStarted;
   bool _isInitialized = false;
-  bool _isInitializing = false;
   String? _initializationError;
   DateTime? _initStartTime;
   int _firestoreRetryCount = 0;
@@ -189,7 +188,6 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
   }
 
   Future<void> _performFirestoreInitialization() async {
-    _isInitializing = true;
     AppLogger.info('🔄 [HYBRID_REPO] 安全なFirestore初期化開始...');
 
     try {
@@ -235,7 +233,6 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
 
       AppLogger.info('🔧 [HYBRID_REPO] 安全フォールバック完了: Hiveのみで動作継続');
     } finally {
-      _isInitializing = false;
       AppLogger.info('✅ [HYBRID_REPO] 初期化プロセス完了 - システム動作準備OK');
     }
   }
