@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shared_list.dart';
+import '../providers/current_list_provider.dart';
 import '../providers/shared_list_provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/app_logger.dart';
@@ -76,6 +77,7 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
   @override
   Widget build(BuildContext context) {
     final isEditMode = widget.item != null;
+    final isTodo = ref.watch(currentListProvider)?.listType == ListType.todo;
 
     return SafeArea(
       top: false,
@@ -96,7 +98,9 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      isEditMode ? 'アイテムを編集' : '買い物アイテムを追加',
+                      isTodo
+                          ? (isEditMode ? 'タスクを編集' : 'タスクを追加')
+                          : (isEditMode ? 'アイテムを編集' : '買い物アイテムを追加'),
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,

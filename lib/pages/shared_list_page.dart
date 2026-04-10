@@ -206,9 +206,10 @@ class _SharedItemsListWidget extends ConsumerWidget {
         final activeItems = liveList.activeItems;
 
         if (activeItems.isEmpty) {
-          return const _SharedListPlaceholder(
-            icon: Icons.add_shopping_cart,
-            message: '買い物アイテムがありません',
+          final isTodo = liveList.listType == ListType.todo;
+          return _SharedListPlaceholder(
+            icon: isTodo ? Icons.checklist : Icons.add_shopping_cart,
+            message: isTodo ? 'タスクがありません' : '買い物アイテムがありません',
           );
         }
 
