@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shared_list.dart';
-import '../providers/current_list_provider.dart';
+import '../config/app_mode_config.dart';
+import '../providers/app_mode_notifier_provider.dart';
 import '../providers/shared_list_provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/app_logger.dart';
@@ -77,7 +78,7 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
   @override
   Widget build(BuildContext context) {
     final isEditMode = widget.item != null;
-    final isTodo = ref.watch(currentListProvider)?.listType == ListType.todo;
+    final isTodo = ref.watch(appModeNotifierProvider) == AppMode.todo;
 
     return SafeArea(
       top: false,
