@@ -35,7 +35,7 @@ dependencies:
 
   # Firebase
   firebase_core: ^4.1.1
-  firebase_auth: ^6.1.0
+  firebase_auth: ^6.3.0
   cloud_firestore: ^6.0.2
   firebase_crashlytics: ^5.0.5 # クラッシュログ収集（Android/iOS）
   sentry_flutter: ^8.9.0 # クラッシュログ収集（Windows/Linux/macOS）
