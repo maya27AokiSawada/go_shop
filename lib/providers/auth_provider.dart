@@ -198,6 +198,7 @@ class FirebaseAuthService {
               '📝 SharedPreferences からユーザー名を復元: ${AppLogger.maskName(userName)}');
         } else {
           // ユーザー名がない場合はエラー
+          if (!context.mounted) return;
           UiHelper.showWarningMessage(
               context, 'ユーザー名を入力してください。または画面上部に名前を入力してください。');
           Log.warning('⚠️ ユーザー名が見つかりません - 入力不可');
@@ -217,12 +218,14 @@ class FirebaseAuthService {
       );
 
       if (userCredential == null) {
+        if (!context.mounted) return;
         UiHelper.showErrorMessage(context, 'ログインに失敗しました');
         return;
       }
 
       final currentUser = userCredential.user;
       if (currentUser != null) {
+        if (!context.mounted) return;
         await UserIdChangeHelper.ensureUserContextReady(
           ref: ref,
           context: context,
@@ -238,6 +241,7 @@ class FirebaseAuthService {
         shouldRemember: rememberEmail,
       );
 
+      if (!context.mounted) return;
       UiHelper.showSuccessMessage(context, 'ログインしました');
 
       // サインイン成功後の処理（同期的に実行）
@@ -262,6 +266,7 @@ class FirebaseAuthService {
     } catch (e) {
       Log.error('🚨 ログイン失敗: $e');
       await ErrorLogService.logOperationError('サインイン', '$e');
+      if (!context.mounted) return;
       UiHelper.showErrorMessage(context, 'ログインに失敗しました: $e');
     }
   }
@@ -314,6 +319,7 @@ class FirebaseAuthService {
       );
 
       if (userCredential == null) {
+        if (!context.mounted) return;
         UiHelper.showErrorMessage(context, 'アカウント作成に失敗しました');
         return;
       }
@@ -324,6 +330,7 @@ class FirebaseAuthService {
         shouldRemember: rememberEmail,
       );
 
+      if (!context.mounted) return;
       UiHelper.showSuccessMessage(context, 'アカウントを作成してログインしました');
 
       // サインアップ成功後の処理
@@ -342,11 +349,13 @@ class FirebaseAuthService {
       String errorMessage = _getFirebaseAuthErrorMessage(e);
       await ErrorLogService.logOperationError(
           'アカウント作成', 'Firebase認証エラー: ${e.code} - ${e.message}');
+      if (!context.mounted) return;
       UiHelper.showErrorMessage(context, errorMessage,
           duration: const Duration(seconds: 4));
     } catch (e) {
       Log.error('🚨 サインアップ失敗: $e');
       await ErrorLogService.logOperationError('アカウント作成', '$e');
+      if (!context.mounted) return;
       UiHelper.showErrorMessage(context, 'アカウント作成に失敗しました: $e');
     }
   }
@@ -377,10 +386,12 @@ class FirebaseAuthService {
       ref.invalidate(userNameProvider);
       Log.info('🔄 ユーザー名プロバイダーを更新しました');
 
+      if (!context.mounted) return;
       UiHelper.showSuccessMessage(context, 'ユーザー名「$userName」を保存しました');
     } catch (e) {
       Log.error('❌ ユーザー名保存エラー: $e');
       await ErrorLogService.logOperationError('ユーザー名保存', '$e');
+      if (!context.mounted) return;
       UiHelper.showErrorMessage(context, 'ユーザー名の保存に失敗しました: $e');
     }
   }
@@ -400,6 +411,7 @@ class FirebaseAuthService {
 
       await sendPasswordResetEmail(email);
 
+      if (!context.mounted) return;
       UiHelper.showSuccessMessage(
         context,
         'パスワードリセットメールを送信しました',
@@ -408,6 +420,7 @@ class FirebaseAuthService {
     } catch (e) {
       Log.error('❌ パスワードリセットメール送信エラー: $e');
       await ErrorLogService.logOperationError('パスワードリセット', '$e');
+      if (!context.mounted) return;
       UiHelper.showErrorMessage(
         context,
         'メール送信に失敗しました: $e',
@@ -638,6 +651,7 @@ class FirebaseAuthService {
       await _offerSignUp(
           email, password, context, ref, emailController, userNameController);
     } else {
+      if (!context.mounted) return;
       UiHelper.showErrorMessage(context, errorMessage,
           duration: const Duration(seconds: 4));
     }
@@ -665,6 +679,7 @@ class FirebaseAuthService {
     }
 
     if (userName.isEmpty) {
+      if (!context.mounted) return;
       UiHelper.showInfoDialog(
         context,
         title: 'ユーザー名が必要です',
@@ -682,6 +697,7 @@ class FirebaseAuthService {
     );
 
     if (shouldSignUp) {
+      if (!context.mounted) return;
       await performSignUp(
         context: context,
         ref: ref,

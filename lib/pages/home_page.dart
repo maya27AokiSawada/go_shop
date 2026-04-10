@@ -226,23 +226,22 @@ class _HomePageState extends ConsumerState<HomePage> {
       }
     } catch (e) {
       AppLogger.error('❌ [SIGNUP] アカウント作成エラー', e);
-      if (mounted) {
-        String errorMessage = 'アカウント作成に失敗しました';
-        if (e.toString().contains('email-already-in-use')) {
-          errorMessage = 'このメールアドレスは既に使用されています';
-        } else if (e.toString().contains('weak-password')) {
-          errorMessage = 'パスワードが弱すぎます';
-        } else if (e.toString().contains('invalid-email')) {
-          errorMessage = 'メールアドレスの形式が正しくありません';
-        }
-        await ErrorLogService.logOperationError('アカウント作成', '$e');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Colors.red,
-          ),
-        );
+      String errorMessage = 'アカウント作成に失敗しました';
+      if (e.toString().contains('email-already-in-use')) {
+        errorMessage = 'このメールアドレスは既に使用されています';
+      } else if (e.toString().contains('weak-password')) {
+        errorMessage = 'パスワードが弱すぎます';
+      } else if (e.toString().contains('invalid-email')) {
+        errorMessage = 'メールアドレスの形式が正しくありません';
       }
+      await ErrorLogService.logOperationError('アカウント作成', '$e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Colors.red,
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -265,6 +264,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
       final signedInUser = ref.read(authProvider).currentUser;
       if (signedInUser != null) {
+        if (!mounted) return;
         await UserIdChangeHelper.ensureUserContextReady(
           ref: ref,
           context: context,
@@ -333,6 +333,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
       if (allGroups.isEmpty) {
         AppLogger.info('📋 [SIGNIN] グループ0個 → グループページ（タブ1）に遷移');
+        if (!mounted) return;
         ProviderScope.containerOf(context)
             .read(pageIndexProvider.notifier)
             .setPageIndex(1);
@@ -348,22 +349,21 @@ class _HomePageState extends ConsumerState<HomePage> {
       }
     } catch (e) {
       AppLogger.error('❌ [SIGNIN] サインインエラー', e);
-      if (mounted) {
-        String errorMessage = 'サインインに失敗しました';
-        if (e.toString().contains('user-not-found')) {
-          errorMessage = 'ユーザーが見つかりません。アカウント作成が必要です';
-        } else if (e.toString().contains('wrong-password') ||
-            e.toString().contains('invalid-credential')) {
-          errorMessage = 'メールアドレスまたはパスワードが正しくありません';
-        }
-        await ErrorLogService.logOperationError('サインイン', '$e');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Colors.red,
-          ),
-        );
+      String errorMessage = 'サインインに失敗しました';
+      if (e.toString().contains('user-not-found')) {
+        errorMessage = 'ユーザーが見つかりません。アカウント作成が必要です';
+      } else if (e.toString().contains('wrong-password') ||
+          e.toString().contains('invalid-credential')) {
+        errorMessage = 'メールアドレスまたはパスワードが正しくありません';
       }
+      await ErrorLogService.logOperationError('サインイン', '$e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Colors.red,
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -655,7 +655,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                                   final result = await service
                                       .sendPasswordResetEmail(email);
 
-                                  if (mounted) {
+                                  if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Text(result.message),
@@ -893,7 +893,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                         await ref.read(authProvider).signOut();
                         AppLogger.info('✅ [SIGNOUT] サインアウト完了');
 
-                        if (mounted) {
+                        if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text('ログアウトしました'),
@@ -903,7 +903,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                         }
                       } catch (e) {
                         AppLogger.error('❌ [SIGNOUT] サインアウトエラー', e);
-                        if (mounted) {
+                        if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('ログアウトエラー: $e'),

@@ -37,16 +37,19 @@ class HomePageAuthService {
       if (userCredential == null) {
         await ErrorLogService.logOperationError(
             'サインイン', 'ログインに失敗しました (userCredential == null)');
+        if (!context.mounted) return;
         UiHelper.showErrorMessage(context, 'ログインに失敗しました');
         return;
       }
 
+      if (!context.mounted) return;
       UiHelper.showSuccessMessage(context, 'ログインしました');
     } on FirebaseAuthException catch (e) {
       await handleFirebaseAuthError(e, email);
     } catch (e) {
       Log.error('❌ サインイン中に予期しないエラー: $e');
       await ErrorLogService.logOperationError('サインイン', '$e');
+      if (!context.mounted) return;
       UiHelper.showErrorMessage(context, 'サインインに失敗しました: $e');
     }
   }
@@ -68,6 +71,7 @@ class HomePageAuthService {
 
       if (user != null) {
         Log.info('✅ サインアップ成功: ${user.uid}');
+        if (!context.mounted) return;
         UiHelper.showSuccessMessage(context, 'アカウントを作成しました');
       }
     } on FirebaseAuthException catch (e) {
@@ -75,10 +79,12 @@ class HomePageAuthService {
       String errorMessage = getFirebaseAuthErrorMessage(e);
       await ErrorLogService.logOperationError(
           'アカウント作成', 'Firebase認証エラー: ${e.code} - ${e.message}');
+      if (!context.mounted) return;
       UiHelper.showErrorMessage(context, errorMessage);
     } catch (e) {
       Log.error('❌ サインアップ中に予期しないエラー: $e');
       await ErrorLogService.logOperationError('アカウント作成', '$e');
+      if (!context.mounted) return;
       UiHelper.showErrorMessage(context, 'アカウント作成に失敗しました: $e');
     }
   }
@@ -93,10 +99,12 @@ class HomePageAuthService {
     try {
       final authService = ref.read(authProvider);
       await authService.sendPasswordResetEmail(email);
+      if (!context.mounted) return;
       UiHelper.showSuccessMessage(context, 'パスワードリセットメールを送信しました');
     } catch (e) {
       Log.error('❌ パスワードリセットメール送信エラー: $e');
       await ErrorLogService.logOperationError('パスワードリセット', '$e');
+      if (!context.mounted) return;
       UiHelper.showErrorMessage(context, 'メール送信に失敗しました: $e');
     }
   }
@@ -115,10 +123,12 @@ class HomePageAuthService {
       await UserPreferencesService.saveUserName(userName);
       Log.info('✅ SharedPreferencesに保存完了');
 
+      if (!context.mounted) return;
       UiHelper.showSuccessMessage(context, 'ユーザー名「$userName」を保存しました');
     } catch (e) {
       Log.error('❌ ユーザー名保存エラー: $e');
       await ErrorLogService.logOperationError('ユーザー名保存', '$e');
+      if (!context.mounted) return;
       UiHelper.showErrorMessage(context, 'ユーザー名の保存に失敗しました: $e');
     }
   }

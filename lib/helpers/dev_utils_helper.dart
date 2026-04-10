@@ -42,10 +42,12 @@ class DevUtilsHelper {
     if (shouldClear == true) {
       try {
         await _performDataClear(ref);
+        if (!context.mounted) return;
         await _showSuccessMessage(context);
         onComplete();
       } catch (e) {
         Log.error('🗑️ Hiveデータクリアエラー: $e');
+        if (!context.mounted) return;
         await _showErrorMessage(context, e);
       }
     }

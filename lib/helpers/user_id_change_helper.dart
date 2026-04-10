@@ -279,6 +279,7 @@ class UserIdChangeHelper {
       if (hasChanged) {
         // UIDが変更された場合、ユーザーに選択を求める
         if (mounted) {
+          if (!context.mounted) return;
           final shouldKeepData = await UserDataMigrationDialog.show(
             context,
             previousUser: '前回のユーザー',

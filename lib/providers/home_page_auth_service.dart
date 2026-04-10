@@ -48,7 +48,7 @@ class HomePageAuthService {
       );
 
       if (userCredential == null) {
-        if (isMounted != null && isMounted!()) {
+        if (context.mounted) {
           UiHelper.showErrorMessage(context, 'ログインに失敗しました');
         }
         return;
@@ -57,7 +57,7 @@ class HomePageAuthService {
       // メールアドレスの保孁E削除を実衁E
       await _saveOrClearEmail(email, rememberEmail);
 
-      if (isMounted != null && isMounted!()) {
+      if (context.mounted) {
         UiHelper.showSuccessMessage(context, 'ログインしました'); // サインイン成功後�E処琁E
         WidgetsBinding.instance.addPostFrameCallback((_) async {
           await _userInfoSave();
@@ -74,7 +74,7 @@ class HomePageAuthService {
       await _handleFirebaseAuthError(e, email, password);
     } catch (e) {
       Log.error('❁Eサインイン中に予期しなぁE��ラー: $e');
-      if (isMounted != null && isMounted!()) {
+      if (context.mounted) {
         UiHelper.showErrorMessage(context, 'サインインに失敗しました: $e');
       }
     }
@@ -88,7 +88,7 @@ class HomePageAuthService {
     required TextEditingController emailController,
     required TextEditingController passwordController,
   }) async {
-    if (isMounted != null && isMounted!() == false) return;
+    if (context.mounted == false) return;
 
     if (email.isEmpty || password.isEmpty || userName.isEmpty) {
       UiHelper.showWarningMessage(context, 'すべての頁E��を�E力してください');
@@ -108,7 +108,7 @@ class HomePageAuthService {
       if (userCredential?.user != null) {
         Log.info('✅ サインアップ成功: ${userCredential!.user!.uid}');
 
-        if (isMounted != null && isMounted!()) {
+        if (context.mounted) {
           UiHelper.showSuccessMessage(context, 'アカウントを作成しました');
 
           // サインアチE�E成功後�E処琁E
@@ -117,13 +117,13 @@ class HomePageAuthService {
       }
     } on FirebaseAuthException catch (e) {
       Log.error('❁EサインアチE�E FirebaseAuthException: ${e.code}, ${e.message}');
-      if (isMounted != null && isMounted!()) {
+      if (context.mounted) {
         String errorMessage = _getFirebaseAuthErrorMessage(e);
         UiHelper.showErrorMessage(context, errorMessage);
       }
     } catch (e) {
       Log.error('❁EサインアチE�E中に予期しなぁE��ラー: $e');
-      if (isMounted != null && isMounted!()) {
+      if (context.mounted) {
         UiHelper.showErrorMessage(context, 'アカウント作�Eに失敗しました: $e');
       }
     }
@@ -140,12 +140,12 @@ class HomePageAuthService {
       final authService = ref.read(authProvider);
       await authService.sendPasswordResetEmail(email);
 
-      if (isMounted != null && isMounted!()) {
+      if (context.mounted) {
         UiHelper.showSuccessMessage(context, 'パスワードリセチE��メールを送信しました');
       }
     } catch (e) {
       Log.error('❁EパスワードリセチE��メール送信エラー: $e');
-      if (isMounted != null && isMounted!()) {
+      if (context.mounted) {
         UiHelper.showErrorMessage(context, 'メール送信に失敗しました: $e');
       }
     }
@@ -169,12 +169,12 @@ class HomePageAuthService {
       await _userInfoSave();
       Log.info('✅ デフォルトグループ更新完了');
 
-      if (isMounted != null && isMounted!()) {
+      if (context.mounted) {
         UiHelper.showSuccessMessage(context, 'ユーザー名「$userName」を保存しました');
       }
     } catch (e) {
       Log.error('❌ ユーザー名保存エラー: $e');
-      if (isMounted != null && isMounted!()) {
+      if (context.mounted) {
         UiHelper.showErrorMessage(context, 'ユーザー名の保存に失敗しました: $e');
       }
     }
@@ -241,7 +241,7 @@ class HomePageAuthService {
     Log.error('❁EFirebase認証エラー: ${e.code}');
     Log.error('❁EエラーメチE��ージ: ${e.message}');
 
-    if (isMounted != null && isMounted!()) {
+    if (context.mounted) {
       String errorMessage = _getFirebaseAuthErrorMessage(e);
 
       if (e.code == 'user-not-found') {
@@ -272,7 +272,7 @@ class HomePageAuthService {
       ),
     );
 
-    if (result == true && isMounted != null && isMounted!()) {
+    if (result == true && context.mounted) {
       // サインアチE�Eフォームに刁E��替える処琁E
       // 既存�E _performSignUp() 呼び出しロジチE��
     }
@@ -306,3 +306,4 @@ final homePageAuthServiceProvider =
     context: context,
   );
 });
+

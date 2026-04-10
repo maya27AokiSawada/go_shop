@@ -87,7 +87,7 @@ class _GroupMemberManagementPageState
                 // エラーでもダイアログ表示は継続（Hiveフォールバック）
               }
 
-              if (!mounted) return;
+              if (!context.mounted) return;
 
               Navigator.push(
                 context,
@@ -558,6 +558,7 @@ class _GroupMemberManagementPageState
           );
 
       AppLogger.info('✅ [MEMBER_MGMT] メンバー追加完了: ${member.name}');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${member.name} を追加しました')),
       );
@@ -567,6 +568,7 @@ class _GroupMemberManagementPageState
     } catch (e) {
       AppLogger.error('❌ [MEMBER_MGMT] メンバー追加エラー: $e');
       await ErrorLogService.logOperationError('メンバー追加', '$e');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('追加に失敗しました: $e')),
       );
@@ -628,6 +630,7 @@ class _GroupMemberManagementPageState
     } catch (e) {
       AppLogger.error('❌ [GROUP_MGMT] グループ名更新エラー: $e');
       await ErrorLogService.logOperationError('グループ名更新', '$e');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('グループ名の更新に失敗しました: $e')),
       );
