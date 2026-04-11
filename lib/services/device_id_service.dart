@@ -151,10 +151,10 @@ class DeviceIdService {
 
   /// プレフィックスをサニタイズ（英数字のみ、小文字化）
   static String _sanitizePrefix(String input) {
-    return input
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9]'), '')
-        .substring(0, input.length < 8 ? input.length : 8);
+    final sanitized = input.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    final length = sanitized.length < 8 ? sanitized.length : 8;
+    // サニタイズ後の文字列の長さを基準にsubstringを呼び出す
+    return sanitized.substring(0, length);
   }
 
   /// キャッシュをクリア（テスト用）
