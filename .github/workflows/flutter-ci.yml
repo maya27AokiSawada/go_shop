@@ -13,10 +13,11 @@ jobs:
           channel: "stable"
 
       # GitHub Secretsから必要なファイルを作成
-      - name: Create google-services.json
+      - name: Create google-services.json (prod)
         run: |
-          cat << 'EOF' > android/app/google-services.json
-          ${{ secrets.GOOGLE_SERVICES_JSON }}
+          mkdir -p android/app/src/prod
+          cat << 'EOF' > android/app/src/prod/google-services.json
+          ${{ secrets.GOOGLE_SERVICES_JSON_PROD }}
           EOF
 
       - name: Decode keystore
