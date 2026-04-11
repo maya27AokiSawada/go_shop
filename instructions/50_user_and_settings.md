@@ -100,6 +100,7 @@ batch2.update(group.reference, {
 | `auth_status_panel.dart`           | 認証状態表示パネル                                                                         | `ConsumerWidget`         |
 | `firestore_sync_status_panel.dart` | Firestore 同期状態表示                                                                     | `ConsumerWidget`         |
 | `app_mode_switcher_panel.dart`     | アプリモード切替（リスト ⇄ TODO）                                                          | `ConsumerWidget`         |
+| `purchase_plan_panel.dart`         | 課金プラン表示・購入UIパネル（比較表・購入ボタン・復元ボタン）                             | `ConsumerStatefulWidget` |
 | `notification_settings_panel.dart` | 通知設定                                                                                   | `ConsumerWidget`         |
 | `privacy_settings_panel.dart`      | プライバシー設定（シークレットモード切替・プライバシーポリシー/利用規約/データ削除リンク） | `ConsumerStatefulWidget` |
 | `whiteboard_settings_panel.dart`   | ホワイトボードカラー設定                                                                   | `ConsumerWidget`         |
@@ -125,3 +126,48 @@ batch2.update(group.reference, {
 - アカウント削除を再認証なしで実行する
 - Batch 分割なしにサブコレクションと親を同時削除する
 - 設定機能のロジックを `settings_page.dart` 本体に直接書く（→ `lib/widgets/settings/` に分割する）
+
+---
+
+## 8. アプリ内課金（In-App Purchase）
+
+### 課金タイプ（`lib/models/purchase_type.dart`）
+
+| enum 値                  | Firestore 値  | 広告制御                           | 価格               |
+| ------------------------ | ------------- | ---------------------------------- | ------------------ |
+| `PurchaseType.free`      | `'free'`      | バナー・インタースティシャルあり   | 無料               |
+| `PurchaseType.subscribe` | `'subscribe'` | **全広告非表示**                   | ¥100/2ヶ月         |
+| `PurchaseType.purchase`  | `'purchase'`  | **インタースティシャルのみ非表示** | ¥1,000（買い切り） |
+
+### Google Play 商品ID
+
+| 商品ID                        | 種別     | 価格       |
+| ----------------------------- | -------- | ---------- |
+| `goshopping_subscribe_2month` | 定期購読 | ¥100/2ヶ月 |
+| `goshopping_onetime_1000`     | 非消費型 | ¥1,000     |
+
+### Firestore スキーマ（`/users/{uid}`）
+
+```
+purchaseType: 'free' | 'subscribe' | 'purchase'  // 課金タイプ（デフォルト: omitted → free）
+```
+
+### 課金フロー
+
+1. `PurchasePlanPanel` でユーザーが購入ボタンをタップ
+2. `PurchaseService.buySubscription()` / `buyOneTimePurchase()` → Google Play 購入UI表示
+3. 購入完了後 `_handlePurchase()` が `FirestoreUserNameService.savePurchaseType()` を呼ぶ
+4. `purchaseTypeProvider`（`StreamProvider`）が Firestore 変化を検知してUIを自動更新
+5. `AdService.shouldShowSignInAd()` / `shouldShowBannerAd()` が次回以降の広告表示を制御
+
+### 広告チェックの原則
+
+- `shouldShowSignInAd()`: 課金チェック → インストール90日猶予 → 日次上限・間隔チェック
+- `shouldShowBannerAd()`: 課金チェックのみ（`hidesBannerAds`）
+- `hidesInterstitialAds` が `true`（subscribe/purchase）→ インタースティシャルをスキップ
+- `hidesBannerAds` が `true`（subscribe のみ）→ バナーをスキップ
+
+### セキュリティ注意事項
+
+- `purchaseType` の書き込みは **購入確認後のみ**行う（`PurchaseStatus.purchased` / `restored` のみ）
+- クライアントから `purchaseType: 'subscribe'` を任意に書き込めてしまうため、**本番では Cloud Functions でレシート検証**を行うことが推奨（現在は Google Play ストリームのみで判定）
