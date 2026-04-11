@@ -55,6 +55,13 @@ GoShopping（以下「本アプリ」）は、maya27AokiSawada（以下「開発
 - 地域に関連する広告の表示
 - 広告パフォーマンスの測定
 
+#### 広告表示のポリシー
+
+本アプリはインタースティシャル広告（全画面広告）を表示しますが、**新規インストールから90日間は表示しません**。90日経過後は以下の条件を満たした場合にのみ表示されます。
+
+- 1日の表示回数: 最大3回
+- 前回表示からの間隔: 30分以上
+
 ## 3. 情報の保存場所
 
 ### 3.1 Firebase サービス（Google Cloud Platform）
@@ -330,6 +337,11 @@ The App uses the following services:
 
 - Purpose: Ad delivery
 - Privacy Policy: <https://support.google.com/admob/answer/6128543>
+
+**Ad Display Policy**: Interstitial (full-screen) ads are **not shown for the first 90 days after installation**. After 90 days, ads are shown only when all of the following conditions are met:
+
+- Maximum 3 times per day
+- At least 30 minutes since the last ad was shown
 
 ### 4.5 Operator Access
 

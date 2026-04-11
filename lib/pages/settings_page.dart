@@ -15,6 +15,7 @@ import '../widgets/settings/feedback_debug_section.dart';
 import '../widgets/settings/data_maintenance_section.dart';
 import '../widgets/settings/feedback_section.dart';
 import '../widgets/settings/account_deletion_section.dart';
+import '../widgets/settings/purchase_plan_panel.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -75,6 +76,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   const SizedBox(height: 12),
                 const SizedBox(height: 20),
                 const AppModeSwitcherPanel(),
+                const SizedBox(height: 20),
+                const PurchasePlanPanel(),
                 const SizedBox(height: 20),
                 const PrivacySettingsPanel(),
                 const SizedBox(height: 20),

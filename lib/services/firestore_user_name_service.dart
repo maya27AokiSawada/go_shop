@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/app_logger.dart';
+import '../models/purchase_type.dart';
 import 'error_log_service.dart';
 
 /// ユーザー名をFirestoreで管理するサービス
@@ -273,5 +274,61 @@ class FirestoreUserNameService {
       Log.error('❌ [PROFILE] ユーザープロファイル作成エラー: $e');
       await ErrorLogService.logOperationError('ユーザープロファイル作成', '$e');
     }
+  }
+
+  /// 課金タイプをFirestoreから取得
+  static Future<PurchaseType> getPurchaseType() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return PurchaseType.free;
+
+      final docSnapshot =
+          await _firestore.collection('users').doc(user.uid).get();
+      if (!docSnapshot.exists) return PurchaseType.free;
+
+      final data = docSnapshot.data() as Map<String, dynamic>;
+      return PurchaseTypeExt.fromFirestoreValue(
+          data['purchaseType'] as String?);
+    } catch (e) {
+      Log.error('❌ 課金タイプ取得エラー: $e');
+      return PurchaseType.free;
+    }
+  }
+
+  /// 課金タイプをFirestoreへ保存
+  static Future<void> savePurchaseType(PurchaseType type) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return;
+
+      await _firestore.collection('users').doc(user.uid).set(
+        {
+          'purchaseType': type.firestoreValue,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+      Log.info('✅ 課金タイプ保存: ${type.firestoreValue}');
+    } catch (e) {
+      Log.error('❌ 課金タイプ保存エラー: $e');
+      await ErrorLogService.logOperationError('課金タイプ保存', '$e');
+    }
+  }
+
+  /// 課金タイプのリアルタイム監視
+  static Stream<PurchaseType> watchPurchaseType() {
+    final user = _auth.currentUser;
+    if (user == null) return Stream.value(PurchaseType.free);
+
+    return _firestore
+        .collection('users')
+        .doc(user.uid)
+        .snapshots()
+        .map((snapshot) {
+      if (!snapshot.exists) return PurchaseType.free;
+      final data = snapshot.data() as Map<String, dynamic>;
+      return PurchaseTypeExt.fromFirestoreValue(
+          data['purchaseType'] as String?);
+    });
   }
 }

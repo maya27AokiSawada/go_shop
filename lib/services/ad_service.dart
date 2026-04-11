@@ -12,6 +12,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../utils/app_logger.dart';
 import '../flavors.dart';
+import '../models/purchase_type.dart';
+import 'firestore_user_name_service.dart';
 
 // プロバイダー
 final adServiceProvider = Provider<AdService>((ref) => AdService());
@@ -19,8 +21,10 @@ final adServiceProvider = Provider<AdService>((ref) => AdService());
 class AdService {
   static const String _lastAdShownKey = 'last_ad_shown';
   static const String _dailyAdCountKey = 'daily_ad_count';
+  static const String _installDateKey = 'app_install_date';
   static const int _maxDailyAds = 3;
   static const int _minAdIntervalMinutes = 30;
+  static const int _installGraceDays = 90;
 
   BannerAd? _bannerAd;
   InterstitialAd? _interstitialAd;
@@ -50,6 +54,7 @@ class AdService {
   /// 広告SDK初期化
   Future<void> initialize() async {
     await MobileAds.instance.initialize();
+    await recordInstallDateIfNeeded();
     _loadInterstitialAd();
   }
 
@@ -73,9 +78,34 @@ class AdService {
     );
   }
 
+  /// インストール日時を初回記録
+  Future<void> recordInstallDateIfNeeded() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getInt(_installDateKey) == null) {
+      await prefs.setInt(
+          _installDateKey, DateTime.now().millisecondsSinceEpoch);
+    }
+  }
+
   /// サインイン時の広告表示判定
   Future<bool> shouldShowSignInAd() async {
+    // 課金ステータスがインタースティシャル広告を非表示にする場合はスキップ
+    final purchaseType = await FirestoreUserNameService.getPurchaseType();
+    if (purchaseType.hidesInterstitialAds) {
+      Log.info('🚫 インタースティシャル広告スキップ（課金: ${purchaseType.firestoreValue}）');
+      return false;
+    }
+
     final prefs = await SharedPreferences.getInstance();
+
+    // 0. インストールから90日以内は表示しない
+    final installTime = prefs.getInt(_installDateKey) ?? 0;
+    final daysSinceInstall = DateTime.now()
+        .difference(DateTime.fromMillisecondsSinceEpoch(installTime))
+        .inDays;
+    if (daysSinceInstall < _installGraceDays) {
+      return false;
+    }
 
     // 1. 今日の広告表示回数チェック
     final today = DateTime.now().day;
@@ -130,6 +160,16 @@ class AdService {
 
     final currentCount = prefs.getInt(_dailyAdCountKey) ?? 0;
     await prefs.setInt(_dailyAdCountKey, currentCount + 1);
+  }
+
+  /// バナー広告を表示すべきか判定（課金ステータスを考慮）
+  Future<bool> shouldShowBannerAd() async {
+    final purchaseType = await FirestoreUserNameService.getPurchaseType();
+    if (purchaseType.hidesBannerAds) {
+      Log.info('🚫 バナー広告スキップ（課金: ${purchaseType.firestoreValue}）');
+      return false;
+    }
+    return true;
   }
 
   /// バナー広告作成（位置情報ベース：30km圏内優先）
@@ -297,6 +337,11 @@ class _LocalNewsAdWidgetState extends ConsumerState<LocalNewsAdWidget> {
 
   void _loadBannerAd() async {
     final adService = ref.read(adServiceProvider);
+
+    // 課金ステータスチェック：バナー広告を非表示にする場合はスキップ
+    final shouldShow = await adService.shouldShowBannerAd();
+    if (!shouldShow) return;
+
     _bannerAd = await adService.createBannerAd(
       size: AdSize.banner,
       useLocation: true, // 位置情報ベースの広告を有効化
