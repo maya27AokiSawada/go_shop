@@ -19,6 +19,18 @@ jobs:
           ${{ secrets.GOOGLE_SERVICES_JSON }}
           EOF
 
+      - name: Decode keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/upload-keystore.jks
+
+      - name: Create key.properties
+        run: |
+          cat << 'EOF' > android/key.properties
+          storePassword=${{ secrets.KEYSTORE_STORE_PASSWORD }}
+          keyPassword=${{ secrets.KEYSTORE_KEY_PASSWORD }}
+          keyAlias=${{ secrets.KEYSTORE_KEY_ALIAS }}
+          storeFile=app/upload-keystore.jks
+          EOF
+
       - name: Create firebase_options.dart
         run: |
           cat << 'EOF' > lib/firebase_options.dart
@@ -51,12 +63,12 @@ jobs:
           echo "✅ Auth Tests: 47 tests"
           echo "✅ Total: 76 tests"
 
-      - name: Build Android APK (dev flavor)
-        run: flutter build apk --debug --flavor dev
+      - name: Build Android APK (prod release)
+        run: flutter build apk --release --flavor prod
 
       # APKをアーティファクトとしてアップロード
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: debug-apk-dev
-          path: build/app/outputs/flutter-apk/app-dev-debug.apk
+          name: release-apk-prod
+          path: build/app/outputs/flutter-apk/app-prod-release.apk
