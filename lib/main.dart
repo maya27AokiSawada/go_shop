@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:hive/hive.dart';
@@ -119,6 +120,20 @@ Future<void> _initializeApp() async {
         options: DefaultFirebaseOptions.currentPlatform,
       );
       AppLogger.info('✅ Firebase.initializeApp() 完了');
+
+      // 🔐 Firebase App Check 初期化
+      // debugビルド: デバッグプロバイダーを使用（Firebase ConsoleにデバッグトークンA9A1910D-ECE4-47F8-94C4-A3C1E301D269登録済み）
+      // releaseビルド: Play Integrity を使用
+      if (Platform.isAndroid || Platform.isIOS) {
+        await FirebaseAppCheck.instance.activate(
+          androidProvider: kDebugMode
+              ? AndroidProvider.debug
+              : AndroidProvider.playIntegrity,
+          appleProvider:
+              kDebugMode ? AppleProvider.debug : AppleProvider.appAttest,
+        );
+        AppLogger.info('✅ Firebase App Check 初期化完了 (debug: $kDebugMode)');
+      }
 
       // Firebase Auth の状態確認
       AppLogger.info('🔐 Firebase Auth インスタンス: ${FirebaseAuth.instance}');
