@@ -345,20 +345,26 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
     // 1. メタデータ監視（isPrivate等の変更のみ検知。ストロークはサブコレクションが管理）
     _whiteboardSubscription = repository
         .watchWhiteboard(widget.groupId, _currentWhiteboard.whiteboardId)
-        .listen((latest) {
-      if (!mounted || latest == null) return;
-      if (_isClearing) return;
+        .listen(
+      (latest) {
+        if (!mounted || latest == null) return;
+        if (_isClearing) return;
 
-      // メタデータのみ更新（strokes配列は参照しない）
-      setState(() {
-        _currentWhiteboard = _currentWhiteboard.copyWith(
-          isPrivate: latest.isPrivate,
-          updatedAt: latest.updatedAt,
-        );
-      });
-      _syncPersonalWhiteboardCache();
-      AppLogger.info('🛰️ [METADATA] 更新: isPrivate=${latest.isPrivate}');
-    });
+        // メタデータのみ更新（strokes配列は参照しない）
+        setState(() {
+          _currentWhiteboard = _currentWhiteboard.copyWith(
+            isPrivate: latest.isPrivate,
+            updatedAt: latest.updatedAt,
+          );
+        });
+        _syncPersonalWhiteboardCache();
+        AppLogger.info('🛰️ [METADATA] 更新: isPrivate=${latest.isPrivate}');
+      },
+      onError: (Object e, StackTrace s) {
+        AppLogger.error('❌ [METADATA] ホワイトボードメタデータ監視エラー: $e');
+      },
+      cancelOnError: false,
+    );
 
     // 2. ストロークサブコレクション監視（常にO(1)・ストローク数に依存しない）
     AppLogger.info(

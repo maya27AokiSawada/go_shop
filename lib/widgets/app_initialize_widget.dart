@@ -66,27 +66,35 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
   void _startAuthListener() {
     Log.info('🔍 [UID_WATCH] Auth listener started');
 
-    FirebaseAuth.instance.authStateChanges().listen((User? user) async {
-      Log.info('🔔 [UID_WATCH] Auth state changed: ${user?.uid ?? "null"}');
+    FirebaseAuth.instance.authStateChanges().listen(
+      (User? user) async {
+        Log.info('🔔 [UID_WATCH] Auth state changed: ${user?.uid ?? "null"}');
 
-      if (user == null) {
-        // ログアウト時 - UIDは保持（次回ログイン時に比較するため）
-        Log.info('🔓 [UID_WATCH] ログアウト検出 - UIDは保持したままログアウト');
-        return;
-      }
+        if (user == null) {
+          // ログアウト時 - UIDは保持（次回ログイン時に比較するため）
+          Log.info('🔓 [UID_WATCH] ログアウト検出 - UIDは保持したままログアウト');
+          return;
+        }
 
-      final currentUid = user.uid;
-      final currentEmail = user.email ?? 'Unknown';
-      Log.info('🔑 [UID_WATCH] Current UID: $currentUid, Email: $currentEmail');
+        final currentUid = user.uid;
+        final currentEmail = user.email ?? 'Unknown';
+        Log.info(
+            '🔑 [UID_WATCH] Current UID: $currentUid, Email: $currentEmail');
 
-      await UserIdChangeHelper.ensureUserContextReady(
-        ref: ref,
-        context: context,
-        user: user,
-        mounted: mounted,
-      );
-      Log.info('✅ [UID_WATCH] ユーザーコンテキスト確認完了: $currentUid');
-    });
+        if (!mounted) return;
+        await UserIdChangeHelper.ensureUserContextReady(
+          ref: ref,
+          context: context,
+          user: user,
+          mounted: mounted,
+        );
+        Log.info('✅ [UID_WATCH] ユーザーコンテキスト確認完了: $currentUid');
+      },
+      onError: (Object e, StackTrace s) {
+        Log.error('❌ [UID_WATCH] authStateChanges エラー: $e');
+      },
+      cancelOnError: false,
+    );
   }
 
   /// アプリ全体の初期化処理を実行
@@ -142,6 +150,7 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
         final oldVersion = await dataVersionService.getSavedVersionString();
         final newVersion = DataVersionService.currentVersionString;
 
+        if (!mounted) return;
         // マイグレーション画面をフルスクリーン表示
         await Navigator.of(context).push(
           PageRouteBuilder(

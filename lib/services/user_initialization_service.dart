@@ -68,33 +68,41 @@ class UserInitializationService {
 
     // 本番環境のみFirebase Auth監視
     if (_auth != null) {
-      _auth!.authStateChanges().listen((User? user) async {
-        if (user != null) {
-          // ユーザープロフィールをFirestoreと同期
-          await _syncUserProfile(user);
+      _auth!.authStateChanges().listen(
+        (User? user) async {
+          if (user != null) {
+            // ユーザープロフィールをFirestoreと同期
+            await _syncUserProfile(user);
 
-          // ユーザーがログインした時の初期化処理
-          _initializeUserDefaults(user);
+            // ユーザーがログインした時の初期化処理
+            _initializeUserDefaults(user);
 
-          // 通知リスナーを起動
-          final notificationService = _ref.read(notificationServiceProvider);
-          notificationService.startListening();
+            // 通知リスナーを起動
+            final notificationService = _ref.read(notificationServiceProvider);
+            notificationService.startListening();
 
-          final batchService = _ref.read(listNotificationBatchServiceProvider);
-          batchService.start();
+            final batchService =
+                _ref.read(listNotificationBatchServiceProvider);
+            batchService.start();
 
-          Log.info('🔔 [INIT] 認証状態変更 - 通知サービス起動');
-        } else {
-          // ログアウト時は通知リスナーを停止
-          final notificationService = _ref.read(notificationServiceProvider);
-          notificationService.stopListening();
+            Log.info('🔔 [INIT] 認証状態変更 - 通知サービス起動');
+          } else {
+            // ログアウト時は通知リスナーを停止
+            final notificationService = _ref.read(notificationServiceProvider);
+            notificationService.stopListening();
 
-          final batchService = _ref.read(listNotificationBatchServiceProvider);
-          batchService.stop();
+            final batchService =
+                _ref.read(listNotificationBatchServiceProvider);
+            batchService.stop();
 
-          Log.info('🔕 [INIT] ログアウト - 通知サービス停止');
-        }
-      });
+            Log.info('🔕 [INIT] ログアウト - 通知サービス停止');
+          }
+        },
+        onError: (Object e, StackTrace s) {
+          Log.error('❌ [INIT] authStateChanges エラー: $e');
+        },
+        cancelOnError: false,
+      );
     }
   }
 

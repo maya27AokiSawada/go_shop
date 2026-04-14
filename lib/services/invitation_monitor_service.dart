@@ -31,9 +31,14 @@ class InvitationMonitorService {
     final acceptedInvitationService =
         _ref.read(acceptedInvitationServiceProvider);
 
-    _subscription = acceptedInvitationService
-        .watchUnprocessedInvitations()
-        .listen(_processNewInvitations);
+    _subscription =
+        acceptedInvitationService.watchUnprocessedInvitations().listen(
+      _processNewInvitations,
+      onError: (Object e, StackTrace s) {
+        Log.error('❌ 招待受諾監視エラー: $e');
+      },
+      cancelOnError: false,
+    );
 
     Log.info('👁️ 招待受諾監視を開始しました');
   }

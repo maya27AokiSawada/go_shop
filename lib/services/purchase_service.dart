@@ -1,7 +1,3 @@
-import 'dart:async';
-import 'dart:io';
-
-import 'package:flutter/material.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import '../models/purchase_type.dart';
 import '../services/firestore_user_name_service.dart';
@@ -53,6 +49,7 @@ class PurchaseService {
         onError: (Object error) {
           Log.error('[$_logTag] 購入ストリームエラー: $error');
         },
+        cancelOnError: false,
       );
 
       await loadProducts();
