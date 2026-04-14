@@ -88,6 +88,8 @@ stream.listen(
 // ❌ 禁止 — onError なしの .listen() はエラーで無音終了する
 ```
 
+> **注意**: `StreamSubscription<T>` 型を変数として宣言する場合は `import 'dart:async';` が必要。リスナー追加・修正時にセットで確認すること。
+
 ### 3-3. `watchWhiteboard()` — hasPendingWrites スキップは任意
 
 ホワイトボードのメタデータ（タイトル等）を監視する `watchWhiteboard()` は
