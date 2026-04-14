@@ -1008,9 +1008,7 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
           }
 
           if (firestoreGroup == null) {
-            await _firestoreRepo!
-                .updateGroup(group.groupId, group)
-                .timeout(const Duration(seconds: 10));
+            await _firestoreRepo!.updateGroup(group.groupId, group);
             AppLogger.info('📤 Firestore未存在のためpush: ${group.groupName}');
             continue;
           }
@@ -1025,9 +1023,7 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
               _compareUpdatedAt(group.updatedAt, firestoreGroup.updatedAt);
 
           if (timestampComparison > 0) {
-            await _firestoreRepo!
-                .updateGroup(group.groupId, group)
-                .timeout(const Duration(seconds: 10));
+            await _firestoreRepo!.updateGroup(group.groupId, group);
             AppLogger.info('📤 Hiveの方が新しいためpush: ${group.groupName}');
             continue;
           }
