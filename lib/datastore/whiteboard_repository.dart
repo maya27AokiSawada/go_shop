@@ -142,11 +142,7 @@ class WhiteboardRepository {
         await _collection(groupId).doc(whiteboardId).update({
           'strokes': [],
           'updatedAt': FieldValue.serverTimestamp(),
-        }).timeout(
-          const Duration(seconds: 10),
-          onTimeout: () =>
-              throw TimeoutException('全消去タイムアウト(10s): $whiteboardId'),
-        );
+        });
       } else {
         for (var i = 0; i < docRefs.length; i += batchLimit) {
           final end = (i + batchLimit < docRefs.length)
@@ -163,11 +159,7 @@ class WhiteboardRepository {
               'updatedAt': FieldValue.serverTimestamp(),
             });
           }
-          await batch.commit().timeout(
-                const Duration(seconds: 10),
-                onTimeout: () =>
-                    throw TimeoutException('全消去タイムアウト(10s): $whiteboardId'),
-              );
+          await batch.commit();
         }
       }
 
@@ -516,11 +508,7 @@ class WhiteboardRepository {
       await docRef.update({
         'strokes': FieldValue.arrayUnion(newStrokeMaps),
         'updatedAt': FieldValue.serverTimestamp(),
-      }).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () =>
-            throw TimeoutException('ホワイトボード保存タイムアウト(10s): $whiteboardId'),
-      );
+      });
 
       AppLogger.info('✅ [REPO] Firestore更新完了: ${newStrokes.length}個のストロークを追加');
     } catch (e, stackTrace) {
@@ -556,11 +544,7 @@ class WhiteboardRepository {
       await _collection(groupId).doc(whiteboardId).update({
         'strokes': [], // ストローク全削除
         'updatedAt': FieldValue.serverTimestamp(),
-      }).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () =>
-            throw TimeoutException('ホワイトボード全消去タイムアウト(10s): $whiteboardId'),
-      );
+      });
 
       AppLogger.info('✅ ホワイトボード全消去: $whiteboardId');
     } catch (e) {
