@@ -333,20 +333,21 @@ class UserSpecificHiveService {
     } catch (e) {
       Log.error('❌ Failed to open $displayName box ($boxName): $e');
 
-      // 🔥 SharedList Boxのエラーは特別処理（データフォーマット破損の可能性）
-      if (boxName == 'sharedLists') {
-        Log.warning('⚠️ SharedList box corrupted. Deleting and recreating...');
+      // 🔥 破損したBoxは削除して再作成（SharedGroups, sharedLists 共通）
+      if (boxName == 'sharedLists' || boxName == 'SharedGroups') {
+        Log.warning(
+            '⚠️ $displayName box corrupted. Deleting and recreating...');
         try {
           // 破損したBoxを削除
           await Hive.deleteBoxFromDisk(boxName);
-          Log.info('🗑️ Deleted corrupted SharedList box');
+          Log.info('🗑️ Deleted corrupted $displayName box');
 
           // 再作成
           await Hive.openBox<T>(boxName);
-          Log.info('✅ Recreated SharedList box successfully');
+          Log.info('✅ Recreated $displayName box successfully');
           return;
         } catch (deleteError) {
-          Log.error('❌ Failed to recreate SharedList box: $deleteError');
+          Log.error('❌ Failed to recreate $displayName box: $deleteError');
         }
       }
 
