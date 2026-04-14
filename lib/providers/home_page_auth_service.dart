@@ -65,6 +65,7 @@ class HomePageAuthService {
           ref.invalidate(allGroupsProvider);
           await _loadUserNameFromDefaultGroup();
           // 保存された招征E��報があれ�E自動�E琁E
+          if (!context.mounted) return;
           await QrCodeHelper.processPendingInvitation(context, ref, () async {
             await _loadUserNameFromDefaultGroup();
           });
@@ -306,4 +307,3 @@ final homePageAuthServiceProvider =
     context: context,
   );
 });
-

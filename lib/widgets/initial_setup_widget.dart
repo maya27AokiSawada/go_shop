@@ -149,6 +149,7 @@ class InitialSetupWidget extends ConsumerWidget {
     final outerContext = context;
     final outerRef = ref;
 
+    if (!context.mounted) return;
     showDialog(
       context: outerContext,
       builder: (dialogContext) => AlertDialog(

@@ -360,6 +360,7 @@ class SharedListHeaderWidget extends ConsumerWidget {
                   error: (_, __) async => null,
                 );
 
+                if (!context.mounted) return;
                 if (currentGroup == null) {
                   SnackBarHelper.showError(context, 'グループ情報の取得に失敗しました');
                   return;
@@ -422,6 +423,7 @@ class SharedListHeaderWidget extends ConsumerWidget {
                   SnackBarHelper.showSuccess(context, '「$name」を作成しました');
                 } catch (e, stackTrace) {
                   Log.error('❌ リスト作成エラー: $e', stackTrace);
+                  if (!context.mounted) return;
                   SnackBarHelper.showError(context, 'リスト作成に失敗しました: $e');
                 }
               },

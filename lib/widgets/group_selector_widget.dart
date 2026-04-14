@@ -58,9 +58,11 @@ class GroupSelectorWidget extends ConsumerWidget {
                       ref.invalidate(forceSyncProvider);
                       await ref.read(forceSyncProvider.future);
                       AppLogger.info('✅ [DEBUG] Firestore同期完了');
+                      if (!context.mounted) return;
                       SnackBarHelper.showSuccess(context, '同期完了');
                     } catch (e) {
                       AppLogger.error('❌ [DEBUG] Firestore同期エラー: $e');
+                      if (!context.mounted) return;
                       SnackBarHelper.showError(context, '同期エラー: $e');
                     }
                   },

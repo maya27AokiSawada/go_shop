@@ -126,7 +126,7 @@ Future<void> _initializeApp() async {
       // releaseビルド: Play Integrity を使用
       if (Platform.isAndroid || Platform.isIOS) {
         await FirebaseAppCheck.instance.activate(
-          androidProvider: kDebugMode
+          providerAndroid: kDebugMode
               ? AndroidProvider.debug
               : AndroidProvider.playIntegrity,
           appleProvider:

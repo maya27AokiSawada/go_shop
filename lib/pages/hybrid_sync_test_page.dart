@@ -446,10 +446,12 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
 
       final doc = await testDoc.get();
 
+      if (!mounted) return;
       if (doc.exists) {
         // テストドキュメントを削除
         await testDoc.delete();
 
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('✅ Firestore接続成功！'),
@@ -465,6 +467,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
         );
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ Firestore接続エラー: $e'),
@@ -485,6 +488,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
       // SharedGroupsコレクションの確認
       final groupsSnapshot = await firestore.collection('SharedGroups').get();
 
+      if (!mounted) return;
       if (groupsSnapshot.docs.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -515,6 +519,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
         }
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ Firestoreデータ確認エラー: $e'),
@@ -581,6 +586,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
       }
 
       // 結果をダイアログで表示
+      if (!mounted) return;
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
@@ -597,6 +603,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ 詳細確認エラー: $e'),
@@ -611,6 +618,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
     final testGroups =
         groups.where((g) => g.groupName.startsWith('テスト')).toList();
 
+    if (!mounted) return;
     if (testGroups.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('テストグループがありません')),
@@ -729,6 +737,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
       final allGroupsAsync = ref.read(allGroupsProvider.future);
       final groups = await allGroupsAsync;
 
+      if (!mounted) return;
       if (groups.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -780,6 +789,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
         resultMessage += '• モード: DEV（Hiveのみ）';
       }
 
+      if (!mounted) return;
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
@@ -797,6 +807,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
       Log.info(
           '🛒 SharedList sync test completed for group: ${testGroup.groupName}');
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ 買い物リスト同期テストエラー: $e'),

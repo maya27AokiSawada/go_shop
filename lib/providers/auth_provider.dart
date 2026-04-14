@@ -261,6 +261,7 @@ class FirebaseAuthService {
       onSuccess();
     } on FirebaseAuthException catch (e) {
       Log.error('🚨 Firebase認証エラー: ${e.code} - ${e.message}');
+      if (!context.mounted) return;
       await _handleFirebaseAuthError(e, email, password, context, ref,
           emailController, userNameController);
     } catch (e) {
@@ -648,6 +649,7 @@ class FirebaseAuthService {
     }
 
     if (offerSignUp) {
+      if (!context.mounted) return;
       await _offerSignUp(
           email, password, context, ref, emailController, userNameController);
     } else {
@@ -688,7 +690,7 @@ class FirebaseAuthService {
       );
       return;
     }
-
+    if (!context.mounted) return;
     final shouldSignUp = await UiHelper.showConfirmDialog(
       context,
       title: 'アカウントが見つかりません',

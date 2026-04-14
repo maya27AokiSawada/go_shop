@@ -345,6 +345,7 @@ class _QRScannerPageState extends ConsumerState<QRScannerPage> {
             ),
           );
 
+          if (!mounted) return;
           if (result == true) {
             Navigator.of(context).pop(); // スキャナーページを閉じる
           }
@@ -438,6 +439,7 @@ class QRInvitationAcceptDialog extends ConsumerWidget {
           if (context.mounted) {
             if (saved) {
               await _showSignInPromptDialog(context);
+              if (!context.mounted) return;
               Navigator.of(context).pop(true);
             } else {
               UiHelper.showErrorMessage(

@@ -366,6 +366,7 @@ class GroupListWidget extends ConsumerWidget {
     final displayGroupName = GroupDisplayHelper.displayName(group, allGroups);
 
     // 成功メッセージを表示
+    if (!context.mounted) return;
     SnackBarHelper.showCustom(
       context,
       message: '「$displayGroupName」を選択しました',

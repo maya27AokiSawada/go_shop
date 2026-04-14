@@ -38,7 +38,7 @@ class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
     try {
       await buyAction();
     } catch (e) {
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('購入処理に失敗しました: $e')),
         );
@@ -53,13 +53,13 @@ class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
     setState(() => _isProcessing = true);
     try {
       await service.restorePurchases();
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('購入情報を復元しました')),
         );
       }
     } catch (e) {
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('復元に失敗しました: $e')),
         );

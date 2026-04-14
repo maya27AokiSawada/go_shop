@@ -173,6 +173,7 @@ class MemberRoleManagementWidget extends ConsumerWidget {
     if (confirmed == true && context.mounted) {
       await _updateMemberRole(ref, member, SharedGroupRole.manager);
 
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${member.name} さんを管理者に昇格しました'),
@@ -215,6 +216,7 @@ class MemberRoleManagementWidget extends ConsumerWidget {
     if (confirmed == true && context.mounted) {
       await _updateMemberRole(ref, member, SharedGroupRole.member);
 
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${member.name} さんをメンバーに降格しました'),
