@@ -127,10 +127,11 @@ Future<void> _initializeApp() async {
       if (Platform.isAndroid || Platform.isIOS) {
         await FirebaseAppCheck.instance.activate(
           providerAndroid: kDebugMode
-              ? AndroidProvider.debug
-              : AndroidProvider.playIntegrity,
-          appleProvider:
-              kDebugMode ? AppleProvider.debug : AppleProvider.appAttest,
+              ? const AndroidDebugProvider()
+              : const AndroidPlayIntegrityProvider(),
+          providerApple: kDebugMode
+              ? const AppleDebugProvider()
+              : const AppleAppAttestProvider(),
         );
         AppLogger.info('✅ Firebase App Check 初期化完了 (debug: $kDebugMode)');
       }
