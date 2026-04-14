@@ -135,14 +135,22 @@ class UserPreferencesService {
     return await ErrorHandler.handleAsync(
           operation: () async {
             final prefs = await SharedPreferences.getInstance();
-            final version = prefs.getInt(_keyDataVersion) ?? 1;
+            // ✅ Anti-5 対応: 未保存 = 旧版ではなく初回起動扱い
+            if (!prefs.containsKey(_keyDataVersion)) {
+              Log.warning('⚠️ [DATA_VERSION] キー未保存 - containsKey ガードなしで呼出し。'
+                  '呼び出し元で containsKey を確認してから呼ぶこと');
+              // 旧版（v1）と誤認しないために -1 を返す
+              // 呼び出し元で containsKey チェック後に呼ぶのが正しい使い方
+              return -1;
+            }
+            final version = prefs.getInt(_keyDataVersion)!;
             Log.info('📱 SharedPreferences getDataVersion: $version');
             return version;
           },
           context: 'USER_PREFS:getDataVersion',
-          defaultValue: 1,
+          defaultValue: -1, // 例外時も -1（未設定扱い）
         ) ??
-        1;
+        -1;
   }
 
   /// データバージョンを保存
