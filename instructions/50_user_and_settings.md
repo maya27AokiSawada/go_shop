@@ -136,15 +136,15 @@ batch2.update(group.reference, {
 | enum 値                  | Firestore 値  | 広告制御                           | 価格               |
 | ------------------------ | ------------- | ---------------------------------- | ------------------ |
 | `PurchaseType.free`      | `'free'`      | バナー・インタースティシャルあり   | 無料               |
-| `PurchaseType.subscribe` | `'subscribe'` | **全広告非表示**                   | ¥100/2ヶ月         |
+| `PurchaseType.subscribe` | `'subscribe'` | **全広告非表示**                   | ¥200/3ヶ月         |
 | `PurchaseType.purchase`  | `'purchase'`  | **インタースティシャルのみ非表示** | ¥1,000（買い切り） |
 
 ### Google Play 商品ID
 
-| 商品ID                        | 種別     | 価格       |
-| ----------------------------- | -------- | ---------- |
-| `goshopping_subscribe_2month` | 定期購読 | ¥100/2ヶ月 |
-| `goshopping_onetime_1000`     | 非消費型 | ¥1,000     |
+| 商品ID                    | 種別     | 価格       |
+| ------------------------- | -------- | ---------- |
+| `goshopping_subscribe`    | 定期購読 | ¥200/3ヶ月 |
+| `goshopping_onetime_1000` | 非消費型 | ¥1,000     |
 
 ### Firestore スキーマ（`/users/{uid}`）
 

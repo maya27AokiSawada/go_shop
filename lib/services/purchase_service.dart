@@ -7,8 +7,8 @@ import '../utils/app_logger.dart';
 
 /// Google Play 商品ID
 class _ProductIds {
-  /// サブスク：¥100 / 2ヶ月
-  static const String subscription = 'goshopping_subscribe_2month';
+  /// サブスク：¥200 / 3ヶ月
+  static const String subscription = 'goshopping_subscribe';
 
   /// 買い切り：¥1,000（非消費型）
   static const String oneTimePurchase = 'goshopping_onetime_1000';
