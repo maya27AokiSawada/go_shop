@@ -51,11 +51,17 @@ class _MemberTileWithWhiteboardState
       } catch (_) {}
     });
     final isOwner = group != null && currentUser?.uid == group!.ownerUid;
+    final isManager = group != null &&
+        group!.members?.any((m) =>
+                m.memberId == currentUser?.uid &&
+                m.role == SharedGroupRole.manager) ==
+            true;
 
     return ListTile(
       onTap: _isOpening
           ? null
-          : () => _handleTap(context, ref, isOwner: isOwner, group: group),
+          : () => _handleTap(context, ref,
+              isOwner: isOwner, isManager: isManager, group: group),
       onDoubleTap:
           _isOpening ? null : () => _openPersonalWhiteboard(context, ref),
       leading: CircleAvatar(
@@ -114,10 +120,17 @@ class _MemberTileWithWhiteboardState
     BuildContext context,
     WidgetRef ref, {
     required bool isOwner,
+    required bool isManager,
     required SharedGroup? group,
   }) {
-    if (isOwner && member.role != SharedGroupRole.owner) {
-      _showRoleChangeDialog(context, ref, group!);
+    // オーナー: 全メンバー（自分以外）のロール変更可
+    // 管理者: memberロールのメンバーのみ昇格/降格可（オーナー・他の管理者は不可）
+    final canEditRole = group != null &&
+        (isOwner
+            ? member.role != SharedGroupRole.owner
+            : isManager && member.role == SharedGroupRole.member);
+    if (canEditRole) {
+      _showRoleChangeDialog(context, ref, group);
     } else {
       _showMemberInfoDialog(context);
     }
