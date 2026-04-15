@@ -50,6 +50,12 @@ class _MemberTileWithWhiteboardState
         group = groups.firstWhere((g) => g.groupId == groupId);
       } catch (_) {}
     });
+    // allGroupsProviderから最新のメンバー情報を取得（ロール変更後の即時反映のため）
+    final currentMember = group?.members?.firstWhere(
+          (m) => m.memberId == member.memberId,
+          orElse: () => member,
+        ) ??
+        member;
     final isOwner = group != null && currentUser?.uid == group!.ownerUid;
     final isManager = group != null &&
         group!.members?.any((m) =>
@@ -57,61 +63,63 @@ class _MemberTileWithWhiteboardState
                 m.role == SharedGroupRole.manager) ==
             true;
 
-    return ListTile(
-      onTap: _isOpening
-          ? null
-          : () => _handleTap(context, ref,
-              isOwner: isOwner, isManager: isManager, group: group),
+    return GestureDetector(
       onDoubleTap:
           _isOpening ? null : () => _openPersonalWhiteboard(context, ref),
-      leading: CircleAvatar(
-        backgroundColor: _getRoleColor(member.role),
-        child: Text(
-          member.name.isNotEmpty ? member.name[0] : '?',
-          style: const TextStyle(color: Colors.white),
+      child: ListTile(
+        onTap: _isOpening
+            ? null
+            : () => _handleTap(context, ref,
+                isOwner: isOwner, isManager: isManager, group: group),
+        leading: CircleAvatar(
+          backgroundColor: _getRoleColor(currentMember.role),
+          child: Text(
+            currentMember.name.isNotEmpty ? currentMember.name[0] : '?',
+            style: const TextStyle(color: Colors.white),
+          ),
         ),
-      ),
-      title: Row(
-        children: [
-          Text(member.name),
-          if (isCurrentUser) ...[
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.blue[100],
-                borderRadius: BorderRadius.circular(4),
+        title: Row(
+          children: [
+            Text(member.name),
+            if (isCurrentUser) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.blue[100],
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'あなた',
+                  style: TextStyle(fontSize: 10, color: Colors.blue),
+                ),
               ),
-              child: const Text(
-                'あなた',
-                style: TextStyle(fontSize: 10, color: Colors.blue),
-              ),
-            ),
+            ],
           ],
-        ],
+        ),
+        subtitle: Text(_getRoleLabel(currentMember.role)),
+        trailing: _isOpening
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isCurrentUser ? Icons.draw : Icons.visibility,
+                    size: 16,
+                    color: Colors.grey[600],
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    isCurrentUser ? 'ダブルタップで開く' : 'ダブルタップで確認',
+                    style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
       ),
-      subtitle: Text(_getRoleLabel(member.role)),
-      trailing: _isOpening
-          ? const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  isCurrentUser ? Icons.draw : Icons.visibility,
-                  size: 16,
-                  color: Colors.grey[600],
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  isCurrentUser ? 'ダブルタップで開く' : 'ダブルタップで確認',
-                  style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-                ),
-              ],
-            ),
     );
   }
 
@@ -299,6 +307,7 @@ class _MemberTileWithWhiteboardState
       final updatedGroup = group.copyWith(members: updatedMembers);
       await repository.updateGroup(group.groupId, updatedGroup);
       ref.invalidate(selectedGroupNotifierProvider);
+      ref.invalidate(allGroupsProvider);
     } catch (e) {
       AppLogger.error('❌ [MEMBER_TILE] ロール変更エラー: $e');
     }

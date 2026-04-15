@@ -346,6 +346,8 @@ class FirestoreSharedGroupAdapter implements SharedGroupRepository {
       switch (roleData.toLowerCase()) {
         case 'owner':
           return SharedGroupRole.owner;
+        case 'manager':
+          return SharedGroupRole.manager;
         case 'member':
         default:
           return SharedGroupRole.member;
