@@ -6,12 +6,13 @@ import '../models/shared_group.dart';
 import '../models/whiteboard.dart';
 import '../providers/whiteboard_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/shared_group_provider.dart';
 import '../pages/whiteboard_editor_page.dart';
 import '../services/personal_whiteboard_cache_service.dart';
 import '../utils/app_logger.dart';
 import '../utils/snackbar_helper.dart';
 
-/// グループメンバータイル（ダブルタップで個人用ホワイトボード編集）
+/// グループメンバータイル（タップでロール変更、ダブルタップで個人用ホワイトボード編集）
 class MemberTileWithWhiteboard extends ConsumerStatefulWidget {
   final SharedGroupMember member;
   final String groupId;
@@ -41,13 +42,22 @@ class _MemberTileWithWhiteboardState
     final currentUser = ref.watch(authStateProvider).value;
     final isCurrentUser = currentUser?.uid == member.memberId;
 
+    // グループ情報取得（オーナー判定用）
+    final allGroupsAsync = ref.watch(allGroupsProvider);
+    SharedGroup? group;
+    allGroupsAsync.whenData((groups) {
+      try {
+        group = groups.firstWhere((g) => g.groupId == groupId);
+      } catch (_) {}
+    });
+    final isOwner = group != null && currentUser?.uid == group!.ownerUid;
+
     return ListTile(
       onTap: _isOpening
           ? null
-          : () => _openPersonalWhiteboard(
-                context,
-                ref,
-              ),
+          : () => _handleTap(context, ref, isOwner: isOwner, group: group),
+      onDoubleTap:
+          _isOpening ? null : () => _openPersonalWhiteboard(context, ref),
       leading: CircleAvatar(
         backgroundColor: _getRoleColor(member.role),
         child: Text(
@@ -91,12 +101,194 @@ class _MemberTileWithWhiteboardState
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  isCurrentUser ? 'タップで開く' : 'タップで確認',
+                  isCurrentUser ? 'ダブルタップで開く' : 'ダブルタップで確認',
                   style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                 ),
               ],
             ),
     );
+  }
+
+  /// シングルタップ処理（オーナー: ロール変更 / その他: メンバー情報表示）
+  void _handleTap(
+    BuildContext context,
+    WidgetRef ref, {
+    required bool isOwner,
+    required SharedGroup? group,
+  }) {
+    if (isOwner && member.role != SharedGroupRole.owner) {
+      _showRoleChangeDialog(context, ref, group!);
+    } else {
+      _showMemberInfoDialog(context);
+    }
+  }
+
+  /// ロール変更ダイアログ（オーナー専用）
+  Future<void> _showRoleChangeDialog(
+    BuildContext context,
+    WidgetRef ref,
+    SharedGroup group,
+  ) async {
+    final currentRole = member.role;
+    final canPromote = currentRole == SharedGroupRole.member;
+    final canDemote = currentRole == SharedGroupRole.manager;
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(member.name),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '現在のロール: ${_getRoleLabel(currentRole)}',
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            if (canPromote)
+              const Text(
+                'マネージャーに昇格すると、メンバー招待や\nリスト編集ができるようになります。',
+                style: TextStyle(fontSize: 13),
+              ),
+            if (canDemote)
+              const Text(
+                'メンバーに降格すると、管理操作の\n権限が取り消されます。',
+                style: TextStyle(fontSize: 13),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('キャンセル'),
+          ),
+          if (canPromote)
+            ElevatedButton.icon(
+              onPressed: () async {
+                Navigator.of(ctx).pop();
+                await _updateMemberRole(ref, group, SharedGroupRole.manager);
+                if (context.mounted) {
+                  SnackBarHelper.showSuccess(
+                      context, '${member.name} さんをマネージャーに昇格しました');
+                }
+              },
+              icon: const Icon(Icons.arrow_upward, size: 16),
+              label: const Text('マネージャーに昇格'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          if (canDemote)
+            ElevatedButton.icon(
+              onPressed: () async {
+                Navigator.of(ctx).pop();
+                await _updateMemberRole(ref, group, SharedGroupRole.member);
+                if (context.mounted) {
+                  SnackBarHelper.showSuccess(
+                      context, '${member.name} さんをメンバーに降格しました');
+                }
+              },
+              icon: const Icon(Icons.arrow_downward, size: 16),
+              label: const Text('メンバーに降格'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// メンバー情報表示ダイアログ（オーナー以外向け）
+  void _showMemberInfoDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(member.name),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: _getRoleColor(member.role),
+                  radius: 16,
+                  child: Text(
+                    member.name.isNotEmpty ? member.name[0] : '?',
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  _getRoleLabel(member.role),
+                  style: TextStyle(
+                    color: _getRoleColor(member.role),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            if (member.contact.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                member.contact,
+                style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+              ),
+            ],
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.touch_app, size: 14, color: Colors.blue),
+                  SizedBox(width: 6),
+                  Text(
+                    'ダブルタップでホワイトボードを表示',
+                    style: TextStyle(fontSize: 12, color: Colors.blue),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('閉じる'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// ロール更新
+  Future<void> _updateMemberRole(
+    WidgetRef ref,
+    SharedGroup group,
+    SharedGroupRole newRole,
+  ) async {
+    try {
+      final repository = ref.read(SharedGroupRepositoryProvider);
+      final updatedMembers = group.members?.map((m) {
+        if (m.memberId == member.memberId) {
+          return m.copyWith(role: newRole);
+        }
+        return m;
+      }).toList();
+      final updatedGroup = group.copyWith(members: updatedMembers);
+      await repository.updateGroup(group.groupId, updatedGroup);
+      ref.invalidate(selectedGroupNotifierProvider);
+    } catch (e) {
+      AppLogger.error('❌ [MEMBER_TILE] ロール変更エラー: $e');
+    }
   }
 
   /// 個人用ホワイトボードを開く

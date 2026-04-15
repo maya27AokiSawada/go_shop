@@ -41,7 +41,7 @@ class NewsWidget extends ConsumerWidget {
         return newsAsync.when(
           data: (news) => _buildNewsCard(context, news),
           loading: () => _buildLoadingCard(),
-          error: (error, stack) => _buildErrorCard(error.toString()),
+          error: (error, stack) => _buildTipsCard(context),
         );
       },
     );
@@ -488,39 +488,123 @@ class NewsWidget extends ConsumerWidget {
   }
 
   Widget _buildErrorCard(String error) {
+    return _buildTipsCard(null);
+  }
+
+  /// \u64cd\u4f5c\u30c8\u30a4\u30d7\u30b9\u30ab\u30fc\u30c9\uff08\u30cb\u30e5\u30fc\u30b9\u672a\u53d6\u5f97\u6642\u306b\u8868\u793a\uff09
+  Widget _buildTipsCard(BuildContext? ctx) {
+    // \u30e9\u30f3\u30c0\u30e0\u8868\u793a\u7528\u306e\u30c8\u30a4\u30d7\u30b9\u4e00\u89a7
+    const tips = [
+      _AppTip(
+        icon: Icons.touch_app,
+        color: Colors.blue,
+        title: '\u57fa\u672c\u64cd\u4f5c: \u30bf\u30c3\u30d7',
+        body:
+            '\u30a2\u30a4\u30c6\u30e0\u306e\u8cfc\u5165\u72b6\u614b\u5207\u66ff\u3001\u30b0\u30eb\u30fc\u30d7\u306e\u30ab\u30ec\u30f3\u30c8\u9078\u629e\u306a\u3069\u30e1\u30a4\u30f3\u64cd\u4f5c\u306f\u30bf\u30c3\u30d7\u3067\u884c\u3048\u307e\u3059\u3002',
+      ),
+      _AppTip(
+        icon: Icons.touch_app,
+        color: Colors.green,
+        title: '\u9ab8\u6280: \u30c0\u30d6\u30eb\u30bf\u30c3\u30d7',
+        body:
+            '\u30a2\u30a4\u30c6\u30e0\u306e\u7de8\u96c6\u3001\u30e1\u30f3\u30d0\u30fc\u306e\u30db\u30ef\u30a4\u30c8\u30dc\u30fc\u30c9\u8868\u793a\u306a\u3069\u306f\u30c0\u30d6\u30eb\u30bf\u30c3\u30d7\u3067\u958b\u304d\u307e\u3059\u3002',
+      ),
+      _AppTip(
+        icon: Icons.touch_app,
+        color: Colors.red,
+        title: '\u5b89\u5168\u64cd\u4f5c: \u9577\u62bc\u3057',
+        body:
+            '\u30a2\u30a4\u30c6\u30e0\u524a\u9664\u3001\u30b0\u30eb\u30fc\u30d7\u9000\u51fa\u3068\u3044\u3063\u305f\u7834\u58ca\u7684\u306a\u64cd\u4f5c\u306f\u9577\u62bc\u3057\u3067\u5b89\u5168\u306b\u5b9f\u884c\u3067\u304d\u307e\u3059\u3002',
+      ),
+      _AppTip(
+        icon: Icons.group,
+        color: Colors.orange,
+        title: '\u30b0\u30eb\u30fc\u30d7\u753b\u9762',
+        body:
+            '\u30b0\u30eb\u30fc\u30d7\u3092\u30bf\u30c3\u30d7\u2192\u30ab\u30ec\u30f3\u30c8\u9078\u629e\u3001\u30c0\u30d6\u30eb\u30bf\u30c3\u30d7\u2192\u30e1\u30f3\u30d0\u30fc\u7ba1\u7406\u3001\u9577\u62bc\u3057\u2192\u524a\u9664/\u9000\u51fa\u3067\u3059\u3002',
+      ),
+      _AppTip(
+        icon: Icons.people,
+        color: Colors.purple,
+        title: '\u30e1\u30f3\u30d0\u30fc\u4e00\u89a7\u753b\u9762',
+        body:
+            '\u30e1\u30f3\u30d0\u30fc\u30bf\u30c3\u30d7\u2192\u30ed\u30fc\u30eb\u5909\u66f4\uff08\u30aa\u30fc\u30ca\u30fc\uff09\u307e\u305f\u306f\u60c5\u5831\u8868\u793a\u3001\u30c0\u30d6\u30eb\u30bf\u30c3\u30d7\u2192\u30db\u30ef\u30a4\u30c8\u30dc\u30fc\u30c9\u3002',
+      ),
+    ];
+
+    // \u8d77\u52d5\u6642\u523b\u3067Tip\u3092\u6c7a\u5b9a\uff08\u7565\u4f3c\u30e9\u30f3\u30c0\u30e0\uff09
+    final tipIndex = DateTime.now().minute % tips.length;
+    final tip = tips[tipIndex];
+
     return Card(
       margin: const EdgeInsets.all(16.0),
+      elevation: 2,
       child: Container(
-        padding: const EdgeInsets.all(16.0),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          color: Colors.orange[50],
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              tip.color.withOpacity(0.05),
+              tip.color.withOpacity(0.12),
+            ],
+          ),
         ),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Icon(Icons.info_outline, color: Colors.orange[600]),
-                const SizedBox(width: 8),
-                Text(
-                  'ニュース',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange[700],
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.lightbulb_outline,
+                      color: tip.color.withOpacity(0.8), size: 20),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Tips',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: tip.color.withOpacity(0.8),
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'GoShoppingへようこそ！現在、最新ニュースを取得できませんが、アプリは正常にご利用いただけます。',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[700],
+                ],
               ),
-            ),
-          ],
+              const SizedBox(height: 10),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(tip.icon, color: tip.color, size: 28),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          tip.title,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          tip.body,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[700],
+                            height: 1.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -559,6 +643,20 @@ class NewsWidget extends ConsumerWidget {
   String _formatDate(DateTime date) {
     return '${date.year}年${date.month}月${date.day}日';
   }
+}
+
+/// Tips表示用データクラス
+class _AppTip {
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String body;
+  const _AppTip({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.body,
+  });
 }
 
 /// コンパクトなニュース表示ウィジェット
