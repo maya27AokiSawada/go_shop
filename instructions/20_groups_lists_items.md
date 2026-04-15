@@ -138,10 +138,68 @@ for (final group in await hiveRepository.getAllGroups()) {
 
 ---
 
-## 7. 禁止事項まとめ
+## 7. メンバーロール管理
+
+### `_parseRole()` は `SharedGroupRole` の全値を網羅すること
+
+Firestore アダプター（`firestore_shared_group_adapter.dart`）の `_parseRole()` は
+`SharedGroupRole` の **全 enum 値** と 1 対 1 で対応させる。
+新ロールを追加したとき **必ず両方を更新する**。
+
+```dart
+// ✅ 正しい — 全値を列挙
+SharedGroupRole _parseRole(dynamic roleData) {
+  if (roleData is String) {
+    switch (roleData.toLowerCase()) {
+      case 'owner':   return SharedGroupRole.owner;
+      case 'manager': return SharedGroupRole.manager;  // ← 必須
+      case 'member':  return SharedGroupRole.member;
+      default:        return SharedGroupRole.member;
+    }
+  }
+  return SharedGroupRole.member;
+}
+
+// ❌ NG — 'manager' ケース欠落。Firestore から読み込むと member に変換される
+```
+
+### ロール変更後のプロバイダ invalidate
+
+メンバーのロールを変更した後は **必ず両方** を invalidate すること。
+
+```dart
+// ✅ 正しい
+ref.invalidate(selectedGroupNotifierProvider);
+ref.invalidate(allGroupsProvider);  // ← グループ一覧タイルの再描画に必要
+
+// ❌ selectedGroupNotifierProvider だけでは allGroups を参照するタイルが更新されない
+```
+
+### `ConsumerStatefulWidget` でのロール表示
+
+`widget.member` は外部から渡された初期値であり、ロール変更後は古いままになる。
+表示には `ref.watch(allGroupsProvider)` から取得した最新メンバーを使うこと。
+
+```dart
+// ✅ 正しい
+final currentMember = group?.members?.firstWhere(
+  (m) => m.memberId == widget.member.memberId,
+  orElse: () => widget.member,
+) ?? widget.member;
+subtitle: Text(_getRoleLabel(currentMember.role));
+
+// ❌ widget.member.role は更新されないため表示が古いまま
+subtitle: Text(_getRoleLabel(widget.member.role));
+```
+
+---
+
+## 8. 禁止事項まとめ
 
 - `updateSharedList()` でアイテムの全件置換更新
 - 権限チェック（`ownerUid` / `allowedUid`）なしの更新
 - `invalidate()` せずに `FutureProvider` を再利用
 - `runTransaction()` のオフライン使用（Windows では abort クラッシュ）
 - Hive 切替直後の空状態を「0件確定」と見なす
+- `_parseRole()` で `SharedGroupRole` の一部ケースを省略する（全値列挙必須）
+- ロール変更後に `allGroupsProvider` の invalidate を省略する
