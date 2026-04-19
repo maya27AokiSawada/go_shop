@@ -2,5 +2,5 @@
 #include "Generated.xcconfig"
 
 // Prod flavor configuration
-PRODUCT_BUNDLE_IDENTIFIER = net.sumomo_planning.goshopping
+PRODUCT_BUNDLE_IDENTIFIER = com.oneness-as.goshopping
 APP_DISPLAY_NAME = GoShopping
