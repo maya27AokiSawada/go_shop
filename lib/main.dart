@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:ui' as ui;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -23,6 +24,7 @@ import 'flavors.dart';
 import 'adapters/shopping_item_adapter_override.dart';
 import 'adapters/user_settings_adapter_override.dart';
 import 'utils/app_logger.dart';
+import 'l10n/app_localizations.dart';
 
 const _androidFirebaseWarmupDelay = Duration(seconds: 3);
 
@@ -78,6 +80,22 @@ Future<void> _initializeApp() async {
   AppLogger.info('▶️ main() 開始');
   WidgetsFlutterBinding.ensureInitialized();
   AppLogger.info('✅ WidgetsFlutterBinding.ensureInitialized() 完了');
+
+  // TODO(Android): Android版も端末言語チェックを実装する（iOS版と同様に日本語以外なら英語モードで起動）
+
+  // 🌐 iOS専用: 端末言語が日本語以外なら英語モードで起動
+  if (Platform.isIOS) {
+    final deviceLocale = ui.PlatformDispatcher.instance.locale;
+    final languageCode = deviceLocale.languageCode;
+    AppLogger.info(
+        '📱 iOS端末言語: $languageCode (${deviceLocale.toLanguageTag()})');
+    if (languageCode != 'ja') {
+      AppLocalizations.setLanguage('en');
+      AppLogger.info('🌐 英語モードで起動 (端末言語: $languageCode)');
+    } else {
+      AppLogger.info('🌐 日本語モードで起動');
+    }
+  }
 
   // 🔥 環境変数の初期化（最優先）
   try {

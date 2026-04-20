@@ -1,4 +1,5 @@
 import 'app_texts.dart';
+import 'app_texts_en.dart';
 import 'app_texts_ja.dart';
 
 /// アプリ全体のローカライゼーション管理
@@ -19,7 +20,7 @@ class AppLocalizations {
   ///
   /// サポート言語:
   /// - 'ja': 日本語 (デフォルト)
-  /// - 'en': 英語 (未実装)
+  /// - 'en': 英語
   /// - 'zh': 中国語 (未実装)
   /// - 'es': スペイン語 (未実装)
   static void setLanguage(String languageCode) {
@@ -28,9 +29,8 @@ class AppLocalizations {
         _currentTexts = AppTextsJa();
         break;
       case 'en':
-        // TODO: 英語実装
-        // _currentTexts = AppTextsEn();
-        throw UnimplementedError('英語はまだ実装されていません');
+        _currentTexts = AppTextsEn();
+        break;
       case 'zh':
         // TODO: 中国語実装
         // _currentTexts = AppTextsZh();
@@ -47,7 +47,7 @@ class AppLocalizations {
   /// 現在の言語コードを取得
   static String get currentLanguageCode {
     if (_currentTexts is AppTextsJa) return 'ja';
-    // if (_currentTexts is AppTextsEn) return 'en';
+    if (_currentTexts is AppTextsEn) return 'en';
     // if (_currentTexts is AppTextsZh) return 'zh';
     // if (_currentTexts is AppTextsEs) return 'es';
     return 'ja';
@@ -56,7 +56,7 @@ class AppLocalizations {
   /// サポートされている言語一覧
   static const List<String> supportedLanguages = [
     'ja', // 日本語
-    // 'en', // 英語 (未実装)
+    'en', // 英語
     // 'zh', // 中国語 (未実装)
     // 'es', // スペイン語 (未実装)
   ];
