@@ -10,3 +10,9 @@
 | TEL            | 052-354-5344                                |
 | FAX            | 052-354-5345                                |
 | メールアドレス | info@oneness-as.com                         |
+
+## 開発責任者
+
+| 項目   | 内容                                                     |
+| ------ | -------------------------------------------------------- |
+| GitHub | [@maya27AokiSawada](https://github.com/maya27AokiSawada) |
