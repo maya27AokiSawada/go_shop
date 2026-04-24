@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../providers/page_index_provider.dart';
+import '../config/app_ui_mode_config.dart';
+import '../widgets/single_group_creation_dialog.dart';
 
 class SignUpForm extends ConsumerStatefulWidget {
   const SignUpForm({super.key});
@@ -63,12 +65,22 @@ class _SignUpFormState extends ConsumerState<SignUpForm> {
   Future<void> _submitSignUp() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
-      try{
+      try {
         await ref.read(authProvider).signUp(_email, _password);
         if (!mounted) return;
-        
+
         // Firebase認証完了 - 状態はauthStateProviderで自動更新される
-        
+
+        // シングルモードの場合はグループ作成ダイアログを表示
+        if (AppUIModeSettings.currentMode == AppUIMode.single && mounted) {
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => const SingleGroupCreationDialog(),
+          );
+        }
+
+        if (!mounted) return;
         ref.read(pageIndexProvider.notifier).setPageIndex(0);
         Navigator.of(context).pop();
       } catch (e) {
@@ -102,7 +114,8 @@ class _SignUpFormState extends ConsumerState<SignUpForm> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('アカウントが見つかりません'),
-          content: Text('メールアドレス "$_email" のアカウントが見つかりませんでした。\n新しいアカウントを作成しますか？'),
+          content:
+              Text('メールアドレス "$_email" のアカウントが見つかりませんでした。\n新しいアカウントを作成しますか？'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
@@ -126,13 +139,23 @@ class _SignUpFormState extends ConsumerState<SignUpForm> {
     try {
       await ref.read(authProvider).signUp(_email, _password);
       if (!mounted) return;
-      
+
       // Firebase認証完了 - 状態はauthStateProviderで自動更新される
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('アカウントを作成しました')),
       );
-      
+
+      // シングルモードの場合はグループ作成ダイアログを表示
+      if (AppUIModeSettings.currentMode == AppUIMode.single && mounted) {
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => const SingleGroupCreationDialog(),
+        );
+      }
+
+      if (!mounted) return;
       ref.read(pageIndexProvider.notifier).setPageIndex(0);
       Navigator.of(context).pop();
     } catch (e) {

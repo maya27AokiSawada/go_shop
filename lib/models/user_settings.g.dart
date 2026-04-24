@@ -26,13 +26,14 @@ class UserSettingsAdapter extends TypeAdapter<UserSettings> {
       enableListNotifications: fields[6] as bool,
       whiteboardColor5: fields[7] as int,
       whiteboardColor6: fields[8] as int,
+      appUIMode: fields[9] as int,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserSettings obj) {
     writer
-      ..writeByte(9)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.userName)
       ..writeByte(1)
@@ -50,7 +51,9 @@ class UserSettingsAdapter extends TypeAdapter<UserSettings> {
       ..writeByte(7)
       ..write(obj.whiteboardColor5)
       ..writeByte(8)
-      ..write(obj.whiteboardColor6);
+      ..write(obj.whiteboardColor6)
+      ..writeByte(9)
+      ..write(obj.appUIMode);
   }
 
   @override
@@ -81,6 +84,7 @@ _$UserSettingsImpl _$$UserSettingsImplFromJson(Map<String, dynamic> json) =>
           (json['whiteboardColor5'] as num?)?.toInt() ?? 0xFF2196F3,
       whiteboardColor6:
           (json['whiteboardColor6'] as num?)?.toInt() ?? 0xFFFF9800,
+      appUIMode: (json['appUIMode'] as num?)?.toInt() ?? 0,
     );
 
 Map<String, dynamic> _$$UserSettingsImplToJson(_$UserSettingsImpl instance) =>
@@ -94,4 +98,5 @@ Map<String, dynamic> _$$UserSettingsImplToJson(_$UserSettingsImpl instance) =>
       'enableListNotifications': instance.enableListNotifications,
       'whiteboardColor5': instance.whiteboardColor5,
       'whiteboardColor6': instance.whiteboardColor6,
+      'appUIMode': instance.appUIMode,
     };

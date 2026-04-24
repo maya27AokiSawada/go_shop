@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../providers/page_index_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/app_mode_notifier_provider.dart';
+import '../providers/app_ui_mode_provider.dart';
 import '../providers/shared_group_provider.dart';
 import '../services/network_monitor_service.dart';
 import '../pages/home_page.dart';
@@ -53,6 +54,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final pageIndex = ref.watch(pageIndexProvider);
     // AppMode変更を監視して自動的に再構築
     ref.watch(appModeNotifierProvider);
+    // AppUIMode変更を監視して自動的に再構築
+    ref.watch(appUIModeProvider);
     ref.listen<AsyncValue<NetworkStatus>>(networkStatusStreamProvider,
         (previous, next) {
       next.whenData((status) {

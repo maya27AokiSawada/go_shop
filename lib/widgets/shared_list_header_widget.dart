@@ -11,6 +11,8 @@ import '../utils/app_logger.dart';
 import '../services/error_log_service.dart';
 import '../utils/snackbar_helper.dart';
 import '../config/app_mode_config.dart';
+import '../providers/app_ui_mode_provider.dart';
+import '../config/app_ui_mode_config.dart';
 
 /// 買い物リスト画面のヘッダーウィジェット
 /// - カレントグループ表示
@@ -37,6 +39,7 @@ class SharedListHeaderWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isSingle = ref.watch(appUIModeProvider) == AppUIMode.single;
     final selectedGroupId = ref.watch(selectedGroupIdProvider);
     final allGroupsAsync = ref.watch(allGroupsProvider);
     final currentList = ref.watch(currentListProvider);
@@ -98,41 +101,59 @@ class SharedListHeaderWidget extends ConsumerWidget {
           if (currentGroup != null) ...[
             const SizedBox(height: 12),
 
-            // リスト選択ドロップダウン
-            groupListsAsync.when(
-              data: (lists) {
-                if (lists.isEmpty) {
-                  return _buildNoListsMessage(context, ref);
-                }
+            // シングルモード: カレントリスト名を固定表示
+            if (isSingle)
+              Row(
+                children: [
+                  Icon(Icons.list, color: Colors.blue.shade700, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      currentList?.listName ?? '買い物リスト',
+                      style: const TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w500),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
 
-                return _buildListDropdown(
-                  context,
-                  ref,
-                  lists,
-                  currentList,
-                  currentGroup.groupId,
-                  canDeleteCurrentList,
-                );
-              },
-              loading: () => const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: CircularProgressIndicator(),
+            // マルチモード: リスト選択ドロップダウン
+            if (!isSingle)
+              groupListsAsync.when(
+                data: (lists) {
+                  if (lists.isEmpty) {
+                    return _buildNoListsMessage(context, ref);
+                  }
+
+                  return _buildListDropdown(
+                    context,
+                    ref,
+                    lists,
+                    currentList,
+                    currentGroup.groupId,
+                    canDeleteCurrentList,
+                  );
+                },
+                loading: () => const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: CircularProgressIndicator(),
+                  ),
+                ),
+                error: (error, stack) => Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Text(
+                    'リスト取得エラー: $error',
+                    style: TextStyle(color: Colors.red.shade900),
+                  ),
                 ),
               ),
-              error: (error, stack) => Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red.shade200),
-                ),
-                child: Text(
-                  'リスト取得エラー: $error',
-                  style: TextStyle(color: Colors.red.shade900),
-                ),
-              ),
-            ),
           ],
         ],
       ),

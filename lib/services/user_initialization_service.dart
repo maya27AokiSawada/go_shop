@@ -16,6 +16,8 @@ import 'notification_service.dart';
 import 'list_notification_batch_service.dart';
 import 'list_cleanup_service.dart';
 import 'user_preferences_service.dart';
+import '../config/app_ui_mode_config.dart';
+import '../providers/app_ui_mode_provider.dart';
 
 final userInitializationServiceProvider = Provider<UserInitializationService>((
   ref,
@@ -166,6 +168,7 @@ class UserInitializationService {
       final localUserName = await UserPreferencesService.getUserName();
       final localUserEmail = await UserPreferencesService.getUserEmail();
       final localUserId = await UserPreferencesService.getUserId();
+      final localAppUIMode = await UserPreferencesService.getAppUIMode();
 
       // Firebase Authのメールアドレスを取得
       final authEmail = user.email;
@@ -199,6 +202,7 @@ class UserInitializationService {
         await userDoc.set({
           'displayName': finalUserName,
           'email': finalUserEmail,
+          'appUIMode': localAppUIMode,
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
       } else {
@@ -216,6 +220,19 @@ class UserInitializationService {
         await UserPreferencesService.saveUserId(finalUserId);
         Log.info(
             '💾 [PROFILE SYNC] ユーザーIDを保存: ${AppLogger.maskUserId(finalUserId)}');
+      }
+
+      // appUIModeのFirestore→ローカル同期
+      if (firestoreData != null && firestoreData['appUIMode'] != null) {
+        final firestoreUIMode = (firestoreData['appUIMode'] as int?) ?? 0;
+        if (firestoreUIMode != localAppUIMode) {
+          await UserPreferencesService.saveAppUIMode(firestoreUIMode);
+          final appUIMode = AppUIMode.values[firestoreUIMode];
+          AppUIModeSettings.setMode(appUIMode);
+          _ref.read(appUIModeProvider.notifier).state = appUIMode;
+          Log.info(
+              '📥 [PROFILE SYNC] appUIModeをFirestoreからローカルに同期: $firestoreUIMode');
+        }
       }
 
       Log.info('✅ [PROFILE SYNC] ユーザープロフィール同期完了');

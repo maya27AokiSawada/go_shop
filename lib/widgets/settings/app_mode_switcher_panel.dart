@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/app_mode_config.dart';
+import '../../config/app_ui_mode_config.dart';
 import '../../providers/app_mode_notifier_provider.dart';
+import '../../providers/app_ui_mode_provider.dart';
 import '../../providers/user_settings_provider.dart';
 import '../../datastore/user_settings_repository.dart';
 
@@ -11,6 +13,10 @@ class AppModeSwitcherPanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // シングルモード時は非表示（shopping固定）
+    if (ref.watch(appUIModeProvider) == AppUIMode.single) {
+      return const SizedBox.shrink();
+    }
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(

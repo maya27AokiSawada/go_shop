@@ -14,6 +14,8 @@ import '../utils/app_logger.dart';
 import '../helpers/user_id_change_helper.dart';
 import '../flavors.dart';
 import '../config/app_mode_config.dart';
+import '../config/app_ui_mode_config.dart';
+import '../providers/app_ui_mode_provider.dart';
 import '../providers/user_settings_provider.dart';
 import '../providers/shared_group_provider.dart'; // forceSyncProvider
 import '../providers/hive_provider.dart';
@@ -202,6 +204,18 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
       } catch (e) {
         Log.error('⚠️ AppMode初期化エラー: $e (デフォルトモード使用)');
         // エラー時はデフォルト(shopping)のまま
+      }
+
+      // AppUIMode初期化: UserSettingsからUIモードを読み込み
+      try {
+        final userSettings = await ref.read(userSettingsProvider.future);
+        final appUIMode = AppUIMode.values[userSettings.appUIMode];
+        AppUIModeSettings.setMode(appUIMode);
+        ref.read(appUIModeProvider.notifier).state = appUIMode;
+        Log.info('✅ AppUIMode初期化: ${appUIMode.name}');
+      } catch (e) {
+        Log.error('⚠️ AppUIMode初期化エラー: $e (デフォルトモード使用)');
+        // エラー時はデフォルト(single)のまま
       }
 
       // 基本的なユーザー初期化サービスの開始のみ

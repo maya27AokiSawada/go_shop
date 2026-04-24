@@ -8,6 +8,9 @@ import '../flavors.dart';
 import '../widgets/settings/auth_status_panel.dart';
 import '../widgets/settings/firestore_sync_status_panel.dart';
 import '../widgets/settings/app_mode_switcher_panel.dart';
+import '../widgets/settings/app_ui_mode_switcher_panel.dart';
+import '../providers/app_ui_mode_provider.dart';
+import '../config/app_ui_mode_config.dart';
 import '../widgets/settings/privacy_settings_panel.dart';
 import '../widgets/settings/whiteboard_settings_panel.dart';
 import '../widgets/settings/developer_tools_section.dart';
@@ -75,8 +78,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 if (isAuthenticated && syncStatus != 'idle')
                   const SizedBox(height: 12),
                 const SizedBox(height: 20),
-                const AppModeSwitcherPanel(),
+                const AppUIModeSwicherPanel(),
                 const SizedBox(height: 20),
+                if (ref.watch(appUIModeProvider) == AppUIMode.multi)
+                  const AppModeSwitcherPanel(),
+                if (ref.watch(appUIModeProvider) == AppUIMode.multi)
+                  const SizedBox(height: 20),
                 const PurchasePlanPanel(),
                 const SizedBox(height: 20),
                 const PrivacySettingsPanel(),

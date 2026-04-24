@@ -40,7 +40,10 @@ mixin _$UserSettings {
   int get whiteboardColor5 =>
       throw _privateConstructorUsedError; // ホワイトボード色5（デフォルト：青）
   @HiveField(8)
-  int get whiteboardColor6 => throw _privateConstructorUsedError;
+  int get whiteboardColor6 =>
+      throw _privateConstructorUsedError; // ホワイトボード色6（デフォルト：オレンジ）
+  @HiveField(9)
+  int get appUIMode => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
@@ -63,7 +66,8 @@ abstract class $UserSettingsCopyWith<$Res> {
       @HiveField(5) int appMode,
       @HiveField(6) bool enableListNotifications,
       @HiveField(7) int whiteboardColor5,
-      @HiveField(8) int whiteboardColor6});
+      @HiveField(8) int whiteboardColor6,
+      @HiveField(9) int appUIMode});
 }
 
 /// @nodoc
@@ -88,6 +92,7 @@ class _$UserSettingsCopyWithImpl<$Res, $Val extends UserSettings>
     Object? enableListNotifications = null,
     Object? whiteboardColor5 = null,
     Object? whiteboardColor6 = null,
+    Object? appUIMode = null,
   }) {
     return _then(_value.copyWith(
       userName: null == userName
@@ -126,6 +131,10 @@ class _$UserSettingsCopyWithImpl<$Res, $Val extends UserSettings>
           ? _value.whiteboardColor6
           : whiteboardColor6 // ignore: cast_nullable_to_non_nullable
               as int,
+      appUIMode: null == appUIMode
+          ? _value.appUIMode
+          : appUIMode // ignore: cast_nullable_to_non_nullable
+              as int,
     ) as $Val);
   }
 }
@@ -147,7 +156,8 @@ abstract class _$$UserSettingsImplCopyWith<$Res>
       @HiveField(5) int appMode,
       @HiveField(6) bool enableListNotifications,
       @HiveField(7) int whiteboardColor5,
-      @HiveField(8) int whiteboardColor6});
+      @HiveField(8) int whiteboardColor6,
+      @HiveField(9) int appUIMode});
 }
 
 /// @nodoc
@@ -170,6 +180,7 @@ class __$$UserSettingsImplCopyWithImpl<$Res>
     Object? enableListNotifications = null,
     Object? whiteboardColor5 = null,
     Object? whiteboardColor6 = null,
+    Object? appUIMode = null,
   }) {
     return _then(_$UserSettingsImpl(
       userName: null == userName
@@ -208,6 +219,10 @@ class __$$UserSettingsImplCopyWithImpl<$Res>
           ? _value.whiteboardColor6
           : whiteboardColor6 // ignore: cast_nullable_to_non_nullable
               as int,
+      appUIMode: null == appUIMode
+          ? _value.appUIMode
+          : appUIMode // ignore: cast_nullable_to_non_nullable
+              as int,
     ));
   }
 }
@@ -224,7 +239,8 @@ class _$UserSettingsImpl implements _UserSettings {
       @HiveField(5) this.appMode = 0,
       @HiveField(6) this.enableListNotifications = true,
       @HiveField(7) this.whiteboardColor5 = 0xFF2196F3,
-      @HiveField(8) this.whiteboardColor6 = 0xFFFF9800});
+      @HiveField(8) this.whiteboardColor6 = 0xFFFF9800,
+      @HiveField(9) this.appUIMode = 0});
 
   factory _$UserSettingsImpl.fromJson(Map<String, dynamic> json) =>
       _$$UserSettingsImplFromJson(json);
@@ -270,10 +286,15 @@ class _$UserSettingsImpl implements _UserSettings {
   @JsonKey()
   @HiveField(8)
   final int whiteboardColor6;
+// ホワイトボード色6（デフォルト：オレンジ）
+  @override
+  @JsonKey()
+  @HiveField(9)
+  final int appUIMode;
 
   @override
   String toString() {
-    return 'UserSettings(userName: $userName, lastUsedGroupId: $lastUsedGroupId, lastUsedSharedListId: $lastUsedSharedListId, userId: $userId, userEmail: $userEmail, appMode: $appMode, enableListNotifications: $enableListNotifications, whiteboardColor5: $whiteboardColor5, whiteboardColor6: $whiteboardColor6)';
+    return 'UserSettings(userName: $userName, lastUsedGroupId: $lastUsedGroupId, lastUsedSharedListId: $lastUsedSharedListId, userId: $userId, userEmail: $userEmail, appMode: $appMode, enableListNotifications: $enableListNotifications, whiteboardColor5: $whiteboardColor5, whiteboardColor6: $whiteboardColor6, appUIMode: $appUIMode)';
   }
 
   @override
@@ -297,7 +318,9 @@ class _$UserSettingsImpl implements _UserSettings {
             (identical(other.whiteboardColor5, whiteboardColor5) ||
                 other.whiteboardColor5 == whiteboardColor5) &&
             (identical(other.whiteboardColor6, whiteboardColor6) ||
-                other.whiteboardColor6 == whiteboardColor6));
+                other.whiteboardColor6 == whiteboardColor6) &&
+            (identical(other.appUIMode, appUIMode) ||
+                other.appUIMode == appUIMode));
   }
 
   @JsonKey(ignore: true)
@@ -312,7 +335,8 @@ class _$UserSettingsImpl implements _UserSettings {
       appMode,
       enableListNotifications,
       whiteboardColor5,
-      whiteboardColor6);
+      whiteboardColor6,
+      appUIMode);
 
   @JsonKey(ignore: true)
   @override
@@ -338,7 +362,8 @@ abstract class _UserSettings implements UserSettings {
       @HiveField(5) final int appMode,
       @HiveField(6) final bool enableListNotifications,
       @HiveField(7) final int whiteboardColor5,
-      @HiveField(8) final int whiteboardColor6}) = _$UserSettingsImpl;
+      @HiveField(8) final int whiteboardColor6,
+      @HiveField(9) final int appUIMode}) = _$UserSettingsImpl;
 
   factory _UserSettings.fromJson(Map<String, dynamic> json) =
       _$UserSettingsImpl.fromJson;
@@ -370,6 +395,9 @@ abstract class _UserSettings implements UserSettings {
   @override // ホワイトボード色5（デフォルト：青）
   @HiveField(8)
   int get whiteboardColor6;
+  @override // ホワイトボード色6（デフォルト：オレンジ）
+  @HiveField(9)
+  int get appUIMode;
   @override
   @JsonKey(ignore: true)
   _$$UserSettingsImplCopyWith<_$UserSettingsImpl> get copyWith =>

@@ -21,6 +21,7 @@ class UserPreferencesService {
   static const String _legacyKeyLastUsedSharedListId =
       'last_used_shopping_list_id';
   static const String _keyAppMode = 'app_mode'; // 0=shopping, 1=todo
+  static const String _keyAppUIMode = 'app_ui_mode'; // 0=single, 1=multi
   static const String _keyEnableListNotifications = 'enable_list_notifications';
 
   /// ユーザー名を取得
@@ -410,6 +411,36 @@ class UserPreferencesService {
             return success;
           },
           context: 'USER_PREFS:saveAppMode',
+          defaultValue: false,
+        ) ??
+        false;
+  }
+
+  /// UIモードを取得（0=single, 1=multi）
+  static Future<int> getAppUIMode() async {
+    return await ErrorHandler.handleAsync(
+          operation: () async {
+            final prefs = await SharedPreferences.getInstance();
+            final mode = prefs.getInt(_keyAppUIMode) ?? 0;
+            Log.info('📱 UIモード: $mode (0=single, 1=multi)');
+            return mode;
+          },
+          context: 'USER_PREFS:getAppUIMode',
+          defaultValue: 0,
+        ) ??
+        0;
+  }
+
+  /// UIモードを保存（0=single, 1=multi）
+  static Future<bool> saveAppUIMode(int mode) async {
+    return await ErrorHandler.handleAsync(
+          operation: () async {
+            final prefs = await SharedPreferences.getInstance();
+            final success = await prefs.setInt(_keyAppUIMode, mode);
+            Log.info('💾 UIモード保存: $mode (0=single, 1=multi) - 成功: $success');
+            return success;
+          },
+          context: 'USER_PREFS:saveAppUIMode',
           defaultValue: false,
         ) ??
         false;

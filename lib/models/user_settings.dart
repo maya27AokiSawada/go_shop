@@ -21,6 +21,7 @@ class UserSettings with _$UserSettings {
     @HiveField(8)
     @Default(0xFFFF9800)
     int whiteboardColor6, // ホワイトボード色6（デフォルト：オレンジ）
+    @HiveField(9) @Default(0) int appUIMode, // 0=single, 1=multi
   }) = _UserSettings;
 
   factory UserSettings.fromJson(Map<String, dynamic> json) =>

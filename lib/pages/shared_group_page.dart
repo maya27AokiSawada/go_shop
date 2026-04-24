@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../utils/app_logger.dart';
 import '../providers/security_provider.dart';
+import '../providers/app_ui_mode_provider.dart';
+import '../config/app_ui_mode_config.dart';
 import '../widgets/group_list_widget.dart';
 import '../widgets/group_creation_with_copy_dialog.dart';
 import '../widgets/accept_invitation_widget.dart';
@@ -48,6 +50,8 @@ class _SharedGroupPageState extends ConsumerState<SharedGroupPage> {
 
     Log.info('🏷️ [PAGE BUILD] SharedGroupPage表示開始');
 
+    final isSingle = ref.watch(appUIModeProvider) == AppUIMode.single;
+
     return Scaffold(
       body: const SafeArea(
         child: Padding(
@@ -55,31 +59,33 @@ class _SharedGroupPageState extends ConsumerState<SharedGroupPage> {
           child: GroupListWidget(),
         ),
       ),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          FloatingActionButton(
-            onPressed: () {
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const QRScannerScreen()));
-            },
-            heroTag: 'scan_qr_code',
-            child: const Icon(Icons.qr_code_scanner),
-          ),
-          const SizedBox(height: 16),
-          FloatingActionButton.extended(
-            onPressed: () => _showCreateGroupDialog(context),
-            backgroundColor: Colors.blue,
-            foregroundColor: Colors.white,
-            icon: const Icon(Icons.group_add),
-            label: const Text('新しいグループ'),
-            heroTag: 'create_group',
-          ),
-        ],
-      ),
+      floatingActionButton: isSingle
+          ? null
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                FloatingActionButton(
+                  onPressed: () {
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const QRScannerScreen()));
+                  },
+                  heroTag: 'scan_qr_code',
+                  child: const Icon(Icons.qr_code_scanner),
+                ),
+                const SizedBox(height: 16),
+                FloatingActionButton.extended(
+                  onPressed: () => _showCreateGroupDialog(context),
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  icon: const Icon(Icons.group_add),
+                  label: const Text('新しいグループ'),
+                  heroTag: 'create_group',
+                ),
+              ],
+            ),
     );
   }
 
