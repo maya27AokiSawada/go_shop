@@ -36,16 +36,17 @@ class UserSettingsAdapterOverride extends TypeAdapter<UserSettings> {
       userId: (fields[3] as String?) ?? '',
       userEmail: (fields[4] as String?) ?? '',
       appMode: (fields[5] as int?) ?? 0,
-
-      // 🔥 NEW FIELD: 存在しない場合はデフォルト値を使用
-      enableListNotifications: (fields[6] as bool?) ?? true, // デフォルト: true
+      enableListNotifications: (fields[6] as bool?) ?? true,
+      whiteboardColor5: (fields[7] as int?) ?? 0xFF2196F3,
+      whiteboardColor6: (fields[8] as int?) ?? 0xFFFF9800,
+      appUIMode: (fields[9] as int?) ?? 0, // 🔥 NEW: 存在しない場合はsingle(0)
     );
   }
 
   @override
   void write(BinaryWriter writer, UserSettings obj) {
     writer
-      ..writeByte(7) // 全フィールド数
+      ..writeByte(10) // 全フィールド数
       ..writeByte(0)
       ..write(obj.userName)
       ..writeByte(1)
@@ -59,7 +60,13 @@ class UserSettingsAdapterOverride extends TypeAdapter<UserSettings> {
       ..writeByte(5)
       ..write(obj.appMode)
       ..writeByte(6)
-      ..write(obj.enableListNotifications);
+      ..write(obj.enableListNotifications)
+      ..writeByte(7)
+      ..write(obj.whiteboardColor5)
+      ..writeByte(8)
+      ..write(obj.whiteboardColor6)
+      ..writeByte(9)
+      ..write(obj.appUIMode);
   }
 
   @override

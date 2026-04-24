@@ -26,7 +26,7 @@ class UserSettingsAdapter extends TypeAdapter<UserSettings> {
       enableListNotifications: fields[6] as bool,
       whiteboardColor5: fields[7] as int,
       whiteboardColor6: fields[8] as int,
-      appUIMode: fields[9] as int,
+      appUIMode: fields[9] as int? ?? 0,
     );
   }
 
