@@ -14,6 +14,7 @@ import '../utils/app_logger.dart';
 import '../flavors.dart';
 import '../models/purchase_type.dart';
 import 'firestore_user_name_service.dart';
+import 'feedback_prompt_service.dart';
 
 // プロバイダー
 final adServiceProvider = Provider<AdService>((ref) => AdService());
@@ -99,12 +100,19 @@ class AdService {
     final prefs = await SharedPreferences.getInstance();
 
     // 0. インストールから90日以内は表示しない
-    final installTime = prefs.getInt(_installDateKey) ?? 0;
-    final daysSinceInstall = DateTime.now()
-        .difference(DateTime.fromMillisecondsSinceEpoch(installTime))
-        .inDays;
-    if (daysSinceInstall < _installGraceDays) {
-      return false;
+    // ただし testingStatus が Active の場合はスキップ（テスト確認用）
+    final isTestingActive = await FeedbackPromptService.isTestingActive();
+    if (!isTestingActive) {
+      final installTime = prefs.getInt(_installDateKey) ?? 0;
+      final daysSinceInstall = DateTime.now()
+          .difference(DateTime.fromMillisecondsSinceEpoch(installTime))
+          .inDays;
+      if (daysSinceInstall < _installGraceDays) {
+        Log.info('🚫 インタースティシャル広告スキップ（インストール$daysSinceInstall日未満）');
+        return false;
+      }
+    } else {
+      Log.info('🧪 testingStatus=Active: 90日間停止を無効化');
     }
 
     // 1. 今日の広告表示回数チェック
