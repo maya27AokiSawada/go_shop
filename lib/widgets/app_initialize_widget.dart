@@ -19,6 +19,7 @@ import '../providers/app_ui_mode_provider.dart';
 import '../providers/user_settings_provider.dart';
 import '../providers/shared_group_provider.dart'; // forceSyncProvider
 import '../providers/hive_provider.dart';
+import '../providers/subscription_provider.dart';
 
 /// アプリ初期化を管理するウィジェット
 ///
@@ -209,7 +210,13 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
       // AppUIMode初期化: UserSettingsからUIモードを読み込み
       try {
         final userSettings = await ref.read(userSettingsProvider.future);
-        final appUIMode = AppUIMode.values[userSettings.appUIMode];
+        var appUIMode = AppUIMode.values[userSettings.appUIMode];
+        // 🔥 FIX: 非課金ユーザーはシングルモード強制
+        final isPremium = ref.read(isPremiumActiveProvider);
+        if (!isPremium && appUIMode == AppUIMode.multi) {
+          appUIMode = AppUIMode.single;
+          Log.info('⚠️ AppUIMode: 非課金ユーザーのためシングルモードに強制変更');
+        }
         AppUIModeSettings.setMode(appUIMode);
         ref.read(appUIModeProvider.notifier).state = appUIMode;
         Log.info('✅ AppUIMode初期化: ${appUIMode.name}');

@@ -18,6 +18,7 @@ import 'list_cleanup_service.dart';
 import 'user_preferences_service.dart';
 import '../config/app_ui_mode_config.dart';
 import '../providers/app_ui_mode_provider.dart';
+import '../providers/subscription_provider.dart';
 
 final userInitializationServiceProvider = Provider<UserInitializationService>((
   ref,
@@ -227,7 +228,13 @@ class UserInitializationService {
         final firestoreUIMode = (firestoreData['appUIMode'] as int?) ?? 0;
         if (firestoreUIMode != localAppUIMode) {
           await UserPreferencesService.saveAppUIMode(firestoreUIMode);
-          final appUIMode = AppUIMode.values[firestoreUIMode];
+          var appUIMode = AppUIMode.values[firestoreUIMode];
+          // 🔥 FIX: 非課金ユーザーはシングルモード強制
+          final isPremium = _ref.read(isPremiumActiveProvider);
+          if (!isPremium && appUIMode == AppUIMode.multi) {
+            appUIMode = AppUIMode.single;
+            Log.info('⚠️ [PROFILE SYNC] 非課金ユーザーのためシングルモードに強制変更');
+          }
           AppUIModeSettings.setMode(appUIMode);
           _ref.read(appUIModeProvider.notifier).state = appUIMode;
           Log.info(

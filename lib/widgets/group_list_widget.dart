@@ -14,6 +14,8 @@ import '../services/user_initialization_service.dart';
 import '../services/notification_service.dart';
 import '../providers/auth_provider.dart';
 import '../utils/group_display_helper.dart';
+import '../providers/app_ui_mode_provider.dart';
+import '../config/app_ui_mode_config.dart';
 // 🔥 REMOVED: import 'initial_setup_widget.dart'; グループページ内にメッセージ表示に変更
 
 /// グループをリスト表示するウィジェット
@@ -29,6 +31,8 @@ class GroupListWidget extends ConsumerWidget {
     final allGroupsAsync = ref.watch(allGroupsProvider);
     // selectedGroupIdProviderとcurrentGroupProviderを同期して使用
     final selectedGroupId = ref.watch(selectedGroupIdProvider);
+    // シングルモード変化時にリビルドを保証
+    ref.watch(appUIModeProvider);
     final syncStatus = ref.watch(firestoreSyncStatusProvider);
 
     // 同期中の場合はローディング表示
@@ -141,7 +145,14 @@ class GroupListWidget extends ConsumerWidget {
 
   Widget _buildGroupList(BuildContext context, WidgetRef ref,
       List<SharedGroup> groups, String selectedGroupId) {
-    AppLogger.info('📋 [GROUP_LIST] グループ数: ${groups.length}');
+    // シングルモード: カレントグループのみ表示
+    final isSingle = ref.read(appUIModeProvider) == AppUIMode.single;
+    if (isSingle) {
+      groups = groups.where((g) => g.groupId == selectedGroupId).toList();
+    }
+
+    AppLogger.info(
+        '📋 [GROUP_LIST] グループ数: ${groups.length} (isSingle: $isSingle)');
 
     // 🔥 FIX: グループが0個の場合はシンプルなメッセージを表示
     // （右下のFloatingActionButtonでグループ作成可能）
