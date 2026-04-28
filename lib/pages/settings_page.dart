@@ -78,14 +78,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 if (isAuthenticated && syncStatus != 'idle')
                   const SizedBox(height: 12),
                 const SizedBox(height: 20),
-                const AppUIModeSwicherPanel(),
-                const SizedBox(height: 20),
-                if (ref.watch(appUIModeProvider) == AppUIMode.multi)
-                  const AppModeSwitcherPanel(),
-                if (ref.watch(appUIModeProvider) == AppUIMode.multi)
-                  const SizedBox(height: 20),
-                const PurchasePlanPanel(),
-                const SizedBox(height: 20),
+                // 課金UI無効化（配信停止方針のため非表示）
+                // const AppUIModeSwicherPanel(),
+                // const SizedBox(height: 20),
+                // if (ref.watch(appUIModeProvider) == AppUIMode.multi)
+                //   const AppModeSwitcherPanel(),
+                // if (ref.watch(appUIModeProvider) == AppUIMode.multi)
+                //   const SizedBox(height: 20),
+                // const PurchasePlanPanel(),
+                // const SizedBox(height: 20),
                 const PrivacySettingsPanel(),
                 const SizedBox(height: 20),
                 const WhiteboardSettingsPanel(),
