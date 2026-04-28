@@ -6,30 +6,13 @@ import '../../config/app_ui_mode_config.dart';
 import '../../providers/app_ui_mode_provider.dart';
 import '../../providers/user_settings_provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/subscription_provider.dart';
-import '../../providers/purchase_type_provider.dart';
 import '../../datastore/user_settings_repository.dart';
 import '../../services/user_preferences_service.dart';
-import '../../models/purchase_type.dart';
 import '../../utils/app_logger.dart';
 
 /// AppUIモード切り替えパネル（シングル ↔ マルチ）
-///
-/// マルチモードへの切り替えは課金アクティブ時のみ可能。
-/// - isPremiumActive (trial / yearly / threeYear) または
-/// - PurchaseType.subscribe / PurchaseType.purchase
 class AppUIModeSwicherPanel extends ConsumerWidget {
   const AppUIModeSwicherPanel({super.key});
-
-  /// 課金状態で Multi への切り替えが許可されているか
-  bool _canSwitchToMulti(
-      bool isPremium, AsyncValue<PurchaseType> purchaseTypeAsync) {
-    if (isPremium) return true;
-    final purchaseType = purchaseTypeAsync.valueOrNull;
-    if (purchaseType == null) return false;
-    return purchaseType == PurchaseType.subscribe ||
-        purchaseType == PurchaseType.purchase;
-  }
 
   Future<void> _saveMode(WidgetRef ref, AppUIMode newMode) async {
     // Hive
@@ -64,19 +47,8 @@ class AppUIModeSwicherPanel extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     AppUIMode currentMode,
-    bool canSwitchToMulti,
   ) async {
     if (currentMode == AppUIMode.single) {
-      // Single → Multi：課金チェック
-      if (!canSwitchToMulti) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('マルチモードはプレミアムプランへのアップグレードが必要です'),
-            duration: Duration(seconds: 3),
-          ),
-        );
-        return;
-      }
       await _saveMode(ref, AppUIMode.multi);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -123,9 +95,6 @@ class AppUIModeSwicherPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentMode = ref.watch(appUIModeProvider);
-    final isPremium = ref.watch(isPremiumActiveProvider);
-    final purchaseTypeAsync = ref.watch(purchaseTypeProvider);
-    final canSwitchToMulti = _canSwitchToMulti(isPremium, purchaseTypeAsync);
     final isMulti = currentMode == AppUIMode.multi;
 
     return Container(
@@ -160,35 +129,19 @@ class AppUIModeSwicherPanel extends ConsumerWidget {
             style: TextStyle(fontSize: 12, color: Colors.green.shade700),
           ),
           const SizedBox(height: 12),
-          Tooltip(
-            message: (!isMulti && !canSwitchToMulti)
-                ? 'マルチモードへの切り替えはプレミアムプランが必要です'
-                : '',
-            child: SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Row(
-                children: [
-                  Text(
-                    isMulti ? 'マルチ' : 'シングル',
-                    style: const TextStyle(fontWeight: FontWeight.w500),
-                  ),
-                  if (!isMulti && !canSwitchToMulti) ...[
-                    const SizedBox(width: 8),
-                    Icon(Icons.lock, size: 16, color: Colors.grey.shade500),
-                  ],
-                ],
-              ),
-              subtitle: Text(
-                isMulti ? '複数グループ・リスト管理（プレミアム）' : '1グループ・1リスト専用（無料）',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-              ),
-              value: isMulti,
-              onChanged: (!isMulti && !canSwitchToMulti)
-                  ? null // 無効化
-                  : (_) =>
-                      _onToggle(context, ref, currentMode, canSwitchToMulti),
-              activeThumbColor: Colors.green.shade600,
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              isMulti ? 'マルチ' : 'シングル',
+              style: const TextStyle(fontWeight: FontWeight.w500),
             ),
+            subtitle: Text(
+              isMulti ? '複数グループ・リスト管理' : '1グループ・1リスト専用',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+            value: isMulti,
+            onChanged: (_) => _onToggle(context, ref, currentMode),
+            activeThumbColor: Colors.green.shade600,
           ),
         ],
       ),
