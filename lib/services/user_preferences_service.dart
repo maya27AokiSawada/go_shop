@@ -509,7 +509,7 @@ class UserPreferencesService {
   /// 90日以上古いキャッシュは無効とし `null` を返す。
   /// `null` の場合は呼び出し元で `'free'` にフォールバックすること。
   static Future<String?> loadPurchaseTypeCache() async {
-    return await ErrorHandler.handleAsync(
+    return await ErrorHandler.handleAsync<String?>(
       operation: () async {
         final prefs = await SharedPreferences.getInstance();
         final value = prefs.getString(_keyPurchaseTypeCache);

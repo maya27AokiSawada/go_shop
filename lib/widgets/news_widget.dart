@@ -487,11 +487,6 @@ class NewsWidget extends ConsumerWidget {
     );
   }
 
-  Widget _buildErrorCard(String error) {
-    return _buildTipsCard(null);
-  }
-
-  /// \u64cd\u4f5c\u30c8\u30a4\u30d7\u30b9\u30ab\u30fc\u30c9\uff08\u30cb\u30e5\u30fc\u30b9\u672a\u53d6\u5f97\u6642\u306b\u8868\u793a\uff09
   Widget _buildTipsCard(BuildContext? ctx) {
     // \u30e9\u30f3\u30c0\u30e0\u8868\u793a\u7528\u306e\u30c8\u30a4\u30d7\u30b9\u4e00\u89a7
     const tips = [
@@ -700,3 +695,4 @@ class CompactNewsWidget extends ConsumerWidget {
     );
   }
 }
+
