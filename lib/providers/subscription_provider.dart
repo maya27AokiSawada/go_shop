@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import '../providers/auth_provider.dart';
+import '../models/purchase_type.dart';
 
 /// 課金プランの種類
 enum SubscriptionPlan {
@@ -222,6 +223,28 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
   /// 無料プランに戻す（テスト用）
   Future<void> resetToFree() async {
     state = const SubscriptionState();
+    await _saveSubscriptionState();
+  }
+
+  /// Google Play課金状態からHiveを同期する（purchaseSyncProvider経由で呼ばれる）
+  ///
+  /// Firestore `purchaseType` が `subscribe` または `purchase` の場合に、
+  /// Hive の SubscriptionState をプレミアム相当に更新する。
+  /// 有効期限は購入日から1年（サブスクの場合は定期更新されるため実質的なガード）。
+  Future<void> syncFromGooglePlay(PurchaseType purchaseType) async {
+    final now = DateTime.now();
+    // サブスクは1年の有効期限（Google Playが管理するため長めに設定）
+    // 買い切りは実質無期限（10年）
+    final expiryDuration = purchaseType == PurchaseType.subscribe
+        ? const Duration(days: 365)
+        : const Duration(days: 365 * 10);
+
+    state = state.copyWith(
+      plan: SubscriptionPlan.yearly, // どちらのプランもpremium相当
+      purchaseDate: now,
+      expiryDate: now.add(expiryDuration),
+      isTrialActive: false,
+    );
     await _saveSubscriptionState();
   }
 

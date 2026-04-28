@@ -20,6 +20,8 @@ import '../providers/user_settings_provider.dart';
 import '../providers/shared_group_provider.dart'; // forceSyncProvider
 import '../providers/hive_provider.dart';
 import '../providers/subscription_provider.dart';
+import '../providers/purchase_type_provider.dart';
+import '../providers/purchase_sync_provider.dart';
 
 /// アプリ初期化を管理するウィジェット
 ///
@@ -45,6 +47,9 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
   bool _isInitialized = false;
   bool _isInitializing = false;
   String _initializationStatus = 'アプリを準備中...';
+
+  // アプリセッション内でリストアを1回だけ実行するフラグ
+  static bool _purchaseRestoreExecuted = false;
 
   @override
   void initState() {
@@ -274,6 +279,15 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
         }
       }
 
+      // 🆕 Google Play課金リストア（Android起動時に1回だけ実行）
+      // FirestoreデータロストへのフォールバックとしてGoogle Playに問い合わせて再同期
+      if (!_purchaseRestoreExecuted &&
+          Platform.isAndroid &&
+          currentUser != null) {
+        _purchaseRestoreExecuted = true;
+        _restorePurchasesInBackground();
+      }
+
       // AdMob SDK 初期化（Android/iOSのみ）
       if (Platform.isAndroid || Platform.isIOS) {
         try {
@@ -312,8 +326,29 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
     }
   }
 
+  /// Google Play 購入を復元してFirestoreを再同期（バックグラウンド処理）
+  ///
+  /// Firestoreデータロスト後の課金状態復旧に使用。
+  /// アプリ起動時・認証済みユーザーがいる場合のみ実行。
+  Future<void> _restorePurchasesInBackground() async {
+    try {
+      Future.delayed(const Duration(seconds: 3), () async {
+        Log.info('🔄 [PURCHASE_RESTORE] 起動時Google Play課金リストア開始');
+        final purchaseService = ref.read(purchaseServiceProvider);
+        await purchaseService.initialize();
+        await purchaseService.restorePurchases();
+        Log.info('✅ [PURCHASE_RESTORE] 起動時リストア完了');
+      });
+    } catch (e) {
+      Log.error('❌ [PURCHASE_RESTORE] 起動時リストアエラー: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Firestore課金状態 → HiveからなisPremiumActiveProviderへの同期を起動
+    ref.watch(purchaseSyncProvider);
+
     if (!_isInitialized) {
       return _buildLoadingScreen();
     }

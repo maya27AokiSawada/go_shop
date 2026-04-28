@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/app_logger.dart';
 import '../models/purchase_type.dart';
 import 'error_log_service.dart';
+import 'user_preferences_service.dart';
 
 /// ユーザー名をFirestoreで管理するサービス
 ///
@@ -309,6 +310,9 @@ class FirestoreUserNameService {
         SetOptions(merge: true),
       );
       Log.info('✅ 課金タイプ保存: ${type.firestoreValue}');
+
+      // ローカルキャッシュにも保存（Firestoreロスト時のフォールバック用）
+      await UserPreferencesService.savePurchaseTypeCache(type.firestoreValue);
     } catch (e) {
       Log.error('❌ 課金タイプ保存エラー: $e');
       await ErrorLogService.logOperationError('課金タイプ保存', '$e');

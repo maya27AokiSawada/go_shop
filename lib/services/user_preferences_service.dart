@@ -24,6 +24,11 @@ class UserPreferencesService {
   static const String _keyAppUIMode = 'app_ui_mode'; // 0=single, 1=multi
   static const String _keyEnableListNotifications = 'enable_list_notifications';
 
+  // 課金タイプキャッシュ（Firestoreデータロスト時のフォールバック用）
+  static const String _keyPurchaseTypeCache = 'purchase_type_cache';
+  static const String _keyPurchaseTypeCacheTimestamp =
+      'purchase_type_cache_timestamp';
+
   /// ユーザー名を取得
   static Future<String?> getUserName() async {
     return ErrorHandler.handleAsync<String>(
@@ -475,5 +480,70 @@ class UserPreferencesService {
           defaultValue: false,
         ) ??
         false;
+  }
+
+  // ==================== 課金タイプキャッシュ（Firestoreロスト対策） ====================
+
+  /// 課金タイプをローカルにキャッシュ保存
+  ///
+  /// Firestoreデータがロストした場合のフォールバック用。
+  /// [value] は `'free'` / `'subscribe'` / `'purchase'` のいずれか。
+  static Future<void> savePurchaseTypeCache(String value) async {
+    await ErrorHandler.handleAsync(
+      operation: () async {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_keyPurchaseTypeCache, value);
+        await prefs.setInt(
+          _keyPurchaseTypeCacheTimestamp,
+          DateTime.now().millisecondsSinceEpoch,
+        );
+        Log.info('💾 課金タイプキャッシュ保存: $value');
+      },
+      context: 'USER_PREFS:savePurchaseTypeCache',
+      defaultValue: null,
+    );
+  }
+
+  /// キャッシュされた課金タイプを取得
+  ///
+  /// 90日以上古いキャッシュは無効とし `null` を返す。
+  /// `null` の場合は呼び出し元で `'free'` にフォールバックすること。
+  static Future<String?> loadPurchaseTypeCache() async {
+    return await ErrorHandler.handleAsync(
+      operation: () async {
+        final prefs = await SharedPreferences.getInstance();
+        final value = prefs.getString(_keyPurchaseTypeCache);
+        if (value == null) return null;
+
+        final timestamp = prefs.getInt(_keyPurchaseTypeCacheTimestamp);
+        if (timestamp != null) {
+          final age = DateTime.now()
+              .difference(DateTime.fromMillisecondsSinceEpoch(timestamp));
+          if (age.inDays > 90) {
+            Log.info('⚠️ 課金タイプキャッシュが古すぎます (${age.inDays}日): 無効化');
+            return null;
+          }
+        }
+
+        Log.info('📱 課金タイプキャッシュ取得: $value');
+        return value;
+      },
+      context: 'USER_PREFS:loadPurchaseTypeCache',
+      defaultValue: null,
+    );
+  }
+
+  /// 課金タイプキャッシュをクリア（ログアウト時など）
+  static Future<void> clearPurchaseTypeCache() async {
+    await ErrorHandler.handleAsync(
+      operation: () async {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove(_keyPurchaseTypeCache);
+        await prefs.remove(_keyPurchaseTypeCacheTimestamp);
+        Log.info('🗑️ 課金タイプキャッシュをクリア');
+      },
+      context: 'USER_PREFS:clearPurchaseTypeCache',
+      defaultValue: null,
+    );
   }
 }
