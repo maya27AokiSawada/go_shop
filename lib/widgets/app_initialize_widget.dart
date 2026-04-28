@@ -19,7 +19,6 @@ import '../providers/app_ui_mode_provider.dart';
 import '../providers/user_settings_provider.dart';
 import '../providers/shared_group_provider.dart'; // forceSyncProvider
 import '../providers/hive_provider.dart';
-import '../providers/subscription_provider.dart';
 import '../providers/purchase_type_provider.dart';
 import '../providers/purchase_sync_provider.dart';
 

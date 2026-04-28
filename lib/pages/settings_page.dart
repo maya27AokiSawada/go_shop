@@ -7,10 +7,6 @@ import '../utils/app_logger.dart';
 import '../flavors.dart';
 import '../widgets/settings/auth_status_panel.dart';
 import '../widgets/settings/firestore_sync_status_panel.dart';
-import '../widgets/settings/app_mode_switcher_panel.dart';
-import '../widgets/settings/app_ui_mode_switcher_panel.dart';
-import '../providers/app_ui_mode_provider.dart';
-import '../config/app_ui_mode_config.dart';
 import '../widgets/settings/privacy_settings_panel.dart';
 import '../widgets/settings/whiteboard_settings_panel.dart';
 import '../widgets/settings/developer_tools_section.dart';
@@ -18,7 +14,6 @@ import '../widgets/settings/feedback_debug_section.dart';
 import '../widgets/settings/data_maintenance_section.dart';
 import '../widgets/settings/feedback_section.dart';
 import '../widgets/settings/account_deletion_section.dart';
-import '../widgets/settings/purchase_plan_panel.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});

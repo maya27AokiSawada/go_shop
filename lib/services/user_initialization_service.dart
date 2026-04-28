@@ -18,7 +18,6 @@ import 'list_cleanup_service.dart';
 import 'user_preferences_service.dart';
 import '../config/app_ui_mode_config.dart';
 import '../providers/app_ui_mode_provider.dart';
-import '../providers/subscription_provider.dart';
 
 final userInitializationServiceProvider = Provider<UserInitializationService>((
   ref,
