@@ -7,7 +7,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../utils/app_logger.dart';
@@ -180,32 +179,13 @@ class AdService {
     return true;
   }
 
-  /// バナー広告作成（位置情報ベース：30km圏内優先）
+  /// バナー広告作成
   Future<BannerAd> createBannerAd({
     required AdSize size,
     VoidCallback? onAdLoaded,
     VoidCallback? onAdFailedToLoad,
-    bool useLocation = true,
   }) async {
-    AdRequest adRequest;
-
-    if (useLocation && (Platform.isAndroid || Platform.isIOS)) {
-      // 位置情報を取得して広告リクエストに追加（30km圏内の店舗広告を優先）
-      final position = await getCurrentLocation();
-      if (position != null) {
-        Log.info('📍 位置情報取得成功: (${position.latitude}, ${position.longitude})');
-        // 位置情報を含むAdRequestを作成
-        adRequest = const AdRequest(
-          keywords: ['local', 'nearby', '地域'],
-          // Google AdMobは自動的に位置情報を使用して地域広告を配信（約30km圏内）
-        );
-      } else {
-        Log.info('📍 位置情報取得失敗、標準広告を表示');
-        adRequest = const AdRequest();
-      }
-    } else {
-      adRequest = const AdRequest();
-    }
+    const adRequest = AdRequest();
 
     return BannerAd(
       adUnitId: _bannerAdUnitId,
@@ -224,19 +204,20 @@ class AdService {
     );
   }
 
-  /// 地域広告用の位置情報取得（30km圏内の広告優先表示）
-  Future<Position?> getCurrentLocation() async {
+  // [削除済み] getCurrentLocation() - 位置情報取得廃止
+  // ignore: unused_element
+  Future<void> _removedGetCurrentLocation() async {
     try {
       // Android/iOSでのみ位置情報を取得
       if (!Platform.isAndroid && !Platform.isIOS) {
-        return null;
+        return;
       }
 
       // 位置情報サービスが有効かチェック
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         Log.info('📍 位置情報サービスが無効です');
-        return null;
+        return;
       }
 
       // 位置情報権限チェック
@@ -246,13 +227,13 @@ class AdService {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           Log.info('📍 位置情報権限が拒否されました');
-          return null;
+          return;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
         Log.info('📍 位置情報権限が永久に拒否されています');
-        return null;
+        return;
       }
 
       // 位置情報取得（粗い精度で30km圏内の広告配信に使用）
@@ -352,7 +333,6 @@ class _LocalNewsAdWidgetState extends ConsumerState<LocalNewsAdWidget> {
 
     _bannerAd = await adService.createBannerAd(
       size: AdSize.banner,
-      useLocation: true, // 位置情報ベースの広告を有効化
       onAdLoaded: () {
         setState(() {
           _isAdLoaded = true;
@@ -447,8 +427,7 @@ class _HomeBannerAdWidgetState extends ConsumerState<HomeBannerAdWidget> {
     try {
       final adService = ref.read(adServiceProvider);
       _bannerAd = await adService.createBannerAd(
-        size: AdSize.mediumRectangle, // 高さ拡大（50→250）
-        useLocation: true, // 位置情報ベースの広告を有効化（30km圏内優先）
+        size: AdSize.mediumRectangle,
         onAdLoaded: () {
           if (mounted) {
             setState(() {

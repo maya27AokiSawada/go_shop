@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geolocator/geolocator.dart';
 
 import '../services/ad_service.dart';
 
@@ -13,22 +12,9 @@ class NewsPage extends ConsumerStatefulWidget {
 }
 
 class _NewsPageState extends ConsumerState<NewsPage> {
-  Position? _currentPosition;
-  bool _isLoadingLocation = true;
-
   @override
   void initState() {
     super.initState();
-    _getCurrentLocation();
-  }
-
-  Future<void> _getCurrentLocation() async {
-    final adService = ref.read(adServiceProvider);
-    final position = await adService.getCurrentLocation();
-    setState(() {
-      _currentPosition = position;
-      _isLoadingLocation = false;
-    });
   }
 
   @override
@@ -42,62 +28,11 @@ class _NewsPageState extends ConsumerState<NewsPage> {
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
-          // 位置情報表示
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.location_on, color: Colors.orange.shade600),
-                      const SizedBox(width: 8),
-                      const Text(
-                        '現在地周辺の情報',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  if (_isLoadingLocation)
-                    const Row(
-                      children: [
-                        SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                        SizedBox(width: 12),
-                        Text('位置情報を取得中...'),
-                      ],
-                    )
-                  else if (_currentPosition != null)
-                    Text(
-                      '緯度: ${_currentPosition!.latitude.toStringAsFixed(4)}, '
-                      '経度: ${_currentPosition!.longitude.toStringAsFixed(4)}',
-                      style: TextStyle(color: Colors.grey.shade600),
-                    )
-                  else
-                    Text(
-                      '位置情報が取得できませんでした',
-                      style: TextStyle(color: Colors.grey.shade600),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // 地域広告ウィジェット
+          // 広告ウィジェット
           const LocalNewsAdWidget(),
-          
+
           const SizedBox(height: 16),
-          
+
           // サンプルニュース項目
           _buildNewsCard(
             title: '🛒 買い物のコツ',
@@ -106,7 +41,7 @@ class _NewsPageState extends ConsumerState<NewsPage> {
             color: Colors.blue.shade50,
             iconColor: Colors.blue.shade600,
           ),
-          
+
           _buildNewsCard(
             title: '📊 家計管理術',
             subtitle: '支出の見える化で無駄を削減',
@@ -114,19 +49,19 @@ class _NewsPageState extends ConsumerState<NewsPage> {
             color: Colors.green.shade50,
             iconColor: Colors.green.shade600,
           ),
-          
+
           _buildNewsCard(
             title: '🏪 近隣店舗情報',
             subtitle: 'お得な特売情報をチェック',
-            description: '位置情報を許可すると、お近くの店舗の特売情報をお届けします。',
+            description: 'お近くの店舗の特売情報やセール情報を活用しましょう。',
             color: Colors.orange.shade50,
             iconColor: Colors.orange.shade600,
           ),
-          
+
           // 2つ目の広告エリア（下部）
           const SizedBox(height: 16),
           const LocalNewsAdWidget(),
-          
+
           // 追加のコンテンツ
           _buildNewsCard(
             title: '🎯 効率的な買い物ルート',
@@ -135,7 +70,7 @@ class _NewsPageState extends ConsumerState<NewsPage> {
             color: Colors.purple.shade50,
             iconColor: Colors.purple.shade600,
           ),
-          
+
           const SizedBox(height: 32),
         ],
       ),
