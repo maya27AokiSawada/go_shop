@@ -102,3 +102,6 @@ debug_info/
 .sentry-native/*.run.lock
 
 pubspec.lock
+
+# Secret files (API keys, credentials)
+secret/

@@ -1233,7 +1233,7 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
               absorbing: _isClearing,
               child: Column(
                 children: [
-                  // 編集可能な場合のみツールバー表示
+                  // 編集可能な場合のみフルツールバー表示
                   if (canEdit)
                     WhiteboardToolbar(
                       selectedColor: _selectedColor,
@@ -1303,6 +1303,39 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
                         }
                       },
                       onClearWhiteboard: _showDeleteConfirmationDialog,
+                    ),
+
+                  // 閲覧専用時はズームのみ表示
+                  if (!canEdit)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      color: Colors.grey[200],
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.zoom_out, size: 20),
+                            onPressed: _canvasScale > 0.5
+                                ? () => setState(() {
+                                      _canvasScale -= 0.5;
+                                    })
+                                : null,
+                            tooltip: 'ズームアウト',
+                          ),
+                          Text('${_canvasScale.toStringAsFixed(1)}x'),
+                          IconButton(
+                            icon: const Icon(Icons.zoom_in, size: 20),
+                            onPressed: _canvasScale < 4.0
+                                ? () => setState(() {
+                                      _canvasScale += 0.5;
+                                    })
+                                : null,
+                            tooltip: 'ズームイン',
+                          ),
+                        ],
+                      ),
                     ),
 
                   // 初回ストローク読み込み中スピナー

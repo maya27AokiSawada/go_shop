@@ -271,9 +271,12 @@ class _MemberTileWithWhiteboardState
                 children: [
                   Icon(Icons.touch_app, size: 14, color: Colors.blue),
                   SizedBox(width: 6),
-                  Text(
-                    'ダブルタップでホワイトボードを表示',
-                    style: TextStyle(fontSize: 12, color: Colors.blue),
+                  Expanded(
+                    child: Text(
+                      'ダブルタップでホワイトボードを表示',
+                      style: TextStyle(fontSize: 12, color: Colors.blue),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
