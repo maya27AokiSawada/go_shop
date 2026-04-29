@@ -129,20 +129,20 @@ batch2.update(group.reference, {
 `lib/pages/settings_page.dart` は薄いオーケストレーターとして機能し、
 実装の実体は `lib/widgets/settings/` の各ファイルに分割されている。
 
-| ファイル                           | 役割                                                                                       | Widget 種別              |
-| ---------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------ |
-| `auth_status_panel.dart`           | 認証状態表示パネル                                                                         | `ConsumerWidget`         |
-| `firestore_sync_status_panel.dart` | Firestore 同期状態表示                                                                     | `ConsumerWidget`         |
-| `app_mode_switcher_panel.dart`     | アプリモード切替（リスト ⇄ TODO）                                                          | `ConsumerWidget`         |
-| `purchase_plan_panel.dart`         | 課金プラン表示・購入UIパネル（比較表・購入ボタン・復元ボタン）                             | `ConsumerStatefulWidget` |
-| `notification_settings_panel.dart` | 通知設定                                                                                   | `ConsumerWidget`         |
-| `privacy_settings_panel.dart`      | プライバシー設定（シークレットモード切替・プライバシーポリシー/利用規約/データ削除リンク） | `ConsumerStatefulWidget` |
-| `whiteboard_settings_panel.dart`   | ホワイトボードカラー設定                                                                   | `ConsumerWidget`         |
-| `feedback_section.dart`            | フィードバックフォームリンク                                                               | `StatefulWidget`         |
-| `feedback_debug_section.dart`      | フィードバックデバッグ情報（dev のみ）                                                     | `StatefulWidget`         |
-| `developer_tools_section.dart`     | 開発者ツールパネル（dev のみ）                                                             | `ConsumerWidget`         |
-| `data_maintenance_section.dart`    | データクリーンアップ・マイグレーション（dev のみ）                                         | `ConsumerStatefulWidget` |
-| `account_deletion_section.dart`    | アカウント削除（認証済みのみ）                                                             | `ConsumerStatefulWidget` |
+| ファイル                           | 役割                                                           | Widget 種別              |
+| ---------------------------------- | -------------------------------------------------------------- | ------------------------ |
+| `auth_status_panel.dart`           | 認証状態表示パネル                                             | `ConsumerWidget`         |
+| `firestore_sync_status_panel.dart` | Firestore 同期状態表示                                         | `ConsumerWidget`         |
+| `app_mode_switcher_panel.dart`     | アプリモード切替（リスト ⇄ TODO）                              | `ConsumerWidget`         |
+| `purchase_plan_panel.dart`         | 課金プラン表示・購入UIパネル（比較表・購入ボタン・復元ボタン） | `ConsumerStatefulWidget` |
+| `notification_settings_panel.dart` | 通知設定                                                       | `ConsumerWidget`         |
+| `privacy_settings_panel.dart`      | プライバシー設定（プライバシーポリシー/利用規約リンク）        | `StatelessWidget`        |
+| `whiteboard_settings_panel.dart`   | ホワイトボードカラー設定                                       | `ConsumerWidget`         |
+| `feedback_section.dart`            | フィードバックフォームリンク                                   | `StatefulWidget`         |
+| `feedback_debug_section.dart`      | フィードバックデバッグ情報（dev のみ）                         | `StatefulWidget`         |
+| `developer_tools_section.dart`     | 開発者ツールパネル（dev のみ）                                 | `ConsumerWidget`         |
+| `data_maintenance_section.dart`    | データクリーンアップ・マイグレーション（dev のみ）             | `ConsumerStatefulWidget` |
+| `account_deletion_section.dart`    | アカウント削除（認証済みのみ）                                 | `ConsumerStatefulWidget` |
 
 ### ルール
 
