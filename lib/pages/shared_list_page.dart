@@ -11,6 +11,7 @@ import '../providers/auth_provider.dart';
 import '../utils/app_logger.dart';
 import '../utils/snackbar_helper.dart';
 import '../services/error_log_service.dart';
+import '../l10n/l10n.dart';
 
 /// 共有リスト画面
 /// カレントグループとカレントリストを使用したシンプルな実装
@@ -148,12 +149,12 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
       onPressed: () {
         final currentList = ref.read(currentListProvider);
         if (currentList == null) {
-          SnackBarHelper.showError(context, 'リストを選択してください');
+          SnackBarHelper.showError(context, texts.selectList);
           return;
         }
         _showAddItemDialog(context, ref);
       },
-      tooltip: 'アイテムを追加',
+      tooltip: texts.addItem,
       child: const Icon(Icons.add),
     );
   }
@@ -183,9 +184,9 @@ class _SharedItemsListWidget extends ConsumerWidget {
     final selectedGroupId = ref.watch(selectedGroupIdProvider);
 
     if (currentList == null || selectedGroupId == null) {
-      return const _SharedListPlaceholder(
+      return _SharedListPlaceholder(
         icon: Icons.shopping_cart_outlined,
-        message: 'リストを選択してください',
+        message: texts.selectList,
       );
     }
 
@@ -196,9 +197,9 @@ class _SharedItemsListWidget extends ConsumerWidget {
       initialData: currentList,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return const _SharedListPlaceholder(
+          return _SharedListPlaceholder(
             icon: Icons.error_outline,
-            message: 'リストの読み込みに失敗しました',
+            message: texts.operationFailed,
           );
         }
 
@@ -209,7 +210,7 @@ class _SharedItemsListWidget extends ConsumerWidget {
           final isTodo = liveList.listType == ListType.todo;
           return _SharedListPlaceholder(
             icon: isTodo ? Icons.checklist : Icons.add_shopping_cart,
-            message: isTodo ? 'タスクがありません' : '買い物アイテムがありません',
+            message: isTodo ? texts.noTasks : texts.noShoppingItems,
           );
         }
 
@@ -277,10 +278,10 @@ class _SharedItemTile extends ConsumerWidget {
               item.memberId == currentUser.uid;
           if (!canEdit) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('編集権限がありません'),
+              SnackBar(
+                content: Text(texts.permissionDenied),
                 backgroundColor: Colors.red,
-                duration: Duration(milliseconds: 500),
+                duration: const Duration(milliseconds: 500),
               ),
             );
             return;
@@ -351,7 +352,7 @@ class _SharedItemTile extends ConsumerWidget {
       Log.error('❌ 購入状態保存エラー: $e', e, stackTrace);
       await ErrorLogService.logOperationError('購入状態更新', '$e', stackTrace);
       if (context.mounted) {
-        SnackBarHelper.showError(context, '購入状態の更新に失敗しました: $e');
+        SnackBarHelper.showError(context, texts.operationFailed);
       }
     }
   }
@@ -360,12 +361,12 @@ class _SharedItemTile extends ConsumerWidget {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('削除確認'),
+        title: Text(texts.confirm),
         content: Text('「${item.name}」を削除しますか？'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('キャンセル'),
+            child: Text(texts.cancel),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(

@@ -17,6 +17,7 @@ import '../config/app_mode_config.dart';
 import '../widgets/user_name_panel_widget.dart';
 import '../widgets/news_and_ads_panel_widget.dart';
 import '../utils/app_logger.dart';
+import '../l10n/l10n.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -117,8 +118,8 @@ class _HomePageState extends ConsumerState<HomePage> {
         AppLogger.error('❌ [SIGNUP] ディスプレイネームが空です！');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('ディスプレイネームを入力してください'),
+            SnackBar(
+              content: Text(texts.displayNameRequired),
               backgroundColor: Colors.red,
             ),
           );
@@ -341,8 +342,8 @@ class _HomePageState extends ConsumerState<HomePage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('サインインしました'),
+          SnackBar(
+            content: Text(texts.signIn),
             backgroundColor: Colors.green,
           ),
         );
@@ -415,10 +416,10 @@ class _HomePageState extends ConsumerState<HomePage> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'リスト共有アプリ',
+                  Text(
+                    texts.sharedListAppSubtitle,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 16,
                       color: Colors.grey,
                     ),
@@ -442,7 +443,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                                 color: Colors.blue.shade700, size: 20),
                             const SizedBox(width: 8),
                             Text(
-                              'プライバシーについて',
+                              texts.privacyAbout,
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.blue.shade900,
@@ -471,7 +472,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                         });
                       },
                       icon: const Icon(Icons.person_add, size: 20),
-                      label: const Text('アカウント作成'),
+                      label: Text(texts.createAccount),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         textStyle: const TextStyle(fontSize: 16),
@@ -487,7 +488,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                         });
                       },
                       icon: const Icon(Icons.login, size: 20),
-                      label: const Text('サインイン'),
+                      label: Text(texts.signIn),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         textStyle: const TextStyle(fontSize: 16),
@@ -517,7 +518,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            _isSignUpMode ? 'アカウント作成' : 'サインイン',
+                            _isSignUpMode ? texts.createAccount : texts.signIn,
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: _isSignUpMode
@@ -533,7 +534,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                                 _formKey.currentState?.reset();
                               });
                             },
-                            child: Text(_isSignUpMode ? 'サインインへ' : 'アカウント作成へ'),
+                            child: Text(_isSignUpMode
+                                ? texts.switchToSignIn
+                                : texts.switchToCreateAccount),
                           ),
                         ],
                       ),
@@ -552,7 +555,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                                 TextFormField(
                                   controller: userNameController,
                                   decoration: InputDecoration(
-                                    labelText: 'ディスプレイネーム（必須）',
+                                    labelText: texts.displayName,
                                     hintText: '例: 太郎',
                                     prefixIcon: const Icon(Icons.person),
                                     helperText: 'グループメンバーに表示される名前です',
@@ -564,7 +567,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                                     if (_isSignUpMode &&
                                         (value == null ||
                                             value.trim().isEmpty)) {
-                                      return 'ディスプレイネームを入力してください';
+                                      return texts.displayNameRequired;
                                     }
                                     return null;
                                   },
@@ -578,7 +581,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                             controller: emailController,
                             keyboardType: TextInputType.emailAddress,
                             decoration: InputDecoration(
-                              labelText: 'メールアドレス',
+                              labelText: texts.email,
                               hintText: 'example@email.com',
                               prefixIcon: const Icon(Icons.email),
                               border: OutlineInputBorder(
@@ -587,10 +590,10 @@ class _HomePageState extends ConsumerState<HomePage> {
                             ),
                             validator: (value) {
                               if (value == null || value.trim().isEmpty) {
-                                return 'メールアドレスを入力してください';
+                                return texts.emailRequired;
                               }
                               if (!value.contains('@')) {
-                                return '有効なメールアドレスを入力してください';
+                                return texts.invalidEmail;
                               }
                               return null;
                             },
@@ -602,7 +605,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                             controller: passwordController,
                             obscureText: !_isPasswordVisible,
                             decoration: InputDecoration(
-                              labelText: 'パスワード',
+                              labelText: texts.password,
                               hintText: '6文字以上',
                               prefixIcon: const Icon(Icons.lock),
                               suffixIcon: IconButton(
@@ -623,10 +626,10 @@ class _HomePageState extends ConsumerState<HomePage> {
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'パスワードを入力してください';
+                                return texts.passwordRequired;
                               }
                               if (value.length < 6) {
-                                return 'パスワードは6文字以上で入力してください';
+                                return texts.passwordTooShort;
                               }
                               return null;
                             },
@@ -642,8 +645,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                                   final email = emailController.text.trim();
                                   if (email.isEmpty) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('メールアドレスを入力してください'),
+                                      SnackBar(
+                                        content: Text(texts.emailRequired),
                                         backgroundColor: Colors.orange,
                                       ),
                                     );
@@ -666,9 +669,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                                     );
                                   }
                                 },
-                                child: const Text(
-                                  'パスワードを忘れた場合',
-                                  style: TextStyle(fontSize: 13),
+                                child: Text(
+                                  texts.forgotPassword,
+                                  style: const TextStyle(fontSize: 13),
                                 ),
                               ),
                             ),
@@ -683,9 +686,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                                   _rememberEmail = value ?? false;
                                 });
                               },
-                              title: const Text(
-                                'メールアドレスを保存',
-                                style: TextStyle(fontSize: 14),
+                              title: Text(
+                                texts.rememberEmail,
+                                style: const TextStyle(fontSize: 14),
                               ),
                               controlAffinity: ListTileControlAffinity.leading,
                               contentPadding: EdgeInsets.zero,
@@ -710,7 +713,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                                     child: CircularProgressIndicator(
                                         strokeWidth: 2),
                                   )
-                                : Text(_isSignUpMode ? 'アカウントを作成' : 'サインイン'),
+                                : Text(_isSignUpMode
+                                    ? texts.createAccount
+                                    : texts.signIn),
                           ),
                           SizedBox(height: smallSpacing),
 
@@ -719,7 +724,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                             onPressed: () {
                               setState(() => _showEmailSignIn = false);
                             },
-                            child: const Text('戻る'),
+                            child: Text(texts.back),
                           ),
                         ],
                       ),
@@ -744,7 +749,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                                 size: 16, color: Colors.grey.shade700),
                             const SizedBox(width: 8),
                             Text(
-                              '初めての方へ',
+                              texts.forNewUsers,
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.grey.shade800,
@@ -859,7 +864,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                               color: Colors.blue.shade700, size: 20),
                           const SizedBox(width: 8),
                           Text(
-                            'アプリの使い方',
+                            texts.howToUse,
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
