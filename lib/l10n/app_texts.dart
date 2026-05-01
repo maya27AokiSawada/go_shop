@@ -214,4 +214,69 @@ abstract class AppTexts {
   String get cannotBeUndone;
   String get continueAction;
   String get cancelAction;
+
+  // ========================================
+  // ホーム・リスト（追加）
+  // ========================================
+  String get sharedListAppSubtitle;
+  String get switchToSignIn;
+  String get switchToCreateAccount;
+  String get rememberEmail;
+  String get forNewUsers;
+  String get howToUse;
+  String get noTasks;
+  String get noShoppingItems;
+  String get privacyAbout;
+
+  // ========================================
+  // アクション（追加）
+  // ========================================
+  String get create;
+  String get update;
+  String get add;
+  String get leave;
+
+  // ========================================
+  // グループ（追加）
+  // ========================================
+  String get current;
+  String get noCurrentGroup;
+  String get loadingGroups;
+  String get preparingGroup;
+  String get groupLoadFailed;
+  String get createFirstGroupHint;
+  String get createGroupHint;
+  String get deleteGroupWarning;
+  String get leaveGroupWarning;
+  String get deletingGroup;
+  String get leavingGroup;
+  String get copyMembersFrom;
+  String get selectGroupHint;
+  String get newGroupNoMembers;
+  String get selectMembersToCopy;
+  String get noMembersInGroup;
+  String get selectGroupToCopyMembers;
+  String get creatingGroup;
+  String get manager;
+  String get partner;
+
+  // ========================================
+  // リスト・アイテム（追加）
+  // ========================================
+  String get selectGroupFirst;
+  String get noGroupSelected;
+  String get descriptionOptional;
+  String get editTask;
+  String get addTask;
+  String get addShoppingItem;
+  String get productName;
+  String get purchaseIntervalOptional;
+  String get perDay;
+  String get perWeek;
+  String get perMonth;
+  String get noRepeatPurchase;
+  String get selectDeadlineOptional;
+  String get quantityRequired;
+  String get quantityInvalid;
+  String get deadlineMustBeFuture;
 }

@@ -513,4 +513,114 @@ class AppTextsEn extends AppTexts {
 
   @override
   String get cancelAction => 'Cancel';
+
+  @override
+  String get sharedListAppSubtitle => 'Shared List App';
+
+  @override
+  String get switchToSignIn => 'Switch to Sign In';
+
+  @override
+  String get switchToCreateAccount => 'Switch to Create Account';
+
+  @override
+  String get rememberEmail => 'Remember email';
+
+  @override
+  String get forNewUsers => 'For new users';
+
+  @override
+  String get howToUse => 'How to use';
+
+  @override
+  String get noTasks => 'No tasks';
+
+  @override
+  String get noShoppingItems => 'No shopping items';
+
+  @override
+  String get privacyAbout => 'About Privacy';
+
+  @override
+  String get create => 'Create';
+  @override
+  String get update => 'Update';
+  @override
+  String get add => 'Add';
+  @override
+  String get leave => 'Leave';
+
+  @override
+  String get current => 'Current';
+  @override
+  String get noCurrentGroup => 'No group selected';
+  @override
+  String get loadingGroups => 'Loading groups...';
+  @override
+  String get preparingGroup => 'Preparing group...';
+  @override
+  String get groupLoadFailed => 'Failed to load groups';
+  @override
+  String get createFirstGroupHint => 'Create your first group or\nscan a QR code to join';
+  @override
+  String get createGroupHint => 'Tap the + button to create a group';
+  @override
+  String get deleteGroupWarning => 'This cannot be undone.\nAll group data will be deleted.';
+  @override
+  String get leaveGroupWarning => 'Your information will be removed from this group.\nYou will need an invitation to rejoin.';
+  @override
+  String get deletingGroup => 'Deleting group...';
+  @override
+  String get leavingGroup => 'Leaving group...';
+  @override
+  String get copyMembersFrom => 'Copy members from existing group (optional):';
+  @override
+  String get selectGroupHint => 'Select a group...';
+  @override
+  String get newGroupNoMembers => 'New group (no members)';
+  @override
+  String get selectMembersToCopy => 'Select members and roles to copy:';
+  @override
+  String get noMembersInGroup => 'No members in selected group';
+  @override
+  String get selectGroupToCopyMembers => 'Select an existing group to copy its members';
+  @override
+  String get creatingGroup => 'Creating group...';
+  @override
+  String get manager => 'Manager';
+  @override
+  String get partner => 'Partner';
+
+  @override
+  String get selectGroupFirst => 'Please select a group first';
+  @override
+  String get noGroupSelected => 'No group selected';
+  @override
+  String get descriptionOptional => 'Description (optional)';
+  @override
+  String get editTask => 'Edit Task';
+  @override
+  String get addTask => 'Add Task';
+  @override
+  String get addShoppingItem => 'Add Shopping Item';
+  @override
+  String get productName => 'Item name';
+  @override
+  String get purchaseIntervalOptional => 'Purchase interval (optional)';
+  @override
+  String get perDay => 'Per day';
+  @override
+  String get perWeek => 'Per week';
+  @override
+  String get perMonth => 'Per month';
+  @override
+  String get noRepeatPurchase => 'No repeat';
+  @override
+  String get selectDeadlineOptional => 'Set deadline (optional)';
+  @override
+  String get quantityRequired => 'Please enter a quantity';
+  @override
+  String get quantityInvalid => 'Enter a valid quantity (1 or more)';
+  @override
+  String get deadlineMustBeFuture => 'Deadline must be today or later';
 }

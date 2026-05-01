@@ -511,4 +511,114 @@ class AppTextsJa extends AppTexts {
 
   @override
   String get cancelAction => 'キャンセル';
+
+  @override
+  String get sharedListAppSubtitle => 'リスト共有アプリ';
+
+  @override
+  String get switchToSignIn => 'サインインへ';
+
+  @override
+  String get switchToCreateAccount => 'アカウント作成へ';
+
+  @override
+  String get rememberEmail => 'メールアドレスを保存';
+
+  @override
+  String get forNewUsers => '初めての方へ';
+
+  @override
+  String get howToUse => 'アプリの使い方';
+
+  @override
+  String get noTasks => 'タスクがありません';
+
+  @override
+  String get noShoppingItems => '買い物アイテムがありません';
+
+  @override
+  String get privacyAbout => 'プライバシーについて';
+
+  @override
+  String get create => '作成';
+  @override
+  String get update => '更新';
+  @override
+  String get add => '追加';
+  @override
+  String get leave => '退出';
+
+  @override
+  String get current => 'カレント';
+  @override
+  String get noCurrentGroup => 'カレントグループが選択されていません';
+  @override
+  String get loadingGroups => 'グループを読み込み中...';
+  @override
+  String get preparingGroup => 'デフォルトグループを準備しています';
+  @override
+  String get groupLoadFailed => 'グループの読み込みに失敗しました';
+  @override
+  String get createFirstGroupHint => '最初のグループを作成するか\nQRコードをスキャンして参加してください';
+  @override
+  String get createGroupHint => '右下の ＋ ボタンからグループを作成できます';
+  @override
+  String get deleteGroupWarning => 'この操作は取り消せません。\nグループ内のすべてのデータが削除されます。';
+  @override
+  String get leaveGroupWarning => 'あなたの情報がこのグループから削除されます。\n再度参加するには、招待が必要です。';
+  @override
+  String get deletingGroup => 'グループを削除中...';
+  @override
+  String get leavingGroup => 'グループを退出中...';
+  @override
+  String get copyMembersFrom => 'メンバーをコピーする既存グループ (任意):';
+  @override
+  String get selectGroupHint => 'グループを選択...';
+  @override
+  String get newGroupNoMembers => '新しいグループ (メンバーなし)';
+  @override
+  String get selectMembersToCopy => 'コピーするメンバーとその役割を選択:';
+  @override
+  String get noMembersInGroup => '選択されたグループにはメンバーがいません';
+  @override
+  String get selectGroupToCopyMembers => '既存グループを選択するとメンバーをコピーできます';
+  @override
+  String get creatingGroup => 'グループを作成中...';
+  @override
+  String get manager => '管理者';
+  @override
+  String get partner => 'パートナー';
+
+  @override
+  String get selectGroupFirst => 'グループ画面でグループを選択してください';
+  @override
+  String get noGroupSelected => 'グループが選択されていません';
+  @override
+  String get descriptionOptional => '説明（任意）';
+  @override
+  String get editTask => 'タスクを編集';
+  @override
+  String get addTask => 'タスクを追加';
+  @override
+  String get addShoppingItem => '買い物アイテムを追加';
+  @override
+  String get productName => '商品名';
+  @override
+  String get purchaseIntervalOptional => '購入間隔（任意）';
+  @override
+  String get perDay => '日ごと';
+  @override
+  String get perWeek => '週ごと';
+  @override
+  String get perMonth => 'ヶ月ごと';
+  @override
+  String get noRepeatPurchase => '繰り返し購入なし';
+  @override
+  String get selectDeadlineOptional => '購入期限を選択（任意）';
+  @override
+  String get quantityRequired => '数量を入力してください';
+  @override
+  String get quantityInvalid => '数量は1以上の数値を入力してください';
+  @override
+  String get deadlineMustBeFuture => '期限は本日以降の日付を選択してください';
 }
