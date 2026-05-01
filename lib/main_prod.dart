@@ -22,6 +22,8 @@ import 'flavors.dart';
 import 'adapters/shopping_item_adapter_override.dart';
 import 'adapters/user_settings_adapter_override.dart';
 import 'utils/app_logger.dart';
+import 'l10n/app_localizations.dart';
+import 'services/user_preferences_service.dart';
 
 const _androidFirebaseWarmupDelay = Duration(seconds: 3);
 
@@ -77,6 +79,13 @@ Future<void> _initializeApp() async {
   AppLogger.info('▶️ main() 開始');
   WidgetsFlutterBinding.ensureInitialized();
   AppLogger.info('✅ WidgetsFlutterBinding.ensureInitialized() 完了');
+
+  // 🌐 手動言語設定（設定ページで選択した言語を優先）
+  final savedLang = await UserPreferencesService.getLanguageCode();
+  if (savedLang != null && savedLang.isNotEmpty) {
+    AppLocalizations.setLanguage(savedLang);
+    AppLogger.info('🌐 保存済み言語で起動: $savedLang');
+  }
 
   // 🔥 環境変数の初期化（最優先）
   try {

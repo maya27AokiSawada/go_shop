@@ -25,6 +25,7 @@ import 'adapters/shopping_item_adapter_override.dart';
 import 'adapters/user_settings_adapter_override.dart';
 import 'utils/app_logger.dart';
 import 'l10n/app_localizations.dart';
+import 'services/user_preferences_service.dart';
 
 const _androidFirebaseWarmupDelay = Duration(seconds: 3);
 
@@ -83,8 +84,13 @@ Future<void> _initializeApp() async {
 
   // TODO(Android): Android版も端末言語チェックを実装する（iOS版と同様に日本語以外なら英語モードで起動）
 
-  // 🌐 iOS専用: 端末言語が日本語以外なら英語モードで起動
-  if (Platform.isIOS) {
+  // 🌐 手動言語設定（設定ページで選択した言語を優先）
+  final savedLang = await UserPreferencesService.getLanguageCode();
+  if (savedLang != null && savedLang.isNotEmpty) {
+    AppLocalizations.setLanguage(savedLang);
+    AppLogger.info('🌐 保存済み言語で起動: $savedLang');
+  } else if (Platform.isIOS) {
+    // 🌐 iOS専用フォールバック: 端末言語が日本語以外なら英語モードで起動
     final deviceLocale = ui.PlatformDispatcher.instance.locale;
     final languageCode = deviceLocale.languageCode;
     AppLogger.info(
