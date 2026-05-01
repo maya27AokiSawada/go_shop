@@ -7,7 +7,9 @@ import '../utils/app_logger.dart';
 import '../flavors.dart';
 import '../widgets/settings/auth_status_panel.dart';
 import '../widgets/settings/firestore_sync_status_panel.dart';
-import '../widgets/settings/privacy_settings_panel.dart';
+import '../widgets/settings/app_ui_mode_switcher_panel.dart';
+import '../widgets/settings/app_mode_switcher_panel.dart';
+import '../widgets/settings/language_settings_panel.dart';
 import '../widgets/settings/whiteboard_settings_panel.dart';
 import '../widgets/settings/developer_tools_section.dart';
 import '../widgets/settings/feedback_debug_section.dart';
@@ -76,7 +78,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 const SizedBox(height: 20),
                 const AppUIModeSwicherPanel(),
                 const SizedBox(height: 20),
-                const PrivacySettingsPanel(),
+                const AppModeSwitcherPanel(),
+                const SizedBox(height: 20),
+                const LanguageSettingsPanel(),
                 const SizedBox(height: 20),
                 const WhiteboardSettingsPanel(),
                 const SizedBox(height: 20),

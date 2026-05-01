@@ -23,6 +23,7 @@ class UserPreferencesService {
   static const String _keyAppMode = 'app_mode'; // 0=shopping, 1=todo
   static const String _keyAppUIMode = 'app_ui_mode'; // 0=single, 1=multi
   static const String _keyEnableListNotifications = 'enable_list_notifications';
+  static const String _keyLanguageCode = 'language_code'; // 'ja' or 'en'
 
   // 課金タイプキャッシュ（Firestoreデータロスト時のフォールバック用）
   static const String _keyPurchaseTypeCache = 'purchase_type_cache';
@@ -477,6 +478,35 @@ class UserPreferencesService {
             return success;
           },
           context: 'USER_PREFS:saveEnableListNotifications',
+          defaultValue: false,
+        ) ??
+        false;
+  }
+
+  /// 表示言語コードを取得（'ja' or 'en'、未設定時はnull）
+  static Future<String?> getLanguageCode() async {
+    return ErrorHandler.handleAsync<String?>(
+      operation: () async {
+        final prefs = await SharedPreferences.getInstance();
+        final code = prefs.getString(_keyLanguageCode);
+        Log.info('📱 言語コード取得: $code');
+        return code;
+      },
+      context: 'USER_PREFS:getLanguageCode',
+      defaultValue: null,
+    );
+  }
+
+  /// 表示言語コードを保存
+  static Future<bool> saveLanguageCode(String langCode) async {
+    return await ErrorHandler.handleAsync(
+          operation: () async {
+            final prefs = await SharedPreferences.getInstance();
+            final success = await prefs.setString(_keyLanguageCode, langCode);
+            Log.info('💾 言語コード保存: $langCode - 成功: $success');
+            return success;
+          },
+          context: 'USER_PREFS:saveLanguageCode',
           defaultValue: false,
         ) ??
         false;
