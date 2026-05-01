@@ -10,6 +10,7 @@ import '../services/error_log_service.dart';
 import '../utils/snackbar_helper.dart';
 import '../services/notification_service.dart';
 import '../providers/auth_provider.dart';
+import '../l10n/l10n.dart';
 
 /// Dialog for creating new group with option to copy members from existing group
 class GroupCreationWithCopyDialog extends ConsumerStatefulWidget {
@@ -84,7 +85,7 @@ class _GroupCreationWithCopyDialogState
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('閉じる'),
+                child: Text(texts.close),
               ),
             ],
           ),
@@ -119,10 +120,10 @@ class _GroupCreationWithCopyDialogState
                           const Icon(Icons.group_add,
                               color: Colors.blue, size: 20), // 🔥 FIX: サイズ指定
                           const SizedBox(width: 8),
-                          const Expanded(
+                          Expanded(
                             child: Text(
-                              '新しいグループを作成',
-                              style: TextStyle(
+                              texts.createGroup,
+                              style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight:
                                       FontWeight.bold), // 🔥 FIX: 20→18に縮小
@@ -143,14 +144,14 @@ class _GroupCreationWithCopyDialogState
                       // Group name input
                       TextFormField(
                         controller: _groupNameController,
-                        decoration: const InputDecoration(
-                          labelText: 'グループ名 *',
-                          hintText: 'グループ名を入力してください',
-                          border: OutlineInputBorder(),
+                        decoration: InputDecoration(
+                          labelText: '${texts.groupName} *',
+                          hintText: texts.groupNameRequired,
+                          border: const OutlineInputBorder(),
                         ),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
-                            return 'グループ名を入力してください';
+                            return texts.groupNameRequired;
                           }
 
                           // Check for duplicate group names
@@ -160,7 +161,7 @@ class _GroupCreationWithCopyDialogState
                               trimmedName.toLowerCase());
 
                           if (isDuplicate) {
-                            return 'このグループ名は既に使用されています';
+                            return texts.duplicateGroupName;
                           }
 
                           return null;
@@ -171,9 +172,9 @@ class _GroupCreationWithCopyDialogState
 
                       // Source group selection
                       if (existingGroups.isNotEmpty) ...[
-                        const Text(
-                          'メンバーをコピーする既存グループ (任意):',
-                          style: TextStyle(
+                        Text(
+                          texts.copyMembersFrom,
+                          style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w500), // 🔥 FIX: 16→14に縮小
                         ),
@@ -190,14 +191,14 @@ class _GroupCreationWithCopyDialogState
 
                             return exists ? _selectedSourceGroup : null;
                           }(),
-                          decoration: const InputDecoration(
-                            hintText: 'グループを選択...',
-                            border: OutlineInputBorder(),
+                          decoration: InputDecoration(
+                            hintText: texts.selectGroupHint,
+                            border: const OutlineInputBorder(),
                           ),
                           items: [
-                            const DropdownMenuItem<SharedGroup>(
+                            DropdownMenuItem<SharedGroup>(
                               value: null,
-                              child: Text('新しいグループ (メンバーなし)'),
+                              child: Text(texts.newGroupNoMembers),
                             ),
                             // 🔥 FIX: groupIdで重複を除去（Dropdownアサーションエラー防止）
                             ...existingGroups
@@ -232,9 +233,9 @@ class _GroupCreationWithCopyDialogState
                       // Member selection list
                       if (_selectedSourceGroup?.members?.isNotEmpty ==
                           true) ...[
-                        const Text(
-                          'コピーするメンバーとその役割を選択:',
-                          style: TextStyle(
+                        Text(
+                          texts.selectMembersToCopy,
+                          style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w500), // 🔥 FIX: 16→14に縮小
                         ),
@@ -263,9 +264,9 @@ class _GroupCreationWithCopyDialogState
                         Container(
                           height: 60, // 🔥 FIX: 100→60に縮小
                           alignment: Alignment.center,
-                          child: const Text(
-                            '選択されたグループにはメンバーがいません',
-                            style: TextStyle(
+                          child: Text(
+                            texts.noMembersInGroup,
+                            style: const TextStyle(
                                 color: Colors.grey,
                                 fontSize: 12), // 🔥 FIX: フォントサイズ指定
                           ),
@@ -274,9 +275,9 @@ class _GroupCreationWithCopyDialogState
                         Container(
                           height: 60, // 🔥 FIX: 100→60に縮小
                           alignment: Alignment.center,
-                          child: const Text(
-                            '既存グループを選択するとメンバーをコピーできます',
-                            style: TextStyle(
+                          child: Text(
+                            texts.selectGroupToCopyMembers,
+                            style: const TextStyle(
                                 color: Colors.grey,
                                 fontSize: 12), // 🔥 FIX: フォントサイズ指定
                             textAlign: TextAlign.center, // 🔥 FIX: センタリング
@@ -294,7 +295,7 @@ class _GroupCreationWithCopyDialogState
                             onPressed: _isLoading
                                 ? null
                                 : () => Navigator.of(context).pop(),
-                            child: const Text('キャンセル'),
+                            child: Text(texts.cancel),
                           ),
                           const SizedBox(width: 8),
                           ElevatedButton(
@@ -306,7 +307,7 @@ class _GroupCreationWithCopyDialogState
                                     child: CircularProgressIndicator(
                                         strokeWidth: 2),
                                   )
-                                : const Text('グループを作成'),
+                                : Text(texts.createGroup),
                           ),
                         ],
                       ),
@@ -320,18 +321,18 @@ class _GroupCreationWithCopyDialogState
               Positioned.fill(
                 child: Container(
                   color: Colors.black54,
-                  child: const Center(
+                  child: Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        CircularProgressIndicator(
+                        const CircularProgressIndicator(
                           valueColor:
                               AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
-                        SizedBox(height: 16),
+                        const SizedBox(height: 16),
                         Text(
-                          'グループを作成中...',
-                          style: TextStyle(
+                          texts.creatingGroup,
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
@@ -434,13 +435,13 @@ class _GroupCreationWithCopyDialogState
   String _getRoleDisplayName(SharedGroupRole role) {
     switch (role) {
       case SharedGroupRole.owner:
-        return 'オーナー';
+        return texts.owner;
       case SharedGroupRole.manager:
-        return '管理者';
+        return texts.manager;
       case SharedGroupRole.member:
-        return 'メンバー';
+        return texts.member;
       case SharedGroupRole.partner:
-        return 'パートナー';
+        return texts.partner;
     }
   }
 

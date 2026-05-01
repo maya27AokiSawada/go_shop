@@ -6,6 +6,7 @@ import '../providers/app_mode_notifier_provider.dart';
 import '../providers/shared_list_provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/app_logger.dart';
+import '../l10n/l10n.dart';
 
 /// アイテムの編集・新規作成を行うModalBottomSheet
 class SharedItemEditModal extends ConsumerStatefulWidget {
@@ -100,8 +101,10 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
                   children: [
                     Text(
                       isTodo
-                          ? (isEditMode ? 'タスクを編集' : 'タスクを追加')
-                          : (isEditMode ? 'アイテムを編集' : '買い物アイテムを追加'),
+                          ? (isEditMode ? texts.editTask : texts.addTask)
+                          : (isEditMode
+                              ? texts.editItem
+                              : texts.addShoppingItem),
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -124,7 +127,7 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
                         TextField(
                           controller: _nameController,
                           decoration: InputDecoration(
-                            labelText: '商品名',
+                            labelText: texts.productName,
                             hintText: '例: 牛乳',
                             border: const OutlineInputBorder(),
                             errorText: _validationError?.contains('商品名') == true
@@ -141,7 +144,7 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
                         TextField(
                           controller: _quantityController,
                           decoration: InputDecoration(
-                            labelText: '数量',
+                            labelText: texts.quantity,
                             border: const OutlineInputBorder(),
                             errorText: _validationError?.contains('数量') == true
                                 ? _validationError
@@ -166,7 +169,7 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
                                 Expanded(
                                   child: Text(
                                     _selectedDeadline == null
-                                        ? '購入期限を選択（任意）'
+                                        ? texts.selectDeadlineOptional
                                         : '期限: ${_formatDate(_selectedDeadline!)}',
                                     style: TextStyle(
                                       color: _selectedDeadline == null
@@ -198,11 +201,11 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Row(
+                              Row(
                                 children: [
-                                  Icon(Icons.repeat),
-                                  SizedBox(width: 8),
-                                  Text('購入間隔（任意）'),
+                                  const Icon(Icons.repeat),
+                                  const SizedBox(width: 8),
+                                  Text(texts.purchaseIntervalOptional),
                                 ],
                               ),
                               const SizedBox(height: 8),
@@ -251,18 +254,18 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
                                             horizontal: 12, vertical: 8),
                                         border: OutlineInputBorder(),
                                       ),
-                                      items: const [
+                                      items: [
                                         DropdownMenuItem(
                                           value: 'day',
-                                          child: Text('日ごと'),
+                                          child: Text(texts.perDay),
                                         ),
                                         DropdownMenuItem(
                                           value: 'week',
-                                          child: Text('週ごと'),
+                                          child: Text(texts.perWeek),
                                         ),
                                         DropdownMenuItem(
                                           value: 'month',
-                                          child: Text('ヶ月ごと'),
+                                          child: Text(texts.perMonth),
                                         ),
                                       ],
                                       onChanged: (value) {
@@ -279,7 +282,7 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
                               const SizedBox(height: 8),
                               Text(
                                 _intervalValue == 0
-                                    ? '繰り返し購入なし'
+                                    ? texts.noRepeatPurchase
                                     : '${_calculateIntervalDays(_intervalValue, _intervalUnit)}日ごとに購入',
                                 style: TextStyle(
                                   fontSize: 12,
@@ -333,7 +336,7 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
                       onPressed: _isSubmitting
                           ? null
                           : () => Navigator.of(context).pop(),
-                      child: const Text('キャンセル'),
+                      child: Text(texts.cancel),
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
@@ -344,7 +347,7 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
                               height: 16,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : Text(isEditMode ? '更新' : '追加'),
+                          : Text(isEditMode ? texts.update : texts.add),
                     ),
                   ],
                 ),
@@ -495,7 +498,7 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
 
     // 商品名チェック
     if (name.isEmpty) {
-      return '商品名を入力してください';
+      return texts.itemNameRequired;
     }
     if (name.length > maxNameLength) {
       return '商品名は$maxNameLength文字以内です';
@@ -504,12 +507,12 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
     // 数量チェック
     final quantityStr = _quantityController.text.trim();
     if (quantityStr.isEmpty) {
-      return '数量を入力してください';
+      return texts.quantityRequired;
     }
 
     final quantity = int.tryParse(quantityStr);
     if (quantity == null || quantity <= 0) {
-      return '数量は1以上の数値を入力してください';
+      return texts.quantityInvalid;
     }
     if (quantity > maxQuantity) {
       return '数量は$maxQuantity以下にしてください';
@@ -526,7 +529,7 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
       );
 
       if (deadlineDate.isBefore(today)) {
-        return '期限は本日以降の日付を選択してください';
+        return texts.deadlineMustBeFuture;
       }
     }
 

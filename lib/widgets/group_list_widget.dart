@@ -16,6 +16,7 @@ import '../providers/auth_provider.dart';
 import '../utils/group_display_helper.dart';
 import '../providers/app_ui_mode_provider.dart';
 import '../config/app_ui_mode_config.dart';
+import '../l10n/l10n.dart';
 // 🔥 REMOVED: import 'initial_setup_widget.dart'; グループページ内にメッセージ表示に変更
 
 /// グループをリスト表示するウィジェット
@@ -37,15 +38,15 @@ class GroupListWidget extends ConsumerWidget {
 
     // 同期中の場合はローディング表示
     if (syncStatus == 'syncing') {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
             Text(
-              'Firestore同期中...',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
+              texts.syncing,
+              style: const TextStyle(fontSize: 16, color: Colors.grey),
             ),
           ],
         ),
@@ -66,12 +67,12 @@ class GroupListWidget extends ConsumerWidget {
                   const Icon(Icons.groups,
                       color: Colors.blue, size: 20), // 🔥 FIX: サイズ指定
                   const SizedBox(width: 8),
-                  const Expanded(
+                  Expanded(
                     // 🔥 FIX: オーバーフロー防止
                     child: Text(
-                      'グループ一覧',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      texts.groups,
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
                       overflow: TextOverflow.ellipsis, // 🔥 FIX: オーバーフロー時省略
                     ),
                   ),
@@ -106,7 +107,8 @@ class GroupListWidget extends ConsumerWidget {
                           AppLogger.info('✅ [DEBUG] Firestore→Hive同期完了');
 
                           if (context.mounted) {
-                            SnackBarHelper.showSuccess(context, '双方向同期完了');
+                            SnackBarHelper.showSuccess(
+                                context, texts.syncCompleted);
                           }
                         },
                         context: 'GROUP_LIST:debugSync',
@@ -119,7 +121,7 @@ class GroupListWidget extends ConsumerWidget {
                       );
                     },
                     icon: const Icon(Icons.sync, size: 20),
-                    tooltip: '双方向同期',
+                    tooltip: texts.manualSync,
                   ),
                 ],
               ),
@@ -169,16 +171,16 @@ class GroupListWidget extends ConsumerWidget {
                 Icon(Icons.group_add,
                     size: 60, color: Colors.blue.shade200), // 🔥 FIX: 80→60に縮小
                 const SizedBox(height: 16), // 🔥 FIX: 24→16に縮小
-                const Text(
-                  '最初のグループを作成するか\nQRコードをスキャンして参加してください',
-                  style: TextStyle(
+                Text(
+                  texts.createFirstGroupHint,
+                  style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold), // 🔥 FIX: 20→16に縮小
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 12), // 🔥 FIX: 16→12に縮小
                 Text(
-                  '右下の ＋ ボタンからグループを作成できます',
+                  texts.createGroupHint,
                   style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey.shade600), // 🔥 FIX: 16→14に縮小
@@ -262,7 +264,7 @@ class GroupListWidget extends ConsumerWidget {
                     border: Border.all(color: Colors.blue.shade300),
                   ),
                   child: Text(
-                    'カレント',
+                    texts.current,
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
@@ -443,13 +445,13 @@ class GroupListWidget extends ConsumerWidget {
         children: [
           const CircularProgressIndicator(),
           const SizedBox(height: 16),
-          const Text(
-            'グループを読み込み中...',
-            style: TextStyle(fontSize: 16, color: Colors.grey),
+          Text(
+            texts.loadingGroups,
+            style: const TextStyle(fontSize: 16, color: Colors.grey),
           ),
           const SizedBox(height: 8),
           Text(
-            'デフォルトグループを準備しています',
+            texts.preparingGroup,
             style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
           ),
         ],
@@ -464,9 +466,9 @@ class GroupListWidget extends ConsumerWidget {
         children: [
           const Icon(Icons.error_outline, color: Colors.red, size: 48),
           const SizedBox(height: 16),
-          const Text(
-            'グループの読み込みに失敗しました',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+          Text(
+            texts.groupLoadFailed,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 8),
           Text(
@@ -483,7 +485,7 @@ class GroupListWidget extends ConsumerWidget {
               ref.invalidate(allGroupsProvider);
             },
             icon: const Icon(Icons.refresh),
-            label: const Text('再試行'),
+            label: Text(texts.retry),
           ),
         ],
       ),
@@ -542,7 +544,7 @@ class GroupListWidget extends ConsumerWidget {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('グループを削除'),
+          title: Text(texts.deleteGroup),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -558,7 +560,7 @@ class GroupListWidget extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('キャンセル'),
+              child: Text(texts.cancel),
             ),
             ElevatedButton(
               onPressed: () {
@@ -569,7 +571,7 @@ class GroupListWidget extends ConsumerWidget {
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('削除'),
+              child: Text(texts.delete),
             ),
           ],
         );
@@ -588,7 +590,7 @@ class GroupListWidget extends ConsumerWidget {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('グループを退出'),
+          title: Text(texts.leaveGroup),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -604,7 +606,7 @@ class GroupListWidget extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('キャンセル'),
+              child: Text(texts.cancel),
             ),
             ElevatedButton(
               onPressed: () {
@@ -615,7 +617,7 @@ class GroupListWidget extends ConsumerWidget {
                 backgroundColor: Colors.orange,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('退出'),
+              child: Text(texts.leave),
             ),
           ],
         );
@@ -635,7 +637,7 @@ class GroupListWidget extends ConsumerWidget {
       // ローディング表示
       SnackBarHelper.showCustom(
         context,
-        message: 'グループを削除中...',
+        message: texts.deletingGroup,
         icon: Icons.hourglass_empty,
         duration: const Duration(seconds: 5),
       );
@@ -681,7 +683,7 @@ class GroupListWidget extends ConsumerWidget {
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
-        SnackBarHelper.showError(context, 'グループの削除に失敗しました: $error');
+        SnackBarHelper.showError(context, texts.operationFailed);
       }
     }
   }
@@ -698,7 +700,7 @@ class GroupListWidget extends ConsumerWidget {
       // ローディング表示
       SnackBarHelper.showCustom(
         context,
-        message: 'グループを退出中...',
+        message: texts.leavingGroup,
         icon: Icons.hourglass_empty,
         duration: const Duration(seconds: 5),
       );
@@ -746,7 +748,7 @@ class GroupListWidget extends ConsumerWidget {
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
-        SnackBarHelper.showError(context, 'グループの退出に失敗しました');
+        SnackBarHelper.showError(context, texts.operationFailed);
       }
     }
   }

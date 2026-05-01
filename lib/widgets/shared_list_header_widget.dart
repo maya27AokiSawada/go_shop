@@ -13,6 +13,7 @@ import '../utils/snackbar_helper.dart';
 import '../config/app_mode_config.dart';
 import '../providers/app_ui_mode_provider.dart';
 import '../config/app_ui_mode_config.dart';
+import '../l10n/l10n.dart';
 
 /// 買い物リスト画面のヘッダーウィジェット
 /// - カレントグループ表示
@@ -86,7 +87,7 @@ class SharedListHeaderWidget extends ConsumerWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'グループ画面でグループを選択してください',
+                      texts.selectGroupFirst,
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.orange.shade900,
@@ -109,7 +110,7 @@ class SharedListHeaderWidget extends ConsumerWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      currentList?.listName ?? '買い物リスト',
+                      currentList?.listName ?? texts.sharedList,
                       style: const TextStyle(
                           fontSize: 15, fontWeight: FontWeight.w500),
                       overflow: TextOverflow.ellipsis,
@@ -184,7 +185,7 @@ class SharedListHeaderWidget extends ConsumerWidget {
           TextButton.icon(
             onPressed: () => _showCreateListDialog(context, ref),
             icon: const Icon(Icons.add, size: 18),
-            label: const Text('作成', style: TextStyle(fontSize: 14)),
+            label: Text(texts.create, style: const TextStyle(fontSize: 14)),
           ),
         ],
       ),
@@ -239,7 +240,7 @@ class SharedListHeaderWidget extends ConsumerWidget {
                     borderSide: BorderSide(color: Colors.blue.shade300),
                   ),
                 ),
-                hint: const Text('リストを選択'),
+                hint: Text(texts.selectList),
                 selectedItemBuilder: (context) {
                   return lists.map((list) {
                     return Align(
@@ -292,14 +293,14 @@ class SharedListHeaderWidget extends ConsumerWidget {
             IconButton(
               icon: Icon(Icons.add_circle, color: Colors.blue.shade700),
               onPressed: () => _showCreateListDialog(context, ref),
-              tooltip: '新しいリストを作成',
+              tooltip: texts.createList,
             ),
             if (currentList != null && canDelete)
               IconButton(
                 icon: Icon(Icons.delete_outline, color: Colors.red.shade700),
                 onPressed: () =>
                     _showDeleteListDialog(context, ref, currentList),
-                tooltip: 'リストを削除',
+                tooltip: texts.deleteList,
               ),
           ],
         );
@@ -333,8 +334,8 @@ class SharedListHeaderWidget extends ConsumerWidget {
                 children: [
                   TextField(
                     controller: nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'リスト名',
+                    decoration: InputDecoration(
+                      labelText: texts.listName,
                       hintText: '例: 週末の買い物',
                     ),
                     autofocus: true,
@@ -342,8 +343,8 @@ class SharedListHeaderWidget extends ConsumerWidget {
                   const SizedBox(height: 12),
                   TextField(
                     controller: descriptionController,
-                    decoration: const InputDecoration(
-                      labelText: '説明（任意）',
+                    decoration: InputDecoration(
+                      labelText: texts.descriptionOptional,
                       hintText: '例: 土曜日のスーパーで',
                     ),
                     maxLines: 2,
@@ -355,19 +356,19 @@ class SharedListHeaderWidget extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('キャンセル'),
+              child: Text(texts.cancel),
             ),
             ElevatedButton(
               onPressed: () async {
                 final name = nameController.text.trim();
                 if (name.isEmpty) {
-                  SnackBarHelper.showError(context, 'リスト名を入力してください');
+                  SnackBarHelper.showError(context, texts.listNameRequired);
                   return;
                 }
 
                 final selectedGroupId = ref.read(selectedGroupIdProvider);
                 if (selectedGroupId == null) {
-                  SnackBarHelper.showError(context, 'グループが選択されていません');
+                  SnackBarHelper.showError(context, texts.noGroupSelected);
                   return;
                 }
 
@@ -383,7 +384,7 @@ class SharedListHeaderWidget extends ConsumerWidget {
 
                 if (!context.mounted) return;
                 if (currentGroup == null) {
-                  SnackBarHelper.showError(context, 'グループ情報の取得に失敗しました');
+                  SnackBarHelper.showError(context, texts.operationFailed);
                   return;
                 }
 
@@ -445,10 +446,10 @@ class SharedListHeaderWidget extends ConsumerWidget {
                 } catch (e, stackTrace) {
                   Log.error('❌ リスト作成エラー: $e', stackTrace);
                   if (!context.mounted) return;
-                  SnackBarHelper.showError(context, 'リスト作成に失敗しました: $e');
+                  SnackBarHelper.showError(context, texts.operationFailed);
                 }
               },
-              child: const Text('作成'),
+              child: Text(texts.create),
             ),
           ],
         );
@@ -473,7 +474,7 @@ class SharedListHeaderWidget extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('リストを削除'),
+        title: Text(texts.deleteList),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -492,11 +493,11 @@ class SharedListHeaderWidget extends ConsumerWidget {
                   Icon(Icons.warning_amber,
                       color: Colors.red.shade700, size: 20),
                   const SizedBox(width: 8),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'この操作は取り消せません',
-                      style:
-                          TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                      texts.cannotBeUndone,
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w500),
                     ),
                   ),
                 ],
@@ -507,7 +508,7 @@ class SharedListHeaderWidget extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('キャンセル'),
+            child: Text(texts.cancel),
           ),
           TextButton(
             onPressed: () async {
@@ -544,13 +545,13 @@ class SharedListHeaderWidget extends ConsumerWidget {
               } catch (e, stackTrace) {
                 Log.error('❌ リスト削除エラー: $e', stackTrace);
                 if (!context.mounted) return;
-                SnackBarHelper.showError(context, 'リスト削除に失敗しました: $e');
+                SnackBarHelper.showError(context, texts.operationFailed);
               }
             },
             style: TextButton.styleFrom(
               foregroundColor: Colors.red,
             ),
-            child: const Text('削除'),
+            child: Text(texts.delete),
           ),
         ],
       ),
