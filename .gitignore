@@ -105,3 +105,4 @@ pubspec.lock
 
 # Secret files (API keys, credentials)
 secret/
+secrets/

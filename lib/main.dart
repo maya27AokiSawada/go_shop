@@ -145,6 +145,16 @@ Future<void> _initializeApp() async {
       );
       AppLogger.info('✅ Firebase.initializeApp() 完了');
 
+      // macOS: keychain-error 対策 - setSettingsでuserAccessGroupを空に设定
+      if (defaultTargetPlatform == TargetPlatform.macOS) {
+        try {
+          await FirebaseAuth.instance.setSettings(userAccessGroup: '');
+          AppLogger.info('✅ macOS: setSettings(userAccessGroup: "") 設定完了');
+        } catch (e) {
+          AppLogger.warning('⚠️ macOS: setSettings エラー（無視）: $e');
+        }
+      }
+
       // 🔐 Firebase App Check 初期化
       // debugビルド: デバッグプロバイダーを使用（Firebase ConsoleにデバッグトークンA9A1910D-ECE4-47F8-94C4-A3C1E301D269登録済み）
       // releaseビルド: Play Integrity を使用

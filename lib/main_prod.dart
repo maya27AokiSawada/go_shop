@@ -128,6 +128,16 @@ Future<void> _initializeApp() async {
       );
       AppLogger.info('✅ Firebase.initializeApp() 完了');
 
+      // macOS: keychain-error 対策 - setSettingsでuserAccessGroupを空に设定
+      if (defaultTargetPlatform == TargetPlatform.macOS) {
+        try {
+          await FirebaseAuth.instance.setSettings(userAccessGroup: '');
+          AppLogger.info('✅ macOS: setSettings(userAccessGroup: "") 設定完了');
+        } catch (e) {
+          AppLogger.warning('⚠️ macOS: setSettings エラー（無視）: $e');
+        }
+      }
+
       // Firebase Auth の状態確認
       AppLogger.info('🔐 Firebase Auth インスタンス: ${FirebaseAuth.instance}');
       final currentUser = FirebaseAuth.instance.currentUser;
