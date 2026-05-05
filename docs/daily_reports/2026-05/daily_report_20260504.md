@@ -49,6 +49,7 @@ if (defaultTargetPlatform == TargetPlatform.macOS) {
 ```
 
 **Modified Files**:
+
 - `lib/main.dart`
 - `lib/main_prod.dart`
 - `macos/Runner/DebugProfile.entitlements`
@@ -96,10 +97,12 @@ will contain more information about the error encountered
 **原因分析**: macOS の keychain-error (-34018 = `errSecMissingEntitlement`) はアプリが適切な keychain アクセス権を持っていないことを示す。`setSettings(userAccessGroup: '')` 自体もこのエラーを返すが try/catch で無視している。`signInWithEmailAndPassword` 呼び出し時も同エラーが発生しサインイン失敗。
 
 **試した対策**:
+
 1. ❌ `keychain-access-groups` entitlement 追加 → ビルドエラーになったため削除
 2. ❌ `setSettings(userAccessGroup: '')` → setSettings自体もkeychain-errorを返す（エラー無視で回避）
 
 **次回試す対策**:
+
 1. Xcodeでアプリを直接開いて「Keychain Sharing」機能を有効化
 2. `com.apple.security.application-groups` entitlement 追加
 3. `flutter build macos --debug --flavor prod` でXcodeビルドログを詳細確認
@@ -110,12 +113,12 @@ will contain more information about the error encountered
 
 ## 📊 本日の進捗サマリー
 
-| 項目 | 状態 |
-|------|------|
-| macOS ビルド成功 | ✅ |
-| Firestore 接続成功 | ✅ |
-| Firebase Auth サインイン | ❌ keychain-error |
-| .gitignore に secrets/ 追加 | ✅ |
+| 項目                        | 状態              |
+| --------------------------- | ----------------- |
+| macOS ビルド成功            | ✅                |
+| Firestore 接続成功          | ✅                |
+| Firebase Auth サインイン    | ❌ keychain-error |
+| .gitignore に secrets/ 追加 | ✅                |
 
 ---
 
