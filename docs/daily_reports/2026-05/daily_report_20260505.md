@@ -16,15 +16,16 @@
 
 **調査結果**:
 
-| プラットフォーム | Flavor | Bundle ID |
-|---|---|---|
-| Android | prod | `net.sumomo_planning.goshopping` |
-| Android | dev | `net.sumomo_planning.go_shop.dev` |
-| iOS | prod | `com.oneness-as.goshopping` |
-| iOS | dev | `net.sumomo_planning.go_shop.dev` |
-| macOS | prod/dev 共通 | `com.oneness-as.goshopping` |
+| プラットフォーム | Flavor        | Bundle ID                         |
+| ---------------- | ------------- | --------------------------------- |
+| Android          | prod          | `net.sumomo_planning.goshopping`  |
+| Android          | dev           | `net.sumomo_planning.go_shop.dev` |
+| iOS              | prod          | `com.oneness-as.goshopping`       |
+| iOS              | dev           | `net.sumomo_planning.go_shop.dev` |
+| macOS            | prod/dev 共通 | `com.oneness-as.goshopping`       |
 
 **判明した不整合**:
+
 - Android prod と iOS/macOS prod で Bundle ID が異なる
   - Android: `net.sumomo_planning.goshopping`
   - iOS/macOS: `com.oneness-as.goshopping`
@@ -44,6 +45,7 @@
 **問題と解決の流れ**:
 
 #### 問題1: No valid code signing certificates
+
 ```
 Error: No development certificates available to code sign app for device deployment
 ```
@@ -61,12 +63,14 @@ Error: No development certificates available to code sign app for device deploym
 ---
 
 #### 問題3: Dart VM Service が発見されず起動タイムアウト
+
 ```
 The Dart VM Service was not discovered after 60 seconds.
 Error launching application on 金ヶ江真也のiPhone 17e.
 ```
 
 **Solution**:
+
 1. iPhone の `設定 → プライバシーとセキュリティ → デベロッパモード` をオン
 2. iPhone を再起動
 3. `設定 → 一般 → VPNとデバイス管理` で証明書を「信頼」
@@ -75,11 +79,13 @@ Error launching application on 金ヶ江真也のiPhone 17e.
 **検証結果**: アプリ起動成功・基本動作 OK
 
 **実行コマンド**:
+
 ```bash
 flutter run --flavor prod -d 00008150-000114CC3E33401C
 ```
 
 **Modified Files**:
+
 - `ios/Runner.xcodeproj/project.pbxproj` （Development Team・Signing 設定追加）
 - `ios/Runner.xcodeproj/xcshareddata/xcschemes/dev.xcscheme` （スキーム更新）
 - `ios/Runner.xcodeproj/xcshareddata/xcschemes/prod.xcscheme` （スキーム更新）
@@ -99,6 +105,7 @@ flutter run --flavor prod -d 00008150-000114CC3E33401C
 - **状態**: 調査中
 
 **次回試す対策**:
+
 1. Apple Developer Team ID を `AppInfo.xcconfig` に設定
 2. Xcode で Keychain Sharing を有効化
 3. `com.apple.security.application-groups` entitlement 追加
