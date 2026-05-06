@@ -8,6 +8,7 @@ import '../config/app_ui_mode_config.dart';
 import '../widgets/group_list_widget.dart';
 import '../widgets/group_creation_with_copy_dialog.dart';
 import '../widgets/accept_invitation_widget.dart';
+import '../l10n/l10n.dart';
 
 class SharedGroupPage extends ConsumerStatefulWidget {
   const SharedGroupPage({super.key});
@@ -25,22 +26,23 @@ class _SharedGroupPageState extends ConsumerState<SharedGroupPage> {
 
     if (!canViewData && authRequired) {
       return Scaffold(
-        appBar: AppBar(title: const Text('グループ管理')),
-        body: const Center(
+        appBar: AppBar(title: Text(texts.groupManagement)),
+        body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.lock, size: 64, color: Colors.grey),
-              SizedBox(height: 16),
+              const Icon(Icons.lock, size: 64, color: Colors.grey),
+              const SizedBox(height: 16),
               Text(
-                'シークレットモードが有効です',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                texts.secretModeEnabled,
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Text(
-                'グループデータを表示するにはログインが必要です',
+                texts.groupDataRequiresLogin,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
+                style: const TextStyle(color: Colors.grey),
               ),
             ],
           ),
@@ -81,7 +83,7 @@ class _SharedGroupPageState extends ConsumerState<SharedGroupPage> {
                   backgroundColor: Colors.blue,
                   foregroundColor: Colors.white,
                   icon: const Icon(Icons.group_add),
-                  label: const Text('新しいグループ'),
+                  label: Text(texts.newGroup),
                   heroTag: 'create_group',
                 ),
               ],

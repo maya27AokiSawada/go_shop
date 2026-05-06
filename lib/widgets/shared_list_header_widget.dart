@@ -150,7 +150,7 @@ class SharedListHeaderWidget extends ConsumerWidget {
                     border: Border.all(color: Colors.red.shade200),
                   ),
                   child: Text(
-                    'リスト取得エラー: $error',
+                    'Error: $error',
                     style: TextStyle(color: Colors.red.shade900),
                   ),
                 ),
@@ -175,7 +175,7 @@ class SharedListHeaderWidget extends ConsumerWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '${AppModeSettings.config.sharedList}がありません',
+              texts.noSharedList,
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.amber.shade900,
@@ -325,7 +325,8 @@ class SharedListHeaderWidget extends ConsumerWidget {
             horizontal: 16,
             vertical: isNarrowLandscape ? 8 : 24,
           ),
-          title: Text('新しい${AppModeSettings.config.sharedList}を作成'),
+          title: Text(
+              texts.createNewSharedList(AppModeSettings.config.sharedList)),
           content: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
             child: SingleChildScrollView(
@@ -336,7 +337,7 @@ class SharedListHeaderWidget extends ConsumerWidget {
                     controller: nameController,
                     decoration: InputDecoration(
                       labelText: texts.listName,
-                      hintText: '例: 週末の買い物',
+                      hintText: texts.listCreateHint,
                     ),
                     autofocus: true,
                   ),
@@ -399,13 +400,13 @@ class SharedListHeaderWidget extends ConsumerWidget {
                   if (duplicateName) {
                     // エラーログに記録
                     await ErrorLogService.logValidationError(
-                      'リスト作成',
-                      '「$name」という名前のリストは既に存在します',
+                      texts.createList,
+                      texts.duplicateListNameAlert(name),
                     );
 
                     if (!context.mounted) return;
                     SnackBarHelper.showWarning(
-                        context, '「$name」という名前のリストは既に存在します');
+                        context, texts.duplicateListNameAlert(name));
                     return;
                   }
 
@@ -479,7 +480,7 @@ class SharedListHeaderWidget extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('「${listToDelete.listName}」を削除しますか？'),
+            Text(texts.deleteListConfirm(listToDelete.listName)),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(8),

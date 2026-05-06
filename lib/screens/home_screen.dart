@@ -162,7 +162,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                      '${AppModeSettings.config.groupName}機能を使用するには、まずサインインしてください'),
+                      texts.signInToUseGroup(AppModeSettings.config.groupName)),
                   backgroundColor: Colors.orange,
                   duration: const Duration(seconds: 3),
                 ),
@@ -179,11 +179,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               icon: const Icon(Icons.home), label: texts.home),
           BottomNavigationBarItem(
             icon: const Icon(Icons.group),
-            label: AppModeSettings.config.groupName,
+            label: texts.group,
           ),
           BottomNavigationBarItem(
             icon: const Icon(Icons.list),
-            label: AppModeSettings.config.listName,
+            label: texts.list,
           ),
           BottomNavigationBarItem(
             icon: const Icon(Icons.settings),

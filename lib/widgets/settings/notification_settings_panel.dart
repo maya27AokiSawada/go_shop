@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/user_settings_provider.dart';
 import '../../datastore/user_settings_repository.dart';
+import '../../l10n/l10n.dart';
 import '../../pages/notification_history_page.dart';
 
 /// 通知設定パネルウィジェット
@@ -30,7 +31,7 @@ class NotificationSettingsPanel extends ConsumerWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '通知設定',
+                  texts.notificationSettings,
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -42,7 +43,7 @@ class NotificationSettingsPanel extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'リスト変更通知の設定',
+            texts.listChangeNotificationSettings,
             style: TextStyle(
               fontSize: 12,
               color: Colors.amber.shade600,
@@ -56,13 +57,13 @@ class NotificationSettingsPanel extends ConsumerWidget {
               return userSettingsAsync.when(
                 data: (userSettings) {
                   return SwitchListTile(
-                    title: const Text(
-                      'リスト変更通知',
-                      style: TextStyle(fontSize: 14),
+                    title: Text(
+                      texts.listChangeNotification,
+                      style: const TextStyle(fontSize: 14),
                     ),
-                    subtitle: const Text(
-                      'アイテムの追加・削除・購入完了を5分ごとに通知',
-                      style: TextStyle(fontSize: 12),
+                    subtitle: Text(
+                      texts.listChangeNotificationDesc,
+                      style: const TextStyle(fontSize: 12),
                     ),
                     value: userSettings.enableListNotifications,
                     onChanged: (value) async {
@@ -80,8 +81,9 @@ class NotificationSettingsPanel extends ConsumerWidget {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text(
-                                value ? 'リスト変更通知をオンにしました' : 'リスト変更通知をオフにしました'),
+                            content: Text(value
+                                ? texts.listNotificationOn
+                                : texts.listNotificationOff),
                             duration: const Duration(seconds: 2),
                           ),
                         );
@@ -112,7 +114,7 @@ class NotificationSettingsPanel extends ConsumerWidget {
               );
             },
             icon: const Icon(Icons.history),
-            label: const Text('通知履歴を見る'),
+            label: Text(texts.viewNotificationHistory),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.amber.shade700,
               foregroundColor: Colors.white,

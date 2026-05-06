@@ -533,4 +533,23 @@ abstract class AppTexts {
   String get dataMigrationDescription;
   String get clearData;
   String get keepData;
+  // Bottom nav / panel titles
+  String get secretModeEnabled;
+  String get groupDataRequiresLogin;
+  String get newGroup;
+  String signInToUseGroup(String groupName);
+  String get noSharedList;
+  String createNewSharedList(String listName);
+  String duplicateListNameAlert(String name);
+  String deleteListConfirm(String name);
+  String get listCreateHint;
+  String get listChangeNotification;
+  String get listChangeNotificationDesc;
+  String get listNotificationOn;
+  String get listNotificationOff;
+  String get viewNotificationHistory;
+  String get listChangeNotificationSettings;
+  String get shoppingListMode;
+  String get todoShareMode;
+  String modeChanged(String modeName);
 }

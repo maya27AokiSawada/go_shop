@@ -1055,4 +1055,44 @@ class AppTextsEn extends AppTexts {
   String get clearData => 'Clear';
   @override
   String get keepData => 'Keep';
+  @override
+  String get secretModeEnabled => 'Secret mode is enabled';
+  @override
+  String get groupDataRequiresLogin => 'Sign in to view group data';
+  @override
+  String get newGroup => 'New Group';
+  @override
+  String signInToUseGroup(String groupName) =>
+      'Sign in to use $groupName features';
+  @override
+  String get noSharedList => 'No lists';
+  @override
+  String createNewSharedList(String listName) => 'Create new $listName';
+  @override
+  String duplicateListNameAlert(String name) =>
+      'A list named “$name” already exists';
+  @override
+  String deleteListConfirm(String name) => 'Delete “$name”?';
+  @override
+  String get listCreateHint => 'e.g. Weekend shopping';
+  @override
+  String get listChangeNotification => 'List change notifications';
+  @override
+  String get listChangeNotificationDesc =>
+      'Notify every 5 minutes for item additions, deletions, and completions';
+  @override
+  String get listNotificationOn => 'List change notifications turned on';
+  @override
+  String get listNotificationOff => 'List change notifications turned off';
+  @override
+  String get viewNotificationHistory => 'View notification history';
+  @override
+  String get listChangeNotificationSettings =>
+      'List change notification settings';
+  @override
+  String get shoppingListMode => 'Shopping List';
+  @override
+  String get todoShareMode => 'TODO Share';
+  @override
+  String modeChanged(String modeName) => 'Mode changed to “$modeName”';
 }

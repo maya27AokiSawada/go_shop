@@ -1030,4 +1030,41 @@ class AppTextsJa extends AppTexts {
   String get clearData => '消去';
   @override
   String get keepData => '引き継ぐ';
+  @override
+  String get secretModeEnabled => 'シークレットモードが有効です';
+  @override
+  String get groupDataRequiresLogin => 'グループデータを表示するにはログインが必要です';
+  @override
+  String get newGroup => '新しいグループ';
+  @override
+  String signInToUseGroup(String groupName) =>
+      '$groupName機能を使用するには、まずサインインしてください';
+  @override
+  String get noSharedList => 'リストがありません';
+  @override
+  String createNewSharedList(String listName) => '新しい$listNameを作成';
+  @override
+  String duplicateListNameAlert(String name) => '「$name」という名前のリストは既に存在します';
+  @override
+  String deleteListConfirm(String name) => '「$name」を削除しますか？';
+  @override
+  String get listCreateHint => '例: 週末の買い物';
+  @override
+  String get listChangeNotification => 'リスト変更通知';
+  @override
+  String get listChangeNotificationDesc => 'アイテムの追加・削除・購入完了を5分ごとに通知';
+  @override
+  String get listNotificationOn => 'リスト変更通知をオンにしました';
+  @override
+  String get listNotificationOff => 'リスト変更通知をオフにしました';
+  @override
+  String get viewNotificationHistory => '通知履歴を見る';
+  @override
+  String get listChangeNotificationSettings => 'リスト変更通知の設定';
+  @override
+  String get shoppingListMode => '買い物リスト';
+  @override
+  String get todoShareMode => 'TODO共有';
+  @override
+  String modeChanged(String modeName) => 'モードを「$modeName」に変更しました';
 }

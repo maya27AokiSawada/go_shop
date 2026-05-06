@@ -6,6 +6,7 @@ import '../../providers/app_mode_notifier_provider.dart';
 import '../../providers/app_ui_mode_provider.dart';
 import '../../providers/user_settings_provider.dart';
 import '../../datastore/user_settings_repository.dart';
+import '../../l10n/l10n.dart';
 
 /// アプリモード切り替えパネルウィジェット
 class AppModeSwitcherPanel extends ConsumerWidget {
@@ -61,16 +62,16 @@ class AppModeSwitcherPanel extends ConsumerWidget {
               final currentMode = ref.watch(appModeNotifierProvider);
 
               return SegmentedButton<AppMode>(
-                segments: const [
+                segments: [
                   ButtonSegment<AppMode>(
                     value: AppMode.shopping,
-                    label: Text('買い物リスト'),
-                    icon: Icon(Icons.shopping_cart, size: 16),
+                    label: Text(texts.shoppingListMode),
+                    icon: const Icon(Icons.shopping_cart, size: 16),
                   ),
                   ButtonSegment<AppMode>(
                     value: AppMode.todo,
-                    label: Text('TODO共有'),
-                    icon: Icon(Icons.task_alt, size: 16),
+                    label: Text(texts.todoShareMode),
+                    icon: const Icon(Icons.task_alt, size: 16),
                   ),
                 ],
                 selected: {currentMode},
@@ -94,11 +95,12 @@ class AppModeSwitcherPanel extends ConsumerWidget {
 
                   // SnackBar表示
                   if (context.mounted) {
-                    final modeName =
-                        newMode == AppMode.shopping ? '買い物リスト' : 'TODO共有';
+                    final modeName = newMode == AppMode.shopping
+                        ? texts.shoppingListMode
+                        : texts.todoShareMode;
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('モードを「$modeName」に変更しました'),
+                        content: Text(texts.modeChanged(modeName)),
                         duration: const Duration(seconds: 2),
                       ),
                     );
