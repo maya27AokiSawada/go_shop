@@ -762,4 +762,20 @@ class AppTextsJa extends AppTexts {
   String get deleteAccountAndData => 'アカウントと全てのデータを完全に削除します';
   @override
   String get cannotUndoWarning => '⚠️ この操作は取り消せません';
+
+  // ボトムナビ / ホーム
+  @override
+  String get home => 'ホーム';
+  @override
+  String get signedOut => 'ログアウトしました';
+  @override
+  String get signOutError => 'ログアウトエラー';
+  @override
+  String get displayNameHint => '例: 太郎';
+  @override
+  String get displayNameHelper => 'グループメンバーに表示される名前です';
+  @override
+  String get passwordHint => '6文字以上';
+  @override
+  String welcomeUser(String name) => 'アカウントを作成しました！ようこそ、$nameさん';
 }

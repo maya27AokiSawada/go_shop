@@ -373,4 +373,15 @@ abstract class AppTexts {
   String get deletionFailed;
   String get deleteAccountAndData;
   String get cannotUndoWarning;
+
+  // ========================================
+  // ボトムナビ / ホーム
+  // ========================================
+  String get home;
+  String get signedOut;
+  String get signOutError;
+  String get displayNameHint;
+  String get displayNameHelper;
+  String get passwordHint;
+  String welcomeUser(String name);
 }

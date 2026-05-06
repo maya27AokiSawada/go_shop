@@ -779,4 +779,20 @@ class AppTextsEn extends AppTexts {
       'Permanently deletes your account and all data';
   @override
   String get cannotUndoWarning => '⚠️ This action cannot be undone';
+
+  // Bottom nav / Home
+  @override
+  String get home => 'Home';
+  @override
+  String get signedOut => 'Signed out';
+  @override
+  String get signOutError => 'Sign out error';
+  @override
+  String get displayNameHint => 'e.g. Taro';
+  @override
+  String get displayNameHelper => 'This name will be shown to group members';
+  @override
+  String get passwordHint => '6 characters or more';
+  @override
+  String welcomeUser(String name) => 'Account created! Welcome, $name';
 }

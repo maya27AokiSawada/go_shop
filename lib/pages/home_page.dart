@@ -220,7 +220,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('アカウントを作成しました！ようこそ、$userNameさん'),
+            content: Text(texts.welcomeUser(userName)),
             backgroundColor: Colors.green,
           ),
         );
@@ -556,9 +556,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                                   controller: userNameController,
                                   decoration: InputDecoration(
                                     labelText: texts.displayName,
-                                    hintText: '例: 太郎',
+                                    hintText: texts.displayNameHint,
                                     prefixIcon: const Icon(Icons.person),
-                                    helperText: 'グループメンバーに表示される名前です',
+                                    helperText: texts.displayNameHelper,
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(8),
                                     ),
@@ -606,7 +606,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                             obscureText: !_isPasswordVisible,
                             decoration: InputDecoration(
                               labelText: texts.password,
-                              hintText: '6文字以上',
+                              hintText: texts.passwordHint,
                               prefixIcon: const Icon(Icons.lock),
                               suffixIcon: IconButton(
                                 icon: Icon(
@@ -900,8 +900,8 @@ class _HomePageState extends ConsumerState<HomePage> {
 
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('ログアウトしました'),
+                            SnackBar(
+                              content: Text(texts.signedOut),
                               backgroundColor: Colors.blue,
                             ),
                           );
@@ -911,7 +911,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('ログアウトエラー: $e'),
+                              content: Text('${texts.signOutError}: $e'),
                               backgroundColor: Colors.red,
                             ),
                           );
@@ -919,7 +919,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       }
                     },
                     icon: const Icon(Icons.logout),
-                    label: const Text('ログアウト'),
+                    label: Text(texts.logout),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red.shade400,
                       foregroundColor: Colors.white,
@@ -941,7 +941,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             children: [
               const Icon(Icons.error, color: Colors.red, size: 48),
               const SizedBox(height: 16),
-              Text('エラーが発生しました: $error'),
+              Text('${texts.error}: $error'),
             ],
           ),
         ),

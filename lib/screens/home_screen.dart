@@ -17,6 +17,7 @@ import '../utils/app_logger.dart';
 import '../widgets/common_app_bar.dart';
 import '../widgets/network_status_banner.dart';
 import '../services/user_initialization_service.dart';
+import '../l10n/l10n.dart';
 import '../providers/shared_list_provider.dart';
 import '../datastore/hybrid_shared_list_repository.dart';
 import '../providers/group_shared_lists_provider.dart';
@@ -120,7 +121,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         break;
       case 3: // 設定画面
         appBar = CommonAppBar(
-          title: '設定',
+          title: texts.settings,
           syncState: syncState,
         );
         break;
@@ -174,7 +175,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ref.read(pageIndexProvider.notifier).setPageIndex(index);
         },
         items: [
-          const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'ホーム'),
+          BottomNavigationBarItem(
+              icon: const Icon(Icons.home), label: texts.home),
           BottomNavigationBarItem(
             icon: const Icon(Icons.group),
             label: AppModeSettings.config.groupName,
@@ -183,9 +185,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             icon: const Icon(Icons.list),
             label: AppModeSettings.config.listName,
           ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: '設定',
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.settings),
+            label: texts.settings,
           ),
         ],
       ),
