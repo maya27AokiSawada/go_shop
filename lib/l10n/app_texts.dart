@@ -279,4 +279,20 @@ abstract class AppTexts {
   String get quantityRequired;
   String get quantityInvalid;
   String get deadlineMustBeFuture;
+
+  // ========================================
+  // UI管理モード（シングル / マルチ）
+  // ========================================
+  String get managementMode;
+  String get singleModeLabel;
+  String get multiModeLabel;
+  String get singleModeDesc;
+  String get multiModeDesc;
+  String get switchToSingleMode;
+  String get switchToSingleModeBody;
+  String get switchedToSingleMode;
+  String get switchedToMultiMode;
+  String get selectGroupBeforeSwitch;
+  String get selectListBeforeSwitch;
+  String get doSwitch;
 }

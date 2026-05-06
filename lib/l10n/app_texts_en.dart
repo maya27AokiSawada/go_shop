@@ -561,13 +561,16 @@ class AppTextsEn extends AppTexts {
   @override
   String get groupLoadFailed => 'Failed to load groups';
   @override
-  String get createFirstGroupHint => 'Create your first group or\nscan a QR code to join';
+  String get createFirstGroupHint =>
+      'Create your first group or\nscan a QR code to join';
   @override
   String get createGroupHint => 'Tap the + button to create a group';
   @override
-  String get deleteGroupWarning => 'This cannot be undone.\nAll group data will be deleted.';
+  String get deleteGroupWarning =>
+      'This cannot be undone.\nAll group data will be deleted.';
   @override
-  String get leaveGroupWarning => 'Your information will be removed from this group.\nYou will need an invitation to rejoin.';
+  String get leaveGroupWarning =>
+      'Your information will be removed from this group.\nYou will need an invitation to rejoin.';
   @override
   String get deletingGroup => 'Deleting group...';
   @override
@@ -583,7 +586,8 @@ class AppTextsEn extends AppTexts {
   @override
   String get noMembersInGroup => 'No members in selected group';
   @override
-  String get selectGroupToCopyMembers => 'Select an existing group to copy its members';
+  String get selectGroupToCopyMembers =>
+      'Select an existing group to copy its members';
   @override
   String get creatingGroup => 'Creating group...';
   @override
@@ -623,4 +627,33 @@ class AppTextsEn extends AppTexts {
   String get quantityInvalid => 'Enter a valid quantity (1 or more)';
   @override
   String get deadlineMustBeFuture => 'Deadline must be today or later';
+
+  // UI mode
+  @override
+  String get managementMode => 'Management Mode';
+  @override
+  String get singleModeLabel => 'Single';
+  @override
+  String get multiModeLabel => 'Multi';
+  @override
+  String get singleModeDesc => 'Single mode: one group & one list';
+  @override
+  String get multiModeDesc => 'Multi mode: manage multiple groups & lists';
+  @override
+  String get switchToSingleMode => 'Switch to Single Mode';
+  @override
+  String get switchToSingleModeBody =>
+      'Only the current group and list will be shown.\nYour other data will not be deleted.';
+  @override
+  String get switchedToSingleMode => 'Switched to Single Mode';
+  @override
+  String get switchedToMultiMode => 'Switched to Multi Mode';
+  @override
+  String get selectGroupBeforeSwitch =>
+      'Please select a group before switching to Single Mode';
+  @override
+  String get selectListBeforeSwitch =>
+      'Please select a list before switching to Single Mode';
+  @override
+  String get doSwitch => 'Switch';
 }

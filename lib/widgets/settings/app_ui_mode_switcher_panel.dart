@@ -12,6 +12,7 @@ import '../../providers/shared_list_provider.dart';
 import '../../datastore/user_settings_repository.dart';
 import '../../services/user_preferences_service.dart';
 import '../../utils/app_logger.dart';
+import '../../l10n/l10n.dart';
 
 /// AppUIモード切り替えパネル（シングル ↔ マルチ）
 class AppUIModeSwicherPanel extends ConsumerWidget {
@@ -55,9 +56,9 @@ class AppUIModeSwicherPanel extends ConsumerWidget {
       await _saveMode(ref, AppUIMode.multi);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('マルチモードに切り替えました'),
-            duration: Duration(seconds: 2),
+          SnackBar(
+            content: Text(texts.switchedToMultiMode),
+            duration: const Duration(seconds: 2),
           ),
         );
       }
@@ -67,10 +68,10 @@ class AppUIModeSwicherPanel extends ConsumerWidget {
       if (selectedGroupId == null) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('グループを選択してからシングルモードに切り替えてください'),
+            SnackBar(
+              content: Text(texts.selectGroupBeforeSwitch),
               backgroundColor: Colors.orange,
-              duration: Duration(seconds: 3),
+              duration: const Duration(seconds: 3),
             ),
           );
         }
@@ -92,7 +93,7 @@ class AppUIModeSwicherPanel extends ConsumerWidget {
           final newList = await repository.createSharedList(
             ownerUid: uid,
             groupId: selectedGroupId,
-            listName: '買い物リスト',
+            listName: texts.sharedList,
           );
           await ref
               .read(currentListProvider.notifier)
@@ -108,10 +109,10 @@ class AppUIModeSwicherPanel extends ConsumerWidget {
           // リストが複数 → ユーザーに選択を促してブロック
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('カレントリストを選択してからシングルモードに切り替えてください'),
+              SnackBar(
+                content: Text(texts.selectListBeforeSwitch),
                 backgroundColor: Colors.orange,
-                duration: Duration(seconds: 4),
+                duration: const Duration(seconds: 4),
               ),
             );
           }
@@ -121,21 +122,20 @@ class AppUIModeSwicherPanel extends ConsumerWidget {
 
       // 確認ダイアログ
       if (!context.mounted) return;
+      final t = texts;
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('シングルモードに切り替え'),
-          content: const Text(
-            '現在のカレントグループとカレントリストのみ表示されます。\n他のデータは削除されません。',
-          ),
+          title: Text(t.switchToSingleMode),
+          content: Text(t.switchToSingleModeBody),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('キャンセル'),
+              child: Text(t.cancel),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('切り替える'),
+              child: Text(t.doSwitch),
             ),
           ],
         ),
@@ -144,9 +144,9 @@ class AppUIModeSwicherPanel extends ConsumerWidget {
       await _saveMode(ref, AppUIMode.single);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('シングルモードに切り替えました'),
-            duration: Duration(seconds: 2),
+          SnackBar(
+            content: Text(texts.switchedToSingleMode),
+            duration: const Duration(seconds: 2),
           ),
         );
       }
@@ -157,6 +157,7 @@ class AppUIModeSwicherPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentMode = ref.watch(appUIModeProvider);
     final isMulti = currentMode == AppUIMode.multi;
+    final t = texts;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -174,7 +175,7 @@ class AppUIModeSwicherPanel extends ConsumerWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '管理モード',
+                  t.managementMode,
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -186,18 +187,18 @@ class AppUIModeSwicherPanel extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            isMulti ? 'マルチモード：複数のグループ・リストを管理' : 'シングルモード：1グループ・1リストで使用',
+            isMulti ? t.multiModeDesc : t.singleModeDesc,
             style: TextStyle(fontSize: 12, color: Colors.green.shade700),
           ),
           const SizedBox(height: 12),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: Text(
-              isMulti ? 'マルチ' : 'シングル',
+              isMulti ? t.multiModeLabel : t.singleModeLabel,
               style: const TextStyle(fontWeight: FontWeight.w500),
             ),
             subtitle: Text(
-              isMulti ? '複数グループ・リスト管理' : '1グループ・1リスト専用',
+              isMulti ? t.multiModeDesc : t.singleModeDesc,
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             ),
             value: isMulti,

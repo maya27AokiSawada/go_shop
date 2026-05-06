@@ -621,4 +621,31 @@ class AppTextsJa extends AppTexts {
   String get quantityInvalid => '数量は1以上の数値を入力してください';
   @override
   String get deadlineMustBeFuture => '期限は本日以降の日付を選択してください';
+
+  // UI管理モード
+  @override
+  String get managementMode => '管理モード';
+  @override
+  String get singleModeLabel => 'シングル';
+  @override
+  String get multiModeLabel => 'マルチ';
+  @override
+  String get singleModeDesc => 'シングルモード：1グループ・1リストで使用';
+  @override
+  String get multiModeDesc => 'マルチモード：複数のグループ・リストを管理';
+  @override
+  String get switchToSingleMode => 'シングルモードに切り替え';
+  @override
+  String get switchToSingleModeBody =>
+      '現在のカレントグループとカレントリストのみ表示されます。\n他のデータは削除されません。';
+  @override
+  String get switchedToSingleMode => 'シングルモードに切り替えました';
+  @override
+  String get switchedToMultiMode => 'マルチモードに切り替えました';
+  @override
+  String get selectGroupBeforeSwitch => 'グループを選択してからシングルモードに切り替えてください';
+  @override
+  String get selectListBeforeSwitch => 'カレントリストを選択してからシングルモードに切り替えてください';
+  @override
+  String get doSwitch => '切り替える';
 }
