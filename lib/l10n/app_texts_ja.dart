@@ -1013,4 +1013,21 @@ class AppTextsJa extends AppTexts {
   String get benefitEarlyAccess => '• 新機能の優先アクセス';
   @override
   String get pricePlan => '料金プラン';
+  @override
+  String get userChangedDetected => 'ユーザー変更を検知';
+  @override
+  String get differentUserLoggedIn => '異なるユーザーでログインしました。';
+  @override
+  String userPrevious(String user) => '前回: $user';
+  @override
+  String userCurrent(String user) => '今回: $user';
+  @override
+  String get whatToDoWithOldData => '以前のデータをどうしますか？';
+  @override
+  String get dataMigrationDescription =>
+      '• 引き継ぐ: 既存のグループとショッピングリストが新しいユーザーに移行されます\n• 消去: 新しいユーザー用に空の状態から開始します';
+  @override
+  String get clearData => '消去';
+  @override
+  String get keepData => '引き継ぐ';
 }

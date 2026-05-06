@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/l10n.dart';
 
 /// ユーザー切り替え時のデータ引き継ぎ選択ダイアログ
 class UserDataMigrationDialog extends StatelessWidget {
@@ -18,30 +19,29 @@ class UserDataMigrationDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('ユーザー変更を検知'),
+      title: Text(texts.userChangedDetected),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('異なるユーザーでログインしました。',
-              style: TextStyle(fontWeight: FontWeight.bold)),
+          Text(texts.differentUserLoggedIn,
+              style: const TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
-          Text('前回: $previousUser'),
-          Text('今回: $newUser'),
+          Text(texts.userPrevious(previousUser)),
+          Text(texts.userCurrent(newUser)),
           const SizedBox(height: 16),
-          const Text('以前のデータをどうしますか？'),
+          Text(texts.whatToDoWithOldData),
           const SizedBox(height: 8),
-          const Text(
-            '• 引き継ぐ: 既存のグループとショッピングリストが新しいユーザーに移行されます\n'
-            '• 消去: 新しいユーザー用に空の状態から開始します',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
+          Text(
+            texts.dataMigrationDescription,
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
           ),
         ],
       ),
       actions: [
         TextButton(
           onPressed: onClearData,
-          child: const Text('消去'),
+          child: Text(texts.clearData),
         ),
         TextButton(
           onPressed: onKeepData,
@@ -49,7 +49,7 @@ class UserDataMigrationDialog extends StatelessWidget {
             backgroundColor: Theme.of(context).primaryColor,
             foregroundColor: Colors.white,
           ),
-          child: const Text('引き継ぐ'),
+          child: Text(texts.keepData),
         ),
       ],
     );

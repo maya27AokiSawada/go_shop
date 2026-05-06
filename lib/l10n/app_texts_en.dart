@@ -1038,4 +1038,21 @@ class AppTextsEn extends AppTexts {
   String get benefitEarlyAccess => '\u2022 Early access to new features';
   @override
   String get pricePlan => 'Pricing';
+  @override
+  String get userChangedDetected => 'User change detected';
+  @override
+  String get differentUserLoggedIn => 'A different user has logged in.';
+  @override
+  String userPrevious(String user) => 'Previous: $user';
+  @override
+  String userCurrent(String user) => 'Current: $user';
+  @override
+  String get whatToDoWithOldData => 'What to do with previous data?';
+  @override
+  String get dataMigrationDescription =>
+      '• Keep: Existing groups and shopping lists will be transferred\n• Clear: Start fresh for the new user';
+  @override
+  String get clearData => 'Clear';
+  @override
+  String get keepData => 'Keep';
 }

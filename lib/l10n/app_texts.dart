@@ -525,4 +525,12 @@ abstract class AppTexts {
   String get benefitPremiumSupport;
   String get benefitEarlyAccess;
   String get pricePlan;
+  String get userChangedDetected;
+  String get differentUserLoggedIn;
+  String userPrevious(String user);
+  String userCurrent(String user);
+  String get whatToDoWithOldData;
+  String get dataMigrationDescription;
+  String get clearData;
+  String get keepData;
 }
