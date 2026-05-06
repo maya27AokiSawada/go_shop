@@ -384,4 +384,19 @@ abstract class AppTexts {
   String get displayNameHelper;
   String get passwordHint;
   String welcomeUser(String name);
+
+  // ========================================
+  // 同期管理ウィジェット
+  // ========================================
+  String get syncManagement;
+  String get syncingFirestore;
+  String get clearCache;
+  String get clearCacheTitle;
+  String get clearCacheConfirm;
+  String get clearCacheSuccess;
+  String get debugLabel;
+  String get onlineStatus;
+  String get connected;
+  String get offline;
+  String get localModeNoSync;
 }

@@ -795,4 +795,29 @@ class AppTextsEn extends AppTexts {
   String get passwordHint => '6 characters or more';
   @override
   String welcomeUser(String name) => 'Account created! Welcome, $name';
+
+  // Sync management widget
+  @override
+  String get syncManagement => 'Sync Management';
+  @override
+  String get syncingFirestore => 'Sync from Firestore';
+  @override
+  String get clearCache => 'Clear Cache';
+  @override
+  String get clearCacheTitle => 'Clear Cache';
+  @override
+  String get clearCacheConfirm =>
+      'Clear local cache?\nData will be re-fetched from Firestore on next launch.';
+  @override
+  String get clearCacheSuccess => 'Cache cleared';
+  @override
+  String get debugLabel => 'Debug';
+  @override
+  String get onlineStatus => 'Online Status';
+  @override
+  String get connected => 'Connected';
+  @override
+  String get offline => 'Offline';
+  @override
+  String get localModeNoSync => 'Local mode (no sync)';
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/shared_group_provider.dart';
+import '../l10n/l10n.dart';
 
 /// 同期状態を表示するウィジェット
 /// AppBarやDrawerで使用して、ユーザーに現在の同期状態を伝える
@@ -23,7 +24,7 @@ class SyncStatusWidget extends ConsumerWidget {
         if (showLabel) ...[
           const SizedBox(width: 4),
           Text(
-            _getStatusText(syncStatus),
+            _getStatusText(syncStatus, texts),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: _getStatusColor(syncStatus),
                 ),
@@ -65,16 +66,16 @@ class SyncStatusWidget extends ConsumerWidget {
     }
   }
 
-  String _getStatusText(SyncStatus status) {
+  String _getStatusText(SyncStatus status, AppTexts texts) {
     switch (status) {
       case SyncStatus.localOnly:
-        return 'ローカル';
+        return texts.offlineMode;
       case SyncStatus.offline:
-        return 'オフライン';
+        return texts.offline;
       case SyncStatus.syncing:
-        return '同期中';
+        return texts.syncing;
       case SyncStatus.synced:
-        return '同期済み';
+        return texts.syncCompleted;
     }
   }
 
@@ -104,11 +105,11 @@ class SyncManagementWidget extends ConsumerWidget {
     final hybridRepo = ref.read(hybridRepositoryProvider);
 
     if (hybridRepo == null) {
-      return const Card(
+      return Card(
         child: Padding(
-          padding: EdgeInsets.all(16),
+          padding: const EdgeInsets.all(16),
           child: Text(
-            'ローカルモード（同期機能なし）',
+            texts.localModeNoSync,
           ),
         ),
       );
@@ -120,19 +121,19 @@ class SyncManagementWidget extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
-                Icon(Icons.sync),
-                SizedBox(width: 8),
+                const Icon(Icons.sync),
+                const SizedBox(width: 8),
                 Text(
-                  '同期管理',
-                  style: TextStyle(
+                  texts.syncManagement,
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                Spacer(),
-                SyncStatusWidget(showLabel: true),
+                const Spacer(),
+                const SyncStatusWidget(showLabel: true),
               ],
             ),
             const SizedBox(height: 16),
@@ -154,7 +155,9 @@ class SyncManagementWidget extends ConsumerWidget {
                       )
                     : const Icon(Icons.sync),
                 label: Text(
-                  forceSyncAsync.isLoading ? '同期中...' : 'Firestoreから同期',
+                  forceSyncAsync.isLoading
+                      ? texts.syncing
+                      : texts.syncingFirestore,
                 ),
               ),
             ),
@@ -169,17 +172,16 @@ class SyncManagementWidget extends ConsumerWidget {
                   final confirmed = await showDialog<bool>(
                     context: context,
                     builder: (context) => AlertDialog(
-                      title: const Text('キャッシュクリア'),
-                      content: const Text(
-                          'ローカルキャッシュをクリアしますか？\n次回起動時にFirestoreから再取得されます。'),
+                      title: Text(texts.clearCacheTitle),
+                      content: Text(texts.clearCacheConfirm),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.of(context).pop(false),
-                          child: const Text('キャンセル'),
+                          child: Text(texts.cancel),
                         ),
                         TextButton(
                           onPressed: () => Navigator.of(context).pop(true),
-                          child: const Text('クリア'),
+                          child: Text(texts.clearCache),
                         ),
                       ],
                     ),
@@ -190,13 +192,13 @@ class SyncManagementWidget extends ConsumerWidget {
                     ref.invalidate(allGroupsProvider);
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('キャッシュをクリアしました')),
+                        SnackBar(content: Text(texts.clearCacheSuccess)),
                       );
                     }
                   }
                 },
                 icon: const Icon(Icons.clear_all),
-                label: const Text('キャッシュクリア'),
+                label: Text(texts.clearCache),
               ),
             ),
 
@@ -205,17 +207,18 @@ class SyncManagementWidget extends ConsumerWidget {
             // オンライン状態切り替え（デバッグ用）
             if (syncStatus != SyncStatus.localOnly) ...[
               const Divider(),
-              const Text(
-                'デバッグ用',
-                style: TextStyle(
+              Text(
+                texts.debugLabel,
+                style: const TextStyle(
                   fontSize: 12,
                   color: Colors.grey,
                 ),
               ),
               const SizedBox(height: 8),
               SwitchListTile(
-                title: const Text('オンライン状態'),
-                subtitle: Text(hybridRepo.isOnline ? '接続中' : 'オフライン'),
+                title: Text(texts.onlineStatus),
+                subtitle:
+                    Text(hybridRepo.isOnline ? texts.connected : texts.offline),
                 value: hybridRepo.isOnline,
                 onChanged: (value) {
                   hybridRepo.setOnlineStatus(value);

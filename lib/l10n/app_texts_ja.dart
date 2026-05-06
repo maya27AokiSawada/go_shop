@@ -778,4 +778,28 @@ class AppTextsJa extends AppTexts {
   String get passwordHint => '6文字以上';
   @override
   String welcomeUser(String name) => 'アカウントを作成しました！ようこそ、$nameさん';
+  // 同期管理ウィジェット
+  @override
+  String get syncManagement => '同期管理';
+  @override
+  String get syncingFirestore => 'Firestoreから同期';
+  @override
+  String get clearCache => 'キャッシュクリア';
+  @override
+  String get clearCacheTitle => 'キャッシュクリア';
+  @override
+  String get clearCacheConfirm =>
+      'ローカルキャッシュをクリアしますか？\n次回起動時にFirestoreから再取得されます。';
+  @override
+  String get clearCacheSuccess => 'キャッシュをクリアしました';
+  @override
+  String get debugLabel => 'デバッグ用';
+  @override
+  String get onlineStatus => 'オンライン状態';
+  @override
+  String get connected => '接続中';
+  @override
+  String get offline => 'オフライン';
+  @override
+  String get localModeNoSync => 'ローカルモード（同期機能なし）';
 }
