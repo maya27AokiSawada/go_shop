@@ -648,4 +648,88 @@ class AppTextsJa extends AppTexts {
   String get selectListBeforeSwitch => 'カレントリストを選択してからシングルモードに切り替えてください';
   @override
   String get doSwitch => '切り替える';
+
+  // グループメンバー管理
+  @override
+  String get groupInfo => 'グループ情報';
+  @override
+  String get inviteOnlyForAdmins => 'メンバーを招待できるのはオーナー、管理者、パートナーのみです';
+  @override
+  String get errorOccurred => 'エラーが発生しました';
+  @override
+  String get copyGroupTooltip => 'このグループをコピーして新規作成';
+  @override
+  String get inviteByQR => 'QRコードで招待';
+  @override
+  String get inviteByQRDesc => 'QRコードを生成して相手にスキャンしてもらう';
+  @override
+  String get inviteByEmail => 'メールで招待';
+  @override
+  String get inviteByEmailDesc => 'メールアドレスを指定して招待を送信';
+  @override
+  String get addMemberManually => '手動でメンバー追加';
+  @override
+  String get addMemberManuallyDesc => 'メンバー情報を直接入力';
+  @override
+  String get enterEmailToInvite => '招待するメールアドレスを入力してください';
+  @override
+  String get sendInvitation => '招待を送信';
+  @override
+  String get emailInviteUnavailable => 'メール招待は利用できません。QR招待をご利用ください。';
+  @override
+  String get enterGroupName => 'グループ名を入力してください';
+
+  // アカウント削除
+  @override
+  String get reauthRequired => '再認証が必要です';
+  @override
+  String get reauthDescription => 'セキュリティのため、パスワードを再入力してください。';
+  @override
+  String get finalConfirmation => '最終確認';
+  @override
+  String get deleteCompletely => '完全に削除';
+  @override
+  String get deletingAccount => 'アカウントを削除中...';
+  @override
+  String get deletingAccountProgress => 'データ削除 → 認証削除';
+  @override
+  String get authError => '認証エラー';
+  @override
+  String get wrongPassword => 'パスワードが正しくありません。';
+  @override
+  String get authFailed => '認証に失敗しました。';
+
+  // QR招待
+  @override
+  String get qrCodeInvite => 'QRコード招待';
+  @override
+  String get copyData => 'データをコピー';
+  @override
+  String get share => '共有';
+  @override
+  String get processingInvitation => '招待を処理中...';
+  @override
+  String get cannotScanOwnCode => '自分自身の招待コードはスキャンできません';
+  @override
+  String get groupInvitation => 'グループ招待';
+  @override
+  String get accept => '受諾';
+  @override
+  String get signInRequired => 'サインインが必要です';
+  @override
+  String get signInRequiredForInvite => 'グループ招待を受諾するにはサインインが必要です。';
+  @override
+  String get invitationSavedForLater => '招待情報を保存しました。\nサインイン後に自動的に処理されます。';
+
+  // その他UIラベル
+  @override
+  String get memberListLabel => 'メンバーリスト';
+  @override
+  String get selectInviteMethod => 'メンバー招待方法を選択';
+  @override
+  String get noMembers => 'メンバーがいません';
+  @override
+  String get inviteMemberHint => '右上の + ボタンから\nメンバーを招待してください';
+  @override
+  String get recommendPortrait => '縦向きでの使用を推奨します';
 }

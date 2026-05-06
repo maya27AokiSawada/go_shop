@@ -8,6 +8,7 @@ import '../services/pending_invitation_service.dart';
 import '../helpers/ui_helper.dart';
 import '../utils/error_handler.dart';
 import '../utils/snackbar_helper.dart';
+import '../l10n/l10n.dart';
 
 /// QRコード招待ボタンウィジェット
 class QRInviteButton extends ConsumerWidget {
@@ -33,7 +34,7 @@ class QRInviteButton extends ConsumerWidget {
     return ElevatedButton.icon(
       onPressed: () => _showQRInviteDialog(context, ref),
       icon: const Icon(Icons.qr_code),
-      label: const Text('QRコード招待'),
+      label: Text(texts.qrCodeInvite),
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
@@ -160,7 +161,7 @@ class QRInviteDialog extends ConsumerWidget {
                   child: OutlinedButton.icon(
                     onPressed: () => _copyQRData(context),
                     icon: const Icon(Icons.copy),
-                    label: const Text('データをコピー'),
+                    label: Text(texts.copyData),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -168,7 +169,7 @@ class QRInviteDialog extends ConsumerWidget {
                   child: ElevatedButton.icon(
                     onPressed: () => _shareQR(context),
                     icon: const Icon(Icons.share),
-                    label: const Text('共有'),
+                    label: Text(texts.share),
                   ),
                 ),
               ],
@@ -202,7 +203,7 @@ class QRScanButton extends ConsumerWidget {
     return ElevatedButton.icon(
       onPressed: () => _showQRScanner(context, ref),
       icon: const Icon(Icons.qr_code_scanner),
-      label: const Text('QRコードを読み取り'),
+      label: Text(texts.scanQRCode),
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
@@ -241,7 +242,7 @@ class _QRScannerPageState extends ConsumerState<QRScannerPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('QRコードを読み取り'),
+        title: Text(texts.scanQRCode),
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
         actions: [
@@ -287,12 +288,12 @@ class _QRScannerPageState extends ConsumerState<QRScannerPage> {
           if (isProcessing)
             Container(
               padding: const EdgeInsets.all(16),
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(),
-                  SizedBox(width: 16),
-                  Text('招待を処理中...'),
+                  const CircularProgressIndicator(),
+                  const SizedBox(width: 16),
+                  Text(texts.processingInvitation),
                 ],
               ),
             ),
@@ -330,8 +331,8 @@ class _QRScannerPageState extends ConsumerState<QRScannerPage> {
           if (currentUser != null && inviterUid == currentUser.uid) {
             debugPrint('⚠️ [QR_SCAN] 自分自身の招待コードをスキャン - 無視');
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('自分自身の招待コードはスキャンできません'),
+              SnackBar(
+                content: Text(texts.cannotScanOwnCode),
                 backgroundColor: Colors.orange,
               ),
             );
@@ -389,11 +390,11 @@ class QRInvitationAcceptDialog extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return AlertDialog(
-      title: const Row(
+      title: Row(
         children: [
-          Icon(Icons.group_add, color: Colors.blue),
-          SizedBox(width: 8),
-          Text('グループ招待'),
+          const Icon(Icons.group_add, color: Colors.blue),
+          const SizedBox(width: 8),
+          Text(texts.groupInvitation),
         ],
       ),
       content: Column(
@@ -416,11 +417,11 @@ class QRInvitationAcceptDialog extends ConsumerWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('キャンセル'),
+          child: Text(texts.cancel),
         ),
         ElevatedButton(
           onPressed: () => _acceptInvitation(context, ref),
-          child: const Text('受諾'),
+          child: Text(texts.accept),
         ),
       ],
     );
@@ -484,19 +485,19 @@ class QRInvitationAcceptDialog extends ConsumerWidget {
       context: context,
       barrierDismissible: false, // 背景タップで閉じない
       builder: (context) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.login, color: Colors.blue),
-            SizedBox(width: 8),
-            Text('サインインが必要です'),
+            const Icon(Icons.login, color: Colors.blue),
+            const SizedBox(width: 8),
+            Text(texts.signInRequired),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('グループ招待を受諾するにはサインインが必要です。'),
+            Text(texts.signInRequiredForInvite),
             const SizedBox(height: 8),
-            const Text('招待情報を保存しました。\nサインイン後に自動的に処理されます。'),
+            Text(texts.invitationSavedForLater),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
@@ -522,7 +523,7 @@ class QRInvitationAcceptDialog extends ConsumerWidget {
         actions: [
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(texts.ok),
           ),
         ],
       ),

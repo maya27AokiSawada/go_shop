@@ -295,4 +295,58 @@ abstract class AppTexts {
   String get selectGroupBeforeSwitch;
   String get selectListBeforeSwitch;
   String get doSwitch;
+
+  // ========================================
+  // グループメンバー管理
+  // ========================================
+  String get groupInfo;
+  String get inviteOnlyForAdmins;
+  String get errorOccurred;
+  String get copyGroupTooltip;
+  String get inviteByQR;
+  String get inviteByQRDesc;
+  String get inviteByEmail;
+  String get inviteByEmailDesc;
+  String get addMemberManually;
+  String get addMemberManuallyDesc;
+  String get enterEmailToInvite;
+  String get sendInvitation;
+  String get emailInviteUnavailable;
+  String get enterGroupName;
+
+  // ========================================
+  // アカウント削除
+  // ========================================
+  String get reauthRequired;
+  String get reauthDescription;
+  String get finalConfirmation;
+  String get deleteCompletely;
+  String get deletingAccount;
+  String get deletingAccountProgress;
+  String get authError;
+  String get wrongPassword;
+  String get authFailed;
+
+  // ========================================
+  // QR招待
+  // ========================================
+  String get qrCodeInvite;
+  String get copyData;
+  String get share;
+  String get processingInvitation;
+  String get cannotScanOwnCode;
+  String get groupInvitation;
+  String get accept;
+  String get signInRequired;
+  String get signInRequiredForInvite;
+  String get invitationSavedForLater;
+
+  // ========================================
+  // その他UIラベル
+  // ========================================
+  String get memberListLabel;
+  String get selectInviteMethod;
+  String get noMembers;
+  String get inviteMemberHint;
+  String get recommendPortrait;
 }

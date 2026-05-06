@@ -10,6 +10,7 @@ import '../widgets/member_selection_dialog.dart';
 import '../pages/group_invitation_page.dart';
 import '../widgets/member_tile_with_whiteboard.dart';
 import '../widgets/group_creation_with_copy_dialog.dart';
+import '../l10n/l10n.dart';
 
 /// グループのメンバー管理画面
 /// 招待→ユーザー情報セットの流れに対応
@@ -75,7 +76,7 @@ class _GroupMemberManagementPageState
         actions: [
           IconButton(
             icon: const Icon(Icons.content_copy),
-            tooltip: 'このグループをコピーして新規作成',
+            tooltip: texts.copyGroupTooltip,
             onPressed: () async {
               // 🔥 同期完了を待機（同期中作成による赤画面エラーを防止）
               try {
@@ -101,13 +102,13 @@ class _GroupMemberManagementPageState
           ),
           IconButton(
             icon: const Icon(Icons.person_add),
-            tooltip: 'メンバーを招待',
+            tooltip: texts.inviteMembers,
             onPressed: () {
               // 権限チェック
               if (!_canInviteMembers()) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('メンバーを招待できるのはオーナー、管理者、パートナーのみです'),
+                  SnackBar(
+                    content: Text(texts.inviteOnlyForAdmins),
                     backgroundColor: Colors.orange,
                   ),
                 );
@@ -143,13 +144,13 @@ class _GroupMemberManagementPageState
             children: [
               const Icon(Icons.error_outline, size: 64, color: Colors.red),
               const SizedBox(height: 16),
-              const Text('エラーが発生しました'),
+              Text(texts.errorOccurred),
               const SizedBox(height: 8),
               Text(error.toString()),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () => ref.invalidate(allGroupsProvider),
-                child: const Text('再試行'),
+                child: Text(texts.retry),
               ),
             ],
           ),
@@ -175,7 +176,7 @@ class _GroupMemberManagementPageState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'グループ情報',
+            texts.groupInfo,
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -186,7 +187,7 @@ class _GroupMemberManagementPageState
           // グループ名編集TextField
           Row(
             children: [
-              const Text('グループ名: '),
+              Text('${texts.groupName}: '),
               Expanded(
                 child: TextField(
                   controller: _groupNameController,
@@ -202,9 +203,9 @@ class _GroupMemberManagementPageState
             ],
           ),
           const SizedBox(height: 8),
-          Text('メンバー数: ${members.length}人'),
+          Text('${texts.groupMembers}: ${members.length}${texts.people}'),
           if (group.ownerName?.isNotEmpty == true)
-            Text('オーナー: ${group.ownerName}'),
+            Text('${texts.owner}: ${group.ownerName}'),
         ],
       ),
     );
@@ -327,7 +328,7 @@ class _GroupMemberManagementPageState
                           ),
                         ),
                         child: Text(
-                          'メンバーリスト',
+                          texts.memberListLabel,
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -365,7 +366,7 @@ class _GroupMemberManagementPageState
                       ),
                     ),
                     child: Text(
-                      'メンバーリスト',
+                      texts.memberListLabel,
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -406,7 +407,7 @@ class _GroupMemberManagementPageState
           ElevatedButton.icon(
             onPressed: () => _showInviteOptions(context),
             icon: const Icon(Icons.person_add),
-            label: const Text('メンバーを招待'),
+            label: Text(texts.inviteMembers),
           ),
         ],
       ),
@@ -439,8 +440,8 @@ class _GroupMemberManagementPageState
     // 権限チェック
     if (!_canInviteMembers()) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('メンバーを招待できるのはオーナー、管理者、パートナーのみです'),
+        SnackBar(
+          content: Text(texts.inviteOnlyForAdmins),
           backgroundColor: Colors.orange,
         ),
       );
@@ -454,15 +455,15 @@ class _GroupMemberManagementPageState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'メンバー招待方法を選択',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            Text(
+              texts.selectInviteMethod,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 24),
             ListTile(
               leading: const Icon(Icons.qr_code, color: Colors.blue),
-              title: const Text('QRコードで招待'),
-              subtitle: const Text('QRコードを生成して相手にスキャンしてもらう'),
+              title: Text(texts.inviteByQR),
+              subtitle: Text(texts.inviteByQRDesc),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -476,8 +477,8 @@ class _GroupMemberManagementPageState
             ),
             ListTile(
               leading: const Icon(Icons.email, color: Colors.green),
-              title: const Text('メールで招待'),
-              subtitle: const Text('メールアドレスを指定して招待を送信'),
+              title: Text(texts.inviteByEmail),
+              subtitle: Text(texts.inviteByEmailDesc),
               onTap: () {
                 Navigator.pop(context);
                 _showEmailInviteDialog();
@@ -485,8 +486,8 @@ class _GroupMemberManagementPageState
             ),
             ListTile(
               leading: const Icon(Icons.person_add, color: Colors.orange),
-              title: const Text('手動でメンバー追加'),
-              subtitle: const Text('メンバー情報を直接入力'),
+              title: Text(texts.addMemberManually),
+              subtitle: Text(texts.addMemberManuallyDesc),
               onTap: () {
                 Navigator.pop(context);
                 _showAddMemberDialog();
@@ -504,11 +505,11 @@ class _GroupMemberManagementPageState
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('メールで招待'),
+        title: Text(texts.inviteByEmail),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('招待するメールアドレスを入力してください'),
+            Text(texts.enterEmailToInvite),
             const SizedBox(height: 16),
             TextField(
               controller: emailController,
@@ -523,7 +524,7 @@ class _GroupMemberManagementPageState
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('キャンセル'),
+            child: Text(texts.cancel),
           ),
           ElevatedButton(
             onPressed: () {
@@ -532,7 +533,7 @@ class _GroupMemberManagementPageState
                 Navigator.pop(context);
               }
             },
-            child: const Text('招待を送信'),
+            child: Text(texts.sendInvitation),
           ),
         ],
       ),
@@ -579,8 +580,8 @@ class _GroupMemberManagementPageState
     // メール招待機能は実装しない（QR招待を使用）
     AppLogger.info('📧 [MEMBER_MGMT] メール招待は未実装: $email');
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('メール招待は利用できません。QR招待をご利用ください。'),
+      SnackBar(
+        content: Text(texts.emailInviteUnavailable),
         backgroundColor: Colors.orange,
       ),
     );
@@ -590,8 +591,8 @@ class _GroupMemberManagementPageState
   void _updateGroupName(SharedGroup group, String newName) async {
     if (newName.isEmpty || newName.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('グループ名を入力してください'),
+        SnackBar(
+          content: Text(texts.enterGroupName),
           backgroundColor: Colors.orange,
         ),
       );

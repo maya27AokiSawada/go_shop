@@ -656,4 +656,96 @@ class AppTextsEn extends AppTexts {
       'Please select a list before switching to Single Mode';
   @override
   String get doSwitch => 'Switch';
+
+  // Group member management
+  @override
+  String get groupInfo => 'Group Info';
+  @override
+  String get inviteOnlyForAdmins =>
+      'Only owners, admins, and partners can invite members';
+  @override
+  String get errorOccurred => 'An error occurred';
+  @override
+  String get copyGroupTooltip => 'Copy group and create new';
+  @override
+  String get inviteByQR => 'Invite by QR code';
+  @override
+  String get inviteByQRDesc =>
+      'Generate a QR code for the other person to scan';
+  @override
+  String get inviteByEmail => 'Invite by email';
+  @override
+  String get inviteByEmailDesc =>
+      'Send an invitation to a specified email address';
+  @override
+  String get addMemberManually => 'Add member manually';
+  @override
+  String get addMemberManuallyDesc => 'Enter member information directly';
+  @override
+  String get enterEmailToInvite => 'Enter the email address to invite';
+  @override
+  String get sendInvitation => 'Send invitation';
+  @override
+  String get emailInviteUnavailable =>
+      'Email invitation unavailable. Please use QR invitation.';
+  @override
+  String get enterGroupName => 'Please enter a group name';
+
+  // Account deletion
+  @override
+  String get reauthRequired => 'Re-authentication required';
+  @override
+  String get reauthDescription =>
+      'For security, please re-enter your password.';
+  @override
+  String get finalConfirmation => 'Final confirmation';
+  @override
+  String get deleteCompletely => 'Delete permanently';
+  @override
+  String get deletingAccount => 'Deleting account...';
+  @override
+  String get deletingAccountProgress => 'Delete data → Delete auth';
+  @override
+  String get authError => 'Authentication error';
+  @override
+  String get wrongPassword => 'Incorrect password.';
+  @override
+  String get authFailed => 'Authentication failed.';
+
+  // QR invitation
+  @override
+  String get qrCodeInvite => 'QR code invitation';
+  @override
+  String get copyData => 'Copy data';
+  @override
+  String get share => 'Share';
+  @override
+  String get processingInvitation => 'Processing invitation...';
+  @override
+  String get cannotScanOwnCode => 'You cannot scan your own invitation code';
+  @override
+  String get groupInvitation => 'Group invitation';
+  @override
+  String get accept => 'Accept';
+  @override
+  String get signInRequired => 'Sign in required';
+  @override
+  String get signInRequiredForInvite =>
+      'You need to sign in to accept the group invitation.';
+  @override
+  String get invitationSavedForLater =>
+      'Invitation saved.\nIt will be processed automatically after sign-in.';
+
+  // Other UI labels
+  @override
+  String get memberListLabel => 'Member list';
+  @override
+  String get selectInviteMethod => 'Select invitation method';
+  @override
+  String get noMembers => 'No members';
+  @override
+  String get inviteMemberHint =>
+      'Use the + button in the top right\nto invite members';
+  @override
+  String get recommendPortrait => 'Portrait orientation recommended';
 }

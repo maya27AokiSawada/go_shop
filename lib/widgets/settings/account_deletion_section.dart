@@ -8,6 +8,7 @@ import '../../providers/shared_group_provider.dart';
 import '../../services/user_preferences_service.dart';
 import '../../utils/app_logger.dart';
 import '../../config/app_mode_config.dart';
+import '../../l10n/l10n.dart';
 
 /// アカウント削除セクション（認証済みユーザー向け）
 class AccountDeletionSection extends ConsumerStatefulWidget {
@@ -31,20 +32,20 @@ class _AccountDeletionSectionState
       barrierDismissible: false,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.lock, color: Colors.orange),
-              SizedBox(width: 8),
-              Text('再認証が必要です'),
+              const Icon(Icons.lock, color: Colors.orange),
+              const SizedBox(width: 8),
+              Text(texts.reauthRequired),
             ],
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'セキュリティのため、パスワードを再入力してください。',
-                style: TextStyle(fontSize: 14),
+              Text(
+                texts.reauthDescription,
+                style: const TextStyle(fontSize: 14),
               ),
               const SizedBox(height: 16),
               TextField(
@@ -52,7 +53,7 @@ class _AccountDeletionSectionState
                 obscureText: obscurePassword,
                 autofocus: true,
                 decoration: InputDecoration(
-                  labelText: 'パスワード',
+                  labelText: texts.password,
                   border: const OutlineInputBorder(),
                   prefixIcon: const Icon(Icons.lock),
                   suffixIcon: IconButton(
@@ -78,7 +79,7 @@ class _AccountDeletionSectionState
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(null),
-              child: const Text('キャンセル'),
+              child: Text(texts.cancel),
             ),
             ElevatedButton(
               onPressed: () {
@@ -92,7 +93,7 @@ class _AccountDeletionSectionState
                 backgroundColor: Colors.orange,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('確認'),
+              child: Text(texts.confirm),
             ),
           ],
         ),
@@ -108,11 +109,11 @@ class _AccountDeletionSectionState
       final confirm1 = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.warning, color: Colors.red, size: 32),
-              SizedBox(width: 12),
-              Text('アカウント削除'),
+              const Icon(Icons.warning, color: Colors.red, size: 32),
+              const SizedBox(width: 12),
+              Text(texts.deleteAccount),
             ],
           ),
           content: Text(
@@ -129,7 +130,7 @@ class _AccountDeletionSectionState
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('キャンセル'),
+              child: Text(texts.cancel),
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
@@ -137,7 +138,7 @@ class _AccountDeletionSectionState
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('削除する'),
+              child: Text(texts.delete),
             ),
           ],
         ),
@@ -150,7 +151,7 @@ class _AccountDeletionSectionState
       final confirm2 = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('最終確認'),
+          title: Text(texts.finalConfirmation),
           content: Text(
             'メールアドレス: ${user.email}\n\n'
             'このアカウントを本当に削除しますか？\n\n'
@@ -159,7 +160,7 @@ class _AccountDeletionSectionState
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('キャンセル'),
+              child: Text(texts.cancel),
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
@@ -167,7 +168,7 @@ class _AccountDeletionSectionState
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('完全に削除'),
+              child: Text(texts.deleteCompletely),
             ),
           ],
         ),
@@ -194,22 +195,22 @@ class _AccountDeletionSectionState
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Row(
+            title: Row(
               children: [
-                Icon(Icons.error, color: Colors.red),
-                SizedBox(width: 8),
-                Text('認証エラー'),
+                const Icon(Icons.error, color: Colors.red),
+                const SizedBox(width: 8),
+                Text(texts.authError),
               ],
             ),
             content: Text(
               e.code == 'wrong-password'
-                  ? 'パスワードが正しくありません。'
-                  : '認証に失敗しました。\n\nエラー: ${e.message}',
+                  ? texts.wrongPassword
+                  : '${texts.authFailed}\n\n${texts.error}: ${e.message}',
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('閉じる'),
+                child: Text(texts.close),
               ),
             ],
           ),
@@ -222,20 +223,20 @@ class _AccountDeletionSectionState
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const Center(
+        builder: (context) => Center(
           child: Card(
             child: Padding(
-              padding: EdgeInsets.all(24.0),
+              padding: const EdgeInsets.all(24.0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('アカウントを削除中...'),
-                  SizedBox(height: 8),
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  Text(texts.deletingAccount),
+                  const SizedBox(height: 8),
                   Text(
-                    'データ削除 → 認証削除',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                    texts.deletingAccountProgress,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 ],
               ),
