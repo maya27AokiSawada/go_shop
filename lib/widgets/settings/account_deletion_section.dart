@@ -385,11 +385,11 @@ class _AccountDeletionSectionState
         context: context,
         barrierDismissible: false,
         builder: (context) => AlertDialog(
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.check_circle, color: Colors.green),
-              SizedBox(width: 8),
-              Text('削除完了'),
+              const Icon(Icons.check_circle, color: Colors.green),
+              const SizedBox(width: 8),
+              Text(texts.deletionComplete),
             ],
           ),
           content: const Text(
@@ -402,7 +402,7 @@ class _AccountDeletionSectionState
                 Navigator.of(context).pop();
                 Navigator.of(context).popUntil((route) => route.isFirst);
               },
-              child: const Text('OK'),
+              child: Text(texts.ok),
             ),
           ],
         ),
@@ -416,11 +416,11 @@ class _AccountDeletionSectionState
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.error, color: Colors.red),
-              SizedBox(width: 8),
-              Text('削除失敗'),
+              const Icon(Icons.error, color: Colors.red),
+              const SizedBox(width: 8),
+              Text(texts.deletionFailed),
             ],
           ),
           content: Text(
@@ -431,7 +431,7 @@ class _AccountDeletionSectionState
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('閉じる'),
+              child: Text(texts.close),
             ),
           ],
         ),
@@ -458,7 +458,7 @@ class _AccountDeletionSectionState
                 Icon(Icons.delete_forever, color: Colors.red.shade700),
                 const SizedBox(width: 8),
                 Text(
-                  'アカウント削除',
+                  texts.deleteAccount,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: Colors.red.shade700,
@@ -468,12 +468,12 @@ class _AccountDeletionSectionState
             ),
             const SizedBox(height: 12),
             Text(
-              'アカウントと全てのデータを完全に削除します',
+              texts.deleteAccountAndData,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 4),
             Text(
-              '⚠️ この操作は取り消せません',
+              texts.cannotUndoWarning,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Colors.red.shade600,
                     fontWeight: FontWeight.bold,
@@ -487,7 +487,7 @@ class _AccountDeletionSectionState
                   await _deleteAccount();
                 },
                 icon: const Icon(Icons.delete_forever, size: 18),
-                label: const Text('アカウントを削除'),
+                label: Text(texts.deleteAccount),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red.shade700,
                   foregroundColor: Colors.white,

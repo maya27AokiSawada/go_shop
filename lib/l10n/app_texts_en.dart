@@ -748,4 +748,35 @@ class AppTextsEn extends AppTexts {
       'Use the + button in the top right\nto invite members';
   @override
   String get recommendPortrait => 'Portrait orientation recommended';
+
+  // Common menu / AppBar
+  @override
+  String get errorHistory => 'Error history';
+  @override
+  String get help => 'Help';
+  @override
+  String get versionInfo => 'Version info';
+
+  // Auth panel
+  @override
+  String get loginOrRegister => 'Sign In / Register';
+  @override
+  String get login => 'Sign in';
+  @override
+  String get register => 'Register';
+  @override
+  String get saveEmail => 'Save email address';
+  @override
+  String get enterUserName => 'Please enter a username';
+
+  // Account deletion (additional)
+  @override
+  String get deletionComplete => 'Deletion complete';
+  @override
+  String get deletionFailed => 'Deletion failed';
+  @override
+  String get deleteAccountAndData =>
+      'Permanently deletes your account and all data';
+  @override
+  String get cannotUndoWarning => '⚠️ This action cannot be undone';
 }

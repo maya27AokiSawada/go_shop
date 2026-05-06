@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../services/user_preferences_service.dart';
 import '../utils/app_logger.dart';
+import '../l10n/l10n.dart';
 
 // 保存されたメールアドレスを取得するプロバイダ
 final savedEmailProvider = FutureProvider<String?>((ref) async {
@@ -130,7 +131,7 @@ class _AuthPanelWidgetState extends ConsumerState<AuthPanelWidget> {
                     });
                   },
                   icon: const Icon(Icons.login),
-                  label: const Text('ログイン・新規登録'),
+                  label: Text(texts.loginOrRegister),
                 ),
               ],
 
@@ -218,7 +219,7 @@ class _AuthPanelWidgetState extends ConsumerState<AuthPanelWidget> {
                       _rememberEmail = value ?? false;
                     });
                   },
-                  title: const Text('メールアドレスを保存する'),
+                  title: Text(texts.saveEmail),
                   controlAffinity: ListTileControlAffinity.leading,
                   contentPadding: EdgeInsets.zero,
                   dense: true,
@@ -251,7 +252,7 @@ class _AuthPanelWidgetState extends ConsumerState<AuthPanelWidget> {
                           }
                         },
                         icon: const Icon(Icons.login),
-                        label: const Text('ログイン'),
+                        label: Text(texts.login),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -262,10 +263,10 @@ class _AuthPanelWidgetState extends ConsumerState<AuthPanelWidget> {
                             // ユーザー名が空の場合、入力を促す
                             if (userNameController.text.trim().isEmpty) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('ユーザー名を入力してください'),
+                                SnackBar(
+                                  content: Text(texts.enterUserName),
                                   backgroundColor: Colors.orange,
-                                  duration: Duration(seconds: 3),
+                                  duration: const Duration(seconds: 3),
                                 ),
                               );
                               return;
@@ -291,7 +292,7 @@ class _AuthPanelWidgetState extends ConsumerState<AuthPanelWidget> {
                           }
                         },
                         icon: const Icon(Icons.person_add),
-                        label: const Text('新規登録'),
+                        label: Text(texts.register),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue.shade100,
                         ),
@@ -340,7 +341,7 @@ class _AuthPanelWidgetState extends ConsumerState<AuthPanelWidget> {
                     });
                   },
                   icon: const Icon(Icons.cancel),
-                  label: const Text('キャンセル'),
+                  label: Text(texts.cancel),
                 ),
               ],
             ],

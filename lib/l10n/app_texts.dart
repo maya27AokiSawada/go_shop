@@ -349,4 +349,28 @@ abstract class AppTexts {
   String get noMembers;
   String get inviteMemberHint;
   String get recommendPortrait;
+
+  // ========================================
+  // 共通メニュー / AppBar
+  // ========================================
+  String get errorHistory;
+  String get help;
+  String get versionInfo;
+
+  // ========================================
+  // 認証パネル
+  // ========================================
+  String get loginOrRegister;
+  String get login;
+  String get register;
+  String get saveEmail;
+  String get enterUserName;
+
+  // ========================================
+  // アカウント削除（追加）
+  // ========================================
+  String get deletionComplete;
+  String get deletionFailed;
+  String get deleteAccountAndData;
+  String get cannotUndoWarning;
 }

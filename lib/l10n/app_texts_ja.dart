@@ -732,4 +732,34 @@ class AppTextsJa extends AppTexts {
   String get inviteMemberHint => '右上の + ボタンから\nメンバーを招待してください';
   @override
   String get recommendPortrait => '縦向きでの使用を推奨します';
+
+  // 共通メニュー / AppBar
+  @override
+  String get errorHistory => 'エラー履歴';
+  @override
+  String get help => 'ヘルプ';
+  @override
+  String get versionInfo => 'バージョン情報';
+
+  // 認証パネル
+  @override
+  String get loginOrRegister => 'ログイン・新規登録';
+  @override
+  String get login => 'ログイン';
+  @override
+  String get register => '新規登録';
+  @override
+  String get saveEmail => 'メールアドレスを保存する';
+  @override
+  String get enterUserName => 'ユーザー名を入力してください';
+
+  // アカウント削除（追加）
+  @override
+  String get deletionComplete => '削除完了';
+  @override
+  String get deletionFailed => '削除失敗';
+  @override
+  String get deleteAccountAndData => 'アカウントと全てのデータを完全に削除します';
+  @override
+  String get cannotUndoWarning => '⚠️ この操作は取り消せません';
 }

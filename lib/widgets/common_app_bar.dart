@@ -8,6 +8,7 @@ import '../pages/notification_history_page.dart';
 import '../pages/error_history_page.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../config/app_mode_config.dart';
+import '../l10n/l10n.dart';
 
 /// 同期状態の種類
 enum SyncState {
@@ -89,45 +90,46 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
           itemBuilder: (context) => [
             // 通知履歴（認証済みの場合のみ表示）
             if (authState.value != null)
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'notifications',
                 child: Row(
                   children: [
-                    Icon(Icons.notifications_outlined, size: 20),
-                    SizedBox(width: 8),
-                    Text('通知履歴'),
+                    const Icon(Icons.notifications_outlined, size: 20),
+                    const SizedBox(width: 8),
+                    Text(texts.notificationHistory),
                   ],
                 ),
               ),
             // エラー履歴（認証済みの場合のみ表示）
             if (authState.value != null)
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'errors',
                 child: Row(
                   children: [
-                    Icon(Icons.error_outline, size: 20, color: Colors.red),
-                    SizedBox(width: 8),
-                    Text('エラー履歴'),
+                    const Icon(Icons.error_outline,
+                        size: 20, color: Colors.red),
+                    const SizedBox(width: 8),
+                    Text(texts.errorHistory),
                   ],
                 ),
               ),
-            const PopupMenuItem(
+            PopupMenuItem(
               value: 'help',
               child: Row(
                 children: [
-                  Icon(Icons.help_outline, size: 20),
-                  SizedBox(width: 8),
-                  Text('ヘルプ'),
+                  const Icon(Icons.help_outline, size: 20),
+                  const SizedBox(width: 8),
+                  Text(texts.help),
                 ],
               ),
             ),
-            const PopupMenuItem(
+            PopupMenuItem(
               value: 'version',
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, size: 20),
-                  SizedBox(width: 8),
-                  Text('バージョン情報'),
+                  const Icon(Icons.info_outline, size: 20),
+                  const SizedBox(width: 8),
+                  Text(texts.versionInfo),
                 ],
               ),
             ),
@@ -261,7 +263,7 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('閉じる'),
+            child: Text(texts.close),
           ),
         ],
       ),
@@ -370,11 +372,11 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.info_outline, color: Colors.blue),
-              SizedBox(width: 8),
-              Text('バージョン情報'),
+              const Icon(Icons.help_outline, color: Colors.blue),
+              const SizedBox(width: 8),
+              Text(texts.help),
             ],
           ),
           content: ConstrainedBox(
@@ -414,7 +416,7 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('閉じる'),
+              child: Text(texts.close),
             ),
           ],
         ),
