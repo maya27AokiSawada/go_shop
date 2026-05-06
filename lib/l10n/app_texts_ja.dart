@@ -1067,4 +1067,57 @@ class AppTextsJa extends AppTexts {
   String get todoShareMode => 'TODO共有';
   @override
   String modeChanged(String modeName) => 'モードを「$modeName」に変更しました';
+  @override
+  String get userNameSetting => 'ユーザー名設定';
+  @override
+  String get userNameSettingDesc => 'アプリ内で表示されるユーザー名を設定してください';
+  @override
+  String get userNameLabel => 'ユーザー名';
+  @override
+  String get userNameHint => '表示名を入力してください';
+  @override
+  String get userNameRequired => 'ユーザー名を入力してください';
+  @override
+  String get userNameTooShort => 'ユーザー名は2文字以上で入力してください';
+  @override
+  String get userNameTooLong => 'ユーザー名は20文字以内で入力してください';
+  @override
+  String get saving => '保存中...';
+  @override
+  String get saveUserName => 'ユーザー名を保存';
+  @override
+  String get userNameSaved => 'ユーザー名を保存しました';
+  @override
+  String saveFailed(Object e) => '保存に失敗しました: $e';
+  @override
+  String get currentPrefix => '現在';
+  @override
+  String get newsPanelTitle => '📰 ニュース・お知らせ';
+  @override
+  String get newsCardTitle => 'ニュース';
+  @override
+  String get newsLoading => 'ニュースを読み込み中...';
+  @override
+  String get tipsLabel => 'Tips';
+  @override
+  String get tipTapTitle => '基本操作: タップ';
+  @override
+  String get tipTapBody => 'アイテムの購入状態切替、グループのカレント選択などメイン操作はタップで行えます。';
+  @override
+  String get tipDoubleTapTitle => '骸技: ダブルタップ';
+  @override
+  String get tipDoubleTapBody => 'アイテムの編集、メンバーのホワイトボード表示などはダブルタップで開きます。';
+  @override
+  String get tipLongPressTitle => '安全操作: 長押し';
+  @override
+  String get tipLongPressBody => 'アイテム削除、グループ退出といった破壊的な操作は長押しで安全に実行できます。';
+  @override
+  String get tipGroupScreenTitle => 'グループ画面';
+  @override
+  String get tipGroupScreenBody => 'グループをタップ→カレント選択、ダブルタップ→メンバー管理、長押し→削除/退出です。';
+  @override
+  String get tipMemberScreenTitle => 'メンバー一覧画面';
+  @override
+  String get tipMemberScreenBody =>
+      'メンバータップ→ロール変更（オーナー）または情報表示、ダブルタップ→ホワイトボード。';
 }

@@ -552,4 +552,33 @@ abstract class AppTexts {
   String get shoppingListMode;
   String get todoShareMode;
   String modeChanged(String modeName);
+  // User name panel
+  String get userNameSetting;
+  String get userNameSettingDesc;
+  String get userNameLabel;
+  String get userNameHint;
+  String get userNameRequired;
+  String get userNameTooShort;
+  String get userNameTooLong;
+  String get saving;
+  String get saveUserName;
+  String get userNameSaved;
+  String saveFailed(Object e);
+  String get currentPrefix;
+  // News panel
+  String get newsPanelTitle;
+  String get newsCardTitle;
+  String get newsLoading;
+  // Tips
+  String get tipsLabel;
+  String get tipTapTitle;
+  String get tipTapBody;
+  String get tipDoubleTapTitle;
+  String get tipDoubleTapBody;
+  String get tipLongPressTitle;
+  String get tipLongPressBody;
+  String get tipGroupScreenTitle;
+  String get tipGroupScreenBody;
+  String get tipMemberScreenTitle;
+  String get tipMemberScreenBody;
 }

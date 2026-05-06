@@ -341,7 +341,7 @@ class NewsWidget extends ConsumerWidget {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'ニュース',
+                    texts.newsCardTitle,
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -469,15 +469,15 @@ class NewsWidget extends ConsumerWidget {
       child: Container(
         height: 120,
         padding: const EdgeInsets.all(16.0),
-        child: const Center(
+        child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(strokeWidth: 2),
-              SizedBox(height: 12),
+              const CircularProgressIndicator(strokeWidth: 2),
+              const SizedBox(height: 12),
               Text(
-                'ニュースを読み込み中...',
-                style: TextStyle(
+                texts.newsLoading,
+                style: const TextStyle(
                   fontSize: 14,
                   color: Colors.grey,
                 ),
@@ -559,7 +559,7 @@ class NewsWidget extends ConsumerWidget {
                       color: tip.color.withOpacity(0.8), size: 20),
                   const SizedBox(width: 6),
                   Text(
-                    'Tips',
+                    texts.tipsLabel,
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,

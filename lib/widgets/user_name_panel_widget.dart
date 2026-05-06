@@ -5,6 +5,7 @@ import '../services/user_preferences_service.dart';
 import '../services/firestore_user_name_service.dart';
 import '../providers/user_settings_provider.dart';
 import '../utils/app_logger.dart';
+import '../l10n/l10n.dart';
 
 /// ユーザー名管理パネルウィジェット
 class UserNamePanelWidget extends ConsumerStatefulWidget {
@@ -39,40 +40,41 @@ class _UserNamePanelWidgetState extends ConsumerState<UserNamePanelWidget> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Row(
+              Row(
                 children: [
-                  Icon(Icons.person, color: Colors.blue),
-                  SizedBox(width: 8),
+                  const Icon(Icons.person, color: Colors.blue),
+                  const SizedBox(width: 8),
                   Text(
-                    'ユーザー名設定',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    texts.userNameSetting,
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
-              const Text(
-                'アプリ内で表示されるユーザー名を設定してください',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+              Text(
+                texts.userNameSettingDesc,
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
               const SizedBox(height: 16),
 
               TextFormField(
                 controller: widget.userNameController,
-                decoration: const InputDecoration(
-                  labelText: 'ユーザー名',
-                  border: OutlineInputBorder(),
-                  hintText: '表示名を入力してください',
-                  prefixIcon: Icon(Icons.account_circle),
+                decoration: InputDecoration(
+                  labelText: texts.userNameLabel,
+                  border: const OutlineInputBorder(),
+                  hintText: texts.userNameHint,
+                  prefixIcon: const Icon(Icons.account_circle),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'ユーザー名を入力してください';
+                    return texts.userNameRequired;
                   }
                   if (value.trim().length < 2) {
-                    return 'ユーザー名は2文字以上で入力してください';
+                    return texts.userNameTooShort;
                   }
                   if (value.trim().length > 20) {
-                    return 'ユーザー名は20文字以内で入力してください';
+                    return texts.userNameTooLong;
                   }
                   return null;
                 },
@@ -90,7 +92,7 @@ class _UserNamePanelWidgetState extends ConsumerState<UserNamePanelWidget> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.save),
-                  label: Text(_isLoading ? '保存中...' : 'ユーザー名を保存'),
+                  label: Text(_isLoading ? texts.saving : texts.saveUserName),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green.shade100,
                     foregroundColor: Colors.green.shade800,
@@ -115,7 +117,7 @@ class _UserNamePanelWidgetState extends ConsumerState<UserNamePanelWidget> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          '現在: ${widget.userNameController.text}',
+                          '${texts.currentPrefix}: ${widget.userNameController.text}',
                           style:
                               const TextStyle(fontSize: 12, color: Colors.grey),
                         ),
@@ -178,10 +180,10 @@ class _UserNamePanelWidgetState extends ConsumerState<UserNamePanelWidget> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('ユーザー名を保存しました'),
+          SnackBar(
+            content: Text(texts.userNameSaved),
             backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
+            duration: const Duration(seconds: 2),
           ),
         );
 
@@ -193,7 +195,7 @@ class _UserNamePanelWidgetState extends ConsumerState<UserNamePanelWidget> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('保存に失敗しました: $e'),
+            content: Text(texts.saveFailed(e)),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
           ),

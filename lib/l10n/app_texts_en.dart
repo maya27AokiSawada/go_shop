@@ -1095,4 +1095,56 @@ class AppTextsEn extends AppTexts {
   String get todoShareMode => 'TODO Share';
   @override
   String modeChanged(String modeName) => 'Mode changed to “$modeName”';
+  @override
+  String get userNameSetting => 'Username Settings';
+  @override
+  String get userNameSettingDesc => 'Set the username displayed in the app';
+  @override
+  String get userNameLabel => 'Username';
+  @override
+  String get userNameHint => 'Enter your display name';
+  @override
+  String get userNameRequired => 'Please enter a username';
+  @override
+  String get userNameTooShort => 'Username must be at least 2 characters';
+  @override
+  String get userNameTooLong => 'Username must be 20 characters or less';
+  @override
+  String get saving => 'Saving...';
+  @override
+  String get saveUserName => 'Save Username';
+  @override
+  String get userNameSaved => 'Username saved';
+  @override
+  String saveFailed(Object e) => 'Failed to save: $e';
+  @override
+  String get currentPrefix => 'Current';
+  @override
+  String get newsPanelTitle => '📰 News & Announcements';
+  @override
+  String get newsCardTitle => 'News';
+  @override
+  String get newsLoading => 'Loading news...';
+  @override
+  String get tipsLabel => 'Tips';
+  @override
+  String get tipTapTitle => 'Basic: Tap';
+  @override
+  String get tipTapBody => 'Tap to toggle item status, select current group, and more.';
+  @override
+  String get tipDoubleTapTitle => 'Pro tip: Double-tap';
+  @override
+  String get tipDoubleTapBody => 'Double-tap to edit items, view member whiteboards, and more.';
+  @override
+  String get tipLongPressTitle => 'Safe action: Long-press';
+  @override
+  String get tipLongPressBody => 'Long-press for destructive actions like deleting items or leaving groups.';
+  @override
+  String get tipGroupScreenTitle => 'Group screen';
+  @override
+  String get tipGroupScreenBody => 'Tap → select current, double-tap → manage members, long-press → delete/leave.';
+  @override
+  String get tipMemberScreenTitle => 'Members screen';
+  @override
+  String get tipMemberScreenBody => 'Tap → change role (owner) or view info, double-tap → whiteboard.';
 }
