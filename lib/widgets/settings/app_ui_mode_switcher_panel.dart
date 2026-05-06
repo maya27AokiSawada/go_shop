@@ -6,6 +6,9 @@ import '../../config/app_ui_mode_config.dart';
 import '../../providers/app_ui_mode_provider.dart';
 import '../../providers/user_settings_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/shared_group_provider.dart';
+import '../../providers/current_list_provider.dart';
+import '../../providers/shared_list_provider.dart';
 import '../../datastore/user_settings_repository.dart';
 import '../../services/user_preferences_service.dart';
 import '../../utils/app_logger.dart';
@@ -59,7 +62,65 @@ class AppUIModeSwicherPanel extends ConsumerWidget {
         );
       }
     } else {
-      // Multi → Single：確認ダイアログ
+      // Multi → Single：カレントリスト確認
+      final selectedGroupId = ref.read(selectedGroupIdProvider);
+      if (selectedGroupId == null) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('グループを選択してからシングルモードに切り替えてください'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+
+      final currentList = ref.read(currentListProvider);
+      if (currentList == null || currentList.groupId != selectedGroupId) {
+        // カレントリストが未選択 → グループのリスト一覧を確認
+        final repository = ref.read(sharedListRepositoryProvider);
+        final groupLists =
+            await repository.getSharedListsByGroup(selectedGroupId);
+
+        if (groupLists.isEmpty) {
+          // リストがない → 自動作成して選択
+          final uid = ref.read(authStateProvider).valueOrNull?.uid;
+          if (uid == null) return;
+          if (!context.mounted) return;
+          final newList = await repository.createSharedList(
+            ownerUid: uid,
+            groupId: selectedGroupId,
+            listName: '買い物リスト',
+          );
+          await ref
+              .read(currentListProvider.notifier)
+              .selectList(newList, groupId: selectedGroupId);
+          Log.info('📌 [MODE SWITCH] リストを自動作成してカレントに設定: ${newList.listName}');
+        } else if (groupLists.length == 1) {
+          // リストが1つ → 自動選択
+          await ref
+              .read(currentListProvider.notifier)
+              .selectList(groupLists.first, groupId: selectedGroupId);
+          Log.info('📌 [MODE SWITCH] リストを自動選択: ${groupLists.first.listName}');
+        } else {
+          // リストが複数 → ユーザーに選択を促してブロック
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('カレントリストを選択してからシングルモードに切り替えてください'),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 4),
+              ),
+            );
+          }
+          return;
+        }
+      }
+
+      // 確認ダイアログ
+      if (!context.mounted) return;
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
