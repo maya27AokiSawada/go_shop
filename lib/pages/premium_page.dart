@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/subscription_provider.dart';
 import '../widgets/ad_banner_widget.dart';
+import '../l10n/l10n.dart';
 
 /// プレミアム管理画面
 class PremiumPage extends ConsumerWidget {
@@ -15,7 +16,7 @@ class PremiumPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('プレミアムプラン'),
+        title: Text(texts.premiumPlan),
         backgroundColor: Colors.amber[100],
         foregroundColor: Colors.amber[800],
       ),
@@ -27,7 +28,7 @@ class PremiumPage extends ConsumerWidget {
             // プレミアムステータス表示
             _buildStatusCard(context, subscription, isPremium),
             const SizedBox(height: 20),
-            
+
             // 広告プレビュー
             if (!isPremium) ...[
               const Text(
@@ -46,17 +47,17 @@ class PremiumPage extends ConsumerWidget {
               ),
               const SizedBox(height: 20),
             ],
-            
+
             // プレミアム特典一覧
             _buildFeaturesCard(context),
             const SizedBox(height: 20),
-            
+
             // 料金プラン
             if (!isPremium) ...[
               _buildPricingCard(context, ref),
               const SizedBox(height: 20),
             ],
-            
+
             // デバッグ用コントロール（開発時のみ）
             _buildDebugControls(context, ref, subscription),
           ],
@@ -65,7 +66,8 @@ class PremiumPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatusCard(BuildContext context, SubscriptionState subscription, bool isPremium) {
+  Widget _buildStatusCard(
+      BuildContext context, SubscriptionState subscription, bool isPremium) {
     return Card(
       color: isPremium ? Colors.green[50] : Colors.orange[50],
       child: Padding(
@@ -92,10 +94,11 @@ class PremiumPage extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 12),
-            
-            if (subscription.isTrialActive && subscription.remainingTrialDays > 0) ...[
+            if (subscription.isTrialActive &&
+                subscription.remainingTrialDays > 0) ...[
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: Colors.blue[100],
                   borderRadius: BorderRadius.circular(16),
@@ -223,7 +226,7 @@ class PremiumPage extends ConsumerWidget {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            
+
             // 年間プラン
             _PricingPlanTile(
               title: '年間プラン',
@@ -235,7 +238,7 @@ class PremiumPage extends ConsumerWidget {
               onTap: () => _purchaseYearlyPlan(context, ref),
             ),
             const SizedBox(height: 12),
-            
+
             // 3年プラン
             _PricingPlanTile(
               title: '3年プラン',
@@ -252,7 +255,8 @@ class PremiumPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildDebugControls(BuildContext context, WidgetRef ref, SubscriptionState subscription) {
+  Widget _buildDebugControls(
+      BuildContext context, WidgetRef ref, SubscriptionState subscription) {
     return Card(
       color: Colors.grey[100],
       child: Padding(
@@ -265,40 +269,42 @@ class PremiumPage extends ConsumerWidget {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            
             Row(
               children: [
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () async {
-                      await ref.read(subscriptionProvider.notifier).startFreeTrial();
+                      await ref
+                          .read(subscriptionProvider.notifier)
+                          .startFreeTrial();
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('無料体験を開始しました')),
+                          SnackBar(content: Text(texts.trialStarted)),
                         );
                       }
                     },
-                    child: const Text('体験開始'),
+                    child: Text(texts.startTrial),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () async {
-                      await ref.read(subscriptionProvider.notifier).resetToFree();
+                      await ref
+                          .read(subscriptionProvider.notifier)
+                          .resetToFree();
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('無料プランにリセットしました')),
+                          SnackBar(content: Text(texts.resetToFree)),
                         );
                       }
                     },
-                    child: const Text('リセット'),
+                    child: Text(texts.resetToFree),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            
             Text(
               'Current: ${subscription.planDisplayName}',
               style: TextStyle(fontSize: 12, color: Colors.grey[600]),
@@ -318,10 +324,10 @@ class PremiumPage extends ConsumerWidget {
   void _purchaseYearlyPlan(BuildContext context, WidgetRef ref) {
     // 実際のアプリ内課金処理をここに実装
     ref.read(subscriptionProvider.notifier).purchaseYearlyPlan();
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('年間プランにアップグレードしました！'),
+      SnackBar(
+        content: Text(texts.upgradedToAnnualPlan),
         backgroundColor: Colors.green,
       ),
     );
@@ -330,10 +336,10 @@ class PremiumPage extends ConsumerWidget {
   void _purchaseThreeYearPlan(BuildContext context, WidgetRef ref) {
     // 実際のアプリ内課金処理をここに実装
     ref.read(subscriptionProvider.notifier).purchaseThreeYearPlan();
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('3年プランにアップグレードしました！'),
+      SnackBar(
+        content: Text(texts.upgradedTo3YearPlan),
         backgroundColor: Colors.green,
       ),
     );
@@ -400,8 +406,7 @@ class _PricingPlanTile extends StatelessWidget {
                             const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4
-                              ),
+                                  horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
                                 color: Colors.blue[600],
                                 borderRadius: BorderRadius.circular(6),
@@ -437,7 +442,8 @@ class _PricingPlanTile extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: isRecommended ? Colors.blue[700] : Colors.grey[700],
+                        color:
+                            isRecommended ? Colors.blue[700] : Colors.grey[700],
                       ),
                     ),
                     Text(
@@ -452,35 +458,37 @@ class _PricingPlanTile extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            
             Wrap(
               spacing: 8,
               runSpacing: 4,
-              children: features.map((feature) => Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.green[100],
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  feature,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.green[700],
-                  ),
-                ),
-              )).toList(),
+              children: features
+                  .map((feature) => Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.green[100],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          feature,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.green[700],
+                          ),
+                        ),
+                      ))
+                  .toList(),
             ),
             const SizedBox(height: 12),
-            
             Center(
               child: ElevatedButton(
                 onPressed: onTap,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: isRecommended ? Colors.blue[600] : Colors.grey[600],
+                  backgroundColor:
+                      isRecommended ? Colors.blue[600] : Colors.grey[600],
                   foregroundColor: Colors.white,
                 ),
-                child: const Text('選択'),
+                child: Text(texts.selectPlan),
               ),
             ),
           ],

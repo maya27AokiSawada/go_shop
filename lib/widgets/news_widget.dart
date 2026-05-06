@@ -9,6 +9,7 @@ import '../services/app_launch_service.dart';
 import '../services/feedback_status_service.dart';
 import '../services/feedback_prompt_service.dart';
 import '../utils/app_logger.dart';
+import '../l10n/l10n.dart';
 
 /// ホーム画面用ニュース表示ウィジェット
 class NewsWidget extends ConsumerWidget {
@@ -152,10 +153,10 @@ class NewsWidget extends ConsumerWidget {
 
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('ご協力ありがとうございます！'),
+                                SnackBar(
+                                  content: Text(texts.thankYou),
                                   backgroundColor: Colors.green,
-                                  duration: Duration(seconds: 2),
+                                  duration: const Duration(seconds: 2),
                                 ),
                               );
                             }
@@ -165,7 +166,8 @@ class NewsWidget extends ConsumerWidget {
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text('フォームを開けませんでした: $e'),
+                                content:
+                                    Text(texts.cannotOpenForm(e.toString())),
                                 backgroundColor: Colors.red,
                               ),
                             );
@@ -173,7 +175,7 @@ class NewsWidget extends ConsumerWidget {
                         }
                       },
                       icon: const Icon(Icons.open_in_new),
-                      label: const Text('アンケートに答える'),
+                      label: Text(texts.surveyAction),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.purple[600],
                         foregroundColor: Colors.white,
@@ -186,9 +188,9 @@ class NewsWidget extends ConsumerWidget {
                       onPressed: () {
                         AppLogger.info('⏭️ [FEEDBACK] 催促をスキップ');
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('後でお願いします'),
-                            duration: Duration(seconds: 1),
+                          SnackBar(
+                            content: Text(texts.remindLater),
+                            duration: const Duration(seconds: 1),
                           ),
                         );
                       },
@@ -275,7 +277,7 @@ class NewsWidget extends ConsumerWidget {
                         );
                       },
                       icon: const Icon(Icons.star),
-                      label: const Text('プレミアムプラン'),
+                      label: Text(texts.premiumPlan),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.orange[600],
                         foregroundColor: Colors.white,
@@ -287,9 +289,9 @@ class NewsWidget extends ConsumerWidget {
                     child: TextButton(
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('明日また通知します'),
-                            duration: Duration(seconds: 2),
+                          SnackBar(
+                            content: Text(texts.remindTomorrow),
+                            duration: const Duration(seconds: 2),
                           ),
                         );
                       },
@@ -614,14 +616,14 @@ class NewsWidget extends ConsumerWidget {
         } else {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('リンクを開けませんでした')),
+              SnackBar(content: Text(texts.cannotOpenLink)),
             );
           }
         }
       } catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('リンクが無効です')),
+            SnackBar(content: Text(texts.invalidLink)),
           );
         }
       }
@@ -629,7 +631,7 @@ class NewsWidget extends ConsumerWidget {
       // 内部ページへの遷移など
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('ありがとうございます！')),
+          SnackBar(content: Text(texts.thanks)),
         );
       }
     }
@@ -695,4 +697,3 @@ class CompactNewsWidget extends ConsumerWidget {
     );
   }
 }
-

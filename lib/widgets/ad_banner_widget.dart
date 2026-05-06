@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/subscription_provider.dart';
 import '../utils/snackbar_helper.dart';
+import '../l10n/l10n.dart';
 
 /// シンプルな広告バナーウィジェット（実際のAdMob等に置き換え可能）
 class AdBannerWidget extends ConsumerWidget {
@@ -133,7 +134,8 @@ class HomeAdBannerWidget extends ConsumerWidget {
                       foregroundColor: Colors.blue[600],
                       side: BorderSide(color: Colors.blue[300]!),
                     ),
-                    child: const Text('プレミアムへ', style: TextStyle(fontSize: 12)),
+                    child: Text(texts.toPremium,
+                        style: const TextStyle(fontSize: 12)),
                   ),
                 ),
               ],
@@ -159,22 +161,22 @@ class _PremiumUpgradeDialog extends ConsumerWidget {
     final subscription = ref.watch(subscriptionProvider);
 
     return AlertDialog(
-      title: const Row(
+      title: Row(
         children: [
-          Icon(Icons.star, color: Colors.amber),
-          SizedBox(width: 8),
-          Text('プレミアムプラン'),
+          const Icon(Icons.star, color: Colors.amber),
+          const SizedBox(width: 8),
+          Text(texts.premiumPlan),
         ],
       ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('✨ プレミアム特典'),
+          Text(texts.premiumBenefits),
           const SizedBox(height: 8),
-          const Text('• 広告の完全非表示'),
-          const Text('• プレミアムサポート'),
-          const Text('• 新機能の優先アクセス'),
+          Text(texts.benefitNoAds),
+          Text(texts.benefitPremiumSupport),
+          Text(texts.benefitEarlyAccess),
           const SizedBox(height: 16),
           if (subscription.isTrialActive) ...[
             Container(
@@ -201,7 +203,8 @@ class _PremiumUpgradeDialog extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
           ],
-          const Text('料金プラン', style: TextStyle(fontWeight: FontWeight.bold)),
+          Text(texts.pricePlan,
+              style: const TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           _PlanCard(
             title: '年間プラン',
@@ -225,7 +228,7 @@ class _PremiumUpgradeDialog extends ConsumerWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('後で'),
+          child: Text(texts.later),
         ),
       ],
     );

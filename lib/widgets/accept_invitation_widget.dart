@@ -11,6 +11,7 @@ import '../services/qr_invitation_service.dart';
 import '../utils/app_logger.dart';
 import '../utils/error_handler.dart';
 import 'windows_qr_scanner_simple.dart';
+import '../l10n/l10n.dart';
 
 /// 招待受諾ウィジェット
 ///
@@ -50,7 +51,7 @@ class AcceptInvitationWidget extends ConsumerWidget {
             ElevatedButton.icon(
               onPressed: () => _showQRScanner(context, ref),
               icon: const Icon(Icons.qr_code_scanner),
-              label: const Text('QRコードをスキャン'),
+            label: Text(texts.scanQRCode),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
                 foregroundColor: Colors.white,
@@ -137,7 +138,7 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('QRコードをスキャン'),
+        title: Text(texts.qrCodeReader),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
@@ -180,7 +181,7 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
                             const SizedBox(height: 16),
                             Text('カメラエラー: $error'),
                             const SizedBox(height: 16),
-                            const Text('カメラの権限を確認してください'),
+                            Text(texts.checkCameraPermission),
                           ],
                         ),
                       );
@@ -242,8 +243,8 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
                           // サポートされない形式
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('無効なQRコード形式です'),
+                              SnackBar(
+                                  content: Text(texts.invalidQRFormat),
                                 backgroundColor: Colors.red,
                               ),
                             );
@@ -350,7 +351,7 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
               navigator.pop(); // スキャナー画面を閉じる
               messenger?.showSnackBar(
                 SnackBar(
-                  content: Text('すでに「$groupName」に参加しています'),
+                  content: Text(texts.alreadyJoinedGroup(groupName)),
                   backgroundColor: Colors.blue,
                   duration: const Duration(seconds: 3),
                 ),
@@ -368,12 +369,12 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
         final confirmed = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('グループに参加'),
+            title: Text(texts.joinGroup),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('以下のグループに参加しますか？'),
+                Text(texts.joinGroupQuestion),
                 const SizedBox(height: 16),
                 Text(
                   groupName,
@@ -387,11 +388,11 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('キャンセル'),
+                child: Text(texts.cancel),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('参加する'),
+                child: Text(texts.join),
               ),
             ],
           ),
@@ -432,7 +433,7 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('✅ 招待を受諾しました'),
+                    Text(texts.invitationAccepted),
                     const SizedBox(height: 4),
                     Text(
                       '招待元（$groupName）の確認をお待ちください',

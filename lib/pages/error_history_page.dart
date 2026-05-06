@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/error_log_service.dart';
 import '../utils/app_logger.dart';
+import '../l10n/l10n.dart';
 
 /// エラー履歴画面
 ///
@@ -52,7 +53,7 @@ class _ErrorHistoryPageState extends ConsumerState<ErrorHistoryPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('エラー履歴'),
+        title: Text(texts.errorHistory),
         actions: [
           // 既読エラーの一括削除
           IconButton(
@@ -71,14 +72,14 @@ class _ErrorHistoryPageState extends ConsumerState<ErrorHistoryPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorLogs.isEmpty
-              ? const Center(
+              ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.check_circle_outline,
+                      const Icon(Icons.check_circle_outline,
                           size: 64, color: Colors.green),
-                      SizedBox(height: 16),
-                      Text('エラー履歴はありません'),
+                      const SizedBox(height: 16),
+                      Text(texts.noErrorHistory),
                     ],
                   ),
                 )
@@ -296,7 +297,7 @@ class _ErrorHistoryPageState extends ConsumerState<ErrorHistoryPage> {
               _markAsRead(index);
               Navigator.pop(context);
             },
-            child: const Text('既読にして閉じる'),
+            child: Text(texts.markReadAndClose),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -333,9 +334,9 @@ class _ErrorHistoryPageState extends ConsumerState<ErrorHistoryPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('既読にしました'),
-            duration: Duration(seconds: 1),
+          SnackBar(
+            content: Text(texts.markedAsRead),
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -344,7 +345,7 @@ class _ErrorHistoryPageState extends ConsumerState<ErrorHistoryPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('既読にできませんでした: $e'),
+            content: Text(texts.markedReadFailed(e.toString())),
             backgroundColor: Colors.red,
           ),
         );
@@ -358,17 +359,17 @@ class _ErrorHistoryPageState extends ConsumerState<ErrorHistoryPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('既読エラーを削除'),
-        content: const Text('既読のエラーログをすべて削除しますか？\nこの操作は元に戻せません。'),
+        title: Text(texts.deleteReadErrors),
+        content: Text(texts.deleteReadErrorsConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('キャンセル'),
+            child: Text(texts.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('削除'),
+            child: Text(texts.delete),
           ),
         ],
       ),
@@ -383,7 +384,7 @@ class _ErrorHistoryPageState extends ConsumerState<ErrorHistoryPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('$deletedCount件のエラーログを削除しました'),
+            content: Text(texts.deletedErrorLogs(deletedCount)),
             backgroundColor: Colors.green,
           ),
         );
@@ -396,7 +397,7 @@ class _ErrorHistoryPageState extends ConsumerState<ErrorHistoryPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('エラーログの削除に失敗しました: $e'),
+            content: Text(texts.deleteErrorLogFailed(e.toString())),
             backgroundColor: Colors.red,
           ),
         );

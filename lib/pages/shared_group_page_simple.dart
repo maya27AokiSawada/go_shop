@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../utils/app_logger.dart';
 import '../providers/shared_group_provider.dart';
 import '../widgets/group_selector_widget.dart';
+import '../l10n/l10n.dart';
 
 class SharedGroupPageSimple extends ConsumerWidget {
   const SharedGroupPageSimple({super.key});
@@ -15,7 +16,7 @@ class SharedGroupPageSimple extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('グループ管理'),
+        title: Text(texts.groupManagement),
         backgroundColor: const Color(0xFF2E8B57),
         foregroundColor: Colors.white,
       ),
@@ -48,9 +49,9 @@ class SharedGroupPageSimple extends ConsumerWidget {
 
   Widget _buildGroupContent(WidgetRef ref, String? selectedGroupId) {
     if (selectedGroupId == null) {
-      return const Card(
+      return Card(
         child: Center(
-          child: Text('グループを選択してください'),
+          child: Text(texts.selectGroup),
         ),
       );
     }
@@ -61,11 +62,11 @@ class SharedGroupPageSimple extends ConsumerWidget {
       data: (group) {
         if (group == null) {
           Log.info('📋 [SIMPLE CONTENT] グループデータがnullです');
-          return const Card(
+          return Card(
             elevation: 2,
             child: Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text('グループデータがありません'),
+              padding: const EdgeInsets.all(16.0),
+              child: Text(texts.noGroupData),
             ),
           );
         }
@@ -128,12 +129,12 @@ class SharedGroupPageSimple extends ConsumerWidget {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('機能準備中'),
-          content: const Text('グループ追加機能は現在準備中です。'),
+          title: Text(texts.featureInProgress),
+          content: Text(texts.addGroupInProgress),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
+              child: Text(texts.ok),
             ),
           ],
         );

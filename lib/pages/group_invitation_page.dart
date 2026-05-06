@@ -5,6 +5,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../models/shared_group.dart';
 import '../services/qr_invitation_service.dart';
+import '../l10n/l10n.dart';
 
 class GroupInvitationPage extends ConsumerStatefulWidget {
   final SharedGroup group;
@@ -67,7 +68,7 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('「${widget.group.groupName}」への招待'),
+        title: Text(texts.inviteToGroup(widget.group.groupName)),
         backgroundColor: Theme.of(context).primaryColor,
         foregroundColor: Colors.white,
       ),
@@ -105,7 +106,7 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _generateInvitation,
-              child: const Text('再試行'),
+              child: Text(texts.retry),
             ),
           ],
         ),
@@ -179,8 +180,8 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
                   const SizedBox(height: 16),
                   // ignore: deprecated_member_use
                   RadioListTile<String>(
-                    title: const Text('個別グループ招待'),
-                    subtitle: const Text('このグループのみにアクセス可能'),
+                    title: Text(texts.individualGroupInvite),
+                    subtitle: Text(texts.individualGroupInviteDesc),
                     value: 'individual',
                     // ignore: deprecated_member_use
                     groupValue: _invitationType,
@@ -194,8 +195,8 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
                   ),
                   // ignore: deprecated_member_use
                   RadioListTile<String>(
-                    title: const Text('フレンド招待'),
-                    subtitle: const Text('あなたのすべてのグループにアクセス可能'),
+                    title: Text(texts.friendInvite),
+                    subtitle: Text(texts.friendInviteDesc),
                     value: 'friend',
                     // ignore: deprecated_member_use
                     groupValue: _invitationType,

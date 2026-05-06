@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../providers/auth_provider.dart';
 import '../services/notification_service.dart';
 import '../utils/app_logger.dart';
+import '../l10n/l10n.dart';
 
 /// 通知履歴画面
 class NotificationHistoryPage extends ConsumerStatefulWidget {
@@ -42,10 +43,10 @@ class _NotificationHistoryPageState
     if (currentUser == null) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('通知履歴'),
+          title: Text(texts.notificationHistory),
         ),
-        body: const Center(
-          child: Text('サインインが必要です'),
+        body: Center(
+          child: Text(texts.signInRequired),
         ),
       );
     }
@@ -54,7 +55,7 @@ class _NotificationHistoryPageState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('通知履歴'),
+        title: Text(texts.notificationHistory),
         actions: [
           IconButton(
             icon: const Icon(Icons.delete_sweep),
@@ -296,7 +297,7 @@ class _NotificationHistoryPageState
       if (readNotifications.docs.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('既読通知はありません')),
+            SnackBar(content: Text(texts.noReadNotifications)),
           );
         }
         return;
@@ -313,7 +314,8 @@ class _NotificationHistoryPageState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${readNotifications.docs.length}件の既読通知を削除しました'),
+            content: Text(
+                texts.deletedReadNotifications(readNotifications.docs.length)),
           ),
         );
       }

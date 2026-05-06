@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shared_group.dart';
 import '../providers/shared_group_provider.dart';
 import '../helpers/validation_service.dart';
+import '../l10n/l10n.dart';
 
 enum MemberSelectionType {
   fromPool, // プールから選択
@@ -139,7 +140,7 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('メンバーを追加'),
+      title: Text(texts.addMember),
       content: SizedBox(
         width: double.maxFinite,
         child: Column(
@@ -161,7 +162,7 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
                           ? Colors.blue
                           : Colors.grey,
                     ),
-                    title: const Text('プールから選択'),
+                    title: Text(texts.selectFromPool),
                     onTap: () {
                       setState(() {
                         selectedType = MemberSelectionType.fromPool;
@@ -183,7 +184,7 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
                           ? Colors.blue
                           : Colors.grey,
                     ),
-                    title: const Text('新規メンバー'),
+                    title: Text(texts.newMember),
                     onTap: () {
                       setState(() {
                         selectedType = MemberSelectionType.newMember;
@@ -216,11 +217,11 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('キャンセル'),
+          child: Text(texts.cancel),
         ),
         ElevatedButton(
           onPressed: _canConfirm() ? _confirmSelection : null,
-          child: const Text('追加'),
+          child: Text(texts.add),
         ),
       ],
     );
@@ -237,9 +238,9 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
     }
 
     if (poolMembers.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Text('プールにメンバーがいません'),
+      return Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Text(texts.noMembersInPool),
       );
     }
 
@@ -413,7 +414,7 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
                     showDuplicateConfirmation = false;
                   });
                 },
-                child: const Text('はい'),
+                child: Text(texts.yes),
               ),
               const SizedBox(width: 8),
               TextButton(
@@ -422,7 +423,7 @@ class _MemberSelectionDialogState extends ConsumerState<MemberSelectionDialog> {
                     showDuplicateConfirmation = false;
                   });
                 },
-                child: const Text('いいえ'),
+                child: Text(texts.no),
               ),
             ],
           ),

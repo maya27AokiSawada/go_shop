@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../services/invite_code_service.dart';
 import '../utils/snackbar_helper.dart';
+import '../l10n/l10n.dart';
 
 /// QRコード読み取り画面 + 手動入力ダイアログ
 ///
@@ -39,7 +40,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('QRコード読み取り'),
+        title: Text(texts.qrCodeReader),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         actions: [
@@ -175,7 +176,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
             child: OutlinedButton.icon(
               onPressed: () => _showManualInputDialog(context),
               icon: const Icon(Icons.keyboard),
-              label: const Text('手動入力'),
+              label: Text(texts.manualInput),
             ),
           ),
         ],
@@ -222,7 +223,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
               children: [
                 const Icon(Icons.check_circle, color: Colors.white),
                 const SizedBox(width: 8),
-                Expanded(child: Text('招待コード「$code」を認識しました')),
+                Expanded(child: Text(texts.inviteCodeRecognized(code))),
               ],
             ),
             backgroundColor: Colors.green,
@@ -249,18 +250,18 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
     final code = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.keyboard, color: Colors.blue),
-            SizedBox(width: 8),
-            Text('招待コードを入力'),
+            const Icon(Icons.keyboard, color: Colors.blue),
+            const SizedBox(width: 8),
+            Text(texts.enterInviteCode),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('8桁の英数字を入力してください'),
+            Text(texts.enter8CharCode),
             const SizedBox(height: 16),
             TextField(
               controller: codeController,
@@ -293,11 +294,11 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('キャンセル'),
+            child: Text(texts.cancel),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(codeController.text.trim()),
-            child: const Text('確認'),
+            child: Text(texts.confirm),
           ),
         ],
       ),

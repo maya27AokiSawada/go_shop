@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shared_group.dart';
 import '../services/enhanced_invitation_service.dart';
 import '../utils/snackbar_helper.dart';
+import '../l10n/l10n.dart';
 
 /// Dialog for selecting multiple groups to invite a user to
 class MultiGroupInvitationDialog extends ConsumerStatefulWidget {
@@ -133,7 +134,7 @@ class _MultiGroupInvitationDialogState
                 TextButton(
                   onPressed:
                       _isLoading ? null : () => Navigator.of(context).pop(),
-                  child: const Text('キャンセル'),
+                  child: Text(texts.cancel),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
@@ -146,7 +147,7 @@ class _MultiGroupInvitationDialogState
                           height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : Text('招待を送信 (${_getSelectedCount()}個)'),
+                      : Text(texts.sendInvitationsCount(_getSelectedCount())),
                 ),
               ],
             ),
@@ -305,7 +306,7 @@ class _MultiGroupInvitationDialogState
               color: result.success ? Colors.green : Colors.orange,
             ),
             const SizedBox(width: 8),
-            const Text('招待結果'),
+            Text(texts.invitationResults),
           ],
         ),
         content: Column(
@@ -316,8 +317,8 @@ class _MultiGroupInvitationDialogState
             Text('送信失敗: ${result.totalFailed}件'),
             if (result.errors.isNotEmpty) ...[
               const SizedBox(height: 8),
-              const Text('エラー詳細:',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(texts.errorDetails,
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
               ...result.errors.map((error) => Padding(
                     padding: const EdgeInsets.only(left: 8.0),
                     child:
@@ -329,7 +330,7 @@ class _MultiGroupInvitationDialogState
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(texts.ok),
           ),
         ],
       ),

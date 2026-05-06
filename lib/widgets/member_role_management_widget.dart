@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../utils/app_logger.dart';
 import '../models/shared_group.dart';
 import '../providers/shared_group_provider.dart';
+import '../l10n/l10n.dart';
 
 /// メンバーのRole管理ウィジェット（オーナー専用）
 class MemberRoleManagementWidget extends ConsumerWidget {
@@ -148,7 +149,7 @@ class MemberRoleManagementWidget extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('管理者に昇格'),
+        title: Text(texts.promoteToAdmin),
         content: Text(
           '${member.name} さんを管理者に昇格させますか？\n\n'
           '管理者はグループの設定変更や他のメンバーの管理ができるようになります。',
@@ -156,7 +157,7 @@ class MemberRoleManagementWidget extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('キャンセル'),
+            child: Text(texts.cancel),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
@@ -164,7 +165,7 @@ class MemberRoleManagementWidget extends ConsumerWidget {
               backgroundColor: Colors.orange,
               foregroundColor: Colors.white,
             ),
-            child: const Text('昇格'),
+            child: Text(texts.promote),
           ),
         ],
       ),
@@ -176,7 +177,7 @@ class MemberRoleManagementWidget extends ConsumerWidget {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${member.name} さんを管理者に昇格しました'),
+          content: Text(texts.promotedToAdmin(member.name)),
           backgroundColor: Colors.orange,
         ),
       );
@@ -191,7 +192,7 @@ class MemberRoleManagementWidget extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('メンバーに降格'),
+        title: Text(texts.demoteToMember),
         content: Text(
           '${member.name} さんをメンバーに降格させますか？\n\n'
           'グループの設定変更権限が取り消されます。',
@@ -199,7 +200,7 @@ class MemberRoleManagementWidget extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('キャンセル'),
+            child: Text(texts.cancel),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
@@ -207,7 +208,7 @@ class MemberRoleManagementWidget extends ConsumerWidget {
               backgroundColor: Colors.blue,
               foregroundColor: Colors.white,
             ),
-            child: const Text('降格'),
+            child: Text(texts.demote),
           ),
         ],
       ),
@@ -219,7 +220,7 @@ class MemberRoleManagementWidget extends ConsumerWidget {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${member.name} さんをメンバーに降格しました'),
+          content: Text(texts.demotedToMember(member.name)),
           backgroundColor: Colors.blue,
         ),
       );
