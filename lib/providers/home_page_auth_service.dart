@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/app_logger.dart';
 import '../helpers/ui_helper.dart';
+import '../l10n/l10n.dart';
 import '../services/authentication_service.dart';
 import '../services/user_preferences_service.dart';
 import '../services/email_management_service.dart';
@@ -201,13 +202,13 @@ class HomePageAuthService {
         ),
       ),
       children: [
-        const Text('家族やグループで買い物リストを共有できるアプリです。'),
+        Text(texts.appDescription),
         const SizedBox(height: 16),
-        const Text('主な機能:'),
-        const Text('• グループでの買い物リストの共有'),
-        const Text('• リアルタイム同期'),
-        const Text('• オフライン対応'),
-        const Text('• メンバー管理'),
+        Text(texts.mainFeatures),
+        Text(texts.featureGroupSharing),
+        Text(texts.featureRealtimeSync),
+        Text(texts.featureOfflineSupport),
+        Text(texts.featureMemberManagement),
         const SizedBox(height: 16),
         const Text('開発者: 金ヶ江真由美 ファティマ(Maya Fatima Kanagae)'),
         const Text('お問い合わせ: fatima.sumomo@gmail.com'),

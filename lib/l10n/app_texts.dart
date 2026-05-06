@@ -399,4 +399,130 @@ abstract class AppTexts {
   String get connected;
   String get offline;
   String get localModeNoSync;
+
+  // ========================================
+  // 認証・アカウント（追加）
+  // ========================================
+  String get appDescription;
+  String get mainFeatures;
+  String get featureGroupSharing;
+  String get featureRealtimeSync;
+  String get featureOfflineSupport;
+  String get featureMemberManagement;
+  String get accountNotFound;
+  String get createNew;
+  String get signUpRequiredTitle;
+  String get signUpToUseAll;
+  String get later;
+  String get scanQRRequiresSignUp;
+  String get inviteRequiresSignUp;
+  String get inviteMemberLabel;
+  String get groupListSharing;
+  String get qrInviteFeature;
+  String get accountCreated;
+  String get accountCreationFailed;
+  String accountNotFoundBody(String email);
+
+  // ========================================
+  // 招待・メンバー管理（追加）
+  // ========================================
+  String get generateInviteCode;
+  String get deleteInviteCode;
+  String get deleteInviteCodeConfirm;
+  String get inviteManagement;
+  String get activeInviteCodes;
+  String get noActiveInvites;
+  String get copy;
+  String get selectFromPool;
+  String get newMember;
+  String get noMembersInPool;
+  String get promoteToAdmin;
+  String get demoteToMember;
+  String get promote;
+  String get demote;
+  String get invitationResults;
+  String get errorDetails;
+  String promotedToAdmin(String name);
+  String demotedToMember(String name);
+  String sendInvitationsCount(int count);
+
+  // ========================================
+  // QR・スキャン（追加）
+  // ========================================
+  String get qrCodeReader;
+  String get manualInput;
+  String get enter8CharCode;
+  String get invalidQRFormat;
+  String get checkCameraPermission;
+  String get individualGroupInvite;
+  String get individualGroupInviteDesc;
+  String get friendInvite;
+  String get friendInviteDesc;
+  String get enterInviteCode;
+  String inviteCodeRecognized(String code);
+  String inviteToGroup(String groupName);
+
+  // ========================================
+  // 招待モニター（追加）
+  // ========================================
+  String get checkingInvitations;
+  String get processAll;
+  String get rejectInvitation;
+  String get reject;
+  String get invitationStats;
+  String get joinGroup;
+  String get joinGroupQuestion;
+  String get join;
+  String joinAsRole(String role);
+  String approvedJoin(String name);
+  String rejectConfirm(String name);
+  String rejectedInvite(String name);
+  String alreadyJoinedGroup(String name);
+
+  // ========================================
+  // エラー・通知履歴（追加）
+  // ========================================
+  String get noErrorHistory;
+  String get markReadAndClose;
+  String get markedAsRead;
+  String get deleteReadErrors;
+  String get deleteReadErrorsConfirm;
+  String get noReadNotifications;
+  String markedReadFailed(String e);
+  String deletedErrorLogs(int count);
+  String deleteErrorLogFailed(String e);
+  String deletedReadNotifications(int count);
+
+  // ========================================
+  // ニュース・フィードバック（追加）
+  // ========================================
+  String get thankYou;
+  String get surveyAction;
+  String get remindLater;
+  String get premiumPlan;
+  String get remindTomorrow;
+  String get cannotOpenLink;
+  String get invalidLink;
+  String get thanks;
+  String cannotOpenForm(String e);
+
+  // ========================================
+  // プレミアム・広告（追加）
+  // ========================================
+  String get trialStarted;
+  String get startTrial;
+  String get resetToFree;
+  String get selectPlan;
+  String get upgradedToAnnualPlan;
+  String get upgradedTo3YearPlan;
+  String get groupManagement;
+  String get noGroupData;
+  String get featureInProgress;
+  String get addGroupInProgress;
+  String get toPremium;
+  String get premiumBenefits;
+  String get benefitNoAds;
+  String get benefitPremiumSupport;
+  String get benefitEarlyAccess;
+  String get pricePlan;
 }

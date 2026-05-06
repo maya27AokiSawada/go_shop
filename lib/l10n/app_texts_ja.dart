@@ -802,4 +802,215 @@ class AppTextsJa extends AppTexts {
   String get offline => 'オフライン';
   @override
   String get localModeNoSync => 'ローカルモード（同期機能なし）';
+
+  // 認証・アカウント（追加）
+  @override
+  String get appDescription => '家族やグループで買い物リストを共有できるアプリです。';
+  @override
+  String get mainFeatures => '主な機能:';
+  @override
+  String get featureGroupSharing => '• グループでの買い物リストの共有';
+  @override
+  String get featureRealtimeSync => '• リアルタイム同期';
+  @override
+  String get featureOfflineSupport => '• オフライン対応';
+  @override
+  String get featureMemberManagement => '• メンバー管理';
+  @override
+  String get accountNotFound => 'アカウントが見つかりません';
+  @override
+  String get createNew => '新規作成';
+  @override
+  String get signUpRequiredTitle => 'サインアップが必要です';
+  @override
+  String get signUpToUseAll => 'サインアップして全機能を利用';
+  @override
+  String get later => '後で';
+  @override
+  String get scanQRRequiresSignUp => 'QRコード（要サインアップ）';
+  @override
+  String get inviteRequiresSignUp => '招待（要サインアップ）';
+  @override
+  String get inviteMemberLabel => 'メンバー招待';
+  @override
+  String get groupListSharing => 'グループでのリスト共有';
+  @override
+  String get qrInviteFeature => 'QRコード招待機能';
+  @override
+  String get accountCreated => 'アカウントを作成しました';
+  @override
+  String get accountCreationFailed => 'アカウント作成に失敗しました';
+  @override
+  String accountNotFoundBody(String email) =>
+      '$email のアカウントが見つかりません。\n新規アカウントを作成しますか？';
+
+  // 招待・メンバー管理（追加）
+  @override
+  String get generateInviteCode => '新しい招待コードを生成';
+  @override
+  String get deleteInviteCode => '招待を削除';
+  @override
+  String get deleteInviteCodeConfirm => 'この招待コードを削除しますか？';
+  @override
+  String get inviteManagement => '招待管理';
+  @override
+  String get activeInviteCodes => '有効な招待コード';
+  @override
+  String get noActiveInvites => '有効な招待コードはありません';
+  @override
+  String get copy => 'コピー';
+  @override
+  String get selectFromPool => 'プールから選択';
+  @override
+  String get newMember => '新規メンバー';
+  @override
+  String get noMembersInPool => 'プールにメンバーがいません';
+  @override
+  String get promoteToAdmin => '管理者に昇格';
+  @override
+  String get demoteToMember => 'メンバーに降格';
+  @override
+  String get promote => '昇格';
+  @override
+  String get demote => '降格';
+  @override
+  String get invitationResults => '招待結果';
+  @override
+  String get errorDetails => 'エラー詳細:';
+  @override
+  String promotedToAdmin(String name) => '$name さんを管理者に昇格しました';
+  @override
+  String demotedToMember(String name) => '$name さんをメンバーに降格しました';
+  @override
+  String sendInvitationsCount(int count) => '招待を送信 ($count個)';
+
+  // QR・スキャン（追加）
+  @override
+  String get qrCodeReader => 'QRコード読み取り';
+  @override
+  String get manualInput => '手動入力';
+  @override
+  String get enter8CharCode => '8桁の英数字を入力してください';
+  @override
+  String get invalidQRFormat => '無効なQRコード形式です';
+  @override
+  String get checkCameraPermission => 'カメラの権限を確認してください';
+  @override
+  String get individualGroupInvite => '個別グループ招待';
+  @override
+  String get individualGroupInviteDesc => 'このグループのみにアクセス可能';
+  @override
+  String get friendInvite => 'フレンド招待';
+  @override
+  String get friendInviteDesc => 'あなたのすべてのグループにアクセス可能';
+  @override
+  String get enterInviteCode => '招待コードを入力';
+  @override
+  String inviteCodeRecognized(String code) => '招待コード「$code」を認識しました';
+  @override
+  String inviteToGroup(String groupName) => '「$groupName」への招待';
+
+  // 招待モニター（追加）
+  @override
+  String get checkingInvitations => '招待状況を確認中...';
+  @override
+  String get processAll => 'すべて処理';
+  @override
+  String get rejectInvitation => '招待を拒否';
+  @override
+  String get reject => '拒否';
+  @override
+  String get invitationStats => '招待統計';
+  @override
+  String get joinGroup => 'グループに参加';
+  @override
+  String get joinGroupQuestion => '以下のグループに参加しますか？';
+  @override
+  String get join => '参加する';
+  @override
+  String joinAsRole(String role) => '$role として参加';
+  @override
+  String approvedJoin(String name) => '$name の参加を承認しました';
+  @override
+  String rejectConfirm(String name) => '$name の参加を拒否しますか？';
+  @override
+  String rejectedInvite(String name) => '$name の招待を拒否しました';
+  @override
+  String alreadyJoinedGroup(String name) => 'すでに「$name」に参加しています';
+
+  // エラー・通知履歴（追加）
+  @override
+  String get noErrorHistory => 'エラー履歴はありません';
+  @override
+  String get markReadAndClose => '既読にして閉じる';
+  @override
+  String get markedAsRead => '既読にしました';
+  @override
+  String get deleteReadErrors => '既読エラーを削除';
+  @override
+  String get deleteReadErrorsConfirm => '既読のエラーログをすべて削除しますか？\nこの操作は元に戻せません。';
+  @override
+  String get noReadNotifications => '既読通知はありません';
+  @override
+  String markedReadFailed(String e) => '既読にできませんでした: $e';
+  @override
+  String deletedErrorLogs(int count) => '$count件のエラーログを削除しました';
+  @override
+  String deleteErrorLogFailed(String e) => 'エラーログの削除に失敗しました: $e';
+  @override
+  String deletedReadNotifications(int count) => '$count件の既読通知を削除しました';
+
+  // ニュース・フィードバック（追加）
+  @override
+  String get thankYou => 'ご協力ありがとうございます！';
+  @override
+  String get surveyAction => 'アンケートに答える';
+  @override
+  String get remindLater => '後でお願いします';
+  @override
+  String get premiumPlan => 'プレミアムプラン';
+  @override
+  String get remindTomorrow => '明日また通知します';
+  @override
+  String get cannotOpenLink => 'リンクを開けませんでした';
+  @override
+  String get invalidLink => 'リンクが無効です';
+  @override
+  String get thanks => 'ありがとうございます！';
+  @override
+  String cannotOpenForm(String e) => 'フォームを開けませんでした: $e';
+
+  // プレミアム・広告（追加）
+  @override
+  String get trialStarted => '無料体験を開始しました';
+  @override
+  String get startTrial => '体験開始';
+  @override
+  String get resetToFree => '無料プランにリセットしました';
+  @override
+  String get selectPlan => '選択';
+  @override
+  String get upgradedToAnnualPlan => '年間プランにアップグレードしました！';
+  @override
+  String get upgradedTo3YearPlan => '3年プランにアップグレードしました！';
+  @override
+  String get groupManagement => 'グループ管理';
+  @override
+  String get noGroupData => 'グループデータがありません';
+  @override
+  String get featureInProgress => '機能準備中';
+  @override
+  String get addGroupInProgress => 'グループ追加機能は現在準備中です。';
+  @override
+  String get toPremium => 'プレミアムへ';
+  @override
+  String get premiumBenefits => '✨ プレミアム特典';
+  @override
+  String get benefitNoAds => '• 広告の完全非表示';
+  @override
+  String get benefitPremiumSupport => '• プレミアムサポート';
+  @override
+  String get benefitEarlyAccess => '• 新機能の優先アクセス';
+  @override
+  String get pricePlan => '料金プラン';
 }

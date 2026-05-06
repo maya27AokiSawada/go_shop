@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/accepted_invitation.dart';
 import '../services/accepted_invitation_service.dart';
 import '../services/invitation_monitor_service.dart';
+import '../l10n/l10n.dart';
 
 /// 招待監視ウィジェット（オーナー専用）
 /// 受諾された招待をリアルタイム表示し、権限同期を管理
@@ -45,16 +46,16 @@ class _InvitationMonitorWidgetState
         stream: acceptedInvitationService.watchUnprocessedInvitations(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Padding(
-              padding: EdgeInsets.all(16.0),
+            return Padding(
+              padding: const EdgeInsets.all(16.0),
               child: Row(
                 children: [
-                  SizedBox(
+                  const SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2)),
-                  SizedBox(width: 8),
-                  Text('招待状況を確認中...'),
+                  const SizedBox(width: 8),
+                  Text(texts.checkingInvitations),
                 ],
               ),
             );
@@ -116,7 +117,7 @@ class _InvitationMonitorWidgetState
                             child: ElevatedButton.icon(
                               onPressed: () => _processAllInvitations(),
                               icon: const Icon(Icons.playlist_add_check),
-                              label: const Text('すべて処理'),
+                              label: Text(texts.processAll),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.blue,
                                 foregroundColor: Colors.white,
@@ -158,7 +159,7 @@ class _InvitationMonitorWidgetState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('📧 ${invitation.acceptorEmail}'),
-          Text('👥 ${invitation.inviteRole} として参加'),
+          Text(texts.joinAsRole(invitation.inviteRole)),
           Text('🕒 ${_formatDateTime(invitation.acceptedAt)}'),
         ],
       ),
@@ -191,7 +192,7 @@ class _InvitationMonitorWidgetState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ ${invitation.acceptorName}の参加を承認しました'),
+            content: Text(texts.approvedJoin(invitation.acceptorName)),
             backgroundColor: Colors.green,
           ),
         );
@@ -212,17 +213,17 @@ class _InvitationMonitorWidgetState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('招待を拒否'),
-        content: Text('${invitation.acceptorName}の参加を拒否しますか？'),
+        title: Text(texts.rejectInvitation),
+        content: Text(texts.rejectConfirm(invitation.acceptorName)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('キャンセル'),
+            child: Text(texts.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('拒否'),
+            child: Text(texts.reject),
           ),
         ],
       ),
@@ -239,7 +240,7 @@ class _InvitationMonitorWidgetState
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('❌ ${invitation.acceptorName}の招待を拒否しました'),
+              content: Text(texts.rejectedInvite(invitation.acceptorName)),
               backgroundColor: Colors.orange,
             ),
           );
@@ -290,7 +291,7 @@ class _InvitationMonitorWidgetState
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('📊 招待統計'),
+          title: Text(texts.invitationStats),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -303,7 +304,7 @@ class _InvitationMonitorWidgetState
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('閉じる'),
+              child: Text(texts.close),
             ),
           ],
         ),

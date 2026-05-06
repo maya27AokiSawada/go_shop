@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../providers/page_index_provider.dart';
 import '../config/app_ui_mode_config.dart';
+import '../l10n/l10n.dart';
 import '../widgets/single_group_creation_dialog.dart';
 
 class SignUpForm extends ConsumerStatefulWidget {
@@ -143,7 +144,7 @@ class _SignUpFormState extends ConsumerState<SignUpForm> {
       // Firebase認証完了 - 状態はauthStateProviderで自動更新される
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('アカウントを作成しました')),
+        SnackBar(content: Text(texts.accountCreated)),
       );
 
       // シングルモードの場合はグループ作成ダイアログを表示
@@ -161,7 +162,7 @@ class _SignUpFormState extends ConsumerState<SignUpForm> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('アカウント作成に失敗しました: $e')),
+        SnackBar(content: Text('${texts.accountCreationFailed}: $e')),
       );
     }
   }

@@ -12,6 +12,7 @@ import '../services/qr_invitation_service.dart';
 import '../providers/shared_group_provider.dart';
 import '../utils/app_logger.dart';
 import '../utils/snackbar_helper.dart';
+import '../l10n/l10n.dart';
 
 /// グループ招待管理ダイアログ
 /// Firestoreから招待一覧を取得して表示
@@ -100,7 +101,7 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.qr_code),
-                      label: const Text('新しい招待コードを生成'),
+                      label: Text(texts.generateInviteCode),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue,
                         foregroundColor: Colors.white,
@@ -113,9 +114,9 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
                     const SizedBox(height: 16),
 
                     // 有効な招待一覧
-                    const Text(
-                      '有効な招待コード',
-                      style: TextStyle(
+                    Text(
+                      texts.activeInviteCodes,
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
@@ -191,12 +192,12 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
                           });
 
                         if (filteredInvitations.isEmpty) {
-                          return const Center(
+                          return Center(
                             child: Padding(
-                              padding: EdgeInsets.all(32),
+                              padding: const EdgeInsets.all(32),
                               child: Text(
-                                '有効な招待コードはありません',
-                                style: TextStyle(color: Colors.grey),
+                                texts.noActiveInvites,
+                                style: const TextStyle(color: Colors.grey),
                               ),
                             ),
                           );
@@ -244,9 +245,9 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  '招待管理',
-                  style: TextStyle(
+                Text(
+                  texts.inviteManagement,
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
@@ -367,7 +368,7 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
                   child: OutlinedButton.icon(
                     onPressed: () => _copyQRData(qrData),
                     icon: const Icon(Icons.copy, size: 16),
-                    label: const Text('コピー'),
+                    label: Text(texts.copy),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -375,7 +376,7 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
                   child: OutlinedButton.icon(
                     onPressed: () => _deleteInvitation(invitation.token),
                     icon: const Icon(Icons.delete, size: 16),
-                    label: const Text('削除'),
+                    label: Text(texts.delete),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red,
                     ),
@@ -451,19 +452,19 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('招待を削除'),
-        content: const Text('この招待コードを削除しますか？'),
+        title: Text(texts.deleteInviteCode),
+        content: Text(texts.deleteInviteCodeConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('キャンセル'),
+            child: Text(texts.cancel),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
             ),
-            child: const Text('削除'),
+            child: Text(texts.delete),
           ),
         ],
       ),

@@ -820,4 +820,222 @@ class AppTextsEn extends AppTexts {
   String get offline => 'Offline';
   @override
   String get localModeNoSync => 'Local mode (no sync)';
+
+  // Auth / Account (added)
+  @override
+  String get appDescription =>
+      'An app for sharing shopping lists with family and groups.';
+  @override
+  String get mainFeatures => 'Main features:';
+  @override
+  String get featureGroupSharing => '\u2022 Shared shopping lists in groups';
+  @override
+  String get featureRealtimeSync => '\u2022 Real-time sync';
+  @override
+  String get featureOfflineSupport => '\u2022 Offline support';
+  @override
+  String get featureMemberManagement => '\u2022 Member management';
+  @override
+  String get accountNotFound => 'Account not found';
+  @override
+  String get createNew => 'Create new';
+  @override
+  String get signUpRequiredTitle => 'Sign up required';
+  @override
+  String get signUpToUseAll => 'Sign up to access all features';
+  @override
+  String get later => 'Later';
+  @override
+  String get scanQRRequiresSignUp => 'QR scan (requires sign-up)';
+  @override
+  String get inviteRequiresSignUp => 'Invite (requires sign-up)';
+  @override
+  String get inviteMemberLabel => 'Invite member';
+  @override
+  String get groupListSharing => 'Group list sharing';
+  @override
+  String get qrInviteFeature => 'QR code invite feature';
+  @override
+  String get accountCreated => 'Account created';
+  @override
+  String get accountCreationFailed => 'Failed to create account';
+  @override
+  String accountNotFoundBody(String email) =>
+      'No account found for $email.\nCreate a new account?';
+
+  // Invitation / Member management (added)
+  @override
+  String get generateInviteCode => 'Generate new invite code';
+  @override
+  String get inviteManagement => 'Invite Management';
+  @override
+  String get activeInviteCodes => 'Active Invite Codes';
+  @override
+  String get noActiveInvites => 'No active invite codes';
+  @override
+  String get deleteInviteCode => 'Delete invitation';
+  @override
+  String get deleteInviteCodeConfirm => 'Delete this invite code?';
+  @override
+  String get copy => 'Copy';
+  @override
+  String get selectFromPool => 'Select from pool';
+  @override
+  String get newMember => 'New member';
+  @override
+  String get noMembersInPool => 'No members in pool';
+  @override
+  String get promoteToAdmin => 'Promote to admin';
+  @override
+  String get demoteToMember => 'Demote to member';
+  @override
+  String get promote => 'Promote';
+  @override
+  String get demote => 'Demote';
+  @override
+  String get invitationResults => 'Invitation results';
+  @override
+  String get errorDetails => 'Error details:';
+  @override
+  String promotedToAdmin(String name) => 'Promoted $name to admin';
+  @override
+  String demotedToMember(String name) => 'Demoted $name to member';
+  @override
+  String sendInvitationsCount(int count) => 'Send invitations ($count)';
+
+  // QR / Scan (added)
+  @override
+  String get qrCodeReader => 'QR Code Reader';
+  @override
+  String get manualInput => 'Manual input';
+  @override
+  String get enter8CharCode => 'Enter the 8-character alphanumeric code';
+  @override
+  String get invalidQRFormat => 'Invalid QR code format';
+  @override
+  String get checkCameraPermission => 'Check camera permissions';
+  @override
+  String get individualGroupInvite => 'Individual group invite';
+  @override
+  String get individualGroupInviteDesc => 'Access to this group only';
+  @override
+  String get friendInvite => 'Friend invite';
+  @override
+  String get friendInviteDesc => 'Access to all your groups';
+  @override
+  String get enterInviteCode => 'Enter invite code';
+  @override
+  String inviteCodeRecognized(String code) =>
+      'Invite code \u201c$code\u201d recognized';
+  @override
+  String inviteToGroup(String groupName) =>
+      'Invitation to \u201c$groupName\u201d';
+
+  // Invitation monitor (added)
+  @override
+  String get checkingInvitations => 'Checking invitations...';
+  @override
+  String get processAll => 'Process all';
+  @override
+  String get rejectInvitation => 'Reject invitation';
+  @override
+  String get reject => 'Reject';
+  @override
+  String get invitationStats => 'Invitation stats';
+  @override
+  String get joinGroup => 'Join group';
+  @override
+  String get joinGroupQuestion => 'Join the following group?';
+  @override
+  String get join => 'Join';
+  @override
+  String joinAsRole(String role) => 'Join as $role';
+  @override
+  String approvedJoin(String name) => 'Approved $name\'s join request';
+  @override
+  String rejectConfirm(String name) => 'Reject $name\'s join request?';
+  @override
+  String rejectedInvite(String name) => 'Rejected $name\'s invitation';
+  @override
+  String alreadyJoinedGroup(String name) =>
+      'Already a member of \u201c$name\u201d';
+
+  // Error / Notification history (added)
+  @override
+  String get noErrorHistory => 'No error history';
+  @override
+  String get markReadAndClose => 'Mark as read and close';
+  @override
+  String get markedAsRead => 'Marked as read';
+  @override
+  String get deleteReadErrors => 'Delete read errors';
+  @override
+  String get deleteReadErrorsConfirm =>
+      'Delete all read error logs?\nThis action cannot be undone.';
+  @override
+  String get noReadNotifications => 'No read notifications';
+  @override
+  String markedReadFailed(String e) => 'Failed to mark as read: $e';
+  @override
+  String deletedErrorLogs(int count) => 'Deleted $count error log(s)';
+  @override
+  String deleteErrorLogFailed(String e) => 'Failed to delete error logs: $e';
+  @override
+  String deletedReadNotifications(int count) =>
+      'Deleted $count read notification(s)';
+
+  // News / Feedback (added)
+  @override
+  String get thankYou => 'Thank you for your feedback!';
+  @override
+  String get surveyAction => 'Take the survey';
+  @override
+  String get remindLater => 'Remind me later';
+  @override
+  String get premiumPlan => 'Premium plan';
+  @override
+  String get remindTomorrow => 'Remind me tomorrow';
+  @override
+  String get cannotOpenLink => 'Could not open link';
+  @override
+  String get invalidLink => 'Invalid link';
+  @override
+  String get thanks => 'Thank you!';
+  @override
+  String cannotOpenForm(String e) => 'Could not open form: $e';
+
+  // Premium / Ads (added)
+  @override
+  String get trialStarted => 'Free trial started';
+  @override
+  String get startTrial => 'Start trial';
+  @override
+  String get resetToFree => 'Reset to free plan';
+  @override
+  String get selectPlan => 'Select';
+  @override
+  String get upgradedToAnnualPlan => 'Upgraded to annual plan!';
+  @override
+  String get upgradedTo3YearPlan => 'Upgraded to 3-year plan!';
+  @override
+  String get groupManagement => 'Group Management';
+  @override
+  String get noGroupData => 'No group data';
+  @override
+  String get featureInProgress => 'Feature coming soon';
+  @override
+  String get addGroupInProgress =>
+      'Add group feature is currently under development.';
+  @override
+  String get toPremium => 'Go Premium';
+  @override
+  String get premiumBenefits => '\u2728 Premium benefits';
+  @override
+  String get benefitNoAds => '\u2022 No ads';
+  @override
+  String get benefitPremiumSupport => '\u2022 Premium support';
+  @override
+  String get benefitEarlyAccess => '\u2022 Early access to new features';
+  @override
+  String get pricePlan => 'Pricing';
 }

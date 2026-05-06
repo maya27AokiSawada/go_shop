@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/app_logger.dart';
 import '../helpers/ui_helper.dart';
+import '../l10n/l10n.dart';
 import '../services/authentication_service.dart';
 import '../services/error_log_service.dart';
 import '../services/user_preferences_service.dart';
@@ -152,19 +153,19 @@ class HomePageAuthService {
           size: 32,
         ),
       ),
-      children: const [
-        Text('家族やグループで買い物リストを共有できるアプリです。'),
-        SizedBox(height: 16),
-        Text('主な機能:'),
-        Text('• グループでの買い物リスト共有'),
-        Text('• リアルタイム同期'),
-        Text('• オフライン対応'),
-        Text('• メンバー管理'),
-        SizedBox(height: 16),
-        Text('開発者: 金ヶ江 真也 ファーティマ (Maya Fatima Kanagae)'),
-        Text('お問い合わせ: fatima.sumomo@gmail.com'),
-        SizedBox(height: 16),
-        Text('© 2024 Go Shop. All rights reserved.'),
+      children: [
+        Text(texts.appDescription),
+        const SizedBox(height: 16),
+        Text(texts.mainFeatures),
+        Text(texts.featureGroupSharing),
+        Text(texts.featureRealtimeSync),
+        Text(texts.featureOfflineSupport),
+        Text(texts.featureMemberManagement),
+        const SizedBox(height: 16),
+        const Text('開発者: 金ヶ江 真也 ファーティマ (Maya Fatima Kanagae)'),
+        const Text('お問い合わせ: fatima.sumomo@gmail.com'),
+        const SizedBox(height: 16),
+        const Text('© 2024 Go Shop. All rights reserved.'),
       ],
     );
   }

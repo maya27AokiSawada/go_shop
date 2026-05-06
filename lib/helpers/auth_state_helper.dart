@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../config/app_mode_config.dart';
+import '../l10n/l10n.dart';
 
 class AuthStateHelper {
   /// 認証状態に基づいてUI機能を制限する
@@ -61,7 +62,7 @@ class AuthStateHelper {
             if (onSignUpTap != null)
               ElevatedButton(
                 onPressed: onSignUpTap,
-                child: const Text('サインアップ'),
+                child: Text(texts.signUp),
               ),
           ],
         ),
@@ -79,14 +80,14 @@ class AuthStateHelper {
       return ElevatedButton.icon(
         onPressed: onScan,
         icon: const Icon(Icons.qr_code_scanner),
-        label: const Text('QRコードスキャン'),
+        label: Text(texts.scanQRCode),
       );
     }
 
     return ElevatedButton.icon(
       onPressed: onSignUpPrompt,
       icon: const Icon(Icons.lock),
-      label: const Text('QRコード（要サインアップ）'),
+      label: Text(texts.scanQRRequiresSignUp),
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.grey,
         foregroundColor: Colors.white,
@@ -104,14 +105,14 @@ class AuthStateHelper {
       return ElevatedButton.icon(
         onPressed: onInvite,
         icon: const Icon(Icons.person_add),
-        label: const Text('メンバー招待'),
+        label: Text(texts.inviteMemberLabel),
       );
     }
 
     return ElevatedButton.icon(
       onPressed: onSignUpPrompt,
       icon: const Icon(Icons.lock),
-      label: const Text('招待（要サインアップ）'),
+      label: Text(texts.inviteRequiresSignUp),
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.grey,
         foregroundColor: Colors.white,
@@ -176,19 +177,19 @@ class AuthStateHelper {
                   ],
                 ),
                 const SizedBox(height: 8),
-                const Row(
+                Row(
                   children: [
-                    Icon(Icons.cancel, color: Colors.grey, size: 20),
-                    SizedBox(width: 8),
-                    Text('グループでのリスト共有', style: TextStyle(color: Colors.grey)),
+                    const Icon(Icons.cancel, color: Colors.grey, size: 20),
+                    const SizedBox(width: 8),
+                    Text(texts.groupListSharing, style: const TextStyle(color: Colors.grey)),
                   ],
                 ),
                 const SizedBox(height: 8),
-                const Row(
+                Row(
                   children: [
-                    Icon(Icons.cancel, color: Colors.grey, size: 20),
-                    SizedBox(width: 8),
-                    Text('QRコード招待機能', style: TextStyle(color: Colors.grey)),
+                    const Icon(Icons.cancel, color: Colors.grey, size: 20),
+                    const SizedBox(width: 8),
+                    Text(texts.qrInviteFeature, style: const TextStyle(color: Colors.grey)),
                   ],
                 ),
                 const SizedBox(height: 20),
@@ -196,7 +197,7 @@ class AuthStateHelper {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: onShowSignUp,
-                    child: const Text('サインアップして全機能を利用'),
+                    child: Text(texts.signUpToUseAll),
                   ),
                 ),
               ],
@@ -212,7 +213,7 @@ class AuthStateHelper {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('サインアップが必要です'),
+        title: Text(texts.signUpRequiredTitle),
         content: const Text(
           'この機能を利用するには、アカウント作成が必要です。\n'
           'サインアップすると以下の機能が利用できます：\n\n'
@@ -224,14 +225,14 @@ class AuthStateHelper {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('後で'),
+            child: Text(texts.later),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
               onSignUp();
             },
-            child: const Text('サインアップ'),
+            child: Text(texts.signUp),
           ),
         ],
       ),
