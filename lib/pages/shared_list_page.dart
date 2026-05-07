@@ -5,6 +5,9 @@ import '../models/shared_list.dart';
 import '../providers/current_list_provider.dart';
 import '../providers/shared_group_provider.dart';
 import '../providers/shared_list_provider.dart';
+import '../providers/group_shared_lists_provider.dart';
+import '../providers/app_ui_mode_provider.dart';
+import '../config/app_ui_mode_config.dart';
 import '../widgets/shared_list_header_widget.dart';
 import '../widgets/shared_item_edit_modal.dart';
 import '../providers/auth_provider.dart';
@@ -31,6 +34,7 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
     // ページ表示時にカレントグループの初期化を試みる
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeCurrentGroup();
+      _tryRestoreCurrentListInSingleMode();
     });
   }
 
@@ -49,6 +53,11 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
       ref.read(currentListProvider.notifier).clearSelection();
     }
     _previousGroupId = currentGroupId;
+
+    // シングルモードでカレントリストが未選択の場合は復元を試みる
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _tryRestoreCurrentListInSingleMode();
+    });
   }
 
   /// カレントグループの初期化
@@ -118,6 +127,51 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
     }
   }
 
+  /// シングルモード時にカレントリストが未選択の場合、自動復元・自動作成を試みる
+  Future<void> _tryRestoreCurrentListInSingleMode() async {
+    try {
+      final isSingle = ref.read(appUIModeProvider) == AppUIMode.single;
+      if (!isSingle) return;
+
+      final currentList = ref.read(currentListProvider);
+      if (currentList != null) return; // 既に選択済み
+
+      final selectedGroupId = ref.read(selectedGroupIdProvider);
+      if (selectedGroupId == null) return;
+
+      Log.info('🔄 [SINGLE MODE] カレントリストが未選択 → 復元を試みます');
+
+      // まず保存されたリストIDから復元を試みる
+      final savedListId = await ref
+          .read(currentListProvider.notifier)
+          .getSavedListIdForGroup(selectedGroupId);
+
+      final repository = ref.read(sharedListRepositoryProvider);
+      final groupLists =
+          await repository.getSharedListsByGroup(selectedGroupId);
+
+      if (groupLists.isEmpty) {
+        Log.info('⚠️ [SINGLE MODE] グループにリストがありません');
+        return;
+      }
+
+      SharedList? listToSelect;
+      if (savedListId != null) {
+        listToSelect =
+            groupLists.where((l) => l.listId == savedListId).firstOrNull;
+      }
+      listToSelect ??= groupLists.first;
+
+      if (!mounted) return;
+      await ref
+          .read(currentListProvider.notifier)
+          .selectList(listToSelect, groupId: selectedGroupId);
+      Log.info('✅ [SINGLE MODE] カレントリストを復元: ${listToSelect.listName}');
+    } catch (e) {
+      Log.error('❌ [SINGLE MODE] カレントリスト復元エラー: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -146,12 +200,21 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
 
   Widget _buildFloatingActionButton(BuildContext context, WidgetRef ref) {
     return FloatingActionButton(
-      onPressed: () {
-        final currentList = ref.read(currentListProvider);
+      onPressed: () async {
+        var currentList = ref.read(currentListProvider);
         if (currentList == null) {
-          SnackBarHelper.showError(context, texts.selectList);
-          return;
+          final isSingle = ref.read(appUIModeProvider) == AppUIMode.single;
+          if (isSingle) {
+            // シングルモードのフォールバック: リストを自動復元/作成してからアイテム追加
+            await _tryRestoreCurrentListInSingleMode();
+            currentList = ref.read(currentListProvider);
+          }
+          if (currentList == null) {
+            SnackBarHelper.showError(context, texts.selectList);
+            return;
+          }
         }
+        if (!mounted) return;
         _showAddItemDialog(context, ref);
       },
       tooltip: texts.addItem,
