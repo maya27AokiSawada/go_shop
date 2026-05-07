@@ -33,7 +33,7 @@ class AuthStatusPanel extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              isAuthenticated ? 'ログイン済み: ${user!.email}' : '未ログイン状態',
+              isAuthenticated ? 'Signed In: ${user!.email}' : 'Not signed in',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,

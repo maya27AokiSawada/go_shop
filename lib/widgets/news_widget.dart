@@ -109,7 +109,7 @@ class NewsWidget extends ConsumerWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'ご意見・ご感想をお聞かせください',
+                      'We\'d love to hear your feedback!',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -123,8 +123,7 @@ class NewsWidget extends ConsumerWidget {
 
               // メッセージ
               Text(
-                'ユーザーの皆様からのご意見は、アプリの改善に役立てさせていただきます。'
-                'わずか1分程度で答えられるアンケートです。',
+                'Your feedback helps us improve the app. It only takes about a minute!',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.purple[700],
@@ -195,7 +194,7 @@ class NewsWidget extends ConsumerWidget {
                         );
                       },
                       child: Text(
-                        '後で',
+                        'Later',
                         style: TextStyle(color: Colors.purple[700]),
                       ),
                     ),

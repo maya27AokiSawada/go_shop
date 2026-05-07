@@ -79,10 +79,10 @@ class WhiteboardToolbar extends StatelessWidget {
                           size: 20,
                         ),
                   onPressed: isTogglingMode ? null : onToggleScrollMode,
-                  tooltip: isScrollLocked ? '描画モード（筆）' : 'スクロールモード（十字）',
+                  tooltip: isScrollLocked ? 'Draw mode' : 'Scroll mode',
                 ),
                 const SizedBox(width: 12),
-                const Text('色:',
+                const Text('Color:',
                     style:
                         TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                 const SizedBox(width: 4),
@@ -105,28 +105,28 @@ class WhiteboardToolbar extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 // ペン太さ3段階（細・中・太）
-                _buildStrokeWidthButton(2.0, 1, label: '細'),
-                _buildStrokeWidthButton(4.0, 2, label: '中'),
-                _buildStrokeWidthButton(6.0, 3, label: '太'),
+                _buildStrokeWidthButton(2.0, 1, label: 'S'),
+                _buildStrokeWidthButton(4.0, 2, label: 'M'),
+                _buildStrokeWidthButton(6.0, 3, label: 'L'),
                 const SizedBox(width: 16),
                 // Undoボタン
                 IconButton(
                   icon: const Icon(Icons.undo, size: 20),
                   onPressed: canUndo ? onUndo : null,
-                  tooltip: !canUndo ? 'これ以上戻せません' : '元に戻す',
+                  tooltip: !canUndo ? 'Nothing to undo' : 'Undo',
                 ),
                 // Redoボタン
                 IconButton(
                   icon: const Icon(Icons.redo, size: 20),
                   onPressed: canRedo ? onRedo : null,
-                  tooltip: !canRedo ? 'これ以上進めません' : 'やり直す',
+                  tooltip: !canRedo ? 'Nothing to redo' : 'Redo',
                 ),
                 const SizedBox(width: 16),
                 // ズームアウト
                 IconButton(
                   icon: const Icon(Icons.zoom_out, size: 20),
                   onPressed: canvasScale > 0.5 ? onZoomOut : null,
-                  tooltip: 'ズームアウト',
+                  tooltip: 'Zoom out',
                 ),
                 // ズーム倍率表示
                 Text('${canvasScale.toStringAsFixed(1)}x'),
@@ -134,7 +134,7 @@ class WhiteboardToolbar extends StatelessWidget {
                 IconButton(
                   icon: const Icon(Icons.zoom_in, size: 20),
                   onPressed: canvasScale < 4.0 ? onZoomIn : null,
-                  tooltip: 'ズームイン',
+                  tooltip: 'Zoom in',
                 ),
                 const SizedBox(width: 16),
                 // 消去ボタン
@@ -143,7 +143,7 @@ class WhiteboardToolbar extends StatelessWidget {
                   constraints: const BoxConstraints(),
                   icon: const Icon(Icons.delete_outline, size: 20),
                   onPressed: onClearWhiteboard,
-                  tooltip: '全消去',
+                  tooltip: 'Clear all',
                 ),
               ],
             ),
