@@ -279,6 +279,24 @@ Switch(
 `HybridRepository` の CRUD を呼ぶ前に `waitForSafeInitialization()` を呼ぶ。
 Firebase Auth の起動遅延で `_firestoreRepo == null` のまま処理が進むことを防ぐ。
 
+### ❌ Anti-11: `AsyncNotifier.build()` 内で Firestore I/O を行う
+
+`build()` は依存 Provider の変化（グループ切り替えなど）のたびに再実行される。
+内部で `getGroupById()` 等を呼ぶと毎回ネットワークアクセスが発生し、スピナーが出続ける。
+
+```dart
+// ❌ 間違い — グループ切り替えのたびに Firestore hit
+final group = await repository.getGroupById(selectedGroupId);
+
+// ✅ 正しい — 上流 Provider（Hive キャッシュ済み）を watch して同期ルックアップ
+final allGroupsAsync = ref.watch(allGroupsProvider);
+final groups = allGroupsAsync.value ?? [];
+return groups.where((g) => g.groupId == selectedGroupId).firstOrNull;
+```
+
+頻度の低い整合性修正（legacy role fix 等）は `build()` 外のメソッドに分離し、
+起動時の Firestore 同期完了後に 1 回だけ呼び出す。
+
 ---
 
 ## 5. プラットフォーム固有ルール
