@@ -418,6 +418,7 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
   /// バージョン情報ダイアログを表示
   void _showVersionDialog(BuildContext context) async {
     final packageInfo = await PackageInfo.fromPlatform();
+    final isEn = AppLocalizations.currentLanguageCode == 'en';
 
     if (context.mounted) {
       showDialog(
@@ -425,9 +426,9 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
         builder: (context) => AlertDialog(
           title: Row(
             children: [
-              const Icon(Icons.help_outline, color: Colors.blue),
+              const Icon(Icons.info_outline, color: Colors.blue),
               const SizedBox(width: 8),
-              Text(texts.help),
+              Text(isEn ? 'Version Info' : 'バージョン情報'),
             ],
           ),
           content: ConstrainedBox(
@@ -447,12 +448,17 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  _buildVersionRow('バージョン', packageInfo.version),
-                  _buildVersionRow('ビルド番号', packageInfo.buildNumber),
-                  _buildVersionRow('パッケージ名', packageInfo.packageName),
+                  _buildVersionRow(
+                      isEn ? 'Version' : 'バージョン', packageInfo.version),
+                  _buildVersionRow(
+                      isEn ? 'Build Number' : 'ビルド番号', packageInfo.buildNumber),
+                  _buildVersionRow(isEn ? 'Package Name' : 'パッケージ名',
+                      packageInfo.packageName),
                   const SizedBox(height: 16),
                   Text(
-                    '${AppModeSettings.config.sharedList}共有アプリ',
+                    isEn
+                        ? '${AppModeSettings.config.sharedList} sharing app'
+                        : '${AppModeSettings.config.sharedList}共有アプリ',
                     style: const TextStyle(color: Colors.grey),
                   ),
                   const SizedBox(height: 8),
