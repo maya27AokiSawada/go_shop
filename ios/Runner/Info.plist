@@ -48,5 +48,11 @@
 		<!-- AdMob App ID -->
 		<key>GADApplicationIdentifier</key>
 		<string>ca-app-pub-7163325066755382~9574681576</string>
+		<!-- Privacy - Camera Usage Description -->
+		<key>NSCameraUsageDescription</key>
+		<string>QRコードのスキャンやプロフィール写真の撮影に使用します。</string>
+		<!-- Privacy - Photo Library Usage Description -->
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>プロフィール写真の選択に使用します。</string>
 	</dict>
 </plist>
