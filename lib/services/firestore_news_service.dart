@@ -7,15 +7,21 @@ import '../flavors.dart';
 class FirestoreNewsService {
   static const String _collectionName = 'furestorenews';
   static const String _documentName = 'current_news';
+  static const String _documentNameEn = 'current_news_eng';
+
+  /// 言語コードからドキュメント名を返す
+  static String _docName(String languageCode) =>
+      languageCode == 'en' ? _documentNameEn : _documentName;
 
   /// 現在のニュースを取得
-  static Future<AppNews> getCurrentNews() async {
+  static Future<AppNews> getCurrentNews({String languageCode = 'ja'}) async {
+    final docName = _docName(languageCode);
     try {
       // Firestoreから取得
-      Log.info('📰 Firestoreからニュースを取得中...');
+      Log.info('📰 Firestoreからニュースを取得中... (lang=$languageCode, doc=$docName)');
       final doc = await FirebaseFirestore.instance
           .collection(_collectionName)
-          .doc(_documentName)
+          .doc(docName)
           .get();
 
       if (doc.exists && doc.data() != null) {
@@ -33,25 +39,28 @@ class FirestoreNewsService {
   }
 
   /// リアルタイムニュース更新をリッスン
-  static Stream<AppNews> watchCurrentNews() {
+  static Stream<AppNews> watchCurrentNews({String languageCode = 'ja'}) {
+    final docName = _docName(languageCode);
     try {
       // DEV環境では固定データのストリーム
       if (F.appFlavor == Flavor.dev) {
         Log.info('📰 DEV環境: 固定ニュースを返します');
         return Stream.value(AppNews(
-          title: '開発環境でのテスト',
-          content: 'これは開発環境でのテストメッセージです。本番環境ではFirestoreから取得されます。',
+          title: languageCode == 'en' ? 'Dev Environment Test' : '開発環境でのテスト',
+          content: languageCode == 'en'
+              ? 'This is a test message for the dev environment. In production, this is fetched from Firestore.'
+              : 'これは開発環境でのテストメッセージです。本番環境ではFirestoreから取得されます。',
           createdAt: DateTime.now(),
         ));
       }
 
       // PROD環境ではFirestoreのリアルタイム更新
-      Log.info('📰 PROD環境: Firestoreストリームを開始');
-      Log.info('📰 コレクション名: $_collectionName, ドキュメント名: $_documentName');
+      Log.info(
+          '📰 PROD環境: Firestoreストリームを開始 (lang=$languageCode, doc=$docName)');
 
       return FirebaseFirestore.instance
           .collection(_collectionName)
-          .doc(_documentName)
+          .doc(docName)
           .snapshots()
           .timeout(
         const Duration(seconds: 30),
@@ -77,21 +86,31 @@ class FirestoreNewsService {
         }
 
         Log.warning('📰 ドキュメントが存在しません: デフォルトニュースを返します');
-        return _getDefaultNews();
+        return _getDefaultNews(languageCode: languageCode);
       }).handleError((error) {
         Log.error('📰 ニュースストリームエラー: $error');
       }).handleError((error) {
         // タイムアウトエラーを捕捉してデフォルトニュースを返す
-        return Stream.value(_getDefaultNews());
+        return Stream.value(_getDefaultNews(languageCode: languageCode));
       });
     } catch (e) {
       Log.error('📰 ニュースストリーム開始エラー: $e');
-      return Stream.value(_getDefaultNews());
+      return Stream.value(_getDefaultNews(languageCode: languageCode));
     }
   }
 
   /// デフォルトニュースを取得
-  static AppNews _getDefaultNews() {
+  static AppNews _getDefaultNews({String languageCode = 'ja'}) {
+    if (languageCode == 'en') {
+      return AppNews(
+        title: 'Welcome to GoShopping!',
+        content:
+            'GoShopping lets you share shopping lists with family and groups. Invite members and shop efficiently together!',
+        createdAt: DateTime.now().subtract(const Duration(hours: 1)),
+        actionText: 'Get Started',
+        actionUrl: null,
+      );
+    }
     return AppNews(
       title: 'GoShoppingへようこそ！',
       content:

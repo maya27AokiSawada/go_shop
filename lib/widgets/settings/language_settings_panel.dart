@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../l10n/app_localizations.dart';
+import '../../providers/news_provider.dart';
 import '../../services/user_preferences_service.dart';
 import '../../utils/app_logger.dart';
 
@@ -38,6 +39,9 @@ class _LanguageSettingsPanelState extends ConsumerState<LanguageSettingsPanel> {
     AppLocalizations.setLanguage(newLang);
     await UserPreferencesService.saveLanguageCode(newLang);
     AppLogger.info('🌐 言語変更: $_selectedLang → $newLang');
+
+    // ニュースプロバイダーを新しい言語で再フェッチ
+    ref.read(newsLanguageCodeProvider.notifier).state = newLang;
 
     if (mounted) {
       setState(() {
