@@ -2,6 +2,8 @@
 
 **最終更新日: 2026年4月14日**
 
+[English Version](#english-version)
+
 GoShopping（以下「本アプリ」）は、株式会社Ansize（以下「運営者」）が提供する買い物リスト・TODOリスト共有アプリケーションです。本プライバシーポリシーは、本アプリにおける個人情報の取り扱いについて説明します。
 
 ## 1. 収集する情報
@@ -225,7 +227,7 @@ Cloud Firestore に保存されたデータへのアクセスは Firebase Securi
 
 ## プライバシーポリシー（英語版 / English Version）
 
-# Privacy Policy
+# Privacy Policy {#english-version}
 
 **Last Updated: April 7, 2026**
 
