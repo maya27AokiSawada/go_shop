@@ -227,7 +227,9 @@ Cloud Firestore に保存されたデータへのアクセスは Firebase Securi
 
 ## プライバシーポリシー（英語版 / English Version）
 
-# Privacy Policy {#english-version}
+<a id="english-version"></a>
+
+# Privacy Policy
 
 **Last Updated: April 7, 2026**
 
