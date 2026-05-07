@@ -260,6 +260,13 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
                 .cleanupInvalidHiveGroups();
             await ref.read(allGroupsProvider.notifier).refresh();
 
+            // 🔥 legacy メンバーロール修正をバックグラウンドで実行（起動1回のみ）
+            // 旧実装: SelectedGroupNotifier.build() 内で毎回 Firestore I/O していた
+            // 新実装: 同期完了後に1回だけ実行することで起動・グループ切り替えを高速化
+            await ref
+                .read(allGroupsProvider.notifier)
+                .fixLegacyRolesInBackground();
+
             // 🔥 同期完了後に最終同期時刻を更新
             await notificationService.updateLastSyncTime();
 

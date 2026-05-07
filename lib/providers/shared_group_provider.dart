@@ -45,26 +45,34 @@ class SelectedGroupNotifier extends AsyncNotifier<SharedGroup?> {
     // ⚠️ 初回のみ代入（複数回build()が呼ばれても安全）
     _ref ??= ref;
 
-    // ✅ 最初に全ての依存性を確定する
+    // ✅ 最初に全ての依存性を確定する（awaitより前に全watch/readを完了）
     final selectedGroupId = ref.watch(selectedGroupIdProvider);
-    final repository = ref.read(SharedGroupRepositoryProvider);
+    // 🔥 PERF: allGroupsProvider（Hive キャッシュ）から同期ルックアップ。
+    // 旧実装は repository.getGroupById() で毎回 Firestore ネットワーク I/O が発生していた。
+    // allGroupsProvider はすでに Hive から読み込み済みなので I/O ゼロで即返せる。
+    // allGroupsProvider が更新されると selectedGroup も自動再計算される（reactive）。
+    final allGroupsAsync = ref.watch(allGroupsProvider);
 
     if (selectedGroupId == null || selectedGroupId.isEmpty) return null;
 
-    try {
+    AppLogger.info(
+      '🔄 [SELECTED GROUP] SelectedGroupNotifier.build() 開始: $selectedGroupId',
+    );
+
+    // allGroupsProvider がローディング中は null を返す（スピナー表示）
+    if (allGroupsAsync.isLoading) return null;
+
+    final groups = allGroupsAsync.value ?? [];
+    final group = groups.where((g) => g.groupId == selectedGroupId).firstOrNull;
+
+    if (group != null) {
       AppLogger.info(
-        '🔄 [SELECTED GROUP] SelectedGroupNotifier.build() 開始: $selectedGroupId',
-      );
-      final group = await repository.getGroupById(selectedGroupId);
-      final fixedGroup = await _fixLegacyMemberRoles(group, repository);
-      AppLogger.info(
-          '🔄 [SELECTED GROUP] グループロード完了: ${AppLogger.maskGroup(fixedGroup.groupName, fixedGroup.groupId)}');
-      return fixedGroup;
-    } catch (e, stackTrace) {
-      AppLogger.error('❌ [SELECTED GROUP] ビルドエラー: $e');
-      AppLogger.error('❌ [SELECTED GROUP] スタックトレース: $stackTrace');
-      return null;
+          '🔄 [SELECTED GROUP] Hiveキャッシュからグループ取得完了: ${AppLogger.maskGroup(group.groupName, group.groupId)}');
+    } else {
+      AppLogger.warning('⚠️ [SELECTED GROUP] グループが見つかりません: $selectedGroupId');
     }
+
+    return group;
   }
 
   /// Fix legacy member roles and ensure proper group structure
@@ -561,7 +569,98 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
     state = await AsyncValue.guard(() => build());
   }
 
-  /// 新しいグループを作成（Firebase認証必須）
+  /// 全グループの legacy メンバーロールをバックグラウンドで修正する。
+  ///
+  /// 呼び出しタイミング: 起動時の Firestore 同期完了後（[AppInitializeWidget] から1回のみ）。
+  /// build() 内で毎回実行していた処理を分離することで起動・グループ切り替えの高速化を実現。
+  Future<void> fixLegacyRolesInBackground() async {
+    final currentUser = ref.read(authStateProvider).value;
+    if (currentUser == null) {
+      Log.info('⏭️ [LEGACY FIX BG] 認証なし - スキップ');
+      return;
+    }
+    if (F.appFlavor != Flavor.prod) {
+      Log.info('⏭️ [LEGACY FIX BG] 開発環境 - スキップ');
+      return;
+    }
+
+    final groups = state.value ?? [];
+    if (groups.isEmpty) return;
+
+    final repository = ref.read(SharedGroupRepositoryProvider);
+    final currentUserId = currentUser.uid;
+    bool anyUpdated = false;
+
+    for (final group in groups) {
+      try {
+        final originalMembers = group.members ?? [];
+        bool needsUpdate = false;
+
+        // オーナーの memberId が現在のユーザー UID と一致しているか確認
+        final hasCurrentUser = originalMembers.any(
+          (m) => m.memberId == currentUserId,
+        );
+
+        List<SharedGroupMember> workingMembers = List.from(originalMembers);
+
+        if (!hasCurrentUser && currentUserId.isNotEmpty) {
+          bool ownerUpdated = false;
+          workingMembers = workingMembers.map((member) {
+            if (member.role == SharedGroupRole.owner && !ownerUpdated) {
+              ownerUpdated = true;
+              needsUpdate = true;
+              Log.info(
+                  '🔧 [LEGACY FIX BG] ${group.groupId}: owner memberId 修正 → ${AppLogger.maskUserId(currentUserId)}');
+              return member.copyWith(memberId: currentUserId);
+            }
+            return member;
+          }).toList();
+        }
+
+        // 重複オーナー・legacy ロール（parent/child）の正規化
+        SharedGroupMember? owner;
+        final List<SharedGroupMember> nonOwners = [];
+        for (final member in workingMembers) {
+          if (member.role == SharedGroupRole.owner) {
+            if (owner == null) {
+              owner = member;
+            } else {
+              nonOwners.add(member.copyWith(role: SharedGroupRole.member));
+              needsUpdate = true;
+            }
+          } else if (member.role != SharedGroupRole.member) {
+            nonOwners.add(member.copyWith(role: SharedGroupRole.member));
+            needsUpdate = true;
+          } else {
+            nonOwners.add(member);
+          }
+        }
+        if (owner == null && nonOwners.isNotEmpty) {
+          final first = nonOwners.removeAt(0);
+          owner = first.copyWith(role: SharedGroupRole.owner);
+          needsUpdate = true;
+        }
+
+        if (needsUpdate && owner != null) {
+          final fixed = group.copyWith(members: [owner, ...nonOwners]);
+          await repository.updateGroup(group.groupId, fixed);
+          Log.info(
+              '✅ [LEGACY FIX BG] ${AppLogger.maskGroup(group.groupName, group.groupId)} 修正完了');
+          anyUpdated = true;
+        }
+      } catch (e) {
+        Log.warning('⚠️ [LEGACY FIX BG] ${group.groupId} 修正エラー（続行）: $e');
+      }
+    }
+
+    if (anyUpdated) {
+      Log.info('🔄 [LEGACY FIX BG] 修正完了 → allGroupsProvider を更新');
+      await refresh();
+    } else {
+      Log.info('✅ [LEGACY FIX BG] 修正不要（全グループ正常）');
+    }
+  }
+
   Future<void> createNewGroup(String groupName) async {
     Log.info('🆕 [CREATE GROUP] createNewGroup: $groupName');
 
