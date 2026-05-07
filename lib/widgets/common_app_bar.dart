@@ -206,14 +206,15 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
 
   /// ヘルプダイアログを表示
   void _showHelpDialog(BuildContext context) {
+    final isEn = AppLocalizations.currentLanguageCode == 'en';
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.help_outline, color: Colors.blue),
-            SizedBox(width: 8),
-            Text('ヘルプ'),
+            const Icon(Icons.help_outline, color: Colors.blue),
+            const SizedBox(width: 8),
+            Text(isEn ? 'Help' : 'ヘルプ'),
           ],
         ),
         content: ConstrainedBox(
@@ -225,33 +226,61 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildHelpSection(
-                  '基本的な使い方',
-                  [
-                    'グループを作成して、メンバーを招待できます',
-                    '${AppModeSettings.config.sharedList}を共有して、リアルタイムで同期します',
-                    'アイテムを追加・購入完了マークで管理できます',
-                  ],
-                ),
+                isEn
+                    ? _buildHelpSection(
+                        'Basic Usage',
+                        [
+                          'Create a group and invite members',
+                          'Share ${AppModeSettings.config.sharedList} and sync in real time',
+                          'Add items and mark them as purchased',
+                        ],
+                      )
+                    : _buildHelpSection(
+                        '基本的な使い方',
+                        [
+                          'グループを作成して、メンバーを招待できます',
+                          '${AppModeSettings.config.sharedList}を共有して、リアルタイムで同期します',
+                          'アイテムを追加・購入完了マークで管理できます',
+                        ],
+                      ),
                 const SizedBox(height: 16),
-                _buildHelpSection(
-                  'グループ招待',
-                  [
-                    'QRコードを表示してメンバーを招待',
-                    'QRコードをスキャンしてグループに参加',
-                    '招待は24時間有効、最大5名まで',
-                  ],
-                ),
+                isEn
+                    ? _buildHelpSection(
+                        'Group Invitation',
+                        [
+                          'Show a QR code to invite members',
+                          'Scan a QR code to join a group',
+                          'Invitations are valid for 24 hours, up to 5 members',
+                        ],
+                      )
+                    : _buildHelpSection(
+                        'グループ招待',
+                        [
+                          'QRコードを表示してメンバーを招待',
+                          'QRコードをスキャンしてグループに参加',
+                          '招待は24時間有効、最大5名まで',
+                        ],
+                      ),
                 const SizedBox(height: 16),
-                _buildHelpSection(
-                  '同期状態アイコン',
-                  [
-                    '🟢 緑: 同期完了',
-                    '🟠 オレンジ: 同期中',
-                    '🔴 赤: 接続断',
-                    '⚪ グレー: 未ログイン',
-                  ],
-                ),
+                isEn
+                    ? _buildHelpSection(
+                        'Sync Status Icons',
+                        [
+                          '🟢 Green: Synced',
+                          '🟠 Orange: Syncing',
+                          '🔴 Red: Disconnected',
+                          '⚪ Gray: Not logged in',
+                        ],
+                      )
+                    : _buildHelpSection(
+                        '同期状態アイコン',
+                        [
+                          '🟢 緑: 同期完了',
+                          '🟠 オレンジ: 同期中',
+                          '🔴 赤: 接続断',
+                          '⚪ グレー: 未ログイン',
+                        ],
+                      ),
                 const SizedBox(height: 16),
                 const Divider(),
                 const SizedBox(height: 8),
@@ -272,33 +301,55 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
 
   /// 法的リンクセクションを構築
   Widget _buildLegalLinksSection(BuildContext context) {
-    final links = [
-      (
-        icon: Icons.privacy_tip_outlined,
-        label: 'プライバシーポリシー',
-        url:
-            'https://maya27aokisawada.github.io/go_shop/specifications/privacy_policy',
-      ),
-      (
-        icon: Icons.description_outlined,
-        label: '利用規約',
-        url:
-            'https://maya27aokisawada.github.io/go_shop/specifications/terms_of_service',
-      ),
-      (
-        icon: Icons.delete_outline,
-        label: 'データ・アカウント削除',
-        url:
-            'https://maya27aokisawada.github.io/go_shop/specifications/data_deletion',
-      ),
-    ];
+    final isEn = AppLocalizations.currentLanguageCode == 'en';
+    final links = isEn
+        ? [
+            (
+              icon: Icons.privacy_tip_outlined,
+              label: 'Privacy Policy',
+              url:
+                  'https://maya27aokisawada.github.io/go_shop/specifications/privacy_policy#english-version',
+            ),
+            (
+              icon: Icons.description_outlined,
+              label: 'Terms of Service',
+              url:
+                  'https://maya27aokisawada.github.io/go_shop/specifications/terms_of_service#english-version',
+            ),
+            (
+              icon: Icons.delete_outline,
+              label: 'Data & Account Deletion',
+              url:
+                  'https://maya27aokisawada.github.io/go_shop/specifications/data_deletion#english',
+            ),
+          ]
+        : [
+            (
+              icon: Icons.privacy_tip_outlined,
+              label: 'プライバシーポリシー',
+              url:
+                  'https://maya27aokisawada.github.io/go_shop/specifications/privacy_policy',
+            ),
+            (
+              icon: Icons.description_outlined,
+              label: '利用規約',
+              url:
+                  'https://maya27aokisawada.github.io/go_shop/specifications/terms_of_service',
+            ),
+            (
+              icon: Icons.delete_outline,
+              label: 'データ・アカウント削除',
+              url:
+                  'https://maya27aokisawada.github.io/go_shop/specifications/data_deletion',
+            ),
+          ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          '法的情報',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        Text(
+          isEn ? 'Legal' : '法的情報',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         const SizedBox(height: 8),
         ...links.map(
