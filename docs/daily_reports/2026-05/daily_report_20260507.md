@@ -145,6 +145,7 @@ sips -g hasAlpha Icon-App-1024x1024@1x.png
 ### 翌日継続 ⏳
 
 - ⏳ macOS Firebase Auth keychain-error 解決（5/5 より継続）
+  - ※ 実装自体は完了済み（`setSettings(userAccessGroup: "")`）、5/8 に動作確認・正式クローズ予定
 
 ---
 
@@ -266,6 +267,7 @@ return group; // 非同期なし
 ### 翌日継続 ⏳
 
 - ⏳ macOS Firebase Auth keychain-error 解決（5/5 より継続）
+  - ※ 実装自体は完了済み（`setSettings(userAccessGroup: "")`）、5/8 に動作確認・正式クローズ予定
 
 ---
 
@@ -320,5 +322,5 @@ return groups.where((g) => g.groupId == selectedGroupId).firstOrNull;
 ## 🗓 翌日（2026-05-08）の予定
 
 1. TestFlight への IPA アップロード・テスター招待
-2. macOS Firebase Auth keychain-error の調査・解決継続
+2. macOS Firebase Auth keychain-error の動作確認・正式クローズ（実装済み: `setSettings(userAccessGroup: "")`）
 3. 動作確認 — グループ切り替え即時表示の実機テスト
