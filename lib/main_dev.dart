@@ -25,7 +25,31 @@ import 'utils/app_logger.dart';
 import 'l10n/app_localizations.dart';
 import 'services/user_preferences_service.dart';
 
-const _androidFirebaseWarmupDelay = Duration(seconds: 3);
+/// Firebase.initializeApp() を指数バックオフ（初回500ms）でリトライする。
+/// Android のネットワークスタック初期化（DNS解決問題）に対応。
+Future<void> _initFirebaseWithBackoff() async {
+  const maxRetries = 4;
+  var delay = const Duration(milliseconds: 500);
+  for (var attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      AppLogger.info('✅ Firebase.initializeApp() 完了（試行 $attempt 回目）');
+      return;
+    } on Exception catch (e) {
+      if (e.toString().contains('duplicate-app')) {
+        AppLogger.info('ℹ️ Firebase既に初期化済み - 続行します');
+        return;
+      }
+      if (attempt == maxRetries) rethrow;
+      AppLogger.warning('⚠️ Firebase初期化 試行 $attempt/$maxRetries 失敗: $e');
+      AppLogger.info('⏳ ${delay.inMilliseconds}ms 後にリトライ...');
+      await Future.delayed(delay);
+      delay = delay * 2;
+    }
+  }
+}
 
 void main() async {
   // 🔥 Windows/Linux/macOS用 Sentry初期化
@@ -103,14 +127,6 @@ Future<void> _initializeApp() async {
     try {
       AppLogger.info('🔄 Firebase初期化開始...');
 
-      // Android環境でのネットワークスタック初期化待機（DNS解決問題対策）
-      // まずは 3 秒待機で再検証する。
-      if (defaultTargetPlatform == TargetPlatform.android) {
-        AppLogger.info('⏳ Android環境 - ネットワークスタック初期化待機中（3秒）...');
-        await Future.delayed(_androidFirebaseWarmupDelay);
-        AppLogger.info('✅ ネットワークスタック初期化待機完了');
-      }
-
       AppLogger.info('🎯 現在のプラットフォーム: $defaultTargetPlatform');
       AppLogger.info(
           '📋 プロジェクトID: ${DefaultFirebaseOptions.currentPlatform.projectId}');
@@ -121,10 +137,8 @@ Future<void> _initializeApp() async {
       AppLogger.info(
           '📋 Auth Domain: ${DefaultFirebaseOptions.currentPlatform.authDomain}');
 
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-      AppLogger.info('✅ Firebase.initializeApp() 完了');
+      // 指数バックオフ（初回500ms）でFirebase初期化リトライ（Android DNS解決対応）
+      await _initFirebaseWithBackoff();
 
       // Firebase Auth の状態確認
       AppLogger.info('🔐 Firebase Auth インスタンス: ${FirebaseAuth.instance}');
