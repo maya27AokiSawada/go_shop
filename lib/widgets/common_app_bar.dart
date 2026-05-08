@@ -9,6 +9,7 @@ import '../pages/error_history_page.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../config/app_mode_config.dart';
 import '../l10n/l10n.dart';
+import '../services/network_monitor_service.dart';
 
 /// 同期状態の種類
 enum SyncState {
@@ -44,6 +45,7 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateProvider);
+    final networkStatus = ref.watch(networkStatusStreamProvider).valueOrNull;
 
     return AppBar(
       title: FutureBuilder<String>(
@@ -57,7 +59,7 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
       ),
       actions: [
         // 同期状態アイコン
-        _buildSyncStatusIcon(context, authState.value),
+        _buildSyncStatusIcon(context, authState.value, networkStatus),
         const SizedBox(width: 8),
 
         // フローティングメニューボタン
@@ -166,7 +168,22 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
   }
 
   /// 同期状態アイコンを構築
-  Widget _buildSyncStatusIcon(BuildContext context, user) {
+  Widget _buildSyncStatusIcon(
+      BuildContext context, user, NetworkStatus? networkStatus) {
+    // ネットワーク状態を優先して上書き
+    if (networkStatus == NetworkStatus.offline) {
+      return const Tooltip(
+        message: 'ネットワーク障害',
+        child: Icon(Icons.wifi_off, color: Colors.orange, size: 24),
+      );
+    }
+    if (networkStatus == NetworkStatus.checking) {
+      return const Tooltip(
+        message: '接続確認中...',
+        child: Icon(Icons.wifi_tethering, color: Colors.blue, size: 24),
+      );
+    }
+
     IconData icon;
     Color color;
     String tooltip;

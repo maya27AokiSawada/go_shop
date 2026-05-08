@@ -118,19 +118,31 @@ class _NetworkStatusBannerState extends ConsumerState<NetworkStatusBanner> {
           _lastLoggedStatus = status;
         }
 
-        // オンライン状態なら非表示 + タイマー停止
-        if (status == NetworkStatus.online) {
+        // オンライン or 確認中 → バナー非表示（アプバーアイコンで確認可能）
+        if (status != NetworkStatus.offline) {
           if (_isOffline) {
-            AppLogger.info('📱 [BANNER] オンライン復帰 → バナー非表示、タイマー停止');
+            AppLogger.info('📱 [BANNER] オンライン/確認中 → バナー非表示、タイマー停止');
             _stopCountdownTimer();
             _isOffline = false;
           }
           return const SizedBox.shrink();
         }
 
-        // オフラインまたはチェック中 → タイマー開始 + バナー表示
+        // オフラインでも自動リトライ未実施（初回判定）はバナーを出さない
+        // → アプバーアイコンで分かるため、リトライしてもダメな時だけ表示
+        final networkMonitor = ref.read(networkMonitorProvider);
+        if (networkMonitor.retryAttemptCount == 0) {
+          AppLogger.info('📱 [BANNER] オフライン検出（初回）→ バナー非表示（アプバーで表示中）');
+          if (_isOffline) {
+            _stopCountdownTimer();
+            _isOffline = false;
+          }
+          return const SizedBox.shrink();
+        }
+
+        // リトライ済みでもオフライン → バナー表示
         if (!_isOffline) {
-          AppLogger.info('📱 [BANNER] オフライン検出 → バナー表示、タイマー開始');
+          AppLogger.info('📱 [BANNER] リトライ後もオフライン → バナー表示、タイマー開始');
           _isOffline = true;
           _startCountdownTimer();
         }

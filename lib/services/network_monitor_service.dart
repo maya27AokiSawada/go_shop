@@ -83,6 +83,9 @@ class NetworkMonitorService {
   /// 自動リトライの試行回数（startAutoRetry 呼び出しからの累計）
   int _retryAttemptCount = 0;
 
+  /// 自動リトライの試行回数を外部に公開（バナー表示判定に使用）
+  int get retryAttemptCount => _retryAttemptCount;
+
   /// 現在スケジュール中のリトライ間隔（timeUntilNextRetry 計算用）
   Duration _currentRetryInterval = _retryInterval1;
 
