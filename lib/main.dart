@@ -112,10 +112,7 @@ Future<void> _initializeApp() async {
     AppLogger.info('ℹ️ .envファイルが見つかりません - デフォルト値を使用します');
   }
 
-  // 🔥 DEFAULT: フレーバーの設定 - 本番環境（goshopping-48db9）
-  // フレーバー指定時は main_dev.dart または main_prod.dart が使用されます
-  F.appFlavor = Flavor.prod;
-  AppLogger.info('⚙️ フレーバー設定完了: ${F.appFlavor}');
+  AppLogger.info('⚙️ フレーバー: ${F.appFlavor} (--dart-define=FLAVORで指定)');
 
   // Firebase初期化（prodとdev両方で有効化 - 2025-12-08変更）
   if (F.appFlavor == Flavor.prod || F.appFlavor == Flavor.dev) {
