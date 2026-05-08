@@ -3,7 +3,9 @@
 ## 📅 本日の目標
 
 - [x] macOS Firebase Auth keychain-error の検証・クローズ
-- [x] TestFlight 用 IPA ビルド（ビルド番号 +9）
+- [x] Android Firebase 初期化の固定ウェイト（3秒）を指数バックオフに変更
+- [x] ネットワークバナー UX 改善（初回非表示・AppBar アイコン追加）
+- [x] TestFlight 用 IPA ビルド（ビルド番号 +9）・配信完了
 - [x] 不要依存パッケージ削除（`flutter_drawing_board`）
 - [x] フレーバー管理の起動引数一本化・ハードコード除去
 
@@ -167,6 +169,102 @@ class F {
 
 ---
 
+### 5. Android Firebase 初期化の固定ウェイトを指数バックオフに変更 ✅
+
+**Purpose**: 起動時に Android DNS 解決を待つための固定 3 秒ウェイト（`_androidFirebaseWarmupDelay`）を廃止し、指数バックオフによるリトライに置き換える
+
+**Root Cause**:
+Android 初回起動時に DNS 解決が間に合わず Firebase 初期化が失敗するケースへの保険として 3 秒固定ウェイトが入っていたが、ベストケースでも 3 秒ロスしていた。
+
+**Solution**:
+
+```dart
+// lib/main.dart / main_dev.dart / main_prod.dart
+Future<void> _initFirebaseWithBackoff() async {
+  const maxRetries = 4;
+  var delay = const Duration(milliseconds: 500);
+  for (var attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+      AppLogger.info('✅ Firebase.initializeApp() 完了（試行 $attempt 回目）');
+      return;
+    } on Exception catch (e) {
+      if (e.toString().contains('duplicate-app')) { return; }
+      if (attempt == maxRetries) rethrow;
+      await Future.delayed(delay);
+      delay = delay * 2; // 500ms → 1s → 2s → 4s
+    }
+  }
+}
+```
+
+**効果**: ベストケース（即時成功）で起動が最大 3 秒短縮。ネットワーク不安定時もクラッシュせずリトライ。
+
+**Modified Files**:
+
+- `lib/main.dart`
+- `lib/main_dev.dart`
+- `lib/main_prod.dart`
+
+**Commit**: `c6a7035`
+**Status**: ✅ 完了・検証済み
+
+---
+
+### 6. ネットワークバナー UX 改善 ✅
+
+**Purpose**: アプリ起動時にオレンジバナーが一瞬出る UX 問題を解消し、AppBar アイコンでオフライン状態を常時把握できるようにする
+
+**Background**:
+従来は `NetworkStatus.offline` 検出直後にバナーを表示していたため、起動時の一時的オフライン検出でも毎回バナーが出ていた。
+
+**Solution**:
+
+- `NetworkMonitorService`: `retryAttemptCount` ゲッターを追加
+- `NetworkStatusBanner`: `checking` 中・初回 `offline`（`retryAttemptCount == 0`）はバナー非表示。リトライ 1 回以上失敗時のみ表示
+- `CommonAppBar`: `networkStatusStreamProvider` を watch し、ネットワーク状態をアイコンで常時表示
+  - `offline` → `wifi_off`（オレンジ）
+  - `checking` → `wifi_tethering`（ブルー）
+  - `online` → 通常の同期アイコン
+
+**Modified Files**:
+
+- `lib/services/network_monitor_service.dart`
+- `lib/widgets/network_status_banner.dart`
+- `lib/widgets/common_app_bar.dart`
+
+**Commit**: `8f8d383`
+**Status**: ✅ 完了・検証済み
+
+---
+
+### 7. iOS IPA ビルド・TestFlight 配信完了 ✅
+
+**Purpose**: ビルド 9 を TestFlight に配信し、内部テスターが最新版を検証できる状態にする
+
+**Background**:
+前日まで `flutter build ipa` コマンドが Distribution 証明書不足で失敗していたため、`xcodebuild -archive` → `xcodebuild -exportArchive` の 2 ステップに切り替えた。
+
+**Solution**:
+
+1. `flutter build ios --release --flavor prod --dart-define=FLAVOR=prod --no-codesign` でビルド
+2. `xcodebuild -workspace ios/Runner.xcworkspace -scheme prod -configuration Release-prod -archivePath build/ios/archive/Runner.xcarchive archive` でアーカイブ（518 MB）
+3. `ExportOptions.plist`（method: app-store, signingStyle: automatic, teamID: 9A34XAPY8W）を作成し scp で Mac に転送
+4. `xcodebuild -exportArchive` で IPA export → `go_shop.ipa`（49 MB）生成
+5. Transporter / TestFlight でアップロード後、グループ `GoShoppingTesters01` に追加
+
+**トラブル発生と解決**:
+
+- ビルド 8 を先に期限切れにした状態でビルド 9 を追加したため、TestFlight アプリ側でアップデートが表示されなかった
+- テスターをグループから一度削除して再招待したところ正常にアップデート可能になった
+- **次回対策**: 新ビルドをグループに追加してから古いビルドを期限切れにする（順序を守る）
+
+**Modified Files**: なし（ビルド作業のみ）
+
+**Status**: ✅ 配信完了（ビルド 9「テスト中」確認済み）
+
+---
+
 ## 🐛 発見された問題
 
 ### macOS Firebase Auth keychain-error（解決済み）✅
@@ -187,6 +285,8 @@ class F {
 3. ✅ SelectedGroupNotifier.build() Firestore I/O 除去（完了日: 2026-05-07）
 4. ✅ macOS Firebase Auth keychain-error（完了日: 2026-05-08 正式クローズ、実装: 2026-05-05）
 5. ✅ フレーバー管理ハードコードバグ（`--flavor dev` でも prod 扱いになっていた）（完了日: 2026-05-08）
+6. ✅ Android 起動時 3 秒固定ウェイト（指数バックオフに変更）（完了日: 2026-05-08）
+7. ✅ ネットワークバナー起動時誤表示（retryAttemptCount で制御）（完了日: 2026-05-08）
 
 ### 対応中 🔄
 
@@ -229,13 +329,15 @@ const _flavorFromEnv = String.fromEnvironment('FLAVOR', defaultValue: 'prod');
 
 ## 🗓 翌日（2026-05-09）の予定
 
-1. Mac 側 git pull 後に TestFlight 用 IPA ビルド（ビルド番号 +9）を完了させる
-2. Transporter で App Store Connect にアップロード・テスター招待
+1. UIテキストの完全 `l10n.dart` 対応
+   - ハードコードされた日本語・英語文字列を `lib/l10n/` の ARB ファイル経由に統一
+   - `AppLocalizations.current.xxx` を使っていない全ウィジェットを洗い出し移行
+   - 対応完了後コミット・プッシュ
 
 ---
 
 ## 📝 ドキュメント更新
 
-| ドキュメント | 更新内容                                                                                                  |
-| ------------ | --------------------------------------------------------------------------------------------------------- |
-| （更新なし） | 理由: 今回の変更はリファクタリング・バグ修正・クリーンアップのみ。アーキテクチャ仕様・公開 API に変更なし |
+| ドキュメント                                          | 更新内容                                                                                    |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `docs/daily_reports/2026-05/daily_report_20260508.md` | Firebase backoff・ネットワークバナー・IPA/TestFlight 配信を追記。翌日予定を l10n 対応に更新 |

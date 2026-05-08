@@ -100,17 +100,53 @@ group('createGroup', () {
 
 ```bash
 # デバッグ APK（実機テスト）
-flutter build apk --debug --flavor prod
+flutter build apk --debug --flavor prod --dart-define=FLAVOR=prod
 
 # リリース APK
-flutter build apk --release --flavor prod
+flutter build apk --release --flavor prod --dart-define=FLAVOR=prod
 
 # Android App Bundle（Play Store 配布）
-flutter build appbundle --release --flavor prod
+flutter build appbundle --release --flavor prod --dart-define=FLAVOR=prod
 
 # コード生成（Freezed / Hive アダプター）
 dart run build_runner build --delete-conflicting-outputs
 ```
+
+### iOS IPA ビルド（TestFlight 配布）
+
+Distribution 証明書が keychain に登録されていない場合は `flutter build ipa` が失敗する。
+その場合は以下の 2 ステップ方式を使う（Mac mini SSH 経由でも可）。
+
+```bash
+# 1. keychain アンロック（SSH 時は毎回必要）
+security unlock-keychain -p "PASSWORD" ~/Library/Keychains/login.keychain-db
+security set-keychain-settings -t 3600 ~/Library/Keychains/login.keychain-db
+
+# 2. Flutter iOS ビルド（コード署名なし）
+flutter build ios --release --flavor prod --dart-define=FLAVOR=prod --no-codesign
+
+# 3. xcarchive 生成
+xcodebuild \
+  -workspace ios/Runner.xcworkspace \
+  -scheme prod \
+  -configuration Release-prod \
+  -archivePath build/ios/archive/Runner.xcarchive \
+  archive
+
+# 4. ExportOptions.plist を用意（method: app-store, signingStyle: automatic, teamID: 9A34XAPY8W）
+
+# 5. IPA export
+xcodebuild -exportArchive \
+  -archivePath build/ios/archive/Runner.xcarchive \
+  -exportOptionsPlist /tmp/ExportOptions.plist \
+  -exportPath build/ios/ipa/
+```
+
+**ポイント**:
+
+- `--dart-define=FLAVOR=prod` は必須（省略すると Dart 側が prod にならない）
+- ビルド番号は `pubspec.yaml` の `version: x.y.z+N` の `N` を毎回インクリメント
+- **TestFlight 手順**: 新ビルドをグループに追加してから古いビルドを期限切れにする（逆順にするとテスター側で更新が表示されない）
 
 ---
 
