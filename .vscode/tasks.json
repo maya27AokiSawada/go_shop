@@ -14,7 +14,14 @@
       "label": "Run on SH-54D (dev)",
       "type": "shell",
       "command": "flutter",
-      "args": ["run", "--flavor", "dev", "-d", "359705470227530"],
+      "args": [
+        "run",
+        "--flavor",
+        "dev",
+        "--dart-define=FLAVOR=dev",
+        "-d",
+        "359705470227530"
+      ],
       "isBackground": true,
       "problemMatcher": ["$flutter-watch"],
       "group": "run"
@@ -23,7 +30,14 @@
       "label": "Run on SH-54D (prod)",
       "type": "shell",
       "command": "flutter",
-      "args": ["run", "--flavor", "prod", "-d", "359705470227530"],
+      "args": [
+        "run",
+        "--flavor",
+        "prod",
+        "--dart-define=FLAVOR=prod",
+        "-d",
+        "359705470227530"
+      ],
       "isBackground": true,
       "problemMatcher": ["$flutter-watch"],
       "group": "run"
@@ -32,7 +46,14 @@
       "label": "Run on Pixel 9 (dev)",
       "type": "shell",
       "command": "flutter",
-      "args": ["run", "--flavor", "dev", "-d", "51040DLAQ001K0"],
+      "args": [
+        "run",
+        "--flavor",
+        "dev",
+        "--dart-define=FLAVOR=dev",
+        "-d",
+        "51040DLAQ001K0"
+      ],
       "isBackground": true,
       "problemMatcher": ["$flutter-watch"],
       "group": "run"
@@ -41,7 +62,14 @@
       "label": "Run on Pixel 9 (prod)",
       "type": "shell",
       "command": "flutter",
-      "args": ["run", "--flavor", "prod", "-d", "51040DLAQ001K0"],
+      "args": [
+        "run",
+        "--flavor",
+        "prod",
+        "--dart-define=FLAVOR=prod",
+        "-d",
+        "51040DLAQ001K0"
+      ],
       "isBackground": true,
       "problemMatcher": ["$flutter-watch"],
       "group": "run"
@@ -118,7 +146,7 @@
     {
       "label": "Build Debug APK Prod",
       "type": "shell",
-      "command": "flutter build apk --debug --flavor prod",
+      "command": "flutter build apk --debug --flavor prod --dart-define=FLAVOR=prod",
       "isBackground": false,
       "group": "build"
     },
@@ -146,14 +174,14 @@
     {
       "label": "Rebuild APK with Fix",
       "type": "shell",
-      "command": "flutter build apk --debug --flavor prod",
+      "command": "flutter build apk --debug --flavor prod --dart-define=FLAVOR=prod",
       "isBackground": false,
       "group": "build"
     },
     {
       "label": "Rebuild APK Final",
       "type": "shell",
-      "command": "flutter build apk --debug --flavor prod",
+      "command": "flutter build apk --debug --flavor prod --dart-define=FLAVOR=prod",
       "isBackground": false,
       "group": "build"
     },
