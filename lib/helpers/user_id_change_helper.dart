@@ -433,9 +433,8 @@ class UserIdChangeHelper {
 
     await Future.delayed(const Duration(milliseconds: 200));
     ref.invalidate(userSettingsProvider);
-    await Future.delayed(const Duration(milliseconds: 200));
+    await Future.delayed(const Duration(milliseconds: 100));
     ref.invalidate(sharedListProvider);
-    await Future.delayed(const Duration(milliseconds: 200));
     ref.invalidate(selectedGroupProvider);
     ref.invalidate(allGroupsProvider);
   }

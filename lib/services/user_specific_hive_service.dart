@@ -149,7 +149,7 @@ class UserSpecificHiveService {
       await _closeAllBoxesSafely();
 
       // Box閉じた後少し待つ（プロバイダー競合を防ぐ）
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(const Duration(milliseconds: 100));
 
       // ユーザー固有のディレクトリパスを作成
       final userDataPath = await _getUserDataPath(userId);
@@ -327,9 +327,6 @@ class UserSpecificHiveService {
       Log.info('🔄 Opening $displayName box: $boxName');
       await Hive.openBox<T>(boxName);
       Log.info('✅ $displayName box opened successfully: $boxName');
-
-      // Box開封間の間隔を確保
-      await Future.delayed(const Duration(milliseconds: 100));
     } catch (e) {
       Log.error('❌ Failed to open $displayName box ($boxName): $e');
 
