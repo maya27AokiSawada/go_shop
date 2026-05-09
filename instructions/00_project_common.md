@@ -324,28 +324,35 @@ AI が独断でシグネチャを変更することは **禁止**。
 
 **方針**: UI テキストは必ず `lib/l10n/` 経由で管理し、ハードコードは禁止。
 
+### ファイル構成
+
+| ファイル                          | 役割                                            |
+| --------------------------------- | ----------------------------------------------- |
+| `lib/l10n/app_texts.dart`         | `AppTexts` 抽象クラス（全キー定義）             |
+| `lib/l10n/app_texts_ja.dart`      | `AppTextsJa` — 日本語実装                       |
+| `lib/l10n/app_texts_en.dart`      | `AppTextsEn` — 英語実装                         |
+| `lib/l10n/app_localizations.dart` | `AppLocalizations` シングルトン（言語切替管理） |
+| `lib/l10n/l10n.dart`              | エクスポート + `texts` グローバルゲッター       |
+
 ### 使用方法
 
 ```dart
-// ✅ 正しい — l10n.dart 経由
+// ✅ 正しい — l10n.dart を import して texts ゲッターを使う
 import 'package:goshopping/l10n/l10n.dart';
-Text(context.l10n.createGroup)
-// または
+
+Text(texts.createGroup)
+Text(texts.memberAddedMsg(member.name))  // 引数付きキー
+
+// または直接 AppLocalizations.current 経由でも可
 Text(AppLocalizations.current.createGroup)
 ```
 
-### ARB ファイル
+### 新しいキーの追加手順
 
-| ファイル              | 言語   |
-| --------------------- | ------ |
-| `lib/l10n/app_ja.arb` | 日本語 |
-| `lib/l10n/app_en.arb` | 英語   |
-
-新しい文字列を追加する手順:
-
-1. `app_ja.arb` と `app_en.arb` の両方に同じキーで追加
-2. `AppLocalizations` を使って参照
-3. **ハードコードされた日本語・英語文字列を Widget 内に直接書かない**
+1. `app_texts.dart` の `AppTexts` 抽象クラスにキーを追加
+2. `app_texts_ja.dart` の `AppTextsJa` に日本語実装を追加
+3. `app_texts_en.dart` の `AppTextsEn` に英語実装を追加
+4. **ARB ファイルは使用しない**（このプロジェクト独自の実装）
 
 ### ❌ Anti: UI テキストをハードコードする
 
@@ -353,7 +360,9 @@ Text(AppLocalizations.current.createGroup)
 // ❌ 禁止
 Text('グループを作成')
 Text('Create Group')
+logOperationError('グループ名更新', ...)  // 日本語文字列直書き
 
 // ✅ 正しい
-Text(context.l10n.createGroup)
+Text(texts.createGroup)
+logOperationError(texts.opUpdateGroupName, ...)
 ```
