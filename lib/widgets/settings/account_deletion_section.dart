@@ -117,14 +117,7 @@ class _AccountDeletionSectionState
             ],
           ),
           content: Text(
-            '⚠️ この操作は取り消せません\n\n'
-            '以下のデータが完全に削除されます:\n'
-            '• アカウント情報\n'
-            '• 全ての${AppModeSettings.config.sharedList}\n'
-            '• 作成したグループ（オーナーの場合）\n'
-            '• ホワイトボードデータ\n'
-            '• 通知履歴\n\n'
-            '本当に削除しますか？',
+            texts.deleteAccountWarningBody(AppModeSettings.config.sharedList),
             style: const TextStyle(fontSize: 15),
           ),
           actions: [
@@ -153,9 +146,7 @@ class _AccountDeletionSectionState
         builder: (context) => AlertDialog(
           title: Text(texts.finalConfirmation),
           content: Text(
-            'メールアドレス: ${user.email}\n\n'
-            'このアカウントを本当に削除しますか？\n\n'
-            'この操作は取り消せません。',
+            texts.finalConfirmationBody(user.email ?? ''),
           ),
           actions: [
             TextButton(
@@ -392,10 +383,7 @@ class _AccountDeletionSectionState
               Text(texts.deletionComplete),
             ],
           ),
-          content: const Text(
-            'アカウントとすべてのデータを削除しました。\n\n'
-            'Go Shopをご利用いただきありがとうございました。',
-          ),
+          content: Text(texts.deletionCompleteBody),
           actions: [
             TextButton(
               onPressed: () {
@@ -423,11 +411,7 @@ class _AccountDeletionSectionState
               Text(texts.deletionFailed),
             ],
           ),
-          content: Text(
-            'アカウント削除中にエラーが発生しました。\n\n'
-            'エラー内容:\n$e\n\n'
-            'お手数ですが、開発者にお問い合わせください。',
-          ),
+          content: Text(texts.deletionFailedBody(e.toString())),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),

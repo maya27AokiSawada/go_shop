@@ -8,6 +8,7 @@ import '../pages/notification_history_page.dart';
 import '../pages/error_history_page.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../config/app_mode_config.dart';
+import '../l10n/app_localizations.dart';
 import '../l10n/l10n.dart';
 import '../services/network_monitor_service.dart';
 
@@ -148,14 +149,14 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
     if (showUserName) {
       // 未認証の場合は「未サインイン」を表示
       if (user == null) {
-        return '未サインイン';
+        return texts.notSignedIn;
       }
 
       final userName = await UserPreferencesService.getUserName();
       if (userName != null && userName.isNotEmpty) {
         return '$userName さん';
       }
-      return 'ホーム';
+      return texts.home;
     }
 
     // グループ名表示（グループ画面・リスト画面）
@@ -172,15 +173,15 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
       BuildContext context, user, NetworkStatus? networkStatus) {
     // ネットワーク状態を優先して上書き
     if (networkStatus == NetworkStatus.offline) {
-      return const Tooltip(
-        message: 'ネットワーク障害',
-        child: Icon(Icons.wifi_off, color: Colors.orange, size: 24),
+      return Tooltip(
+        message: texts.networkOfflineStatus,
+        child: const Icon(Icons.wifi_off, color: Colors.orange, size: 24),
       );
     }
     if (networkStatus == NetworkStatus.checking) {
-      return const Tooltip(
-        message: '接続確認中...',
-        child: Icon(Icons.wifi_tethering, color: Colors.blue, size: 24),
+      return Tooltip(
+        message: texts.checkingConnectionStatus,
+        child: const Icon(Icons.wifi_tethering, color: Colors.blue, size: 24),
       );
     }
 
@@ -192,22 +193,22 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
       case SyncState.synced:
         icon = Icons.cloud_done;
         color = Colors.green;
-        tooltip = '同期完了';
+        tooltip = texts.syncStatusSynced;
         break;
       case SyncState.syncing:
         icon = Icons.sync;
         color = Colors.orange;
-        tooltip = '同期中...';
+        tooltip = texts.syncStatusSyncing;
         break;
       case SyncState.offline:
         icon = Icons.cloud_off;
         color = Colors.red;
-        tooltip = '接続断';
+        tooltip = texts.syncStatusOffline;
         break;
       case SyncState.notLoggedIn:
         icon = Icons.account_circle_outlined;
         color = Colors.grey;
-        tooltip = '未ログイン';
+        tooltip = texts.syncStatusNotLoggedIn;
         break;
     }
 
@@ -223,7 +224,6 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
 
   /// ヘルプダイアログを表示
   void _showHelpDialog(BuildContext context) {
-    final isEn = AppLocalizations.currentLanguageCode == 'en';
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -231,7 +231,7 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
           children: [
             const Icon(Icons.help_outline, color: Colors.blue),
             const SizedBox(width: 8),
-            Text(isEn ? 'Help' : 'ヘルプ'),
+            Text(texts.helpTitle),
           ],
         ),
         content: ConstrainedBox(
@@ -243,61 +243,33 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                isEn
-                    ? _buildHelpSection(
-                        'Basic Usage',
-                        [
-                          'Create a group and invite members',
-                          'Share ${AppModeSettings.config.sharedList} and sync in real time',
-                          'Add items and mark them as purchased',
-                        ],
-                      )
-                    : _buildHelpSection(
-                        '基本的な使い方',
-                        [
-                          'グループを作成して、メンバーを招待できます',
-                          '${AppModeSettings.config.sharedList}を共有して、リアルタイムで同期します',
-                          'アイテムを追加・購入完了マークで管理できます',
-                        ],
-                      ),
+                _buildHelpSection(
+                  texts.helpBasicUsage,
+                  [
+                    texts.helpBasicUsagePoint(1),
+                    texts.helpBasicUsagePoint(2),
+                    texts.helpBasicUsagePoint(3),
+                  ],
+                ),
                 const SizedBox(height: 16),
-                isEn
-                    ? _buildHelpSection(
-                        'Group Invitation',
-                        [
-                          'Show a QR code to invite members',
-                          'Scan a QR code to join a group',
-                          'Invitations are valid for 24 hours, up to 5 members',
-                        ],
-                      )
-                    : _buildHelpSection(
-                        'グループ招待',
-                        [
-                          'QRコードを表示してメンバーを招待',
-                          'QRコードをスキャンしてグループに参加',
-                          '招待は24時間有効、最大5名まで',
-                        ],
-                      ),
+                _buildHelpSection(
+                  texts.helpGroupInvite,
+                  [
+                    texts.helpGroupInvitePoint(1),
+                    texts.helpGroupInvitePoint(2),
+                    texts.helpGroupInvitePoint(3),
+                  ],
+                ),
                 const SizedBox(height: 16),
-                isEn
-                    ? _buildHelpSection(
-                        'Sync Status Icons',
-                        [
-                          '🟢 Green: Synced',
-                          '🟠 Orange: Syncing',
-                          '🔴 Red: Disconnected',
-                          '⚪ Gray: Not logged in',
-                        ],
-                      )
-                    : _buildHelpSection(
-                        '同期状態アイコン',
-                        [
-                          '🟢 緑: 同期完了',
-                          '🟠 オレンジ: 同期中',
-                          '🔴 赤: 接続断',
-                          '⚪ グレー: 未ログイン',
-                        ],
-                      ),
+                _buildHelpSection(
+                  texts.helpSyncIcons,
+                  [
+                    texts.helpSyncIconPoint(1),
+                    texts.helpSyncIconPoint(2),
+                    texts.helpSyncIconPoint(3),
+                    texts.helpSyncIconPoint(4),
+                  ],
+                ),
                 const SizedBox(height: 16),
                 const Divider(),
                 const SizedBox(height: 8),
@@ -323,19 +295,19 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
         ? [
             (
               icon: Icons.privacy_tip_outlined,
-              label: 'Privacy Policy',
+              label: texts.privacyPolicy,
               url:
                   'https://maya27aokisawada.github.io/go_shop/specifications/privacy_policy#english-version',
             ),
             (
               icon: Icons.description_outlined,
-              label: 'Terms of Service',
+              label: texts.termsOfService,
               url:
                   'https://maya27aokisawada.github.io/go_shop/specifications/terms_of_service#english-version',
             ),
             (
               icon: Icons.delete_outline,
-              label: 'Data & Account Deletion',
+              label: texts.deleteAccountAndData,
               url:
                   'https://maya27aokisawada.github.io/go_shop/specifications/data_deletion#english',
             ),
@@ -343,19 +315,19 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
         : [
             (
               icon: Icons.privacy_tip_outlined,
-              label: 'プライバシーポリシー',
+              label: texts.privacyPolicy,
               url:
                   'https://maya27aokisawada.github.io/go_shop/specifications/privacy_policy',
             ),
             (
               icon: Icons.description_outlined,
-              label: '利用規約',
+              label: texts.termsOfService,
               url:
                   'https://maya27aokisawada.github.io/go_shop/specifications/terms_of_service',
             ),
             (
               icon: Icons.delete_outline,
-              label: 'データ・アカウント削除',
+              label: texts.deleteAccountAndData,
               url:
                   'https://maya27aokisawada.github.io/go_shop/specifications/data_deletion',
             ),
@@ -365,7 +337,7 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          isEn ? 'Legal' : '法的情報',
+          texts.legalTitle,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         const SizedBox(height: 8),
@@ -435,7 +407,6 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
   /// バージョン情報ダイアログを表示
   void _showVersionDialog(BuildContext context) async {
     final packageInfo = await PackageInfo.fromPlatform();
-    final isEn = AppLocalizations.currentLanguageCode == 'en';
 
     if (context.mounted) {
       showDialog(
@@ -445,7 +416,7 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
             children: [
               const Icon(Icons.info_outline, color: Colors.blue),
               const SizedBox(width: 8),
-              Text(isEn ? 'Version Info' : 'バージョン情報'),
+              Text(texts.versionInfoTitle),
             ],
           ),
           content: ConstrainedBox(
@@ -465,17 +436,14 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  _buildVersionRow(texts.versionLabel, packageInfo.version),
                   _buildVersionRow(
-                      isEn ? 'Version' : 'バージョン', packageInfo.version),
+                      texts.buildNumberLabel, packageInfo.buildNumber),
                   _buildVersionRow(
-                      isEn ? 'Build Number' : 'ビルド番号', packageInfo.buildNumber),
-                  _buildVersionRow(isEn ? 'Package Name' : 'パッケージ名',
-                      packageInfo.packageName),
+                      texts.packageNameLabel, packageInfo.packageName),
                   const SizedBox(height: 16),
                   Text(
-                    isEn
-                        ? '${AppModeSettings.config.sharedList} sharing app'
-                        : '${AppModeSettings.config.sharedList}共有アプリ',
+                    '${AppModeSettings.config.sharedList} ${texts.appFooterSubtitle}',
                     style: const TextStyle(color: Colors.grey),
                   ),
                   const SizedBox(height: 8),

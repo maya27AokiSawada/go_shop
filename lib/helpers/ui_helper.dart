@@ -1,11 +1,10 @@
 // lib/helpers/ui_helper.dart
 import 'package:flutter/material.dart';
 import '../utils/app_logger.dart';
+import '../l10n/l10n.dart';
 
 /// UI関連のヘルパー関数を集約
 class UiHelper {
-  
-
   /// 成功メッセージを表示
   static void showSuccessMessage(
     BuildContext context,
@@ -13,7 +12,7 @@ class UiHelper {
     Duration duration = const Duration(seconds: 3),
   }) {
     if (!context.mounted) return;
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -30,7 +29,7 @@ class UiHelper {
     Duration duration = const Duration(seconds: 4),
   }) {
     if (!context.mounted) return;
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -47,7 +46,7 @@ class UiHelper {
     Duration duration = const Duration(seconds: 3),
   }) {
     if (!context.mounted) return;
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -64,7 +63,7 @@ class UiHelper {
     Duration duration = const Duration(seconds: 3),
   }) {
     if (!context.mounted) return;
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -82,7 +81,7 @@ class UiHelper {
     Duration duration = const Duration(seconds: 3),
   }) {
     if (!context.mounted) return;
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -93,7 +92,7 @@ class UiHelper {
   }
 
   /// 確認ダイアログを表示
-  /// 
+  ///
   /// Returns: ユーザーが「はい」を選択した場合true
   static Future<bool> showConfirmDialog(
     BuildContext context, {
@@ -103,7 +102,7 @@ class UiHelper {
     String cancelText = 'キャンセル',
   }) async {
     if (!context.mounted) return false;
-    
+
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -121,7 +120,7 @@ class UiHelper {
         ],
       ),
     );
-    
+
     return result ?? false;
   }
 
@@ -133,7 +132,7 @@ class UiHelper {
     String okText = 'OK',
   }) async {
     if (!context.mounted) return;
-    
+
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -155,7 +154,7 @@ class UiHelper {
     String message = '処理中...',
   }) {
     if (!context.mounted) return;
-    
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -184,11 +183,11 @@ class UiHelper {
     VoidCallback onScan,
   ) {
     if (!context.mounted) return;
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('QRコード招待'),
+        title: Text(texts.qrScanDialogTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -198,8 +197,8 @@ class UiHelper {
               color: Colors.blue,
             ),
             const SizedBox(height: 16),
-            const Text(
-              'グループ招待QRコードをスキャンして\nグループに参加できます',
+            Text(
+              texts.qrScanDialogContent,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -208,14 +207,14 @@ class UiHelper {
                 Navigator.pop(context);
                 onScan();
               },
-              child: const Text('QRコードをスキャン'),
+              child: Text(texts.qrScanButton),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('キャンセル'),
+            child: Text(texts.cancel),
           ),
         ],
       ),
@@ -243,7 +242,7 @@ class UiHelper {
     Widget? applicationIcon,
   }) {
     if (!context.mounted) return;
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -286,7 +285,7 @@ class UiHelper {
     if (alsoLogToConsole) {
       Log.debug(log);
     }
-    
+
     showInfoMessage(context, log);
   }
 }

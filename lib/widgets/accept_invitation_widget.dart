@@ -29,13 +29,13 @@ class AcceptInvitationWidget extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Row(
+            Row(
               children: [
-                Icon(Icons.qr_code_scanner, color: Colors.blue),
-                SizedBox(width: 8),
+                const Icon(Icons.qr_code_scanner, color: Colors.blue),
+                const SizedBox(width: 8),
                 Text(
-                  '招待を受ける',
-                  style: TextStyle(
+                  texts.inviteAcceptTitle,
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
@@ -43,15 +43,15 @@ class AcceptInvitationWidget extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 12),
-            const Text(
-              'グループに招待されましたか？\nQRコードをスキャンするか、招待コードを入力してください。',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
+            Text(
+              texts.inviteAcceptDesc,
+              style: const TextStyle(fontSize: 14, color: Colors.grey),
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: () => _showQRScanner(context, ref),
               icon: const Icon(Icons.qr_code_scanner),
-            label: Text(texts.scanQRCode),
+              label: Text(texts.scanQRCode),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
                 foregroundColor: Colors.white,
@@ -179,7 +179,7 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
                             const Icon(Icons.error,
                                 color: Colors.red, size: 48),
                             const SizedBox(height: 16),
-                            Text('カメラエラー: $error'),
+                            Text('${texts.cameraErrorPrefix} $error'),
                             const SizedBox(height: 16),
                             Text(texts.checkCameraPermission),
                           ],
@@ -244,7 +244,7 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                  content: Text(texts.invalidQRFormat),
+                                content: Text(texts.invalidQRFormat),
                                 backgroundColor: Colors.red,
                               ),
                             );
@@ -264,10 +264,10 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
                         border: Border.all(color: Colors.white, width: 3),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Center(
+                      child: Center(
                         child: Text(
-                          'QRコードをここに',
-                          style: TextStyle(
+                          texts.qrCodeHereOverlay,
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 18,
                             backgroundColor: Colors.black54,
@@ -280,16 +280,17 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
                   if (_isProcessing)
                     Container(
                       color: Colors.black54,
-                      child: const Center(
+                      child: Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            CircularProgressIndicator(color: Colors.white),
-                            SizedBox(height: 16),
+                            const CircularProgressIndicator(
+                                color: Colors.white),
+                            const SizedBox(height: 16),
                             Text(
-                              '処理中...',
-                              style:
-                                  TextStyle(color: Colors.white, fontSize: 18),
+                              texts.syncing,
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 18),
                             ),
                           ],
                         ),
@@ -330,7 +331,8 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
             '🔍 [QR_SCAN] SharedGroupId: ${invitationData['sharedGroupId']}');
         Log.info('🔍 [QR_SCAN] groupName: ${invitationData['groupName']}');
 
-        final groupName = invitationData['groupName'] as String? ?? '不明なグループ';
+        final groupName =
+            invitationData['groupName'] as String? ?? texts.unknownGroup;
         final groupId = invitationData['sharedGroupId'] as String;
 
         // すでにグループメンバーかチェック
@@ -436,7 +438,7 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
                     Text(texts.invitationAccepted),
                     const SizedBox(height: 4),
                     Text(
-                      '招待元（$groupName）の確認をお待ちください',
+                      texts.invitationPendingApproval(groupName),
                       style: const TextStyle(fontSize: 12),
                     ),
                   ],

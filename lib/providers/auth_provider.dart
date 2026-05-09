@@ -267,7 +267,7 @@ class FirebaseAuthService {
           emailController, userNameController);
     } catch (e) {
       Log.error('🚨 ログイン失敗: $e');
-      await ErrorLogService.logOperationError('サインイン', '$e');
+      await ErrorLogService.logOperationError(texts.signIn, '$e');
       if (!context.mounted) return;
       UiHelper.showErrorMessage(context, 'ログインに失敗しました: $e');
     }
@@ -356,7 +356,7 @@ class FirebaseAuthService {
           duration: const Duration(seconds: 4));
     } catch (e) {
       Log.error('🚨 サインアップ失敗: $e');
-      await ErrorLogService.logOperationError('アカウント作成', '$e');
+      await ErrorLogService.logOperationError(texts.createAccount, '$e');
       if (!context.mounted) return;
       UiHelper.showErrorMessage(context, 'アカウント作成に失敗しました: $e');
     }
@@ -392,7 +392,7 @@ class FirebaseAuthService {
       UiHelper.showSuccessMessage(context, 'ユーザー名「$userName」を保存しました');
     } catch (e) {
       Log.error('❌ ユーザー名保存エラー: $e');
-      await ErrorLogService.logOperationError('ユーザー名保存', '$e');
+      await ErrorLogService.logOperationError(texts.saveUserName, '$e');
       if (!context.mounted) return;
       UiHelper.showErrorMessage(context, 'ユーザー名の保存に失敗しました: $e');
     }
@@ -421,7 +421,7 @@ class FirebaseAuthService {
       );
     } catch (e) {
       Log.error('❌ パスワードリセットメール送信エラー: $e');
-      await ErrorLogService.logOperationError('パスワードリセット', '$e');
+      await ErrorLogService.logOperationError(texts.resetPassword, '$e');
       if (!context.mounted) return;
       UiHelper.showErrorMessage(
         context,

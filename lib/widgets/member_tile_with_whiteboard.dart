@@ -11,6 +11,7 @@ import '../pages/whiteboard_editor_page.dart';
 import '../services/personal_whiteboard_cache_service.dart';
 import '../utils/app_logger.dart';
 import '../utils/snackbar_helper.dart';
+import '../l10n/l10n.dart';
 
 /// グループメンバータイル（タップでロール変更、ダブルタップで個人用ホワイトボード編集）
 class MemberTileWithWhiteboard extends ConsumerStatefulWidget {
@@ -114,7 +115,9 @@ class _MemberTileWithWhiteboardState
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    isCurrentUser ? 'ダブルタップで開く' : 'ダブルタップで確認',
+                    isCurrentUser
+                        ? texts.doubleTapToOpen
+                        : texts.doubleTapToView,
                     style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                   ),
                 ],
@@ -163,26 +166,26 @@ class _MemberTileWithWhiteboardState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '現在のロール: ${_getRoleLabel(currentRole)}',
+              texts.currentRoleLabel(_getRoleLabel(currentRole)),
               style: const TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 16),
             if (canPromote)
-              const Text(
-                'マネージャーに昇格すると、メンバー招待や\nリスト編集ができるようになります。',
-                style: TextStyle(fontSize: 13),
+              Text(
+                texts.promoteToManagerDesc,
+                style: const TextStyle(fontSize: 13),
               ),
             if (canDemote)
-              const Text(
-                'メンバーに降格すると、管理操作の\n権限が取り消されます。',
-                style: TextStyle(fontSize: 13),
+              Text(
+                texts.demoteToMemberDesc,
+                style: const TextStyle(fontSize: 13),
               ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('キャンセル'),
+            child: Text(texts.cancel),
           ),
           if (canPromote)
             ElevatedButton.icon(
@@ -191,11 +194,11 @@ class _MemberTileWithWhiteboardState
                 await _updateMemberRole(ref, group, SharedGroupRole.manager);
                 if (context.mounted) {
                   SnackBarHelper.showSuccess(
-                      context, '${member.name} さんをマネージャーに昇格しました');
+                      context, texts.promotedToManager(member.name));
                 }
               },
               icon: const Icon(Icons.arrow_upward, size: 16),
-              label: const Text('マネージャーに昇格'),
+              label: Text(texts.promoteToManager),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
                 foregroundColor: Colors.white,
@@ -208,11 +211,11 @@ class _MemberTileWithWhiteboardState
                 await _updateMemberRole(ref, group, SharedGroupRole.member);
                 if (context.mounted) {
                   SnackBarHelper.showSuccess(
-                      context, '${member.name} さんをメンバーに降格しました');
+                      context, texts.demotedToMemberMsg(member.name));
                 }
               },
               icon: const Icon(Icons.arrow_downward, size: 16),
-              label: const Text('メンバーに降格'),
+              label: Text(texts.demoteToMemberAction),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
                 foregroundColor: Colors.white,
@@ -267,14 +270,14 @@ class _MemberTileWithWhiteboardState
                 color: Colors.blue.shade50,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.touch_app, size: 14, color: Colors.blue),
-                  SizedBox(width: 6),
+                  const Icon(Icons.touch_app, size: 14, color: Colors.blue),
+                  const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      'ダブルタップでホワイトボードを表示',
-                      style: TextStyle(fontSize: 12, color: Colors.blue),
+                      texts.doubleTapWhiteboardHint,
+                      style: const TextStyle(fontSize: 12, color: Colors.blue),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -286,7 +289,7 @@ class _MemberTileWithWhiteboardState
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('閉じる'),
+            child: Text(texts.close),
           ),
         ],
       ),
@@ -494,13 +497,13 @@ class _MemberTileWithWhiteboardState
   String _getRoleLabel(SharedGroupRole role) {
     switch (role) {
       case SharedGroupRole.owner:
-        return 'オーナー';
+        return texts.owner;
       case SharedGroupRole.manager:
-        return 'マネージャー';
+        return texts.manager;
       case SharedGroupRole.partner:
-        return 'パートナー';
+        return texts.partner;
       case SharedGroupRole.member:
-        return 'メンバー';
+        return texts.member;
     }
   }
 }

@@ -128,7 +128,7 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
                           controller: _nameController,
                           decoration: InputDecoration(
                             labelText: texts.productName,
-                            hintText: '例: 牛乳',
+                            hintText: texts.itemNameHintMilk,
                             border: const OutlineInputBorder(),
                             errorText: _validationError?.contains('商品名') == true
                                 ? _validationError
@@ -221,9 +221,9 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
                                         border: OutlineInputBorder(),
                                       ),
                                       items: [
-                                        const DropdownMenuItem(
+                                        DropdownMenuItem(
                                           value: 0,
-                                          child: Text('0 (なし)'),
+                                          child: Text(texts.intervalNone),
                                         ),
                                         ...List.generate(
                                                 30, (index) => index + 1)
@@ -283,7 +283,7 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
                               Text(
                                 _intervalValue == 0
                                     ? texts.noRepeatPurchase
-                                    : '${_calculateIntervalDays(_intervalValue, _intervalUnit)}日ごとに購入',
+                                    : texts.intervalDaysSuffix(_calculateIntervalDays(_intervalValue, _intervalUnit)),
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.grey[600],

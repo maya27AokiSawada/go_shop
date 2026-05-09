@@ -81,7 +81,7 @@ class _GroupCreationWithCopyDialogState
             children: [
               const Icon(Icons.error, color: Colors.red, size: 48),
               const SizedBox(height: 16),
-              Text('エラー: $error'),
+              Text('${texts.errorWithPrefix}: $error'),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(),

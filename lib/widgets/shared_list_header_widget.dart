@@ -325,8 +325,8 @@ class SharedListHeaderWidget extends ConsumerWidget {
             horizontal: 16,
             vertical: isNarrowLandscape ? 8 : 24,
           ),
-          title: Text(
-              texts.createNewSharedList(AppModeSettings.config.sharedList)),
+          title: Text(texts.createNewSharedList(texts.sharedListNameForMode(
+              AppModeSettings.currentMode == AppMode.shopping))),
           content: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
             child: SingleChildScrollView(

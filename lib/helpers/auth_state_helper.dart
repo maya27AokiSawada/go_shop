@@ -44,16 +44,16 @@ class AuthStateHelper {
             ),
             const SizedBox(height: 16),
             Text(
-              '$featureNameを利用するには',
+              texts.featureRequiresSignUp(featureName),
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'サインアップが必要です',
-              style: TextStyle(
+            Text(
+              texts.signUpRequiredMsg,
+              style: const TextStyle(
                 fontSize: 14,
                 color: Colors.grey,
               ),
@@ -134,20 +134,20 @@ class AuthStateHelper {
           color: Colors.grey,
         ),
         const SizedBox(height: 24),
-        const Text(
-          'Go Shopへようこそ！',
-          style: TextStyle(
+        Text(
+          texts.welcomeToGoShop,
+          style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
           ),
         ),
         const SizedBox(height: 16),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 32),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
           child: Text(
-            '家族やグループでリストを共有して、\nより便利に管理しましょう',
+            texts.welcomeSubtitle,
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 16,
               color: Colors.grey,
             ),
@@ -160,9 +160,9 @@ class AuthStateHelper {
             padding: const EdgeInsets.all(20),
             child: Column(
               children: [
-                const Text(
-                  '✨ 利用可能な機能',
-                  style: TextStyle(
+                Text(
+                  texts.availableFeatures,
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
@@ -173,7 +173,8 @@ class AuthStateHelper {
                     const Icon(Icons.check_circle,
                         color: Colors.green, size: 20),
                     const SizedBox(width: 8),
-                    Text('個人用${AppModeSettings.config.sharedList}作成'),
+                    Text(texts.personalListCreate(texts.sharedListNameForMode(
+                        AppModeSettings.currentMode == AppMode.shopping))),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -181,7 +182,8 @@ class AuthStateHelper {
                   children: [
                     const Icon(Icons.cancel, color: Colors.grey, size: 20),
                     const SizedBox(width: 8),
-                    Text(texts.groupListSharing, style: const TextStyle(color: Colors.grey)),
+                    Text(texts.groupListSharing,
+                        style: const TextStyle(color: Colors.grey)),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -189,7 +191,8 @@ class AuthStateHelper {
                   children: [
                     const Icon(Icons.cancel, color: Colors.grey, size: 20),
                     const SizedBox(width: 8),
-                    Text(texts.qrInviteFeature, style: const TextStyle(color: Colors.grey)),
+                    Text(texts.qrInviteFeature,
+                        style: const TextStyle(color: Colors.grey)),
                   ],
                 ),
                 const SizedBox(height: 20),
@@ -214,14 +217,7 @@ class AuthStateHelper {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(texts.signUpRequiredTitle),
-        content: const Text(
-          'この機能を利用するには、アカウント作成が必要です。\n'
-          'サインアップすると以下の機能が利用できます：\n\n'
-          '• グループでのリスト共有\n'
-          '• QRコードでの簡単招待\n'
-          '• メンバー管理機能\n'
-          '• バックアップとデータ同期',
-        ),
+        content: Text(texts.signUpPromptBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/news_provider.dart';
+import '../../l10n/l10n.dart';
 import '../../services/user_preferences_service.dart';
 import '../../utils/app_logger.dart';
 
@@ -50,9 +51,7 @@ class _LanguageSettingsPanelState extends ConsumerState<LanguageSettingsPanel> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            newLang == 'en'
-                ? 'Language changed to English. Restart for full effect.'
-                : '言語を日本語に変更しました。完全に反映するには再起動してください。',
+            newLang == 'en' ? texts.languageChangedEn : texts.languageChangedJa,
           ),
           duration: const Duration(seconds: 3),
         ),
@@ -78,7 +77,7 @@ class _LanguageSettingsPanelState extends ConsumerState<LanguageSettingsPanel> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '表示言語 / Language',
+                  texts.displayLanguageTitle,
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -90,18 +89,18 @@ class _LanguageSettingsPanelState extends ConsumerState<LanguageSettingsPanel> {
           ),
           const SizedBox(height: 8),
           Text(
-            'アプリの表示言語を選択します（再起動で完全反映）',
+            texts.displayLanguageDesc,
             style: TextStyle(fontSize: 12, color: Colors.teal.shade600),
           ),
           const SizedBox(height: 12),
           SegmentedButton<String>(
-            segments: const [
+            segments: [
               ButtonSegment<String>(
                 value: 'ja',
-                label: Text('日本語'),
-                icon: Icon(Icons.flag, size: 16),
+                label: Text(texts.languageJa),
+                icon: const Icon(Icons.flag, size: 16),
               ),
-              ButtonSegment<String>(
+              const ButtonSegment<String>(
                 value: 'en',
                 label: Text('English'),
                 icon: Icon(Icons.language, size: 16),

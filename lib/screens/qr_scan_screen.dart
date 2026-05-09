@@ -47,7 +47,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
           IconButton(
             onPressed: () => _showManualInputDialog(context),
             icon: const Icon(Icons.keyboard),
-            tooltip: 'コード手動入力',
+            tooltip: texts.tooltipManualInput,
           ),
         ],
       ),
@@ -66,15 +66,15 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
           if (isProcessing)
             Container(
               color: Colors.black54,
-              child: const Center(
+              child: Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircularProgressIndicator(color: Colors.white),
-                    SizedBox(height: 16),
+                    const CircularProgressIndicator(color: Colors.white),
+                    const SizedBox(height: 16),
                     Text(
-                      '招待コードを確認中...',
-                      style: TextStyle(color: Colors.white),
+                      texts.checkingInviteCode,
+                      style: const TextStyle(color: Colors.white),
                     ),
                   ],
                 ),
@@ -157,7 +157,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'QRコードを枠内に合わせてください',
+                  texts.qrScanInstruction,
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
@@ -165,7 +165,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'QRコードが見つからない場合は、右上のキーボードアイコンから招待コードを手動入力できます。',
+            texts.qrManualInputHint,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Colors.grey.shade600,
                 ),
@@ -235,7 +235,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
       }
     } catch (e) {
       if (mounted) {
-        SnackBarHelper.showError(context, 'エラー: $e');
+        SnackBarHelper.showError(context, '${texts.errorWithDetail}$e');
 
         // エラー時はスキャンを続行
         lastScannedCode = null;

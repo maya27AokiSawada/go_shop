@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/user_settings_provider.dart';
 import '../../datastore/user_settings_repository.dart';
+import '../../l10n/l10n.dart';
 
 /// ホワイトボード設定パネル
 class WhiteboardSettingsPanel extends ConsumerWidget {
@@ -28,7 +29,7 @@ class WhiteboardSettingsPanel extends ConsumerWidget {
                   Icon(Icons.palette, color: Colors.purple.shade700, size: 20),
                   const SizedBox(width: 8),
                   Text(
-                    'ホワイトボード設定',
+                    texts.whiteboardSettingsTitle,
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -38,22 +39,22 @@ class WhiteboardSettingsPanel extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              const Text(
-                'カスタム色設定',
-                style: TextStyle(fontWeight: FontWeight.bold),
+              Text(
+                texts.customColorSettingsTitle,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              const Text(
-                '基本4色（黒・赤・緑・黄）に加えて、2色を自由に設定できます',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+              Text(
+                texts.customColorSettingsDesc,
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
               const SizedBox(height: 16),
 
               // 色5の選択
               Row(
                 children: [
-                  const Text('色5: ',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(texts.colorSlot(5),
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(width: 8),
                   _buildColorSelector(
                     context,
@@ -69,8 +70,8 @@ class WhiteboardSettingsPanel extends ConsumerWidget {
               // 色6の選択
               Row(
                 children: [
-                  const Text('色6: ',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(texts.colorSlot(6),
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(width: 8),
                   _buildColorSelector(
                     context,
@@ -86,7 +87,7 @@ class WhiteboardSettingsPanel extends ConsumerWidget {
         );
       },
       loading: () => const CircularProgressIndicator(),
-      error: (error, stack) => Text('エラー: $error'),
+      error: (error, stack) => Text('${texts.errorWithPrefix}: $error'),
     );
   }
 

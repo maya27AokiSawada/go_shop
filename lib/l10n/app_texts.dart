@@ -221,6 +221,7 @@ abstract class AppTexts {
   String get sharedListAppSubtitle;
   String get switchToSignIn;
   String get switchToCreateAccount;
+  String get resetPassword;
   String get rememberEmail;
   String get forNewUsers;
   String get howToUse;
@@ -246,10 +247,19 @@ abstract class AppTexts {
   String get groupLoadFailed;
   String get createFirstGroupHint;
   String get createGroupHint;
+  // Initial setup widget
+  String initialSetupDesc(String listName);
+  String get createFirstGroup;
+  String get joinGroupByQR;
+  String get aboutGroups;
+  String get aboutGroupsDesc;
+  String get groupNameHint;
+  String get createGroupFailed;
   String get deleteGroupWarning;
   String get leaveGroupWarning;
   String get deletingGroup;
   String get leavingGroup;
+  String get leaveRequestSent;
   String get copyMembersFrom;
   String get selectGroupHint;
   String get newGroupNoMembers;
@@ -581,4 +591,301 @@ abstract class AppTexts {
   String get tipGroupScreenBody;
   String get tipMemberScreenTitle;
   String get tipMemberScreenBody;
+
+  // ========================================
+  // 同期状態アイコン（AppBar）
+  // ========================================
+  String get syncStatusSynced;
+  String get syncStatusSyncing;
+  String get syncStatusOffline;
+  String get syncStatusNotLoggedIn;
+  String get networkOfflineStatus;
+  String get checkingConnectionStatus;
+  String get notSignedIn;
+
+  // ========================================
+  // ヘルプダイアログ
+  // ========================================
+  String get helpTitle;
+  String get helpBasicUsage;
+  String helpBasicUsagePoint(int n);
+  String get helpGroupInvite;
+  String helpGroupInvitePoint(int n);
+  String get helpSyncIcons;
+  String helpSyncIconPoint(int n);
+  String get legalTitle;
+  String get versionInfoTitle;
+  String get versionLabel;
+  String get buildNumberLabel;
+  String get packageNameLabel;
+  String get appFooterSubtitle;
+
+  // ========================================
+  // 招待受諾ウィジェット
+  // ========================================
+  String get inviteAcceptTitle;
+  String get inviteAcceptDesc;
+  String get invalidQRCodeMsg;
+  String get cameraErrorPrefix;
+  String get unknownGroup;
+  String invitationPendingApproval(String groupName);
+
+  // ========================================
+  // ホームページ
+  // ========================================
+  String get privacyPoint1;
+  String get privacyPoint2;
+  String get privacyPoint3;
+  String get privacyPoint4;
+  String get forNewUsersDesc;
+  String howToUsePoint(int n);
+
+  // ========================================
+  // 認証エラーメッセージ
+  // ========================================
+  String get signUpFailed;
+  String get emailAlreadyInUse;
+  String get weakPassword;
+  String get signInFailed;
+  String get userNotFoundSignIn;
+  String get wrongEmailOrPassword;
+
+  // ========================================
+  // 共有リスト（アイテム表示）
+  // ========================================
+  String quantityDisplay(int quantity);
+  String deadlineDisplay(String date);
+  String intervalDisplay(int days);
+  String itemDeletedName(String name);
+  String itemDeleteFailed(String e);
+  String itemDeleteConfirm(String name);
+
+  // ========================================
+  // アカウント削除（詳細テキスト）
+  // ========================================
+  String deleteAccountWarningBody(String listName);
+  String finalConfirmationBody(String email);
+  String get deletionCompleteBody;
+  String deletionFailedBody(String e);
+
+  // ========================================
+  // グループリスト
+  // ========================================
+  String memberCount(int count);
+  String ownerDisplay(String name);
+  String syncErrorMessage(String error);
+
+  // ========================================
+  // 言語設定パネル
+  // ========================================
+  String get displayLanguageTitle;
+  String get displayLanguageDesc;
+  String get languageJa;
+  String get languageChangedEn;
+  String get languageChangedJa;
+
+  // ========================================
+  // QRスキャンオーバーレイ
+  // ========================================
+  String get qrCodeHereOverlay;
+
+  // ========================================
+  // アプリモード依存の表示名（l10n化）
+  // ========================================
+  /// shopping=true → '買い物リスト' / 'Shopping List'
+  /// shopping=false → 'タスクリスト' / 'Task List'
+  String sharedListNameForMode(bool isShopping);
+
+  /// shopping=true → 'グループ' / 'Group'
+  /// shopping=false → 'チーム' / 'Team'
+  String groupNameForMode(bool isShopping);
+
+  // ========================================
+  // アイテム編集モーダル
+  // ========================================
+  String get itemNameHintMilk;
+  String get intervalNone;
+  String intervalDaysSuffix(int days);
+
+  // ========================================
+  // ホワイトボード設定パネル
+  // ========================================
+  String get whiteboardSettingsTitle;
+  String get customColorSettingsTitle;
+  String get customColorSettingsDesc;
+  String colorSlot(int n);
+  String get errorWithPrefix;
+
+  // ========================================
+  // フィードバックセクション
+  // ========================================
+  String get feedbackSectionTitle;
+  String get feedbackSectionDesc;
+  String get feedbackSectionSubDesc;
+  String get feedbackButton;
+  String get feedbackThanks;
+  String get formOpenFailed;
+
+  // ========================================
+  // 設定ページ
+  // ========================================
+  String get settingsPagePlaceholder;
+  String get goShopSettingsLabel;
+  String get checkingAuthStatus;
+  String get errorOccurredTitle;
+
+  // ========================================
+  // アプリモード切り替えパネル
+  // ========================================
+  String get appModeTitle;
+  String get appModeDesc;
+
+  // ========================================
+  // 認証状態ヘルパー
+  // ========================================
+  String featureRequiresSignUp(String feature);
+  String get signUpRequiredMsg;
+  String get welcomeToGoShop;
+  String get welcomeSubtitle;
+  String get availableFeatures;
+  String personalListCreate(String listType);
+  String get signUpPromptBody;
+
+  // ========================================
+  // 通知履歴ページ
+  // ========================================
+  String get weeksAgo;
+  String get monthsAgo;
+  String get yearsAgo;
+  String get timeUnknown;
+  String get unread;
+  String get tooltipMarkRead;
+  String get tooltipDeleteRead;
+  String get tooltipReload;
+  String get firestoreIndexRequired;
+  String get firestoreIndexDesc;
+  String get errorWithDetail;
+
+  // ========================================
+  // エラー履歴ページ
+  // ========================================
+  String get unknownOperation;
+  String get noErrorDetailMsg;
+  String get permissionErrorLabel;
+  String get networkErrorLabel;
+  String get syncErrorLabel;
+  String get validationErrorLabel;
+  String get operationErrorLabel;
+  String get unknownErrorLabel;
+  String get operationLabel;
+  String get messageLabel;
+  String get occurredAtLabel;
+  String get contextLabel;
+  String get stackTraceLabel;
+
+  // ========================================
+  // QRコード表示・スキャン画面
+  // ========================================
+  String get qrScanInstruction;
+  String get qrManualInputHint;
+  String get inviteGenFailed;
+  String get qrScanDialogTitle;
+  String get qrScanDialogContent;
+  String get qrScanButton;
+
+  // ========================================
+  // グループ招待ページ
+  // ========================================
+  String get inviteType;
+  String get inviteByQRTitle;
+  String get scanQRToJoinDesc;
+  String maxInviteCount(int n);
+  String get howToInviteTitle;
+  String get howToInviteDesc;
+
+  // ========================================
+  // QRスキャン画面追加
+  // ========================================
+  String get checkingInviteCode;
+  String get tooltipManualInput;
+
+  // ========================================
+  // 通知メッセージ（メタデータから再構築）
+  // ========================================
+  String notifListCreated(String name, String list);
+  String notifListDeleted(String name, String list);
+  String notifRenamed(String name, String oldName, String newName);
+  String notifMemberJoined(String name, String group);
+  String notifMembershipApproved(String group);
+  String notifGroupDeleted(String name, String group);
+  String notifMemberLeft(String name, String group);
+  String notifYouLeft(String group);
+  String notifItemAdded(String name, String item, String list);
+  String notifItemRemoved(String name, String item, String list);
+  String notifItemPurchased(String name, String item, String list);
+  String notifWhiteboardUpdated(String name);
+  String notifWhiteboardEditStarted(String name);
+  String notifWhiteboardEditEnded(String name);
+
+  // ========================================
+  // エラーログ operation名
+  // ========================================
+  String get opSignIn;
+  String get opCreateAccount;
+  String get opSaveUserName;
+  String get opResetPassword;
+  String get opSignUp;
+  String get opAddMember;
+  String get opUpdateGroupName;
+  String get opSaveWhiteboard;
+  String get opClearWhiteboard;
+  String get opUpdatePurchaseStatus;
+  String get opUpdateGroupMember;
+  String get opSendNotification;
+  String get opLoadUserName;
+  String get opUpdateAllGroupUserNames;
+  String get opGetGroupUserName;
+  String get opGetGroupMembers;
+  String get opSignOutClear;
+  String get opGetFirestoreUserName;
+  String get opSaveFirestoreUserName;
+  String get opDeleteFirestoreUserName;
+  String get opCreateUserProfile;
+  String get opSaveBillingType;
+  String get opSearchInvitableGroups;
+  String get opSendInvite;
+  String get opAcceptInvitation;
+  String get opSearchPendingInvitations;
+  String get opRecordInvitation;
+  String get opGetPendingInvitations;
+  String get opMarkInvitationProcessed;
+  String get opDeleteInvitation;
+  String get opCreateQrInvite;
+  String get opDecodeQrCode;
+  String get opGetQrInviteDetails;
+  String get opAcceptQrInvite;
+
+  // ========================================
+  // メンバーロール変更ダイアログ
+  // ========================================
+  String currentRoleLabel(String role);
+  String get promoteToManagerDesc;
+  String get demoteToMemberDesc;
+  String get promoteToManager;
+  String get demoteToMemberAction;
+  String promotedToManager(String name);
+  String demotedToMemberMsg(String name);
+  String get doubleTapWhiteboardHint;
+  String get doubleTapToOpen;
+  String get doubleTapToView;
+
+  // ========================================
+  // グループメンバー管理画面
+  // ========================================
+  String memberAddedMsg(String name);
+  String get memberAddFailed;
+  String get createAccountFailed;
+  String groupNameChangedMsg(String name);
+  String get groupNameUpdateFailed;
+  String get inviteFromPlusButton;
 }

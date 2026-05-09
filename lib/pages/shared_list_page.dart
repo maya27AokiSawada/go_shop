@@ -372,14 +372,14 @@ class _SharedItemTile extends ConsumerWidget {
   }
 
   Widget? _buildSubtitle() {
-    final subtitleParts = <String>['数量: ${item.quantity}'];
+    final subtitleParts = <String>[texts.quantityDisplay(item.quantity)];
 
     if (item.deadline != null) {
-      subtitleParts.add('期限: ${_formatDate(item.deadline!)}');
+      subtitleParts.add(texts.deadlineDisplay(_formatDate(item.deadline!)));
     }
 
     if (item.shoppingInterval > 0) {
-      subtitleParts.add('${item.shoppingInterval}日ごと');
+      subtitleParts.add(texts.intervalDisplay(item.shoppingInterval));
     }
 
     if (subtitleParts.isEmpty) {
@@ -425,7 +425,7 @@ class _SharedItemTile extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(texts.confirm),
-        content: Text('「${item.name}」を削除しますか？'),
+        content: Text(texts.itemDeleteConfirm(item.name)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
@@ -461,7 +461,8 @@ class _SharedItemTile extends ConsumerWidget {
                   Navigator.of(dialogContext).pop();
                 }
                 if (context.mounted) {
-                  SnackBarHelper.showSuccess(context, '「${item.name}」を削除しました');
+                  SnackBarHelper.showSuccess(
+                      context, texts.itemDeletedName(item.name));
                 }
               } catch (e, stackTrace) {
                 Log.error('❌ アイテム削除エラー: $e', e, stackTrace);
@@ -471,7 +472,8 @@ class _SharedItemTile extends ConsumerWidget {
                   Navigator.of(dialogContext).pop();
                 }
                 if (context.mounted) {
-                  SnackBarHelper.showError(context, '削除に失敗しました: $e');
+                  SnackBarHelper.showError(
+                      context, texts.itemDeleteFailed(e.toString()));
                 }
               }
             },

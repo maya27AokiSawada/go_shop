@@ -279,7 +279,7 @@ class _GroupMemberManagementPageState
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                '縦向きでの使用を推奨します',
+                texts.recommendPortrait,
                 style: TextStyle(
                   fontSize: 12,
                   color: Colors.orange.shade700,
@@ -393,15 +393,15 @@ class _GroupMemberManagementPageState
         children: [
           const Icon(Icons.group_off, size: 64, color: Colors.grey),
           const SizedBox(height: 16),
-          const Text(
-            'メンバーがいません',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+          Text(
+            texts.noMembers,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 8),
-          const Text(
-            '右上の + ボタンから\nメンバーを招待してください',
+          Text(
+            texts.inviteFromPlusButton,
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey),
+            style: const TextStyle(color: Colors.grey),
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
@@ -513,9 +513,9 @@ class _GroupMemberManagementPageState
             const SizedBox(height: 16),
             TextField(
               controller: emailController,
-              decoration: const InputDecoration(
-                labelText: 'メールアドレス',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: texts.email,
+                border: const OutlineInputBorder(),
               ),
               keyboardType: TextInputType.emailAddress,
             ),
@@ -561,17 +561,17 @@ class _GroupMemberManagementPageState
       AppLogger.info('✅ [MEMBER_MGMT] メンバー追加完了: ${member.name}');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${member.name} を追加しました')),
+        SnackBar(content: Text(texts.memberAddedMsg(member.name))),
       );
 
       // 🔥 修正: SnackBar表示後にinvalidate
       ref.invalidate(selectedGroupProvider);
     } catch (e) {
       AppLogger.error('❌ [MEMBER_MGMT] メンバー追加エラー: $e');
-      await ErrorLogService.logOperationError('メンバー追加', '$e');
+      await ErrorLogService.logOperationError(texts.opAddMember, '$e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('追加に失敗しました: $e')),
+        SnackBar(content: Text('${texts.memberAddFailed}: $e')),
       );
     }
   }
@@ -623,17 +623,17 @@ class _GroupMemberManagementPageState
 
       AppLogger.info('✅ [GROUP_MGMT] グループ名更新完了: $trimmedName');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('グループ名を「$trimmedName」に変更しました')),
+        SnackBar(content: Text(texts.groupNameChangedMsg(trimmedName))),
       );
 
       // 🔥 修正: SnackBar表示後にinvalidate（プロバイダーを更新）
       ref.invalidate(allGroupsProvider);
     } catch (e) {
       AppLogger.error('❌ [GROUP_MGMT] グループ名更新エラー: $e');
-      await ErrorLogService.logOperationError('グループ名更新', '$e');
+      await ErrorLogService.logOperationError(texts.opUpdateGroupName, '$e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('グループ名の更新に失敗しました: $e')),
+        SnackBar(content: Text('${texts.groupNameUpdateFailed}: $e')),
       );
     }
   }

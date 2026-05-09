@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/feedback_status_service.dart';
 import '../../utils/app_logger.dart';
+import '../../l10n/l10n.dart';
 
 /// フィードバック送信セクション（全ユーザー表示）
 class FeedbackSection extends StatefulWidget {
@@ -19,8 +20,8 @@ class _FeedbackSectionState extends State<FeedbackSection> {
       if (!await canLaunchUrl(Uri.parse(feedbackFormUrl))) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('フォームを開くことができませんでした'),
+            SnackBar(
+              content: Text(texts.formOpenFailed),
               backgroundColor: Colors.red,
             ),
           );
@@ -40,10 +41,10 @@ class _FeedbackSectionState extends State<FeedbackSection> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('ご協力ありがとうございます！'),
+          SnackBar(
+            content: Text(texts.feedbackThanks),
             backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
+            duration: const Duration(seconds: 2),
           ),
         );
       }
@@ -77,7 +78,7 @@ class _FeedbackSectionState extends State<FeedbackSection> {
                 Icon(Icons.feedback, color: Colors.purple.shade700),
                 const SizedBox(width: 8),
                 Text(
-                  'フィードバック送信',
+                  texts.feedbackSectionTitle,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: Colors.purple.shade700,
@@ -87,12 +88,12 @@ class _FeedbackSectionState extends State<FeedbackSection> {
             ),
             const SizedBox(height: 12),
             Text(
-              'ご意見・ご感想をお聞かせください',
+              texts.feedbackSectionDesc,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 4),
             Text(
-              'テスト版の改善にご協力いただきます。わずか1分程度です。',
+              texts.feedbackSectionSubDesc,
               style: Theme.of(context)
                   .textTheme
                   .bodySmall
@@ -106,7 +107,7 @@ class _FeedbackSectionState extends State<FeedbackSection> {
                   await _openFeedbackForm();
                 },
                 icon: const Icon(Icons.open_in_new, size: 18),
-                label: const Text('アンケートに答える'),
+                label: Text(texts.feedbackButton),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.purple.shade600,
                   foregroundColor: Colors.white,

@@ -17,6 +17,7 @@ import '../widgets/settings/data_maintenance_section.dart';
 import '../widgets/settings/feedback_section.dart';
 import '../widgets/settings/account_deletion_section.dart';
 import '../widgets/settings/app_ui_mode_switcher_panel.dart';
+import '../l10n/l10n.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -100,7 +101,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 ],
                 Center(
                   child: Text(
-                    '設定ページ（仮）',
+                    texts.settingsPagePlaceholder,
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -115,14 +116,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     color: Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Row(
+                  child: Row(
                     children: [
-                      Icon(Icons.settings, size: 16, color: Colors.grey),
-                      SizedBox(width: 8),
+                      const Icon(Icons.settings, size: 16, color: Colors.grey),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Go Shop 設定',
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                          texts.goShopSettingsLabel,
+                          style:
+                              const TextStyle(fontSize: 12, color: Colors.grey),
                         ),
                       ),
                     ],
@@ -132,13 +134,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             ),
           );
         },
-        loading: () => const Center(
+        loading: () => Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('認証状態を確認中...'),
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(texts.checkingAuthStatus),
             ],
           ),
         ),
@@ -150,9 +152,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               children: [
                 const Icon(Icons.error_outline, size: 48, color: Colors.red),
                 const SizedBox(height: 16),
-                const Text(
-                  'エラーが発生しました',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                Text(
+                  texts.errorOccurredTitle,
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 Text(

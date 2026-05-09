@@ -519,6 +519,8 @@ class AppTextsEn extends AppTexts {
 
   @override
   String get switchToSignIn => 'Switch to Sign In';
+  @override
+  String get resetPassword => 'Reset Password';
 
   @override
   String get switchToCreateAccount => 'Switch to Create Account';
@@ -566,6 +568,24 @@ class AppTextsEn extends AppTexts {
   @override
   String get createGroupHint => 'Tap the + button to create a group';
   @override
+  String initialSetupDesc(String listName) =>
+      'Share $listName with your group.\nFirst, create a group or\njoin an existing group.';
+  @override
+  String get createFirstGroup => 'Create first group';
+  @override
+  String get joinGroupByQR => 'Join group by QR code';
+  @override
+  String get aboutGroups => 'About Groups';
+  @override
+  String get aboutGroupsDesc =>
+      '\u2022 Share shopping lists within your group\n'
+      '\u2022 Create multiple groups for family, friends, work\n'
+      '\u2022 Invite & join easily with QR codes';
+  @override
+  String get groupNameHint => 'e.g. Family, Friends, Work';
+  @override
+  String get createGroupFailed => 'Failed to create group';
+  @override
   String get deleteGroupWarning =>
       'This cannot be undone.\nAll group data will be deleted.';
   @override
@@ -575,6 +595,9 @@ class AppTextsEn extends AppTexts {
   String get deletingGroup => 'Deleting group...';
   @override
   String get leavingGroup => 'Leaving group...';
+  @override
+  String get leaveRequestSent =>
+      'Leave request sent. Group will disappear once processed.';
   @override
   String get copyMembersFrom => 'Copy members from existing group (optional):';
   @override
@@ -1130,21 +1153,519 @@ class AppTextsEn extends AppTexts {
   @override
   String get tipTapTitle => 'Basic: Tap';
   @override
-  String get tipTapBody => 'Tap to toggle item status, select current group, and more.';
+  String get tipTapBody =>
+      'Tap to toggle item status, select current group, and more.';
   @override
   String get tipDoubleTapTitle => 'Pro tip: Double-tap';
   @override
-  String get tipDoubleTapBody => 'Double-tap to edit items, view member whiteboards, and more.';
+  String get tipDoubleTapBody =>
+      'Double-tap to edit items, view member whiteboards, and more.';
   @override
   String get tipLongPressTitle => 'Safe action: Long-press';
   @override
-  String get tipLongPressBody => 'Long-press for destructive actions like deleting items or leaving groups.';
+  String get tipLongPressBody =>
+      'Long-press for destructive actions like deleting items or leaving groups.';
   @override
   String get tipGroupScreenTitle => 'Group screen';
   @override
-  String get tipGroupScreenBody => 'Tap → select current, double-tap → manage members, long-press → delete/leave.';
+  String get tipGroupScreenBody =>
+      'Tap → select current, double-tap → manage members, long-press → delete/leave.';
   @override
   String get tipMemberScreenTitle => 'Members screen';
   @override
-  String get tipMemberScreenBody => 'Tap → change role (owner) or view info, double-tap → whiteboard.';
+  String get tipMemberScreenBody =>
+      'Tap → change role (owner) or view info, double-tap → whiteboard.';
+
+  // Sync status icons
+  @override
+  String get syncStatusSynced => 'Synced';
+  @override
+  String get syncStatusSyncing => 'Syncing...';
+  @override
+  String get syncStatusOffline => 'Disconnected';
+  @override
+  String get syncStatusNotLoggedIn => 'Not logged in';
+  @override
+  String get networkOfflineStatus => 'Network failure';
+  @override
+  String get checkingConnectionStatus => 'Checking connection...';
+  @override
+  String get notSignedIn => 'Not signed in';
+
+  // Help dialog
+  @override
+  String get helpTitle => 'Help';
+  @override
+  String get helpBasicUsage => 'Basic Usage';
+  @override
+  String helpBasicUsagePoint(int n) {
+    const points = [
+      'Create a group and invite members',
+      'Share lists and sync in real time',
+      'Add items and mark them as purchased',
+    ];
+    return n >= 1 && n <= points.length ? points[n - 1] : '';
+  }
+
+  @override
+  String get helpGroupInvite => 'Group Invitation';
+  @override
+  String helpGroupInvitePoint(int n) {
+    const points = [
+      'Show a QR code to invite members',
+      'Scan a QR code to join a group',
+      'Invitations are valid for 24 hours, up to 5 members',
+    ];
+    return n >= 1 && n <= points.length ? points[n - 1] : '';
+  }
+
+  @override
+  String get helpSyncIcons => 'Sync Status Icons';
+  @override
+  String helpSyncIconPoint(int n) {
+    const points = [
+      '🟢 Green: Synced',
+      '🟠 Orange: Syncing',
+      '🔴 Red: Disconnected',
+      '⚪ Gray: Not logged in',
+    ];
+    return n >= 1 && n <= points.length ? points[n - 1] : '';
+  }
+
+  @override
+  String get legalTitle => 'Legal';
+  @override
+  String get versionInfoTitle => 'Version Info';
+  @override
+  String get versionLabel => 'Version';
+  @override
+  String get buildNumberLabel => 'Build Number';
+  @override
+  String get packageNameLabel => 'Package Name';
+  @override
+  String get appFooterSubtitle => 'sharing app';
+
+  // Invitation accept widget
+  @override
+  String get inviteAcceptTitle => 'Accept Invitation';
+  @override
+  String get inviteAcceptDesc =>
+      'Invited to a group?\nScan a QR code or enter an invite code.';
+  @override
+  String get invalidQRCodeMsg => 'Invalid QR code format';
+  @override
+  String get cameraErrorPrefix => 'Camera error:';
+  @override
+  String get unknownGroup => 'Unknown group';
+  @override
+  String invitationPendingApproval(String groupName) =>
+      'Waiting for approval from $groupName';
+
+  // Home page
+  @override
+  String get privacyPoint1 =>
+      'Only login info and display name are shared initially';
+  @override
+  String get privacyPoint2 => 'Lists are only shared with users you share with';
+  @override
+  String get privacyPoint3 => 'Users joining your group follow the same policy';
+  @override
+  String get privacyPoint4 => 'A Firebase account is required to use the app';
+  @override
+  String get forNewUsersDesc =>
+      'Create an account or sign in with your email and password.\nIf you already have an account, sign in with the same credentials.';
+  @override
+  String howToUsePoint(int n) {
+    const points = [
+      'Manage groups in the "Groups" tab at the bottom',
+      'Select a group to view its lists',
+      'Invite family and friends with a QR code',
+      'Configure app settings in the "Settings" tab',
+    ];
+    return n >= 1 && n <= points.length ? points[n - 1] : '';
+  }
+
+  // Auth error messages
+  @override
+  String get signUpFailed => 'Failed to create account';
+  @override
+  String get emailAlreadyInUse => 'This email address is already in use';
+  @override
+  String get weakPassword => 'Password is too weak';
+  @override
+  String get signInFailed => 'Sign in failed';
+  @override
+  String get userNotFoundSignIn => 'User not found. Please create an account';
+  @override
+  String get wrongEmailOrPassword => 'Incorrect email or password';
+
+  // Shared list
+  @override
+  String quantityDisplay(int quantity) => 'Qty: $quantity';
+  @override
+  String deadlineDisplay(String date) => 'Due: $date';
+  @override
+  String intervalDisplay(int days) => 'Every ${days}d';
+  @override
+  String itemDeletedName(String name) => 'Deleted "$name"';
+  @override
+  String itemDeleteFailed(String e) => 'Failed to delete: $e';
+  @override
+  String itemDeleteConfirm(String name) => 'Delete "$name"?';
+
+  // Account deletion
+  @override
+  String deleteAccountWarningBody(String listName) =>
+      '⚠️ This cannot be undone\n\nThe following will be permanently deleted:\n• Account info\n• All $listName\n• Groups you own\n• Whiteboard data\n• Notification history\n\nAre you sure?';
+  @override
+  String finalConfirmationBody(String email) =>
+      'Email: $email\n\nAre you sure you want to delete this account?\n\nThis action cannot be undone.';
+  @override
+  String get deletionCompleteBody =>
+      'Your account and all data have been deleted.\n\nThank you for using Go Shop.';
+  @override
+  String deletionFailedBody(String e) =>
+      'An error occurred while deleting the account.\n\nError:\n$e\n\nPlease contact the developer.';
+
+  // Group list
+  @override
+  String memberCount(int count) => 'Members: $count';
+  @override
+  String ownerDisplay(String name) => 'Owner: $name';
+  @override
+  String syncErrorMessage(String error) => 'Sync error: $error';
+
+  // Language settings panel
+  @override
+  String get displayLanguageTitle => 'Display Language / 表示言語';
+  @override
+  String get displayLanguageDesc =>
+      'Select app language (restart for full effect)';
+  @override
+  String get languageJa => '日本語';
+  @override
+  String get languageChangedEn =>
+      'Language changed to English. Restart for full effect.';
+  @override
+  String get languageChangedJa =>
+      'Language changed to Japanese. Restart for full effect.';
+
+  // QR scan overlay
+  @override
+  String get qrCodeHereOverlay => 'Place QR code here';
+
+  // App mode-dependent display names
+  @override
+  String sharedListNameForMode(bool isShopping) =>
+      isShopping ? 'Shopping List' : 'Task List';
+  @override
+  String groupNameForMode(bool isShopping) => isShopping ? 'Group' : 'Team';
+
+  // Item edit modal
+  @override
+  String get itemNameHintMilk => 'e.g., Milk';
+  @override
+  String get intervalNone => '0 (none)';
+  @override
+  String intervalDaysSuffix(int days) => 'Every $days day(s)';
+
+  // Whiteboard settings panel
+  @override
+  String get whiteboardSettingsTitle => 'Whiteboard Settings';
+  @override
+  String get customColorSettingsTitle => 'Custom Color Settings';
+  @override
+  String get customColorSettingsDesc =>
+      'In addition to 4 basic colors (black, red, green, yellow), you can set 2 custom colors';
+  @override
+  String colorSlot(int n) => 'Color $n: ';
+  @override
+  String get errorWithPrefix => 'Error';
+
+  // Feedback section
+  @override
+  String get feedbackSectionTitle => 'Send Feedback';
+  @override
+  String get feedbackSectionDesc => 'Share your feedback with us';
+  @override
+  String get feedbackSectionSubDesc =>
+      'Help improve the beta version. Takes about 1 minute.';
+  @override
+  String get feedbackButton => 'Take Survey';
+  @override
+  String get feedbackThanks => 'Thank you for your feedback!';
+  @override
+  String get formOpenFailed => 'Could not open the form';
+
+  // Settings page
+  @override
+  String get settingsPagePlaceholder => 'Settings';
+  @override
+  String get goShopSettingsLabel => 'Go Shop Settings';
+  @override
+  String get checkingAuthStatus => 'Checking authentication...';
+  @override
+  String get errorOccurredTitle => 'An error occurred';
+
+  // App mode switcher panel
+  @override
+  String get appModeTitle => 'App Mode';
+  @override
+  String get appModeDesc => 'Switch the display mode of the app';
+
+  // Auth state helper
+  @override
+  String featureRequiresSignUp(String feature) => 'To use $feature';
+  @override
+  String get signUpRequiredMsg => 'Sign up is required';
+  @override
+  String get welcomeToGoShop => 'Welcome to Go Shop!';
+  @override
+  String get welcomeSubtitle =>
+      'Share lists with family or group,\nfor more convenient management';
+  @override
+  String get availableFeatures => '✨ Available Features';
+  @override
+  String personalListCreate(String listType) => 'Create personal $listType';
+  @override
+  String get signUpPromptBody => 'An account is required to use this feature.\n'
+      'By signing up, you can use:\n\n'
+      '• Shared group lists\n'
+      '• Easy QR code invitation\n'
+      '• Member management\n'
+      '• Backup and data sync';
+
+  // Notification history page
+  @override
+  String get weeksAgo => ' weeks ago';
+  @override
+  String get monthsAgo => ' months ago';
+  @override
+  String get yearsAgo => ' years ago';
+  @override
+  String get timeUnknown => 'Unknown time';
+  @override
+  String get unread => 'Unread';
+  @override
+  String get tooltipMarkRead => 'Mark as read';
+  @override
+  String get tooltipDeleteRead => 'Delete read notifications';
+  @override
+  String get tooltipReload => 'Reload';
+  @override
+  String get firestoreIndexRequired => 'Firestore index required';
+  @override
+  String get firestoreIndexDesc =>
+      'Please create a composite index in Firebase Console';
+  @override
+  String get errorWithDetail => 'An error occurred: ';
+
+  // Error history page
+  @override
+  String get unknownOperation => 'Unknown operation';
+  @override
+  String get noErrorDetailMsg => 'No error details';
+  @override
+  String get permissionErrorLabel => 'Permission error';
+  @override
+  String get networkErrorLabel => 'Network error';
+  @override
+  String get syncErrorLabel => 'Sync error';
+  @override
+  String get validationErrorLabel => 'Validation error';
+  @override
+  String get operationErrorLabel => 'Operation error';
+  @override
+  String get unknownErrorLabel => 'Unknown error';
+  @override
+  String get operationLabel => 'Operation';
+  @override
+  String get messageLabel => 'Message';
+  @override
+  String get occurredAtLabel => 'Occurred at';
+  @override
+  String get contextLabel => 'Context';
+  @override
+  String get stackTraceLabel => 'Stack trace:';
+
+  // QR code display/scan screens
+  @override
+  String get qrScanInstruction => 'Align the QR code within the frame';
+  @override
+  String get qrManualInputHint =>
+      'If the QR code is not found, you can manually enter the invite code using the keyboard icon in the top right.';
+  @override
+  String get inviteGenFailed => 'Failed to generate invitation: ';
+  @override
+  String get qrScanDialogTitle => 'QR Code Invitation';
+  @override
+  String get qrScanDialogContent =>
+      'Scan the group invitation QR code\nto join the group';
+  @override
+  String get qrScanButton => 'Scan QR Code';
+
+  // Group invitation page
+  @override
+  String get inviteType => 'Invitation type';
+  @override
+  String get inviteByQRTitle => 'Invite by QR code';
+  @override
+  String get scanQRToJoinDesc => 'Scan this QR code to join the group';
+  @override
+  String maxInviteCount(int n) => 'Max invitees: $n';
+  @override
+  String get howToInviteTitle => 'How to invite';
+  @override
+  String get howToInviteDesc => '1. Have the other person scan the QR code\n'
+      '2. They will be automatically added as a member after accepting in the app\n'
+      '4. Check the group once you receive the acceptance notification';
+
+  // QR scan screen extras
+  @override
+  String get checkingInviteCode => 'Checking invite code...';
+  @override
+  String get tooltipManualInput => 'Enter code manually';
+
+  @override
+  String notifListCreated(String name, String list) => '$name created "$list"';
+  @override
+  String notifListDeleted(String name, String list) => '$name deleted "$list"';
+  @override
+  String notifRenamed(String name, String oldName, String newName) =>
+      '$name renamed "$oldName" to "$newName"';
+  @override
+  String notifMemberJoined(String name, String group) =>
+      '$name joined "$group"';
+  @override
+  String notifMembershipApproved(String group) => group.isNotEmpty
+      ? 'You joined "$group"'
+      : 'Your group membership was approved';
+  @override
+  String notifGroupDeleted(String name, String group) =>
+      '$name deleted "$group"';
+  @override
+  String notifMemberLeft(String name, String group) => '$name left "$group"';
+  @override
+  String notifYouLeft(String group) => 'You left "$group"';
+  @override
+  String notifItemAdded(String name, String item, String list) =>
+      '$name added "$item" to "$list"';
+  @override
+  String notifItemRemoved(String name, String item, String list) =>
+      '$name removed "$item" from "$list"';
+  @override
+  String notifItemPurchased(String name, String item, String list) =>
+      '$name purchased "$item" from "$list"';
+  @override
+  String notifWhiteboardUpdated(String name) => '$name updated the whiteboard';
+  @override
+  String notifWhiteboardEditStarted(String name) =>
+      '$name started drawing on the whiteboard';
+  @override
+  String notifWhiteboardEditEnded(String name) =>
+      '$name finished drawing on the whiteboard';
+
+  @override
+  String get opSignIn => 'Sign In';
+  @override
+  String get opCreateAccount => 'Create Account';
+  @override
+  String get opSaveUserName => 'Save Username';
+  @override
+  String get opResetPassword => 'Reset Password';
+  @override
+  String get opSignUp => 'Sign Up';
+  @override
+  String get opAddMember => 'Add Member';
+  @override
+  String get opUpdateGroupName => 'Update Group Name';
+  @override
+  String get opSaveWhiteboard => 'Save Whiteboard';
+  @override
+  String get opClearWhiteboard => 'Clear Whiteboard';
+  @override
+  String get opUpdatePurchaseStatus => 'Update Purchase Status';
+  @override
+  String get opUpdateGroupMember => 'Update Group Member';
+  @override
+  String get opSendNotification => 'Send Notification';
+  @override
+  String get opLoadUserName => 'Load Username';
+  @override
+  String get opUpdateAllGroupUserNames => 'Update All Group Usernames';
+  @override
+  String get opGetGroupUserName => 'Get Group Username';
+  @override
+  String get opGetGroupMembers => 'Get Group Members';
+  @override
+  String get opSignOutClear => 'Clear on Sign Out';
+  @override
+  String get opGetFirestoreUserName => 'Get Firestore Username';
+  @override
+  String get opSaveFirestoreUserName => 'Save Firestore Username';
+  @override
+  String get opDeleteFirestoreUserName => 'Delete Firestore Username';
+  @override
+  String get opCreateUserProfile => 'Create User Profile';
+  @override
+  String get opSaveBillingType => 'Save Billing Type';
+  @override
+  String get opSearchInvitableGroups => 'Search Invitable Groups';
+  @override
+  String get opSendInvite => 'Send Invite';
+  @override
+  String get opAcceptInvitation => 'Accept Invitation';
+  @override
+  String get opSearchPendingInvitations => 'Search Pending Invitations';
+  @override
+  String get opRecordInvitation => 'Record Invitation';
+  @override
+  String get opGetPendingInvitations => 'Get Pending Invitations';
+  @override
+  String get opMarkInvitationProcessed => 'Mark Invitation Processed';
+  @override
+  String get opDeleteInvitation => 'Delete Invitation';
+  @override
+  String get opCreateQrInvite => 'Create QR Invite';
+  @override
+  String get opDecodeQrCode => 'Decode QR Code';
+  @override
+  String get opGetQrInviteDetails => 'Get QR Invite Details';
+  @override
+  String get opAcceptQrInvite => 'Accept QR Invite';
+  @override
+  String currentRoleLabel(String role) => 'Current role: $role';
+  @override
+  String get promoteToManagerDesc =>
+      'Promoting to manager allows inviting members and editing lists.';
+  @override
+  String get demoteToMemberDesc =>
+      'Demoting to member will revoke management permissions.';
+  @override
+  String get promoteToManager => 'Promote to Manager';
+  @override
+  String get demoteToMemberAction => 'Demote to Member';
+  @override
+  String promotedToManager(String name) => 'Promoted $name to manager';
+  @override
+  String demotedToMemberMsg(String name) => 'Demoted $name to member';
+  @override
+  String get doubleTapWhiteboardHint => 'Double-tap to view whiteboard';
+  @override
+  String get doubleTapToOpen => 'Double-tap to open';
+  @override
+  String get doubleTapToView => 'Double-tap to view';
+  @override
+  String memberAddedMsg(String name) => 'Added $name';
+  @override
+  String get memberAddFailed => 'Failed to add member';
+  @override
+  String get createAccountFailed => 'Failed to create account';
+  @override
+  String groupNameChangedMsg(String name) => 'Group name changed to "$name"';
+  @override
+  String get groupNameUpdateFailed => 'Failed to update group name';
+  @override
+  String get inviteFromPlusButton =>
+      'Use the + button at top right\nto invite members';
 }

@@ -378,14 +378,26 @@ class NotificationService {
               }
 
               AppLogger.info('📤 [NOTIFICATION] 受諾者に確認通知を送信...');
+              // _addMemberToGroup完了後にグループ名を取得
+              String groupNameForConfirmation =
+                  notification.metadata?['groupName'] as String? ?? '';
+              if (groupNameForConfirmation.isEmpty) {
+                try {
+                  final hiveRepo = _ref.read(hiveSharedGroupRepositoryProvider);
+                  final group = await hiveRepo.getGroupById(groupId);
+                  groupNameForConfirmation = group.groupName;
+                } catch (_) {}
+              }
               await sendNotification(
                   targetUserId: acceptorUid,
                   type: NotificationType.syncConfirmation,
                   groupId: groupId,
-                  message: 'グループへの参加が承認されました',
+                  message: groupNameForConfirmation.isNotEmpty
+                      ? 'グループへの参加が承認されました'
+                      : 'グループへの参加が承認されました',
                   metadata: {
                     'confirmedBy': currentUser.uid,
-                    'groupName': notification.metadata?['groupName']
+                    'groupName': groupNameForConfirmation,
                   });
               AppLogger.info('✅ [NOTIFICATION] 受諾者への確認通知送信完了');
             } else {

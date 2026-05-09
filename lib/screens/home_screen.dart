@@ -161,8 +161,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   '🔍 [HomeScreen] User not authenticated - showing SnackBar');
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(
-                      texts.signInToUseGroup(AppModeSettings.config.groupName)),
+                  content: Text(texts.signInToUseGroup(texts.groupNameForMode(
+                      AppModeSettings.currentMode == AppMode.shopping))),
                   backgroundColor: Colors.orange,
                   duration: const Duration(seconds: 3),
                 ),

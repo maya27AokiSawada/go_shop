@@ -115,7 +115,8 @@ class GroupListWidget extends ConsumerWidget {
                         defaultValue: null,
                         onError: (error, stackTrace) {
                           if (context.mounted) {
-                            SnackBarHelper.showError(context, '同期エラー: $error');
+                            SnackBarHelper.showError(context,
+                                texts.syncErrorMessage(error.toString()));
                           }
                         },
                       );
@@ -277,11 +278,11 @@ class GroupListWidget extends ConsumerWidget {
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('メンバー: $memberCount人'),
+              Text(texts.memberCount(memberCount)),
               // 🔥 REMOVED: デフォルトグループ判定削除 - 全グループでオーナー表示
               if (group.ownerUid?.isNotEmpty ?? false)
                 Text(
-                  'オーナー: ${group.ownerName ?? '（不明）'}',
+                  texts.ownerDisplay(group.ownerName ?? ''),
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
             ],
@@ -417,13 +418,13 @@ class GroupListWidget extends ConsumerWidget {
               color: Colors.grey.shade100,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Row(
+            child: Row(
               children: [
-                Icon(Icons.info_outline, size: 16, color: Colors.grey),
-                SizedBox(width: 8),
+                const Icon(Icons.info_outline, size: 16, color: Colors.grey),
+                const SizedBox(width: 8),
                 Text(
-                  'カレントグループが選択されていません',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                  texts.noCurrentGroup,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ],
             ),
@@ -741,7 +742,7 @@ class GroupListWidget extends ConsumerWidget {
       // 成功メッセージ
       if (context.mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
-        SnackBarHelper.showSuccess(context, '退出リクエストを送信しました。反映後にグループが消えます');
+        SnackBarHelper.showSuccess(context, texts.leaveRequestSent);
       }
     } catch (error, stackTrace) {
       AppLogger.error('❌ [GROUP_LEAVE] グループ離脱エラー', error, stackTrace);

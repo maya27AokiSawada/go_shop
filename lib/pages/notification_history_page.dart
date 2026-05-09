@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../providers/auth_provider.dart';
+import '../providers/shared_group_provider.dart';
 import '../services/notification_service.dart';
 import '../utils/app_logger.dart';
 import '../l10n/l10n.dart';
@@ -59,7 +60,7 @@ class _NotificationHistoryPageState
         actions: [
           IconButton(
             icon: const Icon(Icons.delete_sweep),
-            tooltip: '既読通知を削除',
+            tooltip: texts.tooltipDeleteRead,
             onPressed: () => _clearReadNotifications(currentUser.uid),
           ),
         ],
@@ -81,14 +82,14 @@ class _NotificationHistoryPageState
                     children: [
                       const Icon(Icons.warning, size: 48, color: Colors.orange),
                       const SizedBox(height: 16),
-                      const Text(
-                        'Firestoreインデックスが必要です',
-                        style: TextStyle(
+                      Text(
+                        texts.firestoreIndexRequired,
+                        style: const TextStyle(
                             fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        'Firebase Consoleで複合インデックスを作成してください',
+                      Text(
+                        texts.firestoreIndexDesc,
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 16),
@@ -104,7 +105,7 @@ class _NotificationHistoryPageState
             }
 
             return Center(
-              child: Text('エラーが発生しました: ${snapshot.error}'),
+              child: Text('${texts.errorWithDetail}${snapshot.error}'),
             );
           }
 
@@ -115,15 +116,16 @@ class _NotificationHistoryPageState
           final notifications = snapshot.data?.docs ?? [];
 
           if (notifications.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.notifications_none, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
+                  const Icon(Icons.notifications_none,
+                      size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
                   Text(
-                    '通知はありません',
-                    style: TextStyle(color: Colors.grey, fontSize: 16),
+                    texts.noNotifications,
+                    style: const TextStyle(color: Colors.grey, fontSize: 16),
                   ),
                 ],
               ),
@@ -201,7 +203,7 @@ class _NotificationHistoryPageState
           child: Icon(icon, color: iconColor),
         ),
         title: Text(
-          notification.message,
+          _buildNotificationMessage(notification),
           style: TextStyle(
             fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
           ),
@@ -218,11 +220,11 @@ class _NotificationHistoryPageState
               ),
             ),
             if (!isRead)
-              const Padding(
-                padding: EdgeInsets.only(top: 4),
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
                 child: Text(
-                  '未読',
-                  style: TextStyle(
+                  texts.unread,
+                  style: const TextStyle(
                     fontSize: 12,
                     color: Colors.blue,
                     fontWeight: FontWeight.bold,
@@ -234,7 +236,7 @@ class _NotificationHistoryPageState
         trailing: !isRead
             ? IconButton(
                 icon: const Icon(Icons.check, color: Colors.blue),
-                tooltip: '既読にする',
+                tooltip: texts.tooltipMarkRead,
                 onPressed: () => _markAsRead(notification.id),
               )
             : null,
@@ -243,25 +245,99 @@ class _NotificationHistoryPageState
     );
   }
 
+  /// 通知メッセージをメタデータから現地語で再構築
+  String _buildNotificationMessage(NotificationData notification) {
+    final m = notification.metadata ?? {};
+    final name = (m['creatorName'] ??
+        m['deleterName'] ??
+        m['renamerName'] ??
+        m['adderName'] ??
+        m['removerName'] ??
+        m['purchaserName'] ??
+        m['editorName'] ??
+        m['newMemberName'] ??
+        m['leftUserName'] ??
+        m['requesterName'] ??
+        '') as String;
+    final listName = (m['listName'] ?? '') as String;
+    final itemName = (m['itemName'] ?? '') as String;
+    final oldName = (m['oldName'] ?? m['oldGroupName'] ?? '') as String;
+    final newName = (m['newName'] ?? m['newGroupName'] ?? '') as String;
+    String groupName = (m['groupName'] ?? '') as String;
+    final acceptorName = (m['acceptorName'] ?? '') as String;
+
+    // groupNameが空の場合、allGroupsProviderからフォールバック
+    if (groupName.isEmpty && notification.groupId.isNotEmpty) {
+      final groups = ref.read(allGroupsProvider).valueOrNull ?? [];
+      final found =
+          groups.where((g) => g.groupId == notification.groupId).firstOrNull;
+      if (found != null) groupName = found.groupName;
+    }
+
+    switch (notification.type) {
+      case NotificationType.listCreated:
+        return texts.notifListCreated(name, listName);
+      case NotificationType.listDeleted:
+        return texts.notifListDeleted(name, listName);
+      case NotificationType.listRenamed:
+        return texts.notifRenamed(name, oldName, newName);
+      case NotificationType.groupMemberAdded:
+        if (acceptorName.isNotEmpty) {
+          return texts.notifMembershipApproved(groupName);
+        }
+        final joinedName = (m['newMemberName'] ?? name) as String;
+        return texts.notifMemberJoined(joinedName, groupName);
+      case NotificationType.syncConfirmation:
+        return texts.notifMembershipApproved(groupName);
+      case NotificationType.groupDeleted:
+        return texts.notifGroupDeleted(name, groupName);
+      case NotificationType.groupUpdated:
+        if (oldName.isNotEmpty && newName.isNotEmpty) {
+          return texts.notifRenamed(name, oldName, newName);
+        }
+        final leftUser = (m['leftUserName'] ?? '') as String;
+        if (leftUser.isNotEmpty) {
+          return texts.notifMemberLeft(leftUser, groupName);
+        }
+        return notification.message;
+      case NotificationType.groupLeft:
+        return texts.notifYouLeft(groupName);
+      case NotificationType.itemAdded:
+        return texts.notifItemAdded(name, itemName, listName);
+      case NotificationType.itemRemoved:
+        return texts.notifItemRemoved(name, itemName, listName);
+      case NotificationType.itemPurchased:
+        return texts.notifItemPurchased(name, itemName, listName);
+      case NotificationType.whiteboardUpdated:
+        return texts.notifWhiteboardUpdated(name);
+      case NotificationType.whiteboardEditStarted:
+        return texts.notifWhiteboardEditStarted(name);
+      case NotificationType.whiteboardEditEnded:
+        return texts.notifWhiteboardEditEnded(name);
+      default:
+        return notification.message;
+    }
+  }
+
   /// 時間差を人間が読める形式に変換
   String _formatTimeAgo(DateTime dateTime) {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
 
     if (difference.inSeconds < 60) {
-      return 'たった今';
+      return texts.justNow;
     } else if (difference.inMinutes < 60) {
-      return '${difference.inMinutes}分前';
+      return '${difference.inMinutes}${texts.minutesAgo}';
     } else if (difference.inHours < 24) {
-      return '${difference.inHours}時間前';
+      return '${difference.inHours}${texts.hoursAgo}';
     } else if (difference.inDays < 7) {
-      return '${difference.inDays}日前';
+      return '${difference.inDays}${texts.daysAgo}';
     } else if (difference.inDays < 30) {
-      return '${(difference.inDays / 7).floor()}週間前';
+      return '${(difference.inDays / 7).floor()}${texts.weeksAgo}';
     } else if (difference.inDays < 365) {
-      return '${(difference.inDays / 30).floor()}ヶ月前';
+      return '${(difference.inDays / 30).floor()}${texts.monthsAgo}';
     } else {
-      return '${(difference.inDays / 365).floor()}年前';
+      return '${(difference.inDays / 365).floor()}${texts.yearsAgo}';
     }
   }
 
@@ -277,7 +353,7 @@ class _NotificationHistoryPageState
       AppLogger.error('通知既読エラー: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('エラーが発生しました: $e')),
+          SnackBar(content: Text('${texts.errorWithDetail}$e')),
         );
       }
     }
@@ -327,9 +403,10 @@ class _NotificationHistoryPageState
           e.toString().contains('index')) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Firestoreインデックスが必要です。Firebase Consoleで作成してください'),
-              duration: Duration(seconds: 5),
+            SnackBar(
+              content: Text(
+                  '${texts.firestoreIndexRequired}. ${texts.firestoreIndexDesc}'),
+              duration: const Duration(seconds: 5),
             ),
           );
         }
@@ -338,7 +415,7 @@ class _NotificationHistoryPageState
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('エラーが発生しました: $e')),
+          SnackBar(content: Text('${texts.errorWithDetail}$e')),
         );
       }
     }

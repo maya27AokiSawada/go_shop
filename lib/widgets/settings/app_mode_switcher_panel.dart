@@ -38,7 +38,7 @@ class AppModeSwitcherPanel extends ConsumerWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'アプリモード',
+                  texts.appModeTitle,
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -50,7 +50,7 @@ class AppModeSwitcherPanel extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'アプリの表示モードを切り替えます',
+            texts.appModeDesc,
             style: TextStyle(
               fontSize: 12,
               color: Colors.blue.shade600,

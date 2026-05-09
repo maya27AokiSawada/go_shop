@@ -58,7 +58,7 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
       });
     } catch (e) {
       setState(() {
-        _errorMessage = '招待の生成に失敗しました: $e';
+        _errorMessage = '${texts.inviteGenFailed}$e';
         _isLoading = false;
       });
     }
@@ -94,7 +94,7 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
             ),
             const SizedBox(height: 16),
             Text(
-              'エラーが発生しました',
+              texts.errorOccurredTitle,
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 8),
@@ -151,7 +151,7 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'メンバー数: ${(widget.group.members?.length ?? 0)}人',
+                    texts.memberCount(widget.group.members?.length ?? 0),
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Colors.grey[600],
                         ),
@@ -172,7 +172,7 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '招待タイプ',
+                    texts.inviteType,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -223,7 +223,7 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
               child: Column(
                 children: [
                   Text(
-                    'QRコードで招待',
+                    texts.inviteByQRTitle,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -253,7 +253,7 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'このQRコードをスキャンしてグループに参加',
+                    texts.scanQRToJoinDesc,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Colors.grey[600],
                         ),
@@ -275,7 +275,7 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
                             size: 16, color: Colors.blue.shade700),
                         const SizedBox(width: 4),
                         Text(
-                          '招待可能人数: $_maxUses人',
+                          texts.maxInviteCount(_maxUses),
                           style: TextStyle(
                             color: Colors.blue.shade700,
                             fontWeight: FontWeight.bold,
@@ -309,7 +309,7 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '招待の仕方',
+                        texts.howToInviteTitle,
                         style:
                             Theme.of(context).textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.bold,
@@ -318,11 +318,9 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  const Text(
-                    '1. QRコードを相手にスキャンしてもらう\n'
-                    '2. 相手がアプリで承諾すると自動的にメンバーに追加されます\n'
-                    '4. 承諾通知を受け取ったらグループを確認してください',
-                    style: TextStyle(height: 1.5),
+                  Text(
+                    texts.howToInviteDesc,
+                    style: const TextStyle(height: 1.5),
                   ),
                 ],
               ),

@@ -7,6 +7,7 @@ import '../widgets/accept_invitation_widget.dart';
 import '../utils/app_logger.dart';
 import '../utils/snackbar_helper.dart';
 import '../config/app_mode_config.dart';
+import '../l10n/l10n.dart';
 
 /// 初回セットアップ画面
 ///
@@ -34,7 +35,7 @@ class InitialSetupWidget extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
               Text(
-                'GoShoppingへようこそ！',
+                texts.welcomeToGoShop,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -42,7 +43,8 @@ class InitialSetupWidget extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                '${AppModeSettings.config.sharedList}をグループで共有できます。\nまずはグループを作成するか、\n既存のグループに参加してください。',
+                texts.initialSetupDesc(texts.sharedListNameForMode(
+                    AppModeSettings.currentMode == AppMode.shopping)),
                 style: Theme.of(context).textTheme.bodyLarge,
                 textAlign: TextAlign.center,
               ),
@@ -53,9 +55,9 @@ class InitialSetupWidget extends ConsumerWidget {
                 onPressed: () async =>
                     await _showCreateGroupDialog(context, ref),
                 icon: const Icon(Icons.add),
-                label: const Text(
-                  '最初のグループを作成',
-                  style: TextStyle(fontSize: 16),
+                label: Text(
+                  texts.createFirstGroup,
+                  style: const TextStyle(fontSize: 16),
                 ),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -69,9 +71,9 @@ class InitialSetupWidget extends ConsumerWidget {
               OutlinedButton.icon(
                 onPressed: () => _showQRScanner(context, ref),
                 icon: const Icon(Icons.qr_code_scanner),
-                label: const Text(
-                  'QRコードでグループに参加',
-                  style: TextStyle(fontSize: 16),
+                label: Text(
+                  texts.joinGroupByQR,
+                  style: const TextStyle(fontSize: 16),
                 ),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -96,7 +98,7 @@ class InitialSetupWidget extends ConsumerWidget {
                             size: 20, color: Colors.blue),
                         const SizedBox(width: 8),
                         Text(
-                          'グループについて',
+                          texts.aboutGroups,
                           style:
                               Theme.of(context).textTheme.titleSmall?.copyWith(
                                     fontWeight: FontWeight.bold,
@@ -107,9 +109,7 @@ class InitialSetupWidget extends ConsumerWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '• グループ内で買い物リストを共有できます\n'
-                      '• 家族、友人、同僚など複数のグループを作成可能\n'
-                      '• QRコードで簡単に招待・参加できます',
+                      texts.aboutGroupsDesc,
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ],
@@ -153,20 +153,20 @@ class InitialSetupWidget extends ConsumerWidget {
     showDialog(
       context: outerContext,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('最初のグループを作成'),
+        title: Text(texts.createFirstGroup),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('グループ名を入力してください'),
+            Text(texts.enterGroupName),
             const SizedBox(height: 16),
             TextField(
               controller: groupNameController,
               autofocus: true,
-              decoration: const InputDecoration(
-                labelText: 'グループ名',
-                hintText: '例: 家族、友人、会社',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: texts.groupName,
+                hintText: texts.groupNameHint,
+                border: const OutlineInputBorder(),
               ),
               onSubmitted: (value) {
                 if (value.trim().isNotEmpty) {
@@ -184,7 +184,7 @@ class InitialSetupWidget extends ConsumerWidget {
               groupNameController.dispose();
               Navigator.pop(dialogContext);
             },
-            child: const Text('キャンセル'),
+            child: Text(texts.cancel),
           ),
           ElevatedButton(
             onPressed: () {
@@ -195,7 +195,7 @@ class InitialSetupWidget extends ConsumerWidget {
                 _createGroup(outerContext, outerRef, groupName);
               }
             },
-            child: const Text('作成'),
+            child: Text(texts.create),
           ),
         ],
       ),
@@ -268,7 +268,7 @@ class InitialSetupWidget extends ConsumerWidget {
       if (context.mounted) {
         SnackBarHelper.showCustom(
           context,
-          message: 'グループ作成に失敗しました: ${e.toString()}',
+          message: '${texts.createGroupFailed}: ${e.toString()}',
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 5),
         );
@@ -285,7 +285,7 @@ class InitialSetupWidget extends ConsumerWidget {
       MaterialPageRoute(
         builder: (context) => Scaffold(
           appBar: AppBar(
-            title: const Text('QRコードをスキャン'),
+            title: Text(texts.scanQRCode),
           ),
           body: const AcceptInvitationWidget(),
         ),

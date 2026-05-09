@@ -49,7 +49,7 @@ class HomePageAuthService {
       await handleFirebaseAuthError(e, email);
     } catch (e) {
       Log.error('❌ サインイン中に予期しないエラー: $e');
-      await ErrorLogService.logOperationError('サインイン', '$e');
+      await ErrorLogService.logOperationError(texts.signIn, '$e');
       if (!context.mounted) return;
       UiHelper.showErrorMessage(context, 'サインインに失敗しました: $e');
     }
@@ -79,14 +79,14 @@ class HomePageAuthService {
       Log.error('❌ サインアップ FirebaseAuthException: ${e.code}, ${e.message}');
       String errorMessage = getFirebaseAuthErrorMessage(e);
       await ErrorLogService.logOperationError(
-          'アカウント作成', 'Firebase認証エラー: ${e.code} - ${e.message}');
+          texts.createAccount, 'Firebase認証エラー: ${e.code} - ${e.message}');
       if (!context.mounted) return;
       UiHelper.showErrorMessage(context, errorMessage);
     } catch (e) {
       Log.error('❌ サインアップ中に予期しないエラー: $e');
-      await ErrorLogService.logOperationError('アカウント作成', '$e');
+      await ErrorLogService.logOperationError(texts.createAccount, '$e');
       if (!context.mounted) return;
-      UiHelper.showErrorMessage(context, 'アカウント作成に失敗しました: $e');
+      UiHelper.showErrorMessage(context, '${texts.createAccountFailed}: $e');
     }
   }
 
@@ -104,7 +104,7 @@ class HomePageAuthService {
       UiHelper.showSuccessMessage(context, 'パスワードリセットメールを送信しました');
     } catch (e) {
       Log.error('❌ パスワードリセットメール送信エラー: $e');
-      await ErrorLogService.logOperationError('パスワードリセット', '$e');
+      await ErrorLogService.logOperationError(texts.resetPassword, '$e');
       if (!context.mounted) return;
       UiHelper.showErrorMessage(context, 'メール送信に失敗しました: $e');
     }
@@ -128,7 +128,7 @@ class HomePageAuthService {
       UiHelper.showSuccessMessage(context, 'ユーザー名「$userName」を保存しました');
     } catch (e) {
       Log.error('❌ ユーザー名保存エラー: $e');
-      await ErrorLogService.logOperationError('ユーザー名保存', '$e');
+      await ErrorLogService.logOperationError(texts.saveUserName, '$e');
       if (!context.mounted) return;
       UiHelper.showErrorMessage(context, 'ユーザー名の保存に失敗しました: $e');
     }

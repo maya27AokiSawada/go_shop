@@ -517,6 +517,8 @@ class AppTextsJa extends AppTexts {
 
   @override
   String get switchToSignIn => 'サインインへ';
+  @override
+  String get resetPassword => 'パスワードリセット';
 
   @override
   String get switchToCreateAccount => 'アカウント作成へ';
@@ -563,6 +565,22 @@ class AppTextsJa extends AppTexts {
   @override
   String get createGroupHint => '右下の ＋ ボタンからグループを作成できます';
   @override
+  String initialSetupDesc(String listName) =>
+      '$listNameをグループで共有できます。\nまずはグループを作成するか、\n既存のグループに参加してください。';
+  @override
+  String get createFirstGroup => '最初のグループを作成';
+  @override
+  String get joinGroupByQR => 'QRコードでグループに参加';
+  @override
+  String get aboutGroups => 'グループについて';
+  @override
+  String get aboutGroupsDesc =>
+      '• グループ内で買い物リストを共有できます\n• 家族、友人、同僚など複数のグループを作成可能\n• QRコードで簡単に招待・参加できます';
+  @override
+  String get groupNameHint => '例: 家族、友人、会社';
+  @override
+  String get createGroupFailed => 'グループ作成に失敗しました';
+  @override
   String get deleteGroupWarning => 'この操作は取り消せません。\nグループ内のすべてのデータが削除されます。';
   @override
   String get leaveGroupWarning => 'あなたの情報がこのグループから削除されます。\n再度参加するには、招待が必要です。';
@@ -570,6 +588,8 @@ class AppTextsJa extends AppTexts {
   String get deletingGroup => 'グループを削除中...';
   @override
   String get leavingGroup => 'グループを退出中...';
+  @override
+  String get leaveRequestSent => '退出リクエストを送信しました。反映後にグループが消えます';
   @override
   String get copyMembersFrom => 'メンバーをコピーする既存グループ (任意):';
   @override
@@ -1120,4 +1140,484 @@ class AppTextsJa extends AppTexts {
   @override
   String get tipMemberScreenBody =>
       'メンバータップ→ロール変更（オーナー）または情報表示、ダブルタップ→ホワイトボード。';
+
+  // 同期状態アイコン
+  @override
+  String get syncStatusSynced => '同期完了';
+  @override
+  String get syncStatusSyncing => '同期中...';
+  @override
+  String get syncStatusOffline => '接続断';
+  @override
+  String get syncStatusNotLoggedIn => '未ログイン';
+  @override
+  String get networkOfflineStatus => 'ネットワーク障害';
+  @override
+  String get checkingConnectionStatus => '接続確認中...';
+  @override
+  String get notSignedIn => '未サインイン';
+
+  // ヘルプダイアログ
+  @override
+  String get helpTitle => 'ヘルプ';
+  @override
+  String get helpBasicUsage => '基本的な使い方';
+  @override
+  String helpBasicUsagePoint(int n) {
+    const points = [
+      'グループを作成して、メンバーを招待できます',
+      '共有リストを共有して、リアルタイムで同期します',
+      'アイテムを追加・購入完了マークで管理できます',
+    ];
+    return n >= 1 && n <= points.length ? points[n - 1] : '';
+  }
+
+  @override
+  String get helpGroupInvite => 'グループ招待';
+  @override
+  String helpGroupInvitePoint(int n) {
+    const points = [
+      'QRコードを表示してメンバーを招待',
+      'QRコードをスキャンしてグループに参加',
+      '招待は24時間有効、最大5名まで',
+    ];
+    return n >= 1 && n <= points.length ? points[n - 1] : '';
+  }
+
+  @override
+  String get helpSyncIcons => '同期状態アイコン';
+  @override
+  String helpSyncIconPoint(int n) {
+    const points = [
+      '🟢 緑: 同期完了',
+      '🟠 オレンジ: 同期中',
+      '🔴 赤: 接続断',
+      '⚪ グレー: 未ログイン',
+    ];
+    return n >= 1 && n <= points.length ? points[n - 1] : '';
+  }
+
+  @override
+  String get legalTitle => '法的情報';
+  @override
+  String get versionInfoTitle => 'バージョン情報';
+  @override
+  String get versionLabel => 'バージョン';
+  @override
+  String get buildNumberLabel => 'ビルド番号';
+  @override
+  String get packageNameLabel => 'パッケージ名';
+  @override
+  String get appFooterSubtitle => '共有アプリ';
+
+  // 招待受諾ウィジェット
+  @override
+  String get inviteAcceptTitle => '招待を受ける';
+  @override
+  String get inviteAcceptDesc =>
+      'グループに招待されましたか？\nQRコードをスキャンするか、招待コードを入力してください。';
+  @override
+  String get invalidQRCodeMsg => '無効なQRコード形式です';
+  @override
+  String get cameraErrorPrefix => 'カメラエラー:';
+  @override
+  String get unknownGroup => '不明なグループ';
+  @override
+  String invitationPendingApproval(String groupName) =>
+      '招待元（$groupName）の確認をお待ちください';
+
+  // ホームページ
+  @override
+  String get privacyPoint1 => '最初に共有される情報は、ログイン情報と表示名のみです';
+  @override
+  String get privacyPoint2 => 'リストは、あなたが共有したユーザーとのみ共有されます';
+  @override
+  String get privacyPoint3 => 'グループに参加するユーザーも同じポリシーが適用されます';
+  @override
+  String get privacyPoint4 => 'アプリの利用にはFirebaseアカウントが必須です';
+  @override
+  String get forNewUsersDesc =>
+      'メールアドレスとパスワードでアカウント作成・ログインができます。\n既にアカウントをお持ちの方は同じ情報でログインしてください。';
+  @override
+  String howToUsePoint(int n) {
+    const points = [
+      '画面下の「グループ」タブでグループを管理できます',
+      'グループを選択するとリストが表示されます',
+      'QRコードで家族や友達を招待できます',
+      '「設定」タブでアプリの設定ができます',
+    ];
+    return n >= 1 && n <= points.length ? points[n - 1] : '';
+  }
+
+  // 認証エラー
+  @override
+  String get signUpFailed => 'アカウント作成に失敗しました';
+  @override
+  String get emailAlreadyInUse => 'このメールアドレスは既に使用されています';
+  @override
+  String get weakPassword => 'パスワードが弱すぎます';
+  @override
+  String get signInFailed => 'サインインに失敗しました';
+  @override
+  String get userNotFoundSignIn => 'ユーザーが見つかりません。アカウント作成が必要です';
+  @override
+  String get wrongEmailOrPassword => 'メールアドレスまたはパスワードが正しくありません';
+
+  // 共有リスト
+  @override
+  String quantityDisplay(int quantity) => '数量: $quantity';
+  @override
+  String deadlineDisplay(String date) => '期限: $date';
+  @override
+  String intervalDisplay(int days) => '$days日ごと';
+  @override
+  String itemDeletedName(String name) => '「$name」を削除しました';
+  @override
+  String itemDeleteFailed(String e) => '削除に失敗しました: $e';
+  @override
+  String itemDeleteConfirm(String name) => '「$name」を削除しますか？';
+
+  // アカウント削除
+  @override
+  String deleteAccountWarningBody(String listName) =>
+      '⚠️ この操作は取り消せません\n\n以下のデータが完全に削除されます:\n• アカウント情報\n• 全ての$listName\n• 作成したグループ（オーナーの場合）\n• ホワイトボードデータ\n• 通知履歴\n\n本当に削除しますか？';
+  @override
+  String finalConfirmationBody(String email) =>
+      'メールアドレス: $email\n\nこのアカウントを本当に削除しますか？\n\nこの操作は取り消せません。';
+  @override
+  String get deletionCompleteBody =>
+      'アカウントとすべてのデータを削除しました。\n\nGo Shopをご利用いただきありがとうございました。';
+  @override
+  String deletionFailedBody(String e) =>
+      'アカウント削除中にエラーが発生しました。\n\nエラー内容:\n$e\n\nお手数ですが、開発者にお問い合わせください。';
+
+  // グループリスト
+  @override
+  String memberCount(int count) => 'メンバー: $count人';
+  @override
+  String ownerDisplay(String name) => 'オーナー: $name';
+  @override
+  String syncErrorMessage(String error) => '同期エラー: $error';
+
+  // 言語設定パネル
+  @override
+  String get displayLanguageTitle => '表示言語 / Language';
+  @override
+  String get displayLanguageDesc => 'アプリの表示言語を選択します（再起動で完全反映）';
+  @override
+  String get languageJa => '日本語';
+  @override
+  String get languageChangedEn =>
+      'Language changed to English. Restart for full effect.';
+  @override
+  String get languageChangedJa => '言語を日本語に変更しました。完全に反映するには再起動してください。';
+
+  // QRスキャンオーバーレイ
+  @override
+  String get qrCodeHereOverlay => 'QRコードをここに';
+
+  // アプリモード依存の表示名
+  @override
+  String sharedListNameForMode(bool isShopping) =>
+      isShopping ? '買い物リスト' : 'タスクリスト';
+  @override
+  String groupNameForMode(bool isShopping) => isShopping ? 'グループ' : 'チーム';
+
+  // アイテム編集モーダル
+  @override
+  String get itemNameHintMilk => '例: 牛乳';
+  @override
+  String get intervalNone => '0 (なし)';
+  @override
+  String intervalDaysSuffix(int days) => '$days日ごとに購入';
+
+  // ホワイトボード設定パネル
+  @override
+  String get whiteboardSettingsTitle => 'ホワイトボード設定';
+  @override
+  String get customColorSettingsTitle => 'カスタム色設定';
+  @override
+  String get customColorSettingsDesc => '基本4色（黒・赤・緑・黄）に加えて、2色を自由に設定できます';
+  @override
+  String colorSlot(int n) => '色$n: ';
+  @override
+  String get errorWithPrefix => 'エラー';
+
+  // フィードバックセクション
+  @override
+  String get feedbackSectionTitle => 'フィードバック送信';
+  @override
+  String get feedbackSectionDesc => 'ご意見・ご感想をお聞かせください';
+  @override
+  String get feedbackSectionSubDesc => 'テスト版の改善にご協力いただきます。わずか1分程度です。';
+  @override
+  String get feedbackButton => 'アンケートに答える';
+  @override
+  String get feedbackThanks => 'ご協力ありがとうございます！';
+  @override
+  String get formOpenFailed => 'フォームを開くことができませんでした';
+
+  // 設定ページ
+  @override
+  String get settingsPagePlaceholder => '設定ページ（仮）';
+  @override
+  String get goShopSettingsLabel => 'Go Shop 設定';
+  @override
+  String get checkingAuthStatus => '認証状態を確認中...';
+  @override
+  String get errorOccurredTitle => 'エラーが発生しました';
+
+  // アプリモード切り替えパネル
+  @override
+  String get appModeTitle => 'アプリモード';
+  @override
+  String get appModeDesc => 'アプリの表示モードを切り替えます';
+
+  // 認証状態ヘルパー
+  @override
+  String featureRequiresSignUp(String feature) => '$featureを利用するには';
+  @override
+  String get signUpRequiredMsg => 'サインアップが必要です';
+  @override
+  String get welcomeToGoShop => 'Go Shopへようこそ！';
+  @override
+  String get welcomeSubtitle => '家族やグループでリストを共有して、\nより便利に管理しましょう';
+  @override
+  String get availableFeatures => '✨ 利用可能な機能';
+  @override
+  String personalListCreate(String listType) => '個人用$listType作成';
+  @override
+  String get signUpPromptBody => 'この機能を利用するには、アカウント作成が必要です。\n'
+      'サインアップすると以下の機能が利用できます：\n\n'
+      '• グループでのリスト共有\n'
+      '• QRコードでの簡単招待\n'
+      '• メンバー管理機能\n'
+      '• バックアップとデータ同期';
+
+  // 通知履歴ページ
+  @override
+  String get weeksAgo => '週前';
+  @override
+  String get monthsAgo => 'ヶ月前';
+  @override
+  String get yearsAgo => '年前';
+  @override
+  String get timeUnknown => '時刻不明';
+  @override
+  String get unread => '未読';
+  @override
+  String get tooltipMarkRead => '既読にする';
+  @override
+  String get tooltipDeleteRead => '既読通知を削除';
+  @override
+  String get tooltipReload => '再読み込み';
+  @override
+  String get firestoreIndexRequired => 'Firestoreインデックスが必要です';
+  @override
+  String get firestoreIndexDesc => 'Firebase Consoleで複合インデックスを作成してください';
+  @override
+  String get errorWithDetail => 'エラーが発生しました: ';
+
+  // エラー履歴ページ
+  @override
+  String get unknownOperation => '不明な操作';
+  @override
+  String get noErrorDetailMsg => 'エラーの詳細なし';
+  @override
+  String get permissionErrorLabel => '権限エラー';
+  @override
+  String get networkErrorLabel => 'ネットワークエラー';
+  @override
+  String get syncErrorLabel => '同期エラー';
+  @override
+  String get validationErrorLabel => '入力エラー';
+  @override
+  String get operationErrorLabel => '操作エラー';
+  @override
+  String get unknownErrorLabel => '不明なエラー';
+  @override
+  String get operationLabel => '操作';
+  @override
+  String get messageLabel => 'メッセージ';
+  @override
+  String get occurredAtLabel => '発生時刻';
+  @override
+  String get contextLabel => 'コンテキスト';
+  @override
+  String get stackTraceLabel => 'スタックトレース:';
+
+  // QRコード表示・スキャン画面
+  @override
+  String get qrScanInstruction => 'QRコードを枠内に合わせてください';
+  @override
+  String get qrManualInputHint =>
+      'QRコードが見つからない場合は、右上のキーボードアイコンから招待コードを手動入力できます。';
+  @override
+  String get inviteGenFailed => '招待の生成に失敗しました: ';
+  @override
+  String get qrScanDialogTitle => 'QRコード招待';
+  @override
+  String get qrScanDialogContent => 'グループ招待QRコードをスキャンして\nグループに参加できます';
+  @override
+  String get qrScanButton => 'QRコードをスキャン';
+
+  // グループ招待ページ
+  @override
+  String get inviteType => '招待タイプ';
+  @override
+  String get inviteByQRTitle => 'QRコードで招待';
+  @override
+  String get scanQRToJoinDesc => 'このQRコードをスキャンしてグループに参加';
+  @override
+  String maxInviteCount(int n) => '招待可能人数: $n人';
+  @override
+  String get howToInviteTitle => '招待の仕方';
+  @override
+  String get howToInviteDesc => '1. QRコードを相手にスキャンしてもらう\n'
+      '2. 相手がアプリで承諾すると自動的にメンバーに追加されます\n'
+      '4. 承諾通知を受け取ったらグループを確認してください';
+  // QRスキャン画面追加
+  @override
+  String get checkingInviteCode => '招待コードを確認中...';
+  @override
+  String get tooltipManualInput => 'コード手動入力';
+
+  @override
+  String notifListCreated(String name, String list) => '$name が「$list」を作成しました';
+  @override
+  String notifListDeleted(String name, String list) => '$name が「$list」を削除しました';
+  @override
+  String notifRenamed(String name, String oldName, String newName) =>
+      '$name が「$oldName」を「$newName」に変更しました';
+  @override
+  String notifMemberJoined(String name, String group) =>
+      '$name さんが「$group」に参加しました';
+  @override
+  String notifMembershipApproved(String group) =>
+      group.isNotEmpty ? '「$group」への参加が承認されました' : 'グループへの参加が承認されました';
+  @override
+  String notifGroupDeleted(String name, String group) =>
+      '$name が「$group」を削除しました';
+  @override
+  String notifMemberLeft(String name, String group) =>
+      '$name が「$group」から退出しました';
+  @override
+  String notifYouLeft(String group) => '「$group」から退出しました';
+  @override
+  String notifItemAdded(String name, String item, String list) =>
+      '$name が「$list」に「$item」を追加しました';
+  @override
+  String notifItemRemoved(String name, String item, String list) =>
+      '$name が「$list」から「$item」を削除しました';
+  @override
+  String notifItemPurchased(String name, String item, String list) =>
+      '$name が「$list」の「$item」を購入しました';
+  @override
+  String notifWhiteboardUpdated(String name) => '$name さんがホワイトボードを更新しました';
+  @override
+  String notifWhiteboardEditStarted(String name) =>
+      '$name さんがホワイトボードの描画を開始しました';
+  @override
+  String notifWhiteboardEditEnded(String name) => '$name さんがホワイトボードの描画を終了しました';
+
+  @override
+  String get opSignIn => 'サインイン';
+  @override
+  String get opCreateAccount => 'アカウント作成';
+  @override
+  String get opSaveUserName => 'ユーザー名保存';
+  @override
+  String get opResetPassword => 'パスワードリセット';
+  @override
+  String get opSignUp => 'サインアップ処理';
+  @override
+  String get opAddMember => 'メンバー追加';
+  @override
+  String get opUpdateGroupName => 'グループ名更新';
+  @override
+  String get opSaveWhiteboard => 'ホワイトボード保存';
+  @override
+  String get opClearWhiteboard => 'ホワイトボード全消去';
+  @override
+  String get opUpdatePurchaseStatus => '購入状態更新';
+  @override
+  String get opUpdateGroupMember => 'グループメンバー更新';
+  @override
+  String get opSendNotification => '通知送信';
+  @override
+  String get opLoadUserName => 'ユーザー名読み込み';
+  @override
+  String get opUpdateAllGroupUserNames => '全グループユーザー名更新';
+  @override
+  String get opGetGroupUserName => 'グループユーザー名取得';
+  @override
+  String get opGetGroupMembers => 'グループメンバー取得';
+  @override
+  String get opSignOutClear => 'サインアウト時クリア';
+  @override
+  String get opGetFirestoreUserName => 'Firestoreユーザー名取得';
+  @override
+  String get opSaveFirestoreUserName => 'Firestoreユーザー名保存';
+  @override
+  String get opDeleteFirestoreUserName => 'Firestoreユーザー名削除';
+  @override
+  String get opCreateUserProfile => 'ユーザープロフィール作成';
+  @override
+  String get opSaveBillingType => '課金タイプ保存';
+  @override
+  String get opSearchInvitableGroups => '招待可能グループ検索';
+  @override
+  String get opSendInvite => '招待送信';
+  @override
+  String get opAcceptInvitation => '招待受諾';
+  @override
+  String get opSearchPendingInvitations => '未受諾招待検索';
+  @override
+  String get opRecordInvitation => '招待受諾記録';
+  @override
+  String get opGetPendingInvitations => '未処理招待取得';
+  @override
+  String get opMarkInvitationProcessed => '招待処理済みマーク';
+  @override
+  String get opDeleteInvitation => '受諾招待削除';
+  @override
+  String get opCreateQrInvite => 'QR招待作成';
+  @override
+  String get opDecodeQrCode => 'QRコードデコード';
+  @override
+  String get opGetQrInviteDetails => 'QR招待詳細取得';
+  @override
+  String get opAcceptQrInvite => 'QR招待受諾';
+  @override
+  String currentRoleLabel(String role) => '現在のロール: $role';
+  @override
+  String get promoteToManagerDesc => 'マネージャーに昇格すると、メンバー招待や\nリスト編集ができるようになります。';
+  @override
+  String get demoteToMemberDesc => 'メンバーに降格すると、管理操作の\n権限が取り消されます。';
+  @override
+  String get promoteToManager => 'マネージャーに昇格';
+  @override
+  String get demoteToMemberAction => 'メンバーに降格';
+  @override
+  String promotedToManager(String name) => '$name さんをマネージャーに昇格しました';
+  @override
+  String demotedToMemberMsg(String name) => '$name さんをメンバーに降格しました';
+  @override
+  String get doubleTapWhiteboardHint => 'ダブルタップでホワイトボードを表示';
+  @override
+  String get doubleTapToOpen => 'ダブルタップで開く';
+  @override
+  String get doubleTapToView => 'ダブルタップで確認';
+  @override
+  String memberAddedMsg(String name) => '$name を追加しました';
+  @override
+  String get memberAddFailed => '追加に失敗しました';
+  @override
+  String get createAccountFailed => 'アカウント作成に失敗しました';
+  @override
+  String groupNameChangedMsg(String name) => 'グループ名を「$name」に変更しました';
+  @override
+  String get groupNameUpdateFailed => 'グループ名の更新に失敗しました';
+  @override
+  String get inviteFromPlusButton => '右上の + ボタンから\nメンバーを招待してください';
 }

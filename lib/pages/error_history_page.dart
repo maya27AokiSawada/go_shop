@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/error_log_service.dart';
 import '../utils/app_logger.dart';
 import '../l10n/l10n.dart';
+import '../l10n/app_texts.dart';
 
 /// エラー履歴画面
 ///
@@ -58,13 +59,13 @@ class _ErrorHistoryPageState extends ConsumerState<ErrorHistoryPage> {
           // 既読エラーの一括削除
           IconButton(
             icon: const Icon(Icons.delete_sweep),
-            tooltip: '既読エラーを削除',
+            tooltip: texts.tooltipDeleteRead,
             onPressed: _deleteReadErrors,
           ),
           // 再読み込み
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: '再読み込み',
+            tooltip: texts.tooltipReload,
             onPressed: _loadErrorLogs,
           ),
         ],
@@ -101,8 +102,9 @@ class _ErrorHistoryPageState extends ConsumerState<ErrorHistoryPage> {
     Map<String, dynamic> errorData,
   ) {
     final errorType = errorData['errorType'] as String? ?? 'unknown';
-    final operation = errorData['operation'] as String? ?? '不明な操作';
-    final message = errorData['message'] as String? ?? 'エラーの詳細なし';
+    final operationRaw = errorData['operation'] as String? ?? '';
+    final operation = _localizeOperationName(operationRaw);
+    final message = errorData['message'] as String? ?? texts.noErrorDetailMsg;
     final timestampStr = errorData['timestamp'] as String?;
     final isRead = errorData['read'] as bool? ?? false;
 
@@ -152,12 +154,88 @@ class _ErrorHistoryPageState extends ConsumerState<ErrorHistoryPage> {
             ? null
             : IconButton(
                 icon: const Icon(Icons.check, color: Colors.grey),
-                tooltip: '既読にする',
+                tooltip: texts.tooltipMarkRead,
                 onPressed: () => _markAsRead(index),
               ),
         onTap: () => _showErrorDetail(context, errorData, index),
       ),
     );
+  }
+
+  /// operationキーをl10n文字列に変換
+  String _localizeOperationName(String key) {
+    switch (key) {
+      case 'サインイン':
+        return texts.opSignIn;
+      case 'アカウント作成':
+        return texts.opCreateAccount;
+      case 'ユーザー名保存':
+        return texts.opSaveUserName;
+      case 'パスワードリセット':
+        return texts.opResetPassword;
+      case 'サインアップ処理':
+        return texts.opSignUp;
+      case 'メンバー追加':
+        return texts.opAddMember;
+      case 'グループ名更新':
+        return texts.opUpdateGroupName;
+      case 'ホワイトボード保存':
+        return texts.opSaveWhiteboard;
+      case 'ホワイトボード全消去':
+        return texts.opClearWhiteboard;
+      case '購入状態更新':
+        return texts.opUpdatePurchaseStatus;
+      case 'グループメンバー更新':
+        return texts.opUpdateGroupMember;
+      case '通知送信':
+        return texts.opSendNotification;
+      case 'ユーザー名読み込み':
+        return texts.opLoadUserName;
+      case '全グループユーザー名更新':
+        return texts.opUpdateAllGroupUserNames;
+      case 'グループユーザー名取得':
+        return texts.opGetGroupUserName;
+      case 'グループメンバー取得':
+        return texts.opGetGroupMembers;
+      case 'サインアウト時クリア':
+        return texts.opSignOutClear;
+      case 'Firestoreユーザー名取得':
+        return texts.opGetFirestoreUserName;
+      case 'Firestoreユーザー名保存':
+        return texts.opSaveFirestoreUserName;
+      case 'Firestoreユーザー名削除':
+        return texts.opDeleteFirestoreUserName;
+      case 'ユーザープロフィール作成':
+        return texts.opCreateUserProfile;
+      case '課金タイプ保存':
+        return texts.opSaveBillingType;
+      case '招待可能グループ検索':
+        return texts.opSearchInvitableGroups;
+      case '招待送信':
+        return texts.opSendInvite;
+      case '招待受諾':
+        return texts.opAcceptInvitation;
+      case '未受諾招待検索':
+        return texts.opSearchPendingInvitations;
+      case '招待受諾記録':
+        return texts.opRecordInvitation;
+      case '未処理招待取得':
+        return texts.opGetPendingInvitations;
+      case '招待処理済みマーク':
+        return texts.opMarkInvitationProcessed;
+      case '受諾招待削除':
+        return texts.opDeleteInvitation;
+      case 'QR招待作成':
+        return texts.opCreateQrInvite;
+      case 'QRコードデコード':
+        return texts.opDecodeQrCode;
+      case 'QR招待詳細取得':
+        return texts.opGetQrInviteDetails;
+      case 'QR招待受諾':
+        return texts.opAcceptQrInvite;
+      default:
+        return key.isEmpty ? texts.unknownOperation : key;
+    }
   }
 
   /// エラータイプ別の情報を取得
@@ -167,58 +245,58 @@ class _ErrorHistoryPageState extends ConsumerState<ErrorHistoryPage> {
         return {
           'icon': Icons.lock,
           'color': Colors.red,
-          'label': '権限エラー',
+          'label': texts.permissionErrorLabel,
         };
       case 'network':
         return {
           'icon': Icons.wifi_off,
           'color': Colors.orange,
-          'label': 'ネットワークエラー',
+          'label': texts.networkErrorLabel,
         };
       case 'sync':
         return {
           'icon': Icons.sync_problem,
           'color': Colors.purple,
-          'label': '同期エラー',
+          'label': texts.syncErrorLabel,
         };
       case 'validation':
         return {
           'icon': Icons.warning,
           'color': Colors.amber,
-          'label': '入力エラー',
+          'label': texts.validationErrorLabel,
         };
       case 'operation':
         return {
           'icon': Icons.error_outline,
           'color': Colors.red.shade700,
-          'label': '操作エラー',
+          'label': texts.operationErrorLabel,
         };
       default:
         return {
           'icon': Icons.bug_report,
           'color': Colors.grey,
-          'label': '不明なエラー',
+          'label': texts.unknownErrorLabel,
         };
     }
   }
 
   /// 時間差を計算
   String _getTimeAgo(DateTime? dateTime) {
-    if (dateTime == null) return '時刻不明';
+    if (dateTime == null) return texts.timeUnknown;
 
     final now = DateTime.now();
     final difference = now.difference(dateTime);
 
     if (difference.inSeconds < 60) {
-      return 'たった今';
+      return texts.justNow;
     } else if (difference.inMinutes < 60) {
-      return '${difference.inMinutes}分前';
+      return '${difference.inMinutes}${texts.minutesAgo}';
     } else if (difference.inHours < 24) {
-      return '${difference.inHours}時間前';
+      return '${difference.inHours}${texts.hoursAgo}';
     } else if (difference.inDays < 7) {
-      return '${difference.inDays}日前';
+      return '${difference.inDays}${texts.daysAgo}';
     } else {
-      return '${dateTime.month}月${dateTime.day}日';
+      return '${dateTime.month}/${dateTime.day}';
     }
   }
 
@@ -229,8 +307,9 @@ class _ErrorHistoryPageState extends ConsumerState<ErrorHistoryPage> {
     int index,
   ) {
     final errorType = errorData['errorType'] as String? ?? 'unknown';
-    final operation = errorData['operation'] as String? ?? '不明な操作';
-    final message = errorData['message'] as String? ?? 'エラーの詳細なし';
+    final operation =
+        errorData['operation'] as String? ?? texts.unknownOperation;
+    final message = errorData['message'] as String? ?? texts.noErrorDetailMsg;
     final stackTrace = errorData['stackTrace'] as String?;
     final timestampStr = errorData['timestamp'] as String?;
     final contextData = errorData['context'] as Map<String, dynamic>?;
@@ -255,22 +334,23 @@ class _ErrorHistoryPageState extends ConsumerState<ErrorHistoryPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildDetailRow('操作', operation),
+              _buildDetailRow(texts.operationLabel, operation),
               const SizedBox(height: 8),
-              _buildDetailRow('メッセージ', message),
+              _buildDetailRow(texts.messageLabel, message),
               if (timestamp != null) ...[
                 const SizedBox(height: 8),
-                _buildDetailRow('発生時刻', timestamp.toString()),
+                _buildDetailRow(texts.occurredAtLabel, timestamp.toString()),
               ],
               if (contextData != null && contextData.isNotEmpty) ...[
                 const SizedBox(height: 8),
-                _buildDetailRow('コンテキスト', contextData.toString()),
+                _buildDetailRow(texts.contextLabel, contextData.toString()),
               ],
               if (stackTrace != null && stackTrace.isNotEmpty) ...[
                 const SizedBox(height: 8),
-                const Text(
-                  'スタックトレース:',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                Text(
+                  texts.stackTraceLabel,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 12),
                 ),
                 const SizedBox(height: 4),
                 Container(
@@ -301,7 +381,7 @@ class _ErrorHistoryPageState extends ConsumerState<ErrorHistoryPage> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('閉じる'),
+            child: Text(texts.close),
           ),
         ],
       ),

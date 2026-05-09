@@ -227,15 +227,15 @@ class _HomePageState extends ConsumerState<HomePage> {
       }
     } catch (e) {
       AppLogger.error('❌ [SIGNUP] アカウント作成エラー', e);
-      String errorMessage = 'アカウント作成に失敗しました';
+      String errorMessage = texts.signUpFailed;
       if (e.toString().contains('email-already-in-use')) {
-        errorMessage = 'このメールアドレスは既に使用されています';
+        errorMessage = texts.emailAlreadyInUse;
       } else if (e.toString().contains('weak-password')) {
-        errorMessage = 'パスワードが弱すぎます';
+        errorMessage = texts.weakPassword;
       } else if (e.toString().contains('invalid-email')) {
-        errorMessage = 'メールアドレスの形式が正しくありません';
+        errorMessage = texts.invalidEmail;
       }
-      await ErrorLogService.logOperationError('アカウント作成', '$e');
+      await ErrorLogService.logOperationError(texts.createAccount, '$e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -350,14 +350,14 @@ class _HomePageState extends ConsumerState<HomePage> {
       }
     } catch (e) {
       AppLogger.error('❌ [SIGNIN] サインインエラー', e);
-      String errorMessage = 'サインインに失敗しました';
+      String errorMessage = texts.signInFailed;
       if (e.toString().contains('user-not-found')) {
-        errorMessage = 'ユーザーが見つかりません。アカウント作成が必要です';
+        errorMessage = texts.userNotFoundSignIn;
       } else if (e.toString().contains('wrong-password') ||
           e.toString().contains('invalid-credential')) {
-        errorMessage = 'メールアドレスまたはパスワードが正しくありません';
+        errorMessage = texts.wrongEmailOrPassword;
       }
-      await ErrorLogService.logOperationError('サインイン', '$e');
+      await ErrorLogService.logOperationError(texts.signIn, '$e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -452,10 +452,10 @@ class _HomePageState extends ConsumerState<HomePage> {
                           ],
                         ),
                         const SizedBox(height: 12),
-                        _buildPrivacyPoint('最初に共有される情報は、ログイン情報と表示名のみです'),
-                        _buildPrivacyPoint('リストは、あなたが共有したユーザーとのみ共有されます'),
-                        _buildPrivacyPoint('グループに参加するユーザーも同じポリシーが適用されます'),
-                        _buildPrivacyPoint('アプリの利用にはFirebaseアカウントが必須です'),
+                        _buildPrivacyPoint(texts.privacyPoint1),
+                        _buildPrivacyPoint(texts.privacyPoint2),
+                        _buildPrivacyPoint(texts.privacyPoint3),
+                        _buildPrivacyPoint(texts.privacyPoint4),
                       ],
                     ),
                   ),
@@ -760,8 +760,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'メールアドレスとパスワードでアカウント作成・ログインができます。\n'
-                          '既にアカウントをお持ちの方は同じ情報でログインしてください。',
+                          texts.forNewUsersDesc,
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey.shade700,
@@ -874,11 +873,10 @@ class _HomePageState extends ConsumerState<HomePage> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      _buildInfoPoint('画面下の「グループ」タブでグループを管理できます'),
-                      _buildInfoPoint(
-                          'グループを選択すると${AppModeSettings.config.sharedList}が表示されます'),
-                      _buildInfoPoint('QRコードで家族や友達を招待できます'),
-                      _buildInfoPoint('「設定」タブでアプリの設定ができます'),
+                      _buildInfoPoint(texts.howToUsePoint(1)),
+                      _buildInfoPoint(texts.howToUsePoint(2)),
+                      _buildInfoPoint(texts.howToUsePoint(3)),
+                      _buildInfoPoint(texts.howToUsePoint(4)),
                     ],
                   ),
                 ),
