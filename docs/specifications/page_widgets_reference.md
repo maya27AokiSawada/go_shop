@@ -26,7 +26,7 @@
 
 ### 1. HomePage 🏠
 
-**ファイル**: `lib/pages/home_page.dart` (931行)
+**ファイル**: `lib/pages/home_page.dart` (971行)
 
 **種類**: ConsumerStatefulWidget
 
@@ -120,57 +120,59 @@
 
 ### 3. SettingsPage ⚙️
 
-**ファイル**: `lib/pages/settings_page.dart` (2665行)
+**ファイル**: `lib/pages/settings_page.dart` (173行、各機能はセクションウィジェットに委譲)
 
 **種類**: ConsumerStatefulWidget
 
-**目的**: 設定画面。認証状態、アプリモード、プライバシー設定、開発者ツールを統合
+**目的**: 設定画面。認証状態、言語設定、ホワイトボード設定、アカウント管理を統合
 
 **主要機能**:
 
 - **認証状態パネル**: AuthStatusPanel（サインイン状態表示）
 - **Firestore同期状態パネル**: FirestoreSyncStatusPanel（同期状態表示）
+- **アプリUIモード切り替え**: AppUiModeSwitcherPanel
 - **アプリモード切り替え**: AppModeSwitcherPanel（買い物リスト ⇄ TODOタスク管理）
-- **プライバシー設定**: PrivacySettingsPanel（シークレットモード切り替え）
-- **通知設定**: NotificationSettingsPanel（通知ON/OFF、履歴表示）
-- **データメンテナンス**:
-  - 削除済みアイテムクリーンアップ
-  - リストデータMap移行
-  - 定期購入リセット
-  - ユーザープロファイル移行
-- **開発者ツール**: TestScenarioWidget、デバッグ用修正機能
-- **アカウント削除**: 2段階確認＋Firebase再認証＋2段階Batch削除
+- **言語設定**: LanguageSettingsPanel（日本語 / English 切り替え）
+- **ホワイトボード設定**: WhiteboardSettingsPanel（カスタム色等）
+- **フィードバック**: FeedbackSection
+- **開発者ツール**: DeveloperToolsSection、FeedbackDebugSection
+- **データメンテナンス**: DataMaintenanceSection
+- **アカウント削除**: AccountDeletionSection（2段階確認＋Firebase再認証）
+
+> **Note**: `PrivacySettingsPanel`（シークレットモード）は2026-05-01に削除済み。
 
 **ナビゲーション**:
 
 - `BottomNavigationBar` → 設定タブ経由
-- `NotificationHistoryPage` → 通知履歴ボタン経由
+- `NotificationHistoryPage` → 通知設定から遷移
 - `ErrorHistoryPage` → エラー履歴ボタン経由
 - `PremiumPage` → プレミアムプラン管理ボタン経由
 - `HelpPage` → ヘルプボタン経由
 
 **特徴**:
 
-- ✅ 全ての設定を一元管理
-- ✅ ユーザー名直接読み込み（initState → UserPreferencesService.getUserName()）
-- ✅ アカウント削除の完全実装（再認証、サブコレクション削除、親グループ削除、メンバー離脱）
-- ✅ データメンテナンス機能の充実
+- ✅ セクション分割により本体ファイルが軽量（173行）
+- ✅ 言語設定（日本語/英語）
+- ✅ ホワイトボード描画色のカスタム設定
+- ✅ アカウント削除の完全実装（再認証、サブコレクション削除、親グループ削除）
 
 **使用ウィジェット**:
 
 - `AuthStatusPanel` - 認証状態表示
 - `FirestoreSyncStatusPanel` - 同期状態表示
-- `AppModeSwitcherPanel` - モード切り替え
-- `PrivacySettingsPanel` - プライバシー設定
-- `NotificationSettingsPanel` - 通知設定
-- `TestScenarioWidget` - テストシナリオ実行
+- `AppUiModeSwitcherPanel` - UIモード切り替え
+- `AppModeSwitcherPanel` - アプリモード切り替え
+- `LanguageSettingsPanel` - 言語設定
+- `WhiteboardSettingsPanel` - ホワイトボード設定
+- `FeedbackSection` - フィードバック
+- `AccountDeletionSection` - アカウント削除
+- `DeveloperToolsSection` - 開発者ツール
 
 **プロバイダー依存**:
 
 - `authStateProvider` - 現在ユーザー
 - `firestoreSyncStatusProvider` - 同期状態
 - `appModeNotifierProvider` - アプリモード
-- `userSettingsProvider` - ユーザー設定
 
 ---
 
@@ -218,7 +220,7 @@
 
 ### 5. GroupMemberManagementPage 📋
 
-**ファイル**: `lib/pages/group_member_management_page.dart` (683行)
+**ファイル**: `lib/pages/group_member_management_page.dart` (640行)
 
 **種類**: ConsumerStatefulWidget
 
@@ -231,9 +233,11 @@
 - **個人ホワイトボードアクセス**: MemberTileWithWhiteboard（ダブルタップ）
 - **メンバー招待**: 招待ボタン → GroupInvitationPage遷移
 - **グループコピー**: コピーボタン → GroupCreationWithCopyDialog表示
-- **役割管理**: MemberRoleManagementWidget（オーナー・管理者のみ）
+- **役割管理**: MemberTileWithWhiteboard内蔵のロール変更ダイアログ（タップ → ロール選択）
 - **メンバー削除**: 削除ボタン（オーナー・管理者のみ、オーナーは削除不可）
 - **権限チェック**: `_canInviteMembers()`, `_canManageMembers()`, `_canRemoveMembers()`
+
+> **Note**: `MemberRoleManagementWidget`は廃止。ロール変更は`MemberTileWithWhiteboard`内のダイアログで行う。
 
 **ナビゲーション**:
 
@@ -246,13 +250,12 @@
 - ✅ リアルタイム更新（allGroupsProviderでメンバー情報取得）
 - ✅ 役割ベースアクセス制御（オーナー・管理者・パートナー・メンバー）
 - ✅ ホワイトボード統合（グループ＋個人）
-- ✅ デフォルトグループ機能廃止対応（削除保護なし）
+- ✅ 役割ラベル・ダイアログテキストの多言語対応（l10n）
 
 **使用ウィジェット**:
 
 - `WhiteboardPreviewWidget` - グループホワイトボードプレビュー
-- `MemberTileWithWhiteboard` - メンバータイル＋個人ホワイトボードアクセス
-- `MemberRoleManagementWidget` - 役割管理ダイアログ
+- `MemberTileWithWhiteboard` - メンバータイル＋個人ホワイトボード＋ロール変更ダイアログ
 - `GroupCreationWithCopyDialog` - グループコピーダイアログ
 
 **プロバイダー依存**:
@@ -264,7 +267,7 @@
 
 ### 6. WhiteboardEditorPage 🎨
 
-**ファイル**: `lib/pages/whiteboard_editor_page.dart` (1902行)
+**ファイル**: `lib/pages/whiteboard_editor_page.dart` (1556行)
 
 **種類**: ConsumerStatefulWidget
 
@@ -320,7 +323,7 @@
 
 ### 7. NotificationHistoryPage 📊
 
-**ファイル**: `lib/pages/notification_history_page.dart` (331行)
+**ファイル**: `lib/pages/notification_history_page.dart` (423行)
 
 **種類**: ConsumerStatefulWidget
 
@@ -371,7 +374,7 @@
 
 ### 8. ErrorHistoryPage 📊
 
-**ファイル**: `lib/pages/error_history_page.dart` (407行)
+**ファイル**: `lib/pages/error_history_page.dart` (487行)
 
 **種類**: ConsumerStatefulWidget
 

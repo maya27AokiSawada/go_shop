@@ -114,11 +114,29 @@ UI自動更新
 
 ```dart
 enum NotificationType {
-  groupMemberAdded('group_member_added'),      // メンバー追加
-  groupUpdated('group_updated'),                // グループ更新
-  invitationAccepted('invitation_accepted'),    // 招待受諾
-  groupDeleted('group_deleted');                // グループ削除
-  whiteboardUpdated('whiteboard_updated');      // ホワイトボード更新（2026-02実装）
+  // グループ関連
+  groupMemberAdded('group_member_added'),       // メンバー追加
+  groupUpdated('group_updated'),                 // グループ更新
+  groupLeaveRequested('group_leave_requested'), // 離脱リクエスト
+  groupLeft('group_left'),                       // メンバー離脱
+  invitationAccepted('invitation_accepted'),     // 招待受諾
+  groupDeleted('group_deleted'),                 // グループ削除
+  syncConfirmation('sync_confirmation'),         // 同期確認（2026-05実装）
+
+  // リスト関連（即時送信）
+  listCreated('list_created'),                   // リスト作成
+  listDeleted('list_deleted'),                   // リスト削除
+  listRenamed('list_renamed'),                   // リスト名変更
+
+  // アイテム関連（5分間隔バッチ送信）
+  itemAdded('item_added'),                       // アイテム追加
+  itemRemoved('item_removed'),                   // アイテム削除
+  itemPurchased('item_purchased'),               // 購入完了
+
+  // ホワイトボード関連（即時送信）
+  whiteboardUpdated('whiteboard_updated'),       // ホワイトボード更新（2026-02実装）
+  whiteboardEditStarted('whiteboard_edit_started'), // ペンモード開始
+  whiteboardEditEnded('whiteboard_edit_ended'); // ペンモード終了
 }
 ```
 
