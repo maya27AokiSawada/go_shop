@@ -156,7 +156,34 @@ if (Platform.isWindows && canEdit) {
 
 ---
 
-## 4. 編集ロック
+## 4. アクセス制御 (`canEdit`)
+
+`Whiteboard.canEdit(String userId)` は **`isPrivate` のみ**で判定する。
+個人用（`ownerId != null`）かグループ共通かで分岐しない。
+
+```dart
+// ✅ 正しい — isPrivate のみで判断
+bool canEdit(String userId) {
+  if (!isPrivate) return true;
+  return ownerId == userId;
+}
+
+// ❌ 禁止 — isPersonalWhiteboard で分岐すると isPrivate を無視してしまう
+bool canEdit(String userId) {
+  if (isPersonalWhiteboard) return ownerId == userId; // isPrivate=false でも他人を弾いてしまう
+  if (!isPrivate) return true;
+  return ownerId == userId;
+}
+```
+
+| isPrivate | 誰が編集可能か                       |
+| --------- | ------------------------------------ |
+| `false`   | 誰でも編集可（グループメンバー全員） |
+| `true`    | `ownerId` と一致するユーザーのみ     |
+
+---
+
+## 5. 編集ロック
 
 ### userId + deviceId で所有者を判定する
 

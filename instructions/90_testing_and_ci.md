@@ -47,7 +47,28 @@ class MyService {
 
 ---
 
-## 3. Group-level setUp パターン（必須）
+## 3. Flavor のテスト用上書き（`F.appFlavor` セッター）
+
+`F.appFlavor` は `--dart-define=FLAVOR` から取得するが、テスト内では `setUp()` でセッターを使って上書きできる。
+
+```dart
+// ✅ テスト内でのFlavor上書き
+setUp(() {
+  F.appFlavor = Flavor.dev; // または Flavor.prod
+});
+```
+
+`lib/flavors.dart` に `static Flavor? _override` + `static set appFlavor` が定義されている。
+本番ビルドでは `_override` は常に `null` のため動作に影響なし。
+
+```dart
+// ❌ 禁止 — セッターを追加せずゲッターのみにすると CI でコンパイルエラー
+// test: F.appFlavor = Flavor.dev; → Error: Setter not found: 'appFlavor'
+```
+
+---
+
+## 4. Group-level setUp パターン（必須）
 
 mockito はスタブ設定をグローバルに追跡する。
 グローバル `setUp()` でモックを共有すると状態汚染が起きる。
@@ -75,7 +96,7 @@ group('createGroup', () {
 
 ---
 
-## 4. CI/CD（GitHub Actions）
+## 5. CI/CD（GitHub Actions）
 
 - **トリガー**: `main` ブランチへの push のみ自動ビルド
 - **ビルド環境**: `ubuntu-latest`
@@ -96,7 +117,7 @@ group('createGroup', () {
 
 ---
 
-## 5. ビルドコマンド
+## 6. ビルドコマンド
 
 ```bash
 # デバッグ APK（実機テスト）
@@ -150,7 +171,7 @@ xcodebuild -exportArchive \
 
 ---
 
-## 6. 禁止事項
+## 7. 禁止事項
 
 - グローバル `setUp()` でのモック共有
 - `DocumentSnapshot<Map<String, dynamic>>` の手動モック作成
