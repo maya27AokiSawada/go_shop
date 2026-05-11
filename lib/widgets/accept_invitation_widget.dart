@@ -5,8 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../providers/auth_provider.dart';
-import '../providers/shared_group_provider.dart';
+import '../services/error_log_service.dart';
 import '../services/qr_invitation_service.dart';
 import '../utils/app_logger.dart';
 import '../utils/error_handler.dart';
@@ -336,34 +338,58 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
         final groupId = invitationData['sharedGroupId'] as String;
 
         // すでにグループメンバーかチェック
-        final groupRepository = ref.read(SharedGroupRepositoryProvider);
+        // 🔥 FIX: Firestoreを直接参照（Hiveキャッシュをバイパス）
+        // 退出後はallowedUidから削除されるため、Firestoreへのgetが permission-denied になる。
+        // HybridRepoはそれをキャッチしてHiveにフォールバックするため、古いキャッシュを返してしまう。
+        // 直接参照することでキャッシュ問題を回避し、permission-deniedを「メンバーでない」と正しく判定する。
+        bool isAlreadyMember = false;
         try {
-          final existingGroup = await groupRepository.getGroupById(groupId);
-
-          if (existingGroup.allowedUid.contains(user.uid)) {
-            Log.info('💡 [QR_SCAN] すでにグループメンバー: ${user.uid}');
-            if (mounted) {
-              final navigator = Navigator.of(context);
-              final messenger = ScaffoldMessenger.maybeOf(context);
-              try {
-                await _controller.stop();
-              } catch (e) {
-                Log.warning('⚠️ [QR_SCAN] カメラ停止エラー: $e');
-              }
-              navigator.pop(); // スキャナー画面を閉じる
-              messenger?.showSnackBar(
-                SnackBar(
-                  content: Text(texts.alreadyJoinedGroup(groupName)),
-                  backgroundColor: Colors.blue,
-                  duration: const Duration(seconds: 3),
-                ),
-              );
-            }
-            return;
+          final groupDoc = await FirebaseFirestore.instance
+              .collection('SharedGroups')
+              .doc(groupId)
+              .get();
+          if (groupDoc.exists) {
+            final allowedUid =
+                List<String>.from(groupDoc.data()?['allowedUid'] ?? []);
+            isAlreadyMember = allowedUid.contains(user.uid);
+            Log.info(
+                '🔍 [QR_SCAN] Firestore最新allowedUid確認: isAlreadyMember=$isAlreadyMember');
+          } else {
+            Log.info('📝 [QR_SCAN] グループがFirestoreに存在しない - 新規参加フローへ');
+          }
+        } on FirebaseException catch (e) {
+          if (e.code == 'permission-denied') {
+            // permission-denied = allowedUidから除外済み = メンバーではない（退出済み）
+            Log.info(
+                '📝 [QR_SCAN] Firestore permission-denied = メンバーではない（退出済み）- 参加フローへ');
+            isAlreadyMember = false;
+          } else {
+            Log.warning('⚠️ [QR_SCAN] Firestore取得エラー (${e.code}) - 参加フローを続行');
           }
         } catch (e) {
-          // グループが見つからない場合は新規参加として続行
-          Log.info('📝 [QR_SCAN] グループ未参加 - 確認ダイアログ表示');
+          Log.info('📝 [QR_SCAN] グループ取得エラー - 新規参加として続行: $e');
+        }
+
+        if (isAlreadyMember) {
+          Log.info('💡 [QR_SCAN] すでにグループメンバー: ${user.uid}');
+          if (mounted) {
+            final navigator = Navigator.of(context);
+            final messenger = ScaffoldMessenger.maybeOf(context);
+            try {
+              await _controller.stop();
+            } catch (e) {
+              Log.warning('⚠️ [QR_SCAN] カメラ停止エラー: $e');
+            }
+            navigator.pop(); // スキャナー画面を閉じる
+            messenger?.showSnackBar(
+              SnackBar(
+                content: Text(texts.alreadyJoinedGroup(groupName)),
+                backgroundColor: Colors.blue,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
+          return;
         }
 
         // 確認ダイアログ
@@ -455,6 +481,8 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
       context: 'ACCEPT_INVITE:processQRInvitation',
       defaultValue: null,
       onError: (error, stackTrace) {
+        // エラー履歴に記録
+        ErrorLogService.logOperationError('QR招待受諾', '$error', stackTrace);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
