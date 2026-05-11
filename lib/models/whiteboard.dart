@@ -116,10 +116,9 @@ class Whiteboard with _$Whiteboard {
   bool get isPersonalWhiteboard => ownerId != null;
 
   /// ユーザーが編集可能か判定
-  /// 個人用ホワイトボード（ownerId != null）はオーナーのみ編集可
-  /// グループ共通ボード: isPrivate=false → 誰でも編集可 / isPrivate=true → ownerId一致のみ
+  /// isPrivate=false → 誰でも編集可 / isPrivate=true → ownerId一致のみ
+  /// 個人用・グループ共通いずれも同じルールを適用
   bool canEdit(String userId) {
-    if (isPersonalWhiteboard) return ownerId == userId;
     if (!isPrivate) return true;
     return ownerId == userId;
   }
