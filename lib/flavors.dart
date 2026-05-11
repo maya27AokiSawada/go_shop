@@ -10,7 +10,13 @@ enum Flavor {
 }
 
 class F {
+  static Flavor? _override;
+
+  // ignore: avoid_setters_without_getters
+  static set appFlavor(Flavor flavor) => _override = flavor;
+
   static Flavor get appFlavor {
+    if (_override != null) return _override!;
     switch (_flavorFromEnv) {
       case 'dev':
         return Flavor.dev;
