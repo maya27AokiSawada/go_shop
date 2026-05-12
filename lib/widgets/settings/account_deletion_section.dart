@@ -320,16 +320,8 @@ class _AccountDeletionSectionState
         batch2.delete(doc.reference);
       }
 
-      final invitations = await firestore
-          .collection('invitations')
-          .where('invitedBy', isEqualTo: user.uid)
-          .get();
-
-      AppLogger.info('📝 [DELETE_ACCOUNT] 招待数: ${invitations.docs.length}');
-
-      for (var doc in invitations.docs) {
-        batch2.delete(doc.reference);
-      }
+      // ※ /invitations コレクション（レガシー）はセキュリティルールで全拒否のため
+      // クエリ不可。v3.x 以降は SharedGroups サブコレクションに移行済みのためスキップ。
 
       final userDoc = firestore.collection('users').doc(user.uid);
       batch2.delete(userDoc);

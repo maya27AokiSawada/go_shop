@@ -51,7 +51,9 @@ await user.updateDisplayName(userName);
 2. **2段階確認ダイアログ**（誤操作防止）
 3. **Batch 分割削除**
    - Batch 1: サブコレクション（sharedLists, whiteboards）を削除 → commit
-   - Batch 2: 親グループ削除 + メンバー離脱 + 通知 + 招待 + user プロファイル削除 → commit
+   - Batch 2: 親グループ削除 + メンバー離脱 + 通知 + user プロファイル削除 → commit
+
+> ⚠️ **注意**: `/invitations` トップレベルコレクション（レガシー）は `allow read, write: if false` で全拒否のためクエリ不可。v3.x 以降は `SharedGroups/{groupId}/invitations/` サブコレクションに移行済みのため Batch 2 から除外すること。アクセスすると `permission-denied` 例外が発生し後続の `user.delete()` がブロックされる。
 
 ### Batch を分割する理由
 
@@ -113,6 +115,7 @@ batch2.update(group.reference, {
 - single → multi 変更はプレミアム機能（`isPremiumActiveProvider` でゲート）
 - multi → single 変更は確認ダイアログを必ず表示する
 - **Hive に新フィールドを追加したら `UserSettingsAdapterOverride` の `read()` と `write()` を必ず更新する**（null安全のため `(fields[N] as Type?) ?? defaultValue` パターンを使う）
+- **新規ユーザーのデフォルトは `appUIMode: 0`（シングルモード）**。`firestore_user_name_service.dart` の `saveUserName()` で新規ドキュメント作成時に `appUIMode: 0` を明示設定すること。SharedPreferences に前ユーザーの stale な値（`1` = multi）が残っていても上書きされる。
 
 ---
 
