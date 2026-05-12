@@ -116,6 +116,16 @@ batch2.update(group.reference, {
 - multi → single 変更は確認ダイアログを必ず表示する
 - **Hive に新フィールドを追加したら `UserSettingsAdapterOverride` の `read()` と `write()` を必ず更新する**（null安全のため `(fields[N] as Type?) ?? defaultValue` パターンを使う）
 - **新規ユーザーのデフォルトは `appUIMode: 0`（シングルモード）**。`firestore_user_name_service.dart` の `saveUserName()` で新規ドキュメント作成時に `appUIMode: 0` を明示設定すること。SharedPreferences に前ユーザーの stale な値（`1` = multi）が残っていても上書きされる。
+- **サインアップ直後は `_syncUserProfile` の非同期完了を待たずに 3 箇所を即座に設定すること**（stale 値が UI に反映される時間を排除する）:
+
+```dart
+// ✅ サインアップ成功直後（sign_up_form.dart / home_page.dart）
+AppUIModeSettings.setMode(AppUIMode.single);
+ref.read(appUIModeProvider.notifier).state = AppUIMode.single;
+await UserPreferencesService.saveAppUIMode(0);
+```
+
+- `user_initialization_service.dart` の `_syncUserProfile()` は、Firestore にデータがなくローカルにある場合（新規ユーザー直後）は `localAppUIMode` を使わず `appUIMode: 0` を強制書き込みすること（`localAppUIMode` は前ユーザーの stale 値の可能性があるため）。
 
 ---
 

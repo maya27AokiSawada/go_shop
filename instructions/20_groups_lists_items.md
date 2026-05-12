@@ -203,3 +203,45 @@ subtitle: Text(_getRoleLabel(widget.member.role));
 - Hive 切替直後の空状態を「0件確定」と見なす
 - `_parseRole()` で `SharedGroupRole` の一部ケースを省略する（全値列挙必須）
 - ロール変更後に `allGroupsProvider` の invalidate を省略する
+
+---
+
+## 9. InitialSetupWidget（シングルモード初期セットアップ）
+
+`lib/widgets/initial_setup_widget.dart` はグループが 0 件のシングルモードユーザーに表示する初期セットアップ画面。
+
+### 重要ルール
+
+- `InitialSetupWidget` は **Scaffold を持たないボディウィジェット** である（`SafeArea` のみ返す）
+  → `SharedGroupPage` の `Scaffold` 内にボディとして配置するため、自前 `Scaffold` を追加する **禁止**
+- `ConsumerStatefulWidget` で実装すること（`this.ref` でプロバイダにアクセス）
+- グループ作成後の遷移は **`pageIndexProvider.setPageIndex()` を使わず** `allGroupsProvider` の更新に委譲すること
+  → `allGroupsProvider` が `AsyncData([newGroup])` になると `SharedGroupPage` が自動的に `GroupListWidget` に切り替わる
+
+### SharedGroupPage での切り替えパターン
+
+```dart
+// ✅ SharedGroupPage: シングルモードで allGroupsProvider によりボディを切り替える
+if (isSingle) {
+  final groupsAsync = ref.watch(allGroupsProvider);
+  final isEmpty = groupsAsync.when(
+    data: (g) => g.isEmpty,
+    loading: () => false,  // ロード中は切り替えない
+    error: (_, __) => false,
+  );
+  body = isEmpty ? const InitialSetupWidget() : const SafeArea(child: GroupListWidget(...));
+}
+```
+
+### グループ作成フロー
+
+```dart
+// ✅ _createGroup: ローディングダイアログ不要。allGroupsProvider 更新で自動遷移
+Future<void> _createGroup(BuildContext context, String groupName) async {
+  await ref.read(allGroupsProvider.notifier).createNewGroup(groupName);
+  // allGroupsProvider が AsyncData([newGroup]) になり SharedGroupPage が自動切替
+}
+
+// ❌ 禁止: Widget 削除後に ref を使う可能性がある強制遷移
+ProviderScope.containerOf(context).read(pageIndexProvider.notifier).setPageIndex(1);
+```
