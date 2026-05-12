@@ -88,6 +88,7 @@ class FirestoreUserNameService {
         Log.info('🆕 [PROFILE] 新規ドキュメント作成: ${AppLogger.maskName(userName)}');
         dataToSave['email'] = currentEmail;
         dataToSave['createdAt'] = FieldValue.serverTimestamp();
+        dataToSave['appUIMode'] = 0; // 新規ユーザーのデフォルトはシングルモード
       }
 
       // SetOptions(merge: true)でドキュメントを作成または更新

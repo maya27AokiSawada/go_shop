@@ -133,9 +133,19 @@ class NetworkMonitorService {
               .limit(1)
               .get(const GetOptions(source: Source.server))
               .timeout(connectionTimeout);
-          snapshot = querySnapshot.docs.isNotEmpty
-              ? querySnapshot.docs.first
-              : throw Exception('No documents');
+          // ドキュメントが0件でもクエリ自体が成功すればFirestoreへの接続は確認できる
+          if (querySnapshot.docs.isNotEmpty) {
+            snapshot = querySnapshot.docs.first;
+          } else {
+            // 空コレクションでも接続成功とみなす
+            _consecutiveCheckFailures = 0;
+            _lastSuccessTime = DateTime.now();
+            AppLogger.info(
+                '✅ [NETWORK_MONITOR] Firestore接続成功 - コレクション空（新規プロジェクト等）');
+            _updateStatus(NetworkStatus.online);
+            stopAutoRetry();
+            return true;
+          }
         }
 
         // 接続成功
