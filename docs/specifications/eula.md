@@ -93,8 +93,9 @@
 ## 第10条（お問い合わせ）
 
 **運営者**: 株式会社Ansize
-**開発責任者**: maya27AokiSawada
 **メールアドレス**: ansize.oneness@gmail.com
+**開発責任者**: maya27AokiSawada
+**開発者メール**: support@sumomo-planning.net
 **GitHub**: <https://github.com/maya27AokiSawada/go_shop>
 
 ---
@@ -189,6 +190,7 @@ This Agreement is governed by the laws of Japan. Any disputes shall be subject t
 ## Article 10 (Contact)
 
 **Developer**: Ansize Co., Ltd.
-**Contact**: maya27AokiSawada
 **Email**: ansize.oneness@gmail.com
+**Contact**: maya27AokiSawada
+**Developer Email**: support@sumomo-planning.net
 **GitHub**: <https://github.com/maya27AokiSawada/go_shop>
