@@ -127,6 +127,20 @@ await UserPreferencesService.saveAppUIMode(0);
 
 - `user_initialization_service.dart` の `_syncUserProfile()` は、Firestore にデータがなくローカルにある場合（新規ユーザー直後）は `localAppUIMode` を使わず `appUIMode: 0` を強制書き込みすること（`localAppUIMode` は前ユーザーの stale 値の可能性があるため）。
 
+### グループの自動選択（シングルモード対応）
+
+`allGroupsProvider` は返却リストを `updatedAt` 降順でソートする。
+これにより `SelectedGroupIdNotifier` が SharedPreferences に保存済みIDを持たない場合（新規端末サインイン等）、`availableGroups.first` が「最近更新されたグループ」になる。
+
+```dart
+// ✅ allGroupsProvider（shared_group_provider.dart）での実装パターン
+deduplicatedGroups.sort((a, b) =>
+    (b.updatedAt ?? DateTime(0)).compareTo(a.updatedAt ?? DateTime(0)));
+```
+
+- Firestore リアルタイムリスナー更新時も同じソートを適用すること
+- `updatedAt` が null のグループは `DateTime(0)`（最古）として扱う
+
 ---
 
 ## 5. DeviceIdService
