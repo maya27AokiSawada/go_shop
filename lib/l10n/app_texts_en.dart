@@ -1419,7 +1419,7 @@ class AppTextsEn extends AppTexts {
   @override
   String get signUpRequiredMsg => 'Sign up is required';
   @override
-  String get welcomeToGoShop => 'Welcome to Go Shop!';
+  String get welcomeToGoShop => 'Welcome to GoShopping!';
   @override
   String get welcomeSubtitle =>
       'Share lists with family or group,\nfor more convenient management';

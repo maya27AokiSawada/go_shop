@@ -443,7 +443,7 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
                       texts.packageNameLabel, packageInfo.packageName),
                   const SizedBox(height: 16),
                   Text(
-                    '${AppModeSettings.config.sharedList} ${texts.appFooterSubtitle}',
+                    '${texts.sharedListNameForMode(AppModeSettings.currentMode == AppMode.shopping)} ${texts.appFooterSubtitle}',
                     style: const TextStyle(color: Colors.grey),
                   ),
                   const SizedBox(height: 8),

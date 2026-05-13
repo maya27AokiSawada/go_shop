@@ -1379,7 +1379,7 @@ class AppTextsJa extends AppTexts {
   @override
   String get signUpRequiredMsg => 'サインアップが必要です';
   @override
-  String get welcomeToGoShop => 'Go Shopへようこそ！';
+  String get welcomeToGoShop => 'GoShoppingへようこそ！';
   @override
   String get welcomeSubtitle => '家族やグループでリストを共有して、\nより便利に管理しましょう';
   @override

@@ -11,6 +11,7 @@ import '../../services/user_profile_migration_service.dart';
 import '../../services/user_initialization_service.dart';
 import '../../utils/app_logger.dart';
 import '../../config/app_mode_config.dart';
+import '../../l10n/l10n.dart';
 
 /// データメンテナンスパネル（開発環境のみ）
 class DataMaintenanceSection extends ConsumerStatefulWidget {
@@ -245,7 +246,7 @@ class _DataMaintenanceSectionState
           ),
           content: Text(
             success
-                ? 'デフォルトグループをFirestoreに同期しました。\n\nアプリを再起動すると、${AppModeSettings.config.sharedList}もクラウドに保存されるようになります。'
+                ? 'デフォルトグループをFirestoreに同期しました。\n\nアプリを再起動すると、${texts.sharedListNameForMode(AppModeSettings.currentMode == AppMode.shopping)}もクラウドに保存されるようになります。'
                 : '同期に失敗しました。ネットワーク接続を確認してください。',
           ),
           actions: [
@@ -710,7 +711,7 @@ class _DataMaintenanceSectionState
         content: Text(
           '⚠️ ローカルの全データを削除しますか？\n\n'
           '・全グループ\n'
-          '・全${AppModeSettings.config.sharedList}\n'
+          '・全${texts.sharedListNameForMode(AppModeSettings.currentMode == AppMode.shopping)}\n'
           '・全アイテム\n\n'
           'Firestoreから再同期されますが、ローカルのみのデータは失われます。',
         ),
