@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
+import '../providers/app_ui_mode_provider.dart';
 import '../providers/page_index_provider.dart';
 import '../config/app_ui_mode_config.dart';
+import '../services/user_preferences_service.dart';
 import '../l10n/l10n.dart';
 import '../widgets/single_group_creation_dialog.dart';
 
@@ -70,10 +72,13 @@ class _SignUpFormState extends ConsumerState<SignUpForm> {
         await ref.read(authProvider).signUp(_email, _password);
         if (!mounted) return;
 
-        // Firebase認証完了 - 状態はauthStateProviderで自動更新される
+        // サインアップ後は必ずシングルモードに即設定（非同期の_syncUserProfileを待たない）
+        AppUIModeSettings.setMode(AppUIMode.single);
+        ref.read(appUIModeProvider.notifier).state = AppUIMode.single;
+        await UserPreferencesService.saveAppUIMode(0);
 
-        // シングルモードの場合はグループ作成ダイアログを表示
-        if (AppUIModeSettings.currentMode == AppUIMode.single && mounted) {
+        // シングルモードのグループ作成ダイアログを表示（新規ユーザーは常に表示）
+        if (mounted) {
           await showDialog(
             context: context,
             barrierDismissible: false,
@@ -141,14 +146,17 @@ class _SignUpFormState extends ConsumerState<SignUpForm> {
       await ref.read(authProvider).signUp(_email, _password);
       if (!mounted) return;
 
-      // Firebase認証完了 - 状態はauthStateProviderで自動更新される
+      // サインアップ後は必ずシングルモードに即設定（非同期の_syncUserProfileを待たない）
+      AppUIModeSettings.setMode(AppUIMode.single);
+      ref.read(appUIModeProvider.notifier).state = AppUIMode.single;
+      await UserPreferencesService.saveAppUIMode(0);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(texts.accountCreated)),
       );
 
-      // シングルモードの場合はグループ作成ダイアログを表示
-      if (AppUIModeSettings.currentMode == AppUIMode.single && mounted) {
+      // シングルモードのグループ作成ダイアログを表示（新規ユーザーは常に表示）
+      if (mounted) {
         await showDialog(
           context: context,
           barrierDismissible: false,

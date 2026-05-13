@@ -7,6 +7,7 @@ import '../providers/auth_provider.dart';
 import '../providers/shared_list_provider.dart';
 import '../providers/current_list_provider.dart';
 import '../datastore/hybrid_shared_list_repository.dart';
+import '../widgets/accept_invitation_widget.dart';
 import '../utils/app_logger.dart';
 
 /// シングルモード用グループ作成ダイアログ
@@ -31,6 +32,20 @@ class _SingleGroupCreationDialogState
   void dispose() {
     _groupNameController.dispose();
     super.dispose();
+  }
+
+  Future<void> _scanQR() async {
+    // ダイアログを閉じずにQRスキャナーを上に重ねて表示
+    // （PopScope(canPop:false)によるブロックを回避するため先にpopしない）
+    await Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(builder: (_) => const QRScannerScreen()),
+    );
+    if (!mounted) return;
+    // スキャンでグループに参加できていたらダイアログを閉じる
+    final groups = ref.read(allGroupsProvider).valueOrNull ?? [];
+    if (groups.isNotEmpty) {
+      Navigator.of(context, rootNavigator: true).pop();
+    }
   }
 
   Future<void> _create() async {
@@ -121,6 +136,27 @@ class _SingleGroupCreationDialogState
                   if (v.length > 50) return '50文字以内で入力してください';
                   return null;
                 },
+              ),
+              const SizedBox(height: 20),
+              const Divider(),
+              const SizedBox(height: 8),
+              const Text(
+                'または',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _scanQR,
+                  icon: const Icon(Icons.qr_code_scanner),
+                  label: const Text('QRコードでグループに参加'),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.green),
+                    foregroundColor: Colors.green,
+                  ),
+                ),
               ),
             ],
           ),

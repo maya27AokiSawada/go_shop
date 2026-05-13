@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../utils/app_logger.dart';
 import '../providers/security_provider.dart';
 import '../providers/app_ui_mode_provider.dart';
+import '../providers/shared_group_provider.dart';
 import '../config/app_ui_mode_config.dart';
 import '../widgets/group_list_widget.dart';
 import '../widgets/group_creation_with_copy_dialog.dart';
 import '../widgets/accept_invitation_widget.dart';
+import '../widgets/initial_setup_widget.dart';
 import '../l10n/l10n.dart';
 
 class SharedGroupPage extends ConsumerStatefulWidget {
@@ -54,13 +56,37 @@ class _SharedGroupPageState extends ConsumerState<SharedGroupPage> {
 
     final isSingle = ref.watch(appUIModeProvider) == AppUIMode.single;
 
-    return Scaffold(
-      body: const SafeArea(
+    // シングルモードの場合、グループ数に応じて表示内容を切り替える
+    Widget body;
+    if (isSingle) {
+      final groupsAsync = ref.watch(allGroupsProvider);
+      final isEmpty = groupsAsync.when(
+        data: (g) => g.isEmpty,
+        loading: () => false,
+        error: (_, __) => false,
+      );
+      if (isEmpty) {
+        // InitialSetupWidget は Scaffold を持たないボディウィジェットとして使用
+        body = const InitialSetupWidget();
+      } else {
+        body = const SafeArea(
+          child: Padding(
+            padding: EdgeInsets.all(16.0),
+            child: GroupListWidget(),
+          ),
+        );
+      }
+    } else {
+      body = const SafeArea(
         child: Padding(
           padding: EdgeInsets.all(16.0),
           child: GroupListWidget(),
         ),
-      ),
+      );
+    }
+
+    return Scaffold(
+      body: body,
       floatingActionButton: isSingle
           ? null
           : Column(

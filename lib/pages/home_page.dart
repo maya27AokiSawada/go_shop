@@ -5,6 +5,7 @@ import '../providers/hive_provider.dart';
 import '../providers/shared_group_provider.dart';
 import '../providers/shared_list_provider.dart' hide sharedListBoxProvider;
 import '../providers/page_index_provider.dart';
+import '../providers/app_ui_mode_provider.dart';
 import '../services/user_preferences_service.dart';
 import '../services/firestore_user_name_service.dart';
 import '../services/password_reset_service.dart';
@@ -13,6 +14,8 @@ import '../services/app_launch_service.dart';
 import '../services/error_log_service.dart';
 import '../helpers/user_id_change_helper.dart';
 import '../config/app_mode_config.dart';
+import '../config/app_ui_mode_config.dart';
+import '../widgets/single_group_creation_dialog.dart';
 
 import '../widgets/user_name_panel_widget.dart';
 import '../widgets/news_and_ads_panel_widget.dart';
@@ -153,6 +156,12 @@ class _HomePageState extends ConsumerState<HomePage> {
       await ref.read(authProvider).signUp(email, password);
       AppLogger.info('✅ [SIGNUP] 新規ユーザー登録成功');
 
+      // サインアップ直後にシングルモードを即座に設定（非同期syncを待たない）
+      AppUIModeSettings.setMode(AppUIMode.single);
+      ref.read(appUIModeProvider.notifier).state = AppUIMode.single;
+      await UserPreferencesService.saveAppUIMode(0);
+      AppLogger.info('✅ [SIGNUP] AppUIMode をシングル(0)に設定');
+
       // プロバイダーを無効化（UIをリセット）
       ref.invalidate(allGroupsProvider);
       ref.invalidate(selectedGroupProvider);
@@ -209,11 +218,11 @@ class _HomePageState extends ConsumerState<HomePage> {
       await Future.delayed(const Duration(milliseconds: 500));
       AppLogger.info('🔄 [SIGNUP] allGroupsProvider再読み込み完了');
 
-      // グループ数を確認して初期セットアップ画面に遷移
+      // グループ0個の場合はグループタブへ遷移（InitialSetupWidgetが表示される）
       final allGroupsAsync = await ref.read(allGroupsProvider.future);
       if (allGroupsAsync.isEmpty) {
-        AppLogger.info('📋 [SIGNUP] グループ0個 - グループタブに自動遷移');
-        // グループタブ（pageIndex=1）に切り替え
+        AppLogger.info('📋 [SIGNUP] グループ0個 - グループタブへ遷移');
+        if (!mounted) return;
         ref.read(pageIndexProvider.notifier).setPageIndex(1);
       }
 

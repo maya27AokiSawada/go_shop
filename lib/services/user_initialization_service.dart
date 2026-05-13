@@ -195,16 +195,23 @@ class UserInitializationService {
           Log.info('✅ [PROFILE SYNC] ユーザー名は既に同期済み');
         }
       } else if (localUserName != null && localUserName.isNotEmpty) {
-        // Firestoreにデータがなく、ローカルにある場合
+        // Firestoreにデータがなく、ローカルにある場合（サインアップ直後など）
+        // ⚠️ localAppUIMode はサインアップ前の stale 値の可能性があるため、
+        // 新規ユーザーのデフォルトは必ず 0（シングルモード）にする
         finalUserName = localUserName;
         Log.info(
             '📤 [PROFILE SYNC] ローカルからFirestoreに同期: ${AppLogger.maskName(finalUserName)}');
         await userDoc.set({
           'displayName': finalUserName,
           'email': finalUserEmail,
-          'appUIMode': localAppUIMode,
+          'appUIMode': 0, // 新規ユーザーはシングルモードをデフォルトに
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
+        // ローカルもシングルモードにリセット
+        await UserPreferencesService.saveAppUIMode(0);
+        AppUIModeSettings.setMode(AppUIMode.single);
+        _ref.read(appUIModeProvider.notifier).state = AppUIMode.single;
+        Log.info('🔄 [PROFILE SYNC] 新規ユーザー: appUIModeをシングル(0)に初期化');
       } else {
         // 両方にデータがない場合
         Log.info('⚠️ [PROFILE SYNC] ユーザー名が未設定');
