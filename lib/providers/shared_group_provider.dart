@@ -556,6 +556,11 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
         Log.warning('⚠️ [ALL GROUPS] 重複グループを除去: $removedCount グループ');
       }
 
+      // updatedAt 降順でソート（最近更新されたグループが先頭 → シングルモードでの自動選択に利用）
+      deduplicatedGroups.sort((a, b) =>
+          (b.updatedAt ?? DateTime(0)).compareTo(a.updatedAt ?? DateTime(0)));
+      Log.info('🔄 [ALL GROUPS] updatedAt降順でソート完了');
+
       // 🔥 Firestoreリアルタイムリスナーを設定（prod + 認証済みのみ）
       // 他デバイスでのグループ作成/変更をリアルタイムでiPhone/iPad等に反映する
       if (F.appFlavor == Flavor.prod && currentUser != null) {
@@ -563,12 +568,15 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
           (firestoreGroups) {
             Log.info(
                 '📡 [REALTIME] Firestore変更検出: ${firestoreGroups.length}グループ');
-            // 重複除去してstateを直接更新（build()の再呼び出しなし）
+            // 重複除去 + updatedAt降順ソートしてstateを直接更新
             final uniqueMap = <String, SharedGroup>{};
             for (final g in firestoreGroups) {
               uniqueMap[g.groupId] = g;
             }
-            state = AsyncData(uniqueMap.values.toList());
+            final sortedGroups = uniqueMap.values.toList()
+              ..sort((a, b) => (b.updatedAt ?? DateTime(0))
+                  .compareTo(a.updatedAt ?? DateTime(0)));
+            state = AsyncData(sortedGroups);
             // バックグラウンドでHiveに保存（次回起動時のオフライン対応）
             final hybridRepo = ref.read(hybridRepositoryProvider);
             hybridRepo?.forceSyncFromFirestore().then((_) {
