@@ -15,6 +15,7 @@ import '../services/access_control_service.dart';
 import '../services/user_preferences_service.dart';
 import '../services/user_initialization_service.dart';
 import '../services/device_id_service.dart'; // 🆕 デバイスID生成用
+import '../services/firestore_group_sync_service.dart';
 // 🔥 REMOVED: import '../services/firestore_user_name_service.dart'; デフォルトグループ機能削除
 import '../services/notification_service.dart';
 import '../services/network_monitor_service.dart';
@@ -553,6 +554,33 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
       final removedCount = filteredGroups.length - deduplicatedGroups.length;
       if (removedCount > 0) {
         Log.warning('⚠️ [ALL GROUPS] 重複グループを除去: $removedCount グループ');
+      }
+
+      // 🔥 Firestoreリアルタイムリスナーを設定（prod + 認証済みのみ）
+      // 他デバイスでのグループ作成/変更をリアルタイムでiPhone/iPad等に反映する
+      if (F.appFlavor == Flavor.prod && currentUser != null) {
+        final sub = FirestoreGroupSyncService.watchUserGroups().listen(
+          (firestoreGroups) {
+            Log.info(
+                '📡 [REALTIME] Firestore変更検出: ${firestoreGroups.length}グループ');
+            // 重複除去してstateを直接更新（build()の再呼び出しなし）
+            final uniqueMap = <String, SharedGroup>{};
+            for (final g in firestoreGroups) {
+              uniqueMap[g.groupId] = g;
+            }
+            state = AsyncData(uniqueMap.values.toList());
+            // バックグラウンドでHiveに保存（次回起動時のオフライン対応）
+            final hybridRepo = ref.read(hybridRepositoryProvider);
+            hybridRepo?.forceSyncFromFirestore().then((_) {
+              Log.info('✅ [REALTIME] Hiveバックグラウンド同期完了');
+            }).catchError((e) {
+              Log.error('❌ [REALTIME] Hive同期エラー: $e');
+            });
+          },
+          onError: (e) => Log.error('❌ [REALTIME] Firestoreリアルタイムエラー: $e'),
+        );
+        ref.onDispose(sub.cancel);
+        Log.info('✅ [ALL GROUPS] Firestoreリアルタイムリスナー設定完了');
       }
 
       return deduplicatedGroups;
