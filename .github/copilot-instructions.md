@@ -20,7 +20,7 @@
 
 | Flavor        | Project ID         | Project Number | 用途         |
 | ------------- | ------------------ | -------------- | ------------ |
-| `Flavor.prod` | `goshopping-48db9` | `101786579290` | 本番リリース |
+| `Flavor.prod` | `go-shopping-61515` | `37061888509` | 本番リリース |
 | `Flavor.dev`  | `gotoshop-572b7`   | `895658199748` | 開発・テスト |
 
 - 設定ファイル: `lib/firebase_options.dart`（動的切替実装済み）

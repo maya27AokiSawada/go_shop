@@ -16,10 +16,10 @@
 
 ### Firebase プロジェクト
 
-| Flavor        | Project ID         | 用途         |
-| ------------- | ------------------ | ------------ |
-| `Flavor.prod` | `goshopping-48db9` | 本番リリース |
-| `Flavor.dev`  | `gotoshop-572b7`   | 開発・テスト |
+| Flavor        | Project ID          | 用途         |
+| ------------- | ------------------- | ------------ |
+| `Flavor.prod` | `go-shopping-61515` | 本番リリース |
+| `Flavor.dev`  | `gotoshop-572b7`    | 開発・テスト |
 
 ### Hive TypeID 一覧（新規追加時は必ず確認）
 
