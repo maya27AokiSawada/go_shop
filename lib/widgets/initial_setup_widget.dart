@@ -24,100 +24,108 @@ class _InitialSetupWidgetState extends ConsumerState<InitialSetupWidget> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: SingleChildScrollView(
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // アプリアイコン＆タイトル
-              const Icon(
-                Icons.shopping_bag,
-                size: 80,
-                color: Colors.blue,
-              ),
-              const SizedBox(height: 24),
-              Text(
-                texts.welcomeToGoShop,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                texts.initialSetupDesc(texts.sharedListNameForMode(
-                    AppModeSettings.currentMode == AppMode.shopping)),
-                style: Theme.of(context).textTheme.bodyLarge,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 48),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: constraints.maxHeight - 48,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // アプリアイコン＆タイトル
+                const Icon(
+                  Icons.shopping_bag,
+                  size: 80,
+                  color: Colors.blue,
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  texts.welcomeToGoShop,
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  texts.initialSetupDesc(texts.sharedListNameForMode(
+                      AppModeSettings.currentMode == AppMode.shopping)),
+                  style: Theme.of(context).textTheme.bodyLarge,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 48),
 
-              // 選択肢1: 最初のグループを作成
-              ElevatedButton.icon(
-                onPressed: () => _showCreateGroupDialog(context),
-                icon: const Icon(Icons.add),
-                label: Text(
-                  texts.createFirstGroup,
-                  style: const TextStyle(fontSize: 16),
+                // 選択肢1: 最初のグループを作成
+                ElevatedButton.icon(
+                  onPressed: () => _showCreateGroupDialog(context),
+                  icon: const Icon(Icons.add),
+                  label: Text(
+                    texts.createFirstGroup,
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                  ),
                 ),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-              // 選択肢2: QRコードでグループに参加
-              OutlinedButton.icon(
-                onPressed: () => _showQRScanner(context),
-                icon: const Icon(Icons.qr_code_scanner),
-                label: Text(
-                  texts.joinGroupByQR,
-                  style: const TextStyle(fontSize: 16),
+                // 選択肢2: QRコードでグループに参加
+                OutlinedButton.icon(
+                  onPressed: () => _showQRScanner(context),
+                  icon: const Icon(Icons.qr_code_scanner),
+                  label: Text(
+                    texts.joinGroupByQR,
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    side: const BorderSide(color: Colors.blue, width: 2),
+                  ),
                 ),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  side: const BorderSide(color: Colors.blue, width: 2),
-                ),
-              ),
-              const SizedBox(height: 48),
+                const SizedBox(height: 48),
 
-              // 説明テキスト
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
+                // 説明テキスト
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.info_outline,
+                              size: 20, color: Colors.blue),
+                          const SizedBox(width: 8),
+                          Text(
+                            texts.aboutGroups,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue.shade900,
+                                ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        texts.aboutGroupsDesc,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ],
+                  ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.info_outline,
-                            size: 20, color: Colors.blue),
-                        const SizedBox(width: 8),
-                        Text(
-                          texts.aboutGroups,
-                          style:
-                              Theme.of(context).textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue.shade900,
-                                  ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      texts.aboutGroupsDesc,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

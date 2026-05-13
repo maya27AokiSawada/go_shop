@@ -60,22 +60,23 @@ class _SharedGroupPageState extends ConsumerState<SharedGroupPage> {
     Widget body;
     if (isSingle) {
       final groupsAsync = ref.watch(allGroupsProvider);
-      final isEmpty = groupsAsync.when(
-        data: (g) => g.isEmpty,
-        loading: () => false,
-        error: (_, __) => false,
-      );
-      if (isEmpty) {
-        // InitialSetupWidget は Scaffold を持たないボディウィジェットとして使用
-        body = const InitialSetupWidget();
-      } else {
-        body = const SafeArea(
+      body = groupsAsync.when(
+        data: (groups) => groups.isEmpty
+            ? const InitialSetupWidget()
+            : const SafeArea(
+                child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: GroupListWidget(),
+                ),
+              ),
+        loading: () => const InitialSetupWidget(),
+        error: (_, __) => const SafeArea(
           child: Padding(
             padding: EdgeInsets.all(16.0),
             child: GroupListWidget(),
           ),
-        );
-      }
+        ),
+      );
     } else {
       body = const SafeArea(
         child: Padding(
