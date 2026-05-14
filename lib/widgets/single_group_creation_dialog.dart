@@ -55,27 +55,31 @@ class _SingleGroupCreationDialogState
 
     try {
       final groupName = _groupNameController.text.trim();
+      // UID・repositoryをawaitより前に取得（非同期中にウィジェットが破棄される可能性があるため）
+      final uid = ref.read(authStateProvider).valueOrNull?.uid;
+      final listRepo =
+          ref.read(sharedListRepositoryProvider) as HybridSharedListRepository;
 
       // グループ作成（selectedGroupIdProvider も内部で更新される）
+      // 注意: createNewGroup() 完了後に allGroupsProvider が更新され
+      // SharedGroupPage が再ビルドされてダイアログのコンテキストが破棄される場合があるため、
+      // 以降の ref.read() は mounted チェック不要な操作のみ行う。
       await ref.read(allGroupsProvider.notifier).createNewGroup(groupName);
       Log.info('✅ [SINGLE DIALOG] グループ作成完了: $groupName');
 
-      // 作成したグループIDを取得
-      final allGroups = await ref.read(allGroupsProvider.future);
-      final newGroup = allGroups
-          .where((g) => g.groupName == groupName)
-          .fold<dynamic>(null, (prev, g) => prev ?? g);
+      // allGroupsProvider の現在値から同期的に取得（futureを待たない）
+      final currentGroups = ref.read(allGroupsProvider).valueOrNull ?? [];
+      final newGroup =
+          currentGroups.where((g) => g.groupName == groupName).firstOrNull;
 
       if (newGroup == null) {
         Log.error('❌ [SINGLE DIALOG] グループが見つかりません');
+        if (mounted) Navigator.of(context).pop();
         return;
       }
 
       // デフォルトリスト「買い物リスト」を自動作成
-      final uid = ref.read(authStateProvider).valueOrNull?.uid;
       if (uid != null) {
-        final listRepo = ref.read(sharedListRepositoryProvider)
-            as HybridSharedListRepository;
         final newList = await listRepo.createSharedList(
           ownerUid: uid,
           groupId: newGroup.groupId,
