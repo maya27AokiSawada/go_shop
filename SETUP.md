@@ -26,7 +26,7 @@ firebase --version
 
 ### Production
 
-- Project ID: `goshopping-48db9`
+- Project ID: `go-shopping-61515`
 - Usage: `Flavor.prod`
 
 ### Development
@@ -64,7 +64,7 @@ FlutterFire CLI を使う場合の例:
 
 ```bash
 # Production
-flutterfire configure --project=goshopping-48db9
+flutterfire configure --project=go-shopping-61515
 
 # Development
 flutterfire configure --project=gotoshop-572b7
@@ -106,6 +106,13 @@ iOS は flavor ごとに別ファイルを使います。
 - `ios/Runner/copy-googleservice-info.sh`
 
 スクリプト `ios/Runner/copy-googleservice-info.sh` が、ビルド時に適切な plist をアプリバンドルへコピーします。
+
+> ⚠️ **新規Mac環境セットアップ時の注意**
+> これらのファイルは `.gitignore` 対象のため Git 経由では同期されません。
+> 別のMacや再セットアップ時は必ず Firebase Console から最新の plist を取得し直してください。
+> `ios/GoogleService-Info-prod.plist` に古いプロジェクト（`goshopping-48db9` など）の設定が残っていると、
+> QR招待などでAndroid（prod）と異なるFirestoreプロジェクトに書き込まれ「招待が見つかりません」エラーが発生します。
+> ファイルを置き換えた後は必ず `flutter clean && flutter run --flavor prod --dart-define=FLAVOR=prod` を実行してください。
 
 詳細手順は [docs/knowledge_base/ios_flavor_setup.md](docs/knowledge_base/ios_flavor_setup.md) を参照してください。
 
@@ -240,6 +247,18 @@ flutter build web
 - Xcode の Build Configuration / Scheme / Run Script 設定
 
 詳細は [docs/knowledge_base/ios_flavor_setup.md](docs/knowledge_base/ios_flavor_setup.md) を参照してください。
+
+### iOS（Mac）でQR招待スキャン時に「招待が見つかりません」
+
+原因: `ios/GoogleService-Info-prod.plist` が古いFirebaseプロジェクトの設定になっている。
+
+確認手順:
+
+1. `ios/GoogleService-Info-prod.plist` 内の `PROJECT_ID` が `go-shopping-61515` であることを確認
+2. 違う場合は Firebase Console からダウンロードし直して置き換える
+3. `flutter clean && flutter run --flavor prod --dart-define=FLAVOR=prod` で再ビルド
+4. 起動ログで `📋 プロジェクトID: go-shopping-61515` が表示されることを確認
+5. 新しい招待QRを生成してからスキャンする（古いQRは古いプロジェクトに書き込まれているため使えない）
 
 ### Hive adapter / typeId 関連のエラー
 
