@@ -272,20 +272,15 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
   }
 
   Widget _buildInvitationCard(Invitation invitation) {
-    // QRコード用のJSONデータを生成
+    // QRコード用のJSONデータを生成（v3.1軽量版）
+    // ※ invitationTokenはbase64トークンでなくドキュメントIDなのでv3.0検証が失敗する
+    //   → invitationIdとsecurityKeyのみ含むv3.1形式でFirestoreから詳細を取得
     final qrData = jsonEncode({
       'invitationId': invitation.token,
       'sharedGroupId': widget.group.groupId,
-      'groupName': widget.group.groupName,
-      'inviterUid': invitation.invitedBy,
-      'inviterName': invitation.inviterName,
-      'expiresAt': invitation.expiresAt.toIso8601String(),
-      'maxUses': invitation.maxUses,
-      'invitationToken': invitation.token,
-      'token': invitation.token,
-      'securityKey': invitation.securityKey, // セキュリティキー追加
+      'securityKey': invitation.securityKey ?? '',
       'type': 'secure_qr_invitation',
-      'version': '3.0',
+      'version': '3.1',
     });
 
     return Card(
