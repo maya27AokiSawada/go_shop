@@ -439,6 +439,26 @@ class NotificationService {
         case NotificationType.syncConfirmation:
           // 同期確認通知 - 念のため同期実行（二重保険）
           AppLogger.info('✅ [NOTIFICATION] 同期確認受信 - 念のため同期実行');
+
+          // 🔥 FIX: Dev環境ではsyncFromFirestoreToHiveがスキップされるため、
+          // groupIdを使って直接Firestoreからグループを取得してHiveに保存する
+          final syncGroupId = notification.groupId;
+          if (syncGroupId.isNotEmpty) {
+            try {
+              AppLogger.info(
+                  '📥 [NOTIFICATION] グループを直接Firestoreから取得: ${AppLogger.maskGroupId(syncGroupId)}');
+              final repository = _ref.read(SharedGroupRepositoryProvider);
+              final group = await repository.getGroupById(syncGroupId);
+              final hiveRepository =
+                  _ref.read(hiveSharedGroupRepositoryProvider);
+              await hiveRepository.saveGroup(group);
+              AppLogger.info(
+                  '✅ [NOTIFICATION] グループをHiveに直接保存完了: ${group.groupName}');
+            } catch (e) {
+              AppLogger.error('❌ [NOTIFICATION] グループ直接取得エラー: $e');
+            }
+          }
+
           final userInitService = _ref.read(userInitializationServiceProvider);
           await userInitService.syncFromFirestoreToHive(currentUser);
           _ref.invalidate(allGroupsProvider);

@@ -225,36 +225,46 @@ class FirestoreGroupSyncService {
       return Stream.value([]);
     }
 
+    // 🔥 FIX: 'groups'(旧コレクション)ではなく'SharedGroups'(現行コレクション)を監視
     return _firestore
-        .collection('groups')
+        .collection('SharedGroups')
         .where('allowedUid', arrayContains: user.uid)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final groupData = doc.data();
-        return SharedGroup(
-          groupId: doc.id,
-          groupName: groupData['groupName'] ?? '',
-          ownerName: groupData['ownerName'],
-          ownerEmail: groupData['ownerEmail'],
-          ownerUid: groupData['ownerUid'],
-          members: (groupData['members'] as List<dynamic>?)
-              ?.map((memberData) => SharedGroupMember(
-                    memberId: memberData['memberId'] ?? '',
-                    name: memberData['name'] ?? '',
-                    contact: memberData['contact'] ?? '',
-                    role: SharedGroupRole.values[memberData['role'] ?? 0],
-                    isSignedIn: memberData['isSignedIn'] ?? false,
-                  ))
-              .toList(),
-          ownerMessage: groupData['ownerMessage'],
-          allowedUid: (groupData['allowedUid'] as List<dynamic>?)
-                  ?.map((e) => e.toString())
-                  .toList() ??
-              [],
-          // sharedListIds はサブコレクションに移行したため削除
-        );
-      }).toList();
+      return snapshot.docs
+          .map((doc) {
+            final groupData = doc.data();
+            return SharedGroup(
+              groupId: doc.id,
+              groupName: groupData['groupName'] ?? '',
+              ownerName: groupData['ownerName'],
+              ownerEmail: groupData['ownerEmail'],
+              ownerUid: groupData['ownerUid'],
+              members: (groupData['members'] as List<dynamic>?)
+                  ?.map((memberData) => SharedGroupMember(
+                        memberId:
+                            memberData['memberId'] ?? memberData['uid'] ?? '',
+                        name: memberData['name'] ??
+                            memberData['displayName'] ??
+                            '',
+                        contact: memberData['contact'] ?? '',
+                        // 🔥 FIX: SharedGroupsはroleを文字列で保存（index参照は不可）
+                        role: SharedGroupRole.values.firstWhere(
+                          (e) => e.name == memberData['role'],
+                          orElse: () => SharedGroupRole.member,
+                        ),
+                        isSignedIn: memberData['isSignedIn'] ?? false,
+                      ))
+                  .toList(),
+              allowedUid: (groupData['allowedUid'] as List<dynamic>?)
+                      ?.map((e) => e.toString())
+                      .toList() ??
+                  [],
+              isDeleted: groupData['isDeleted'] ?? false,
+            );
+          })
+          .where((g) => !g.isDeleted)
+          .toList();
     });
   }
 
