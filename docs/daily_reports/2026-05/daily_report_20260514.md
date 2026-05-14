@@ -174,6 +174,56 @@ case NotificationType.syncConfirmation:
 
 ---
 
+### 5. Bug Fix: SingleGroupCreationDialog — サインアップ後グループ作成クラッシュ ✅
+
+**Purpose**: サインアップ → 最初のグループ作成時に `_dependents.isEmpty: is not true` アサーションが発生してクラッシュする問題を修正
+
+**Background**:
+
+- サインアップ完了後に `SingleGroupCreationDialog` が表示される
+- グループ名を入力して「作成」を押すとクラッシュ
+
+**Root Cause**:
+
+`_create()` 内で `createNewGroup()` を呼び出した直後に `await ref.read(allGroupsProvider.future)` を待っていた。
+`createNewGroup()` は完了時に `allGroupsProvider` を `AsyncData([...currentGroups, newGroup])` に直接更新する。
+この更新を受けて `SharedGroupPage` が即座に再ビルドされ、`InitialSetupWidget` → `GroupListWidget` に切り替わる。
+この切り替えでダイアログのウィジェットコンテキストが破棄されるが、直後に `allGroupsProvider.future` の await が再開し
+破棄済みの `ref` を参照したため `_dependents.isEmpty` アサーションが発生した。
+
+```dart
+// ❌ 修正前 — createNewGroup() 後に future を await するのが危険
+await ref.read(allGroupsProvider.notifier).createNewGroup(groupName);
+// ↑ この時点で SharedGroupPage が再ビルドされダイアログが破棄される可能性がある
+final allGroups = await ref.read(allGroupsProvider.future);  // ← クラッシュ
+final uid = ref.read(authStateProvider).valueOrNull?.uid;    // ← await より後に取得
+```
+
+**Solution**:
+
+1. `createNewGroup()` より前に `uid` と `listRepo` を同期的に取得する
+2. `allGroupsProvider.future` を await する代わりに、`allGroupsProvider.valueOrNull` で同期的に現在値を取得する
+
+```dart
+// ✅ 修正後 — await 前に必要な値をすべて取得済み
+final uid = ref.read(authStateProvider).valueOrNull?.uid;          // ← await より前
+final listRepo = ref.read(sharedListRepositoryProvider) as HybridSharedListRepository;
+
+await ref.read(allGroupsProvider.notifier).createNewGroup(groupName);
+
+// future を await せず同期的に現在値を取得（ウィジェット破棄後も安全）
+final currentGroups = ref.read(allGroupsProvider).valueOrNull ?? [];
+final newGroup = currentGroups.where((g) => g.groupName == groupName).firstOrNull;
+```
+
+**Modified Files**:
+
+- `lib/widgets/single_group_creation_dialog.dart`
+
+**Status**: ✅ 完了・動作確認済み
+
+---
+
 ## 🐛 発見された問題
 
 ### 旧プロジェクトID (goshopping-48db9) 参照 ✅ 修正済み
@@ -192,6 +242,7 @@ case NotificationType.syncConfirmation:
 1. ✅ QR招待クロスデバイスエラー（Mac iOS → Android prod）（完了: 2026-05-14）
 2. ✅ watchUserGroups() 旧コレクション名参照バグ（完了: 2026-05-14）
 3. ✅ syncConfirmation Dev環境Hive同期スキップバグ（完了: 2026-05-14）
+4. ✅ SingleGroupCreationDialog サインアップ後グループ作成クラッシュ（完了: 2026-05-14）
 
 ---
 
@@ -238,6 +289,39 @@ await userInitService.syncFromFirestoreToHive(currentUser);
 
 ---
 
+### createNewGroup() 完了後の allGroupsProvider.future await は危険
+
+**問題パターン**:
+
+```dart
+// ❌ createNewGroup() 後に future を await するのは危険
+// createNewGroup() が state を直接更新 → ウィジェットが破棄される可能性
+await ref.read(allGroupsProvider.notifier).createNewGroup(groupName);
+final allGroups = await ref.read(allGroupsProvider.future);  // クラッシュ
+```
+
+**正しいパターン**:
+
+```dart
+// ✅ 同期的に現在値を取得（ウィジェット破棄後も安全）
+await ref.read(allGroupsProvider.notifier).createNewGroup(groupName);
+final currentGroups = ref.read(allGroupsProvider).valueOrNull ?? [];
+final newGroup = currentGroups.where((g) => g.groupName == groupName).firstOrNull;
+```
+
+また、非同期処理の前に必要な `ref.read()` を取得しておくことで、処理途中でウィジェットが破棄されても問題が起きにくくなる:
+
+```dart
+// ✅ await より前に必要な値をすべて取得
+final uid = ref.read(authStateProvider).valueOrNull?.uid;
+final listRepo = ref.read(sharedListRepositoryProvider) as HybridSharedListRepository;
+await someLongAsyncOperation();  // この間にウィジェットが破棄されても uid/listRepo は有効
+```
+
+**教訓**: Providerの状態更新が呼び出し元ウィジェットのツリーを変更する場合（例: `allGroupsProvider` の更新で `SharedGroupPage` が `InitialSetupWidget` → `GroupListWidget` に再ビルドされる場合）、その後の `future` await はウィジェット破棄後に再開して `_dependents.isEmpty` アサーションを引き起こす。同期的な `valueOrNull` 取得に切り替えること。
+
+---
+
 ## 🗓 翌日（2026-05-15）の予定
 
 1. 引き続き動作検証（必要に応じて追加バグ調査）
@@ -251,3 +335,4 @@ await userInitService.syncFromFirestoreToHive(currentUser);
 | `SETUP.md`                                | prod Project ID修正、iOS plist手動配置警告追加、QR招待エラーのトラブルシューティング追加 |
 | `instructions/40_qr_and_notifications.md` | 通知タイプ表に `syncConfirmation` を追加、syncFromFirestoreToHive()のDev制限注意を追記   |
 | `instructions/20_groups_lists_items.md`   | 更新なし（ロール文字列パース・コレクション名のルールは既に記載済み）                     |
+| `instructions/50_user_and_settings.md`    | `SingleGroupCreationDialog` の非同期アンチパターン禁止事項を追加                         |

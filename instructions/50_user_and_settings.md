@@ -187,6 +187,12 @@ deduplicatedGroups.sort((a, b) =>
 - アカウント削除を再認証なしで実行する
 - Batch 分割なしにサブコレクションと親を同時削除する
 - 設定機能のロジックを `settings_page.dart` 本体に直接書く（→ `lib/widgets/settings/` に分割する）
+- **`createNewGroup()` 呼び出し後に `allGroupsProvider.future` を await する**
+  - `createNewGroup()` は完了時に `allGroupsProvider` の state を直接更新する
+  - この更新で `SharedGroupPage` が再ビルドされ、ダイアログ等のウィジェットが破棄される可能性がある
+  - 破棄後に `future` の await が再開すると `_dependents.isEmpty: is not true` アサーションでクラッシュする
+  - ✅ 代替: `ref.read(allGroupsProvider).valueOrNull ?? []` で同期的に現在値を取得する
+  - ✅ 代替: 非同期処理の前に必要な `ref.read()` をすべて取得しておく
 
 ---
 
