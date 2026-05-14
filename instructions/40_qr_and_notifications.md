@@ -67,15 +67,38 @@ messenger?.showSnackBar(...);
 
 ### 通知受信時の処理
 
-| 通知タイプ                    | 処理                                                 |
-| ----------------------------- | ---------------------------------------------------- |
-| `groupMemberAdded`            | Firestore→Hive 同期 + `allGroupsProvider` invalidate |
-| `invitationAccepted`          | 同上                                                 |
-| `groupUpdated`                | 同上                                                 |
-| `groupDeleted`                | Hive からグループ削除 + 選択グループをクリア         |
-| `listCreated` / `listDeleted` | リスト Provider invalidate                           |
+| 通知タイプ                    | 処理                                                                                     |
+| ----------------------------- | ---------------------------------------------------------------------------------------- |
+| `groupMemberAdded`            | Firestore→Hive 同期 + `allGroupsProvider` invalidate                                     |
+| `invitationAccepted`          | 同上                                                                                     |
+| `groupUpdated`                | 同上                                                                                     |
+| `syncConfirmation`            | `groupId` で Firestore から直接グループ取得 → Hive 保存 + `allGroupsProvider` invalidate |
+| `groupDeleted`                | Hive からグループ削除 + 選択グループをクリア                                             |
+| `listCreated` / `listDeleted` | リスト Provider invalidate                                                               |
 
 **`groupMemberAdded` のハンドラーを忘れると 3人目以降のメンバーが他端末に反映されない。**
+
+### syncConfirmation ハンドラーの注意点
+
+`syncConfirmation` 受信時は **`syncFromFirestoreToHive()` のみに依存してはいけない**。
+このメソッドは Dev 環境で早期リターンする実装になっており、Dev では Hive 同期が実行されない。
+
+```dart
+// ❌ NG — Dev環境ではスキップされる
+await userInitService.syncFromFirestoreToHive(currentUser);
+
+// ✅ 正しい — groupId で直接 Firestore から取得して Hive に保存する
+final syncGroupId = notification.groupId;
+if (syncGroupId.isNotEmpty) {
+  final repository = _ref.read(SharedGroupRepositoryProvider);
+  final group = await repository.getGroupById(syncGroupId);
+  final hiveRepository = _ref.read(hiveSharedGroupRepositoryProvider);
+  await hiveRepository.saveGroup(group);
+}
+// 念のため既存パスも実行（prod向け二重保険）
+await userInitService.syncFromFirestoreToHive(currentUser);
+_ref.invalidate(allGroupsProvider);
+```
 
 ### 招待受諾側と招待元側の役割分担
 
