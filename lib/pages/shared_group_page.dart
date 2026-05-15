@@ -69,7 +69,7 @@ class _SharedGroupPageState extends ConsumerState<SharedGroupPage> {
                   child: GroupListWidget(),
                 ),
               ),
-        loading: () => const InitialSetupWidget(),
+        loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) => const SafeArea(
           child: Padding(
             padding: EdgeInsets.all(16.0),

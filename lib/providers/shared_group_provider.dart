@@ -863,9 +863,15 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
       // プロバイダー状態を直接更新することで、invalidate()が不要になる
       try {
         final currentGroups = state.value ?? [];
-        state = AsyncData([...currentGroups, newGroup]);
-        Log.info(
-            '✅ [CREATE GROUP] プロバイダー状態を直接更新（グループ数: ${currentGroups.length} → ${currentGroups.length + 1}）');
+        // リアルタイムリスナーが既に同じグループを追加している場合はスキップ（重複防止）
+        if (!currentGroups.any((g) => g.groupId == newGroup.groupId)) {
+          state = AsyncData([...currentGroups, newGroup]);
+          Log.info(
+              '✅ [CREATE GROUP] プロバイダー状態を直接更新（グループ数: ${currentGroups.length} → ${currentGroups.length + 1}）');
+        } else {
+          Log.info(
+              '✅ [CREATE GROUP] リアルタイムリスナー既に追加済みのためスキップ: ${newGroup.groupId}');
+        }
       } catch (e) {
         Log.warning('⚠️ [CREATE GROUP] 状態更新エラー（Firestoreには保存済み）: $e');
       }
