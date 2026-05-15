@@ -233,6 +233,25 @@ if (isSingle) {
 }
 ```
 
+### AsyncNotifier のローディング状態判定
+
+`valueOrNull ?? []` は `AsyncLoading` と「データなし」を区別できないため、必ず `isLoading` を先に判定すること。
+
+```dart
+// ❌ 禁止 — AsyncLoading 中は valueOrNull が null → 空リストとして扱われ
+//         InitialSetupWidget が誤って表示される
+final groups = ref.watch(allGroupsProvider).valueOrNull ?? [];
+if (groups.isEmpty) { return InitialSetupWidget(); }
+
+// ✅ 正しい — isLoading を先にチェックしてインジケータを表示
+final groupsAsync = ref.watch(allGroupsProvider);
+if (groupsAsync.isLoading) {
+  return const Center(child: CircularProgressIndicator());
+}
+final groups = groupsAsync.valueOrNull ?? [];
+if (groups.isEmpty) { return InitialSetupWidget(); }
+```
+
 ### グループ作成フロー
 
 ```dart
@@ -244,4 +263,18 @@ Future<void> _createGroup(BuildContext context, String groupName) async {
 
 // ❌ 禁止: Widget 削除後に ref を使う可能性がある強制遷移
 ProviderScope.containerOf(context).read(pageIndexProvider.notifier).setPageIndex(1);
+```
+
+### createNewGroup() — state への追加前に重複チェック必須
+
+`AllGroupsNotifier.createNewGroup()` で state を更新する際は、必ず `groupId` の重複チェックを行うこと。
+
+```dart
+// ❌ 禁止 — 重複チェックなし（二重タップや非同期重複で同一グループが追加される）
+state = AsyncData([...currentGroups, newGroup]);
+
+// ✅ 正しい — groupId ベースで重複確認後に追加
+if (!currentGroups.any((g) => g.groupId == newGroup.groupId)) {
+  state = AsyncData([...currentGroups, newGroup]);
+}
 ```
