@@ -1,9 +1,10 @@
-name: Flutter CI/CD
+name: Flutter CI (future)
 on:
   push:
-    branches: [main]
+    branches: [future]
+  workflow_dispatch:
 jobs:
-  build:
+  unit-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -60,16 +61,4 @@ jobs:
       - name: Test Summary
         if: always()
         run: |
-          echo "✅ CRUD Tests: 29 tests"
-          echo "✅ Auth Tests: 47 tests"
-          echo "✅ Total: 76 tests"
-
-      - name: Build Android APK (prod release)
-        run: flutter build apk --release --flavor prod
-
-      # APKをアーティファクトとしてアップロード
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-apk-prod
-          path: build/app/outputs/flutter-apk/app-prod-release.apk
+          echo "✅ future ブランチ向け単体テスト完了"

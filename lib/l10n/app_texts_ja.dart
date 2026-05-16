@@ -566,7 +566,7 @@ class AppTextsJa extends AppTexts {
   String get createGroupHint => '右下の ＋ ボタンからグループを作成できます';
   @override
   String initialSetupDesc(String listName) =>
-      '$listNameをグループで共有できます。\nまずはグループを作成するか、\n既存のグループに参加してください。';
+      '$listNameをグループで共有できます。\nまずはグループを作成するか、\nご家族ご友人のグループに参加してください。';
   @override
   String get createFirstGroup => '最初のグループを作成';
   @override

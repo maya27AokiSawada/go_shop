@@ -98,12 +98,22 @@ group('createGroup', () {
 
 ## 5. CI/CD（GitHub Actions）
 
-- **トリガー**: `main` ブランチへの push のみ自動ビルド
+- **トリガー（CI）**: `future` ブランチへの push で単体テスト
+- **トリガー（Release）**: `main` ブランチへの push で Pages + ストア配布（environment 承認後）
 - **ビルド環境**: `ubuntu-latest`
 - **APK パス**: `app-dev-release.apk`
 - シークレットは GitHub Repository Secrets で管理
   - `GOOGLE_SERVICES_JSON`: `android/app/google-services.json` の内容
-- ワークフローファイル: `.github/workflows/flutter-ci.yml`
+- ワークフローファイル:
+  - `.github/workflows/flutter-ci.yml`（future CI）
+  - `.github/workflows/main-release.yml`（main 配布）
+  - `.github/workflows/jekyll-gh-pages.yml`（Pages）
+
+### Build Number 自動採番
+
+- `main-release.yml` で `BUILD_NUMBER=$((10000 + GITHUB_RUN_NUMBER))` を採用
+- Android/iOS の両方で同じ `--build-number` を適用
+- `pubspec.yaml` の `+N` は固定値のままで運用可能（CI が上書き）
 
 ### 機密ファイルの生成（bash Here-Document 構文）
 

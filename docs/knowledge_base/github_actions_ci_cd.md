@@ -8,6 +8,37 @@ render_with_liquid: false
 
 このドキュメントでは、Go Shop アプリの GitHub Actions による自動ビルド設定について説明します。
 
+## 現在の運用（2026-05 更新）
+
+- `future` への push:
+  - `.github/workflows/flutter-ci.yml`
+  - 単体テストを実行
+- `main` への push:
+  - `.github/workflows/jekyll-gh-pages.yml` で GitHub Pages を更新
+  - `.github/workflows/main-release.yml` で Android Play Console / iOS TestFlight 配布
+  - 配布ジョブは `environment: production-release` の承認後に実行
+
+### ビルド番号自動カウントアップ
+
+`main-release.yml` は CI で build number を自動採番します。
+
+```bash
+BUILD_NUMBER=$((10000 + GITHUB_RUN_NUMBER))
+```
+
+この番号を Android / iOS 両方の `--build-number` に適用します。
+
+## main-release.yml で追加される主な Secrets
+
+- `PLAY_SERVICE_ACCOUNT_JSON`
+- `GOOGLESERVICE_INFO_PLIST_PROD_BASE64`
+- `IOS_P12_BASE64`
+- `IOS_P12_PASSWORD`
+- `IOS_PROVISIONING_PROFILE_BASE64`
+- `APPSTORE_ISSUER_ID`
+- `APPSTORE_KEY_ID`
+- `APPSTORE_PRIVATE_KEY`
+
 ## 実装日
 
 2026-01-06

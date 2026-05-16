@@ -1,0 +1,210 @@
+name: Main Release (Pages + Stores)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: main-release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      build_number: ${{ steps.build_number.outputs.value }}
+    steps:
+      - name: Compute auto build number
+        id: build_number
+        shell: bash
+        run: |
+          # Keep build numbers safely above legacy manual values.
+          echo "value=$((10000 + GITHUB_RUN_NUMBER))" >> "$GITHUB_OUTPUT"
+      - name: Show build number
+        run: echo "Using build number ${{ steps.build_number.outputs.value }}"
+
+  android-play:
+    name: Android Play Console Upload
+    needs: prepare
+    runs-on: ubuntu-latest
+    environment:
+      name: production-release
+    env:
+      BUILD_NUMBER: ${{ needs.prepare.outputs.build_number }}
+      PLAY_TRACK: internal
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Create google-services.json (prod)
+        shell: bash
+        run: |
+          mkdir -p android/app/src/prod
+          cat << 'EOF' > android/app/src/prod/google-services.json
+          ${{ secrets.GOOGLE_SERVICES_JSON_PROD }}
+          EOF
+
+      - name: Decode Android keystore
+        shell: bash
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/upload-keystore.jks
+
+      - name: Create key.properties
+        shell: bash
+        run: |
+          cat << 'EOF' > android/key.properties
+          storePassword=${{ secrets.KEYSTORE_STORE_PASSWORD }}
+          keyPassword=${{ secrets.KEYSTORE_KEY_PASSWORD }}
+          keyAlias=${{ secrets.KEYSTORE_KEY_ALIAS }}
+          storeFile=upload-keystore.jks
+          EOF
+
+      - name: Create firebase_options.dart
+        shell: bash
+        run: |
+          cat << 'EOF' > lib/firebase_options.dart
+          ${{ secrets.FIREBASE_OPTIONS_DART }}
+          EOF
+
+      - name: Create .env
+        shell: bash
+        run: |
+          cat << 'EOF' > .env
+          ${{ secrets.DOT_ENV }}
+          EOF
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build Android App Bundle (prod)
+        run: |
+          flutter build appbundle --release \
+            --flavor prod \
+            --dart-define=FLAVOR=prod \
+            --build-number="$BUILD_NUMBER"
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-aab-main-${{ env.BUILD_NUMBER }}
+          path: build/app/outputs/bundle/prodRelease/app-prod-release.aab
+
+      - name: Upload to Google Play
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets['PLAY_SERVICE_ACCOUNT_JSON'] }}
+          packageName: net.sumomo_planning.goshopping
+          releaseFiles: build/app/outputs/bundle/prodRelease/app-prod-release.aab
+          track: ${{ env.PLAY_TRACK }}
+          status: completed
+
+  ios-testflight:
+    name: iOS TestFlight Upload
+    needs: prepare
+    runs-on: macos-latest
+    environment:
+      name: production-release
+    env:
+      BUILD_NUMBER: ${{ needs.prepare.outputs.build_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Create .env
+        shell: bash
+        run: |
+          cat << 'EOF' > .env
+          ${{ secrets.DOT_ENV }}
+          EOF
+
+      - name: Create firebase_options.dart
+        shell: bash
+        run: |
+          cat << 'EOF' > lib/firebase_options.dart
+          ${{ secrets.FIREBASE_OPTIONS_DART }}
+          EOF
+
+      - name: Create GoogleService-Info.plist (prod)
+        shell: bash
+        run: |
+          echo "${{ secrets['GOOGLESERVICE_INFO_PLIST_PROD_BASE64'] }}" | base64 --decode > ios/Runner/GoogleService-Info.plist
+
+      - name: Install signing certificate
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets['IOS_P12_BASE64'] }}
+          p12-password: ${{ secrets['IOS_P12_PASSWORD'] }}
+
+      - name: Install provisioning profile
+        shell: bash
+        run: |
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          echo "${{ secrets['IOS_PROVISIONING_PROFILE_BASE64'] }}" | base64 --decode > "$HOME/Library/MobileDevice/Provisioning Profiles/ci.mobileprovision"
+
+      - name: Create ExportOptions.plist
+        shell: bash
+        run: |
+          cat << 'EOF' > ios/ExportOptions.plist
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>stripSwiftSymbols</key>
+            <true/>
+            <key>compileBitcode</key>
+            <false/>
+            <key>destination</key>
+            <string>export</string>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build iOS IPA (prod)
+        run: |
+          flutter build ipa --release \
+            --flavor prod \
+            --dart-define=FLAVOR=prod \
+            --build-number="$BUILD_NUMBER" \
+            --export-options-plist=ios/ExportOptions.plist
+
+      - name: Resolve IPA path
+        id: ipa
+        shell: bash
+        run: |
+          IPA_PATH=$(find build/ios/ipa -name "*.ipa" | head -n 1)
+          if [ -z "$IPA_PATH" ]; then
+            echo "IPA not found" >&2
+            exit 1
+          fi
+          echo "path=$IPA_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa-main-${{ env.BUILD_NUMBER }}
+          path: ${{ steps.ipa.outputs.path }}
+
+      - name: Upload to TestFlight
+        uses: apple-actions/upload-testflight-build@v1
+        with:
+          app-path: ${{ steps.ipa.outputs.path }}
+          issuer-id: ${{ secrets['APPSTORE_ISSUER_ID'] }}
+          api-key-id: ${{ secrets['APPSTORE_KEY_ID'] }}
+          api-private-key: ${{ secrets['APPSTORE_PRIVATE_KEY'] }}
