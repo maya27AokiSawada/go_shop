@@ -401,12 +401,24 @@ class _MemberTileWithWhiteboardState
           return;
         }
 
-        whiteboard = await repository
-            .createWhiteboard(
-              groupId: groupId,
-              ownerId: member.memberId, // 個人用
-            )
-            .timeout(_personalWhiteboardFetchTimeout);
+        // 🎨 解像度とアスペクト比を選択するダイアログを表示
+        if (context.mounted) {
+          final canvasSize = await _showResolutionAspectDialog(context);
+          if (canvasSize == null) {
+            return; // キャンセルされた
+          }
+
+          whiteboard = await repository
+              .createWhiteboard(
+                groupId: groupId,
+                ownerId: member.memberId,
+                canvasWidth: canvasSize['width'] as double,
+                canvasHeight: canvasSize['height'] as double,
+              )
+              .timeout(_personalWhiteboardFetchTimeout);
+        } else {
+          return;
+        }
         await PersonalWhiteboardCacheService.saveWhiteboard(
             cacheKey, whiteboard);
         AppLogger.info('✅ 個人用ホワイトボード作成: ${member.name}');
@@ -477,6 +489,127 @@ class _MemberTileWithWhiteboardState
         setState(() => _isOpening = false);
       }
     }
+  }
+
+  /// 🎨 解像度とアスペクト比を選択するダイアログ
+  Future<Map<String, double>?> _showResolutionAspectDialog(
+      BuildContext context) async {
+    // 解像度プリセット（基準: 1920x1080）
+    final resolutionPresets = {
+      'スマートフォン': {'scale': 0.5, 'label': '低解像度 (960x540)'},
+      'タブレット': {'scale': 1.0, 'label': '中解像度 (1920x1080)'},
+      'iPad Pro': {'scale': 1.5, 'label': '高解像度 (2880x1620)'},
+      '4K': {'scale': 2.0, 'label': '超高解像度 (3840x2160)'},
+    };
+
+    // アスペクト比プリセット
+    final aspectRatioPresets = {
+      '16:9': {'width': 16.0, 'height': 9.0, 'label': '横長（16:9）'},
+      '4:3': {'width': 4.0, 'height': 3.0, 'label': 'スタンダード（4:3）'},
+      '1:1': {'width': 1.0, 'height': 1.0, 'label': '正方形（1:1）'},
+      '9:16': {'width': 9.0, 'height': 16.0, 'label': '縦長（9:16）'},
+    };
+
+    String selectedResolution = 'タブレット'; // デフォルト
+    String selectedAspect = '16:9'; // デフォルト
+
+    final result = await showDialog<Map<String, double>>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('ホワイトボードサイズを選択'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 解像度選択
+                Text(
+                  '解像度を選択',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: resolutionPresets.entries
+                      .map((e) => FilterChip(
+                            label: Text(e.value['label'] as String),
+                            selected: selectedResolution == e.key,
+                            onSelected: (_) {
+                              setState(() => selectedResolution = e.key);
+                            },
+                          ))
+                      .toList(),
+                ),
+                const SizedBox(height: 24),
+
+                // アスペクト比選択
+                Text(
+                  'アスペクト比を選択',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: aspectRatioPresets.entries
+                      .map((e) => FilterChip(
+                            label: Text(e.value['label'] as String),
+                            selected: selectedAspect == e.key,
+                            onSelected: (_) {
+                              setState(() => selectedAspect = e.key);
+                            },
+                          ))
+                      .toList(),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(texts.cancel),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                // 選択値から実際のサイズを計算
+                final resScale =
+                    resolutionPresets[selectedResolution]!['scale'] as double;
+                final baseWidth = 1920.0 * resScale;
+                final baseHeight = 1080.0 * resScale;
+
+                final aspectRatio = aspectRatioPresets[selectedAspect]!;
+                final ratio = (aspectRatio['width'] as double) /
+                    (aspectRatio['height'] as double);
+
+                late double finalWidth, finalHeight;
+                if (ratio >= 1.0) {
+                  // 横長または正方形
+                  finalWidth = baseWidth;
+                  finalHeight = baseWidth / ratio;
+                } else {
+                  // 縦長
+                  finalHeight = baseHeight;
+                  finalWidth = baseHeight * ratio;
+                }
+
+                Navigator.of(ctx).pop({
+                  'width': finalWidth,
+                  'height': finalHeight,
+                });
+              },
+              child: Text(texts.create),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (result != null) {
+      AppLogger.info(
+          '🎨 [RESOLUTION_DIALOG] 選択: 解像度=$selectedResolution, アスペクト比=$selectedAspect, 結果=${result['width']}x${result['height']}');
+    }
+
+    return result;
   }
 
   /// 役割ごとの色
