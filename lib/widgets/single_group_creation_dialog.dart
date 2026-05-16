@@ -9,6 +9,7 @@ import '../providers/current_list_provider.dart';
 import '../datastore/hybrid_shared_list_repository.dart';
 import '../widgets/accept_invitation_widget.dart';
 import '../utils/app_logger.dart';
+import '../screens/qr_scan_screen.dart';
 
 /// シングルモード用グループ作成ダイアログ
 ///
@@ -38,7 +39,7 @@ class _SingleGroupCreationDialogState
     // ダイアログを閉じずにQRスキャナーを上に重ねて表示
     // （PopScope(canPop:false)によるブロックを回避するため先にpopしない）
     await Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute(builder: (_) => const QRScannerScreen()),
+      MaterialPageRoute(builder: (_) => const QrScanScreen()),
     );
     if (!mounted) return;
     // スキャンでグループに参加できていたらダイアログを閉じる
@@ -65,15 +66,20 @@ class _SingleGroupCreationDialogState
       // SharedGroupPage が再ビルドされてダイアログのコンテキストが破棄される場合があるため、
       // 以降の ref.read() は mounted チェック不要な操作のみ行う。
       await ref.read(allGroupsProvider.notifier).createNewGroup(groupName);
-      Log.info('✅ [SINGLE DIALOG] グループ作成完了: $groupName');
+      AppLogger.info('✅ [SINGLE DIALOG] グループ作成完了: $groupName');
 
-      // allGroupsProvider の現在値から同期的に取得（futureを待たない）
-      final currentGroups = ref.read(allGroupsProvider).valueOrNull ?? [];
-      final newGroup =
-          currentGroups.where((g) => g.groupName == groupName).firstOrNull;
+      // createNewGroup() による allGroupsProvider 更新で
+      // このダイアログ自体が破棄される可能性がある。
+      if (!mounted) {
+        AppLogger.info('ℹ️ [SINGLE DIALOG] ダイアログ破棄済みのため後続処理をスキップ');
+        return;
+      }
 
-      if (newGroup == null) {
-        Log.error('❌ [SINGLE DIALOG] グループが見つかりません');
+      // createNewGroup() 側で選択済みIDが設定されるため、
+      // ここでは allGroupsProvider を再読込せず selectedGroupId を利用する。
+      final newGroupId = ref.read(selectedGroupIdProvider);
+      if (newGroupId == null || newGroupId.isEmpty) {
+        AppLogger.error('❌ [SINGLE DIALOG] 作成後のselectedGroupIdが取得できません');
         if (mounted) Navigator.of(context).pop();
         return;
       }
@@ -82,21 +88,26 @@ class _SingleGroupCreationDialogState
       if (uid != null) {
         final newList = await listRepo.createSharedList(
           ownerUid: uid,
-          groupId: newGroup.groupId,
+          groupId: newGroupId,
           listName: '買い物リスト',
         );
-        Log.info('✅ [SINGLE DIALOG] デフォルトリスト作成完了: ${newList.listId}');
+        AppLogger.info('✅ [SINGLE DIALOG] デフォルトリスト作成完了: ${newList.listId}');
+
+        if (!mounted) {
+          AppLogger.info('ℹ️ [SINGLE DIALOG] リスト作成後に破棄済みのため終了');
+          return;
+        }
 
         // カレントリストに設定
         await ref
             .read(currentListProvider.notifier)
-            .selectList(newList, groupId: newGroup.groupId);
-        Log.info('✅ [SINGLE DIALOG] カレントリスト設定完了');
+            .selectList(newList, groupId: newGroupId);
+        AppLogger.info('✅ [SINGLE DIALOG] カレントリスト設定完了');
       }
 
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
-      Log.error('❌ [SINGLE DIALOG] 作成エラー: $e');
+      AppLogger.error('❌ [SINGLE DIALOG] 作成エラー: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('グループ作成に失敗しました: $e')),
@@ -109,60 +120,71 @@ class _SingleGroupCreationDialogState
 
   @override
   Widget build(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+
     return PopScope(
       canPop: false, // サインアップ後は必ずグループを作成させる
       child: AlertDialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         title: const Text('グループを作成'),
-        content: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'まず最初にグループ名を入力してください。\n買い物リストはグループ内で管理されます。',
-                style: TextStyle(fontSize: 13, color: Colors.grey),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _groupNameController,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  labelText: 'グループ名',
-                  hintText: '例：家族の買い物',
-                  border: OutlineInputBorder(),
-                ),
-                textInputAction: TextInputAction.done,
-                onFieldSubmitted: (_) => _create(),
-                validator: (value) {
-                  final v = value?.trim() ?? '';
-                  if (v.isEmpty) return 'グループ名を入力してください';
-                  if (v.length > 50) return '50文字以内で入力してください';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 20),
-              const Divider(),
-              const SizedBox(height: 8),
-              const Text(
-                'または',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: _scanQR,
-                  icon: const Icon(Icons.qr_code_scanner),
-                  label: const Text('QRコードでグループに参加'),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.green),
-                    foregroundColor: Colors.green,
+        content: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 420,
+            maxHeight: mediaQuery.size.height * 0.7,
+          ),
+          child: SingleChildScrollView(
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'まず最初にグループ名を入力してください。\n買い物リストはグループ内で管理されます。',
+                    style: TextStyle(fontSize: 13, color: Colors.grey),
                   ),
-                ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _groupNameController,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      labelText: 'グループ名',
+                      hintText: '例：家族の買い物',
+                      border: OutlineInputBorder(),
+                    ),
+                    textInputAction: TextInputAction.done,
+                    onFieldSubmitted: (_) => _create(),
+                    validator: (value) {
+                      final v = value?.trim() ?? '';
+                      if (v.isEmpty) return 'グループ名を入力してください';
+                      if (v.length > 50) return '50文字以内で入力してください';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'または',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _scanQR,
+                      icon: const Icon(Icons.qr_code_scanner),
+                      label: const Text('QRコードでグループに参加'),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.green),
+                        foregroundColor: Colors.green,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
         actions: [

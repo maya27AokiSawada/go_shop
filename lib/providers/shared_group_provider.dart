@@ -849,12 +849,6 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
             .selectGroup(newGroup.groupId);
         Log.info(
             '✅ [CREATE GROUP] selectedGroupIdProvider更新完了: ${newGroup.groupId}');
-
-        // ⚠️ 重要: 新規グループの最終使用リストをクリア
-        await ref
-            .read(currentListProvider.notifier)
-            .clearListForGroup(newGroup.groupId);
-        Log.info('✅ [CREATE GROUP] 新規グループの最終使用リストクリア完了: ${newGroup.groupId}');
       } catch (e) {
         Log.warning('⚠️ [CREATE GROUP] グループ選択エラー（続行）: $e');
       }
@@ -1140,16 +1134,7 @@ class SelectedGroupIdNotifier extends StateNotifier<String?> {
 
 final selectedGroupIdProvider =
     StateNotifierProvider<SelectedGroupIdNotifier, String?>((ref) {
-  final notifier = SelectedGroupIdNotifier();
-
-  // グループリストが変更されたら選択を検証
-  ref.listen(allGroupsProvider, (previous, next) {
-    next.whenData((groups) {
-      notifier.validateAndRestoreSelection(groups);
-    });
-  });
-
-  return notifier;
+  return SelectedGroupIdNotifier();
 });
 
 // Member Pool Management - メンバープール管理用

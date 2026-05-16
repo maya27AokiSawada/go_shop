@@ -36,45 +36,61 @@ class _AccountDeletionSectionState
             children: [
               const Icon(Icons.lock, color: Colors.orange),
               const SizedBox(width: 8),
-              Text(texts.reauthRequired),
+              Expanded(
+                child: Text(
+                  texts.reauthRequired,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ],
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                texts.reauthDescription,
-                style: const TextStyle(fontSize: 14),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: passwordController,
-                obscureText: obscurePassword,
-                autofocus: true,
-                decoration: InputDecoration(
-                  labelText: texts.password,
-                  border: const OutlineInputBorder(),
-                  prefixIcon: const Icon(Icons.lock),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      obscurePassword ? Icons.visibility : Icons.visibility_off,
+          content: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 420,
+              maxHeight: MediaQuery.of(context).size.height * 0.55,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    texts.reauthDescription,
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: passwordController,
+                    obscureText: obscurePassword,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      labelText: texts.password,
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.lock),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscurePassword
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            obscurePassword = !obscurePassword;
+                          });
+                        },
+                      ),
                     ),
-                    onPressed: () {
-                      setState(() {
-                        obscurePassword = !obscurePassword;
-                      });
+                    onSubmitted: (_) {
+                      final password = passwordController.text.trim();
+                      if (password.isNotEmpty) {
+                        Navigator.of(context).pop(password);
+                      }
                     },
                   ),
-                ),
-                onSubmitted: (_) {
-                  final password = passwordController.text.trim();
-                  if (password.isNotEmpty) {
-                    Navigator.of(context).pop(password);
-                  }
-                },
+                ],
               ),
-            ],
+            ),
           ),
           actions: [
             TextButton(
@@ -104,6 +120,8 @@ class _AccountDeletionSectionState
   /// アカウント削除メソッド
   Future<void> _deleteAccount() async {
     final user = widget.user;
+    BuildContext? spinnerDialogContext;
+
     try {
       // 確認ダイアログ（ステップ1: 警告）
       final confirm1 = await showDialog<bool>(
@@ -211,29 +229,36 @@ class _AccountDeletionSectionState
 
       // ローディング表示
       if (!mounted) return;
+      // user.delete() 後に authStateProvider が変化し widget が unmount される場合があるため
+      // Navigator は事前にキャプチャしておく
+      final navigator = Navigator.of(context);
+
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => Center(
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 16),
-                  Text(texts.deletingAccount),
-                  const SizedBox(height: 8),
-                  Text(
-                    texts.deletingAccountProgress,
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
+        builder: (dialogContext) {
+          spinnerDialogContext = dialogContext;
+          return Center(
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 16),
+                    Text(texts.deletingAccount),
+                    const SizedBox(height: 8),
+                    Text(
+                      texts.deletingAccountProgress,
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       );
 
       AppLogger.info(
@@ -360,37 +385,62 @@ class _AccountDeletionSectionState
       ref.invalidate(allGroupsProvider);
       ref.invalidate(selectedGroupIdProvider);
 
-      if (!mounted) return;
-      Navigator.of(context).pop();
+      // ローディングダイアログを閉じる
+      try {
+        if (spinnerDialogContext?.mounted ?? false) {
+          AppLogger.info('✅ [DELETE_ACCOUNT] スピナーダイアログをクローズします');
+          Navigator.of(spinnerDialogContext!).pop();
+          AppLogger.info('✅ [DELETE_ACCOUNT] スピナーダイアログクローズ完了');
+        }
+      } catch (e) {
+        AppLogger.error('⚠️ [DELETE_ACCOUNT] スピナーダイアログ閉じに失敗: $e');
+      }
 
-      if (!mounted) return;
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          title: Row(
-            children: [
-              const Icon(Icons.check_circle, color: Colors.green),
-              const SizedBox(width: 8),
-              Text(texts.deletionComplete),
+      // 完了ダイアログ表示
+      try {
+        if (!mounted) {
+          AppLogger.info('⚠️ [DELETE_ACCOUNT] Widget がアンマウント済み。完了ダイアログ非表示');
+          return;
+        }
+
+        AppLogger.info('✅ [DELETE_ACCOUNT] 完了ダイアログを表示します');
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            title: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.green),
+                const SizedBox(width: 8),
+                Text(texts.deletionComplete),
+              ],
+            ),
+            content: Text(texts.deletionCompleteBody),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: Text(texts.ok),
+              ),
             ],
           ),
-          content: Text(texts.deletionCompleteBody),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).popUntil((route) => route.isFirst);
-              },
-              child: Text(texts.ok),
-            ),
-          ],
-        ),
-      );
+        );
+      } catch (e) {
+        AppLogger.error('⚠️ [DELETE_ACCOUNT] 完了ダイアログ表示に失敗: $e');
+      }
     } catch (e, stack) {
       AppLogger.error('❌ [DELETE_ACCOUNT] エラー', e, stack);
 
-      if (mounted) Navigator.of(context).pop();
+      // スピナーダイアログを閉じる
+      try {
+        if (spinnerDialogContext?.mounted ?? false) {
+          AppLogger.info('❌ [DELETE_ACCOUNT] エラー中: スピナーをクローズしています');
+          Navigator.of(spinnerDialogContext!).pop();
+        }
+      } catch (closeError) {
+        AppLogger.error('⚠️ [DELETE_ACCOUNT] スピナー閉じエラー: $closeError');
+      }
 
       if (!mounted) return;
       showDialog(

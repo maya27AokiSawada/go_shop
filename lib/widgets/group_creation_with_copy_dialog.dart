@@ -65,14 +65,11 @@ class _GroupCreationWithCopyDialogState
 
     return allGroupsAsync.when(
       data: (existingGroups) => _buildDialog(context, existingGroups),
-      loading: () => const Dialog(
-        child: Padding(
-          padding: EdgeInsets.all(32.0),
-          child: Center(
-            child: CircularProgressIndicator(),
-          ),
-        ),
-      ),
+      loading: () {
+        // ローディング中も既存データがあれば表示を維持（_dependents.isEmpty assertion防止）
+        final cachedGroups = allGroupsAsync.value ?? [];
+        return _buildDialog(context, cachedGroups);
+      },
       error: (error, _) => Dialog(
         child: Padding(
           padding: const EdgeInsets.all(16.0),

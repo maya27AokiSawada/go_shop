@@ -79,10 +79,11 @@ class _SignUpFormState extends ConsumerState<SignUpForm> {
 
         // シングルモードのグループ作成ダイアログを表示（新規ユーザーは常に表示）
         if (mounted) {
-          await showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (_) => const SingleGroupCreationDialog(),
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              fullscreenDialog: true,
+              builder: (_) => const _SingleGroupCreationPage(),
+            ),
           );
         }
 
@@ -157,10 +158,11 @@ class _SignUpFormState extends ConsumerState<SignUpForm> {
 
       // シングルモードのグループ作成ダイアログを表示（新規ユーザーは常に表示）
       if (mounted) {
-        await showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (_) => const SingleGroupCreationDialog(),
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            fullscreenDialog: true,
+            builder: (_) => const _SingleGroupCreationPage(),
+          ),
         );
       }
 
@@ -173,5 +175,21 @@ class _SignUpFormState extends ConsumerState<SignUpForm> {
         SnackBar(content: Text('${texts.accountCreationFailed}: $e')),
       );
     }
+  }
+}
+
+class _SingleGroupCreationPage extends StatelessWidget {
+  const _SingleGroupCreationPage();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: Colors.black54,
+      body: SafeArea(
+        child: Center(
+          child: SingleGroupCreationDialog(),
+        ),
+      ),
+    );
   }
 }

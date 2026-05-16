@@ -422,9 +422,13 @@ class GroupListWidget extends ConsumerWidget {
               children: [
                 const Icon(Icons.info_outline, size: 16, color: Colors.grey),
                 const SizedBox(width: 8),
-                Text(
-                  texts.noCurrentGroup,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                Expanded(
+                  child: Text(
+                    texts.noCurrentGroup,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
                 ),
               ],
             ),

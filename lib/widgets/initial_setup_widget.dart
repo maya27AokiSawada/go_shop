@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async';
 
 import '../providers/shared_group_provider.dart';
 import '../widgets/accept_invitation_widget.dart';
@@ -104,15 +105,19 @@ class _InitialSetupWidgetState extends ConsumerState<InitialSetupWidget> {
                           const Icon(Icons.info_outline,
                               size: 20, color: Colors.blue),
                           const SizedBox(width: 8),
-                          Text(
-                            texts.aboutGroups,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleSmall
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.blue.shade900,
-                                ),
+                          Expanded(
+                            child: Text(
+                              texts.aboutGroups,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleSmall
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue.shade900,
+                                  ),
+                            ),
                           ),
                         ],
                       ),
@@ -135,34 +140,44 @@ class _InitialSetupWidgetState extends ConsumerState<InitialSetupWidget> {
   /// グループ作成ダイアログを表示
   void _showCreateGroupDialog(BuildContext context) {
     final groupNameController = TextEditingController();
+    final mediaQuery = MediaQuery.of(context);
 
     if (!context.mounted) return;
-    showDialog(
+    showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         title: Text(texts.createFirstGroup),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(texts.enterGroupName),
-            const SizedBox(height: 16),
-            TextField(
-              controller: groupNameController,
-              autofocus: true,
-              decoration: InputDecoration(
-                labelText: texts.groupName,
-                hintText: texts.groupNameHint,
-                border: const OutlineInputBorder(),
-              ),
-              onSubmitted: (value) {
-                if (value.trim().isNotEmpty) {
-                  Navigator.pop(dialogContext);
-                  _createGroup(context, value.trim());
-                }
-              },
+        content: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 420,
+            maxHeight: mediaQuery.size.height * 0.7,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(texts.enterGroupName),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: groupNameController,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    labelText: texts.groupName,
+                    hintText: texts.groupNameHint,
+                    border: const OutlineInputBorder(),
+                  ),
+                  onSubmitted: (value) {
+                    final groupName = value.trim();
+                    if (groupName.isNotEmpty) {
+                      Navigator.pop(dialogContext, groupName);
+                    }
+                  },
+                ),
+              ],
             ),
-          ],
+          ),
         ),
         actions: [
           TextButton(
@@ -175,19 +190,28 @@ class _InitialSetupWidgetState extends ConsumerState<InitialSetupWidget> {
             onPressed: () {
               final groupName = groupNameController.text.trim();
               if (groupName.isNotEmpty) {
-                Navigator.pop(dialogContext);
-                _createGroup(context, groupName);
+                Navigator.pop(dialogContext, groupName);
               }
             },
             child: Text(texts.create),
           ),
         ],
       ),
-    ).then((_) => groupNameController.dispose());
+    ).then((groupName) async {
+      groupNameController.dispose();
+      if (groupName == null || groupName.isEmpty) return;
+      if (!mounted) return;
+      // ダイアログのクローズアニメーション完了後に実行し、
+      // route破棄とprovider再計算の競合（_dependents.isEmpty）を回避する。
+      await Future<void>.delayed(const Duration(milliseconds: 280));
+      if (!mounted) return;
+      unawaited(_createGroup(context, groupName));
+    });
   }
 
   /// グループを作成
   Future<void> _createGroup(BuildContext context, String groupName) async {
+    if (!mounted) return;
     Log.info('🆕 [INITIAL_SETUP] グループ作成: $groupName');
     try {
       await ref.read(allGroupsProvider.notifier).createNewGroup(groupName);
@@ -197,9 +221,9 @@ class _InitialSetupWidgetState extends ConsumerState<InitialSetupWidget> {
     } catch (e, stackTrace) {
       Log.error('❌ [INITIAL_SETUP] グループ作成エラー: $e');
       Log.error('スタックトレース: $stackTrace');
-      if (context.mounted) {
+      if (mounted) {
         SnackBarHelper.showCustom(
-          context,
+          this.context,
           message: '${texts.createGroupFailed}: ${e.toString()}',
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 5),

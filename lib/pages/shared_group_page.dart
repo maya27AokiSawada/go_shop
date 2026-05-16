@@ -69,7 +69,22 @@ class _SharedGroupPageState extends ConsumerState<SharedGroupPage> {
                   child: GroupListWidget(),
                 ),
               ),
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () {
+          // ローディング中も直前データがあれば表示を維持し、
+          // 0→1遷移時の急激なツリー置換を避ける。
+          final cachedGroups = groupsAsync.valueOrNull;
+          if (cachedGroups != null) {
+            return cachedGroups.isEmpty
+                ? const InitialSetupWidget()
+                : const SafeArea(
+                    child: Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: GroupListWidget(),
+                    ),
+                  );
+          }
+          return const Center(child: CircularProgressIndicator());
+        },
         error: (_, __) => const SafeArea(
           child: Padding(
             padding: EdgeInsets.all(16.0),
