@@ -25,13 +25,14 @@ void main() {
 
       // UI要素が表示されているかチェック
       expect(find.text('データアップデート'), findsOneWidget);
-      expect(find.text('バージョン 1.0 → 2.0'), findsOneWidget);
+      expect(find.text('v1.0 → v2.0'), findsOneWidget);
+      expect(find.text('データを更新する'), findsOneWidget);
 
-      // プログレスインジケーターが表示されているかチェック
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      // 初期状態では開始ボタン表示（マイグレーションはまだ未開始）
+      expect(find.byType(CircularProgressIndicator), findsNothing);
     });
 
-    testWidgets('Migration starts automatically', (WidgetTester tester) async {
+    testWidgets('Migration waits for button tap', (WidgetTester tester) async {
       bool migrationCompleted = false;
 
       await tester.pumpWidget(
@@ -48,17 +49,10 @@ void main() {
         ),
       );
 
-      // 初期状態でマイグレーション中
-      expect(find.text('準備中...'), findsOneWidget);
-
-      // ちょっと待つ
-      await tester.pump(const Duration(milliseconds: 500));
-
-      // 何らかの進捗があるはず
-      await tester.pumpAndSettle();
-
-      // マイグレーションが完了しているかチェック
-      expect(migrationCompleted, isTrue);
+      // 現在仕様: ボタン押下まではマイグレーションを開始しない
+      expect(find.text('データを更新する'), findsOneWidget);
+      expect(find.byType(LinearProgressIndicator), findsNothing);
+      expect(migrationCompleted, isFalse);
     });
   });
 

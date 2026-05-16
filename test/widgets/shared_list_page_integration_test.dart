@@ -14,6 +14,7 @@ import 'package:goshopping/datastore/shared_list_repository.dart';
 import 'package:goshopping/models/shared_group.dart';
 import 'package:goshopping/models/shared_list.dart';
 import 'package:goshopping/pages/shared_list_page.dart';
+import 'package:goshopping/l10n/l10n.dart';
 import 'package:goshopping/providers/current_list_provider.dart';
 import 'package:goshopping/providers/shared_group_provider.dart'; // selectedGroupIdProvider
 import 'package:goshopping/providers/shared_list_provider.dart'; // sharedListRepositoryProvider
@@ -257,7 +258,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // ASSERT: プレースホルダーメッセージが表示される
-      expect(find.text('リストを選択してください'), findsOneWidget);
+      expect(find.text(texts.selectList), findsOneWidget);
       expect(find.byIcon(Icons.shopping_cart_outlined), findsOneWidget);
 
       // クラッシュしていないことを確認

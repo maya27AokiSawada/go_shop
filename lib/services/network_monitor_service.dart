@@ -43,12 +43,13 @@ class NetworkMonitorService {
     // 🔥 初回接続チェックは少し待ってから実行。
     // 起動直後は Firebase / Firestore / DNS のウォームアップ中で、
     // 手動リトライだけ成功する偽オフラインが出やすいため。
-    Future.microtask(() async {
+    Future.microtask(() {
       AppLogger.info(
           '🔍 [NETWORK_MONITOR] 初回接続チェック待機開始（${initialCheckDelay.inSeconds}秒）');
-      await Future.delayed(initialCheckDelay);
-      AppLogger.info('🔍 [NETWORK_MONITOR] 初回接続チェック開始');
-      await checkFirestoreConnection();
+      _initialCheckTimer = Timer(initialCheckDelay, () {
+        AppLogger.info('🔍 [NETWORK_MONITOR] 初回接続チェック開始');
+        checkFirestoreConnection();
+      });
     });
   }
 
@@ -62,6 +63,9 @@ class NetworkMonitorService {
 
   /// 自動リトライタイマー
   Timer? _retryTimer;
+
+  /// 初回接続チェック待機タイマー（dispose時にキャンセル）
+  Timer? _initialCheckTimer;
 
   /// 最後にチェックした時刻
   DateTime? _lastCheckTime;
@@ -383,6 +387,8 @@ class NetworkMonitorService {
   /// リソースをクリーンアップ
   void dispose() {
     AppLogger.info('🗑️ [NETWORK_MONITOR] リソースをクリーンアップ');
+    _initialCheckTimer?.cancel();
+    _initialCheckTimer = null;
     stopAutoRetry();
     _statusController.close();
   }

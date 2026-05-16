@@ -453,11 +453,14 @@ class _HomePageState extends ConsumerState<HomePage> {
                             Icon(Icons.privacy_tip,
                                 color: Colors.blue.shade700, size: 20),
                             const SizedBox(width: 8),
-                            Text(
-                              texts.privacyAbout,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue.shade900,
+                            Expanded(
+                              child: Text(
+                                texts.privacyAbout,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue.shade900,
+                                ),
+                                softWrap: true,
                               ),
                             ),
                           ],

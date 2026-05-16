@@ -8,6 +8,9 @@ import 'package:goshopping/providers/auth_provider.dart';
 void main() {
   group('HomePage Widget Tests', () {
     testWidgets('HomePageが正常にレンダリングされる（未認証）', (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(1280, 2000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
       // Arrange: 未認証状態のモックを作成
       await tester.pumpWidget(
         ProviderScope(
@@ -28,14 +31,17 @@ void main() {
       // HomePageが存在することを確認
       expect(find.byType(HomePage), findsOneWidget);
 
-      // Scaffoldが存在することを確認
-      expect(find.byType(Scaffold), findsOneWidget);
+      // HomePageはSafeArea配下のコンテンツとして描画される
+      expect(find.byType(Scaffold), findsNothing);
 
       // SafeAreaが存在することを確認
       expect(find.byType(SafeArea), findsOneWidget);
     });
 
     testWidgets('HomePageに必要なウィジェットが表示される', (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(1280, 2000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
       // Arrange
       await tester.pumpWidget(
         ProviderScope(
@@ -53,8 +59,8 @@ void main() {
       // Act
       await tester.pumpAndSettle();
 
-      // Assert: SingleChildScrollViewが存在することを確認
-      expect(find.byType(SingleChildScrollView), findsOneWidget);
+      // Assert: 未認証時はスクロール可能な認証UIが描画される
+      expect(find.byType(SingleChildScrollView), findsWidgets);
 
       // Columnが存在することを確認（メインレイアウト）
       expect(find.byType(Column), findsWidgets);
