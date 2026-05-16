@@ -13,9 +13,7 @@ import '../services/ad_service.dart';
 import '../services/app_launch_service.dart';
 import '../services/error_log_service.dart';
 import '../helpers/user_id_change_helper.dart';
-import '../config/app_mode_config.dart';
 import '../config/app_ui_mode_config.dart';
-import '../widgets/single_group_creation_dialog.dart';
 
 import '../widgets/user_name_panel_widget.dart';
 import '../widgets/news_and_ads_panel_widget.dart';
@@ -270,19 +268,23 @@ class _HomePageState extends ConsumerState<HomePage> {
 
       // サインイン（サインアウト時に既にHiveクリア済み）
       await ref.read(authProvider).signIn(email, password);
-      AppLogger.info('✅ [SIGNIN] サインイン成功');
 
       final signedInUser = ref.read(authProvider).currentUser;
-      if (signedInUser != null) {
-        if (!mounted) return;
-        await UserIdChangeHelper.ensureUserContextReady(
-          ref: ref,
-          context: context,
-          user: signedInUser,
-          mounted: mounted,
-        );
-        AppLogger.info('✅ [SIGNIN] ユーザー切り替えコンテキスト準備完了');
+      if (signedInUser == null) {
+        throw Exception('サインイン状態を確認できませんでした');
       }
+
+      AppLogger.info(
+          '✅ [SIGNIN] サインイン成功: ${AppLogger.maskUserId(signedInUser.uid)}');
+
+      if (!mounted) return;
+      await UserIdChangeHelper.ensureUserContextReady(
+        ref: ref,
+        context: context,
+        user: signedInUser,
+        mounted: mounted,
+      );
+      AppLogger.info('✅ [SIGNIN] ユーザー切り替えコンテキスト準備完了');
 
       // メールアドレス保存処理
       await UserPreferencesService.saveOrClearEmailForSignIn(

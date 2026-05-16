@@ -604,15 +604,14 @@ class _GroupCreationWithCopyDialogState
         AppLogger.info('🔥🔥🔥 [CRITICAL DEBUG] else分岐に入りました - 新規グループ作成パス');
         // 🔥 NEW: 新規グループ作成時もgroupIdを取得
         AppLogger.info('🔄 [CREATE GROUP DIALOG] 新規グループのgroupId取得開始');
-        final allGroups = await ref.read(allGroupsProvider.future);
-        // 最新のグループを取得（作成したばかりのグループ）
-        final latestGroup = allGroups.firstWhere(
-          (group) => group.groupName == groupName,
-          orElse: () => throw Exception('作成したグループが見つかりません'),
-        );
-        newGroupId = latestGroup.groupId;
-        AppLogger.info(
-            '✅ [CREATE GROUP DIALOG] 新規グループのgroupId取得完了: ${AppLogger.maskGroupId(newGroupId, currentUserId: ref.read(authStateProvider).value?.uid)}');
+        newGroupId = await _resolveCreatedGroupId(groupName);
+        if (newGroupId == null) {
+          AppLogger.warning(
+              '⚠️ [CREATE GROUP DIALOG] 作成直後にgroupIdを解決できませんでした（UI更新は継続）');
+        } else {
+          AppLogger.info(
+              '✅ [CREATE GROUP DIALOG] 新規グループのgroupId取得完了: ${AppLogger.maskGroupId(newGroupId, currentUserId: ref.read(authStateProvider).value?.uid)}');
+        }
       }
 
       // 🔥 FIX: invalidate()を削除（メンバー追加は_addMembersToNewGroup内で完了）
@@ -752,6 +751,30 @@ class _GroupCreationWithCopyDialogState
     }
   }
 
+  /// 作成直後のレースを吸収しつつ新規グループIDを解決する
+  Future<String?> _resolveCreatedGroupId(String groupName) async {
+    // 1) createNewGroup() 内で選択済みIDが設定されていればそれを優先
+    final selectedGroupId = ref.read(selectedGroupIdProvider);
+    if (selectedGroupId != null && selectedGroupId.isNotEmpty) {
+      return selectedGroupId;
+    }
+
+    // 2) allGroupsProvider から名前一致を短時間リトライ
+    for (var attempt = 0; attempt < 4; attempt++) {
+      final groups = await ref.read(allGroupsProvider.future);
+      for (final group in groups) {
+        if (group.groupName == groupName) {
+          return group.groupId;
+        }
+      }
+
+      ref.invalidate(allGroupsProvider);
+      await Future.delayed(const Duration(milliseconds: 200));
+    }
+
+    return null;
+  }
+
   /// 🔥 NEW: 新規作成したグループにメンバーを追加
   /// 戻り値: 新しく作成したグループのID
   Future<String?> _addMembersToNewGroup(String groupName) async {
@@ -768,16 +791,39 @@ class _GroupCreationWithCopyDialogState
         return null;
       }
 
-      // 新規作成したグループを取得
-      // 🔥 FIX: ref.watch() + .when() パターン → ref.read(.future) に修正
-      // ref.watch()はasyncメソッド内ではloading状態を返す可能性があり、
-      // 空リストが返されてfirstWhereが失敗する根本原因だった
-      final allGroups = await ref.read(allGroupsProvider.future);
+      final newGroupId = await _resolveCreatedGroupId(groupName);
+      if (newGroupId == null) {
+        AppLogger.warning(
+            '⚠️ [ADD MEMBERS TO NEW GROUP] groupId解決失敗: $groupName');
+        return null;
+      }
 
-      final newGroup = allGroups.firstWhere(
-        (g) => g.groupName == groupName,
-        orElse: () => throw Exception('新規作成したグループが見つかりません: $groupName'),
-      );
+      // 新規作成したグループをIDで取得
+      final allGroups = await ref.read(allGroupsProvider.future);
+      SharedGroup? newGroup;
+      for (final group in allGroups) {
+        if (group.groupId == newGroupId) {
+          newGroup = group;
+          break;
+        }
+      }
+
+      if (newGroup == null) {
+        ref.invalidate(allGroupsProvider);
+        final retriedGroups = await ref.read(allGroupsProvider.future);
+        for (final group in retriedGroups) {
+          if (group.groupId == newGroupId) {
+            newGroup = group;
+            break;
+          }
+        }
+      }
+
+      if (newGroup == null) {
+        AppLogger.warning(
+            '⚠️ [ADD MEMBERS TO NEW GROUP] 新規グループ取得失敗: groupId=$newGroupId');
+        return null;
+      }
 
       AppLogger.info(
           '✅ [ADD MEMBERS TO NEW GROUP] 新グループ取得: ${AppLogger.maskGroup(newGroup.groupName, newGroup.groupId)}');

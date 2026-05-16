@@ -26,7 +26,9 @@ import '../flavors.dart';
 // Firebase Auth Service
 class FirebaseAuthService {
   FirebaseAuth? get _auth =>
-      F.appFlavor == Flavor.prod ? FirebaseAuth.instance : null;
+      (F.appFlavor == Flavor.prod || F.appFlavor == Flavor.dev)
+          ? FirebaseAuth.instance
+          : null;
 
   Future<User?> signIn(String email, String password) async {
     if (_auth == null) {
@@ -487,8 +489,8 @@ class FirebaseAuthService {
 
     await _saveUserInfo(ref, currentUserName ?? userNameController.text, '');
 
-    // Firestoreからグループを同期してHiveに保存（本番環境のみ）
-    if (F.appFlavor == Flavor.prod) {
+    // Firestoreからグループを同期してHiveに保存（dev/prod環境）
+    if (F.appFlavor == Flavor.prod || F.appFlavor == Flavor.dev) {
       try {
         final syncedGroups =
             await FirestoreGroupSyncService.syncGroupsOnSignIn();
