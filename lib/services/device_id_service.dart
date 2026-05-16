@@ -9,6 +9,7 @@ import '../utils/app_logger.dart';
 class DeviceIdService {
   static const String _prefixKey = 'device_id_prefix';
   static String? _cachedPrefix;
+  static int _lastGroupTimestamp = 0;
 
   /// デバイスIDプレフィックスを取得（8文字）
   ///
@@ -130,7 +131,14 @@ class DeviceIdService {
   /// 例: "a3f8c9d2_1707835200000"
   static Future<String> generateGroupId() async {
     final prefix = await getDevicePrefix();
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    var timestamp = DateTime.now().millisecondsSinceEpoch;
+
+    // 同一ミリ秒内の連続呼び出しでも重複しないよう単調増加を保証する。
+    if (timestamp <= _lastGroupTimestamp) {
+      timestamp = _lastGroupTimestamp + 1;
+    }
+    _lastGroupTimestamp = timestamp;
+
     final groupId = '${prefix}_$timestamp';
 
     AppLogger.info('🆕 [DEVICE_ID] グループID生成: $groupId');
@@ -160,6 +168,7 @@ class DeviceIdService {
   /// キャッシュをクリア（テスト用）
   static void clearCache() {
     _cachedPrefix = null;
+    _lastGroupTimestamp = 0;
     AppLogger.info('🗑️ [DEVICE_ID] キャッシュクリア');
   }
 }
