@@ -3,13 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../utils/app_logger.dart';
 import '../providers/security_provider.dart';
-import '../providers/app_ui_mode_provider.dart';
-import '../providers/shared_group_provider.dart';
-import '../config/app_ui_mode_config.dart';
 import '../widgets/group_list_widget.dart';
 import '../widgets/group_creation_with_copy_dialog.dart';
 import '../widgets/accept_invitation_widget.dart';
-import '../widgets/initial_setup_widget.dart';
 import '../l10n/l10n.dart';
 
 class SharedGroupPage extends ConsumerStatefulWidget {
@@ -54,82 +50,40 @@ class _SharedGroupPageState extends ConsumerState<SharedGroupPage> {
 
     Log.info('🏷️ [PAGE BUILD] SharedGroupPage表示開始');
 
-    final isSingle = ref.watch(appUIModeProvider) == AppUIMode.single;
-
-    // シングルモードの場合、グループ数に応じて表示内容を切り替える
-    Widget body;
-    if (isSingle) {
-      final groupsAsync = ref.watch(allGroupsProvider);
-      body = groupsAsync.when(
-        data: (groups) => groups.isEmpty
-            ? const InitialSetupWidget()
-            : const SafeArea(
-                child: Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: GroupListWidget(),
-                ),
-              ),
-        loading: () {
-          // ローディング中も直前データがあれば表示を維持し、
-          // 0→1遷移時の急激なツリー置換を避ける。
-          final cachedGroups = groupsAsync.valueOrNull;
-          if (cachedGroups != null) {
-            return cachedGroups.isEmpty
-                ? const InitialSetupWidget()
-                : const SafeArea(
-                    child: Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: GroupListWidget(),
-                    ),
-                  );
-          }
-          return const Center(child: CircularProgressIndicator());
-        },
-        error: (_, __) => const SafeArea(
-          child: Padding(
-            padding: EdgeInsets.all(16.0),
-            child: GroupListWidget(),
-          ),
-        ),
-      );
-    } else {
-      body = const SafeArea(
+    // グループ数に関わらず常にGroupListWidgetを表示。
+    // 空状態時の案内テキスト（作成 or QRスキャン）はGroupListWidget内が担当。
+    return Scaffold(
+      body: const SafeArea(
         child: Padding(
           padding: EdgeInsets.all(16.0),
           child: GroupListWidget(),
         ),
-      );
-    }
-
-    return Scaffold(
-      body: body,
-      floatingActionButton: isSingle
-          ? null
-          : Column(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                FloatingActionButton(
-                  onPressed: () {
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const QRScannerScreen()));
-                  },
-                  heroTag: 'scan_qr_code',
-                  child: const Icon(Icons.qr_code_scanner),
-                ),
-                const SizedBox(height: 16),
-                FloatingActionButton.extended(
-                  onPressed: () => _showCreateGroupDialog(context),
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  icon: const Icon(Icons.group_add),
-                  label: Text(texts.newGroup),
-                  heroTag: 'create_group',
-                ),
-              ],
-            ),
+      ),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            onPressed: () {
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const QRScannerScreen()));
+            },
+            heroTag: 'scan_qr_code',
+            child: const Icon(Icons.qr_code_scanner),
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton.extended(
+            onPressed: () => _showCreateGroupDialog(context),
+            backgroundColor: Colors.blue,
+            foregroundColor: Colors.white,
+            icon: const Icon(Icons.group_add),
+            label: Text(texts.newGroup),
+            heroTag: 'create_group',
+          ),
+        ],
+      ),
     );
   }
 
