@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../utils/app_logger.dart';
 import '../providers/security_provider.dart';
+import '../providers/app_ui_mode_provider.dart';
+import '../providers/shared_group_provider.dart';
+import '../config/app_ui_mode_config.dart';
 import '../widgets/group_list_widget.dart';
 import '../widgets/group_creation_with_copy_dialog.dart';
 import '../widgets/accept_invitation_widget.dart';
@@ -50,6 +53,11 @@ class _SharedGroupPageState extends ConsumerState<SharedGroupPage> {
 
     Log.info('🏷️ [PAGE BUILD] SharedGroupPage表示開始');
 
+    // シングルモードでグループが1つ以上あるときFABを無効化
+    final isSingle = ref.watch(appUIModeProvider) == AppUIMode.single;
+    final groupCount = ref.watch(allGroupsProvider).valueOrNull?.length ?? 0;
+    final fabDisabled = isSingle && groupCount >= 1;
+
     // グループ数に関わらず常にGroupListWidgetを表示。
     // 空状態時の案内テキスト（作成 or QRスキャン）はGroupListWidget内が担当。
     return Scaffold(
@@ -64,20 +72,23 @@ class _SharedGroupPageState extends ConsumerState<SharedGroupPage> {
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           FloatingActionButton(
-            onPressed: () {
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const QRScannerScreen()));
-            },
+            onPressed: fabDisabled
+                ? null
+                : () {
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const QRScannerScreen()));
+                  },
             heroTag: 'scan_qr_code',
             child: const Icon(Icons.qr_code_scanner),
           ),
           const SizedBox(height: 16),
           FloatingActionButton.extended(
-            onPressed: () => _showCreateGroupDialog(context),
-            backgroundColor: Colors.blue,
-            foregroundColor: Colors.white,
+            onPressed:
+                fabDisabled ? null : () => _showCreateGroupDialog(context),
+            backgroundColor: fabDisabled ? Colors.grey.shade300 : Colors.blue,
+            foregroundColor: fabDisabled ? Colors.grey.shade500 : Colors.white,
             icon: const Icon(Icons.group_add),
             label: Text(texts.newGroup),
             heroTag: 'create_group',
