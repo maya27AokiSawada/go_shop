@@ -151,7 +151,25 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
           await repository.getSharedListsByGroup(selectedGroupId);
 
       if (groupLists.isEmpty) {
-        Log.info('⚠️ [SINGLE MODE] グループにリストがありません');
+        Log.info('⚠️ [SINGLE MODE] グループにリストがありません → デフォルトリストを自動作成します');
+        final uid = ref.read(authStateProvider).valueOrNull?.uid;
+        if (uid == null) return;
+        if (!mounted) return;
+        try {
+          final newList = await repository.createSharedList(
+            ownerUid: uid,
+            groupId: selectedGroupId,
+            listName: '買い物リスト',
+          );
+          Log.info('✅ [SINGLE MODE] デフォルトリスト自動作成完了: ${newList.listName}');
+          if (!mounted) return;
+          await ref
+              .read(currentListProvider.notifier)
+              .selectList(newList, groupId: selectedGroupId);
+          Log.info('✅ [SINGLE MODE] カレントリストを自動作成リストに設定');
+        } catch (e) {
+          Log.error('❌ [SINGLE MODE] デフォルトリスト自動作成エラー: $e');
+        }
         return;
       }
 

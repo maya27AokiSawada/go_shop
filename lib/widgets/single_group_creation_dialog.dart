@@ -68,15 +68,9 @@ class _SingleGroupCreationDialogState
       await ref.read(allGroupsProvider.notifier).createNewGroup(groupName);
       AppLogger.info('✅ [SINGLE DIALOG] グループ作成完了: $groupName');
 
-      // createNewGroup() による allGroupsProvider 更新で
-      // このダイアログ自体が破棄される可能性がある。
-      if (!mounted) {
-        AppLogger.info('ℹ️ [SINGLE DIALOG] ダイアログ破棄済みのため後続処理をスキップ');
-        return;
-      }
-
       // createNewGroup() 側で選択済みIDが設定されるため、
       // ここでは allGroupsProvider を再読込せず selectedGroupId を利用する。
+      // 注意: ref.read() はmount状態に依存しないため、ダイアログ破棄後も使用可能。
       final newGroupId = ref.read(selectedGroupIdProvider);
       if (newGroupId == null || newGroupId.isEmpty) {
         AppLogger.error('❌ [SINGLE DIALOG] 作成後のselectedGroupIdが取得できません');
@@ -85,6 +79,7 @@ class _SingleGroupCreationDialogState
       }
 
       // デフォルトリスト「買い物リスト」を自動作成
+      // ダイアログが既に破棄済みでも ref.read() は有効なので処理を続行する
       if (uid != null) {
         final newList = await listRepo.createSharedList(
           ownerUid: uid,
@@ -93,12 +88,7 @@ class _SingleGroupCreationDialogState
         );
         AppLogger.info('✅ [SINGLE DIALOG] デフォルトリスト作成完了: ${newList.listId}');
 
-        if (!mounted) {
-          AppLogger.info('ℹ️ [SINGLE DIALOG] リスト作成後に破棄済みのため終了');
-          return;
-        }
-
-        // カレントリストに設定
+        // カレントリストに設定（ref.read() はmount状態に依存しない）
         await ref
             .read(currentListProvider.notifier)
             .selectList(newList, groupId: newGroupId);
