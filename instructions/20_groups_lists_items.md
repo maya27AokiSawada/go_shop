@@ -262,6 +262,35 @@ FloatingActionButton.extended(
 
 ### グループ作成フロー
 
+### シングルモードのデフォルトリスト自動作成
+
+シングルモードでグループを作成した後、グループにリストが1件もない場合は「買い物リスト」を自動作成してカレントに設定する。
+
+**自動作成の2つのトリガー:**
+
+1. **`SingleGroupCreationDialog._create()`**: 新規サインアップ時のグループ作成後にリストも作成。`createNewGroup()` 完了後にダイアログが unmount されていても `ref.read()` は ProviderContainer に直接アクセスするため続行可。`Navigator.pop()` のみ `if (mounted)` で保護する。
+
+2. **`SharedListPage._tryRestoreCurrentListInSingleMode()`**: ページ表示時にカレントリストが未設定の場合に復元を試みる。グループにリストが0件の場合はデフォルトリストを自動作成する（`GroupCreationWithCopyDialog` 経由でグループを作成した場合のフォールバック）。
+
+```dart
+// ✅ _tryRestoreCurrentListInSingleMode のリスト0件ケース
+if (groupLists.isEmpty) {
+  final uid = ref.read(authStateProvider).valueOrNull?.uid;
+  if (uid == null) return;
+  if (!mounted) return;
+  final newList = await repository.createSharedList(
+    ownerUid: uid,
+    groupId: selectedGroupId,
+    listName: '買い物リスト',
+  );
+  await ref.read(currentListProvider.notifier).selectList(newList, groupId: selectedGroupId);
+  return;
+}
+```
+
+> ⚠️ **アンチパターン**: `createNewGroup()` の直後に `if (!mounted) return;` でリスト作成をスキップしない。
+> `ref.read()` は unmount 後も有効。`mounted` チェックが必要なのは Flutter UI 操作（`Navigator`・`setState`・`ScaffoldMessenger`）のみ。
+
 ### createNewGroup() — state への追加前に重複チェック必須
 
 `AllGroupsNotifier.createNewGroup()` で state を更新する際は、必ず `groupId` の重複チェックを行うこと。
