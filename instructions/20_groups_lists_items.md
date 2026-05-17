@@ -206,64 +206,61 @@ subtitle: Text(_getRoleLabel(widget.member.role));
 
 ---
 
-## 9. InitialSetupWidget（シングルモード初期セットアップ）
+## 9. SharedGroupPage の空状態 UI（2026-05-17 方針転換）
 
-`lib/widgets/initial_setup_widget.dart` はグループが 0 件のシングルモードユーザーに表示する初期セットアップ画面。
+### ⚠️ InitialSetupWidget は SharedGroupPage から廃止済み
 
-### 重要ルール
+`InitialSetupWidget`（`lib/widgets/initial_setup_widget.dart`）は `SharedGroupPage` で使用していたが、
+グループ0→1 遷移時に `_dependents.isEmpty` assertion error（赤画面）を引き起こすため **2026-05-17 に廃止**。
 
-- `InitialSetupWidget` は **Scaffold を持たないボディウィジェット** である（`SafeArea` のみ返す）
-  → `SharedGroupPage` の `Scaffold` 内にボディとして配置するため、自前 `Scaffold` を追加する **禁止**
-- `ConsumerStatefulWidget` で実装すること（`this.ref` でプロバイダにアクセス）
-- グループ作成後の遷移は **`pageIndexProvider.setPageIndex()` を使わず** `allGroupsProvider` の更新に委譲すること
-  → `allGroupsProvider` が `AsyncData([newGroup])` になると `SharedGroupPage` が自動的に `GroupListWidget` に切り替わる
+**廃止理由**: `when(data: (g) => g.isEmpty ? InitialSetupWidget() : GroupListWidget())` パターンは、
+グループ作成後のウィジェットツリー急速置換が Riverpod の依存関係クリーンアップと衝突する。
 
-### SharedGroupPage での切り替えパターン
+### 現行パターン（正しい実装）
 
 ```dart
-// ✅ SharedGroupPage: シングルモードで allGroupsProvider によりボディを切り替える
-if (isSingle) {
-  final groupsAsync = ref.watch(allGroupsProvider);
-  final isEmpty = groupsAsync.when(
-    data: (g) => g.isEmpty,
-    loading: () => false,  // ロード中は切り替えない
-    error: (_, __) => false,
-  );
-  body = isEmpty ? const InitialSetupWidget() : const SafeArea(child: GroupListWidget(...));
-}
+// ✅ SharedGroupPage: グループ数に関わらず常に GroupListWidget を表示
+// 空状態テキスト（作成 or QRスキャンを促す案内）は GroupListWidget 内が担当
+return Scaffold(
+  body: const SafeArea(
+    child: Padding(padding: EdgeInsets.all(16.0), child: GroupListWidget()),
+  ),
+  floatingActionButton: ...,
+);
+
+// ❌ 禁止 — InitialSetupWidget との切り替えは赤画面の原因
+body = groups.isEmpty ? const InitialSetupWidget() : const SafeArea(child: GroupListWidget());
 ```
 
-### AsyncNotifier のローディング状態判定
+### FAB の有効/無効制御
 
-`valueOrNull ?? []` は `AsyncLoading` と「データなし」を区別できないため、必ず `isLoading` を先に判定すること。
+シングルモードでグループが1件以上ある場合、FABをグレーアウトして追加操作を抑制する。
 
 ```dart
-// ❌ 禁止 — AsyncLoading 中は valueOrNull が null → 空リストとして扱われ
-//         InitialSetupWidget が誤って表示される
-final groups = ref.watch(allGroupsProvider).valueOrNull ?? [];
-if (groups.isEmpty) { return InitialSetupWidget(); }
+final isSingle = ref.watch(appUIModeProvider) == AppUIMode.single;
+final groupCount = ref.watch(allGroupsProvider).valueOrNull?.length ?? 0;
+final fabDisabled = isSingle && groupCount >= 1;
 
-// ✅ 正しい — isLoading を先にチェックしてインジケータを表示
-final groupsAsync = ref.watch(allGroupsProvider);
-if (groupsAsync.isLoading) {
-  return const Center(child: CircularProgressIndicator());
-}
-final groups = groupsAsync.valueOrNull ?? [];
-if (groups.isEmpty) { return InitialSetupWidget(); }
+// FABのonPressedをnullにするとFlutterが自動でグレーアウト
+FloatingActionButton(
+  onPressed: fabDisabled ? null : () { /* QRスキャン */ },
+  ...
+),
+FloatingActionButton.extended(
+  onPressed: fabDisabled ? null : () => _showCreateGroupDialog(context),
+  backgroundColor: fabDisabled ? Colors.grey.shade300 : Colors.blue,
+  foregroundColor: fabDisabled ? Colors.grey.shade500 : Colors.white,
+  ...
+),
 ```
+
+| 状態 | FAB |
+|---|---|
+| シングルモード・グループ0件 | ✅ 有効（青・タップ可） |
+| シングルモード・グループ1件以上 | 🔘 グレーアウト・タップ不可 |
+| マルチモード | ✅ 常時有効 |
 
 ### グループ作成フロー
-
-```dart
-// ✅ _createGroup: ローディングダイアログ不要。allGroupsProvider 更新で自動遷移
-Future<void> _createGroup(BuildContext context, String groupName) async {
-  await ref.read(allGroupsProvider.notifier).createNewGroup(groupName);
-  // allGroupsProvider が AsyncData([newGroup]) になり SharedGroupPage が自動切替
-}
-
-// ❌ 禁止: Widget 削除後に ref を使う可能性がある強制遷移
-ProviderScope.containerOf(context).read(pageIndexProvider.notifier).setPageIndex(1);
-```
 
 ### createNewGroup() — state への追加前に重複チェック必須
 
