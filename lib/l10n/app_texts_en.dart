@@ -213,6 +213,9 @@ class AppTextsEn extends AppTexts {
   @override
   String get confirmDeleteList => 'Are you sure you want to delete this list?';
 
+  @override
+  String get defaultShoppingListName => 'Shopping list';
+
   // ========================================
   // Item
   // ========================================

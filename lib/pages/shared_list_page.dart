@@ -156,10 +156,12 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
         if (uid == null) return;
         if (!mounted) return;
         try {
+          final defaultListName = texts.defaultShoppingListName;
           final newList = await repository.createSharedList(
             ownerUid: uid,
             groupId: selectedGroupId,
-            listName: '買い物リスト',
+            listName: defaultListName,
+            customListId: 'default_$selectedGroupId',
           );
           Log.info('✅ [SINGLE MODE] デフォルトリスト自動作成完了: ${newList.listName}');
           if (!mounted) return;

@@ -87,6 +87,7 @@ abstract class AppTexts {
   String get listNameRequired;
   String get duplicateListName;
   String get confirmDeleteList;
+  String get defaultShoppingListName;
 
   // ========================================
   // アイテム

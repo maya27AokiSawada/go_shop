@@ -212,6 +212,9 @@ class AppTextsJa extends AppTexts {
   @override
   String get confirmDeleteList => 'このリストを削除してもよろしいですか？';
 
+  @override
+  String get defaultShoppingListName => '買い物リスト';
+
   // ========================================
   // アイテム
   // ========================================

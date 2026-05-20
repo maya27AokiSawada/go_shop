@@ -10,11 +10,12 @@ import '../datastore/hybrid_shared_list_repository.dart';
 import '../widgets/accept_invitation_widget.dart';
 import '../utils/app_logger.dart';
 import '../screens/qr_scan_screen.dart';
+import '../l10n/l10n.dart';
 
 /// シングルモード用グループ作成ダイアログ
 ///
 /// サインアップ完了後に表示される。
-/// グループを1つ作成し、デフォルトリスト「買い物リスト」を自動生成してカレントに設定する。
+/// グループを1つ作成し、デフォルトリストを自動生成してカレントに設定する。
 class SingleGroupCreationDialog extends ConsumerStatefulWidget {
   const SingleGroupCreationDialog({super.key});
 
@@ -78,20 +79,40 @@ class _SingleGroupCreationDialogState
         return;
       }
 
-      // デフォルトリスト「買い物リスト」を自動作成
+      // デフォルトリストを自動作成（重複作成を防ぐ）
       // ダイアログが既に破棄済みでも ref.read() は有効なので処理を続行する
       if (uid != null) {
-        final newList = await listRepo.createSharedList(
-          ownerUid: uid,
-          groupId: newGroupId,
-          listName: '買い物リスト',
-        );
-        AppLogger.info('✅ [SINGLE DIALOG] デフォルトリスト作成完了: ${newList.listId}');
+        final defaultListName = texts.defaultShoppingListName;
+        final existingLists = await listRepo.getSharedListsByGroup(newGroupId);
+        final existingDefault = existingLists
+            .where((l) => l.listName == defaultListName)
+            .firstOrNull;
+
+        final targetList = existingDefault ??
+            (existingLists.isNotEmpty
+                ? existingLists.first
+                : await listRepo.createSharedList(
+                    ownerUid: uid,
+                    groupId: newGroupId,
+                    listName: defaultListName,
+                    customListId: 'default_$newGroupId',
+                  ));
+
+        if (existingDefault != null) {
+          AppLogger.info(
+              'ℹ️ [SINGLE DIALOG] 既存デフォルトリストを再利用: ${existingDefault.listId}');
+        } else if (existingLists.isNotEmpty) {
+          AppLogger.info(
+              'ℹ️ [SINGLE DIALOG] 既存リストがあるため作成をスキップ: ${targetList.listId}');
+        } else {
+          AppLogger.info(
+              '✅ [SINGLE DIALOG] デフォルトリスト作成完了: ${targetList.listId}');
+        }
 
         // カレントリストに設定（ref.read() はmount状態に依存しない）
         await ref
             .read(currentListProvider.notifier)
-            .selectList(newList, groupId: newGroupId);
+            .selectList(targetList, groupId: newGroupId);
         AppLogger.info('✅ [SINGLE DIALOG] カレントリスト設定完了');
       }
 
