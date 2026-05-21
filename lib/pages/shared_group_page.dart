@@ -85,8 +85,11 @@ class _SharedGroupPageState extends ConsumerState<SharedGroupPage> {
           ),
           const SizedBox(height: 16),
           FloatingActionButton.extended(
-            onPressed:
-                fabDisabled ? null : () => _showCreateGroupDialog(context),
+            onPressed: fabDisabled
+                ? null
+                : () async {
+                    await _showCreateGroupDialog(context);
+                  },
             backgroundColor: fabDisabled ? Colors.grey.shade300 : Colors.blue,
             foregroundColor: fabDisabled ? Colors.grey.shade500 : Colors.white,
             icon: const Icon(Icons.group_add),
@@ -98,7 +101,17 @@ class _SharedGroupPageState extends ConsumerState<SharedGroupPage> {
     );
   }
 
-  void _showCreateGroupDialog(BuildContext context) {
-    showGroupCreationWithCopyDialog(context: context);
+  Future<void> _showCreateGroupDialog(BuildContext context) async {
+    final result = await showGroupCreationWithCopyDialog(context: context);
+    if (result != true) {
+      return;
+    }
+
+    ref.invalidate(allGroupsProvider);
+    try {
+      await ref.read(allGroupsProvider.future);
+    } catch (e) {
+      Log.warning('⚠️ [GROUP PAGE] グループ一覧再読み込みエラー: $e');
+    }
   }
 }

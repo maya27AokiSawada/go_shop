@@ -92,255 +92,265 @@ class _GroupCreationWithCopyDialogState
   }
 
   Widget _buildDialog(BuildContext context, List<SharedGroup> existingGroups) {
-    return Dialog(
-      child: Container(
-        width: MediaQuery.of(context).size.width * 0.9,
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.85,
-          maxWidth: 600,
-        ),
-        child: Stack(
-          children: [
-            // メインコンテンツ
-            Form(
-              key: _formKey,
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(12.0), // 🔥 FIX: 16→12に縮小
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Header
-                      Row(
-                        children: [
-                          const Icon(Icons.group_add,
-                              color: Colors.blue, size: 20), // 🔥 FIX: サイズ指定
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              texts.createGroup,
-                              style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight:
-                                      FontWeight.bold), // 🔥 FIX: 20→18に縮小
-                            ),
-                          ),
-                          IconButton(
-                            padding: EdgeInsets.zero, // 🔥 FIX: パディング削減
-                            constraints:
-                                const BoxConstraints(), // 🔥 FIX: 最小サイズ制約なし
-                            onPressed: () => Navigator.of(context).pop(),
-                            icon: const Icon(Icons.close,
-                                size: 20), // 🔥 FIX: サイズ指定
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12), // 🔥 FIX: 16→12に縮小
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+    final availableHeight = MediaQuery.of(context).size.height - keyboardHeight;
 
-                      // Group name input
-                      TextFormField(
-                        controller: _groupNameController,
-                        decoration: InputDecoration(
-                          labelText: '${texts.groupName} *',
-                          hintText: texts.groupNameRequired,
-                          border: const OutlineInputBorder(),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return texts.groupNameRequired;
-                          }
-
-                          // Check for duplicate group names
-                          final trimmedName = value.trim();
-                          final isDuplicate = existingGroups.any((group) =>
-                              group.groupName.toLowerCase() ==
-                              trimmedName.toLowerCase());
-
-                          if (isDuplicate) {
-                            return texts.duplicateGroupName;
-                          }
-
-                          return null;
-                        },
-                      ),
-
-                      const SizedBox(height: 12), // 🔥 FIX: 16→12に縮小
-
-                      // Source group selection
-                      if (existingGroups.isNotEmpty) ...[
-                        Text(
-                          texts.copyMembersFrom,
-                          style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500), // 🔥 FIX: 16→14に縮小
-                        ),
-                        const SizedBox(height: 8),
-                        DropdownButtonFormField<SharedGroup>(
-                          isExpanded: true, // 🔥 FIX: UIオーバーフロー防止
-                          initialValue: () {
-                            // 🔥 FIX: _selectedSourceGroupがexistingGroupsに存在するか確認
-                            // 存在しない場合はnullに設定（グループ削除後など）
-                            if (_selectedSourceGroup == null) return null;
-
-                            final exists = existingGroups.any((g) =>
-                                g.groupId == _selectedSourceGroup!.groupId);
-
-                            return exists ? _selectedSourceGroup : null;
-                          }(),
-                          decoration: InputDecoration(
-                            hintText: texts.selectGroupHint,
-                            border: const OutlineInputBorder(),
-                          ),
-                          items: [
-                            DropdownMenuItem<SharedGroup>(
-                              value: null,
-                              child: Text(texts.newGroupNoMembers),
-                            ),
-                            // 🔥 FIX: groupIdで重複を除去（Dropdownアサーションエラー防止）
-                            ...existingGroups
-                                .fold<Map<String, SharedGroup>>(
-                                  {},
-                                  (map, group) {
-                                    map[group.groupId] = group;
-                                    return map;
-                                  },
-                                )
-                                .values
-                                .map(
-                                  (group) => DropdownMenuItem<SharedGroup>(
-                                    value: group,
-                                    child: Text(
-                                      '${GroupDisplayHelper.displayName(group, existingGroups)} (${group.members?.length ?? 0}人)',
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ),
-                          ],
-                          onChanged: (group) {
-                            setState(() {
-                              _selectedSourceGroup = group;
-                              _updateMemberSelection();
-                            });
-                          },
-                        ),
-                        const SizedBox(height: 12), // 🔥 FIX: 16→12に縮小
-                      ],
-
-                      // Member selection list
-                      if (_selectedSourceGroup?.members?.isNotEmpty ==
-                          true) ...[
-                        Text(
-                          texts.selectMembersToCopy,
-                          style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500), // 🔥 FIX: 16→14に縮小
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          constraints: BoxConstraints(
-                            maxHeight: MediaQuery.of(context).size.height *
-                                0.3, // 🔥 FIX: 動的高さに変更
-                          ),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey.shade300),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: ListView.builder(
-                            shrinkWrap: true,
-                            itemCount:
-                                _selectedSourceGroup!.members?.length ?? 0,
-                            itemBuilder: (context, index) {
-                              final member =
-                                  _selectedSourceGroup!.members![index];
-                              return _buildMemberSelectionTile(member);
-                            },
-                          ),
-                        ),
-                      ] else if (_selectedSourceGroup != null) ...[
-                        Container(
-                          height: 60, // 🔥 FIX: 100→60に縮小
-                          alignment: Alignment.center,
-                          child: Text(
-                            texts.noMembersInGroup,
-                            style: const TextStyle(
-                                color: Colors.grey,
-                                fontSize: 12), // 🔥 FIX: フォントサイズ指定
-                          ),
-                        ),
-                      ] else ...[
-                        Container(
-                          height: 60, // 🔥 FIX: 100→60に縮小
-                          alignment: Alignment.center,
-                          child: Text(
-                            texts.selectGroupToCopyMembers,
-                            style: const TextStyle(
-                                color: Colors.grey,
-                                fontSize: 12), // 🔥 FIX: フォントサイズ指定
-                            textAlign: TextAlign.center, // 🔥 FIX: センタリング
-                          ),
-                        ),
-                      ],
-
-                      const SizedBox(height: 12), // 🔥 FIX: 16→12に縮小
-
-                      // Action buttons
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          TextButton(
-                            onPressed: _isLoading
-                                ? null
-                                : () => Navigator.of(context).pop(),
-                            child: Text(texts.cancel),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton(
-                            onPressed: _isLoading ? null : _createGroup,
-                            child: _isLoading
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2),
-                                  )
-                                : Text(texts.createGroup),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            // ローディングオーバーレイ
-            if (_isLoading)
-              Positioned.fill(
-                child: Container(
-                  color: Colors.black54,
-                  child: Center(
+    return PopScope(
+      canPop: !_isLoading,
+      child: Dialog(
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.9,
+          constraints: BoxConstraints(
+            maxHeight: availableHeight * 0.85,
+            maxWidth: 600,
+          ),
+          child: Stack(
+            children: [
+              // メインコンテンツ
+              Form(
+                key: _formKey,
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0), // 🔥 FIX: 16→12に縮小
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const CircularProgressIndicator(
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.white),
+                        // Header
+                        Row(
+                          children: [
+                            const Icon(Icons.group_add,
+                                color: Colors.blue, size: 20), // 🔥 FIX: サイズ指定
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                texts.createGroup,
+                                style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight:
+                                        FontWeight.bold), // 🔥 FIX: 20→18に縮小
+                              ),
+                            ),
+                            IconButton(
+                              padding: EdgeInsets.zero, // 🔥 FIX: パディング削減
+                              constraints:
+                                  const BoxConstraints(), // 🔥 FIX: 最小サイズ制約なし
+                              onPressed: _isLoading
+                                  ? null
+                                  : () => Navigator.of(context).pop(),
+                              icon: const Icon(Icons.close,
+                                  size: 20), // 🔥 FIX: サイズ指定
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 16),
-                        Text(
-                          texts.creatingGroup,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
+                        const SizedBox(height: 12), // 🔥 FIX: 16→12に縮小
+
+                        // Group name input
+                        TextFormField(
+                          controller: _groupNameController,
+                          decoration: InputDecoration(
+                            labelText: '${texts.groupName} *',
+                            hintText: texts.groupNameRequired,
+                            border: const OutlineInputBorder(),
                           ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return texts.groupNameRequired;
+                            }
+
+                            // Check for duplicate group names
+                            final trimmedName = value.trim();
+                            final isDuplicate = existingGroups.any((group) =>
+                                group.groupName.toLowerCase() ==
+                                trimmedName.toLowerCase());
+
+                            if (isDuplicate) {
+                              return texts.duplicateGroupName;
+                            }
+
+                            return null;
+                          },
+                        ),
+
+                        const SizedBox(height: 12), // 🔥 FIX: 16→12に縮小
+
+                        // Source group selection
+                        if (existingGroups.isNotEmpty) ...[
+                          Text(
+                            texts.copyMembersFrom,
+                            style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight:
+                                    FontWeight.w500), // 🔥 FIX: 16→14に縮小
+                          ),
+                          const SizedBox(height: 8),
+                          DropdownButtonFormField<SharedGroup>(
+                            isExpanded: true, // 🔥 FIX: UIオーバーフロー防止
+                            initialValue: () {
+                              // 🔥 FIX: _selectedSourceGroupがexistingGroupsに存在するか確認
+                              // 存在しない場合はnullに設定（グループ削除後など）
+                              if (_selectedSourceGroup == null) return null;
+
+                              final exists = existingGroups.any((g) =>
+                                  g.groupId == _selectedSourceGroup!.groupId);
+
+                              return exists ? _selectedSourceGroup : null;
+                            }(),
+                            decoration: InputDecoration(
+                              hintText: texts.selectGroupHint,
+                              border: const OutlineInputBorder(),
+                            ),
+                            items: [
+                              DropdownMenuItem<SharedGroup>(
+                                value: null,
+                                child: Text(texts.newGroupNoMembers),
+                              ),
+                              // 🔥 FIX: groupIdで重複を除去（Dropdownアサーションエラー防止）
+                              ...existingGroups
+                                  .fold<Map<String, SharedGroup>>(
+                                    {},
+                                    (map, group) {
+                                      map[group.groupId] = group;
+                                      return map;
+                                    },
+                                  )
+                                  .values
+                                  .map(
+                                    (group) => DropdownMenuItem<SharedGroup>(
+                                      value: group,
+                                      child: Text(
+                                        '${GroupDisplayHelper.displayName(group, existingGroups)} (${group.members?.length ?? 0}人)',
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ),
+                            ],
+                            onChanged: (group) {
+                              setState(() {
+                                _selectedSourceGroup = group;
+                                _updateMemberSelection();
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 12), // 🔥 FIX: 16→12に縮小
+                        ],
+
+                        // Member selection list
+                        if (_selectedSourceGroup?.members?.isNotEmpty ==
+                            true) ...[
+                          Text(
+                            texts.selectMembersToCopy,
+                            style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight:
+                                    FontWeight.w500), // 🔥 FIX: 16→14に縮小
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            constraints: BoxConstraints(
+                              maxHeight: MediaQuery.of(context).size.height *
+                                  0.3, // 🔥 FIX: 動的高さに変更
+                            ),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: ListView.builder(
+                              shrinkWrap: true,
+                              itemCount:
+                                  _selectedSourceGroup!.members?.length ?? 0,
+                              itemBuilder: (context, index) {
+                                final member =
+                                    _selectedSourceGroup!.members![index];
+                                return _buildMemberSelectionTile(member);
+                              },
+                            ),
+                          ),
+                        ] else if (_selectedSourceGroup != null) ...[
+                          Container(
+                            height: 60, // 🔥 FIX: 100→60に縮小
+                            alignment: Alignment.center,
+                            child: Text(
+                              texts.noMembersInGroup,
+                              style: const TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 12), // 🔥 FIX: フォントサイズ指定
+                            ),
+                          ),
+                        ] else ...[
+                          Container(
+                            height: 60, // 🔥 FIX: 100→60に縮小
+                            alignment: Alignment.center,
+                            child: Text(
+                              texts.selectGroupToCopyMembers,
+                              style: const TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 12), // 🔥 FIX: フォントサイズ指定
+                              textAlign: TextAlign.center, // 🔥 FIX: センタリング
+                            ),
+                          ),
+                        ],
+
+                        const SizedBox(height: 12), // 🔥 FIX: 16→12に縮小
+
+                        // Action buttons
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            TextButton(
+                              onPressed: _isLoading
+                                  ? null
+                                  : () => Navigator.of(context).pop(),
+                              child: Text(texts.cancel),
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton(
+                              onPressed: _isLoading ? null : _createGroup,
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2),
+                                    )
+                                  : Text(texts.createGroup),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
                 ),
               ),
-          ],
+              // ローディングオーバーレイ
+              if (_isLoading)
+                Positioned.fill(
+                  child: Container(
+                    color: Colors.black54,
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const CircularProgressIndicator(
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            texts.creatingGroup,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -452,7 +462,7 @@ class _GroupCreationWithCopyDialogState
     }
 
     // 🔥 FIX: 現在のユーザーを取得して除外対象にする
-    final authState = ref.watch(authStateProvider);
+    final authState = ref.read(authStateProvider);
     final currentUser = authState.value;
 
     final members = _selectedSourceGroup!.members;
@@ -481,12 +491,8 @@ class _GroupCreationWithCopyDialogState
     if (!_formKey.currentState!.validate()) {
       AppLogger.info('🔴 [CREATE GROUP DIALOG] バリデーション失敗');
       // バリデーション失敗時に重複チェック
-      final allGroupsAsync = ref.watch(allGroupsProvider);
-      final allGroups = await allGroupsAsync.when(
-        data: (groups) async => groups,
-        loading: () async => <SharedGroup>[],
-        error: (_, __) async => <SharedGroup>[],
-      );
+      final allGroups =
+          ref.read(allGroupsProvider).valueOrNull ?? <SharedGroup>[];
 
       final isDuplicate = allGroups.any(
           (group) => group.groupName.toLowerCase() == groupName.toLowerCase());
@@ -706,20 +712,6 @@ class _GroupCreationWithCopyDialogState
       AppLogger.info(
           '✅ [CREATE GROUP DIALOG] グループ作成処理完了: ${AppLogger.maskName(groupName)}');
       AppLogger.info('🔍 [CREATE GROUP DIALOG] mounted状態: $mounted');
-
-      // ローディング解除 - ユーザーに完了を視覚的に示す
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        AppLogger.info('✅ [CREATE GROUP DIALOG] ローディング解除完了');
-      }
-
-      // 🆕 Windowsでのプロバイダー反映待機
-      // 楽観的更新から実際のUI反映まで時間がかかることがあるため
-      AppLogger.info('⏳ [CREATE GROUP DIALOG] UI反映完了を待機中...');
-      await Future.delayed(const Duration(milliseconds: 500));
-      AppLogger.info('✅ [CREATE GROUP DIALOG] UI反映待機完了');
 
       if (mounted) {
         AppLogger.info('🔄 [CREATE GROUP DIALOG] Navigator.pop(true)を呼び出します');
@@ -958,6 +950,7 @@ Future<bool?> showGroupCreationWithCopyDialog({
 }) async {
   return await showDialog<bool>(
     context: context,
+    barrierDismissible: false,
     builder: (context) => const GroupCreationWithCopyDialog(),
   );
 }

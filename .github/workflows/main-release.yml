@@ -96,10 +96,18 @@ jobs:
           name: android-aab-main-${{ env.BUILD_NUMBER }}
           path: build/app/outputs/bundle/prodRelease/app-prod-release.aab
 
+      - name: Create Play service account JSON
+        shell: bash
+        run: |
+          cat << 'EOF' > /tmp/play-service-account.json
+          ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          EOF
+          jq empty /tmp/play-service-account.json
+
       - name: Upload to Google Play
         uses: r0adkll/upload-google-play@v1
         with:
-          serviceAccountJsonPlainText: ${{ secrets['PLAY_SERVICE_ACCOUNT_JSON'] }}
+          serviceAccountJson: /tmp/play-service-account.json
           packageName: net.sumomo_planning.goshopping
           releaseFiles: build/app/outputs/bundle/prodRelease/app-prod-release.aab
           track: ${{ env.PLAY_TRACK }}
@@ -137,19 +145,19 @@ jobs:
       - name: Create GoogleService-Info.plist (prod)
         shell: bash
         run: |
-          echo "${{ secrets['GOOGLESERVICE_INFO_PLIST_PROD_BASE64'] }}" | base64 --decode > ios/Runner/GoogleService-Info.plist
+          echo "${{ secrets.GOOGLESERVICE_INFO_PLIST_PROD_BASE64 }}" | base64 --decode > ios/Runner/GoogleService-Info.plist
 
       - name: Install signing certificate
         uses: apple-actions/import-codesign-certs@v3
         with:
-          p12-file-base64: ${{ secrets['IOS_P12_BASE64'] }}
-          p12-password: ${{ secrets['IOS_P12_PASSWORD'] }}
+          p12-file-base64: ${{ secrets.IOS_P12_BASE64 }}
+          p12-password: ${{ secrets.IOS_P12_PASSWORD }}
 
       - name: Install provisioning profile
         shell: bash
         run: |
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-          echo "${{ secrets['IOS_PROVISIONING_PROFILE_BASE64'] }}" | base64 --decode > "$HOME/Library/MobileDevice/Provisioning Profiles/ci.mobileprovision"
+          echo "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" | base64 --decode > "$HOME/Library/MobileDevice/Provisioning Profiles/ci.mobileprovision"
 
       - name: Create ExportOptions.plist
         shell: bash
@@ -205,6 +213,6 @@ jobs:
         uses: apple-actions/upload-testflight-build@v1
         with:
           app-path: ${{ steps.ipa.outputs.path }}
-          issuer-id: ${{ secrets['APPSTORE_ISSUER_ID'] }}
-          api-key-id: ${{ secrets['APPSTORE_KEY_ID'] }}
-          api-private-key: ${{ secrets['APPSTORE_PRIVATE_KEY'] }}
+          issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
+          api-key-id: ${{ secrets.APPSTORE_KEY_ID }}
+          api-private-key: ${{ secrets.APPSTORE_PRIVATE_KEY }}

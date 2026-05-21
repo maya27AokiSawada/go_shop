@@ -303,6 +303,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       if (firestoreUserName != null && firestoreUserName.isNotEmpty) {
         // Firestoreからユーザー名を取得できた場合
         await UserPreferencesService.saveUserName(firestoreUserName);
+        if (!mounted) return;
         setState(() {
           userNameController.text = firestoreUserName;
         });
@@ -315,6 +316,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             user.displayName != null &&
             user.displayName!.isNotEmpty) {
           await UserPreferencesService.saveUserName(user.displayName!);
+          if (!mounted) return;
           setState(() {
             userNameController.text = user.displayName!;
           });
@@ -346,9 +348,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       if (allGroups.isEmpty) {
         AppLogger.info('📋 [SIGNIN] グループ0個 → グループページ（タブ1）に遷移');
         if (!mounted) return;
-        ProviderScope.containerOf(context)
-            .read(pageIndexProvider.notifier)
-            .setPageIndex(1);
+        ref.read(pageIndexProvider.notifier).setPageIndex(1);
       }
 
       if (mounted) {
