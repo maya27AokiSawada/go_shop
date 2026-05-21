@@ -109,6 +109,12 @@ group('createGroup', () {
   - `.github/workflows/main-release.yml`（main 配布）
   - `.github/workflows/jekyll-gh-pages.yml`（Pages）
 
+### `main-release.yml` の現在運用（2026-05-21時点）
+
+- `Upload to Google Play` と `Upload to TestFlight` は `if: ${{ false }}` で一時停止中
+- Android 配布を再開する場合は、`PLAY_SERVICE_ACCOUNT_JSON` を `/tmp/play-service-account.json` に書き出し、`jq empty` で JSON 妥当性を確認してから有効化する
+- iOS 配布を再開する場合は、App Store Connect API キー系シークレット（`APPSTORE_ISSUER_ID` / `APPSTORE_KEY_ID` / `APPSTORE_PRIVATE_KEY`）が environment に設定済みであることを確認する
+
 ### Build Number 自動採番
 
 - `main-release.yml` で `BUILD_NUMBER=$((10000 + GITHUB_RUN_NUMBER))` を採用
