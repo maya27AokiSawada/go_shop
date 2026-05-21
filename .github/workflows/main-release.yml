@@ -97,6 +97,7 @@ jobs:
           path: build/app/outputs/bundle/prodRelease/app-prod-release.aab
 
       - name: Create Play service account JSON
+        if: ${{ false }}
         shell: bash
         run: |
           cat << 'EOF' > /tmp/play-service-account.json
@@ -105,6 +106,7 @@ jobs:
           jq empty /tmp/play-service-account.json
 
       - name: Upload to Google Play
+        if: ${{ false }}
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJson: /tmp/play-service-account.json
@@ -210,6 +212,7 @@ jobs:
           path: ${{ steps.ipa.outputs.path }}
 
       - name: Upload to TestFlight
+        if: ${{ false }}
         uses: apple-actions/upload-testflight-build@v1
         with:
           app-path: ${{ steps.ipa.outputs.path }}
