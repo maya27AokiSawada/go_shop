@@ -2,8 +2,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shared_group.dart';
 import '../services/enhanced_invitation_service.dart';
-
 import '../providers/shared_group_provider.dart';
+import '../providers/app_ui_mode_provider.dart';
+import '../config/app_ui_mode_config.dart';
 import 'dart:developer' as developer;
 
 /// Enhanced group management with invitation features
@@ -115,6 +116,14 @@ class EnhancedGroupNotifier extends AsyncNotifier<EnhancedGroupState> {
       // Refresh groups after acceptance
       ref.invalidate(allGroupsProvider);
       ref.invalidate(selectedGroupNotifierProvider);
+
+      // Automatically select the accepted group in single mode
+      final appUIMode = ref.read(appUIModeProvider);
+      if (appUIMode == AppUIMode.single) {
+        ref.read(selectedGroupIdProvider.notifier).selectGroup(groupId);
+        developer
+            .log('✅ [ENHANCED_GROUP] Automatically selected group: $groupId');
+      }
     } catch (e) {
       developer.log('❌ Invitation acceptance error: $e');
       rethrow;

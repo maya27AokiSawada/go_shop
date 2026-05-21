@@ -7,7 +7,9 @@ import '../utils/app_logger.dart';
 import 'error_log_service.dart';
 import 'user_initialization_service.dart';
 import '../providers/shared_group_provider.dart'; // selectedGroupIdProvider, SharedGroupRepositoryProvider
+import '../providers/app_ui_mode_provider.dart';
 import '../providers/current_list_provider.dart'; // currentListProvider
+import '../config/app_ui_mode_config.dart';
 import '../datastore/hive_shared_group_repository.dart'; // hiveSharedGroupRepositoryProvider
 import '../datastore/firestore_shared_group_repository.dart';
 import '../models/shared_group.dart';
@@ -419,6 +421,7 @@ class NotificationService {
           AppLogger.info('🔄 [NOTIFICATION] プロバイダー無効化開始...');
           _ref.invalidate(allGroupsProvider);
           _ref.invalidate(selectedGroupProvider);
+          await _autoSelectAcceptedGroupIfNeeded(notification.groupId);
           AppLogger.info('✅ [NOTIFICATION] プロバイダー無効化完了');
           AppLogger.info('========== groupMemberAdded 通知処理完了 ==========');
           break;
@@ -433,6 +436,7 @@ class NotificationService {
           // UI更新（全グループと選択中グループの両方を更新）
           _ref.invalidate(allGroupsProvider);
           _ref.invalidate(selectedGroupProvider);
+          await _autoSelectAcceptedGroupIfNeeded(notification.groupId);
           AppLogger.info('✅ [NOTIFICATION] 同期完了 - UI更新');
           break;
 
@@ -462,6 +466,7 @@ class NotificationService {
           final userInitService = _ref.read(userInitializationServiceProvider);
           await userInitService.syncFromFirestoreToHive(currentUser);
           _ref.invalidate(allGroupsProvider);
+          await _autoSelectAcceptedGroupIfNeeded(syncGroupId);
 
           AppLogger.info('✅ [NOTIFICATION] 確認通知による同期完了');
           break;
@@ -585,6 +590,28 @@ class NotificationService {
       await markAsRead(notification.id);
     } catch (e) {
       AppLogger.error('❌ [NOTIFICATION] 処理エラー: $e');
+    }
+  }
+
+  Future<void> _autoSelectAcceptedGroupIfNeeded(String groupId) async {
+    if (groupId.isEmpty) return;
+
+    final uiMode = _ref.read(appUIModeProvider);
+    if (uiMode != AppUIMode.single) return;
+
+    final selectedGroupId = _ref.read(selectedGroupIdProvider);
+    if (selectedGroupId == groupId) return;
+
+    try {
+      final groups = await _ref.read(allGroupsProvider.future);
+      final exists = groups.any((g) => g.groupId == groupId);
+      if (!exists) return;
+
+      _ref.read(selectedGroupIdProvider.notifier).selectGroup(groupId);
+      AppLogger.info(
+          '✅ [NOTIFICATION] シングルモードで受諾グループを自動選択: ${AppLogger.maskGroupId(groupId)}');
+    } catch (e) {
+      AppLogger.warning('⚠️ [NOTIFICATION] 受諾グループ自動選択スキップ: $e');
     }
   }
 
