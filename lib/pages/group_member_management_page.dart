@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/shared_group.dart';
+import '../config/app_ui_mode_config.dart';
+import '../providers/app_ui_mode_provider.dart';
 import '../providers/shared_group_provider.dart';
 import '../utils/app_logger.dart';
 import '../services/error_log_service.dart';
@@ -50,6 +52,7 @@ class _GroupMemberManagementPageState
   Widget build(BuildContext context) {
     // allGroupsProviderから対象グループを取得（リアルタイム更新対応）
     final allGroupsAsync = ref.watch(allGroupsProvider);
+    final isSingleMode = ref.watch(appUIModeProvider) == AppUIMode.single;
 
     allGroupsAsync.whenData((groups) {
       final latestGroup = groups.firstWhere(
@@ -77,28 +80,31 @@ class _GroupMemberManagementPageState
           IconButton(
             icon: const Icon(Icons.content_copy),
             tooltip: texts.copyGroupTooltip,
-            onPressed: () async {
-              // 🔥 同期完了を待機（同期中作成による赤画面エラーを防止）
-              try {
-                await ref.read(allGroupsProvider.future);
-                AppLogger.info(
-                    '✅ [GROUP_COPY] allGroupsProvider同期完了 - ダイアログ表示');
-              } catch (e) {
-                AppLogger.error('❌ [GROUP_COPY] allGroupsProvider読み込みエラー: $e');
-                // エラーでもダイアログ表示は継続（Hiveフォールバック）
-              }
+            onPressed: isSingleMode
+                ? null
+                : () async {
+                    // 🔥 同期完了を待機（同期中作成による赤画面エラーを防止）
+                    try {
+                      await ref.read(allGroupsProvider.future);
+                      AppLogger.info(
+                          '✅ [GROUP_COPY] allGroupsProvider同期完了 - ダイアログ表示');
+                    } catch (e) {
+                      AppLogger.error(
+                          '❌ [GROUP_COPY] allGroupsProvider読み込みエラー: $e');
+                      // エラーでもダイアログ表示は継続（Hiveフォールバック）
+                    }
 
-              if (!context.mounted) return;
+                    if (!context.mounted) return;
 
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => GroupCreationWithCopyDialog(
-                    initialSelectedGroup: widget.group,
-                  ),
-                ),
-              );
-            },
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => GroupCreationWithCopyDialog(
+                          initialSelectedGroup: widget.group,
+                        ),
+                      ),
+                    );
+                  },
           ),
           IconButton(
             icon: const Icon(Icons.person_add),

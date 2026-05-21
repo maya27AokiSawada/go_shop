@@ -2,6 +2,7 @@ import 'package:hive/hive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:developer' as developer;
+import 'dart:io' show FileSystemException, Platform;
 import '../models/shared_group.dart';
 import '../datastore/shared_group_repository.dart';
 import '../providers/hive_provider.dart';
@@ -76,6 +77,29 @@ class HiveSharedGroupRepository implements SharedGroupRepository {
       }
     }
     throw Exception('Unexpected error: should not reach here');
+  }
+
+  bool _isRecoverableBoxClosedError(Object error) {
+    if (error is FileSystemException) {
+      return error.message.contains('File closed') ||
+          error.toString().contains('File closed');
+    }
+    final text = error.toString();
+    return text.contains('File closed') || text.contains('box is not open');
+  }
+
+  Future<void> _recoverSharedGroupsBox() async {
+    final hiveService = _ref.read(userSpecificHiveProvider);
+
+    if (Platform.isWindows) {
+      final uid = hiveService.currentUserId;
+      if (uid != null && uid.isNotEmpty && uid != 'default') {
+        await hiveService.initializeForUser(uid);
+        return;
+      }
+    }
+
+    await hiveService.initializeForDefaultUser();
   }
 
   // CRUDメソッド
@@ -337,33 +361,45 @@ class HiveSharedGroupRepository implements SharedGroupRepository {
 
   @override
   Future<SharedGroup> deleteGroup(String groupId) async {
-    try {
-      final box = await _boxAsync;
-      final group = box.get(groupId);
-      if (group == null) {
-        throw Exception('Group not found: $groupId');
+    for (int attempt = 1; attempt <= 2; attempt++) {
+      try {
+        final box = await _boxAsync;
+        final group = box.get(groupId);
+        if (group == null) {
+          throw Exception('Group not found: $groupId');
+        }
+
+        // 論理削除: isDeletedフラグを立てる（物理削除はしない）
+        final deletedGroup = group.copyWith(
+          isDeleted: true,
+          updatedAt: DateTime.now(),
+        );
+        await box.put(groupId, deletedGroup);
+
+        // 確認のため保存後のデータを取得
+        final savedGroup = box.get(groupId);
+        developer.log('🚫 グループを論理削除: ${group.groupName} ($groupId)');
+        Log.warning('🚫 [HIVE_REPO] グループを論理削除: ${group.groupName} ($groupId)');
+        Log.warning('   スタックトレース: ${StackTrace.current}');
+        developer.log('   保存前 isDeleted: ${group.isDeleted}');
+        developer.log('   保存後 isDeleted: ${savedGroup?.isDeleted}');
+
+        return deletedGroup;
+      } catch (e) {
+        final isRetryable = _isRecoverableBoxClosedError(e);
+        if (isRetryable && attempt < 2) {
+          developer.log(
+              '⚠️ [HIVE_REPO] deleteGroupでBox close検知。Hive再初期化後にリトライします: $e');
+          await _recoverSharedGroupsBox();
+          continue;
+        }
+
+        developer.log('❌ グループ削除エラー: $e');
+        rethrow;
       }
-
-      // 論理削除: isDeletedフラグを立てる（物理削除はしない）
-      final deletedGroup = group.copyWith(
-        isDeleted: true,
-        updatedAt: DateTime.now(),
-      );
-      await box.put(groupId, deletedGroup);
-
-      // 確認のため保存後のデータを取得
-      final savedGroup = box.get(groupId);
-      developer.log('🚫 グループを論理削除: ${group.groupName} ($groupId)');
-      Log.warning('🚫 [HIVE_REPO] グループを論理削除: ${group.groupName} ($groupId)');
-      Log.warning('   スタックトレース: ${StackTrace.current}');
-      developer.log('   保存前 isDeleted: ${group.isDeleted}');
-      developer.log('   保存後 isDeleted: ${savedGroup?.isDeleted}');
-
-      return deletedGroup;
-    } catch (e) {
-      developer.log('❌ グループ削除エラー: $e');
-      rethrow;
     }
+
+    throw Exception('Unexpected deleteGroup retry flow');
   }
 
   @override

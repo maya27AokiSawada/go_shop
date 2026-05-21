@@ -652,17 +652,26 @@ class GroupListWidget extends ConsumerWidget {
       await repository.deleteGroup(group.groupId);
 
       // 🔥 削除通知を送信
-      final notificationService = ref.read(notificationServiceProvider);
-      final authState = ref.read(authStateProvider);
-      final currentUser = authState.value;
-      if (currentUser != null) {
-        final userName = currentUser.displayName ?? 'ユーザー';
-        await notificationService.sendGroupDeletedNotification(
-          groupId: group.groupId,
-          groupName: group.groupName,
-          deleterName: userName,
+      try {
+        final notificationService = ref.read(notificationServiceProvider);
+        final authState = ref.read(authStateProvider);
+        final currentUser = authState.value;
+        if (currentUser != null) {
+          final userName = currentUser.displayName ?? 'ユーザー';
+          await notificationService.sendGroupDeletedNotification(
+            groupId: group.groupId,
+            groupName: group.groupName,
+            deleterName: userName,
+          );
+          AppLogger.info('✅ [GROUP_DELETE] 削除通知送信完了');
+        }
+      } catch (notificationError, notificationStackTrace) {
+        // 削除本体は成功しているため、通知失敗で全体を失敗扱いにしない
+        AppLogger.error(
+          '⚠️ [GROUP_DELETE] 削除通知送信エラー（削除は成功）',
+          notificationError,
+          notificationStackTrace,
         );
-        AppLogger.info('✅ [GROUP_DELETE] 削除通知送信完了');
       }
 
       // 削除されたグループが選択中のグループの場合はクリア
@@ -688,7 +697,11 @@ class GroupListWidget extends ConsumerWidget {
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
-        SnackBarHelper.showError(context, texts.operationFailed);
+        final detail = ErrorHandler.getErrorMessage(error).trim();
+        final message = detail.isEmpty || detail == '予期しないエラーが発生しました'
+            ? texts.operationFailed
+            : '${texts.operationFailed}: $detail';
+        SnackBarHelper.showError(context, message);
       }
     }
   }
