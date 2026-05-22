@@ -17,7 +17,9 @@
     "PowerShell": {
       "source": "PowerShell",
       "icon": "terminal-powershell",
-      "args": ["-NoExit"]
+      "args": [
+        "-NoExit"
+      ]
     },
     "WSL": {
       "path": "C:\\WINDOWS\\System32\\wsl.exe",
@@ -46,7 +48,9 @@
     "editor.defaultFormatter": "Dart-Code.dart-code",
     "editor.formatOnSave": true,
     "editor.formatOnType": true,
-    "editor.rulers": [80],
+    "editor.rulers": [
+      80
+    ],
     "editor.selectionHighlight": false,
     "editor.suggest.snippetsPreventQuickSuggestions": false,
     "editor.suggestSelection": "first",
@@ -70,13 +74,19 @@
     "git push": false,
     "git reset": false,
     "flutter build": false,
-    "firebase deploy": false
+    "firebase deploy": false,
+    "flutter": true,
+    "pod": true
   },
   "mcpServers": {
     "firebase": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "firebase-tools@latest", "mcp"]
+      "args": [
+        "-y",
+        "firebase-tools@latest",
+        "mcp"
+      ]
     }
   },
   "accessibility.hideAccessibleView": true,

@@ -4,6 +4,10 @@ platform :ios, '15.0'
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
+# Disable Swift Package Manager to resolve conflict between google_mobile_ads (CocoaPods)
+# and webview_flutter_wkwebview (SPM). Remove once google_mobile_ads supports SPM.
+ENV['SWIFT_PACKAGE_MANAGER_INTEGRATION'] = '0'
+
 project 'Runner', {
   'Debug' => :debug,
   'Profile' => :release,
