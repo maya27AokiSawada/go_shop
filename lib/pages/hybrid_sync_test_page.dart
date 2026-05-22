@@ -93,8 +93,7 @@ class _HybridSyncTestPageState extends ConsumerState<HybridSyncTestPage> {
               ],
             ),
             const SizedBox(height: 12),
-            _buildInfoRow(
-                'フレーバー', F.appFlavor?.name.toUpperCase() ?? 'UNKNOWN'),
+            _buildInfoRow('フレーバー', F.appFlavor.name.toUpperCase()),
             _buildInfoRow('リポジトリ', hybridRepo != null ? 'ハイブリッド' : 'Hiveのみ'),
             if (hybridRepo != null) ...[
               _buildInfoRow(

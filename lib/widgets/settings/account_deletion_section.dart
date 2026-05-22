@@ -230,9 +230,7 @@ class _AccountDeletionSectionState
       // ローディング表示
       if (!mounted) return;
       // user.delete() 後に authStateProvider が変化し widget が unmount される場合があるため
-      // Navigator は事前にキャプチャしておく
-      final navigator = Navigator.of(context);
-
+      // mounted チェックを実施してから context を使用する
       showDialog(
         context: context,
         barrierDismissible: false,

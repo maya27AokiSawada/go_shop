@@ -50,7 +50,7 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
 
   void _initializeTestEnv() {
     _log('🔧 テスト環境初期化');
-    _log('現在のFlavor: ${F.appFlavor?.name ?? 'unknown'}');
+    _log('現在のFlavor: ${F.appFlavor.name}');
     _log('Firebase認証: ${F.appFlavor == Flavor.prod ? '有効' : '無効'}');
   }
 

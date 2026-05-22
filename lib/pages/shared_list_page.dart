@@ -5,7 +5,6 @@ import '../models/shared_list.dart';
 import '../providers/current_list_provider.dart';
 import '../providers/shared_group_provider.dart';
 import '../providers/shared_list_provider.dart';
-import '../providers/group_shared_lists_provider.dart';
 import '../providers/app_ui_mode_provider.dart';
 import '../config/app_ui_mode_config.dart';
 import '../widgets/shared_list_header_widget.dart';

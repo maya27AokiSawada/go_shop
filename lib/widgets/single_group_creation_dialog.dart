@@ -7,7 +7,6 @@ import '../providers/auth_provider.dart';
 import '../providers/shared_list_provider.dart';
 import '../providers/current_list_provider.dart';
 import '../datastore/hybrid_shared_list_repository.dart';
-import '../widgets/accept_invitation_widget.dart';
 import '../utils/app_logger.dart';
 import '../screens/qr_scan_screen.dart';
 import '../l10n/l10n.dart';

@@ -21,7 +21,6 @@ import '../services/notification_service.dart';
 import '../services/network_monitor_service.dart';
 import 'auth_provider.dart';
 import 'user_specific_hive_provider.dart';
-import 'current_list_provider.dart';
 
 // Logger instance
 

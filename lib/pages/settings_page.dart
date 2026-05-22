@@ -16,7 +16,6 @@ import '../widgets/settings/feedback_debug_section.dart';
 import '../widgets/settings/data_maintenance_section.dart';
 import '../widgets/settings/feedback_section.dart';
 import '../widgets/settings/account_deletion_section.dart';
-import '../widgets/settings/app_ui_mode_switcher_panel.dart';
 import '../l10n/l10n.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {

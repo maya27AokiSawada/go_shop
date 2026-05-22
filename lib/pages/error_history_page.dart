@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/error_log_service.dart';
 import '../utils/app_logger.dart';
 import '../l10n/l10n.dart';
-import '../l10n/app_texts.dart';
 
 /// エラー履歴画面
 ///
