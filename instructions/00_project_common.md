@@ -366,3 +366,19 @@ logOperationError('グループ名更新', ...)  // 日本語文字列直書き
 Text(texts.createGroup)
 logOperationError(texts.opUpdateGroupName, ...)
 ```
+
+---
+
+## 9. ロギングおよびプライバシー情報の安全な取り扱いルール
+
+### 9-1. アプリ全体での `AppLogger` または `Log` への標準化
+
+- デバッグ・運用ログの出力時には、`print` や外部ライブラリ `logger.d` 等を直接記述することを避け、**`AppLogger` (またはエイリアス `Log`) に標準化**する。
+- 例外・クラッシュのキャッチやログ送信時には、必ず例外オブジェクト（`e`）とスタックトレース（`stackTrace`）の両方を `AppLogger.error()` に乗せることで、Sentry/Crashlytics等で十全なトラブルシューティングが行えるよう担保する。
+
+### 9-2. ログ内の個人情報や機密情報のマスク処理（必須）
+
+- 公開レポジトリでの機密保護およびプライバシーコンプライアンス（GDPR等）遵守のため、ログに書き込まれる、またはエラーとしてトラッキングされる個人情報（メールアドレス・表示名・IDの一部等）は、必ず事前にマスク処理を適用する。
+- メールアドレスは [lib/utils/app_logger.dart](lib/utils/app_logger.dart) に実装されている `AppLogger.maskEmail(email)` を通して、個人を特定できない形式に変換してからロギングすること。
+  - 例: `user@example.com` → `us***@e******.com`
+- ユーザーIDや表示名も `AppLogger.maskId` / `AppLogger.maskName` などのメソッドを活用してマスクする。
