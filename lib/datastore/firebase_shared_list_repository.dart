@@ -17,18 +17,17 @@ class FirebaseSyncSharedListRepository implements SharedListRepository {
   FirebaseSyncSharedListRepository(this.ref)
       : _hiveRepo = HiveSharedListRepository(ref);
 
-  /// 現在のユーザーを取征E
+  /// 現在のユーザー情報を取得します。
   User? get _currentUser {
-    // 開発フレーバ�EではMockAuthServiceを優允E
+    // 開発フレーバーではMockAuthServiceを優先
     final authService = ref.read(authProvider);
-    AppLogger.info(
-        'FirebaseRepo: AuthService type: ${authService.runtimeType}');
+    Log.info('FirebaseRepo: AuthService type: ${authService.runtimeType}');
 
     if (authService is MockAuthService) {
       final mockUser = authService.currentUser;
-      AppLogger.info(
-          'FirebaseRepo: MockAuthService user: ${mockUser?.email} (uid: ${mockUser?.uid})');
-      // devフレーバ�EでFirebase repositoryの使用は禁止
+      Log.info(
+          'FirebaseRepo: MockAuthService user: ${Log.maskEmail(mockUser?.email)} (uid: ${mockUser?.uid})');
+      // devフレーバーでFirebase repositoryの使用は禁止
       throw UnimplementedError(
           'Firebase repository should not be used in dev mode. Use Hive repository instead.');
     }
@@ -37,15 +36,16 @@ class FirebaseSyncSharedListRepository implements SharedListRepository {
     final authState = ref.read(authStateProvider);
     return authState.when(
       data: (user) {
-        AppLogger.info('FirebaseRepo: Using FirebaseAuth user: ${user?.email}');
+        Log.info(
+            'FirebaseRepo: Using FirebaseAuth user: ${Log.maskEmail(user?.email)}');
         return user;
       },
       loading: () {
-        AppLogger.info('FirebaseRepo: Auth loading...');
+        Log.info('FirebaseRepo: Auth loading...');
         return null;
       },
-      error: (_, __) {
-        AppLogger.warning('FirebaseRepo: Auth error');
+      error: (e, stackTrace) {
+        Log.error('FirebaseRepo: Auth error: $e', e, stackTrace);
         return null;
       },
     );
@@ -64,46 +64,47 @@ class FirebaseSyncSharedListRepository implements SharedListRepository {
 
   @override
   Future<SharedList?> getSharedList(String groupId) async {
-    AppLogger.info('FirebaseSyncRepo: Reading SharedList for group: $groupId');
+    Log.info('FirebaseSyncRepo: Reading SharedList for group: $groupId');
 
     // ログイン状態ならFirebaseから同期を試衁E
     final user = _currentUser;
     if (user != null) {
       try {
         await _syncFromFirebase(groupId);
-        AppLogger.info('Firebase sync completed - Returning from Hive');
+        Log.info('Firebase sync completed - Returning from Hive');
         return await _hiveRepo.getSharedList(groupId);
-      } catch (e) {
-        AppLogger.error('Firebase sync error: $e - Returning from Hive');
+      } catch (e, stackTrace) {
+        Log.error(
+            'Firebase sync error: $e - Returning from Hive', e, stackTrace);
         return await _hiveRepo.getSharedList(groupId);
       }
     }
 
     // ログインしてぁE��ぁE��合�EHiveから直接読み込み
-    AppLogger.info('Not logged in - Reading from Hive only');
+    Log.info('Not logged in - Reading from Hive only');
     return await _hiveRepo.getSharedList(groupId);
   }
 
   @override
   Future<void> addItem(SharedList list) async {
-    AppLogger.info('FirebaseSyncRepo: Starting SharedList save');
+    Log.info('FirebaseSyncRepo: Starting SharedList save');
 
     // Save to Hive first
     await _hiveRepo.addItem(list);
-    AppLogger.info('Hive save completed');
+    Log.info('Hive save completed');
 
     // Sync to Firebase if logged in
     final user = _currentUser;
     if (user != null) {
       try {
         await _syncToFirebase(list);
-        AppLogger.info('Firebase sync completed');
-      } catch (e) {
-        AppLogger.error('Firebase sync error: $e');
+        Log.info('Firebase sync completed');
+      } catch (e, stackTrace) {
+        Log.error('Firebase sync error: $e', e, stackTrace);
         // Local save succeeded, don't throw error for Firebase issues
       }
     } else {
-      AppLogger.info('Not logged in - Skipping Firebase sync');
+      Log.info('Not logged in - Skipping Firebase sync');
     }
   }
 
@@ -118,8 +119,8 @@ class FirebaseSyncSharedListRepository implements SharedListRepository {
         if (list != null) {
           await _syncToFirebase(list);
         }
-      } catch (e) {
-        AppLogger.error('Firebase sync error during clear: $e');
+      } catch (e, stackTrace) {
+        Log.error('Firebase sync error during clear: $e', e, stackTrace);
       }
     }
   }
@@ -135,8 +136,8 @@ class FirebaseSyncSharedListRepository implements SharedListRepository {
         if (list != null) {
           await _syncToFirebase(list);
         }
-      } catch (e) {
-        AppLogger.error('Firebase sync error during add item: $e');
+      } catch (e, stackTrace) {
+        Log.error('Firebase sync error during add item: $e', e, stackTrace);
       }
     }
   }
@@ -152,8 +153,8 @@ class FirebaseSyncSharedListRepository implements SharedListRepository {
         if (list != null) {
           await _syncToFirebase(list);
         }
-      } catch (e) {
-        AppLogger.error('Firebase sync error during remove item: $e');
+      } catch (e, stackTrace) {
+        Log.error('Firebase sync error during remove item: $e', e, stackTrace);
       }
     }
   }
@@ -171,8 +172,9 @@ class FirebaseSyncSharedListRepository implements SharedListRepository {
         if (list != null) {
           await _syncToFirebase(list);
         }
-      } catch (e) {
-        AppLogger.error('Firebase sync error during item status update: $e');
+      } catch (e, stackTrace) {
+        Log.error(
+            'Firebase sync error during item status update: $e', e, stackTrace);
       }
     }
   }
@@ -183,14 +185,13 @@ class FirebaseSyncSharedListRepository implements SharedListRepository {
     if (collection == null) return;
 
     try {
-      AppLogger.info('🔥 Firebase -> Hive sync started');
+      Log.info('🔥 Firebase -> Hive sync started');
 
-      // 10秒�Eタイムアウトを設宁E
+      // 10秒のタイムアウトを設定
       final doc = await collection.doc(groupId).get().timeout(
         const Duration(seconds: 10),
         onTimeout: () {
-          AppLogger.warning(
-              '⏰ Firebase read timeout - continuing with Hive data');
+          Log.warning('⏰ Firebase read timeout - continuing with Hive data');
           throw Exception('Firebase read timeout');
         },
       );
@@ -207,15 +208,15 @@ class FirebaseSyncSharedListRepository implements SharedListRepository {
           // 繰り返し購入アイチE��の処琁E��追加
           final processedList = _processRepeatPurchases(firebaseList);
           await _hiveRepo.addItem(processedList);
-          AppLogger.info('🔥 Firebase -> Hive sync completed');
+          Log.info('🔥 Firebase -> Hive sync completed');
         } else {
-          AppLogger.info('Hive data is current - Skipping sync');
+          Log.info('Hive data is current - Skipping sync');
         }
       } else {
-        AppLogger.info('No data on Firebase side');
+        Log.info('No data on Firebase side');
       }
-    } catch (e) {
-      AppLogger.error('⛁EFirebase read error: $e');
+    } catch (e, stackTrace) {
+      Log.error('🔥 Firebase read error: $e', e, stackTrace);
       // エラー時�EHiveから読み込み継続！EethrowしなぁE��E
     }
   }
@@ -226,7 +227,7 @@ class FirebaseSyncSharedListRepository implements SharedListRepository {
     if (collection == null) return;
 
     try {
-      AppLogger.info('🔥 Hive -> Firebase sync started');
+      Log.info('🔥 Hive -> Firebase sync started');
       final data = _sharedListToMap(list);
 
       // 10秒�Eタイムアウトを設宁E
@@ -236,15 +237,14 @@ class FirebaseSyncSharedListRepository implements SharedListRepository {
           .timeout(
         const Duration(seconds: 10),
         onTimeout: () {
-          AppLogger.warning(
-              '⏰ Firebase write timeout - data saved to Hive only');
+          Log.warning('⏰ Firebase write timeout - data saved to Hive only');
           throw Exception('Firebase write timeout');
         },
       );
 
-      AppLogger.info('🔥 Hive -> Firebase sync completed');
-    } catch (e) {
-      AppLogger.error('⛁EFirebase write error: $e');
+      Log.info('🔥 Hive -> Firebase sync completed');
+    } catch (e, stackTrace) {
+      Log.error('🔥 Firebase write error: $e', e, stackTrace);
       // エラー時�EHive保存�E完亁E��てぁE��ので続行！EethrowしなぁE��E
     }
   }
@@ -365,7 +365,7 @@ class FirebaseSyncSharedListRepository implements SharedListRepository {
           );
 
           processedItems[newItem.itemId] = newItem;
-          AppLogger.info(
+          Log.info(
               '🔄 Created repeat purchase item: ${item.name} (${item.shoppingInterval} days interval)');
         }
       }
@@ -383,7 +383,7 @@ class FirebaseSyncSharedListRepository implements SharedListRepository {
   bool _shouldUpdateFromFirebase(SharedList hiveList, SharedList firebaseList) {
     // アイテム数が異なる場合は更新
     if (hiveList.items.length != firebaseList.items.length) {
-      AppLogger.info(
+      Log.info(
           '📊 Item count differs: Hive=${hiveList.items.length}, Firebase=${firebaseList.items.length}');
       return true;
     }
@@ -398,11 +398,11 @@ class FirebaseSyncSharedListRepository implements SharedListRepository {
 
     if (!hiveItemsSet.containsAll(firebaseItemsSet) ||
         !firebaseItemsSet.containsAll(hiveItemsSet)) {
-      AppLogger.info('🔄 Item content differs - updating from Firebase');
+      Log.info('🔄 Item content differs - updating from Firebase');
       return true;
     }
 
-    AppLogger.info('✅ Hive and Firebase data are identical');
+    Log.info('✅ Hive and Firebase data are identical');
     return false;
   }
 
@@ -415,8 +415,8 @@ class FirebaseSyncSharedListRepository implements SharedListRepository {
       try {
         final collection = _getUserSharedListsCollection();
         await collection?.doc(groupId).delete();
-      } catch (e) {
-        AppLogger.error('Firebase delete error: $e');
+      } catch (e, stackTrace) {
+        Log.error('Firebase delete error: $e', e, stackTrace);
       }
     }
   }
@@ -432,8 +432,9 @@ class FirebaseSyncSharedListRepository implements SharedListRepository {
     if (user != null) {
       try {
         await _syncFromFirebase(groupId);
-      } catch (e) {
-        AppLogger.error('Firebase sync error during get or create: $e');
+      } catch (e, stackTrace) {
+        Log.error(
+            'Firebase sync error during get or create: $e', e, stackTrace);
       }
     }
 
@@ -535,8 +536,9 @@ class FirebaseSyncSharedListRepository implements SharedListRepository {
         if (list != null) {
           await _syncToFirebase(list);
         }
-      } catch (e) {
-        AppLogger.error('Firebase sync error during add single item: $e');
+      } catch (e, stackTrace) {
+        Log.error(
+            'Firebase sync error during add single item: $e', e, stackTrace);
       }
     }
   }
@@ -552,8 +554,9 @@ class FirebaseSyncSharedListRepository implements SharedListRepository {
         if (list != null) {
           await _syncToFirebase(list);
         }
-      } catch (e) {
-        AppLogger.error('Firebase sync error during remove single item: $e');
+      } catch (e, stackTrace) {
+        Log.error(
+            'Firebase sync error during remove single item: $e', e, stackTrace);
       }
     }
   }
@@ -569,8 +572,9 @@ class FirebaseSyncSharedListRepository implements SharedListRepository {
         if (list != null) {
           await _syncToFirebase(list);
         }
-      } catch (e) {
-        AppLogger.error('Firebase sync error during update single item: $e');
+      } catch (e, stackTrace) {
+        Log.error(
+            'Firebase sync error during update single item: $e', e, stackTrace);
       }
     }
   }
@@ -587,8 +591,9 @@ class FirebaseSyncSharedListRepository implements SharedListRepository {
         if (list != null) {
           await _syncToFirebase(list);
         }
-      } catch (e) {
-        AppLogger.error('Firebase sync error during cleanup deleted items: $e');
+      } catch (e, stackTrace) {
+        Log.error('Firebase sync error during cleanup deleted items: $e', e,
+            stackTrace);
       }
     }
   }

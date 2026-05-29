@@ -27,7 +27,7 @@ class HomePageAuthService {
     }
 
     try {
-      Log.info('🔧 サインイン開始: $email');
+      Log.info('🔧 サインイン開始: ${Log.maskEmail(email)}');
 
       final userCredential =
           await AuthenticationService.signInWithEmailAndPassword(
@@ -64,7 +64,7 @@ class HomePageAuthService {
     }
 
     try {
-      Log.info('🆕 サインアップ開始: $email');
+      Log.info('🆕 サインアップ開始: ${Log.maskEmail(email)}');
 
       // FirebaseAuthServiceを使用してサインアップ
       final authService = ref.read(authProvider);

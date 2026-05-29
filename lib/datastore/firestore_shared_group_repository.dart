@@ -4,7 +4,6 @@ import 'package:goshopping/utils/app_logger.dart';
 import 'package:uuid/uuid.dart';
 import '../models/shared_group.dart';
 import '../datastore/shared_group_repository.dart';
-import 'dart:developer' as developer;
 
 class FirestoreSharedGroupRepository implements SharedGroupRepository {
   final FirebaseFirestore _firestore;
@@ -36,13 +35,13 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        developer.log('❌ [FIRESTORE] User not logged in');
+        Log.error('❌ [FIRESTORE] User not logged in');
         throw Exception("User not logged in");
       }
 
-      developer.log('🔥 [FIRESTORE] Creating group: $groupName ($groupId)');
-      developer.log('🔍 [FIRESTORE] Owner member.memberId: ${member.memberId}');
-      developer.log('🔍 [FIRESTORE] Owner member.name: ${member.name}');
+      Log.info('🔥 [FIRESTORE] Creating group: $groupName ($groupId)');
+      Log.info('🔍 [FIRESTORE] Owner member.memberId: ${member.memberId}');
+      Log.info('🔍 [FIRESTORE] Owner member.name: ${member.name}');
 
       // SharedGroup.createファクトリを使用
       final newGroup = SharedGroup.create(
@@ -59,11 +58,9 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      developer
-          .log('🔥 [FIRESTORE] Group data prepared, writing to Firestore...');
-      developer
-          .log('🔍 [FIRESTORE] allowedUid in newGroup: ${newGroup.allowedUid}');
-      developer.log(
+      Log.info('🔥 [FIRESTORE] Group data prepared, writing to Firestore...');
+      Log.info('🔍 [FIRESTORE] allowedUid in newGroup: ${newGroup.allowedUid}');
+      Log.info(
           '🔍 [FIRESTORE] allowedUid in groupData: ${groupData['allowedUid']}');
 
       // Windows版Firestoreのスレッド問題を回避
@@ -73,15 +70,13 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
       await Future.microtask(() async {
         await groupDocRef.set(groupData);
       });
-      developer
-          .log('✅ [FIRESTORE] Group write successful: $groupName ($groupId)');
+      Log.info('✅ [FIRESTORE] Group write successful: $groupName ($groupId)');
 
-      developer.log(
+      Log.info(
           '🔥 [FIRESTORE] Created group in root collection: $groupName ($groupId)');
       return newGroup;
     } catch (e, st) {
-      developer.log('❌ [FIRESTORE] createGroup error: $e');
-      developer.log('📄 [FIRESTORE] StackTrace: $st');
+      Log.error('❌ [FIRESTORE] createGroup error: $e', e, st);
       rethrow;
     }
   }
@@ -91,34 +86,34 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
     try {
       final currentUser = _auth.currentUser;
       if (currentUser == null) {
-        developer.log('❌ User not authenticated');
+        Log.warning('❌ User not authenticated');
         return [];
       }
 
       final currentUserId = currentUser.uid;
-      developer.log('🔥 [FIRESTORE] Fetching groups for user: $currentUserId');
-      AppLogger.info(
-          '🔥 [FIRESTORE_REPO] getAllGroups開始 - currentUserId: ${AppLogger.maskUserId(currentUserId)}');
+      Log.info('🔥 [FIRESTORE] Fetching groups for user: $currentUserId');
+      Log.info(
+          '🔥 [FIRESTORE_REPO] getAllGroups開始 - currentUserId: ${Log.maskUserId(currentUserId)}');
 
       // 新しいアーキテクチャ: ルートの'SharedGroups'をクエリ
       final groupsSnapshot = await _groupsCollection
           .where('allowedUid', arrayContains: currentUserId)
           .get();
 
-      developer.log(
+      Log.info(
           '🔥 [FIRESTORE] Fetched groups count: ${groupsSnapshot.docs.length}');
-      AppLogger.info('✅ [FIRESTORE_REPO] ${groupsSnapshot.docs.length}グループ取得');
+      Log.info('✅ [FIRESTORE_REPO] ${groupsSnapshot.docs.length}グループ取得');
 
       for (var doc in groupsSnapshot.docs) {
         final data = doc.data() as Map<String, dynamic>?;
         final groupName = data?['groupName'] as String? ?? 'Unknown';
         final allowedUid = data?['allowedUid'] as List<dynamic>? ?? [];
-        AppLogger.info(
-            '  📄 [FIRESTORE_DOC] ${AppLogger.maskGroup(groupName, doc.id)} - allowedUid: ${allowedUid.map((uid) => AppLogger.maskUserId(uid.toString())).toList()}');
+        Log.info(
+            '  📄 [FIRESTORE_DOC] ${Log.maskGroup(groupName, doc.id)} - allowedUid: ${allowedUid.map((uid) => Log.maskUserId(uid.toString())).toList()}');
       }
 
       if (groupsSnapshot.docs.isEmpty) {
-        developer.log('⚠️ [FIRESTORE] No groups found for this user.');
+        Log.info('⚠️ [FIRESTORE] No groups found for this user.');
         return [];
       }
 
@@ -127,7 +122,7 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
 
       return userGroups;
     } catch (e, st) {
-      developer.log('❌ Firestore getAllGroups error: $e\n$st');
+      Log.error('❌ Firestore getAllGroups error: $e', e, st);
       rethrow;
     }
   }
@@ -141,8 +136,8 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
       }
 
       return _groupFromFirestore(doc);
-    } catch (e) {
-      developer.log('❌ Firestore getGroupById error: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ Firestore getGroupById error: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -151,10 +146,9 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
   Future<SharedGroup> updateGroup(String groupId, SharedGroup group) async {
     try {
       final updateData = _groupToFirestore(group);
-      developer.log('🔍 [FIRESTORE UPDATE] groupId: $groupId');
-      developer
-          .log('🔍 [FIRESTORE UPDATE] group.allowedUid: ${group.allowedUid}');
-      developer.log(
+      Log.info('🔍 [FIRESTORE UPDATE] groupId: $groupId');
+      Log.info('🔍 [FIRESTORE UPDATE] group.allowedUid: ${group.allowedUid}');
+      Log.info(
           '🔍 [FIRESTORE UPDATE] updateData[allowedUid]: ${updateData['allowedUid']}');
 
       // set(merge: true)を使用してドキュメントが存在しない場合も対応
@@ -166,11 +160,10 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
         }, SetOptions(merge: true));
       });
 
-      developer
-          .log('✅ [FIRESTORE UPDATE] Updated in Firestore: ${group.groupName}');
+      Log.info('✅ [FIRESTORE UPDATE] Updated in Firestore: ${group.groupName}');
       return group;
-    } catch (e) {
-      developer.log('❌ Firestore updateGroup error: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ Firestore updateGroup error: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -179,13 +172,12 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
   Future<SharedGroup> deleteGroup(String groupId) async {
     try {
       final user = _auth.currentUser;
-      developer
-          .log('🔍 [FIRESTORE DELETE] Attempting to delete group: $groupId');
-      developer.log(
+      Log.info('🔍 [FIRESTORE DELETE] Attempting to delete group: $groupId');
+      Log.info(
           '🔍 [FIRESTORE DELETE] User path: users/${user?.uid}/groups/$groupId');
 
       final doc = await _groupsCollection.doc(groupId).get();
-      developer.log('🔍 [FIRESTORE DELETE] Document exists: ${doc.exists}');
+      Log.info('🔍 [FIRESTORE DELETE] Document exists: ${doc.exists}');
 
       if (!doc.exists) {
         throw Exception('Group not found: $groupId (User: ${user?.uid})');
@@ -202,12 +194,12 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
         });
       });
 
-      developer.log('🔥 [FIRESTORE] Marked group as deleted: $groupId');
+      Log.info('🔥 [FIRESTORE] Marked group as deleted: $groupId');
 
       // 削除フラグを立てたグループを返す
       return group.copyWith(isDeleted: true, updatedAt: DateTime.now());
-    } catch (e) {
-      developer.log('❌ Firestore deleteGroup error: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ Firestore deleteGroup error: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -227,11 +219,11 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
             .update(_groupToFirestore(updatedGroup));
       });
 
-      developer.log(
+      Log.info(
           '🔥 [FIRESTORE] Added member and created membership: ${member.name} to $groupId');
       return updatedGroup;
-    } catch (e) {
-      developer.log('❌ Firestore addMember error: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ Firestore addMember error: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -251,11 +243,11 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
             .update(_groupToFirestore(updatedGroup));
       });
 
-      developer.log(
+      Log.info(
           '🔥 [FIRESTORE] Removed member and deleted membership: ${member.name} from $groupId');
       return updatedGroup;
-    } catch (e) {
-      developer.log('❌ Firestore removeMember error: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ Firestore removeMember error: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -266,8 +258,8 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
     try {
       // TODO: Firestore実装 - 複数グループでのUID更新
       throw UnimplementedError('setMemberId not implemented for Firestore yet');
-    } catch (e) {
-      developer.log('❌ Firestore setMemberId error: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ Firestore setMemberId error: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -378,11 +370,11 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
       } else if (value is String) {
         return DateTime.parse(value);
       } else {
-        developer.log('❌ [PARSE_DATETIME] Unknown type: ${value.runtimeType}');
+        Log.error('❌ [PARSE_DATETIME] Unknown type: ${value.runtimeType}');
         return DateTime.now();
       }
-    } catch (e) {
-      developer.log('❌ [PARSE_DATETIME] Error: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ [PARSE_DATETIME] Error: $e', e, stackTrace);
       return DateTime.now();
     }
   }
@@ -408,7 +400,7 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
     // Firestoreでは論理削除されたグループは自動的にクエリから除外されるため、
     // 物理削除は手動で行う必要がある。ただし、本番環境では慎重に扱う必要があるため、
     // 現状は何もしない（0を返す）
-    developer.log(
+    Log.warning(
         '⚠️ [FIRESTORE] cleanupDeletedGroups is not implemented for production safety');
     return 0;
   }

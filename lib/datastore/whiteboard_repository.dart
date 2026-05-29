@@ -61,15 +61,14 @@ class WhiteboardRepository {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      AppLogger.info('💾 [REPO] サブコレクション書き込み発火: (${newStrokes.length}本)');
+      Log.info('💾 [REPO] サブコレクション書き込み発火: (${newStrokes.length}本)');
       // Fire-and-forget で呼ばれるためタイムアウトは不要
       // Firestoreオフライン永続化によりローカルへの書き込みは即時完了する
       await batch.commit();
 
-      AppLogger.info('✅ [REPO] サブコレクション保存完了: ${newStrokes.length}本');
+      Log.info('✅ [REPO] サブコレクション保存完了: ${newStrokes.length}本');
     } catch (e, stackTrace) {
-      AppLogger.error('❌ [REPO] サブコレクション保存エラー: $e');
-      AppLogger.error('📍 [REPO] スタックトレース: $stackTrace');
+      Log.error('❌ [REPO] サブコレクション保存エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -77,28 +76,27 @@ class WhiteboardRepository {
   /// 🔥 ストロークサブコレクションをリアルタイム監視
   Stream<List<DrawingStroke>> watchStrokesSubcollection(
       String groupId, String whiteboardId) {
-    AppLogger.info(
-        '🔭 [WATCH_STROKES] リスナー開始: groupId=$groupId, wbId=$whiteboardId');
+    Log.info('🔭 [WATCH_STROKES] リスナー開始: groupId=$groupId, wbId=$whiteboardId');
     // orderBy をクエリから除去 → クライアントソートで代替。
     // Firestore auto-index の遅延や FAILED_PRECONDITION でクエリが
     // 無音でエラー終了するのを防ぐ。
     return _strokesCollection(groupId, whiteboardId)
         .snapshots()
         .handleError((Object error, StackTrace stack) {
-      AppLogger.error('❌ [WATCH_STROKES] ストリームエラー: $error\n$stack');
+      Log.error('❌ [WATCH_STROKES] ストリームエラー: $error', error, stack);
     }).map((snapshot) {
       try {
-        AppLogger.info(
+        Log.info(
             '📡 [WATCH_STROKES] スナップショット受信: ${snapshot.docs.length}件 pending=${snapshot.metadata.hasPendingWrites}');
         final strokes = snapshot.docs
             .map((doc) => DrawingStroke.fromFirestore(doc.data()))
             .toList()
           // createdAt 昇順でクライアントソート
           ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-        AppLogger.info('📡 [WATCH_STROKES] パース完了: ${strokes.length}本');
+        Log.info('📡 [WATCH_STROKES] パース完了: ${strokes.length}本');
         return strokes;
       } catch (e, stack) {
-        AppLogger.error('❌ [WATCH_STROKES] パースエラー: $e\n$stack');
+        Log.error('❌ [WATCH_STROKES] パースエラー: $e', e, stack);
         return <DrawingStroke>[];
       }
     });
@@ -115,11 +113,11 @@ class WhiteboardRepository {
           .toList()
         ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
-      AppLogger.info(
+      Log.info(
           '📥 [GET_STROKES] サブコレクション取得: wbId=$whiteboardId, ${strokes.length}本');
       return strokes;
     } catch (e, stack) {
-      AppLogger.error('❌ [GET_STROKES] サブコレクション取得エラー: $e\n$stack');
+      Log.error('❌ [GET_STROKES] サブコレクション取得エラー: $e', e, stack);
       rethrow;
     }
   }
@@ -132,7 +130,7 @@ class WhiteboardRepository {
     try {
       final strokeDocs = await _strokesCollection(groupId, whiteboardId).get();
 
-      AppLogger.info('🗑️ [REPO] サブコレクション全消去開始: ${strokeDocs.docs.length}件');
+      Log.info('🗑️ [REPO] サブコレクション全消去開始: ${strokeDocs.docs.length}件');
 
       const batchLimit = 400;
       final docRefs = strokeDocs.docs.map((d) => d.reference).toList();
@@ -163,10 +161,9 @@ class WhiteboardRepository {
         }
       }
 
-      AppLogger.info(
-          '✅ [REPO] 全消去完了: $whiteboardId (${strokeDocs.docs.length}件)');
-    } catch (e) {
-      AppLogger.error('❌ [REPO] サブコレクション全消去エラー: $e');
+      Log.info('✅ [REPO] 全消去完了: $whiteboardId (${strokeDocs.docs.length}件)');
+    } catch (e, stackTrace) {
+      Log.error('❌ [REPO] サブコレクション全消去エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -178,26 +175,25 @@ class WhiteboardRepository {
       // 全ホワイトボードを取得してフィルタリングする
       final querySnapshot = await _collection(groupId).get();
 
-      AppLogger.info(
-          '📋 [GET_GROUP_WB] 全ホワイトボード取得: ${querySnapshot.docs.length}件');
+      Log.info('📋 [GET_GROUP_WB] 全ホワイトボード取得: ${querySnapshot.docs.length}件');
 
       for (final doc in querySnapshot.docs) {
         final data = doc.data();
         final ownerId = data['ownerId'];
-        AppLogger.info(
-            '📋 [GET_GROUP_WB] whiteboardId: ${doc.id}, ownerId: ${AppLogger.maskUserId(ownerId)}');
+        Log.info(
+            '📋 [GET_GROUP_WB] whiteboardId: ${doc.id}, ownerId: ${Log.maskUserId(ownerId)}');
 
         // ownerIdがnullのものを探す
         if (ownerId == null) {
-          AppLogger.info('✅ [GET_GROUP_WB] グループ共通ホワイトボード発見: ${doc.id}');
+          Log.info('✅ [GET_GROUP_WB] グループ共通ホワイトボード発見: ${doc.id}');
           return Whiteboard.fromFirestore(data, doc.id);
         }
       }
 
-      AppLogger.info('📋 [GET_GROUP_WB] グループ共通ホワイトボード未作成: $groupId');
+      Log.info('📋 [GET_GROUP_WB] グループ共通ホワイトボード未作成: $groupId');
       return null;
-    } catch (e) {
-      AppLogger.error('❌ グループ共通ホワイトボード取得エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ グループ共通ホワイトボード取得エラー: $e', e, stackTrace);
       return null;
     }
   }
@@ -210,13 +206,13 @@ class WhiteboardRepository {
     try {
       final doc = await _collection(groupId).doc(whiteboardId).get();
       if (!doc.exists) {
-        AppLogger.warning('📋 [GET_WB_BY_ID] ホワイトボードが存在しません: $whiteboardId');
+        Log.warning('📋 [GET_WB_BY_ID] ホワイトボードが存在しません: $whiteboardId');
         return null;
       }
 
       return Whiteboard.fromFirestore(doc.data()!, doc.id);
-    } catch (e) {
-      AppLogger.error('❌ [GET_WB_BY_ID] ホワイトボード取得エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ [GET_WB_BY_ID] ホワイトボード取得エラー: $e', e, stackTrace);
       return null;
     }
   }
@@ -231,7 +227,7 @@ class WhiteboardRepository {
           await _collection(groupId).where('ownerId', isEqualTo: userId).get();
 
       if (querySnapshot.docs.isEmpty) {
-        AppLogger.info('📋 個人用ホワイトボード未作成: userId=$userId');
+        Log.info('📋 個人用ホワイトボード未作成: userId=$userId');
         return null;
       }
 
@@ -240,8 +236,8 @@ class WhiteboardRepository {
         querySnapshot.docs,
         userId,
       );
-    } catch (e) {
-      AppLogger.error('❌ 個人用ホワイトボード取得エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ 個人用ホワイトボード取得エラー: $e', e, stackTrace);
       return null;
     }
   }
@@ -256,8 +252,8 @@ class WhiteboardRepository {
         .snapshots()
         .map((snapshot) {
       if (snapshot.docs.isEmpty) {
-        AppLogger.info(
-            '📡 [WATCH_PERSONAL_WB] 個人用ホワイトボード未作成: ${AppLogger.maskUserId(userId)}');
+        Log.info(
+            '📡 [WATCH_PERSONAL_WB] 個人用ホワイトボード未作成: ${Log.maskUserId(userId)}');
         return null;
       }
 
@@ -272,8 +268,8 @@ class WhiteboardRepository {
           return b.createdAt.compareTo(a.createdAt);
         });
       final whiteboard = whiteboards.first;
-      AppLogger.info(
-          '📡 [WATCH_PERSONAL_WB] 個人用ホワイトボード更新検知: ${AppLogger.maskUserId(userId)}, isPrivate=${whiteboard.isPrivate}');
+      Log.info(
+          '📡 [WATCH_PERSONAL_WB] 個人用ホワイトボード更新検知: ${Log.maskUserId(userId)}, isPrivate=${whiteboard.isPrivate}');
       return whiteboard;
     });
   }
@@ -294,12 +290,12 @@ class WhiteboardRepository {
           });
 
     if (whiteboards.length > 1) {
-      AppLogger.warning(
-          '⚠️ [PERSONAL_WB] 重複個人ボード検出: user=${AppLogger.maskUserId(userId)}, count=${whiteboards.length}, latest=${whiteboards.first.whiteboardId}');
+      Log.warning(
+          '⚠️ [PERSONAL_WB] 重複個人ボード検出: user=${Log.maskUserId(userId)}, count=${whiteboards.length}, latest=${whiteboards.first.whiteboardId}');
 
       for (final whiteboard in whiteboards) {
         if (await _hasAnyStroke(groupId, whiteboard.whiteboardId)) {
-          AppLogger.info(
+          Log.info(
               '✅ [PERSONAL_WB] ストロークあり個人ボードを優先選択: ${whiteboard.whiteboardId}');
           return whiteboard;
         }
@@ -314,9 +310,9 @@ class WhiteboardRepository {
       final snapshot =
           await _strokesCollection(groupId, whiteboardId).limit(1).get();
       return snapshot.docs.isNotEmpty;
-    } catch (e) {
-      AppLogger.warning(
-          '⚠️ [PERSONAL_WB] ストローク有無確認失敗: wbId=$whiteboardId error=$e');
+    } catch (e, stackTrace) {
+      Log.error('⚠️ [PERSONAL_WB] ストローク有無確認失敗: wbId=$whiteboardId error=$e', e,
+          stackTrace);
       return false;
     }
   }
@@ -337,8 +333,8 @@ class WhiteboardRepository {
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
-    AppLogger.info(
-        '✅ [PERSONAL_WB] プライベート設定切り替え: ${AppLogger.maskUserId(ownerId)} ${!current.isPrivate ? "ON" : "OFF"} target=${current.whiteboardId}');
+    Log.info(
+        '✅ [PERSONAL_WB] プライベート設定切り替え: ${Log.maskUserId(ownerId)} ${!current.isPrivate ? "ON" : "OFF"} target=${current.whiteboardId}');
 
     final reloaded = await getWhiteboardById(groupId, current.whiteboardId);
     return reloaded ??
@@ -381,8 +377,8 @@ class WhiteboardRepository {
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
-    AppLogger.info(
-        '✅ [PERSONAL_WB] プライベート設定を明示更新: ${AppLogger.maskUserId(ownerId)} value=$isPrivate target=$whiteboardId');
+    Log.info(
+        '✅ [PERSONAL_WB] プライベート設定を明示更新: ${Log.maskUserId(ownerId)} value=$isPrivate target=$whiteboardId');
 
     final reloaded = await getWhiteboardById(groupId, whiteboardId);
     return (reloaded ??
@@ -428,8 +424,8 @@ class WhiteboardRepository {
 
     await _collection(groupId).doc(whiteboardId).set(whiteboard.toFirestore());
 
-    AppLogger.info(
-        '✅ ホワイトボード作成: ${ownerId == null ? "グループ共通" : "個人用(${AppLogger.maskUserId(ownerId)})"}');
+    Log.info(
+        '✅ ホワイトボード作成: ${ownerId == null ? "グループ共通" : "個人用(${Log.maskUserId(ownerId)})"}');
     return whiteboard;
   }
 
@@ -444,9 +440,9 @@ class WhiteboardRepository {
           .doc(whiteboard.whiteboardId)
           .set(updatedWhiteboard.toFirestore());
 
-      AppLogger.info('✅ ホワイトボード更新: ${whiteboard.whiteboardId}');
-    } catch (e) {
-      AppLogger.error('❌ ホワイトボード更新エラー: $e');
+      Log.info('✅ ホワイトボード更新: ${whiteboard.whiteboardId}');
+    } catch (e, stackTrace) {
+      Log.error('❌ ホワイトボード更新エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -465,16 +461,15 @@ class WhiteboardRepository {
       // サーバー応答待ちのまま保存スピナーが復帰しないことがある。
       // グループ共有ボードは編集ロック前提、個人ボードは単独編集前提のため、
       // ここでは通常の get + update で差分追加する。
-      AppLogger.info('💾 [REPO] 通常のupdate処理でストローク追加開始');
+      Log.info('💾 [REPO] 通常のupdate処理でストローク追加開始');
       await _addStrokesWithoutTransaction(
         groupId: groupId,
         whiteboardId: whiteboardId,
         newStrokes: newStrokes,
       );
-      AppLogger.info('✅ [REPO] 通常のupdate処理でストローク追加完了');
+      Log.info('✅ [REPO] 通常のupdate処理でストローク追加完了');
     } catch (e, stackTrace) {
-      AppLogger.error('❌ [REPO] ストローク追加エラー: $e');
-      AppLogger.error('📍 [REPO] スタックトレース: $stackTrace');
+      Log.error('❌ [REPO] ストローク追加エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -503,17 +498,15 @@ class WhiteboardRepository {
               })
           .toList();
 
-      AppLogger.info(
-          '💾 [REPO] arrayUnionでFirestore更新中... (${newStrokes.length}個)');
+      Log.info('💾 [REPO] arrayUnionでFirestore更新中... (${newStrokes.length}個)');
       await docRef.update({
         'strokes': FieldValue.arrayUnion(newStrokeMaps),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      AppLogger.info('✅ [REPO] Firestore更新完了: ${newStrokes.length}個のストロークを追加');
+      Log.info('✅ [REPO] Firestore更新完了: ${newStrokes.length}個のストロークを追加');
     } catch (e, stackTrace) {
-      AppLogger.error('❌ [WINDOWS] ストローク追加エラー: $e');
-      AppLogger.error('📍 [WINDOWS] スタックトレース: $stackTrace');
+      Log.error('❌ [WINDOWS] ストローク追加エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -528,9 +521,9 @@ class WhiteboardRepository {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      AppLogger.info('✅ プライベート設定切り替え: ${!whiteboard.isPrivate ? "ON" : "OFF"}');
-    } catch (e) {
-      AppLogger.error('❌ プライベート設定エラー: $e');
+      Log.info('✅ プライベート設定切り替え: ${!whiteboard.isPrivate ? "ON" : "OFF"}');
+    } catch (e, stackTrace) {
+      Log.error('❌ プライベート設定エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -546,9 +539,9 @@ class WhiteboardRepository {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      AppLogger.info('✅ ホワイトボード全消去: $whiteboardId');
-    } catch (e) {
-      AppLogger.error('❌ ホワイトボード全消去エラー: $e');
+      Log.info('✅ ホワイトボード全消去: $whiteboardId');
+    } catch (e, stackTrace) {
+      Log.error('❌ ホワイトボード全消去エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -558,8 +551,7 @@ class WhiteboardRepository {
   /// ホワイトボードの新規作成も自動的に検知できる
   Stream<Whiteboard?> watchGroupWhiteboard(String groupId) {
     return _collection(groupId).snapshots().map((snapshot) {
-      AppLogger.info(
-          '📡 [WATCH_GROUP_WB] スナップショット受信: ${snapshot.docs.length}件');
+      Log.info('📡 [WATCH_GROUP_WB] スナップショット受信: ${snapshot.docs.length}件');
 
       // ownerIdがnullのドキュメントを探す
       for (final doc in snapshot.docs) {
@@ -567,13 +559,13 @@ class WhiteboardRepository {
         final ownerId = data['ownerId'];
 
         if (ownerId == null) {
-          AppLogger.info('✅ [WATCH_GROUP_WB] グループ共通ホワイトボード検知: ${doc.id}');
+          Log.info('✅ [WATCH_GROUP_WB] グループ共通ホワイトボード検知: ${doc.id}');
           return Whiteboard.fromFirestore(data, doc.id);
         }
       }
 
       // グループ共通ホワイトボードが見つからない
-      AppLogger.info('📡 [WATCH_GROUP_WB] グループ共通ホワイトボードなし');
+      Log.info('📡 [WATCH_GROUP_WB] グループ共通ホワイトボードなし');
       return null;
     });
   }
@@ -597,8 +589,8 @@ class WhiteboardRepository {
       return querySnapshot.docs
           .map((doc) => Whiteboard.fromFirestore(doc.data(), doc.id))
           .toList();
-    } catch (e) {
-      AppLogger.error('❌ 全ホワイトボード取得エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ 全ホワイトボード取得エラー: $e', e, stackTrace);
       return [];
     }
   }
@@ -607,9 +599,9 @@ class WhiteboardRepository {
   Future<void> deleteWhiteboard(String groupId, String whiteboardId) async {
     try {
       await _collection(groupId).doc(whiteboardId).delete();
-      AppLogger.info('✅ ホワイトボード削除: $whiteboardId');
-    } catch (e) {
-      AppLogger.error('❌ ホワイトボード削除エラー: $e');
+      Log.info('✅ ホワイトボード削除: $whiteboardId');
+    } catch (e, stackTrace) {
+      Log.error('❌ ホワイトボード削除エラー: $e', e, stackTrace);
       rethrow;
     }
   }

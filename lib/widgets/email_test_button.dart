@@ -78,7 +78,7 @@ class _EmailTestButtonState extends ConsumerState<EmailTestButton> {
       const testEmail = 'fatima.sumomo@gmail.com';
 
       Log.info('🧪 メール送信テスト開始');
-      Log.info('   対象: $testEmail');
+      Log.info('   対象: ${Log.maskEmail(testEmail)}');
 
       final success = await emailTestService.sendTestEmail(
         testEmail: testEmail,

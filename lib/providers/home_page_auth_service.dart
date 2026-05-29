@@ -40,7 +40,7 @@ class HomePageAuthService {
     }
 
     try {
-      Log.info('🔧 サインイン開姁E $email');
+      Log.info('🔧 サインイン開姁E ${Log.maskEmail(email)}');
 
       final userCredential =
           await AuthenticationService.signInWithEmailAndPassword(
@@ -98,7 +98,7 @@ class HomePageAuthService {
     }
 
     try {
-      Log.info('🔐 サインアップを開始: $email');
+      Log.info('🔐 サインアップを開始: ${Log.maskEmail(email)}');
 
       final userCredential =
           await AuthenticationService.signUpWithEmailAndPassword(

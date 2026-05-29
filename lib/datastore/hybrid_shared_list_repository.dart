@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
-import 'dart:developer' as developer;
 import '../models/shared_list.dart';
 import '../datastore/shared_list_repository.dart';
 import '../datastore/hive_shared_list_repository.dart';
@@ -9,6 +8,7 @@ import '../services/list_notification_batch_service.dart';
 import '../services/device_id_service.dart'; // 🆕 デバイスID生成用
 import '../providers/group_shared_lists_provider.dart';
 import '../flavors.dart';
+import '../utils/app_logger.dart';
 
 /// Hive（ローカルキャッシュ）+ Firestore（リモート）のハイブリッドSharedListリポジトリ
 ///
@@ -17,7 +17,7 @@ import '../flavors.dart';
 /// - デフォルトグループも他グループと同様に同期（他ユーザーを招待しないだけ）
 /// - 読み取り: まずHiveから取得、なければFirestoreから取得してHiveにキャッシュ
 /// - 書き込み: HiveとFirestore両方に保存（楽観的更新）
-/// - 同期: バックグラウンドでFirestore→Hiveの差分同期
+/// - 同期: バックグラウンドでFirestore→Hive的差分同期
 /// - オフライン: Hiveのみで動作、オンライン復帰時に自動同期
 class HybridSharedListRepository implements SharedListRepository {
   final Ref _ref;
@@ -45,13 +45,12 @@ class HybridSharedListRepository implements SharedListRepository {
       // DEVモードではFirestoreリポジトリを初期化しない
       try {
         _firestoreRepo = FirestoreSharedListRepository(_ref);
-        developer.log('🌐 [HYBRID_SHOPPING] Firestore統合有効化');
+        Log.info('🌐 [HYBRID_SHOPPING] Firestore統合有効化');
       } catch (e, stackTrace) {
-        developer.log('❌ [HYBRID_SHOPPING] Firestore初期化エラー: $e');
-        developer.log('📄 [HYBRID_SHOPPING] StackTrace: $stackTrace');
+        Log.error('❌ [HYBRID_SHOPPING] Firestore初期化エラー: $e', e, stackTrace);
         _firestoreRepo = null;
         _isOnline = false; // オフラインモードに設定
-        developer.log('🔧 [HYBRID_SHOPPING] Fallback: Hiveのみで動作');
+        Log.info('🔧 [HYBRID_SHOPPING] Fallback: Hiveのみで動作');
       }
     }
   }
@@ -74,7 +73,7 @@ class HybridSharedListRepository implements SharedListRepository {
 
       if (!_isOnline) {
         // Dev環境またはオフライン時はHiveのみ
-        developer.log('📦 Cache-only: SharedList取得 (groupId: $groupId)');
+        Log.info('📦 Cache-only: SharedList取得 (groupId: $groupId)');
         return cachedList;
       }
 
@@ -82,10 +81,10 @@ class HybridSharedListRepository implements SharedListRepository {
       _syncFromFirestoreBackground(groupId);
 
       // 3. キャッシュデータを即座に返却
-      developer.log('⚡ Cache-first: SharedList取得 (groupId: $groupId)');
+      Log.info('⚡ Cache-first: SharedList取得 (groupId: $groupId)');
       return cachedList;
-    } catch (e) {
-      developer.log('❌ HybridSharedList.getSharedList error: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ HybridSharedList.getSharedList error: $e', e, stackTrace);
       return null;
     }
   }
@@ -95,7 +94,7 @@ class HybridSharedListRepository implements SharedListRepository {
     try {
       // 1. 楽観的更新: まずHiveに保存（高速）
       await _hiveRepo.addItem(list);
-      developer.log('✅ Hive保存完了: ${list.groupName}');
+      Log.info('✅ Hive保存完了: ${list.groupName}');
 
       if (!_isOnline) {
         return; // Dev環境またはオフライン時はHiveのみ
@@ -104,8 +103,8 @@ class HybridSharedListRepository implements SharedListRepository {
       // 2. 同期処理でFirestoreに保存（ユーザーを待たせてもOK）
       await _syncListToFirestoreWithFallback(
           list, _SharedListSyncOperationType.create);
-    } catch (e) {
-      developer.log('❌ HybridSharedList.addItem error: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ HybridSharedList.addItem error: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -114,16 +113,16 @@ class HybridSharedListRepository implements SharedListRepository {
   Future<void> _syncListToFirestoreWithFallback(
       SharedList list, _SharedListSyncOperationType operationType) async {
     if (_firestoreRepo == null) {
-      developer.log('⚠️ Firestore repository not available');
+      Log.warning('⚠️ Firestore repository not available');
       return;
     }
 
     try {
       // Firestore SDKオフライン永続化に委任（タイムアウトなし）
       await _firestoreRepo!.updateSharedList(list);
-      developer.log('✅ Firestore同期成功: ${list.listName}');
-    } catch (e) {
-      developer.log('⚠️ Firestore同期失敗、キューに追加: $e');
+      Log.info('✅ Firestore同期成功: ${list.listName}');
+    } catch (e, stackTrace) {
+      Log.error('⚠️ Firestore同期失敗、キューに追加: $e', e, stackTrace);
 
       // 同期キューに追加
       _addToSyncQueue(_SharedListSyncOperation(
@@ -151,8 +150,8 @@ class HybridSharedListRepository implements SharedListRepository {
 
       // 2. Firestoreも同期でクリア
       await _firestoreRepo!.clearSharedList(groupId);
-    } catch (e) {
-      developer.log('❌ HybridSharedList.clearSharedList error: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ HybridSharedList.clearSharedList error: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -170,8 +169,8 @@ class HybridSharedListRepository implements SharedListRepository {
       // 2. 同期処理でFirestoreに追加
       await _syncItemToFirestoreWithFallback(
           groupId, item, _SharedListSyncOperationType.createItem);
-    } catch (e) {
-      developer.log('❌ HybridSharedList.addSharedItem error: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ HybridSharedList.addSharedItem error: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -180,11 +179,12 @@ class HybridSharedListRepository implements SharedListRepository {
   Future<void> _syncItemToFirestoreWithFallback(String listId, SharedItem item,
       _SharedListSyncOperationType operationType) async {
     if (_firestoreRepo == null) {
-      developer.log('⚠️ Firestore repository not available');
+      Log.warning('⚠️ Firestore repository not available');
       return;
     }
 
     try {
+      // {g.item}
       // Firestore SDKオフライン永続化に委任（タイムアウトなし）
       switch (operationType) {
         case _SharedListSyncOperationType.createItem:
@@ -200,9 +200,9 @@ class HybridSharedListRepository implements SharedListRepository {
         default:
           return;
       }
-      developer.log('✅ Firestore item sync成功: ${item.name}');
-    } catch (e) {
-      developer.log('⚠️ Firestore item sync失敗、キューに追加: $e');
+      Log.info('✅ Firestore item sync成功: ${item.name}');
+    } catch (e, stackTrace) {
+      Log.error('⚠️ Firestore item sync失敗、キューに追加: $e', e, stackTrace);
 
       // 同期キューに追加
       _addToSyncQueue(_SharedListSyncOperation(
@@ -231,8 +231,8 @@ class HybridSharedListRepository implements SharedListRepository {
       // 2. 同期処理でFirestoreからも削除
       await _syncItemToFirestoreWithFallback(
           groupId, item, _SharedListSyncOperationType.deleteItem);
-    } catch (e) {
-      developer.log('❌ HybridSharedList.removeSharedItem error: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ HybridSharedList.removeSharedItem error: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -253,8 +253,9 @@ class HybridSharedListRepository implements SharedListRepository {
       final updatedItem = item.copyWith(isPurchased: isPurchased);
       await _syncItemToFirestoreWithFallback(
           groupId, updatedItem, _SharedListSyncOperationType.updateItem);
-    } catch (e) {
-      developer.log('❌ HybridSharedList.updateSharedItemStatus error: $e');
+    } catch (e, stackTrace) {
+      Log.error(
+          '❌ HybridSharedList.updateSharedItemStatus error: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -273,8 +274,8 @@ class HybridSharedListRepository implements SharedListRepository {
       _syncFromFirestoreBackground(groupId);
 
       return existingList;
-    } catch (e) {
-      developer.log('❌ HybridSharedList.getOrCreateList error: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ HybridSharedList.getOrCreateList error: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -296,11 +297,11 @@ class HybridSharedListRepository implements SharedListRepository {
           final hiveList = await _hiveRepo.getSharedList(groupId);
           if (_shouldUpdateFromFirestore(hiveList, firestoreList)) {
             await _hiveRepo.addItem(firestoreList);
-            developer.log('🔄 Background sync: Firestore→Hive完了');
+            Log.info('🔄 Background sync: Firestore→Hive完了');
           }
         }
-      } catch (e) {
-        developer.log('⚠️ Background sync error: $e');
+      } catch (e, stackTrace) {
+        Log.error('⚠️ Background sync error: $e', e, stackTrace);
         _isOnline = false; // 接続エラーをマーク
       } finally {
         _isSyncing = false;
@@ -349,13 +350,12 @@ class HybridSharedListRepository implements SharedListRepository {
     _isSyncing = true;
     try {
       if (_firestoreRepo == null) {
-        developer.log('⚠️ [HYBRID_LIST] Firestore repository not available');
+        Log.warning('⚠️ [HYBRID_LIST] Firestore repository not available');
         return;
       }
 
       final localLists = _hiveRepo.getAllLists();
-      developer
-          .log('⬆️ [HYBRID_LIST] Hive→Firestore復旧同期開始: ${localLists.length}件');
+      Log.info('⬆️ [HYBRID_LIST] Hive→Firestore復旧同期開始: ${localLists.length}件');
 
       for (final list in localLists) {
         try {
@@ -364,7 +364,7 @@ class HybridSharedListRepository implements SharedListRepository {
 
           if (firestoreList == null) {
             await _firestoreRepo!.updateSharedList(list);
-            developer.log(
+            Log.info(
                 '✅ [HYBRID_LIST] Firestore未存在のためHive→Firestore復旧同期: ${list.listName} (${list.listId})');
             continue;
           }
@@ -374,23 +374,24 @@ class HybridSharedListRepository implements SharedListRepository {
 
           if (timestampComparison > 0) {
             await _firestoreRepo!.updateSharedList(list);
-            developer.log(
+            Log.info(
                 '✅ [HYBRID_LIST] Hiveの方が新しいためFirestoreへ反映: ${list.listName} (${list.listId})');
             continue;
           }
 
           if (_shouldUpdateFromFirestore(list, firestoreList)) {
             await _hiveRepo.updateSharedList(firestoreList);
-            developer.log(
+            Log.info(
                 '✅ [HYBRID_LIST] Firestoreの方が新しいためHiveへ反映: ${firestoreList.listName} (${firestoreList.listId})');
             continue;
           }
 
-          developer
-              .log('ℹ️ [HYBRID_LIST] 同期不要: ${list.listName} (${list.listId})');
-        } catch (e) {
-          developer.log(
-              '⚠️ [HYBRID_LIST] リスト復旧同期失敗: ${list.listName} (${list.listId}) - $e');
+          Log.info('ℹ️ [HYBRID_LIST] 同期不要: ${list.listName} (${list.listId})');
+        } catch (e, stackTrace) {
+          Log.error(
+              '⚠️ [HYBRID_LIST] リスト復旧同期失敗: ${list.listName} (${list.listId}) - $e',
+              e,
+              stackTrace);
           _addToSyncQueue(_SharedListSyncOperation(
             type: _SharedListSyncOperationType.update,
             listId: list.listId,
@@ -405,10 +406,10 @@ class HybridSharedListRepository implements SharedListRepository {
         _scheduleSync();
       }
 
-      developer.log('🔄 [HYBRID_LIST] Force bidirectional sync completed');
+      Log.info('🔄 [HYBRID_LIST] Force bidirectional sync completed');
       _isOnline = true;
-    } catch (e) {
-      developer.log('❌ Force sync error: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ Force sync error: $e', e, stackTrace);
       _isOnline = false;
     } finally {
       _isSyncing = false;
@@ -418,7 +419,7 @@ class HybridSharedListRepository implements SharedListRepository {
   /// 接続状態を手動でリセット
   void resetConnectionStatus() {
     _isOnline = true;
-    developer.log('🔄 Connection status reset');
+    Log.info('🔄 Connection status reset');
   }
 
   // === Multi-List Methods Implementation ===
@@ -436,11 +437,11 @@ class HybridSharedListRepository implements SharedListRepository {
       // customListIdが渡されていなければ自動生成
       final listIdToUse =
           customListId ?? await DeviceIdService.generateListId();
-      developer.log('🆕 [HYBRID_LIST] デバイスプレフィックス付きlistId: $listIdToUse');
+      Log.info('🆕 [HYBRID_LIST] デバイスプレフィックス付きlistId: $listIdToUse');
 
       // 🔥 サインイン必須仕様: Firestore優先
       if (_firestoreRepo != null) {
-        developer.log('🔥 [HYBRID_LIST] Firestore優先モード - Firestoreに作成');
+        Log.info('🔥 [HYBRID_LIST] Firestore優先モード - Firestoreに作成');
 
         // 1. Firestoreに作成（Firestore SDKオフライン永続化に委任）
         final newList = await _firestoreRepo!.createSharedList(
@@ -450,17 +451,17 @@ class HybridSharedListRepository implements SharedListRepository {
           description: description,
           customListId: listIdToUse, // 🆕 カスタムlistIdを使用
         );
-        developer.log(
+        Log.info(
             '✅ [HYBRID_LIST] Firestore作成完了: ${newList.listName} (listId: ${newList.listId})');
 
         // 2. Hiveにキャッシュ（読み取り高速化のため）
         await _hiveRepo.updateSharedList(newList);
-        developer.log('✅ [HYBRID_LIST] Hiveキャッシュ保存完了');
+        Log.info('✅ [HYBRID_LIST] Hiveキャッシュ保存完了');
 
         return newList;
       } else {
         // dev環境またはFirestore未初期化の場合のみHive
-        developer.log('📝 [HYBRID_LIST] dev環境 - Hiveに作成');
+        Log.info('📝 [HYBRID_LIST] dev環境 - Hiveに作成');
         final newList = await _hiveRepo.createSharedList(
           ownerUid: ownerUid,
           groupId: groupId,
@@ -468,11 +469,11 @@ class HybridSharedListRepository implements SharedListRepository {
           description: description,
           customListId: listIdToUse, // 🆕 カスタムlistIdを使用
         );
-        developer.log('✅ [HYBRID_LIST] Hive保存完了: ${newList.listName}');
+        Log.info('✅ [HYBRID_LIST] Hive保存完了: ${newList.listName}');
         return newList;
       }
-    } catch (e) {
-      developer.log('❌ [HYBRID_LIST] リスト作成エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ [HYBRID_LIST] リスト作成エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -482,8 +483,7 @@ class HybridSharedListRepository implements SharedListRepository {
     try {
       // 🔥 サインイン必須仕様: Firestore優先
       if (_firestoreRepo != null) {
-        developer
-            .log('🔥 [HYBRID_LIST] Firestore優先モード - Firestoreから取得: $listId');
+        Log.info('🔥 [HYBRID_LIST] Firestore優先モード - Firestoreから取得: $listId');
 
         try {
           // 1. Firestoreから取得（10秒タイムアウト → Hiveフォールバック）
@@ -492,29 +492,30 @@ class HybridSharedListRepository implements SharedListRepository {
               .timeout(const Duration(seconds: 10));
 
           if (firestoreList != null) {
-            developer.log(
+            Log.info(
                 '✅ [HYBRID_LIST] Firestore取得完了: ${firestoreList.listName}');
 
             // 2. Hiveにキャッシュ
             await _hiveRepo.updateSharedList(firestoreList);
-            developer.log('✅ [HYBRID_LIST] Hiveキャッシュ更新完了');
+            Log.info('✅ [HYBRID_LIST] Hiveキャッシュ更新完了');
 
             return firestoreList;
           } else {
-            developer.log('⚠️ [HYBRID_LIST] Firestoreにリストなし - Hiveフォールバック');
+            Log.info('⚠️ [HYBRID_LIST] Firestoreにリストなし - Hiveフォールバック');
             return await _hiveRepo.getSharedListById(listId);
           }
-        } catch (e) {
-          developer.log('⚠️ [HYBRID_LIST] Firestore取得エラー - Hiveフォールバック: $e');
+        } catch (e, stackTrace) {
+          Log.error('⚠️ [HYBRID_LIST] Firestore取得エラー - Hiveフォールバック: $e', e,
+              stackTrace);
           return await _hiveRepo.getSharedListById(listId);
         }
       } else {
         // dev環境またはFirestore未初期化の場合はHive
-        developer.log('📝 [HYBRID_LIST] dev環境 - Hiveから取得');
+        Log.info('📝 [HYBRID_LIST] dev環境 - Hiveから取得');
         return await _hiveRepo.getSharedListById(listId);
       }
-    } catch (e) {
-      developer.log('❌ [HYBRID_LIST] リスト取得エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ [HYBRID_LIST] リスト取得エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -524,37 +525,35 @@ class HybridSharedListRepository implements SharedListRepository {
     try {
       // 🔥 サインイン必須仕様: Firestore優先（条件簡素化）
       if (_firestoreRepo != null) {
-        developer
-            .log('🔥 [HYBRID_LIST] Firestore優先モード - Firestoreから取得: $groupId');
+        Log.info('🔥 [HYBRID_LIST] Firestore優先モード - Firestoreから取得: $groupId');
 
         try {
           // 1. Firestoreから最新データを取得（10秒タイムアウト → Hiveフォールバック）
           final firestoreLists = await _firestoreRepo!
               .getSharedListsByGroup(groupId)
               .timeout(const Duration(seconds: 10));
-          developer
-              .log('✅ [HYBRID_LIST] Firestore取得完了: ${firestoreLists.length}件');
+          Log.info('✅ [HYBRID_LIST] Firestore取得完了: ${firestoreLists.length}件');
 
           // 2. Hiveにキャッシュ（読み取り高速化のため）
           for (final list in firestoreLists) {
             await _hiveRepo.updateSharedList(list);
           }
-          developer
-              .log('✅ [HYBRID_LIST] Hiveキャッシュ保存完了: ${firestoreLists.length}件');
+          Log.info('✅ [HYBRID_LIST] Hiveキャッシュ保存完了: ${firestoreLists.length}件');
 
           return firestoreLists;
-        } catch (e) {
+        } catch (e, stackTrace) {
           // Firestoreエラー時のみHiveフォールバック
-          developer.log('⚠️ [HYBRID_LIST] Firestore取得エラー - Hiveフォールバック: $e');
+          Log.error('⚠️ [HYBRID_LIST] Firestore取得エラー - Hiveフォールバック: $e', e,
+              stackTrace);
           return await _hiveRepo.getSharedListsByGroup(groupId);
         }
       } else {
         // dev環境またはFirestore未初期化の場合はHive
-        developer.log('📝 [HYBRID_LIST] dev環境 - Hiveから取得');
+        Log.info('📝 [HYBRID_LIST] dev環境 - Hiveから取得');
         return await _hiveRepo.getSharedListsByGroup(groupId);
       }
-    } catch (e) {
-      developer.log('❌ [HYBRID_LIST] リスト一覧取得エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ [HYBRID_LIST] リスト一覧取得エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -564,23 +563,23 @@ class HybridSharedListRepository implements SharedListRepository {
     try {
       // 🔥 サインイン必須仕様: Firestore優先（条件簡素化）
       if (_firestoreRepo != null) {
-        developer.log('🔥 [HYBRID_LIST] Firestore優先モード - Firestoreに更新');
+        Log.info('🔥 [HYBRID_LIST] Firestore優先モード - Firestoreに更新');
 
         // 1. Firestoreに更新（Firestore SDKオフライン永続化に委任）
         await _firestoreRepo!.updateSharedList(list);
-        developer.log('✅ [HYBRID_LIST] Firestore更新完了: ${list.listName}');
+        Log.info('✅ [HYBRID_LIST] Firestore更新完了: ${list.listName}');
 
         // 2. Hiveにキャッシュ
         await _hiveRepo.updateSharedList(list);
-        developer.log('✅ [HYBRID_LIST] Hiveキャッシュ更新完了');
+        Log.info('✅ [HYBRID_LIST] Hiveキャッシュ更新完了');
       } else {
         // dev環境またはFirestore未初期化の場合はHive
-        developer.log('📝 [HYBRID_LIST] dev環境 - Hiveに更新');
+        Log.info('📝 [HYBRID_LIST] dev環境 - Hiveに更新');
         await _hiveRepo.updateSharedList(list);
-        developer.log('✅ [HYBRID_LIST] Hive更新完了: ${list.listName}');
+        Log.info('✅ [HYBRID_LIST] Hive更新完了: ${list.listName}');
       }
-    } catch (e) {
-      developer.log('❌ [HYBRID_LIST] リスト更新エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ [HYBRID_LIST] リスト更新エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -590,23 +589,23 @@ class HybridSharedListRepository implements SharedListRepository {
     try {
       // 🔥 サインイン必須仕様: Firestore優先（条件簡素化）
       if (_firestoreRepo != null) {
-        developer.log('🔥 [HYBRID_LIST] Firestore優先モード - Firestoreから削除');
+        Log.info('🔥 [HYBRID_LIST] Firestore優先モード - Firestoreから削除');
 
         // 1. Firestoreから削除（Firestore SDKオフライン永続化に委任）
         await _firestoreRepo!.deleteSharedList(groupId, listId);
-        developer.log('✅ [HYBRID_LIST] Firestore削除完了: listId=$listId');
+        Log.info('✅ [HYBRID_LIST] Firestore削除完了: listId=$listId');
 
         // 2. Hiveキャッシュからも削除
         await _hiveRepo.deleteSharedList(groupId, listId);
-        developer.log('✅ [HYBRID_LIST] Hiveキャッシュ削除完了');
+        Log.info('✅ [HYBRID_LIST] Hiveキャッシュ削除完了');
       } else {
         // dev環境またはFirestore未初期化の場合はHive
-        developer.log('📝 [HYBRID_LIST] dev環境 - Hiveから削除');
+        Log.info('📝 [HYBRID_LIST] dev環境 - Hiveから削除');
         await _hiveRepo.deleteSharedList(groupId, listId);
-        developer.log('✅ [HYBRID_LIST] Hive削除完了: listId=$listId');
+        Log.info('✅ [HYBRID_LIST] Hive削除完了: listId=$listId');
       }
-    } catch (e) {
-      developer.log('❌ [HYBRID_LIST] リスト削除エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ [HYBRID_LIST] リスト削除エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -635,8 +634,8 @@ class HybridSharedListRepository implements SharedListRepository {
       // 3. 同期処理でFirestoreに追加
       await _syncItemToFirestoreWithFallback(
           listId, item, _SharedListSyncOperationType.createItem);
-    } catch (e) {
-      developer.log('❌ HybridSharedList.addItemToList error: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ HybridSharedList.addItemToList error: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -665,8 +664,9 @@ class HybridSharedListRepository implements SharedListRepository {
       // 3. 同期処理でFirestoreからも削除
       await _syncItemToFirestoreWithFallback(
           listId, item, _SharedListSyncOperationType.deleteItem);
-    } catch (e) {
-      developer.log('❌ HybridSharedList.removeItemFromList error: $e');
+    } catch (e, stackTrace) {
+      Log.error(
+          '❌ HybridSharedList.removeItemFromList error: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -700,8 +700,9 @@ class HybridSharedListRepository implements SharedListRepository {
       final updatedItem = item.copyWith(isPurchased: isPurchased);
       await _syncItemToFirestoreWithFallback(
           listId, updatedItem, _SharedListSyncOperationType.updateItem);
-    } catch (e) {
-      developer.log('❌ HybridSharedList.updateItemStatusInList error: $e');
+    } catch (e, stackTrace) {
+      Log.error(
+          '❌ HybridSharedList.updateItemStatusInList error: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -726,9 +727,10 @@ class HybridSharedListRepository implements SharedListRepository {
     if (_isOnline && _firestoreRepo != null && F.appFlavor != Flavor.dev) {
       try {
         await _firestoreRepo!.deleteSharedListsByGroupId(groupId);
-        developer.log('✅ [HYBRID_LIST] Firestore一括削除完了: groupId=$groupId');
-      } catch (e) {
-        developer.log('⚠️ Firestore deletion failed (continuing): $e');
+        Log.info('✅ [HYBRID_LIST] Firestore一括削除完了: groupId=$groupId');
+      } catch (e, stackTrace) {
+        Log.error(
+            '⚠️ Firestore deletion failed (continuing): $e', e, stackTrace);
       }
     }
   }
@@ -740,7 +742,7 @@ class HybridSharedListRepository implements SharedListRepository {
   /// 同期キューに追加
   void _addToSyncQueue(_SharedListSyncOperation operation) {
     _syncQueue.add(operation);
-    developer.log(
+    Log.info(
         '📝 Sync queue added: ${operation.type} for list ${operation.listId}');
   }
 
@@ -750,7 +752,7 @@ class HybridSharedListRepository implements SharedListRepository {
     _syncTimer = Timer(const Duration(seconds: 30), () {
       _processSyncQueue();
     });
-    developer.log('⏰ Sync scheduled in 30 seconds');
+    Log.info('⏰ Sync scheduled in 30 seconds');
   }
 
   /// 同期キューを処理
@@ -758,7 +760,7 @@ class HybridSharedListRepository implements SharedListRepository {
     if (_syncQueue.isEmpty || _isSyncing) return;
 
     _isSyncing = true;
-    developer.log('🔄 Processing sync queue: ${_syncQueue.length} operations');
+    Log.info('🔄 Processing sync queue: ${_syncQueue.length} operations');
 
     final operationsToProcess = List<_SharedListSyncOperation>.from(_syncQueue);
     _syncQueue.clear();
@@ -766,16 +768,18 @@ class HybridSharedListRepository implements SharedListRepository {
     for (final operation in operationsToProcess) {
       try {
         await _executeSyncOperation(operation);
-        developer.log('✅ Sync operation completed: ${operation.type}');
-      } catch (e) {
+        Log.info('✅ Sync operation completed: ${operation.type}');
+      } catch (e, stackTrace) {
         operation.retryCount++;
         if (operation.retryCount < 3) {
           _syncQueue.add(operation);
-          developer.log(
+          Log.info(
               '🔄 Sync operation retry ${operation.retryCount}: ${operation.type}');
         } else {
-          developer.log(
-              '❌ Sync operation failed after 3 retries: ${operation.type}');
+          Log.error(
+              '❌ Sync operation failed after 3 retries: ${operation.type}',
+              e,
+              stackTrace);
         }
       }
     }
@@ -810,7 +814,7 @@ class HybridSharedListRepository implements SharedListRepository {
           await _firestoreRepo!
               .deleteSharedList(listToDelete.groupId, operation.listId);
         } else {
-          developer.log('⚠️ 削除対象リストがHiveに見つからない: ${operation.listId}');
+          Log.warning('⚠️ 削除対象リストがHiveに見つからない: ${operation.listId}');
         }
         break;
       case _SharedListSyncOperationType.createItem:
@@ -835,7 +839,7 @@ class HybridSharedListRepository implements SharedListRepository {
   Future<void> syncOnAppExit() async {
     if (_syncQueue.isEmpty) return;
 
-    developer.log('🔄 App exit sync: ${_syncQueue.length} operations');
+    Log.info('🔄 App exit sync: ${_syncQueue.length} operations');
     _syncTimer?.cancel();
 
     final operations = List<_SharedListSyncOperation>.from(_syncQueue);
@@ -844,21 +848,22 @@ class HybridSharedListRepository implements SharedListRepository {
     for (final operation in operations) {
       try {
         await _executeSyncOperation(operation);
-        developer.log('✅ App exit sync completed: ${operation.type}');
-      } catch (e) {
-        developer.log('❌ App exit sync failed: ${operation.type} - $e');
+        Log.info('✅ App exit sync completed: ${operation.type}');
+      } catch (e, stackTrace) {
+        Log.error(
+            '❌ App exit sync failed: ${operation.type} - $e', e, stackTrace);
       }
     }
   }
 
   /// ネットワーク復旧時の再送同期
   Future<void> syncOnNetworkRecovery() async {
-    developer.log('🌐 [HYBRID_LIST] ネットワーク復旧同期開始');
+    Log.info('🌐 [HYBRID_LIST] ネットワーク復旧同期開始');
     await forceSyncBidirectional();
 
     // グループ配下の一覧UIを最新化
     _ref.invalidate(groupSharedListsProvider);
-    developer.log('✅ [HYBRID_LIST] ネットワーク復旧同期完了');
+    Log.info('✅ [HYBRID_LIST] ネットワーク復旧同期完了');
   }
 
   // === Realtime Sync Methods ===
@@ -871,7 +876,7 @@ class HybridSharedListRepository implements SharedListRepository {
     try {
       // 🔥 サインイン必須仕様: Firestore優先＋差分同期
       if (_firestoreRepo != null) {
-        developer.log('🔥 [HYBRID_DIFF] Firestore優先モード - アイテム追加');
+        Log.info('🔥 [HYBRID_DIFF] Firestore優先モード - アイテム追加');
 
         // ⚠️ 重要: まずHiveからgroupIdを取得（コレクショングループクエリを避ける）
         final hiveList = await _hiveRepo.getSharedListById(listId);
@@ -879,13 +884,13 @@ class HybridSharedListRepository implements SharedListRepository {
           throw Exception('List not found in cache: $listId');
         }
 
-        developer.log('📋 [HYBRID_DIFF] GroupId取得: ${hiveList.groupId}');
+        Log.info('📋 [HYBRID_DIFF] GroupId取得: ${hiveList.groupId}');
 
         // 1. Firestoreに単一アイテムのみ追加（差分同期）
         // groupIdを使って直接パスでアクセス（パーミッションエラー回避）
         await _firestoreRepo!
             .addSingleItemWithGroupId(listId, hiveList.groupId, item);
-        developer.log('✅ [HYBRID_DIFF] Firestore: 単一アイテム追加完了 (${item.name})');
+        Log.info('✅ [HYBRID_DIFF] Firestore: 単一アイテム追加完了 (${item.name})');
 
         // 2. Hiveキャッシュを更新（読み取り高速化）
         final updatedItems = Map<String, SharedItem>.from(hiveList.items);
@@ -895,10 +900,10 @@ class HybridSharedListRepository implements SharedListRepository {
           updatedAt: DateTime.now(),
         );
         await _hiveRepo.updateSharedList(updatedList);
-        developer.log('✅ [HYBRID_DIFF] Hiveキャッシュ更新完了');
+        Log.info('✅ [HYBRID_DIFF] Hiveキャッシュ更新完了');
       } else {
         // dev環境またはFirestore未初期化の場合のみHive
-        developer.log('📝 [HYBRID_DIFF] dev環境 - Hiveに追加');
+        Log.info('📝 [HYBRID_DIFF] dev環境 - Hiveに追加');
         final hiveList = await _hiveRepo.getSharedListById(listId);
         if (hiveList == null) {
           throw Exception('List not found: $listId');
@@ -910,11 +915,10 @@ class HybridSharedListRepository implements SharedListRepository {
           updatedAt: DateTime.now(),
         );
         await _hiveRepo.updateSharedList(updatedList);
-        developer.log('✅ [HYBRID_DIFF] Hive保存完了: ${item.name}');
+        Log.info('✅ [HYBRID_DIFF] Hive保存完了: ${item.name}');
       }
     } catch (e, stackTrace) {
-      developer.log('❌ [HYBRID_DIFF] addSingleItem error: $e');
-      developer.log('📄 StackTrace: $stackTrace');
+      Log.error('❌ [HYBRID_DIFF] addSingleItem error: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -924,7 +928,7 @@ class HybridSharedListRepository implements SharedListRepository {
     try {
       // 🔥 サインイン必須仕様: Firestore優先＋差分同期（論理削除）
       if (_firestoreRepo != null) {
-        developer.log('🔥 [HYBRID_DIFF] Firestore優先モード - アイテム削除');
+        Log.info('🔥 [HYBRID_DIFF] Firestore優先モード - アイテム削除');
 
         // ⚠️ 重要: まずHiveからgroupIdを取得
         final hiveList = await _hiveRepo.getSharedListById(listId);
@@ -935,8 +939,7 @@ class HybridSharedListRepository implements SharedListRepository {
         // 1. Firestoreで単一アイテムのみ論理削除（差分同期）
         await _firestoreRepo!
             .removeSingleItemWithGroupId(listId, hiveList.groupId, itemId);
-        developer
-            .log('✅ [HYBRID_DIFF] Firestore: 単一アイテム削除完了 (itemId: $itemId)');
+        Log.info('✅ [HYBRID_DIFF] Firestore: 単一アイテム削除完了 (itemId: $itemId)');
 
         // 2. Hiveキャッシュを更新
         final item = hiveList.items[itemId];
@@ -952,16 +955,16 @@ class HybridSharedListRepository implements SharedListRepository {
             updatedAt: DateTime.now(),
           );
           await _hiveRepo.updateSharedList(updatedList);
-          developer.log('✅ [HYBRID_DIFF] Hiveキャッシュ更新完了');
+          Log.info('✅ [HYBRID_DIFF] Hiveキャッシュ更新完了');
         }
       } else {
         // dev環境またはFirestore未初期化の場合のみHive
-        developer.log('📝 [HYBRID_DIFF] dev環境 - Hiveから削除');
+        Log.info('📝 [HYBRID_DIFF] dev環境 - Hiveから削除');
         final hiveList = await _hiveRepo.getSharedListById(listId);
         if (hiveList == null) return;
         final item = hiveList.items[itemId];
         if (item == null) {
-          developer.log('⚠️ [HYBRID_DIFF] Item not found: $itemId');
+          Log.warning('⚠️ [HYBRID_DIFF] Item not found: $itemId');
           return;
         }
         final deletedItem = item.copyWith(
@@ -975,10 +978,10 @@ class HybridSharedListRepository implements SharedListRepository {
           updatedAt: DateTime.now(),
         );
         await _hiveRepo.updateSharedList(updatedList);
-        developer.log('✅ [HYBRID_DIFF] Hive削除完了: ${item.name}');
+        Log.info('✅ [HYBRID_DIFF] Hive削除完了: ${item.name}');
       }
-    } catch (e) {
-      developer.log('❌ [HYBRID_DIFF] removeSingleItem error: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ [HYBRID_DIFF] removeSingleItem error: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -988,7 +991,7 @@ class HybridSharedListRepository implements SharedListRepository {
     try {
       // 🔥 サインイン必須仕様: Firestore優先＋差分同期
       if (_firestoreRepo != null) {
-        developer.log('🔥 [HYBRID_DIFF] Firestore優先モード - アイテム更新');
+        Log.info('🔥 [HYBRID_DIFF] Firestore優先モード - アイテム更新');
 
         // ⚠️ 重要: まずHiveからgroupIdを取得
         final hiveList = await _hiveRepo.getSharedListById(listId);
@@ -999,7 +1002,7 @@ class HybridSharedListRepository implements SharedListRepository {
         // 1. Firestoreで単一アイテムのみ更新（差分同期）
         await _firestoreRepo!
             .updateSingleItemWithGroupId(listId, hiveList.groupId, item);
-        developer.log('✅ [HYBRID_DIFF] Firestore: 単一アイテム更新完了 (${item.name})');
+        Log.info('✅ [HYBRID_DIFF] Firestore: 単一アイテム更新完了 (${item.name})');
 
         // 2. Hiveキャッシュを更新
         final updatedItems = Map<String, SharedItem>.from(hiveList.items);
@@ -1009,10 +1012,10 @@ class HybridSharedListRepository implements SharedListRepository {
           updatedAt: DateTime.now(),
         );
         await _hiveRepo.updateSharedList(updatedList);
-        developer.log('✅ [HYBRID_DIFF] Hiveキャッシュ更新完了');
+        Log.info('✅ [HYBRID_DIFF] Hiveキャッシュ更新完了');
       } else {
         // dev環境またはFirestore未初期化の場合のみHive
-        developer.log('📝 [HYBRID_DIFF] dev環境 - Hiveに更新');
+        Log.info('📝 [HYBRID_DIFF] dev環境 - Hiveに更新');
         final hiveList = await _hiveRepo.getSharedListById(listId);
         if (hiveList == null) return;
         final updatedItems = Map<String, SharedItem>.from(hiveList.items);
@@ -1022,10 +1025,10 @@ class HybridSharedListRepository implements SharedListRepository {
           updatedAt: DateTime.now(),
         );
         await _hiveRepo.updateSharedList(updatedList);
-        developer.log('✅ [HYBRID_DIFF] Hive更新完了: ${item.name}');
+        Log.info('✅ [HYBRID_DIFF] Hive更新完了: ${item.name}');
       }
-    } catch (e) {
-      developer.log('❌ [HYBRID_DIFF] updateSingleItem error: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ [HYBRID_DIFF] updateSingleItem error: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -1051,7 +1054,7 @@ class HybridSharedListRepository implements SharedListRepository {
 
       final removedCount = list.items.length - cleanedItems.length;
       if (removedCount == 0) {
-        developer.log('🧹 [HYBRID_CLEANUP] No items to cleanup');
+        Log.info('🧹 [HYBRID_CLEANUP] No items to cleanup');
         return;
       }
 
@@ -1061,20 +1064,21 @@ class HybridSharedListRepository implements SharedListRepository {
       );
 
       await _hiveRepo.updateSharedList(cleanedList);
-      developer
-          .log('🧹 [HYBRID_CLEANUP] Removed $removedCount items from Hive');
+      Log.info('🧹 [HYBRID_CLEANUP] Removed $removedCount items from Hive');
 
       // Firestore同期
       if (!_isOnline) return;
 
       // バックグラウンド同期（エラーは無視）
       _firestoreRepo?.updateSharedList(cleanedList).then((_) {
-        developer.log('🧹 [HYBRID_CLEANUP] Firestore synced');
-      }).catchError((e) {
-        developer.log('⚠️ [HYBRID_CLEANUP] Firestore sync failed: $e');
+        Log.info('🧹 [HYBRID_CLEANUP] Firestore synced');
+      }).catchError((e, stackTrace) {
+        Log.error(
+            '⚠️ [HYBRID_CLEANUP] Firestore sync failed: $e', e, stackTrace);
       });
-    } catch (e) {
-      developer.log('❌ [HYBRID_CLEANUP] cleanupDeletedItems error: $e');
+    } catch (e, stackTrace) {
+      Log.error(
+          '❌ [HYBRID_CLEANUP] cleanupDeletedItems error: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -1085,12 +1089,11 @@ class HybridSharedListRepository implements SharedListRepository {
 
   @override
   Stream<SharedList?> watchSharedList(String groupId, String listId) async* {
-    developer
-        .log('🔴 [HYBRID_REALTIME] Stream開始: groupId=$groupId, listId=$listId');
+    Log.info('🔴 [HYBRID_REALTIME] Stream開始: groupId=$groupId, listId=$listId');
 
     // Dev環境またはオフライン時はポーリング方式にフォールバック
     if (!_isOnline || _firestoreRepo == null) {
-      developer.log('⚠️ [HYBRID_REALTIME] ポーリングモード（30秒間隔）');
+      Log.info('⚠️ [HYBRID_REALTIME] ポーリングモード（30秒間隔）');
 
       // 初回データ取得してからポーリング
       yield* Stream.periodic(const Duration(seconds: 30), (_) async {
@@ -1100,22 +1103,22 @@ class HybridSharedListRepository implements SharedListRepository {
     }
 
     // オンライン時はFirestoreのStreamを使用
-    developer.log('🌐 [HYBRID_REALTIME] Firestoreストリームモード');
+    Log.info('🌐 [HYBRID_REALTIME] Firestoreストリームモード');
 
     yield* _firestoreRepo!.watchSharedList(groupId, listId).map(
       (firestoreList) {
         // Firestoreから取得したデータをHiveにキャッシュ（バックグラウンド）
         if (firestoreList != null) {
-          _hiveRepo.updateSharedList(firestoreList).catchError((e) {
-            developer.log('⚠️ [HYBRID_REALTIME] Hiveキャッシュ保存エラー: $e');
+          _hiveRepo.updateSharedList(firestoreList).catchError((e, stackTrace) {
+            Log.error('⚠️ [HYBRID_REALTIME] Hiveキャッシュ保存エラー: $e', e, stackTrace);
           });
-          developer.log(
+          Log.info(
               '✅ [HYBRID_REALTIME] Hiveにキャッシュ: ${firestoreList.listName} (${firestoreList.activeItemCount}件)');
         }
         return firestoreList;
       },
-    ).handleError((error) {
-      developer.log('❌ [HYBRID_REALTIME] Streamエラー: $error');
+    ).handleError((error, stackTrace) {
+      Log.error('❌ [HYBRID_REALTIME] Streamエラー: $error', error, stackTrace);
       _isOnline = false; // オフラインマークを設定
 
       // エラー時はHiveキャッシュにフォールバック

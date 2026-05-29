@@ -18,8 +18,10 @@ class EmailTestService {
     String? customSubject,
     String? customBody,
   }) async {
-    final subject = customSubject ?? 'Go Shop テストメール - ${DateTime.now().toString()}';
-    final body = customBody ?? '''
+    final subject =
+        customSubject ?? 'Go Shop テストメール - ${DateTime.now().toString()}';
+    final body = customBody ??
+        '''
 こんにちは！
 
 これはGo Shopアプリからのテストメールです。
@@ -32,11 +34,10 @@ class EmailTestService {
 
 Go Shop開発チーム
       ''';
-    
-    try {
 
+    try {
       Log.info('📧 テストメール送信開始');
-      Log.info('   宛先: $testEmail');
+      Log.info('   宛先: ${Log.maskEmail(testEmail)}');
       Log.info('   件名: $subject');
 
       // Firebase Extensions Trigger Emailを使用してメール送信
@@ -48,12 +49,11 @@ Go Shop開発チーム
 
       Log.info('✅ Firebase Extensions経由でテストメール送信成功');
       return true;
-
     } catch (emailError) {
       Log.warning('⚠️ Firebase Extensions テストメール送信エラー: $emailError');
-      
+
       // エラータイプに応じた詳細ログ
-      if (emailError.toString().contains('missing credentials') || 
+      if (emailError.toString().contains('missing credentials') ||
           emailError.toString().contains('UNAUTHENTICATED')) {
         Log.error('🔑 Firebase Extensions認証エラー: SMTP設定を確認してください');
         Log.info('📋 対処方法:');
@@ -63,9 +63,9 @@ Go Shop開発チーム
       } else if (emailError.toString().contains('permission')) {
         Log.error('🚫 権限エラー: Firestore権限を確認してください');
       }
-      
+
       Log.info('📱 フォールバック: システムメールクライアントを起動します');
-      
+
       // フォールバック：システムメールクライアント起動
       try {
         await _openSystemEmailClient(testEmail, subject, body);
@@ -102,7 +102,8 @@ Go Shop開発チーム
   }
 
   /// システムメールクライアントでmailto URLを開く
-  Future<void> _openSystemEmailClient(String email, String subject, String body) async {
+  Future<void> _openSystemEmailClient(
+      String email, String subject, String body) async {
     final uri = Uri(
       scheme: 'mailto',
       path: email,
@@ -124,11 +125,12 @@ Go Shop開発チーム
   /// 複数の宛先にテストメールを送信
   Future<List<bool>> sendBulkTestEmails(List<String> emails) async {
     final results = <bool>[];
-    
+
     for (int i = 0; i < emails.length; i++) {
       try {
-        Log.info('📧 ${i + 1}/${emails.length}: ${emails[i]} にテストメール送信中...');
-        
+        Log.info(
+            '📧 ${i + 1}/${emails.length}: ${Log.maskEmail(emails[i])} にテストメール送信中...');
+
         final result = await sendTestEmail(
           testEmail: emails[i],
           customSubject: 'Go Shop 一括テストメール ${i + 1}/${emails.length}',
@@ -144,27 +146,26 @@ Go Shop 一括テストメール
 Go Shop開発チーム
           ''',
         );
-        
+
         results.add(result);
-        
+
         // レート制限を避けるため少し待機
         if (i < emails.length - 1) {
           await Future.delayed(const Duration(milliseconds: 1000));
         }
-        
       } catch (e) {
         Log.error('❌ ${emails[i]} への送信に失敗: $e');
         results.add(false);
       }
     }
-    
+
     return results;
   }
 
   /// メール送信設定の診断
   Future<Map<String, dynamic>> diagnoseEmailSettings() async {
     final diagnosis = <String, dynamic>{};
-    
+
     try {
       // Firestoreへの接続テスト
       await _firestore.collection('test_connection').add({
@@ -172,12 +173,11 @@ Go Shop開発チーム
         'test': 'connection_check',
       });
       diagnosis['firestore_connection'] = true;
-      
     } catch (e) {
       diagnosis['firestore_connection'] = false;
       diagnosis['firestore_error'] = e.toString();
     }
-    
+
     try {
       // mail コレクションへの書き込みテスト
       await _firestore.collection('mail').add({
@@ -189,12 +189,11 @@ Go Shop開発チーム
         'test': true,
       });
       diagnosis['mail_collection_write'] = true;
-      
     } catch (e) {
       diagnosis['mail_collection_write'] = false;
       diagnosis['mail_collection_error'] = e.toString();
     }
-    
+
     diagnosis['timestamp'] = DateTime.now().toIso8601String();
     return diagnosis;
   }

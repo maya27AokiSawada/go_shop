@@ -22,7 +22,7 @@ class AccessControlService {
 
     final user = _auth.currentUser;
     if (user != null) {
-      Log.info('🔒 グループ作成許可: 認証済みユーザー ${user.email}');
+      Log.info('🔒 グループ作成許可: 認証済みユーザー ${Log.maskEmail(user.email)}');
       return true;
     } else {
       Log.info('🔒 グループ作成拒否: 未認証ユーザー');
@@ -41,7 +41,7 @@ class AccessControlService {
 
     final user = _auth.currentUser;
     if (user != null) {
-      Log.info('🔒 グループ編集許可: 認証済みユーザー ${user.email}');
+      Log.info('🔒 グループ編集許可: 認証済みユーザー ${Log.maskEmail(user.email)}');
       return true;
     } else {
       Log.info('🔒 グループ編集拒否: 未認証ユーザー（グループ: $groupId）');
@@ -59,7 +59,7 @@ class AccessControlService {
 
     final user = _auth.currentUser;
     if (user != null) {
-      Log.info('🔒 メンバー招待許可: 認証済みユーザー ${user.email}');
+      Log.info('🔒 メンバー招待許可: 認証済みユーザー ${Log.maskEmail(user.email)}');
       return true;
     } else {
       Log.info('🔒 メンバー招待拒否: 未認証ユーザー');
@@ -115,7 +115,7 @@ class AccessControlService {
   /// シークレットモードの切り替え（認証済みユーザーまたは開発環境）
   Future<bool> toggleSecretMode() async {
     final user = _auth.currentUser;
-    Log.info('🔒 [TOGGLE] 現在のユーザー: ${user?.email ?? "未サインイン"}');
+    Log.info('🔒 [TOGGLE] 現在のユーザー: ${user?.email != null ? Log.maskEmail(user!.email) : "未サインイン"}');
     Log.info('🔒 [TOGGLE] 環境: ${F.appFlavor}');
 
     if (user == null && F.appFlavor != Flavor.dev) {

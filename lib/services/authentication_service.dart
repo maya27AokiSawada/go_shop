@@ -18,7 +18,7 @@ class AuthenticationService {
     required String password,
   }) async {
     try {
-      Log.info('🔐 サインイン開始: $email');
+      Log.info('🔐 サインイン開始: ${AppLogger.maskEmail(email)}');
 
       final userCredential = await _auth.signInWithEmailAndPassword(
         email: email,
@@ -47,7 +47,7 @@ class AuthenticationService {
     required String userName,
   }) async {
     try {
-      Log.info('📝 サインアップ開始: $email');
+      Log.info('📝 サインアップ開始: ${AppLogger.maskEmail(email)}');
 
       final userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,

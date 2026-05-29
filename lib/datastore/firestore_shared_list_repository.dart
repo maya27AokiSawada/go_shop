@@ -2,12 +2,12 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:developer' as developer show log;
 import '../models/shared_list.dart';
 import '../services/notification_service.dart';
 import '../services/user_preferences_service.dart';
 import '../services/error_log_service.dart';
 import '../providers/auth_provider.dart';
+import '../utils/app_logger.dart';
 import 'shared_list_repository.dart';
 import '../providers/firestore_provider.dart';
 
@@ -51,22 +51,23 @@ class FirestoreSharedListRepository implements SharedListRepository {
             .doc(newList.listId)
             .set(_sharedListToFirestore(newList));
       });
-      developer.log(
+      Log.info(
           '🆕 Firestoreに新規リスト作成: ${newList.listName} (ID: ${newList.listId})');
 
       // 🔥 リスト作成通知を非同期で送信（UIをブロックしない）
       _sendListCreatedNotificationAsync(groupId, newList.listId, listName);
 
       return newList;
-    } on FirebaseException catch (e) {
-      developer.log('❌ Firestoreへのリスト作成失敗: ${e.code} - ${e.message}');
+    } on FirebaseException catch (e, stackTrace) {
+      Log.error(
+          '❌ Firestoreへのリスト作成失敗: ${e.code} - ${e.message}', e, stackTrace);
       await ErrorLogService.logOperationError(
         'リスト作成',
         'Firestoreへのリスト作成に失敗しました: ${e.code} - ${e.message}',
       );
       rethrow;
-    } catch (e) {
-      developer.log('❌ Firestoreへのリスト作成失敗: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ Firestoreへのリスト作成失敗: $e', e, stackTrace);
       await ErrorLogService.logOperationError(
         'リスト作成',
         'リスト作成エラー: $e',
@@ -83,8 +84,7 @@ class FirestoreSharedListRepository implements SharedListRepository {
           .doc(list.listId)
           .set(_sharedListToFirestore(list));
     });
-    developer
-        .log('💾 Firestoreに既存IDでリスト保存: ${list.listName} (ID: ${list.listId})');
+    Log.info('💾 Firestoreに既存IDでリスト保存: ${list.listName} (ID: ${list.listId})');
   }
 
   @override
@@ -100,7 +100,7 @@ class FirestoreSharedListRepository implements SharedListRepository {
       return _sharedListFromFirestore(querySnapshot.docs.first);
     }
 
-    developer.log('⚠️ Firestoreにリストが見つからない (ID: $listId)');
+    Log.warning('⚠️ Firestoreにリストが見つからない (ID: $listId)');
     return null;
   }
 
@@ -109,7 +109,7 @@ class FirestoreSharedListRepository implements SharedListRepository {
     final query = await _collection(groupId).get();
     final lists =
         query.docs.map((doc) => _sharedListFromFirestore(doc)).toList();
-    developer.log('📋 Firestoreからグループ「$groupId」のリスト取得: ${lists.length}個');
+    Log.info('📋 Firestoreからグループ「$groupId」のリスト取得: ${lists.length}個');
     return lists;
   }
 
@@ -124,8 +124,8 @@ class FirestoreSharedListRepository implements SharedListRepository {
         oldListName =
             (existingDoc.data() as Map<String, dynamic>)['listName'] as String?;
       }
-    } catch (e) {
-      developer.log('⚠️ 既存リスト名取得失敗: $e');
+    } catch (e, stackTrace) {
+      Log.error('⚠️ 既存リスト名取得失敗: $e', e, stackTrace);
     }
 
     try {
@@ -135,23 +135,23 @@ class FirestoreSharedListRepository implements SharedListRepository {
             .doc(list.listId)
             .set(_sharedListToFirestore(list));
       });
-      developer
-          .log('💾 Firestoreでリスト更新: ${list.listName} (ID: ${list.listId})');
+      Log.info('💾 Firestoreでリスト更新: ${list.listName} (ID: ${list.listId})');
 
       // 🔥 リスト名が変更された場合、通知を非同期で送信（UIをブロックしない）
       if (oldListName != null && oldListName != list.listName) {
         _sendListRenamedNotificationAsync(
             list.groupId, list.listId, oldListName, list.listName);
       }
-    } on FirebaseException catch (e) {
-      developer.log('❌ Firestoreへのリスト更新失敗: ${e.code} - ${e.message}');
+    } on FirebaseException catch (e, stackTrace) {
+      Log.error(
+          '❌ Firestoreへのリスト更新失敗: ${e.code} - ${e.message}', e, stackTrace);
       await ErrorLogService.logOperationError(
         'リスト更新',
         'Firestoreリスト更新エラー: ${e.code} - ${e.message}',
       );
       rethrow;
-    } catch (e) {
-      developer.log('❌ リスト更新失敗: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ リスト更新失敗: $e', e, stackTrace);
       await ErrorLogService.logOperationError(
         'リスト更新',
         'リスト更新エラー: $e',
@@ -170,8 +170,8 @@ class FirestoreSharedListRepository implements SharedListRepository {
         listName =
             (listDoc.data() as Map<String, dynamic>)['listName'] as String?;
       }
-    } catch (e) {
-      developer.log('⚠️ リスト名取得失敗: $e');
+    } catch (e, stackTrace) {
+      Log.error('⚠️ リスト名取得失敗: $e', e, stackTrace);
     }
 
     try {
@@ -179,22 +179,22 @@ class FirestoreSharedListRepository implements SharedListRepository {
       await Future.microtask(() async {
         await _collection(groupId).doc(listId).delete();
       });
-      developer
-          .log('🗑️ Firestoreからリスト削除 (groupId: $groupId, listId: $listId)');
+      Log.info('🗑️ Firestoreからリスト削除 (groupId: $groupId, listId: $listId)');
 
       // 🔥 リスト削除通知を非同期で送信（UIをブロックしない）
       if (listName != null) {
         _sendListDeletedNotificationAsync(groupId, listId, listName);
       }
-    } on FirebaseException catch (e) {
-      developer.log('❌ Firestoreからのリスト削除失敗: ${e.code} - ${e.message}');
+    } on FirebaseException catch (e, stackTrace) {
+      Log.error(
+          '❌ Firestoreからのリスト削除失敗: ${e.code} - ${e.message}', e, stackTrace);
       await ErrorLogService.logOperationError(
         'リスト削除',
         'Firestoreリスト削除エラー: ${e.code} - ${e.message}',
       );
       rethrow;
-    } catch (e) {
-      developer.log('❌ リスト削除失敗: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ リスト削除失敗: $e', e, stackTrace);
       await ErrorLogService.logOperationError(
         'リスト削除',
         'リスト削除エラー: $e',
@@ -213,7 +213,7 @@ class FirestoreSharedListRepository implements SharedListRepository {
     }
 
     await batch.commit();
-    developer.log(
+    Log.info(
         '🗑️ Firestoreからグループ「$groupId」の全リスト削除: ${querySnapshot.docs.length}個');
   }
 
@@ -226,7 +226,7 @@ class FirestoreSharedListRepository implements SharedListRepository {
     await _collection(list.groupId).doc(listId).update({
       'items': FieldValue.arrayUnion([_sharedItemToFirestore(item)])
     });
-    developer.log('➕ Firestoreにアイテム追加: ${item.name} → リストID「$listId」');
+    Log.info('➕ Firestoreにアイテム追加: ${item.name} → リストID「$listId」');
   }
 
   @override
@@ -238,7 +238,7 @@ class FirestoreSharedListRepository implements SharedListRepository {
     await _collection(list.groupId).doc(listId).update({
       'items': FieldValue.arrayRemove([_sharedItemToFirestore(item)])
     });
-    developer.log('➖ Firestoreからアイテム削除: ${item.name} ← リストID「$listId」');
+    Log.info('➖ Firestoreからアイテム削除: ${item.name} ← リストID「$listId」');
   }
 
   @override
@@ -260,7 +260,7 @@ class FirestoreSharedListRepository implements SharedListRepository {
         return MapEntry(itemId, existingItem);
       });
       await updateSharedList(list.copyWith(items: updatedItems));
-      developer.log(
+      Log.info(
           '✅ Firestoreでアイテムステータス更新: ${item.name} → ${isPurchased ? "購入済み" : "未購入"}');
     }
   }
@@ -283,9 +283,9 @@ class FirestoreSharedListRepository implements SharedListRepository {
               listName: listName,
               creatorName: creatorName,
             );
-        developer.log('✅ リスト作成通知送信完了: $listName');
-      } catch (e) {
-        developer.log('⚠️ リスト作成通知送信エラー: $e');
+        Log.info('✅ リスト作成通知送信完了: $listName');
+      } catch (e, stackTrace) {
+        Log.error('⚠️ リスト作成通知送信エラー: $e', e, stackTrace);
       }
     });
   }
@@ -309,9 +309,9 @@ class FirestoreSharedListRepository implements SharedListRepository {
               newName: newName,
               renamerName: renamerName,
             );
-        developer.log('✅ リスト名前変更通知送信完了: $oldName → $newName');
-      } catch (e) {
-        developer.log('⚠️ リスト名前変更通知送信エラー: $e');
+        Log.info('✅ リスト名前変更通知送信完了: $oldName → $newName');
+      } catch (e, stackTrace) {
+        Log.error('⚠️ リスト名前変更通知送信エラー: $e', e, stackTrace);
       }
     });
   }
@@ -334,9 +334,9 @@ class FirestoreSharedListRepository implements SharedListRepository {
               listName: listName,
               deleterName: deleterName,
             );
-        developer.log('✅ リスト削除通知送信完了: $listName');
-      } catch (e) {
-        developer.log('⚠️ リスト削除通知送信エラー: $e');
+        Log.info('✅ リスト削除通知送信完了: $listName');
+      } catch (e, stackTrace) {
+        Log.error('⚠️ リスト削除通知送信エラー: $e', e, stackTrace);
       }
     });
   }
@@ -476,7 +476,7 @@ class FirestoreSharedListRepository implements SharedListRepository {
       });
 
       await updateSharedList(list.copyWith(items: remainingItems));
-      developer.log('🧹 Firestoreから購入済みアイテムクリア: リスト「${list.listName}」');
+      Log.info('🧹 Firestoreから購入済みアイテムクリア: リスト「${list.listName}」');
     }
   }
 
@@ -502,31 +502,31 @@ class FirestoreSharedListRepository implements SharedListRepository {
   // === Realtime Sync Methods ===
   @override
   Stream<SharedList?> watchSharedList(String groupId, String listId) {
-    developer.log('🔴 [REALTIME] Stream開始: groupId=$groupId, listId=$listId');
+    Log.info('🔴 [REALTIME] Stream開始: groupId=$groupId, listId=$listId');
 
     return _collection(groupId).doc(listId).snapshots().map((snapshot) {
       if (!snapshot.exists) {
-        developer.log('⚠️ [REALTIME] リストが存在しません: listId=$listId');
+        Log.warning('⚠️ [REALTIME] リストが存在しません: listId=$listId');
         return null;
       }
 
       final data = snapshot.data() as Map<String, dynamic>?;
       if (data == null) {
-        developer.log('⚠️ [REALTIME] データがnull: listId=$listId');
+        Log.warning('⚠️ [REALTIME] データがnull: listId=$listId');
         return null;
       }
 
       try {
         final list = _sharedListFromFirestore(snapshot);
-        developer.log(
+        Log.info(
             '✅ [REALTIME] リスト更新: ${list.listName} (${list.activeItemCount}件)');
         return list;
-      } catch (e) {
-        developer.log('❌ [REALTIME] パースエラー: $e');
+      } catch (e, stackTrace) {
+        Log.error('❌ [REALTIME] パースエラー: $e', e, stackTrace);
         return null;
       }
-    }).handleError((error) {
-      developer.log('❌ [REALTIME] Streamエラー: $error');
+    }).handleError((error, stackTrace) {
+      Log.error('❌ [REALTIME] Streamエラー: $error', error, stackTrace);
       return null;
     });
   }
@@ -535,17 +535,16 @@ class FirestoreSharedListRepository implements SharedListRepository {
   /// groupIdを指定して単一アイテムを追加（コレクショングループクエリ回避版）
   Future<void> addSingleItemWithGroupId(
       String listId, String groupId, SharedItem item) async {
-    developer.log(
+    Log.info(
         '🔄 [FIRESTORE_DIFF] Adding single item with groupId: ${item.name}');
-    developer
-        .log('📋 [FIRESTORE_DIFF] Target groupId: $groupId, listId: $listId');
+    Log.info('📋 [FIRESTORE_DIFF] Target groupId: $groupId, listId: $listId');
 
     await _collection(groupId).doc(listId).update({
       'items.${item.itemId}': _itemToFirestore(item),
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
-    developer.log('✅ [FIRESTORE_DIFF] Item added to Firestore');
+    Log.info('✅ [FIRESTORE_DIFF] Item added to Firestore');
 
     // アイテム追加通知を送信
     try {
@@ -570,14 +569,14 @@ class FirestoreSharedListRepository implements SharedListRepository {
               );
         }
       }
-    } catch (e) {
-      developer.log('⚠️ アイテム追加通知送信エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('⚠️ アイテム追加通知送信エラー: $e', e, stackTrace);
     }
   }
 
   @override
   Future<void> addSingleItem(String listId, SharedItem item) async {
-    developer.log('🔄 [FIRESTORE_DIFF] Adding single item: ${item.name}');
+    Log.info('🔄 [FIRESTORE_DIFF] Adding single item: ${item.name}');
 
     // Firestoreでは部分更新としてMapのキーを追加
     // items.{itemId} = item.toJson()
@@ -587,7 +586,7 @@ class FirestoreSharedListRepository implements SharedListRepository {
     try {
       list = await getSharedListById(listId);
     } catch (e) {
-      developer.log(
+      Log.warning(
           '⚠️ [FIRESTORE_DIFF] Local cache miss, trying Firestore query: $e');
       // キャッシュにない場合、コレクショングループクエリで検索
       final querySnapshot = await _firestore
@@ -605,34 +604,33 @@ class FirestoreSharedListRepository implements SharedListRepository {
 
     if (list == null) throw Exception('List not found: $listId');
 
-    developer.log('📋 [FIRESTORE_DIFF] Target groupId: ${list.groupId}');
+    Log.info('📋 [FIRESTORE_DIFF] Target groupId: ${list.groupId}');
     await _collection(list.groupId).doc(listId).update({
       'items.${item.itemId}': _itemToFirestore(item),
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
-    developer.log('✅ [FIRESTORE_DIFF] Item added to Firestore');
+    Log.info('✅ [FIRESTORE_DIFF] Item added to Firestore');
   }
 
   /// groupIdを指定して単一アイテムを削除（コレクショングループクエリ回避版）
   Future<void> removeSingleItemWithGroupId(
       String listId, String groupId, String itemId) async {
-    developer.log(
+    Log.info(
         '🔄 [FIRESTORE_DIFF] Logically deleting item with groupId: $itemId');
-    developer
-        .log('📋 [FIRESTORE_DIFF] Target groupId: $groupId, listId: $listId');
+    Log.info('📋 [FIRESTORE_DIFF] Target groupId: $groupId, listId: $listId');
 
     // 🔐 削除権限チェック
     final currentUser = _auth.currentUser;
     if (currentUser == null) {
-      developer.log('❌ [PERMISSION] 認証されていません - 削除権限なし');
+      Log.error('❌ [PERMISSION] 認証されていません - 削除権限なし');
       throw Exception('削除するにはログインが必要です');
     }
 
     // アイテム情報を取得
     final listDoc = await _collection(groupId).doc(listId).get();
     if (!listDoc.exists) {
-      developer.log('❌ [PERMISSION] リストが見つかりません');
+      Log.error('❌ [PERMISSION] リストが見つかりません');
       throw Exception('リストが見つかりません');
     }
 
@@ -641,7 +639,7 @@ class FirestoreSharedListRepository implements SharedListRepository {
     final itemData = itemsData[itemId] as Map<String, dynamic>?;
 
     if (itemData == null) {
-      developer.log('⚠️ [PERMISSION] アイテムが見つかりません');
+      Log.warning('⚠️ [PERMISSION] アイテムが見つかりません');
       return;
     }
 
@@ -651,7 +649,7 @@ class FirestoreSharedListRepository implements SharedListRepository {
     final groupDoc =
         await _firestore.collection('SharedGroups').doc(groupId).get();
     if (!groupDoc.exists) {
-      developer.log('❌ [PERMISSION] グループが見つかりません');
+      Log.error('❌ [PERMISSION] グループが見つかりません');
       throw Exception('グループが見つかりません');
     }
 
@@ -660,12 +658,12 @@ class FirestoreSharedListRepository implements SharedListRepository {
 
     // 権限チェック: アイテム登録者 or グループオーナー
     if (currentUser.uid != itemMemberId && currentUser.uid != ownerUid) {
-      developer.log(
+      Log.error(
           '❌ [PERMISSION] 削除権限なし - currentUser: ${currentUser.uid}, itemOwner: $itemMemberId, groupOwner: $ownerUid');
       throw Exception('このアイテムを削除する権限がありません');
     }
 
-    developer.log('✅ [PERMISSION] 削除権限確認完了 - User: ${currentUser.uid}');
+    Log.info('✅ [PERMISSION] 削除権限確認完了 - User: ${currentUser.uid}');
 
     // 論理削除: isDeleted = true に更新
     await _collection(groupId).doc(listId).update({
@@ -674,7 +672,7 @@ class FirestoreSharedListRepository implements SharedListRepository {
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
-    developer.log('✅ [FIRESTORE_DIFF] Item logically deleted');
+    Log.info('✅ [FIRESTORE_DIFF] Item logically deleted');
 
     // アイテム削除通知を送信
     try {
@@ -702,21 +700,21 @@ class FirestoreSharedListRepository implements SharedListRepository {
               );
         }
       }
-    } catch (e) {
-      developer.log('⚠️ アイテム削除通知送信エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('⚠️ アイテム削除通知送信エラー: $e', e, stackTrace);
     }
   }
 
   @override
   Future<void> removeSingleItem(String listId, String itemId) async {
-    developer.log('🔄 [FIRESTORE_DIFF] Logically deleting item: $itemId');
+    Log.info('🔄 [FIRESTORE_DIFF] Logically deleting item: $itemId');
 
     // まずローカルキャッシュからgroupIdを取得
     SharedList? list;
     try {
       list = await getSharedListById(listId);
     } catch (e) {
-      developer.log(
+      Log.warning(
           '⚠️ [FIRESTORE_DIFF] Local cache miss, trying Firestore query: $e');
       final querySnapshot = await _firestore
           .collectionGroup('sharedLists')
@@ -725,7 +723,7 @@ class FirestoreSharedListRepository implements SharedListRepository {
           .get();
 
       if (querySnapshot.docs.isEmpty) {
-        developer.log('⚠️ [FIRESTORE_DIFF] List not found: $listId');
+        Log.warning('⚠️ [FIRESTORE_DIFF] List not found: $listId');
         return;
       }
 
@@ -736,14 +734,14 @@ class FirestoreSharedListRepository implements SharedListRepository {
 
     final item = list.items[itemId];
     if (item == null) {
-      developer.log('⚠️ [FIRESTORE_DIFF] Item not found: $itemId');
+      Log.warning('⚠️ [FIRESTORE_DIFF] Item not found: $itemId');
       return;
     }
 
     // 🔐 削除権限チェック
     final currentUser = _auth.currentUser;
     if (currentUser == null) {
-      developer.log('❌ [PERMISSION] 認証されていません - 削除権限なし');
+      Log.error('❌ [PERMISSION] 認証されていません - 削除権限なし');
       throw Exception('削除するにはログインが必要です');
     }
 
@@ -751,7 +749,7 @@ class FirestoreSharedListRepository implements SharedListRepository {
     final groupDoc =
         await _firestore.collection('SharedGroups').doc(list.groupId).get();
     if (!groupDoc.exists) {
-      developer.log('❌ [PERMISSION] グループが見つかりません');
+      Log.error('❌ [PERMISSION] グループが見つかりません');
       throw Exception('グループが見つかりません');
     }
 
@@ -760,13 +758,13 @@ class FirestoreSharedListRepository implements SharedListRepository {
 
     // 権限チェック: アイテム登録者 or グループオーナー
     if (currentUser.uid != item.memberId && currentUser.uid != ownerUid) {
-      developer.log(
+      Log.error(
           '❌ [PERMISSION] 削除権限なし - currentUser: ${currentUser.uid}, itemOwner: ${item.memberId}, groupOwner: $ownerUid');
       throw Exception('このアイテムを削除する権限がありません');
     }
 
-    developer.log('✅ [PERMISSION] 削除権限確認完了 - User: ${currentUser.uid}');
-    developer.log('📋 [FIRESTORE_DIFF] Target groupId: ${list.groupId}');
+    Log.info('✅ [PERMISSION] 削除権限確認完了 - User: ${currentUser.uid}');
+    Log.info('📋 [FIRESTORE_DIFF] Target groupId: ${list.groupId}');
 
     // 論理削除: isDeleted = true に更新
     await _collection(list.groupId).doc(listId).update({
@@ -775,28 +773,27 @@ class FirestoreSharedListRepository implements SharedListRepository {
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
-    developer.log('✅ [FIRESTORE_DIFF] Item logically deleted');
+    Log.info('✅ [FIRESTORE_DIFF] Item logically deleted');
   }
 
   /// groupIdを指定して単一アイテムを更新（コレクショングループクエリ回避版）
   Future<void> updateSingleItemWithGroupId(
       String listId, String groupId, SharedItem item) async {
-    developer.log(
+    Log.info(
         '🔄 [FIRESTORE_DIFF] Updating single item with groupId: ${item.name}');
-    developer
-        .log('📋 [FIRESTORE_DIFF] Target groupId: $groupId, listId: $listId');
+    Log.info('📋 [FIRESTORE_DIFF] Target groupId: $groupId, listId: $listId');
 
     // 🔐 編集権限チェック（購入状態変更を除く）
     final currentUser = _auth.currentUser;
     if (currentUser == null) {
-      developer.log('❌ [PERMISSION] 認証されていません - 編集権限なし');
+      Log.error('❌ [PERMISSION] 認証されていません - 編集権限なし');
       throw Exception('編集するにはログインが必要です');
     }
 
     // 既存アイテム情報を取得
     final listDoc = await _collection(groupId).doc(listId).get();
     if (!listDoc.exists) {
-      developer.log('❌ [PERMISSION] リストが見つかりません');
+      Log.error('❌ [PERMISSION] リストが見つかりません');
       throw Exception('リストが見つかりません');
     }
 
@@ -805,7 +802,7 @@ class FirestoreSharedListRepository implements SharedListRepository {
     final existingItemData = itemsData[item.itemId] as Map<String, dynamic>?;
 
     if (existingItemData == null) {
-      developer.log('⚠️ [PERMISSION] アイテムが見つかりません');
+      Log.warning('⚠️ [PERMISSION] アイテムが見つかりません');
       return;
     }
 
@@ -820,7 +817,7 @@ class FirestoreSharedListRepository implements SharedListRepository {
       final groupDoc =
           await _firestore.collection('SharedGroups').doc(groupId).get();
       if (!groupDoc.exists) {
-        developer.log('❌ [PERMISSION] グループが見つかりません');
+        Log.error('❌ [PERMISSION] グループが見つかりません');
         throw Exception('グループが見つかりません');
       }
 
@@ -829,14 +826,14 @@ class FirestoreSharedListRepository implements SharedListRepository {
 
       // 権限チェック: アイテム登録者 or グループオーナー
       if (currentUser.uid != item.memberId && currentUser.uid != ownerUid) {
-        developer.log(
+        Log.error(
             '❌ [PERMISSION] 編集権限なし - currentUser: ${currentUser.uid}, itemOwner: ${item.memberId}, groupOwner: $ownerUid');
         throw Exception('このアイテムを編集する権限がありません');
       }
 
-      developer.log('✅ [PERMISSION] 編集権限確認完了 - User: ${currentUser.uid}');
+      Log.info('✅ [PERMISSION] 編集権限確認完了 - User: ${currentUser.uid}');
     } else {
-      developer.log('✅ [PERMISSION] 購入状態変更のみ - 権限チェックスキップ');
+      Log.info('✅ [PERMISSION] 購入状態変更のみ - 権限チェックスキップ');
     }
 
     await _collection(groupId).doc(listId).update({
@@ -844,17 +841,17 @@ class FirestoreSharedListRepository implements SharedListRepository {
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
-    developer.log('✅ [FIRESTORE_DIFF] Item updated in Firestore');
+    Log.info('✅ [FIRESTORE_DIFF] Item updated in Firestore');
   }
 
   @override
   Future<void> updateSingleItem(String listId, SharedItem item) async {
-    developer.log('🔄 [FIRESTORE_DIFF] Updating single item: ${item.name}');
+    Log.info('🔄 [FIRESTORE_DIFF] Updating single item: ${item.name}');
 
     // 🔐 編集権限チェック（購入状態変更を除く）
     final currentUser = _auth.currentUser;
     if (currentUser == null) {
-      developer.log('❌ [PERMISSION] 認証されていません - 編集権限なし');
+      Log.error('❌ [PERMISSION] 認証されていません - 編集権限なし');
       throw Exception('編集するにはログインが必要です');
     }
 
@@ -863,7 +860,7 @@ class FirestoreSharedListRepository implements SharedListRepository {
     try {
       list = await getSharedListById(listId);
     } catch (e) {
-      developer.log(
+      Log.warning(
           '⚠️ [FIRESTORE_DIFF] Local cache miss, trying Firestore query: $e');
       final querySnapshot = await _firestore
           .collectionGroup('sharedLists')
@@ -872,7 +869,7 @@ class FirestoreSharedListRepository implements SharedListRepository {
           .get();
 
       if (querySnapshot.docs.isEmpty) {
-        developer.log('⚠️ [FIRESTORE_DIFF] List not found: $listId');
+        Log.warning('⚠️ [FIRESTORE_DIFF] List not found: $listId');
         return;
       }
 
@@ -884,7 +881,7 @@ class FirestoreSharedListRepository implements SharedListRepository {
     // 既存のアイテム情報を取得
     final existingItem = list.items[item.itemId];
     if (existingItem == null) {
-      developer.log('⚠️ [FIRESTORE_DIFF] Item not found: ${item.itemId}');
+      Log.warning('⚠️ [FIRESTORE_DIFF] Item not found: ${item.itemId}');
       return;
     }
 
@@ -901,7 +898,7 @@ class FirestoreSharedListRepository implements SharedListRepository {
       final groupDoc =
           await _firestore.collection('SharedGroups').doc(list.groupId).get();
       if (!groupDoc.exists) {
-        developer.log('❌ [PERMISSION] グループが見つかりません');
+        Log.error('❌ [PERMISSION] グループが見つかりません');
         throw Exception('グループが見つかりません');
       }
 
@@ -910,36 +907,36 @@ class FirestoreSharedListRepository implements SharedListRepository {
 
       // 権限チェック: アイテム登録者 or グループオーナー
       if (currentUser.uid != item.memberId && currentUser.uid != ownerUid) {
-        developer.log(
+        Log.error(
             '❌ [PERMISSION] 編集権限なし - currentUser: ${currentUser.uid}, itemOwner: ${item.memberId}, groupOwner: $ownerUid');
         throw Exception('このアイテムを編集する権限がありません');
       }
 
-      developer.log('✅ [PERMISSION] 編集権限確認完了 - User: ${currentUser.uid}');
+      Log.info('✅ [PERMISSION] 編集権限確認完了 - User: ${currentUser.uid}');
     } else {
-      developer.log('✅ [PERMISSION] 購入状態変更のみ - 権限チェックスキップ');
+      Log.info('✅ [PERMISSION] 購入状態変更のみ - 権限チェックスキップ');
     }
 
-    developer.log('📋 [FIRESTORE_DIFF] Target groupId: ${list.groupId}');
+    Log.info('📋 [FIRESTORE_DIFF] Target groupId: ${list.groupId}');
     await _collection(list.groupId).doc(listId).update({
       'items.${item.itemId}': _itemToFirestore(item),
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
-    developer.log('✅ [FIRESTORE_DIFF] Item updated in Firestore');
+    Log.info('✅ [FIRESTORE_DIFF] Item updated in Firestore');
   }
 
   @override
   Future<void> cleanupDeletedItems(String listId,
       {int olderThanDays = 30}) async {
-    developer.log('🧹 [FIRESTORE_CLEANUP] Starting cleanup for list: $listId');
+    Log.info('🧹 [FIRESTORE_CLEANUP] Starting cleanup for list: $listId');
 
     // まずローカルキャッシュからgroupIdを取得
     SharedList? list;
     try {
       list = await getSharedListById(listId);
     } catch (e) {
-      developer.log(
+      Log.warning(
           '⚠️ [FIRESTORE_CLEANUP] Local cache miss, trying Firestore query: $e');
       final querySnapshot = await _firestore
           .collectionGroup('sharedLists')
@@ -948,7 +945,7 @@ class FirestoreSharedListRepository implements SharedListRepository {
           .get();
 
       if (querySnapshot.docs.isEmpty) {
-        developer.log('⚠️ [FIRESTORE_CLEANUP] List not found: $listId');
+        Log.warning('⚠️ [FIRESTORE_CLEANUP] List not found: $listId');
         return;
       }
 
@@ -960,7 +957,7 @@ class FirestoreSharedListRepository implements SharedListRepository {
     // 削除済みアイテムを物理削除（全体を保存し直す）
     await updateSharedList(list);
 
-    developer.log('✅ [FIRESTORE_CLEANUP] Cleanup completed');
+    Log.info('✅ [FIRESTORE_CLEANUP] Cleanup completed');
   }
 
   /// SharedItemをFirestore形式に変換

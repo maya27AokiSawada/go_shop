@@ -67,7 +67,8 @@ class UserPreferencesService {
       operation: () async {
         final prefs = await SharedPreferences.getInstance();
         final userEmail = prefs.getString(_keyUserEmail);
-        Log.info('📱 SharedPreferences getUserEmail: $userEmail');
+        Log.info(
+            '📱 SharedPreferences getUserEmail: ${AppLogger.maskEmail(userEmail)}');
         return userEmail ?? '';
       },
       context: 'USER_PREFS:getUserEmail',
@@ -82,7 +83,7 @@ class UserPreferencesService {
             final prefs = await SharedPreferences.getInstance();
             final success = await prefs.setString(_keyUserEmail, userEmail);
             Log.info(
-                '💾 SharedPreferences saveUserEmail: $userEmail - 成功: $success');
+                '💾 SharedPreferences saveUserEmail: ${AppLogger.maskEmail(userEmail)} - 成功: $success');
             return success;
           },
           context: 'USER_PREFS:saveUserEmail',
@@ -273,7 +274,7 @@ class UserPreferencesService {
       operation: () async {
         final prefs = await SharedPreferences.getInstance();
         final email = prefs.getString(_keySavedEmailForSignIn);
-        Log.info('📧 記憶メールアドレス取得: $email');
+        Log.info('📧 記憶メールアドレス取得: ${AppLogger.maskEmail(email)}');
         return email ?? '';
       },
       context: 'USER_PREFS:getSavedEmailForSignIn',
@@ -288,7 +289,8 @@ class UserPreferencesService {
             final prefs = await SharedPreferences.getInstance();
             final success =
                 await prefs.setString(_keySavedEmailForSignIn, email);
-            Log.info('💾 記憶メールアドレス保存: $email - 成功: $success');
+            Log.info(
+                '💾 記憶メールアドレス保存: ${AppLogger.maskEmail(email)} - 成功: $success');
             return success;
           },
           context: 'USER_PREFS:saveEmailForSignIn',

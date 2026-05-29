@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart'; // ValueNotifier用
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:math' as math;
 import '../models/shared_group.dart';
 import '../datastore/shared_group_repository.dart';
@@ -130,8 +129,8 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
 
       // 代わりに、ValueNotifierの変更自体がトリガーとなるように設計
       // UI側でValueListenableBuilderまたはChangeNotifierProviderを使用することを推奨
-    } catch (e) {
-      AppLogger.info('⚠️ [HYBRID_REPO] Provider更新失敗（無視）: $e');
+    } catch (e, stackTrace) {
+      AppLogger.error('⚠️ [HYBRID_REPO] Provider更新失敗（無視）: $e', e, stackTrace);
     }
   }
 
@@ -338,8 +337,8 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
   Future<List<SharedGroup>> getLocalGroups() async {
     try {
       return await _hiveRepo.getAllGroups();
-    } catch (e) {
-      AppLogger.info('❌ getLocalGroups error: $e');
+    } catch (e, stackTrace) {
+      AppLogger.error('❌ getLocalGroups error: $e', e, stackTrace);
       return [];
     }
   }
@@ -389,8 +388,9 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
           AppLogger.info('✅ [HYBRID] Hiveキャッシュ更新完了');
 
           return firestoreGroups;
-        } catch (e) {
-          AppLogger.info('⚠️ [HYBRID_REPO] Firestore取得エラー、Hiveにフォールバック: $e');
+        } catch (e, stackTrace) {
+          AppLogger.error('⚠️ [HYBRID_REPO] Firestore取得エラー、Hiveにフォールバック: $e', e,
+              stackTrace);
           AppLogger.warning('⚠️ [HYBRID] Firestore取得エラー、Hiveにフォールバック: $e');
 
           // Firestoreエラー時のみHiveフォールバック
@@ -411,8 +411,8 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
       }
 
       return cachedGroups;
-    } catch (e) {
-      AppLogger.info('❌ [HYBRID_REPO] getAllGroups error: $e');
+    } catch (e, stackTrace) {
+      AppLogger.error('❌ [HYBRID_REPO] getAllGroups error: $e', e, stackTrace);
       AppLogger.error('❌ [HYBRID] getAllGroups error: $e');
       rethrow;
     }
@@ -425,8 +425,8 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
 
     try {
       return await _getAllGroupsInternal();
-    } catch (e) {
-      AppLogger.info('❌ [HYBRID_REPO] UI用グループ取得エラー: $e');
+    } catch (e, stackTrace) {
+      AppLogger.error('❌ [HYBRID_REPO] UI用グループ取得エラー: $e', e, stackTrace);
       // エラー時は空リストを返す（UIクラッシュを防ぐ）
       return [];
     }
@@ -437,21 +437,22 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
     // 🔥 サインイン必須仕様: Firestore優先
     if (_firestoreRepo != null) {
       try {
-        developer
-            .log('🔥 [HYBRID_REPO] Firestore優先モード - Firestoreから取得: $groupId');
+        AppLogger.info(
+            '🔥 [HYBRID_REPO] Firestore優先モード - Firestoreから取得: $groupId');
 
         // 1. Firestoreから取得（常に最新）
         final firestoreGroup = await _firestoreRepo!.getGroupById(groupId);
-        developer
-            .log('✅ [HYBRID_REPO] Firestore取得完了: ${firestoreGroup.groupName}');
+        AppLogger.info(
+            '✅ [HYBRID_REPO] Firestore取得完了: ${firestoreGroup.groupName}');
 
         // 2. Hiveにキャッシュ（次回の高速読み取りのため）
         await _hiveRepo.saveGroup(firestoreGroup);
         AppLogger.info('✅ [HYBRID_REPO] Hiveキャッシュ更新完了');
 
         return firestoreGroup;
-      } catch (e) {
-        AppLogger.info('⚠️ [HYBRID_REPO] Firestore取得エラー、Hiveにフォールバック: $e');
+      } catch (e, stackTrace) {
+        AppLogger.error(
+            '⚠️ [HYBRID_REPO] Firestore取得エラー、Hiveにフォールバック: $e', e, stackTrace);
         // Firestoreエラー時のみHiveフォールバック
         return await _hiveRepo.getGroupById(groupId);
       }
@@ -478,8 +479,8 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
     try {
       // メンバープール用グループはHiveのみに保存する
       if (groupId == 'member_pool') {
-        developer
-            .log('🔒 [HYBRID_REPO] Member pool group - Hiveのみ: $groupName');
+        AppLogger.info(
+            '🔒 [HYBRID_REPO] Member pool group - Hiveのみ: $groupName');
         final newGroup =
             await _hiveRepo.createGroup(groupId, groupName, member);
         return newGroup;
@@ -500,8 +501,8 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
         try {
           // 1. Firestoreに作成（Firestore SDKがオフライン時も即座にローカルキャッシュに書き込み）
           // 🔥 FIX: 10秒タイムアウトを追加（万が一Firestoreがハングした場合のセーフティネット）
-          developer
-              .log('🔥 [HYBRID_REPO] Calling _firestoreRepo!.createGroup()...');
+          AppLogger.info(
+              '🔥 [HYBRID_REPO] Calling _firestoreRepo!.createGroup()...');
           final newGroup = await _firestoreRepo!
               .createGroup(groupId, groupName, member)
               .timeout(
@@ -519,9 +520,10 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
           AppLogger.info('✅ [HYBRID_REPO] Hiveキャッシュ保存完了: $groupName');
 
           return newGroup;
-        } catch (e) {
+        } catch (e, stackTrace) {
           // 🔥 FIX: Firestoreエラー/タイムアウト時はHiveフォールバックでユーザーをブロックしない
-          AppLogger.warning('⚠️ [HYBRID_REPO] Firestore作成失敗、Hiveフォールバック: $e');
+          AppLogger.error(
+              '⚠️ [HYBRID_REPO] Firestore作成失敗、Hiveフォールバック: $e', e, stackTrace);
           final hiveGroup =
               await _hiveRepo.createGroup(groupId, groupName, member);
           AppLogger.info('✅ [HYBRID_REPO] Hiveフォールバック保存完了: $groupName');
@@ -540,8 +542,8 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
         AppLogger.info('✅ [HYBRID_REPO] Hive保存完了: $groupName');
         return newGroup;
       }
-    } catch (e) {
-      AppLogger.info('❌ [HYBRID_REPO] グループ作成エラー: $e');
+    } catch (e, stackTrace) {
+      AppLogger.error('❌ [HYBRID_REPO] グループ作成エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -576,9 +578,11 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
           await _executeSyncOperation(operation);
           AppLogger.info(
               '✅ [HYBRID_REPO] 同期成功: ${operation.type} ${operation.groupId}');
-        } catch (e) {
+        } catch (e, stackTrace) {
           AppLogger.error(
-              '❌ [HYBRID_REPO] 同期失敗: ${operation.type} ${operation.groupId} - $e');
+              '❌ [HYBRID_REPO] 同期失敗: ${operation.type} ${operation.groupId} - $e',
+              e,
+              stackTrace);
 
           // 再試行回数が3回未満なら再キュー
           if (operation.retryCount < 3) {
@@ -651,8 +655,8 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
         default:
           throw Exception('Unknown sync operation: ${operation.type}');
       }
-    } catch (e) {
-      AppLogger.info('❌ Sync operation failed: $e');
+    } catch (e, stackTrace) {
+      AppLogger.error('❌ Sync operation failed: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -732,8 +736,8 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
           AppLogger.info('🔄 Firestore changes synced back to cache');
         }
         return updatedGroup;
-      } catch (e) {
-        AppLogger.info('⚠️ [HYBRID UPDATE] Firestore同期失敗: $e');
+      } catch (e, stackTrace) {
+        AppLogger.error('⚠️ [HYBRID UPDATE] Firestore同期失敗: $e', e, stackTrace);
         _syncQueue.add(
           _SyncOperation(
             type: 'update',
@@ -757,8 +761,8 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
         // 🔄 同期終了を通知
         _setSyncing(false);
       }
-    } catch (e) {
-      AppLogger.info('❌ updateGroup error: $e');
+    } catch (e, stackTrace) {
+      AppLogger.error('❌ updateGroup error: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -799,8 +803,8 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
       try {
         await _firestoreRepo!.deleteGroup(groupId);
         Log.info('✅ [DELETE] Firestore削除完了: $groupId');
-      } catch (e) {
-        Log.error('❌ [DELETE] Firestore削除失敗: $e');
+      } catch (e, stackTrace) {
+        Log.error('❌ [DELETE] Firestore削除失敗: $e', e, stackTrace);
         // Firestoreへの削除が失敗してもHive削除は完了しているので処理継続
       } finally {
         // 🔄 同期終了を通知
@@ -808,8 +812,8 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
       }
 
       return deletedGroup;
-    } catch (e) {
-      AppLogger.info('❌ deleteGroup error: $e');
+    } catch (e, stackTrace) {
+      AppLogger.error('❌ deleteGroup error: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -822,18 +826,22 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
   Future<SharedGroup> addMember(
       String groupId, SharedGroupMember member) async {
     try {
+      AppLogger.info(
+          '➕ [HYBRID] addMember: $groupId, memberId: ${member.memberId}');
       final updatedGroup = await _hiveRepo.addMember(groupId, member);
 
       if (_isOnline && F.appFlavor == Flavor.prod && _firestoreRepo != null) {
         _unawaited(_firestoreRepo!.addMember(groupId, member).then((_) {
           AppLogger.info('🔄 AddMember synced to Firestore');
-        }).catchError((e) {
-          AppLogger.info('⚠️ Failed to sync addMember to Firestore: $e');
+        }).catchError((e, stackTrace) {
+          AppLogger.error(
+              '⚠️ Failed to sync addMember to Firestore: $e', e, stackTrace);
         }));
       }
 
       return updatedGroup;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      AppLogger.error('❌ addMember error: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -842,18 +850,22 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
   Future<SharedGroup> removeMember(
       String groupId, SharedGroupMember member) async {
     try {
+      AppLogger.info(
+          '➖ [HYBRID] removeMember: $groupId, memberId: ${member.memberId}');
       final updatedGroup = await _hiveRepo.removeMember(groupId, member);
 
       if (_isOnline && F.appFlavor == Flavor.prod && _firestoreRepo != null) {
         _unawaited(_firestoreRepo!.removeMember(groupId, member).then((_) {
           AppLogger.info('🔄 RemoveMember synced to Firestore');
-        }).catchError((e) {
-          AppLogger.info('⚠️ Failed to sync removeMember to Firestore: $e');
+        }).catchError((e, stackTrace) {
+          AppLogger.error(
+              '⚠️ Failed to sync removeMember to Firestore: $e', e, stackTrace);
         }));
       }
 
       return updatedGroup;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      AppLogger.error('❌ removeMember error: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -899,18 +911,22 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
   Future<SharedGroup> setMemberId(
       String oldId, String newId, String? contact) async {
     try {
+      AppLogger.info(
+          '🆔 [HYBRID] setMemberId: oldId=$oldId, newId=$newId, contact=${AppLogger.maskEmail(contact)}');
       final updatedGroup = await _hiveRepo.setMemberId(oldId, newId, contact);
 
       if (_isOnline && F.appFlavor == Flavor.prod && _firestoreRepo != null) {
         _unawaited(_firestoreRepo!.setMemberId(oldId, newId, contact).then((_) {
           AppLogger.info('🔄 SetMemberId synced to Firestore');
-        }).catchError((e) {
-          AppLogger.info('⚠️ Failed to sync setMemberId to Firestore: $e');
+        }).catchError((e, stackTrace) {
+          AppLogger.error(
+              '⚠️ Failed to sync setMemberId to Firestore: $e', e, stackTrace);
         }));
       }
 
       return updatedGroup;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      AppLogger.error('❌ setMemberId error: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -921,8 +937,8 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
 
   /// Fire-and-forget 非同期実行
   void _unawaited(Future<void> operation) {
-    operation.catchError((e) {
-      AppLogger.info('⚠️ Unawaited operation failed: $e');
+    operation.catchError((e, stackTrace) {
+      AppLogger.error('⚠️ Unawaited operation failed: $e', e, stackTrace);
     });
   }
 
@@ -969,8 +985,8 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
       AppLogger.info(
           '✅ Force sync completed: ${firestoreGroups.length} groups');
       _isOnline = true;
-    } on TimeoutException catch (e) {
-      AppLogger.info('⏱️ Force sync timeout: $e');
+    } on TimeoutException catch (e, stackTrace) {
+      AppLogger.error('⏱️ Force sync timeout: $e', e, stackTrace);
       _isOnline = false;
       final networkMonitor = _ref.read(networkMonitorProvider);
       if (networkMonitor.currentStatus == NetworkStatus.online) {
@@ -979,8 +995,8 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
         networkMonitor.startAutoRetry();
       }
       rethrow;
-    } catch (e) {
-      AppLogger.info('❌ Force sync failed: $e');
+    } catch (e, stackTrace) {
+      AppLogger.error('❌ Force sync failed: $e', e, stackTrace);
       _isOnline = false;
       rethrow;
     } finally {
@@ -1035,20 +1051,22 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
           }
 
           AppLogger.info('ℹ️ 同期不要: ${group.groupName}');
-        } on TimeoutException catch (e) {
-          AppLogger.info('⏱️ Push timeout for ${group.groupName}: $e');
+        } on TimeoutException catch (e, stackTrace) {
+          AppLogger.error(
+              '⏱️ Push timeout for ${group.groupName}: $e', e, stackTrace);
           final networkMonitor = _ref.read(networkMonitorProvider);
           if (networkMonitor.currentStatus == NetworkStatus.online) {
             AppLogger.info('🔍 Checking Firestore connection after timeout');
             networkMonitor.checkFirestoreConnection();
             networkMonitor.startAutoRetry();
           }
-        } catch (e) {
-          AppLogger.info('⚠️ Failed to push ${group.groupName}: $e');
+        } catch (e, stackTrace) {
+          AppLogger.error(
+              '⚠️ Failed to push ${group.groupName}: $e', e, stackTrace);
         }
       }
-    } catch (e) {
-      AppLogger.info('❌ Push operation failed: $e');
+    } catch (e, stackTrace) {
+      AppLogger.error('❌ Push operation failed: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -1059,8 +1077,8 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
       final box = _ref.read(SharedGroupBoxProvider);
       await box.clear();
       AppLogger.info('🗑️ Cache cleared');
-    } catch (e) {
-      AppLogger.info('❌ Failed to clear cache: $e');
+    } catch (e, stackTrace) {
+      AppLogger.error('❌ Failed to clear cache: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -1116,8 +1134,8 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
         AppLogger.info('⚠️ Firestore からグループが取得できませんでした。Hive はクリアしません。');
         AppLogger.info('💡 考えられる原因: ユーザーがグループに属していない、セキュリティルール制限、認証エラー等');
       }
-    } on TimeoutException catch (e) {
-      AppLogger.info('⏱️ Firestore同期タイムアウト: $e');
+    } on TimeoutException catch (e, stackTrace) {
+      AppLogger.error('⏱️ Firestore同期タイムアウト: $e', e, stackTrace);
       final networkMonitor = _ref.read(networkMonitorProvider);
       if (networkMonitor.currentStatus == NetworkStatus.online) {
         AppLogger.info('🔍 Checking Firestore connection after timeout');
@@ -1125,8 +1143,8 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
         networkMonitor.startAutoRetry();
       }
       rethrow;
-    } catch (e) {
-      AppLogger.info('❌ Firestore同期エラー: $e');
+    } catch (e, stackTrace) {
+      AppLogger.error('❌ Firestore同期エラー: $e', e, stackTrace);
       AppLogger.info('💡 エラーの詳細: ${e.toString()}');
       rethrow;
     } finally {
@@ -1206,9 +1224,11 @@ class HybridSharedGroupRepository implements SharedGroupRepository {
           _notifyProgress(InitializationStatus.fullyReady, 'Firestore接続完了');
           return;
         }
-      } catch (e) {
+      } catch (e, stackTrace) {
         AppLogger.error(
-            '🔄 [HybridRepo] Firestore retry $_firestoreRetryCount/$_maxRetries failed: $e');
+            '🔄 [HybridRepo] Firestore retry $_firestoreRetryCount/$_maxRetries failed: $e',
+            e,
+            stackTrace);
       }
 
       if (_firestoreRetryCount < _maxRetries) {

@@ -4,7 +4,7 @@ import '../datastore/shared_group_repository.dart';
 import '../helpers/validation_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:developer' as developer;
+import '../utils/app_logger.dart';
 
 /// FirestoreをHive互換インターフェースで使用するためのアダプター
 class FirestoreSharedGroupAdapter implements SharedGroupRepository {
@@ -47,11 +47,11 @@ class FirestoreSharedGroupAdapter implements SharedGroupRepository {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      developer.log('➕ Firestore: メンバー追加: ${member.name} to $groupId');
+      Log.info('➕ Firestore: メンバー追加: ${member.name} to $groupId');
       final group = _mapToGroup(groupData);
       return group.copyWith(members: updatedMembers);
-    } catch (e) {
-      developer.log('❌ Firestore: メンバー追加エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ Firestore: メンバー追加エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -76,10 +76,10 @@ class FirestoreSharedGroupAdapter implements SharedGroupRepository {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      developer.log('🚫 Firestore: メンバー削除: ${member.name} from $groupId');
+      Log.info('🚫 Firestore: メンバー削除: ${member.name} from $groupId');
       return _mapToGroup(groupData).copyWith(members: updatedMembers);
-    } catch (e) {
-      developer.log('❌ Firestore: メンバー削除エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ Firestore: メンバー削除エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -102,10 +102,10 @@ class FirestoreSharedGroupAdapter implements SharedGroupRepository {
 
       // 🔥 CHANGED: グループがない場合も空配列を返す（初回セットアップ画面へ）
 
-      developer.log('📋 Firestore: グループ取得: ${groups.length}個');
+      Log.info('📋 Firestore: グループ取得: ${groups.length}個');
       return groups;
-    } catch (e) {
-      developer.log('❌ Firestore: グループ取得エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ Firestore: グループ取得エラー: $e', e, stackTrace);
       // 🔥 CHANGED: エラー時も空配列を返す（初回セットアップ画面へ）
       return [];
     }
@@ -145,10 +145,10 @@ class FirestoreSharedGroupAdapter implements SharedGroupRepository {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      developer.log('🆕 Firestore: グループ作成: $groupName ($groupId)');
+      Log.info('🆕 Firestore: グループ作成: $groupName ($groupId)');
       return newGroup;
-    } catch (e) {
-      developer.log('❌ Firestore: グループ作成エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ Firestore: グループ作成エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -157,7 +157,7 @@ class FirestoreSharedGroupAdapter implements SharedGroupRepository {
   Future<SharedGroup> deleteGroup(String groupId) async {
     try {
       await _groupsCollection.doc(groupId).delete();
-      developer.log('🗑️ Firestore: グループ削除: $groupId');
+      Log.info('🗑️ Firestore: グループ削除: $groupId');
 
       // 削除したグループを返す（削除されたことを示すため）
       return SharedGroup(
@@ -168,8 +168,8 @@ class FirestoreSharedGroupAdapter implements SharedGroupRepository {
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
-    } catch (e) {
-      developer.log('❌ Firestore: グループ削除エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ Firestore: グループ削除エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -189,8 +189,8 @@ class FirestoreSharedGroupAdapter implements SharedGroupRepository {
         return _docToGroup(doc);
       }
       throw Exception('Group not found: $groupId');
-    } catch (e) {
-      developer.log('❌ Firestore: グループ取得エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ Firestore: グループ取得エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -206,10 +206,10 @@ class FirestoreSharedGroupAdapter implements SharedGroupRepository {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      developer.log('🔄 Firestore: グループ更新: $groupId');
+      Log.info('🔄 Firestore: グループ更新: $groupId');
       return group;
-    } catch (e) {
-      developer.log('❌ Firestore: グループ更新エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ Firestore: グループ更新エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -230,7 +230,7 @@ class FirestoreSharedGroupAdapter implements SharedGroupRepository {
   @override
   Future<void> syncMemberPool() async {
     // TODO: Firestore対応
-    developer.log('📝 Firestore: Member pool sync (not implemented)');
+    Log.info('📝 Firestore: Member pool sync (not implemented)');
   }
 
   @override
@@ -273,11 +273,11 @@ class FirestoreSharedGroupAdapter implements SharedGroupRepository {
       } else if (value is String) {
         return DateTime.parse(value);
       } else {
-        developer.log('⚠️ Unknown datetime type: ${value.runtimeType}');
+        Log.warning('⚠️ Unknown datetime type: ${value.runtimeType}');
         return DateTime.now();
       }
-    } catch (e) {
-      developer.log('❌ DateTime parse error: $e, value: $value');
+    } catch (e, stackTrace) {
+      Log.error('❌ DateTime parse error: $e, value: $value', e, stackTrace);
       return DateTime.now();
     }
   }
@@ -316,11 +316,11 @@ class FirestoreSharedGroupAdapter implements SharedGroupRepository {
       } else if (value is String) {
         return DateTime.parse(value);
       } else {
-        developer.log('⚠️ Unknown datetime type: ${value.runtimeType}');
+        Log.warning('⚠️ Unknown datetime type: ${value.runtimeType}');
         return null;
       }
-    } catch (e) {
-      developer.log('❌ DateTime parse error: $e, value: $value');
+    } catch (e, stackTrace) {
+      Log.error('❌ DateTime parse error: $e, value: $value', e, stackTrace);
       return null;
     }
   }
@@ -360,7 +360,7 @@ class FirestoreSharedGroupAdapter implements SharedGroupRepository {
   Future<int> cleanupDeletedGroups() async {
     // FirestoreアダプターではHiveのような物理削除は不要
     // 論理削除されたデータは自動的にクエリから除外される
-    developer.log(
+    Log.info(
         '⚠️ [ADAPTER] cleanupDeletedGroups is not implemented (Firestore manages this automatically)');
     return 0;
   }

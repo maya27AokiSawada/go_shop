@@ -26,6 +26,30 @@ class AppLogger {
     return '${userId.substring(0, 3)}***';
   }
 
+  /// プライバシー保護: メールアドレスを隠蔽（例: user@example.com -> us***@e*******.com）
+  static String maskEmail(String? email) {
+    if (email == null || email.isEmpty) return '***';
+    final parts = email.split('@');
+    if (parts.length != 2) return '***';
+
+    final local = parts[0];
+    final domain = parts[1];
+
+    final maskedLocal =
+        local.length <= 2 ? '$local***' : '${local.substring(0, 2)}***';
+
+    final domainParts = domain.split('.');
+    if (domainParts.isEmpty) return '$maskedLocal@***';
+
+    final mainDomain = domainParts[0];
+    final maskedDomain = mainDomain.length <= 1
+        ? '$mainDomain***'
+        : '${mainDomain.substring(0, 1)}***';
+
+    final tld = domainParts.skip(1).join('.');
+    return '$maskedLocal@$maskedDomain.$tld';
+  }
+
   /// プライバシー保護: 名前を隠蔽（最初の2文字のみ表示）
   static String maskName(String? name) {
     if (name == null || name.isEmpty) return '**';

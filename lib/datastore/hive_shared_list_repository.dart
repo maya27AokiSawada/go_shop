@@ -1,10 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
-import 'dart:developer' as developer;
 import '../models/shared_list.dart';
 import '../providers/hive_provider.dart';
 import '../providers/auth_provider.dart';
 import '../helpers/validation_service.dart';
+import '../utils/app_logger.dart';
 import 'shared_list_repository.dart';
 
 class HiveSharedListRepository implements SharedListRepository {
@@ -20,10 +20,10 @@ class HiveSharedListRepository implements SharedListRepository {
       }
       return ref.read(sharedListBoxProvider);
     } on StateError catch (e) {
-      developer.log('⚠️ Box not available (normal during restart): $e');
+      Log.warning('⚠️ Box not available (normal during restart): $e');
       rethrow;
-    } catch (e) {
-      developer.log('❌ Failed to access SharedList box: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ Failed to access SharedList box: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -57,20 +57,20 @@ class HiveSharedListRepository implements SharedListRepository {
     try {
       // listIdをキーとして保存（updateSharedListと統一）
       await box.put(list.listId, list);
-      developer.log(
+      Log.info(
           '💾 HiveSharedListRepository: データを保存 - Key: ${list.listId}, Items: ${list.activeItems.length}個'); // 🆕 activeItems使用
-      developer.log('📦 Box contents after save: ${box.length} lists total');
+      Log.info('📦 Box contents after save: ${box.length} lists total');
 
       // 保存確認
       final saved = box.get(list.listId);
       if (saved != null) {
-        developer.log(
+        Log.info(
             '✅ 保存確認成功: ${saved.activeItems.length}個のアイテム'); // 🆕 activeItems使用
       } else {
-        developer.log('❌ 保存確認失敗: データが見つかりません');
+        Log.warning('❌ 保存確認失敗: データが見つかりません');
       }
-    } catch (e) {
-      developer.log('❌ HiveSharedListRepository: 保存エラー - $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ HiveSharedListRepository: 保存エラー - $e', e, stackTrace);
       rethrow;
     }
   }
@@ -127,7 +127,7 @@ class HiveSharedListRepository implements SharedListRepository {
         ..remove(item.itemId);
       final updatedList = list.copyWith(items: updatedItems);
       await box.put(userKey, updatedList);
-      developer.log('🗑️ アイテム削除: ${item.name} (${updatedItems.length}個残存)');
+      Log.info('🗑️ アイテム削除: ${item.name} (${updatedItems.length}個残存)');
     }
   }
 
@@ -148,8 +148,7 @@ class HiveSharedListRepository implements SharedListRepository {
 
       final updatedList = list.copyWith(items: updatedItems);
       await box.put(userKey, updatedList);
-      developer
-          .log('✅ アイテムステータス更新: ${item.name} → ${isPurchased ? "購入済み" : "未購入"}');
+      Log.info('✅ アイテムステータス更新: ${item.name} → ${isPurchased ? "購入済み" : "未購入"}');
     }
   }
 
@@ -157,12 +156,12 @@ class HiveSharedListRepository implements SharedListRepository {
   Future<void> deleteList(String groupId) async {
     final userKey = _getUserSpecificKey(groupId);
     await box.delete(userKey);
-    developer.log('🗑️ リスト削除: $userKey');
+    Log.info('🗑️ リスト削除: $userKey');
   }
 
   List<SharedList> getAllLists() {
     final lists = box.values.toList();
-    developer.log('📋 全リスト取得: ${lists.length}個');
+    Log.info('📋 全リスト取得: ${lists.length}個');
     return lists;
   }
 
@@ -260,11 +259,11 @@ class HiveSharedListRepository implements SharedListRepository {
 
       // Save to Hive using listId as key
       await box.put(newList.listId, newList);
-      developer.log('🆕 新規リスト作成: ${newList.listName} (ID: ${newList.listId})');
+      Log.info('🆕 新規リスト作成: ${newList.listName} (ID: ${newList.listId})');
 
       return newList;
-    } catch (e) {
-      developer.log('❌ リスト作成エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ リスト作成エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -273,11 +272,10 @@ class HiveSharedListRepository implements SharedListRepository {
   Future<SharedList?> getSharedListById(String listId) async {
     try {
       final list = box.get(listId);
-      developer
-          .log('🔍 リスト取得 (ID: $listId): ${list != null ? "成功" : "見つからない"}');
+      Log.info('🔍 リスト取得 (ID: $listId): ${list != null ? "成功" : "見つからない"}');
       return list;
-    } catch (e) {
-      developer.log('❌ リスト取得エラー (ID: $listId): $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ リスト取得エラー (ID: $listId): $e', e, stackTrace);
       return null;
     }
   }
@@ -289,10 +287,10 @@ class HiveSharedListRepository implements SharedListRepository {
       final lists =
           box.values.where((list) => list.groupId == groupId).toList();
 
-      developer.log('📋 グループ「$groupId」のリスト取得 (Hive): ${lists.length}個');
+      Log.info('📋 グループ「$groupId」のリスト取得 (Hive): ${lists.length}個');
       return lists;
-    } catch (e) {
-      developer.log('❌ グループリスト取得エラー (Hive, Group: $groupId): $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ グループリスト取得エラー (Hive, Group: $groupId): $e', e, stackTrace);
       return [];
     }
   }
@@ -301,9 +299,9 @@ class HiveSharedListRepository implements SharedListRepository {
   Future<void> updateSharedList(SharedList list) async {
     try {
       await box.put(list.listId, list);
-      developer.log('💾 リスト更新: ${list.listName} (ID: ${list.listId})');
-    } catch (e) {
-      developer.log('❌ リスト更新エラー (ID: ${list.listId}): $e');
+      Log.info('💾 リスト更新: ${list.listName} (ID: ${list.listId})');
+    } catch (e, stackTrace) {
+      Log.error('❌ リスト更新エラー (ID: ${list.listId}): $e', e, stackTrace);
       rethrow;
     }
   }
@@ -316,13 +314,13 @@ class HiveSharedListRepository implements SharedListRepository {
         // Remove from Hive
         await box.delete(listId);
 
-        developer.log(
+        Log.info(
             '🗑️ リスト削除: ${list.listName} (groupId: $groupId, listId: $listId)');
       } else {
-        developer.log('⚠️ 削除対象リストが見つからない (groupId: $groupId, listId: $listId)');
+        Log.warning('⚠️ 削除対象リストが見つからない (groupId: $groupId, listId: $listId)');
       }
-    } catch (e) {
-      developer.log('❌ リスト削除エラー (ID: $listId): $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ リスト削除エラー (ID: $listId): $e', e, stackTrace);
       rethrow;
     }
   }
@@ -344,9 +342,9 @@ class HiveSharedListRepository implements SharedListRepository {
 
       // 🆕 差分同期メソッドを使用
       await addSingleItem(listId, item);
-      developer.log('➕ アイテム追加: ${item.name} → リスト「${list.listName}」');
-    } catch (e) {
-      developer.log('❌ アイテム追加エラー (ListID: $listId): $e');
+      Log.info('➕ アイテム追加: ${item.name} → リスト「${list.listName}」');
+    } catch (e, stackTrace) {
+      Log.error('❌ アイテム追加エラー (ListID: $listId): $e', e, stackTrace);
       rethrow;
     }
   }
@@ -361,9 +359,9 @@ class HiveSharedListRepository implements SharedListRepository {
 
       // 🆕 差分同期（論理削除）を使用
       await removeSingleItem(listId, item.itemId);
-      developer.log('➖ アイテム削除: ${item.name} ← リスト「${list.listName}」');
-    } catch (e) {
-      developer.log('❌ アイテム削除エラー (ListID: $listId): $e');
+      Log.info('➖ アイテム削除: ${item.name} ← リスト「${list.listName}」');
+    } catch (e, stackTrace) {
+      Log.error('❌ アイテム削除エラー (ListID: $listId): $e', e, stackTrace);
       rethrow;
     }
   }
@@ -384,10 +382,10 @@ class HiveSharedListRepository implements SharedListRepository {
       );
       await updateSingleItem(listId, updatedItem);
 
-      developer.log(
+      Log.info(
           '✅ アイテムステータス更新: ${item.name} → ${isPurchased ? "購入済み" : "未購入"} (リスト: ${list.listName})');
-    } catch (e) {
-      developer.log('❌ アイテムステータス更新エラー (ListID: $listId): $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ アイテムステータス更新エラー (ListID: $listId): $e', e, stackTrace);
       rethrow;
     }
   }
@@ -411,10 +409,10 @@ class HiveSharedListRepository implements SharedListRepository {
         updatedAt: DateTime.now(),
       );
       await box.put(listId, updatedList);
-      developer.log(
+      Log.info(
           '🧹 購入済みアイテムクリア: リスト「${list.listName}」 (残り: ${remainingItems.length}個)');
-    } catch (e) {
-      developer.log('❌ 購入済みアイテムクリアエラー (ListID: $listId): $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ 購入済みアイテムクリアエラー (ListID: $listId): $e', e, stackTrace);
       rethrow;
     }
   }
@@ -427,7 +425,7 @@ class HiveSharedListRepository implements SharedListRepository {
       final existingLists = await getSharedListsByGroup(groupId);
       if (existingLists.isNotEmpty) {
         // Return the first list as default
-        developer.log('📋 デフォルトリスト取得: ${existingLists.first.listName}');
+        Log.info('📋 デフォルトリスト取得: ${existingLists.first.listName}');
         return existingLists.first;
       }
 
@@ -442,10 +440,10 @@ class HiveSharedListRepository implements SharedListRepository {
         description: 'デフォルトの買い物リスト',
       );
 
-      developer.log('🆕 デフォルトリスト作成: ${defaultList.listName}');
+      Log.info('🆕 デフォルトリスト作成: ${defaultList.listName}');
       return defaultList;
-    } catch (e) {
-      developer.log('❌ デフォルトリスト取得/作成エラー (Group: $groupId): $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ デフォルトリスト取得/作成エラー (Group: $groupId): $e', e, stackTrace);
       rethrow;
     }
   }
@@ -459,21 +457,23 @@ class HiveSharedListRepository implements SharedListRepository {
 
       if (keysToDelete.isNotEmpty) {
         await box.deleteAll(keysToDelete);
-        developer.log(
+        Log.info(
             '🗑️ Group $groupId lists deleted from Hive: ${keysToDelete.length} lists');
       }
-    } catch (e) {
-      developer.log(
-          '❌ Error deleting shopping lists by group ID $groupId from Hive: $e');
+    } catch (e, stackTrace) {
+      Log.error(
+          '❌ Error deleting shopping lists by group ID $groupId from Hive: $e',
+          e,
+          stackTrace);
       rethrow;
     }
   }
 
-  // === Realtime Sync Methods ===
+  // === Realtime Sync Constants ===
+  // 🔴 [HIVE_REALTIME] Polling is no-op, returns empty stream.
   @override
   Stream<SharedList?> watchSharedList(String groupId, String listId) {
-    // Hive doesn't support native streams, so we'll return a periodic polling stream
-    developer.log('🔴 [HIVE_REALTIME] ポーリング開始: listId=$listId');
+    Log.info('🔴 [HIVE_REALTIME] ポーリング開始: listId=$listId');
 
     return Stream.periodic(const Duration(seconds: 30), (_) async {
       return await getSharedListById(listId);
@@ -483,7 +483,7 @@ class HiveSharedListRepository implements SharedListRepository {
   // 🆕 Map-based Differential Sync Methods
   @override
   Future<void> addSingleItem(String listId, SharedItem item) async {
-    developer.log('🔄 [HIVE_DIFF] Adding single item: ${item.name}');
+    Log.info('🔄 [HIVE_DIFF] Adding single item: ${item.name}');
 
     final list = await getSharedListById(listId);
     if (list == null) throw Exception('List not found: $listId');
@@ -497,19 +497,19 @@ class HiveSharedListRepository implements SharedListRepository {
     );
 
     await updateSharedList(updatedList);
-    developer.log('✅ [HIVE_DIFF] Item added to Hive');
+    Log.info('✅ [HIVE_DIFF] Item added to Hive');
   }
 
   @override
   Future<void> removeSingleItem(String listId, String itemId) async {
-    developer.log('🔄 [HIVE_DIFF] Logically deleting item: $itemId');
+    Log.info('🔄 [HIVE_DIFF] Logically deleting item: $itemId');
 
     final list = await getSharedListById(listId);
     if (list == null) return;
 
     final item = list.items[itemId];
     if (item == null) {
-      developer.log('⚠️ [HIVE_DIFF] Item not found: $itemId');
+      Log.warning('⚠️ [HIVE_DIFF] Item not found: $itemId');
       return;
     }
 
@@ -527,12 +527,12 @@ class HiveSharedListRepository implements SharedListRepository {
     );
 
     await updateSharedList(updatedList);
-    developer.log('✅ [HIVE_DIFF] Item logically deleted in Hive');
+    Log.info('✅ [HIVE_DIFF] Item logically deleted in Hive');
   }
 
   @override
   Future<void> updateSingleItem(String listId, SharedItem item) async {
-    developer.log('🔄 [HIVE_DIFF] Updating single item: ${item.name}');
+    Log.info('🔄 [HIVE_DIFF] Updating single item: ${item.name}');
 
     final list = await getSharedListById(listId);
     if (list == null) return;
@@ -546,13 +546,13 @@ class HiveSharedListRepository implements SharedListRepository {
     );
 
     await updateSharedList(updatedList);
-    developer.log('✅ [HIVE_DIFF] Item updated in Hive');
+    Log.info('✅ [HIVE_DIFF] Item updated in Hive');
   }
 
   @override
   Future<void> cleanupDeletedItems(String listId,
       {int olderThanDays = 30}) async {
-    developer.log('🧹 [HIVE_CLEANUP] Starting cleanup for list: $listId');
+    Log.info('🧹 [HIVE_CLEANUP] Starting cleanup for list: $listId');
 
     final list = await getSharedListById(listId);
     if (list == null) return;
@@ -570,7 +570,7 @@ class HiveSharedListRepository implements SharedListRepository {
 
     final removedCount = list.items.length - cleanedItems.length;
     if (removedCount == 0) {
-      developer.log('🧹 [HIVE_CLEANUP] No items to cleanup');
+      Log.info('🧹 [HIVE_CLEANUP] No items to cleanup');
       return;
     }
 
@@ -580,7 +580,7 @@ class HiveSharedListRepository implements SharedListRepository {
     );
 
     await updateSharedList(cleanedList);
-    developer.log('🧹 [HIVE_CLEANUP] Removed $removedCount items from Hive');
+    Log.info('🧹 [HIVE_CLEANUP] Removed $removedCount items from Hive');
   }
 }
 

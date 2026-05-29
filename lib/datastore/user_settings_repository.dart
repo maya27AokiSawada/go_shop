@@ -1,9 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:logger/logger.dart';
 import '../models/user_settings.dart';
-
-final logger = Logger();
+import '../utils/app_logger.dart';
 
 abstract class UserSettingsRepository {
   Future<UserSettings> getSettings();
@@ -36,14 +34,14 @@ class HiveUserSettingsRepository implements UserSettingsRepository {
         return rawSettings;
       } else if (rawSettings != null) {
         // 不正な型の場合、削除してデフォルト値を返す
-        logger.i(
+        Log.warning(
             'Warning: Invalid UserSettings type found (${rawSettings.runtimeType}), clearing...');
         await _box.delete(_settingsKey);
       }
 
       return const UserSettings();
-    } catch (e) {
-      logger.i('Error loading UserSettings: $e');
+    } catch (e, stackTrace) {
+      Log.error('Error loading UserSettings: $e', e, stackTrace);
       // エラーの場合は念のためキーを削除してデフォルト値を返す
       try {
         await _box.delete(_settingsKey);
@@ -59,20 +57,20 @@ class HiveUserSettingsRepository implements UserSettingsRepository {
 
   @override
   Future<void> updateUserName(String userName) async {
-    logger.i('💾 ユーザー名更新開始: $userName');
+    Log.info('💾 ユーザー名更新開始: $userName');
 
     final currentSettings = await getSettings();
-    logger.i('📖 現在の設定: ${currentSettings.toString()}');
+    Log.info('📖 現在の設定: ${currentSettings.toString()}');
 
     final updatedSettings = currentSettings.copyWith(userName: userName);
-    logger.i('🔄 更新後の設定: ${updatedSettings.toString()}');
+    Log.info('🔄 更新後の設定: ${updatedSettings.toString()}');
 
     await saveSettings(updatedSettings);
-    logger.i('✅ ユーザー名更新完了: $userName');
+    Log.info('✅ ユーザー名更新完了: $userName');
 
     // 確認のため再読み込み
     final verifySettings = await getSettings();
-    logger.i('🔍 保存確認: ${verifySettings.userName}');
+    Log.info('🔍 保存確認: ${verifySettings.userName}');
   }
 
   @override
@@ -93,7 +91,7 @@ class HiveUserSettingsRepository implements UserSettingsRepository {
   @override
   Future<void> clearAllSettings() async {
     await _box.delete(_settingsKey);
-    logger.i('🗑️ 全ユーザー設定を削除しました');
+    Log.info('🗑️ 全ユーザー設定を削除しました');
   }
 
   @override
@@ -101,7 +99,7 @@ class HiveUserSettingsRepository implements UserSettingsRepository {
     final currentSettings = await getSettings();
     final updatedSettings = currentSettings.copyWith(userId: userId);
     await saveSettings(updatedSettings);
-    logger.i('🆔 ユーザーIDを更新: $userId');
+    Log.info('🆔 ユーザーIDを更新: $userId');
   }
 
   @override
@@ -109,7 +107,7 @@ class HiveUserSettingsRepository implements UserSettingsRepository {
     final currentSettings = await getSettings();
     final updatedSettings = currentSettings.copyWith(userEmail: userEmail);
     await saveSettings(updatedSettings);
-    logger.i('📧 ユーザーメールアドレスを更新: $userEmail');
+    Log.info('📧 ユーザーメールアドレスを更新: ${Log.maskEmail(userEmail)}');
   }
 
   @override
@@ -117,27 +115,27 @@ class HiveUserSettingsRepository implements UserSettingsRepository {
     final currentSettings = await getSettings();
     final currentUserId = currentSettings.userId;
 
-    logger.i(
+    Log.info(
         '🔍 [UID_CHECK] Stored UID: "$currentUserId", New UID: "$newUserId"');
 
     // 新しいUIDが仮設定の場合は常にfalseを返す（変更として扱わない）
     if (_isTemporaryUid(newUserId)) {
-      logger.i('🔄 新しいUIDが仮設定 - 変更なしとして扱います: $currentUserId → $newUserId');
+      Log.info('🔄 新しいUIDが仮設定 - 変更なしとして扱います: $currentUserId → $newUserId');
       return false;
     }
 
     // 初回サインイン時（前回のUIDが空 or 仮設定）はfalseを返す
     if (currentUserId.isEmpty || _isTemporaryUid(currentUserId)) {
-      logger.i('🆕 初回UID設定 or 仮設定から本設定へ: "$currentUserId" → "$newUserId"');
+      Log.info('🆕 初回UID設定 or 仮設定から本設定へ: "$currentUserId" → "$newUserId"');
       return false;
     }
 
     // UIDが変更されたかチェック（両方とも有効なUIDの場合のみ）
     final hasChanged = currentUserId != newUserId;
     if (hasChanged) {
-      logger.i('⚠️ UID変更を検知: $currentUserId → $newUserId');
+      Log.info('⚠️ UID変更を検知: $currentUserId → $newUserId');
     } else {
-      logger.i('✅ 同じUIDでサインイン: $newUserId');
+      Log.info('✅ 同じUIDでサインイン: $newUserId');
     }
 
     return hasChanged;

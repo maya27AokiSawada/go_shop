@@ -1,7 +1,6 @@
 import 'package:hive/hive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
-import 'dart:developer' as developer;
 import 'dart:io' show FileSystemException, Platform;
 import '../models/shared_group.dart';
 import '../datastore/shared_group_repository.dart';
@@ -20,20 +19,20 @@ class HiveSharedGroupRepository implements SharedGroupRepository {
 
   // Boxへのアクセスをプロバイダ経由で取得（再試行機能付き安全性チェック）
   Future<Box<SharedGroup>> get _boxAsync async {
-    // 最大5回、500ms間隔で再試行
+    // 最大10回、500ms間隔で再試行
     for (int attempt = 1; attempt <= 10; attempt++) {
       try {
-        developer.log('🔍 [HIVE_REPO] _box アクセス開始 (試行 $attempt/10)');
+        Log.info('🔍 [HIVE_REPO] _box アクセス開始 (試行 $attempt/10)');
 
         // Hive初期化が完了しているかチェック
         final isInitialized = _ref.read(hiveInitializationStatusProvider);
-        developer.log('🔍 [HIVE_REPO] 初期化状態: $isInitialized');
+        Log.info('🔍 [HIVE_REPO] 初期化状態: $isInitialized');
 
         if (!isInitialized) {
           if (attempt < 10) {
             // 待機時間を段階的に増加: 500ms → 1000ms → 1500ms...
             final waitMs = attempt * 500;
-            developer.log('🔄 [HIVE_REPO] 初期化待機中... ${waitMs}ms後に再試行');
+            Log.info('🔄 [HIVE_REPO] 初期化待機中... ${waitMs}ms後に再試行');
             await Future.delayed(Duration(milliseconds: waitMs));
             continue;
           }
@@ -43,12 +42,12 @@ class HiveSharedGroupRepository implements SharedGroupRepository {
 
         // Boxが利用可能かチェック
         final isBoxOpen = Hive.isBoxOpen('SharedGroups');
-        developer.log('🔍 [HIVE_REPO] Box開いているか: $isBoxOpen');
+        Log.info('🔍 [HIVE_REPO] Box開いているか: $isBoxOpen');
 
         if (!isBoxOpen) {
           if (attempt < 10) {
             final waitMs = attempt * 500;
-            developer.log('🔄 [HIVE_REPO] Box開封待機中... ${waitMs}ms後に再試行');
+            Log.info('🔄 [HIVE_REPO] Box開封待機中... ${waitMs}ms後に再試行');
             await Future.delayed(Duration(milliseconds: waitMs));
             continue;
           }
@@ -57,22 +56,25 @@ class HiveSharedGroupRepository implements SharedGroupRepository {
         }
 
         final box = _ref.read(SharedGroupBoxProvider);
-        developer.log('✅ [HIVE_REPO] Box取得成功 (試行 $attempt/5)');
+        Log.info('✅ [HIVE_REPO] Box取得成功 (試行 $attempt/5)');
         return box;
-      } on StateError catch (e) {
+      } on StateError catch (e, stackTrace) {
         if (attempt == 5) {
-          developer.log('⚠️ Box state error after $attempt attempts: $e');
+          Log.error(
+              '⚠️ Box state error after $attempt attempts: $e', e, stackTrace);
           rethrow;
         }
-        developer.log('⚠️ Box state error (attempt $attempt): $e - 再試行中...');
+        Log.warning('⚠️ Box state error (attempt $attempt): $e - 再試行中...');
         await Future.delayed(const Duration(milliseconds: 500));
-      } catch (e) {
+      } catch (e, stackTrace) {
         if (attempt == 5) {
-          developer.log(
-              '❌ Failed to access SharedGroup box after $attempt attempts: $e');
+          Log.error(
+              '❌ Failed to access SharedGroup box after $attempt attempts: $e',
+              e,
+              stackTrace);
           rethrow;
         }
-        developer.log('❌ Box access error (attempt $attempt): $e - 再試行中...');
+        Log.warning('❌ Box access error (attempt $attempt): $e - 再試行中...');
         await Future.delayed(const Duration(milliseconds: 500));
       }
     }
@@ -107,17 +109,19 @@ class HiveSharedGroupRepository implements SharedGroupRepository {
   Future<void> saveGroup(SharedGroup group) async {
     try {
       final box = await _boxAsync;
-      developer.log(
+      Log.info(
           '🔍 [HIVE SAVE] groupId: ${group.groupId}, allowedUid: ${group.allowedUid}');
       await box.put(group.groupId, group);
-      developer.log(
+      Log.info(
           '💾 SharedGroup保存完了: ${group.groupName} (${group.members?.length ?? 0}メンバー, allowedUid: ${group.allowedUid.length}個)');
-    } on StateError catch (e) {
-      developer.log(
-          '⚠️ Box not available during saveGroup (app may be restarting): $e');
+    } on StateError catch (e, stackTrace) {
+      Log.error(
+          '⚠️ Box not available during saveGroup (app may be restarting): $e',
+          e,
+          stackTrace);
       rethrow;
-    } catch (e) {
-      developer.log('❌ SharedGroup保存エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ SharedGroup保存エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -130,11 +134,8 @@ class HiveSharedGroupRepository implements SharedGroupRepository {
       final groups = box.values.toList();
 
       // デバッグ: 全グループの削除フラグを確認
-      developer.log('🔍 [HIVE_REPO] Box内の全グループ (${groups.length}個):');
       Log.info('🔍 [HIVE_REPO] Box内の全グループ (${groups.length}個):');
       for (final group in groups) {
-        developer.log(
-            '  - ${group.groupName} (${group.groupId}): isDeleted=${group.isDeleted}, allowedUid=${group.allowedUid}');
         Log.info(
             '  - ${group.groupName} (${group.groupId}): isDeleted=${group.isDeleted}, allowedUid=${group.allowedUid}');
       }
@@ -145,18 +146,18 @@ class HiveSharedGroupRepository implements SharedGroupRepository {
               (group) => group.groupId != '__member_pool__' && !group.isDeleted)
           .toList();
 
-      developer.log(
-          '📋 [HIVE_REPO] getAllGroups: ${visibleGroups.length}グループ取得 (削除済み除外)');
       Log.info(
           '📋 [HIVE_REPO] getAllGroups: ${visibleGroups.length}グループ取得 (削除済み除外)');
 
       return visibleGroups;
-    } on StateError catch (e) {
-      developer.log(
-          '⚠️ Box not available during getAllGroups (app may be restarting): $e');
+    } on StateError catch (e, stackTrace) {
+      Log.error(
+          '⚠️ Box not available during getAllGroups (app may be restarting): $e',
+          e,
+          stackTrace);
       return []; // 空のリストを返してクラッシュを防ぐ
-    } catch (e) {
-      developer.log('❌ 全グループ取得エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ 全グループ取得エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -202,19 +203,19 @@ class HiveSharedGroupRepository implements SharedGroupRepository {
 
   @override
   Future<SharedGroup> getGroupById(String groupId) async {
-    developer.log('🔍 [HIVE] グループ検索開始: $groupId');
+    Log.info('🔍 [HIVE] グループ検索開始: $groupId');
 
     // 安全なBox取得（再試行機能付き）
     final box = await _boxAsync;
-    developer.log('🔍 [HIVE] 利用可能なキー: ${box.keys.toList()}');
+    Log.info('🔍 [HIVE] 利用可能なキー: ${box.keys.toList()}');
 
     final group = box.get(groupId);
     if (group != null) {
-      developer.log('✅ [HIVE] グループ見つかりました: ${group.groupName}');
+      Log.info('✅ [HIVE] グループ見つかりました: ${group.groupName}');
       return group;
     }
 
-    developer.log('❌ [HIVE] グループが見つかりません: $groupId');
+    Log.warning('❌ [HIVE] グループが見が見つかりません: $groupId');
 
     // 🔥 REMOVED: デフォルトグループ作成機能削除
     throw Exception('Group not found');
@@ -254,10 +255,10 @@ class HiveSharedGroupRepository implements SharedGroupRepository {
 
       final updatedGroup = group.addMember(member);
       await box.put(groupId, updatedGroup);
-      developer.log('👥 メンバー追加: ${member.name} to ${group.groupName}');
+      Log.info('👥 メンバー追加: ${member.name} to ${group.groupName}');
       return updatedGroup;
-    } catch (e) {
-      developer.log('❌ メンバー追加エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ メンバー追加エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -284,10 +285,10 @@ class HiveSharedGroupRepository implements SharedGroupRepository {
 
       final updatedGroup = group.removeMember(member);
       await box.put(groupId, updatedGroup);
-      developer.log('🚫 メンバー削除: ${member.name} from ${group.groupName}');
+      Log.info('🚫 メンバー削除: ${member.name} from ${group.groupName}');
       return updatedGroup;
-    } catch (e) {
-      developer.log('❌ メンバー削除エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ メンバー削除エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -296,18 +297,18 @@ class HiveSharedGroupRepository implements SharedGroupRepository {
   Future<SharedGroup> createGroup(
       String groupId, String groupName, SharedGroupMember member) async {
     try {
-      developer.log('🆕 [HIVE_REPO] createGroup開始: $groupId, $groupName');
-      developer.log('🔍 [HIVE_REPO] 安全なBoxアクセス開始...');
+      Log.info('🆕 [HIVE_REPO] createGroup開始: $groupId, $groupName');
+      Log.info('🔍 [HIVE_REPO] 安全なBoxアクセス開始...');
 
       // 安全なBox取得（再試行機能付き）
       final box = await _boxAsync;
-      developer.log('✅ [HIVE_REPO] 安全なBoxアクセス成功');
+      Log.info('✅ [HIVE_REPO] 安全なBoxアクセス成功');
 
       // 既存グループチェック
-      developer.log('🔍 [HIVE_REPO] 既存グループチェック開始...');
+      Log.info('🔍 [HIVE_REPO] 既存グループチェック開始...');
       final existingGroup = box.get(groupId);
-      developer.log('✅ [HIVE_REPO] 既存グループチェック完了');
-      developer.log('🔍 [HIVE_REPO] 既存グループ存在: ${existingGroup != null}');
+      Log.info('✅ [HIVE_REPO] 既存グループチェック完了');
+      Log.info('🔍 [HIVE_REPO] 既存グループ存在: ${existingGroup != null}');
 
       if (existingGroup != null) {
         throw Exception('Group already exists: $groupId');
@@ -316,25 +317,25 @@ class HiveSharedGroupRepository implements SharedGroupRepository {
       // グループ名の重複チェック（デフォルトグループ以外）
       // デッドロック回避: box.valuesから直接取得して重複チェック
       if (groupId != 'default_group') {
-        developer.log('🔍 [HIVE_REPO] グループ名重複チェック開始');
+        Log.info('🔍 [HIVE_REPO] グループ名重複チェック開始');
         final allGroupsFromBox = box.values.toList();
 
         // 🔥 論理削除されたグループを除外して重複チェック
         final activeGroups =
             allGroupsFromBox.where((g) => !g.isDeleted).toList();
-        developer.log(
+        Log.info(
             '🔍 [HIVE_REPO] アクティブグループ数: ${activeGroups.length} (削除済み除外前: ${allGroupsFromBox.length})');
 
         final validation =
             ValidationService.validateGroupName(groupName, activeGroups);
         if (validation.hasError) {
-          developer.log('❌ [HIVE_REPO] グループ名重複エラー: ${validation.errorMessage}');
+          Log.warning('❌ [HIVE_REPO] グループ名重複エラー: ${validation.errorMessage}');
           throw Exception(validation.errorMessage);
         }
-        developer.log('✅ [HIVE_REPO] グループ名重複チェック完了 - OK');
+        Log.info('✅ [HIVE_REPO] グループ名重複チェック完了 - OK');
       }
 
-      developer.log('🔍 [HIVE_REPO] SharedGroup作成開始');
+      Log.info('🔍 [HIVE_REPO] SharedGroup作成開始');
 
       // SharedGroup.create()ファクトリーを使用してallowedUidを自動設定
       final newGroup = SharedGroup.create(
@@ -344,17 +345,17 @@ class HiveSharedGroupRepository implements SharedGroupRepository {
       ).copyWith(
         syncStatus: SyncStatus.local, // ⚠️ ローカル専用グループとして作成
       );
-      developer.log(
+      Log.info(
           '✅ [HIVE_REPO] SharedGroupオブジェクト作成完了 (syncStatus=local, allowedUid=[${member.memberId}])');
 
-      developer.log('🔍 [HIVE_REPO] Box.put()実行開始');
+      Log.info('🔍 [HIVE_REPO] Box.put()実行開始');
       await box.put(groupId, newGroup);
-      developer.log('✅ [HIVE_REPO] Box.put()実行完了');
+      Log.info('✅ [HIVE_REPO] Box.put()実行完了');
 
-      developer.log('🆕 グループ作成: $groupName ($groupId)');
+      Log.info('🆕 グループ作成: $groupName ($groupId)');
       return newGroup;
-    } catch (e) {
-      developer.log('❌ グループ作成エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ グループ作成エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -378,23 +379,22 @@ class HiveSharedGroupRepository implements SharedGroupRepository {
 
         // 確認のため保存後のデータを取得
         final savedGroup = box.get(groupId);
-        developer.log('🚫 グループを論理削除: ${group.groupName} ($groupId)');
         Log.warning('🚫 [HIVE_REPO] グループを論理削除: ${group.groupName} ($groupId)');
         Log.warning('   スタックトレース: ${StackTrace.current}');
-        developer.log('   保存前 isDeleted: ${group.isDeleted}');
-        developer.log('   保存後 isDeleted: ${savedGroup?.isDeleted}');
+        Log.info('   保存前 isDeleted: ${group.isDeleted}');
+        Log.info('   保存後 isDeleted: ${savedGroup?.isDeleted}');
 
         return deletedGroup;
-      } catch (e) {
+      } catch (e, stackTrace) {
         final isRetryable = _isRecoverableBoxClosedError(e);
         if (isRetryable && attempt < 2) {
-          developer.log(
+          Log.warning(
               '⚠️ [HIVE_REPO] deleteGroupでBox close検知。Hive再初期化後にリトライします: $e');
           await _recoverSharedGroupsBox();
           continue;
         }
 
-        developer.log('❌ グループ削除エラー: $e');
+        Log.error('❌ グループ削除エラー: $e', e, stackTrace);
         rethrow;
       }
     }
@@ -415,7 +415,7 @@ class HiveSharedGroupRepository implements SharedGroupRepository {
 
       final updatedMembers = group.members?.map((member) {
         if (member.memberId == oldId || member.contact == contact) {
-          developer.log('🔄 MemberID更新: ${member.name} ($oldId → $newId)');
+          Log.info('🔄 MemberID更新: ${member.name} ($oldId → $newId)');
           return member.copyWith(memberId: newId, isSignedIn: true);
         }
         return member;
@@ -424,8 +424,8 @@ class HiveSharedGroupRepository implements SharedGroupRepository {
       final updatedGroup = group.copyWith(members: updatedMembers);
       await box.put(groupId, updatedGroup);
       return updatedGroup;
-    } catch (e) {
-      developer.log('❌ MemberID更新エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ MemberID更新エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -477,7 +477,7 @@ class HiveSharedGroupRepository implements SharedGroupRepository {
 
         final updatedGroup = group.copyWith(members: updatedMembers);
         await box.put(groupId, updatedGroup);
-        developer.log('🎉 仮メンバーアクティビーション: $name ($email)');
+        Log.info('🎉 仮メンバーアクティビーション: $name (${Log.maskEmail(email)})');
         return updatedGroup;
       } else {
         // 新規メンバーとして追加
@@ -495,11 +495,11 @@ class HiveSharedGroupRepository implements SharedGroupRepository {
         ];
         final updatedGroup = group.copyWith(members: updatedMembers);
         await box.put(groupId, updatedGroup);
-        developer.log('👥 新規招待メンバー: $name ($email)');
+        Log.info('👥 新規招待メンバー: $name (${Log.maskEmail(email)})');
         return updatedGroup;
       }
-    } catch (e) {
-      developer.log('❌ 招待メンバー追加エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ 招待メンバー追加エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -543,10 +543,10 @@ class HiveSharedGroupRepository implements SharedGroupRepository {
       ];
       final updatedGroup = group.copyWith(members: updatedMembers);
       await box.put(groupId, updatedGroup);
-      developer.log('📨 仮メンバー追加: $name ($email) - 招待ペンディング');
+      Log.info('📨 仮メンバー追加: $name (${Log.maskEmail(email)}) - 招待ペンディング');
       return updatedGroup;
-    } catch (e) {
-      developer.log('❌ 仮メンバー追加エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ 仮メンバー追加エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -576,10 +576,10 @@ class HiveSharedGroupRepository implements SharedGroupRepository {
       );
 
       await box.put(poolGroupId, memberPool);
-      developer.log('🔒 メンバープール作成完了');
+      Log.info('🔒 メンバープール作成完了');
       return memberPool;
-    } catch (e) {
-      developer.log('❌ メンバープール取得エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ メンバープール取得エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -615,9 +615,9 @@ class HiveSharedGroupRepository implements SharedGroupRepository {
 
       final box = await _boxAsync;
       await box.put('__member_pool__', updatedPool);
-      developer.log('🔄 メンバープール同期完了: ${uniqueMembers.length}件');
-    } catch (e) {
-      developer.log('❌ メンバープール同期エラー: $e');
+      Log.info('🔄 メンバープール同期完了: ${uniqueMembers.length}件');
+    } catch (e, stackTrace) {
+      Log.error('❌ メンバープール同期エラー: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -639,8 +639,8 @@ class HiveSharedGroupRepository implements SharedGroupRepository {
               member.name.toLowerCase().contains(query.toLowerCase()) ||
               member.contact.toLowerCase().contains(query.toLowerCase()))
           .toList();
-    } catch (e) {
-      developer.log('❌ プール内検索エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ プール内検索エラー: $e', e, stackTrace);
       return [];
     }
   }
@@ -658,8 +658,8 @@ class HiveSharedGroupRepository implements SharedGroupRepository {
         }
       }
       return null;
-    } catch (e) {
-      developer.log('❌ メールアドレス検索エラー: $e');
+    } catch (e, stackTrace) {
+      Log.error('❌ メールアドレス検索エラー: $e', e, stackTrace);
       return null;
     }
   }

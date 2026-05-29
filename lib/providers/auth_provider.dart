@@ -37,7 +37,8 @@ class FirebaseAuthService {
     }
 
     try {
-      Log.debug('🔥 FirebaseAuthService: signIn開始 - email: $email');
+      Log.debug(
+          '🔥 FirebaseAuthService: signIn開始 - email: ${AppLogger.maskEmail(email)}');
       Log.debug('🔥 FirebaseAuth instance: ${_auth.toString()}');
       Log.debug('🔥 FirebaseAuth currentUser: ${_auth!.currentUser}');
 
@@ -66,7 +67,8 @@ class FirebaseAuthService {
     }
 
     try {
-      Log.debug('🔥 FirebaseAuthService: signUp開始 - email: $email');
+      Log.debug(
+          '🔥 FirebaseAuthService: signUp開始 - email: ${AppLogger.maskEmail(email)}');
 
       final credential = await _auth!.createUserWithEmailAndPassword(
         email: email,
@@ -104,7 +106,7 @@ class FirebaseAuthService {
 
     try {
       Log.debug(
-          '🔥 FirebaseAuthService: sendPasswordResetEmail開始 - email: $email');
+          '🔥 FirebaseAuthService: sendPasswordResetEmail開始 - email: ${AppLogger.maskEmail(email)}');
 
       // レート制限チェック（1日5通まで）
       final rateLimitDoc = await FirebaseFirestore.instance
@@ -155,7 +157,8 @@ class FirebaseAuthService {
         'lastSent': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      Log.info('📧 Firestore Triggerメールドキュメント作成: $email');
+      Log.info(
+          '📧 Firestore Triggerメールドキュメント作成: ${AppLogger.maskEmail(email)}');
       Log.debug('🔥 FirebaseAuthService: sendPasswordResetEmail成功');
     } catch (e) {
       Log.error('🔥 FirebaseAuthService: sendPasswordResetEmailでエラー発生');
@@ -186,7 +189,7 @@ class FirebaseAuthService {
     }
 
     try {
-      Log.info('🔧 サインイン開始: $email');
+      Log.info('🔧 サインイン開始: ${AppLogger.maskEmail(email)}');
 
       // ユーザー名の検証: 入力があるか、または SharedPreferences から読み込めるか確認
       String userName = userNameController.text.trim();
@@ -411,7 +414,7 @@ class FirebaseAuthService {
     }
 
     try {
-      Log.info('📧 パスワードリセットメール送信開始: $email');
+      Log.info('📧 パスワードリセットメール送信開始: ${Log.maskEmail(email)}');
 
       await sendPasswordResetEmail(email);
 

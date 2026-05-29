@@ -707,7 +707,8 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
         if (currentUser == null) {
           throw Exception('新しいグループを作成するにはFirebase認証が必要です。サインインしてください。');
         }
-        Log.info('🆕 [CREATE GROUP] 認証済みユーザー: ${currentUser.email}');
+        Log.info(
+            '🆕 [CREATE GROUP] 認証済みユーザー: ${Log.maskEmail(currentUser.email)}');
       } else {
         Log.info('🔧 [CREATE GROUP] DEV環境 - 認証チェックをスキップ');
       }
@@ -1210,7 +1211,8 @@ class MemberPoolNotifier extends AsyncNotifier<SharedGroup> {
 
   /// メールアドレスでメンバーを検索
   Future<SharedGroupMember?> findMemberByEmail(String email) async {
-    Log.info('📧 [MEMBER POOL] findMemberByEmail() 開始: $email');
+    Log.info(
+        '📧 [MEMBER POOL] findMemberByEmail() 開始: ${Log.maskEmail(email)}');
     final repository = ref.read(SharedGroupRepositoryProvider);
 
     try {

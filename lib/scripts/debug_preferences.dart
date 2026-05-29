@@ -35,7 +35,7 @@ void main() async {
     final dataVersion = await UserPreferencesService.getDataVersion();
 
     Log.info('📛 ユーザー名: $userName');
-    Log.info('📧 メール: $userEmail');
+    Log.info('📧 メール: ${Log.maskEmail(userEmail)}');
     Log.info('🆔 ユーザーID: $userId');
     Log.info('📊 データバージョン: $dataVersion');
 

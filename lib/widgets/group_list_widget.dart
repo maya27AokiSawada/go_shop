@@ -17,6 +17,8 @@ import '../utils/group_display_helper.dart';
 import '../providers/app_ui_mode_provider.dart';
 import '../config/app_ui_mode_config.dart';
 import '../l10n/l10n.dart';
+import '../datastore/hive_shared_group_repository.dart';
+import '../datastore/hive_shared_list_repository.dart';
 // 🔥 REMOVED: import 'initial_setup_widget.dart'; グループページ内にメッセージ表示に変更
 
 /// グループをリスト表示するウィジェット
@@ -741,20 +743,62 @@ class GroupListWidget extends ConsumerWidget {
       final requesterName =
           currentUser.displayName ?? currentUser.email ?? 'ユーザー';
 
+      // 1. オーナーへ退出リクエスト通知を送信（ノンブロッキング）
       final notificationService = ref.read(notificationServiceProvider);
-      await notificationService.sendNotification(
-        targetUserId: group.ownerUid!,
-        type: NotificationType.groupLeaveRequested,
-        groupId: group.groupId,
-        message: '$requesterName が「$displayGroupName」からの退出を希望しています',
-        metadata: {
-          'requesterUid': currentUser.uid,
-          'requesterName': requesterName,
-          'groupName': group.groupName,
-        },
-      );
+      try {
+        await notificationService.sendNotification(
+          targetUserId: group.ownerUid!,
+          type: NotificationType.groupLeaveRequested,
+          groupId: group.groupId,
+          message: '$requesterName が「$displayGroupName」から退出しました',
+          metadata: {
+            'requesterUid': currentUser.uid,
+            'requesterName': requesterName,
+            'groupName': group.groupName,
+          },
+        );
+        AppLogger.info('✅ [GROUP_LEAVE] 退出リクエスト通知の送信完了');
+      } catch (e) {
+        AppLogger.warning('⚠️ [GROUP_LEAVE] 退出リクエスト通知送信に失敗（処理は継続します）: $e');
+      }
 
-      AppLogger.info('✅ [GROUP_LEAVE] 退出リクエスト送信完了: ${group.groupId}');
+      // 2. 自分自身のメンバー情報をグループから抽出して、Firestoreとローカルメンバープール等から削除する
+      final selfMember = group.members
+          ?.where((m) => m.memberId == currentUser.uid)
+          .firstOrNull;
+      if (selfMember != null) {
+        final repository = ref.read(SharedGroupRepositoryProvider);
+        AppLogger.info(
+            '🚪 [GROUP_LEAVE] メンバー情報から自分自身を除外します: ${selfMember.name}');
+        // removeMemberは自動的にHiveのローカルを更新し、非同期でFirestoreも更新します
+        await repository.removeMember(group.groupId, selfMember);
+      } else {
+        AppLogger.warning('⚠️ [GROUP_LEAVE] メンバーリストに自分が含まれていません。ローカル削除のみ行います。');
+      }
+
+      // 3. ローカルのHiveからグループを確実に論理削除
+      // 一般メンバーはFirestore側を丸ごとdeleteする権限がないため、直接HiveリポジトリのdeleteGroupを叩きます。
+      final hiveGroupRepo = ref.read(hiveSharedGroupRepositoryProvider);
+      try {
+        await hiveGroupRepo.deleteGroup(group.groupId);
+        AppLogger.info('🚪 [GROUP_LEAVE] Hive内グループの論理削除成功');
+      } catch (e) {
+        AppLogger.warning('⚠️ [GROUP_LEAVE] Hive内グループの論理削除に失敗（無視します）: $e');
+      }
+
+      // 4. 当該グループに紐づくすべての買い物リスト（SharedList）をローカルHiveから削除する
+      final sharedListRepo = ref.read(sharedListRepositoryProvider);
+      try {
+        await sharedListRepo.deleteSharedListsByGroupId(group.groupId);
+        AppLogger.info('🚪 [GROUP_LEAVE] 紐づく買い物リストのローカル削除完了');
+      } catch (e) {
+        AppLogger.warning('⚠️ [GROUP_LEAVE] 紐づく買い物リストの削除に失敗（無視します）: $e');
+      }
+
+      // 5. allGroupsProviderをinvalidateして、UI状態を即座に更新・反映する
+      ref.invalidate(allGroupsProvider);
+      AppLogger.info(
+          '✅ [GROUP_LEAVE] UIリアクティブ更新（allGroupsProviderのinvalidate）完了');
 
       // 成功メッセージ
       if (context.mounted) {
