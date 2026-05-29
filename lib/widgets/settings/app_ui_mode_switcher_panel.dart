@@ -191,19 +191,22 @@ class AppUIModeSwicherPanel extends ConsumerWidget {
             style: TextStyle(fontSize: 12, color: Colors.green.shade700),
           ),
           const SizedBox(height: 12),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(
-              isMulti ? t.multiModeLabel : t.singleModeLabel,
-              style: const TextStyle(fontWeight: FontWeight.w500),
+          Material(
+            color: Colors.transparent,
+            child: SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                isMulti ? t.multiModeLabel : t.singleModeLabel,
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
+              subtitle: Text(
+                isMulti ? t.multiModeDesc : t.singleModeDesc,
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+              value: isMulti,
+              onChanged: (_) => _onToggle(context, ref, currentMode),
+              activeThumbColor: Colors.green.shade600,
             ),
-            subtitle: Text(
-              isMulti ? t.multiModeDesc : t.singleModeDesc,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-            ),
-            value: isMulti,
-            onChanged: (_) => _onToggle(context, ref, currentMode),
-            activeThumbColor: Colors.green.shade600,
           ),
         ],
       ),

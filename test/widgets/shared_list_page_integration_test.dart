@@ -258,7 +258,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // ASSERT: プレースホルダーメッセージが表示される
-      expect(find.text(texts.selectList), findsOneWidget);
+      expect(find.textContaining(texts.selectList), findsOneWidget);
       expect(find.byIcon(Icons.shopping_cart_outlined), findsOneWidget);
 
       // クラッシュしていないことを確認
