@@ -1133,7 +1133,21 @@ class SelectedGroupIdNotifier extends StateNotifier<String?> {
 
 final selectedGroupIdProvider =
     StateNotifierProvider<SelectedGroupIdNotifier, String?>((ref) {
-  return SelectedGroupIdNotifier();
+  final notifier = SelectedGroupIdNotifier();
+
+  // allGroupsProviderの変更を監視して、選択されたグループが存在するか検証
+  ref.listen<AsyncValue<List<SharedGroup>>>(allGroupsProvider,
+      (previous, next) {
+    next.whenData((groups) {
+      if (groups.isEmpty) {
+        notifier.clearSelection();
+      } else {
+        notifier.validateAndRestoreSelection(groups);
+      }
+    });
+  });
+
+  return notifier;
 });
 
 // Member Pool Management - メンバープール管理用

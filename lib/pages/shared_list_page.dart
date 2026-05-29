@@ -292,7 +292,28 @@ class _SharedItemsListWidget extends ConsumerWidget {
           );
         }
 
-        final liveList = snapshot.data ?? currentList;
+        final liveList = snapshot.data;
+        if (liveList == null) {
+          // リストが他端末で削除された場合などは、UIを「未選択/削除済み」状態にする
+          final isSingle = ref.watch(appUIModeProvider) == AppUIMode.single;
+          final message = isSingle
+              ? '${texts.selectList}\n(設定からマルチモードに切り替えて、リストを作成してください)'
+              : texts.selectList;
+
+          // ポストフレームでメモリ内の選択状態もクリアしてデータの不整合を解消
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (ref.read(currentListProvider) != null) {
+              Log.info('🗑️ [REALTIME] 監視中のリストが消滅したため、メモリ内のカレントリストをクリアします');
+              ref.read(currentListProvider.notifier).clearSelection();
+            }
+          });
+
+          return _SharedListPlaceholder(
+            icon: Icons.shopping_cart_outlined,
+            message: message,
+          );
+        }
+
         final activeItems = liveList.activeItems;
 
         if (activeItems.isEmpty) {

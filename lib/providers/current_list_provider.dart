@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/shared_list.dart';
 import '../utils/app_logger.dart';
+import 'shared_group_provider.dart';
 
 /// 現在選択されている買い物リストを管理するProvider
 class CurrentListNotifier extends StateNotifier<SharedList?> {
@@ -181,5 +182,19 @@ class CurrentListNotifier extends StateNotifier<SharedList?> {
 
 final currentListProvider =
     StateNotifierProvider<CurrentListNotifier, SharedList?>((ref) {
-  return CurrentListNotifier();
+  final notifier = CurrentListNotifier();
+
+  // 選択中のグループIDの変更を監視
+  ref.listen<String?>(selectedGroupIdProvider, (previous, next) {
+    if (next == null) {
+      Log.info('🔄 [CURRENT LIST] グループ選択が解除されたため、カレントリストをクリアします。');
+      notifier.clearSelection();
+    } else if (previous != null && previous != next) {
+      Log.info(
+          '🔄 [CURRENT LIST] グループが変更されたため（$previous → $next）、カレントリストを一旦クリアします。');
+      notifier.clearSelection();
+    }
+  });
+
+  return notifier;
 });
