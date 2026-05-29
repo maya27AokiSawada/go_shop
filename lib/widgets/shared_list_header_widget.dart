@@ -110,7 +110,8 @@ class SharedListHeaderWidget extends ConsumerWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      currentList?.listName ?? texts.sharedList,
+                      currentList?.listName ??
+                          '${texts.selectList} (設定からマルチモードに切り替えて、リストを作成してください)',
                       style: const TextStyle(
                           fontSize: 15, fontWeight: FontWeight.w500),
                       overflow: TextOverflow.ellipsis,

@@ -229,7 +229,10 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
             currentList = ref.read(currentListProvider);
           }
           if (currentList == null) {
-            SnackBarHelper.showError(context, texts.selectList);
+            final message = isSingle
+                ? '${texts.selectList} (設定からマルチモードに切り替えて、リストを作成してください)'
+                : texts.selectList;
+            SnackBarHelper.showError(context, message);
             return;
           }
         }
@@ -266,9 +269,13 @@ class _SharedItemsListWidget extends ConsumerWidget {
     final selectedGroupId = ref.watch(selectedGroupIdProvider);
 
     if (currentList == null || selectedGroupId == null) {
+      final isSingle = ref.watch(appUIModeProvider) == AppUIMode.single;
+      final message = isSingle
+          ? '${texts.selectList}\n(設定からマルチモードに切り替えて、リストを作成してください)'
+          : texts.selectList;
       return _SharedListPlaceholder(
         icon: Icons.shopping_cart_outlined,
-        message: texts.selectList,
+        message: message,
       );
     }
 
