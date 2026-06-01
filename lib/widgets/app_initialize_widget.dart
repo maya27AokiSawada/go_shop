@@ -21,6 +21,7 @@ import '../providers/shared_group_provider.dart'; // forceSyncProvider
 import '../providers/hive_provider.dart';
 import '../providers/purchase_type_provider.dart';
 import '../providers/purchase_sync_provider.dart';
+import '../l10n/app_localizations.dart';
 
 /// アプリ初期化を管理するウィジェット
 ///
