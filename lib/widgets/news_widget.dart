@@ -542,8 +542,8 @@ class NewsWidget extends ConsumerWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              tip.color.withOpacity(0.05),
-              tip.color.withOpacity(0.12),
+              tip.color.withValues(alpha: 0.05),
+              tip.color.withValues(alpha: 0.12),
             ],
           ),
         ),
@@ -555,14 +555,14 @@ class NewsWidget extends ConsumerWidget {
               Row(
                 children: [
                   Icon(Icons.lightbulb_outline,
-                      color: tip.color.withOpacity(0.8), size: 20),
+                      color: tip.color.withValues(alpha: 0.8), size: 20),
                   const SizedBox(width: 6),
                   Text(
                     texts.tipsLabel,
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
-                      color: tip.color.withOpacity(0.8),
+                      color: tip.color.withValues(alpha: 0.8),
                     ),
                   ),
                 ],
@@ -637,7 +637,32 @@ class NewsWidget extends ConsumerWidget {
   }
 
   String _formatDate(DateTime date) {
+    if (AppLocalizations.currentLanguageCode == 'en') {
+      final monthStr = _getMonthName(date.month);
+      return '$monthStr ${date.day}, ${date.year}';
+    }
     return '${date.year}年${date.month}月${date.day}日';
+  }
+
+  String _getMonthName(int month) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
+    if (month >= 1 && month <= 12) {
+      return months[month - 1];
+    }
+    return '';
   }
 }
 

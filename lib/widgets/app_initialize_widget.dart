@@ -29,6 +29,16 @@ import '../providers/purchase_sync_provider.dart';
 /// - ユーザー初期化サービス開始
 /// - ディープリンク初期化
 /// - 初期化完了までのローディング表示
+enum AppInitStatus {
+  preparingApp,
+  checkingData,
+  preparingUser,
+  ready,
+  errorButContinue,
+  preparingService,
+  syncingGroups,
+}
+
 class AppInitializeWidget extends ConsumerStatefulWidget {
   final Widget child;
 
@@ -45,7 +55,7 @@ class AppInitializeWidget extends ConsumerStatefulWidget {
 class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
   bool _isInitialized = false;
   bool _isInitializing = false;
-  String _initializationStatus = 'アプリを準備中...';
+  AppInitStatus _initializationStatus = AppInitStatus.preparingApp;
 
   // アプリセッション内でリストアを1回だけ実行するフラグ
   static bool _purchaseRestoreExecuted = false;
@@ -112,7 +122,7 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
 
     setState(() {
       _isInitializing = true;
-      _initializationStatus = 'データをチェック中...';
+      _initializationStatus = AppInitStatus.checkingData;
     });
 
     try {
@@ -123,14 +133,14 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
 
       // ステップ2: ユーザー初期化サービス開始
       setState(() {
-        _initializationStatus = 'ユーザー情報を準備中...';
+        _initializationStatus = AppInitStatus.preparingUser;
       });
       await _initializeUserServices();
 
       // 初期化完了
       setState(() {
         _isInitialized = true;
-        _initializationStatus = '準備完了';
+        _initializationStatus = AppInitStatus.ready;
       });
 
       Log.info('✅ AppInitializeWidget: 初期化完了');
@@ -138,7 +148,7 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
       Log.error('❌ AppInitializeWidget: 初期化エラー: $e');
       setState(() {
         _isInitialized = true; // エラーでも進行させる
-        _initializationStatus = '初期化エラーが発生しましたが、続行します';
+        _initializationStatus = AppInitStatus.errorButContinue;
       });
     }
   }
@@ -188,7 +198,7 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
   Future<void> _initializeUserServices() async {
     try {
       setState(() {
-        _initializationStatus = 'サービス準備中...';
+        _initializationStatus = AppInitStatus.preparingService;
       });
 
       // Hive Boxを開く（UserSettingsにアクセスする前に必須）
@@ -243,7 +253,7 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
 
           if (hasGroupNotifications || needsColdStartRestore) {
             setState(() {
-              _initializationStatus = 'グループデータを同期中...';
+              _initializationStatus = AppInitStatus.syncingGroups;
             });
 
             if (needsColdStartRestore) {
@@ -389,12 +399,40 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
             const SizedBox(height: 24),
 
             // ステータステキスト
-            Text(
-              _initializationStatus,
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-              ),
+            Builder(
+              builder: (context) {
+                String statusText;
+                switch (_initializationStatus) {
+                  case AppInitStatus.preparingApp:
+                    statusText = AppLocalizations.current.initPreparingApp;
+                    break;
+                  case AppInitStatus.checkingData:
+                    statusText = AppLocalizations.current.initCheckingData;
+                    break;
+                  case AppInitStatus.preparingUser:
+                    statusText = AppLocalizations.current.initPreparingUser;
+                    break;
+                  case AppInitStatus.ready:
+                    statusText = AppLocalizations.current.initReady;
+                    break;
+                  case AppInitStatus.errorButContinue:
+                    statusText = AppLocalizations.current.initErrorButContinue;
+                    break;
+                  case AppInitStatus.preparingService:
+                    statusText = AppLocalizations.current.initPreparingService;
+                    break;
+                  case AppInitStatus.syncingGroups:
+                    statusText = AppLocalizations.current.initSyncingGroups;
+                    break;
+                }
+                return Text(
+                  statusText,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey,
+                  ),
+                );
+              },
             ),
 
             const SizedBox(height: 8),

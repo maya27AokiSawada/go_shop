@@ -134,7 +134,7 @@
 | ファイル名                          | クラス名                     | 役割                                                                                 |
 | ----------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------ |
 | `firebase_diagnostics_service.dart` | `FirebaseDiagnosticsService` | Firebase 接続テストと詳細診断を提供するデバッグ用サービス                            |
-| `firestore_news_service.dart`       | `FirestoreNewsService`       | Firestore の `furestorenews/current_news` ドキュメントからアプリ内ニュースを取得する |
+| `firestore_news_service.dart`       | `FirestoreNewsService`       | Firestore の `firestoreNews/current_news` ドキュメントからアプリ内ニュースを取得する |
 
 ---
 

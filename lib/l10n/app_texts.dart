@@ -27,6 +27,17 @@ abstract class AppTexts {
   String get no;
 
   // ========================================
+  // 初期化・ローディング
+  // ========================================
+  String get initPreparingApp;
+  String get initCheckingData;
+  String get initPreparingUser;
+  String get initReady;
+  String get initErrorButContinue;
+  String get initPreparingService;
+  String get initSyncingGroups;
+
+  // ========================================
   // 認証
   // ========================================
   String get signIn;

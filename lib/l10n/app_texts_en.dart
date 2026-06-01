@@ -48,6 +48,28 @@ class AppTextsEn extends AppTexts {
   String get confirm => 'Confirm';
 
   @override
+  String get initPreparingApp => 'Preparing application...';
+
+  @override
+  String get initCheckingData => 'Checking data...';
+
+  @override
+  String get initPreparingUser => 'Preparing user profile...';
+
+  @override
+  String get initReady => 'Ready';
+
+  @override
+  String get initErrorButContinue =>
+      'An initialization error occurred, but continuing...';
+
+  @override
+  String get initPreparingService => 'Preparing services...';
+
+  @override
+  String get initSyncingGroups => 'Syncing group data...';
+
+  @override
   String get yes => 'Yes';
 
   @override

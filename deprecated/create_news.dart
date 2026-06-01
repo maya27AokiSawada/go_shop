@@ -10,7 +10,7 @@ Future<void> createNewsDocument() async {
   try {
     print('📰 ニュースドキュメントを作成中...');
 
-    await firestore.collection('furestorenews').doc('current_news').set({
+    await firestore.collection('firestoreNews').doc('current_news').set({
       'title': 'GoShoppingへようこそ！',
       'content': '買い物リストを家族やグループで共有できるアプリです。メンバーを招待して、みんなで買い物を効率化しましょう！',
       'createdAt': FieldValue.serverTimestamp(),
@@ -19,7 +19,7 @@ Future<void> createNewsDocument() async {
     });
 
     print('✅ ニュースドキュメント作成完了！');
-    print('📋 コレクション: furestorenews');
+    print('📋 コレクション: firestoreNews');
     print('📄 ドキュメント: current_news');
   } catch (e) {
     print('❌ エラー: $e');

@@ -897,7 +897,7 @@ if (currentUser != null) {
   await Firestore.doc('users/${currentUser.uid}').get();
 } else {
   // 未認証: 公開コレクション（誰でも読取可）
-  await Firestore.collection('furestorenews').limit(1).get();
+  await Firestore.collection('firestoreNews').limit(1).get();
 }
 ```
 

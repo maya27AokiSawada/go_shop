@@ -96,7 +96,7 @@ class NetworkMonitorService {
   /// Firestore接続をチェック
   ///
   /// 認証済みユーザーの場合は自分のユーザードキュメント（users/{uid}）を取得。
-  /// 未認証の場合は公開ニュースコレクション（furestorenews）を取得。
+  /// 未認証の場合は公開ニュースコレクション（firestoreNews）を取得。
   /// 5秒以内に成功すればオンラインと判定する。
   ///
   /// Returns: 接続が成功した場合はtrue、失敗した場合はfalse
@@ -133,7 +133,7 @@ class NetworkMonitorService {
           // 未認証：公開ニュースコレクションを取得（誰でも読み取り可能）
           AppLogger.info('🔍 [NETWORK_MONITOR] 未認証 - 公開ニュースで接続チェック');
           final querySnapshot = await FirebaseFirestore.instance
-              .collection('furestorenews')
+              .collection('firestoreNews')
               .limit(1)
               .get(const GetOptions(source: Source.server))
               .timeout(connectionTimeout);
@@ -184,7 +184,7 @@ class NetworkMonitorService {
               '🔐 [NETWORK_MONITOR] 認証エラー検出（${e.code}）- 公開コレクションで再チェック');
           try {
             await FirebaseFirestore.instance
-                .collection('furestorenews')
+                .collection('firestoreNews')
                 .limit(1)
                 .get(const GetOptions(source: Source.server))
                 .timeout(connectionTimeout);

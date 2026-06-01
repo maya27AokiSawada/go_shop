@@ -7,7 +7,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ニュースコレクション：誰でも読み取り可能（未サインインでもOK）
-    match /furestorenews/{newsId} {
+    match /firestoreNews/{newsId} {
       allow read: if true;  // 誰でも読み取り可
       allow write: if false;  // 書き込みは管理者のみ（Consoleから）
     }

@@ -5,7 +5,7 @@ import '../flavors.dart';
 
 /// Firestoreからアプリニュースを取得するサービス
 class FirestoreNewsService {
-  static const String _collectionName = 'furestorenews';
+  static const String _collectionName = 'firestoreNews';
   static const String _documentName = 'current_news';
   static const String _documentNameEn = 'current_news_eng';
 

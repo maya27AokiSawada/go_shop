@@ -48,6 +48,27 @@ class AppTextsJa extends AppTexts {
   String get confirm => '確認';
 
   @override
+  String get initPreparingApp => 'アプリを準備中...';
+
+  @override
+  String get initCheckingData => 'データをチェック中...';
+
+  @override
+  String get initPreparingUser => 'ユーザー情報を準備中...';
+
+  @override
+  String get initReady => '準備完了';
+
+  @override
+  String get initErrorButContinue => '初期化エラーが発生しましたが、続行します';
+
+  @override
+  String get initPreparingService => 'サービス準備中...';
+
+  @override
+  String get initSyncingGroups => 'グループデータを同期中...';
+
+  @override
   String get yes => 'はい';
 
   @override
