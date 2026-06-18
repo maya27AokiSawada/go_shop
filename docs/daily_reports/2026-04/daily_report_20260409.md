@@ -55,7 +55,7 @@ match /testingStatus/{document=**} {
 - `firestore.rules`
 
 **Commit**: `fe60401`（`fix(firestore): lock legacy invitations collection + restrict testingStatus write`）
-**Deploy**: `goshopping-48db9`（prod）にデプロイ済み
+**Deploy**: `legacy-prod-firebase-project-id`（prod）にデプロイ済み
 **Status**: ✅ 完了・本番反映済み
 
 ---

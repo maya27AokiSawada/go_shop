@@ -134,7 +134,7 @@ extensions/*.env  # ← 既存（これで保護されるはずだった）
 // main.dart, main_dev.dart, main_prod.dart
 // NOTE: Sentry DSNは公開情報として設計されています（書き込み専用、読み取り不可）
 // セキュリティはSentry管理画面の「Allowed Domains」設定で保護してください
-options.dsn = 'https://9aa7459e94ab157f830e81c9f1a585b3@o4510820521738240.ingest.us.sentry.io/4510820522786816';
+options.dsn = 'your_sentry_dsn';
 ```
 
 **4. セキュリティ対応ガイド作成**
@@ -179,7 +179,7 @@ options.dsn = 'https://9aa7459e94ab157f830e81c9f1a585b3@o4510820521738240.ingest
 **対応手順**:
 
 1. Google Cloud Console にアクセス: <https://console.cloud.google.com/>
-2. プロジェクト選択: `goshopping-48db9`（prod）と `gotoshop-572b7`（dev）
+2. プロジェクト選択: `legacy-prod-firebase-project-id`（prod）と `your-dev-firebase-project-id`（dev）
 3. 「認証情報」→「APIキー」で該当キーを検索
 4. **APIキー制限**を設定:
    - Androidアプリ制限: `net.sumomo_planning.goshopping`

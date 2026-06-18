@@ -6,7 +6,7 @@
 - **所在地**：愛知県 尾張西部。転居は困難です
 - **希望職種**：モバイルアプリ開発エンジニア / Flutterエンジニア
 - **雇用形態**: リモートorフレックスを希望
-- **連絡先**：<fatima.sumomo@gmail.com>
+- **連絡先**：<support@example.com>
 - **GitHub**：[@maya27AokiSawada](https://github.com/maya27AokiSawada)
 - **ポートフォリオ**：[Go Shop - 買い物リスト共有アプリ](https://github.com/maya27AokiSawada/go_shop)
 
@@ -72,7 +72,7 @@
 ## SNS・リンク
 
 - **GitHub**: [@maya27AokiSawada](https://github.com/maya27AokiSawada)
-- **Email**: <fatima.sumomo@gmail.com>
+- **Email**: <support@example.com>
 - **LinkedIn**: [金ヶ江真也ファーティマ](https://www.linkedin.com/in/maya27aokisawada)
 
 - **主要プロジェクト**: [Go Shop](https://github.com/maya27AokiSawada/go_shop) - Flutter製買い物リスト共有アプリ

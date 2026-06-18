@@ -64,7 +64,7 @@ if (defaultTargetPlatform == TargetPlatform.macOS) {
 
 ```
 Failed to create leveldb cache: IO error: lock /Users/mayafatima/Library/Application Support/
-firestore/__FIRAPP_DEFAULT/goshopping-48db9/main/LOCK: already held by process
+firestore/__FIRAPP_DEFAULT/legacy-prod-firebase-project-id/main/LOCK: already held by process
 ```
 
 **Root Cause**: 前回起動したアプリプロセスが終了せずにロックファイルを保持し続けている。
@@ -73,7 +73,7 @@ firestore/__FIRAPP_DEFAULT/goshopping-48db9/main/LOCK: already held by process
 
 ```bash
 pkill -9 -f "goshopping" 2>/dev/null
-rm -f "/Users/mayafatima/Library/Application Support/firestore/__FIRAPP_DEFAULT/goshopping-48db9/main/LOCK" 2>/dev/null
+rm -f "/Users/mayafatima/Library/Application Support/firestore/__FIRAPP_DEFAULT/legacy-prod-firebase-project-id/main/LOCK" 2>/dev/null
 rm -f /Users/mayafatima/Documents/hive_db/*.lock 2>/dev/null
 cd /Users/mayafatima/go_shop && flutter run --debug --flavor prod -d macos
 ```

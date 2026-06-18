@@ -8,7 +8,7 @@
 
 **実施内容**:
 
-- Firebase設定の確認（prod: goshopping-48db9, dev: gotoshop-572b7）
+- Firebase設定の確認（prod: legacy-prod-firebase-project-id, dev: your-dev-firebase-project-id）
 - iOS build configurationsの確認（9種類）
 - podfileの更新確認
 

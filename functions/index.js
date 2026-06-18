@@ -131,7 +131,7 @@ async function runBackup() {
 async function collectAllData(db) {
   const data = {
     exportedAt: new Date().toISOString(),
-    projectId: process.env.GCLOUD_PROJECT || "go-shopping-61515",
+    projectId: process.env.GCLOUD_PROJECT || "unknown-project",
     collections: { SharedGroups: {}, notifications: {} },
   };
 

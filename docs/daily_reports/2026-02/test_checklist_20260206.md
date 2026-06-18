@@ -235,7 +235,7 @@
 
 - デバイス型番: **\*\***\_\_\_\_**\*\***
 - Android Version: **\*\***\_\_\_\_**\*\***
-- Firebase Console: gotoshop-572b7
+- Firebase Console: your-dev-firebase-project-id
 
 ### テスト実施の注意点
 

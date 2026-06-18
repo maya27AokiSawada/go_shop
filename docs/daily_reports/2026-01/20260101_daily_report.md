@@ -40,13 +40,13 @@ error GC9768DF9: Undefined name 'DefaultFirebaseOptions'
 
 **対策**:
 - FlutterFire CLIをインストール: `dart pub global activate flutterfire_cli`
-- Firebase設定を生成: `flutterfire configure --project=gotoshop-572b7`
+- Firebase設定を生成: `flutterfire configure --project=your-dev-firebase-project-id`
 
 **登録されたプラットフォーム**:
-- Windows: `1:895658199748:web:6833ceb2b8f29b0518d791`
-- Android: `1:895658199748:android:9bc037ca25d380a018d791`
-- iOS: `1:895658199748:ios:bfaf69f877e39c6418d791` (新規登録)
-- Web: `1:895658199748:web:d24f3552522ea53318d791`
+- Windows: `YOUR_DEV_WINDOWS_APP_ID`
+- Android: `YOUR_DEV_ANDROID_APP_ID`
+- iOS: `YOUR_DEV_IOS_APP_ID` (新規登録)
+- Web: `YOUR_DEV_WEB_APP_ID`
 
 **Generated Files**:
 - `lib/firebase_options.dart` ✅

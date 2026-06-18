@@ -21,27 +21,27 @@
 
 **Root Cause**:
 
-`ios/GoogleService-Info-prod.plist` がMac上で古いFirebaseプロジェクト (`goshopping-48db9`) を参照していた。
+`ios/GoogleService-Info-prod.plist` がMac上で古いFirebaseプロジェクト (`legacy-prod-firebase-project-id`) を参照していた。
 iOSネイティブSDKはこのplistを使ってFirestoreへ書き込むため、招待ドキュメントが
-`goshopping-48db9` プロジェクトに作成された。
-一方 SH-54D は `go-shopping-61515` を参照しているため、ドキュメントが見つからなかった。
+`legacy-prod-firebase-project-id` プロジェクトに作成された。
+一方 SH-54D は `your-prod-firebase-project-id` を参照しているため、ドキュメントが見つからなかった。
 
 ```
-Mac iOS (goshopping-48db9) → 招待ドキュメントを書き込む
-SH-54D Android (go-shopping-61515) → ドキュメントが存在しない → 「招待が見つかりません」
+Mac iOS (legacy-prod-firebase-project-id) → 招待ドキュメントを書き込む
+SH-54D Android (your-prod-firebase-project-id) → ドキュメントが存在しない → 「招待が見つかりません」
 ```
 
-副次的原因: `lib/firebase_options.dart` も Mac 上で古い `goshopping-48db9` の値が使われていたが、
+副次的原因: `lib/firebase_options.dart` も Mac 上で古い `legacy-prod-firebase-project-id` の値が使われていたが、
 こちらは plist 修正に加えて `flutter clean` が必要だった（Xcodeビルドキャッシュのため）。
 
 **Solution**:
 
-1. Mac の `ios/GoogleService-Info-prod.plist` を Firebase Console（go-shopping-61515）から再ダウンロード・置き換え
+1. Mac の `ios/GoogleService-Info-prod.plist` を Firebase Console（your-prod-firebase-project-id）から再ダウンロード・置き換え
 2. `flutter clean && flutter run --flavor prod --dart-define=FLAVOR=prod` で再ビルド
 
 **検証結果**:
 
-- 起動ログで `📋 プロジェクトID: go-shopping-61515` を確認
+- 起動ログで `📋 プロジェクトID: your-prod-firebase-project-id` を確認
 - 新規QR発行 → SH-54D でスキャン → 正常招待確認
 
 **Modified Files**:
@@ -160,7 +160,7 @@ case NotificationType.syncConfirmation:
 
 **Changes**:
 
-1. Section 2 の Production Project ID を `goshopping-48db9` → `go-shopping-61515` に修正
+1. Section 2 の Production Project ID を `legacy-prod-firebase-project-id` → `your-prod-firebase-project-id` に修正
 2. FlutterFire CLI コマンドのプロジェクト ID も修正
 3. Section 3.3 に iOS plist ファイルは gitignore 対象であり **新規Mac環境では手動配置が必須** であることを警告追加
 4. Section 10 に「iOS/MacでQR招待スキャン時『招待が見つかりません』」のトラブルシューティング追加
@@ -226,7 +226,7 @@ final newGroup = currentGroups.where((g) => g.groupName == groupName).firstOrNul
 
 ## 🐛 発見された問題
 
-### 旧プロジェクトID (goshopping-48db9) 参照 ✅ 修正済み
+### 旧プロジェクトID (legacy-prod-firebase-project-id) 参照 ✅ 修正済み
 
 - **症状**: Macで発行したQR招待をAndroidでスキャンしても「招待が見つかりません」
 - **原因**: `ios/GoogleService-Info-prod.plist` が古い Firebase プロジェクトを参照
@@ -259,7 +259,7 @@ final newGroup = currentGroups.where((g) => g.groupName == groupName).firstOrNul
 **対処パターン**:
 
 1. `PROJECT_ID` フィールドを確認する (`grep PROJECT_ID ios/GoogleService-Info-prod.plist`)
-2. 正しい Project ID（prod: `go-shopping-61515`）でなければ Firebase Console から再取得
+2. 正しい Project ID（prod: `your-prod-firebase-project-id`）でなければ Firebase Console から再取得
 3. 置き換え後は **必ず** `flutter clean` を実行（Xcodeキャッシュが残るため）
 
 **教訓**: Flavorシステムを使うiOSアプリでは、gitignore済みファイルの陳腐化が原因で本番/開発環境の混在バグが発生する。新規環境セットアップ時は必ずファイルの中身を確認すること。

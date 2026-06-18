@@ -36,7 +36,7 @@
   - **QRコードv3.1軽量版**（Firestore連携パターン）
   - 招待受諾バグ完全修正（通知システム統合）
 - ✅ Firebase環境構築
-  - プロジェクト: gotoshop-572b7
+  - プロジェクト: your-dev-firebase-project-id
   - Firestoreインデックス定義・デプロイ
   - Firebase CLI設定
   - Firestore Security Rules設定
@@ -168,7 +168,7 @@
 
 - ✅ `firestore.indexes.json` でインデックス定義
 - ✅ Firebase CLI でデプロイ自動化
-- ✅ プロジェクト: gotoshop-572b7
+- ✅ プロジェクト: your-dev-firebase-project-id
 - ✅ 通知用3フィールドインデックス構築完了（userId + read + timestamp）
 
 ### 3. データレイヤー設計（Firestore-first実装完了）✅

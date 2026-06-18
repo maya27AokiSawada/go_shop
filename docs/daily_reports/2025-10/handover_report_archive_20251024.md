@@ -106,7 +106,7 @@ static Future<void> clearOneDriveLocks() async {
 ## 開発環境情報
 - **Flutter**: 3.35.6
 - **プラットフォーム**: Chrome Web (ポート3000)
-- **Firebase**: gotoshop-572b7プロジェクト
+- **Firebase**: your-dev-firebase-project-idプロジェクト
 - **ブランチ**: oneness
 - **主要技術**: Riverpod, Hive, Firebase Auth/Firestore
 

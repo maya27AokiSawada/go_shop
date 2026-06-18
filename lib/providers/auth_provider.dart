@@ -465,7 +465,7 @@ class FirebaseAuthService {
         Text(texts.featureMemberManagement),
         const SizedBox(height: 16),
         const Text('開発者: 金ヶ江 真也 ファーティマ (Maya Fatima Kanagae)'),
-        const Text('お問い合わせ: fatima.sumomo@gmail.com'),
+        const Text('お問い合わせ: support@example.com'),
         const SizedBox(height: 16),
         const Text('© 2024 Go Shop. All rights reserved.'),
       ],

@@ -38,7 +38,7 @@ qr_code_scanner: ^1.0.1  # QRコード読み取り
 ```json
 {
   "inviterUid": "MP32WXhWHed9YViRbigjwkZk3tr1",
-  "inviterEmail": "fatima.sumomo@gmail.com",
+  "inviterEmail": "tester@example.com",
   "sharedListId": "sample_list_id",
   "SharedGroupId": "sample_group_id", 
   "message": "Go Shopグループへの招待です",
@@ -123,7 +123,7 @@ qr_code_scanner: ^1.0.1  # QRコード読み取り
 {
   recipientUid: "通知受信者UID",
   type: "invitation_accepted", 
-  message: "fatima.sumomo@gmail.com さんがあなたの招待を受諾しました",
+  message: "tester@example.com さんがあなたの招待を受諾しました",
   sharedListId: "ショッピングリストID",
   SharedGroupId: "グループID",
   acceptorEmail: "受諾者メール",

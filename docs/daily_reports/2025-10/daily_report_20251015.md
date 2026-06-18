@@ -144,7 +144,7 @@ import 'package:goshopping/firebase_options.dart';
 #### ログ出力例
 
 ```
-📧 メール送信開始: fatima.sumomo@gmail.com
+📧 メール送信開始: tester@example.com
 📝 Firestoreドキュメント作成中...
 ✅ Firestoreドキュメント作成完了: DKj5QS4L7uzOMIct7GLL
 📮 Extension処理待ち...

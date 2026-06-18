@@ -92,7 +92,7 @@ adb -s 51040DLAQ001K0 install -r build/app/outputs/flutter-apk/app-prod-debug.ap
 
 - [ ] アプリが3秒以内に起動する
 - [ ] 再起動時に前回の状態が復元される
-- [ ] 起動ログで「プロジェクトID: go-shopping-61515」が確認できる
+- [ ] 起動ログで「プロジェクトID: your-prod-firebase-project-id」が確認できる
 
 ### グループ管理
 

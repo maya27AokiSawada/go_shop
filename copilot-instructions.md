@@ -152,7 +152,7 @@ Firebase/Google Cloud API Keyには必ず制限を設定：
 
 ```dart
 // 悪い例
-const apiKey = "AIzaSyCOrH6NiWn6nUhpdgnZ328hQ9Yel-ECFf4";
+const apiKey = "YOUR_FIREBASE_API_KEY";
 
 // 良い例（環境変数から読み込み）
 final apiKey = dotenv.env['FIREBASE_API_KEY_WEB'];

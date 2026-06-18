@@ -23,22 +23,22 @@ QR 招待やデータ参照不整合の再発防止のため、prod 環境の Fi
 
 ```json
 // ❌ Mac 側で確認された内容（ユーザー提供）
-"project_id": "goshopping-48db9"
+"project_id": "legacy-prod-firebase-project-id"
 ```
 
-Windows 側の `prod` は `go-shopping-61515` を参照しており、環境間で不一致だった。
+Windows 側の `prod` は `your-prod-firebase-project-id` を参照しており、環境間で不一致だった。
 
 **Solution**:
 
-- Windows 側の `prod` 設定を確認し、`go-shopping-61515` であることを再確認
-- Mac 側は `goshopping-48db9` が残存していると判明し、差し替え対象を明確化
+- Windows 側の `prod` 設定を確認し、`your-prod-firebase-project-id` であることを再確認
+- Mac 側は `legacy-prod-firebase-project-id` が残存していると判明し、差し替え対象を明確化
 
 **検証結果**:
 
 | 確認項目                                | 結果                |
 | --------------------------------------- | ------------------- |
-| Windows Android prod `project_id`       | `go-shopping-61515` |
-| Mac 側（ユーザー提供 JSON）`project_id` | `goshopping-48db9`  |
+| Windows Android prod `project_id`       | `your-prod-firebase-project-id` |
+| Mac 側（ユーザー提供 JSON）`project_id` | `legacy-prod-firebase-project-id`  |
 | 判定                                    | 環境不一致を確認    |
 
 **Modified Files**:

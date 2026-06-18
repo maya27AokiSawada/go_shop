@@ -1,4 +1,4 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../utils/app_logger.dart';
 import '../models/shared_list.dart';
@@ -14,7 +14,7 @@ final sharedListBoxProvider = Provider<Box<SharedList>>((ref) {
 // SharedListRepositoryのプロバイダー - ハイブリッド構成に統一
 final sharedListRepositoryProvider = Provider<SharedListRepository>((ref) {
   // 🔥 devフレーバーもprodフレーバーも同じ機能（Firestore + Hive）を使用
-  // 違いはFirebaseプロジェクトのみ（gotoshop-572b7 vs goshopping-48db9）
+  // 実際の Firebase プロジェクト設定はローカル構成に委ねる
   return HybridSharedListRepository(ref);
 });
 

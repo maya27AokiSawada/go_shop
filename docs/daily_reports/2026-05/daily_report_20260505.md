@@ -50,7 +50,7 @@
 Error: No development certificates available to code sign app for device deployment
 ```
 
-**Solution**: Xcode → Settings → Accounts で Apple ID（fatima.yatomi@outlook.com）をサインインし、Development Certificate を生成。`ios/Runner.xcworkspace` を開いて Runner ターゲットの Signing & Capabilities で Team を設定。
+**Solution**: Xcode → Settings → Accounts で Apple ID（tester2@example.com）をサインインし、Development Certificate を生成。`ios/Runner.xcworkspace` を開いて Runner ターゲットの Signing & Capabilities で Team を設定。
 
 ---
 

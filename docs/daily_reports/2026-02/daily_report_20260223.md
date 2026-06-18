@@ -230,7 +230,7 @@ flutter build ipa --release --flavor prod     # IPAファイル生成
 **手順**:
 
 1. Firebase Console（https://console.firebase.google.com/）にアクセス
-2. `gotoshop-572b7`プロジェクトを選択
+2. `your-dev-firebase-project-id`プロジェクトを選択
 3. Project Settings > iOS App設定
 4. Bundle ID: `net.sumomo_planning.go_shop.dev`を登録
 5. GoogleService-Info.plistをダウンロード

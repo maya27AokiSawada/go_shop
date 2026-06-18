@@ -31,7 +31,7 @@
 
 ### メール送信テスト
 ```dart
-const testEmail = 'fatima.sumomo@gmail.com';
+const testEmail = 'tester@example.com';
 ```
 
 **送信内容**:
@@ -67,7 +67,7 @@ DEFAULT_REPLY_TO=user@domain.sakura.ne.jp
 2. ホーム画面を下にスクロール
 3. 「🧪 メール送信テスト」セクションを確認
 4. 「メール送信テスト」ボタンをクリック
-5. `fatima.sumomo@gmail.com` にテストメールが送信される
+5. `tester@example.com` にテストメールが送信される
 6. 「メール設定診断」でFirebase接続状況を確認可能
 
 ## ✅ 動作確認項目

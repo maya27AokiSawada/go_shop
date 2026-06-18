@@ -8,21 +8,21 @@
 
 ### 1. Firebase本番環境設定完了 ✅
 
-**目的**: goshopping-48db9を本番プロジェクトとして設定
+**目的**: legacy-prod-firebase-project-idを本番プロジェクトとして設定
 
 **実施内容**:
 
 #### 1.1 Firebase CLI設定
 ```bash
 # 本番プロジェクト設定生成
-$ flutterfire configure --project=goshopping-48db9
+$ flutterfire configure --project=legacy-prod-firebase-project-id
 
 # .firebaserc更新
 {
   "projects": {
-    "default": "gotoshop-572b7",
-    "dev": "gotoshop-572b7",
-    "prod": "goshopping-48db9"
+    "default": "your-dev-firebase-project-id",
+    "dev": "your-dev-firebase-project-id",
+    "prod": "legacy-prod-firebase-project-id"
   }
 }
 
@@ -49,32 +49,32 @@ $ firebase deploy --only firestore:rules,firestore:indexes
 
 #### 1.3 Android/iOS設定ファイル配置
 ```
-android/app/src/prod/google-services.json  # goshopping-48db9
-android/app/src/dev/google-services.json   # gotoshop-572b7
-ios/Runner/GoogleService-Info.plist        # goshopping-48db9
+android/app/src/prod/google-services.json  # legacy-prod-firebase-project-id
+android/app/src/dev/google-services.json   # your-dev-firebase-project-id
+ios/Runner/GoogleService-Info.plist        # legacy-prod-firebase-project-id
 ```
 
 #### 1.4 lib/firebase_options.dart更新
 ```dart
 static FirebaseOptions get currentPlatform {
   if (F.appFlavor == Flavor.prod) {
-    // 本番環境: goshopping-48db9
+    // 本番環境: legacy-prod-firebase-project-id
     return DefaultFirebaseOptionsProd.currentPlatform;
   } else {
-    // 開発環境: gotoshop-572b7
+    // 開発環境: your-dev-firebase-project-id
     return DefaultFirebaseOptionsDev.currentPlatform;
   }
 }
 ```
 
 **検証結果**:
-- ✅ SH54D（prod flavor）でgoshopping-48db9に接続確認
+- ✅ SH54D（prod flavor）でlegacy-prod-firebase-project-idに接続確認
 - ✅ グループ作成・同期正常動作
 - ✅ Firestore Consoleでデータ確認完了
 
 **Firebase Console URL**:
-- Dev: https://console.firebase.google.com/project/gotoshop-572b7/firestore
-- Prod: https://console.firebase.google.com/project/goshopping-48db9/firestore
+- Dev: https://console.firebase.google.com/project/your-dev-firebase-project-id/firestore
+- Prod: https://console.firebase.google.com/project/legacy-prod-firebase-project-id/firestore
 
 ---
 

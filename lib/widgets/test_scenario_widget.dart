@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
@@ -95,12 +96,18 @@ class _TestScenarioWidgetState extends ConsumerState<TestScenarioWidget> {
       return;
     }
 
-    // 自動サインイン用の固定クレデンシャル
-    const email = 'fatima.sumomo@gmail.com';
-    const password = 'bLueRond#1997%Fard56';
+    final email = dotenv.env['TEST_SCENARIO_EMAIL']?.trim();
+    final password = dotenv.env['TEST_SCENARIO_PASSWORD'];
+    if (email == null ||
+        email.isEmpty ||
+        password == null ||
+        password.isEmpty) {
+      _log('ℹ️ TEST_SCENARIO_EMAIL / TEST_SCENARIO_PASSWORD 未設定のため認証テストをスキップ');
+      return;
+    }
 
     _log('🔐 Firebase認証開始...');
-    _log('Email: $email');
+    _log('Email: ${AppLogger.maskEmail(email)}');
 
     try {
       final authService = ref.read(authProvider);

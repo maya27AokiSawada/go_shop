@@ -205,11 +205,11 @@ final notificationData = {
 **ユーザー報告**:
 - Windows側は**mayaでログイン中**
 - ユーザー名: maya
-- メールアドレス: fatima.sumomo@gmail.com
+- メールアドレス: tester@example.com
 
 **ログ出力**:
 - すべて**すもも（K35DAuQUktfhSr4XWFoAtBNL32E3）**として記録
-- メールアドレス: fatima.yatomi@outlook.com
+- メールアドレス: tester2@example.com
 
 **考えられる原因**:
 1. ログ出力のタイミング問題（UID変更処理中の古いログ）

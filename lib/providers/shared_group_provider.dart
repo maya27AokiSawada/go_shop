@@ -29,7 +29,7 @@ final SharedGroupRepositoryProvider = Provider<SharedGroupRepository>((
   ref,
 ) {
   // 🔥 devフレーバーもprodフレーバーも同じ機能（Firestore + Hive）を使用
-  // 違いはFirebaseプロジェクトのみ（gotoshop-572b7 vs goshopping-48db9）
+  // 実際の Firebase プロジェクト設定はローカル構成に委ねる
   return HybridSharedGroupRepository(ref);
 });
 

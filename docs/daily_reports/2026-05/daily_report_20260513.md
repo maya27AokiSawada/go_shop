@@ -25,10 +25,10 @@
 | `README.md`                         | バージョン `1.1.0+6`（古い）                    | `1.1.0+12` に更新                            |
 | `README.md`                         | `hybrid_purchase_group_repository.dart`（旧名） | `hybrid_shared_group_repository.dart` に修正 |
 | `README.md`                         | `purchase_group_provider.dart`（旧名）          | `shared_group_provider.dart` に修正          |
-| `README.md`                         | prod Project ID `goshopping-48db9`（旧）        | `go-shopping-61515` に修正                   |
+| `README.md`                         | prod Project ID `legacy-prod-firebase-project-id`（旧）        | `your-prod-firebase-project-id` に修正                   |
 | `instructions/00_project_common.md` | 同上                                            | 同上                                         |
-| `.github/copilot-instructions.md`   | Project ID + Project Number が旧値              | `go-shopping-61515` / `37061888509` に修正   |
-| `functions/index.js`                | フォールバック projectId が旧値                 | `go-shopping-61515` に修正                   |
+| `.github/copilot-instructions.md`   | Project ID + Project Number が旧値              | `your-prod-firebase-project-id` / `YOUR_PROD_PROJECT_NUMBER` に修正   |
+| `functions/index.js`                | フォールバック projectId が旧値                 | `your-prod-firebase-project-id` に修正                   |
 
 **Modified Files**:
 

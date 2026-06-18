@@ -62,11 +62,11 @@
 
 - **Flutter SDK**: 3.35.5以上
 - **Visual C++ Redistributable**: 最新版
-- **Firebase プロジェクト**: gotoshop-572b7
+- **Firebase プロジェクト**: your-dev-firebase-project-id
 
 ### 2.3 テストデータ
 
-- **テストユーザー**: <fatima.sumomo@gmail.com>
+- **テストユーザー**: <tester@example.com>
 - **テストグループ**: デフォルトグループ、サークル、テストtest_group
 - **テストアイテム**: 各種買い物アイテム
 
@@ -537,8 +537,8 @@
 
 - **Windows Version**: ******\_\_\_\_******
 - **Flutter Version**: ******\_\_\_\_******
-- **Firebase Project**: gotoshop-572b7
-- **Test Account**: <fatima.sumomo@gmail.com>
+- **Firebase Project**: your-dev-firebase-project-id
+- **Test Account**: <tester@example.com>
 
 ### B. 参考資料
 

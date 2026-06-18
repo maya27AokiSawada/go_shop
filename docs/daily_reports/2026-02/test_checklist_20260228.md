@@ -261,7 +261,7 @@
 
 - デバイス型番: \_\_\_\_\_\_\_\_\_\_
 - Android Version: \_\_\_\_\_\_\_\_\_\_
-- Firebase Console: gotoshop-572b7 (dev) / goshopping-48db9 (prod)
+- Firebase Console: your-dev-firebase-project-id (dev) / legacy-prod-firebase-project-id (prod)
 
 ### テスト実施の注意点
 

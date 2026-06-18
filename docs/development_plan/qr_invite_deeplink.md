@@ -44,8 +44,8 @@
 ## 🎯 実装目標
 
 **ターゲット**: Android + iOS
-**Deep Linkドメイン**: `goshopping-48db9.web.app`（Firebase Hosting）
-**URL形式**: `https://goshopping-48db9.web.app/invite?invitationId=XXX&key=YYY&groupId=ZZZ`
+**Deep Linkドメイン**: `legacy-prod-firebase-project-id.web.app`（Firebase Hosting）
+**URL形式**: `https://legacy-prod-firebase-project-id.web.app/invite?invitationId=XXX&key=YYY&groupId=ZZZ`
 **Deferred Deep Link**: Android = Play Install Referrer API、iOS = クリップボード検出
 **除外**: Firebase Dynamic Links（2025年8月シャットダウン済みのため不使用）
 
@@ -61,7 +61,7 @@
 
 1. `encodeQRData()` の出力をHTTPS URLに変更
    - 変更前: `jsonEncode({invitationId, sharedGroupId, securityKey, type, version})`
-   - 変更後: `https://goshopping-48db9.web.app/invite?invitationId=XXX&key=YYY&groupId=ZZZ`
+   - 変更後: `https://legacy-prod-firebase-project-id.web.app/invite?invitationId=XXX&key=YYY&groupId=ZZZ`
 
 2. `decodeQRData()` に**URL形式の解析を追加**（後方互換：JSON形式も引き続き受け付け）
    - 入力が `https://` で始まる場合 → URLクエリパラメータを解析
@@ -117,7 +117,7 @@
     <category android:name="android.intent.category.DEFAULT" />
     <category android:name="android.intent.category.BROWSABLE" />
     <data android:scheme="https"
-          android:host="goshopping-48db9.web.app"
+          android:host="legacy-prod-firebase-project-id.web.app"
           android:pathPrefix="/invite" />
 </intent-filter>
 ```
@@ -129,7 +129,7 @@
 **新規・変更ファイル**: `ios/Runner/Runner.entitlements`, `ios/Runner/Info.plist`
 
 1. `ios/Runner/Runner.entitlements` 新規作成:
-   - `com.apple.developer.associated-domains`: `applinks:goshopping-48db9.web.app`
+   - `com.apple.developer.associated-domains`: `applinks:legacy-prod-firebase-project-id.web.app`
 
 2. `ios/Runner/Info.plist` にカスタムスキームフォールバック追加（`CFBundleURLSchemes`）
 
@@ -172,7 +172,7 @@
 
 1. 同ファイルにiOS分岐を追加:
    - `Clipboard.getData(Clipboard.kTextPlain)` でクリップボードを確認
-   - `goshopping-48db9.web.app/invite?` を含む場合は確認ダイアログを表示
+   - `legacy-prod-firebase-project-id.web.app/invite?` を含む場合は確認ダイアログを表示
 
 2. `lib/main.dart` で認証完了後（`authStateProvider` が `User` を返した直後）に `DeferredDeepLinkService.check(context, ref)` を呼び出し
 
@@ -200,18 +200,18 @@
 
 ## ✅ 検証手順
 
-1. `firebase deploy --only hosting` 後、`https://goshopping-48db9.web.app/.well-known/assetlinks.json` に直接アクセスして内容確認
+1. `firebase deploy --only hosting` 後、`https://legacy-prod-firebase-project-id.web.app/.well-known/assetlinks.json` に直接アクセスして内容確認
 
 2. Google Digital Asset Links API で検証:
 
    ```
-   https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://goshopping-48db9.web.app&relation=delegate_permission/common.handle_all_urls
+   https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://legacy-prod-firebase-project-id.web.app&relation=delegate_permission/common.handle_all_urls
    ```
 
 3. App Links動作確認（Android実機・インストール済み）:
 
    ```bash
-   adb shell am start -a android.intent.action.VIEW -d "https://goshopping-48db9.web.app/invite?invitationId=TEST&key=TEST&groupId=TEST"
+   adb shell am start -a android.intent.action.VIEW -d "https://legacy-prod-firebase-project-id.web.app/invite?invitationId=TEST&key=TEST&groupId=TEST"
    ```
 
 4. Play Install Referrer テスト:

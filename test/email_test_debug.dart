@@ -57,7 +57,7 @@ class _EmailTestDebugPageState extends ConsumerState<EmailTestDebugPage> {
             ),
             SizedBox(height: 10),
             Text(
-              '宛先: fatima.sumomo@gmail.com',
+              '宛先: support@example.com',
               style: TextStyle(fontSize: 14, color: Colors.grey),
             ),
             SizedBox(height: 30),
@@ -159,7 +159,7 @@ class _ManualEmailTestWidgetState extends ConsumerState<ManualEmailTestWidget> {
       // 3. テストメール送信
       AppLogger.info('📧 テストメール送信開始...');
       final success = await emailTestService.sendTestEmail(
-        testEmail: 'fatima.sumomo@gmail.com',
+        testEmail: 'support@example.com',
         customSubject:
             'Go Shop デバッグテスト - ${DateTime.now().toString().substring(0, 19)}',
         customBody: '''
@@ -168,7 +168,7 @@ Go Shop デバッグテストメールです。
 実行日時: ${DateTime.now()}
 テストモード: 手動デバッグ
 ブランチ: test
-宛先: fatima.sumomo@gmail.com
+宛先: support@example.com
 
 このメールは開発・テスト用に送信されています。
 

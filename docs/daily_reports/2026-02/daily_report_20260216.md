@@ -231,8 +231,8 @@ Flutter プロジェクトで CocoaPods を使用する場合、以下の3つの
 
 **問題発見**:
 
-- Windows: prod環境（goshopping-48db9）
-- SH 54D: dev環境（gotoshop-572b7）
+- Windows: prod環境（legacy-prod-firebase-project-id）
+- SH 54D: dev環境（your-dev-firebase-project-id）
 - Firebaseプロジェクトが異なるため、QR招待時に「Exception」エラー
 
 **解決策**:

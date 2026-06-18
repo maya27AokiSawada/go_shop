@@ -89,6 +89,11 @@ ADMOB_INTERSTITIAL_AD_UNIT_ID=your_admob_interstitial_ad_unit_id
 SENTRY_DSN=your_sentry_dsn
 SENTRY_ENVIRONMENT=development
 
+# Optional test-only credentials
+TEST_EMAIL_RECIPIENT=tester@example.com
+TEST_SCENARIO_EMAIL=tester@example.com
+TEST_SCENARIO_PASSWORD=change_me
+
 # 開発用テストID
 ADMOB_TEST_APP_ID=ca-app-pub-3940256099942544~3347511713
 ADMOB_TEST_BANNER_AD_UNIT_ID=ca-app-pub-3940256099942544/6300978111
@@ -205,6 +210,22 @@ SENTRY_ENVIRONMENT=development
 - `.env.example` にはプレースホルダーのみ残す
 - Sentry を使わない場合は `SENTRY_DSN` を空欄のままにしてよい
 - 本番運用では `SENTRY_ENVIRONMENT=production` など、環境名を明示する
+
+### 4.7 テスト用資格情報
+
+テスト用ウィジェットを使う場合のみ、以下を `.env` に設定してください。
+
+```env
+TEST_EMAIL_RECIPIENT=tester@example.com
+TEST_SCENARIO_EMAIL=tester@example.com
+TEST_SCENARIO_PASSWORD=change_me
+```
+
+ルール:
+
+- テスト用メールアドレスやパスワードをソースコードに直書きしない
+- 実運用アカウントを使う場合も `.env` またはローカル専用の仕組みだけで保持する
+- 不要なら未設定のままでよい
 
 ## 5. Firebase Console 側で必要な設定
 

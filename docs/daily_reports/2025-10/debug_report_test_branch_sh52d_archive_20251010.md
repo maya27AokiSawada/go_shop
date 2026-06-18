@@ -26,7 +26,7 @@
 ### 📊 テスト機能詳細
 
 **EmailTestService の機能**:
-- ✅ `sendTestEmail()` - fatima.sumomo@gmail.com への送信
+- ✅ `sendTestEmail()` - tester@example.com への送信
 - ✅ `diagnoseEmailSettings()` - Firebase接続診断
 - ✅ フォールバック機能 (システムメールクライアント)
 
@@ -38,7 +38,7 @@
 ### 🎯 Firebase Extensions 設定状況
 
 **現在の状態**:
-- Firebase プロジェクト: gotoshop-572b7 ✅
+- Firebase プロジェクト: your-dev-firebase-project-id ✅
 - Firestore 接続: 設定済み ✅
 - Extensions Trigger Email: 要SMTP設定 ⚠️
 
@@ -72,7 +72,7 @@ git checkout test
 flutter run -d windows --debug
 
 # 対象メールアドレス
-fatima.sumomo@gmail.com
+tester@example.com
 ```
 
 ## 🎊 デバッグ完了ステータス

@@ -1,4 +1,4 @@
-﻿# 開発日報 2026年2月3日
+# 開発日報 2026年2月3日
 
 ## 作業サマリー
 
@@ -243,7 +243,7 @@ void main() async {
     // Windows/Linux/macOS: Sentry
     await SentryFlutter.init(
       (options) {
-        options.dsn = 'https://9aa7459e94ab157f830e81c9f1a585b3@o4510820521738240.ingest.us.sentry.io/4510820522786816';
+        options.dsn = 'your_sentry_dsn';
         options.attachScreenshot = true;
         options.beforeSend = (event, hint) {
           // 個人情報マスキング

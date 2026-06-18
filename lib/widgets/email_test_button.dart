@@ -1,5 +1,6 @@
 // lib/widgets/email_test_button.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/email_test_service.dart';
 import '../utils/app_logger.dart';
@@ -74,8 +75,10 @@ class _EmailTestButtonState extends ConsumerState<EmailTestButton> {
     try {
       final emailTestService = ref.read(emailTestServiceProvider);
 
-      // テスト用のメールアドレス
-      const testEmail = 'fatima.sumomo@gmail.com';
+      final testEmail = dotenv.env['TEST_EMAIL_RECIPIENT']?.trim();
+      if (testEmail == null || testEmail.isEmpty) {
+        throw StateError('TEST_EMAIL_RECIPIENT is not configured in .env');
+      }
 
       Log.info('🧪 メール送信テスト開始');
       Log.info('   対象: ${Log.maskEmail(testEmail)}');

@@ -74,15 +74,15 @@
 2. Node.js + Firebase CLI環境構築
    - Chocolatey で Node.js LTS インストール
    - `npm install -g firebase-tools`
-   - `firebase login` (fatima.sumomo@gmail.com)
+   - `firebase login` (tester@example.com)
 
 3. プロジェクトID修正
-   - 当初: `go-shopping-61515` → 権限エラー
-   - 正: `gotoshop-572b7` → デプロイ成功 ✅
+   - 当初: `your-prod-firebase-project-id` → 権限エラー
+   - 正: `your-dev-firebase-project-id` → デプロイ成功 ✅
 
 4. インデックスデプロイ成功
    ```bash
-   firebase deploy --only firestore:indexes --project gotoshop-572b7
+   firebase deploy --only firestore:indexes --project your-dev-firebase-project-id
    # + firestore: deployed indexes in firestore.indexes.json successfully
    ```
 
@@ -97,13 +97,13 @@ Unable to resolve host firestore.googleapis.com
 
 ### ✅ 完了
 - 招待機能の全レイヤー実装（Model/Repository/Provider/UI）
-- Firebaseプロジェクト設定確認（`gotoshop-572b7`）
+- Firebaseプロジェクト設定確認（`your-dev-firebase-project-id`）
 - Firestoreインデックス定義作成
 - インデックスのFirebaseへのデプロイ
 
 ### ⏳ 待機中
 - **Firestoreインデックスの構築完了**（通常2-5分）
-  - 確認URL: https://console.firebase.google.com/project/gotoshop-572b7/firestore/indexes
+  - 確認URL: https://console.firebase.google.com/project/your-dev-firebase-project-id/firestore/indexes
   - Status: "Building" → "Enabled" になれば完了
 
 ### 📋 次回作業予定
@@ -183,7 +183,7 @@ E/qdgralloc(32545): GetSize: Unrecognized pixel format: 0x38
 ## 次回引継ぎ時の確認事項
 
 1. **Firebase Consoleでインデックス状態確認**
-   - URL: https://console.firebase.google.com/project/gotoshop-572b7/firestore/indexes
+   - URL: https://console.firebase.google.com/project/your-dev-firebase-project-id/firestore/indexes
    - `invitations` コレクションのインデックスが "Enabled" になっているか
 
 2. **エラーが解消されているか確認**

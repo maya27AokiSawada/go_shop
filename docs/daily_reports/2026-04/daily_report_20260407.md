@@ -95,11 +95,11 @@ String get _interstitialAdUnitId {
 **Problem / Root Cause**:
 
 - `.gitignore` に `google-services.json` は記載されていたが `google-services-my.json` は未記載
-- dev用Firebase APIキー `AIzaSyDr5dg16s59EO1CuBTHAyfXxr1TVYiRlSo` がfutureブランチのコミット履歴に存在
+- dev用Firebase APIキー `AIzaSy********************` がfutureブランチのコミット履歴に存在
 
 **Solution**:
 
-1. Google Cloud Console（プロジェクト: `gotoshop-572b7`）でAPIキーを再生成
+1. Google Cloud Console（プロジェクト: `your-dev-firebase-project-id`）でAPIキーを再生成
 2. `google-services-my.json` の `current_key` を新キーに更新
 3. `.gitignore` に `google-services-my.json` を追加
 4. `git rm --cached` でgitトラッキングから除外

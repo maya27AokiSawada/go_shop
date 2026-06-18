@@ -121,7 +121,7 @@ allow delete: if false;
 
 - SH-54D: デフォルトグループ + 共有グループ2つ表示（正常）
 - Pixel 9: デフォルトグループのみ表示（異常）
-- 両デバイスとも同じアカウント（まや、fatima.sumomo@gmail.com）でサインイン
+- 両デバイスとも同じアカウント（まや、tester@example.com）でサインイン
 
 #### 調査プロセス
 
@@ -140,7 +140,7 @@ flutter devices
 
 **3. google-services.json確認**
 
-両方とも同じFirebaseプロジェクト（`gotoshop-572b7`）を使用しているが、**パッケージ名が異なる**：
+両方とも同じFirebaseプロジェクト（`your-dev-firebase-project-id`）を使用しているが、**パッケージ名が異なる**：
 
 ```
 android/app/src/dev/google-services.json
