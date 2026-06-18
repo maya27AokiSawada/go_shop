@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: '.env');
+
+  final sentryDsn = dotenv.env['SENTRY_DSN']?.trim();
+  if (sentryDsn == null || sentryDsn.isEmpty) {
+    throw StateError('SENTRY_DSN is not configured in .env');
+  }
 
   // Sentry初期化
   await SentryFlutter.init(
     (options) {
-      options.dsn =
-          'https://9aa7459e94ab157f830e81c9f1a585b3@o4510820521738240.ingest.us.sentry.io/4510820522786816';
+      options.dsn = sentryDsn;
       options.debug = true; // デバッグモードで詳細ログ出力
-      options.environment = 'test';
+      options.environment = dotenv.env['SENTRY_ENVIRONMENT'] ?? 'test';
       options.tracesSampleRate = 1.0;
     },
     appRunner: () => runApp(const SentrySetupVerifyApp()),

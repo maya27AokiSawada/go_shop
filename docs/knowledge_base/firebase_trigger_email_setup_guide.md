@@ -1,7 +1,8 @@
 # 📧 Firebase Extensions Trigger Email 設定ガイド
 
 ## 🎯 概要
-`fatima.sumomo@gmail.com` へのメール送信テスト機能を実装するための Firebase Extensions Trigger Email の詳細設定手順です。
+
+任意のテスト用メールアドレスへのメール送信テスト機能を実装するための Firebase Extensions Trigger Email の詳細設定手順です。
 
 ## 🔧 Firebase Console での設定手順
 
@@ -9,7 +10,7 @@
 
 1. **Firebase Console** にアクセス
    - https://console.firebase.google.com/
-   - プロジェクト `gotoshop-572b7` を選択
+   - 自分の Firebase プロジェクトを選択
 
 2. **Extensions** セクションを開く
    - 左サイドバーから「Extensions」をクリック
@@ -32,12 +33,13 @@ firebase login
 
 # プロジェクト設定確認
 firebase projects:list
-firebase use gotoshop-572b7
+firebase use <your-firebase-project-id>
 ```
 
 #### 📝 Cloud Firestore セキュリティルール
 
 現在のルール（開発環境）:
+
 ```javascript
 rules_version = '2';
 service cloud.firestore {
@@ -51,11 +53,12 @@ service cloud.firestore {
 ```
 
 **メール送信用コレクションの追加ルール:**
+
 ```javascript
 // メール送信コレクション用ルール
 match /mail/{mailId} {
   allow create: if request.auth != null;
-  allow read: if request.auth != null && 
+  allow read: if request.auth != null &&
               resource.data.uid == request.auth.uid;
 }
 ```
@@ -64,16 +67,17 @@ match /mail/{mailId} {
 
 #### 🌟 基本設定
 
-| パラメータ | 値 | 説明 |
-|-----------|----|----|
-| **Cloud Firestore path** | `mail` | メール送信リクエストを保存するコレクション |
-| **Email documents TTL** | `86400` | メールドキュメントの生存時間（24時間） |
-| **Users collection** | `users` | ユーザー情報コレクション |
-| **Templates collection** | `templates` | メールテンプレートコレクション |
+| パラメータ               | 値          | 説明                                       |
+| ------------------------ | ----------- | ------------------------------------------ |
+| **Cloud Firestore path** | `mail`      | メール送信リクエストを保存するコレクション |
+| **Email documents TTL**  | `86400`     | メールドキュメントの生存時間（24時間）     |
+| **Users collection**     | `users`     | ユーザー情報コレクション                   |
+| **Templates collection** | `templates` | メールテンプレートコレクション             |
 
 #### 📮 SMTP 設定（重要）
 
 **さくらインターネット SMTP設定:**
+
 ```
 SMTP Connection URI: smtps://sumomo-planning%40sakura.ne.jp:YOUR_PASSWORD@mail.sakura.ne.jp:465
 Default FROM address: sumomo-planning@sakura.ne.jp
@@ -81,6 +85,7 @@ Default REPLY-TO address: sumomo-planning@sakura.ne.jp
 ```
 
 **さくらインターネット代替設定（ポート587使用）:**
+
 ```
 SMTP Connection URI: smtp://sumomo-planning%40sakura.ne.jp:YOUR_PASSWORD@mail.sakura.ne.jp:587
 Default FROM address: sumomo-planning@sakura.ne.jp
@@ -88,6 +93,7 @@ Default REPLY-TO address: sumomo-planning@sakura.ne.jp
 ```
 
 **Gmail SMTP設定例（参考）:**
+
 ```
 SMTP Connection URI: smtps://YOUR_EMAIL%40gmail.com:YOUR_APP_PASSWORD@smtp.gmail.com:465
 Default FROM address: YOUR_EMAIL@gmail.com
@@ -129,7 +135,7 @@ Default REPLY-TO address: YOUR_EMAIL@gmail.com
 ```javascript
 // /mail/{docId} コレクション
 {
-  to: "fatima.sumomo@gmail.com",
+   to: "tester@example.com",
   message: {
     subject: "Go Shop - テスト送信",
     text: "これは Go Shop アプリからのテスト送信です。",
@@ -160,6 +166,7 @@ if (user == null) {
 #### 🔒 環境変数設定
 
 **Firebase Functions の環境変数:**
+
 ```bash
 firebase functions:config:set gmail.email="your.email@gmail.com"
 firebase functions:config:set gmail.password="your-app-password"
@@ -170,8 +177,9 @@ firebase functions:config:set gmail.password="your-app-password"
 #### 🧪 基本テスト
 
 1. **Flutter アプリからのテスト**
+
 ```dart
-await EmailTestService.sendTestEmail('fatima.sumomo@gmail.com');
+await EmailTestService.sendTestEmail('tester@example.com');
 ```
 
 2. **Firebase Console での確認**
@@ -187,11 +195,13 @@ await EmailTestService.sendTestEmail('fatima.sumomo@gmail.com');
 **よくある問題:**
 
 1. **SMTP認証エラー**
+
    ```
    解決策: Gmail App Passwordの再生成
    ```
 
 2. **権限エラー**
+
    ```
    解決策: IAM ロール「Firebase Admin」を付与
    ```
@@ -210,7 +220,7 @@ await EmailTestService.sendTestEmail('fatima.sumomo@gmail.com');
 Future<void> sendTestEmail(String email) async {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) throw Exception('認証が必要です');
-  
+
   await FirebaseFirestore.instance.collection('mail').add({
     'to': email,
     'message': {
@@ -228,6 +238,6 @@ Future<void> sendTestEmail(String email) async {
 2. ✅ SMTP設定（Gmail App Password）
 3. ✅ Firestore セキュリティルール更新
 4. ✅ テスト送信実行
-5. ✅ `fatima.sumomo@gmail.com` での受信確認
+5. ✅ 任意の受信テスト用メールアドレスでの受信確認
 
 **完了後、Go Shop アプリの「🧪 メール送信テスト」機能が完全に動作します！**

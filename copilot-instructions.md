@@ -14,7 +14,7 @@
 
 - ❌ Firebase API Keys（`AIzaSy...`で始まる文字列）
 - ❌ Google Cloud API Keys
-- ❌ Sentry DSN（公開可能だが、コメントで明示すること）
+- ❌ Sentry DSN（tracked file へ直書きしない）
 - ❌ その他のサードパーティAPIキー
 
 #### 2. 認証・パスワード
@@ -26,9 +26,10 @@
 
 #### 3. プラットフォーム固有の設定ファイル
 
-- ❌ `lib/firebase_options_goshopping.dart` - Firebase設定
+- ❌ `lib/firebase_options.dart` - Firebase設定
 - ❌ `extensions/firestore-send-email.env` - Gmailパスワード
-- ❌ `ios/Runner/GoogleService-Info.plist` - iOS Firebase設定
+- ❌ `ios/GoogleService-Info-dev.plist` - iOS Firebase設定
+- ❌ `ios/GoogleService-Info-prod.plist` - iOS Firebase設定
 - ❌ `android/app/google-services.json` - Android Firebase設定
 - ❌ `android/key.properties` - Android署名鍵情報
 
@@ -63,11 +64,12 @@ git diff --cached | grep -i "token"
 # 機密情報
 *.env
 !*.env.template
-lib/firebase_options_goshopping.dart
+lib/firebase_options.dart
 extensions/firestore-send-email.env
 
 # iOS機密ファイル
-ios/Runner/GoogleService-Info.plist
+ios/GoogleService-Info-dev.plist
+ios/GoogleService-Info-prod.plist
 ios_backup/GoogleService-Info.plist
 *.mobileprovision
 *.p12
@@ -94,6 +96,12 @@ git add ios/Runner/GoogleService-Info.plist
 # 良い例
 git add ios/Runner/GoogleService-Info.plist.template
 ```
+
+実際の値の配置先:
+
+- Firebase 実値: `lib/firebase_options.dart` / `android/app/google-services.json` / `ios/GoogleService-Info-*.plist`
+- AdMob / Sentry 実値: `.env`
+- CI 用の実値: GitHub Secrets / Environment Secrets（`DOT_ENV` など）
 
 ---
 
@@ -147,15 +155,16 @@ Firebase/Google Cloud API Keyには必ず制限を設定：
 const apiKey = "AIzaSyCOrH6NiWn6nUhpdgnZ328hQ9Yel-ECFf4";
 
 // 良い例（環境変数から読み込み）
-final apiKey = const String.fromEnvironment('FIREBASE_API_KEY');
+final apiKey = dotenv.env['FIREBASE_API_KEY_WEB'];
 ```
 
 ### 3. 機密情報の分離
 
-開発環境と本番環境で異なる設定ファイルを使用：
+開発環境と本番環境で異なる設定を使用する場合でも、tracked file には実値を書かない:
 
-- `firebase_options_dev.dart`（.gitignore対象外でもOK - dev用）
-- `firebase_options_goshopping.dart`（.gitignore必須 - 本番用）
+- `lib/firebase_options.dart` はローカル生成・追跡除外で扱う
+- `.env` に AdMob / Sentry などの実値を置く
+- 配布や CI では GitHub Secrets / Environment Secrets を使う
 
 ---
 

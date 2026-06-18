@@ -16,10 +16,14 @@
 
 ### Firebase プロジェクト
 
-| Flavor        | Project ID          | 用途         |
-| ------------- | ------------------- | ------------ |
-| `Flavor.prod` | `go-shopping-61515` | 本番リリース |
-| `Flavor.dev`  | `gotoshop-572b7`    | 開発・テスト |
+- `Flavor.prod`: 本番リリース用。実際の Project ID / App ID / API Key は追跡除外ファイルにのみ保持する
+- `Flavor.dev`: 開発・テスト用。実際の Project ID / App ID / API Key は追跡除外ファイルにのみ保持する
+
+ルール:
+
+- 実際の Firebase Project ID や Project Number は tracked code / tracked docs に書かない
+- `lib/firebase_options.dart`、`.env`、ネイティブ Firebase 設定ファイルだけに実値を置く
+- セットアップ手順は [SETUP.md](../SETUP.md) を参照する
 
 ### Hive TypeID 一覧（新規追加時は必ず確認）
 

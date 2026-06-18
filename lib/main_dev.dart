@@ -25,6 +25,32 @@ import 'utils/app_logger.dart';
 import 'l10n/app_localizations.dart';
 import 'services/user_preferences_service.dart';
 
+bool _envLoaded = false;
+
+Future<void> _loadEnvOnce() async {
+  if (_envLoaded) return;
+  try {
+    await dotenv.load(fileName: '.env');
+    _envLoaded = true;
+    AppLogger.info('✅ 環境変数読み込み成功');
+  } catch (e) {
+    AppLogger.error('❌ 環境変数読み込みエラー: $e');
+    AppLogger.info('ℹ️ .envファイルが見つかりません - デフォルト値を使用します');
+  }
+}
+
+String? _readSentryDsn() {
+  final value = dotenv.env['SENTRY_DSN']?.trim();
+  if (value == null || value.isEmpty) return null;
+  return value;
+}
+
+String _readSentryEnvironment() {
+  final value = dotenv.env['SENTRY_ENVIRONMENT']?.trim();
+  if (value != null && value.isNotEmpty) return value;
+  return kDebugMode ? 'development' : 'production';
+}
+
 /// Firebase.initializeApp() を指数バックオフ（初回500ms）でリトライする。
 /// Android のネットワークスタック初期化（DNS解決問題）に対応。
 Future<void> _initFirebaseWithBackoff() async {
@@ -52,19 +78,20 @@ Future<void> _initFirebaseWithBackoff() async {
 }
 
 void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await _loadEnvOnce();
+
   // 🔥 Windows/Linux/macOS用 Sentry初期化
-  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+  final sentryDsn = _readSentryDsn();
+  if ((Platform.isWindows || Platform.isLinux || Platform.isMacOS) &&
+      sentryDsn != null) {
     await SentryFlutter.init(
       (options) {
-        // 🔥 DSN設定
-        // NOTE: Sentry DSNは公開情報として設計されています（書き込み専用、読み取り不可）
-        // セキュリティはSentry管理画面の「Allowed Domains」設定で保護してください
-        options.dsn =
-            'https://9aa7459e94ab157f830e81c9f1a585b3@o4510820521738240.ingest.us.sentry.io/4510820522786816';
+        options.dsn = sentryDsn;
 
         // 🔥 CRITICAL: リリースモードでもSentryを有効化
         options.debug = false; // リリースでは詳細ログなし（パフォーマンス重視）
-        options.environment = kDebugMode ? 'development' : 'production';
+        options.environment = _readSentryEnvironment();
 
         // パフォーマンス監視設定
         options.tracesSampleRate = kDebugMode ? 1.0 : 0.2; // リリースは20%サンプリング
@@ -94,7 +121,9 @@ void main() async {
       appRunner: () => _initializeApp(),
     );
   } else {
-    // Android/iOS: Sentryなしで直接初期化
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      AppLogger.info('ℹ️ SENTRY_DSN 未設定のため Sentry を無効化して起動します');
+    }
     await _initializeApp();
   }
 }
@@ -111,14 +140,7 @@ Future<void> _initializeApp() async {
     AppLogger.info('🌐 保存済み言語で起動: $savedLang');
   }
 
-  // 🔥 環境変数の初期化（最優先）
-  try {
-    await dotenv.load(fileName: '.env');
-    AppLogger.info('✅ 環境変数読み込み成功');
-  } catch (e) {
-    AppLogger.error('❌ 環境変数読み込みエラー: $e');
-    AppLogger.info('ℹ️ .envファイルが見つかりません - デフォルト値を使用します');
-  }
+  await _loadEnvOnce();
 
   AppLogger.info('⚙️ フレーバー: ${F.appFlavor} (--dart-define=FLAVORで指定)');
 

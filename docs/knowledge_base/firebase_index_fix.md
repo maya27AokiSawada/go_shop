@@ -15,6 +15,7 @@ W/Firestore: The query requires an index. You can create it here: https://consol
 **コレクション**: `notifications`
 
 **クエリフィールド（順序重要）**:
+
 1. `userId` (Ascending)
 2. `type` (Ascending)
 3. `groupId` (Ascending)
@@ -27,7 +28,9 @@ W/Firestore: The query requires an index. You can create it here: https://consol
 エラーログに表示されたURLをクリックすると、Firebase Consoleで自動的にインデックス作成画面が開きます：
 
 ```
-https://console.firebase.google.com/v1/r/project/gotoshop-572b7/firestore/indexes?create_composite=ClRwcm9qZWN0cy9nb3Rvc2hvcC01NzJiNy9kYXRhYmFzZXMvKGRlZmF1bHQpL2NvbGxlY3Rpb25Hcm91cHMvbm90aWZpY2F0aW9ucy9pbmRleGVzL18QARoLCgdncm91cElkEAEaCAoEcmVhZBABGggKBHR5cGUQARoKCgZ1c2VySWQQARoNCgl0aW1lc3RhbXAQAhoMCghfX25hbWVfXxAC
+https://console.firebase.google.com/
+
+実際のエラーログに表示されたリンクを使って、自分の Firebase プロジェクト上でインデックスを作成してください。
 ```
 
 ## 手動作成手順
@@ -39,14 +42,14 @@ https://console.firebase.google.com/v1/r/project/gotoshop-572b7/firestore/indexe
 3. 「インデックスを作成」をクリック
 4. 以下の設定を入力：
 
-| フィールド | モード | 並び順 |
-|----------|------|------|
-| userId | Ascending | ↑ |
-| type | Ascending | ↑ |
-| groupId | Ascending | ↑ |
-| read | Ascending | ↑ |
-| timestamp | Descending | ↓ |
-| __name__ | Descending | ↓ |
+| フィールド | モード     | 並び順 |
+| ---------- | ---------- | ------ |
+| userId     | Ascending  | ↑      |
+| type       | Ascending  | ↑      |
+| groupId    | Ascending  | ↑      |
+| read       | Ascending  | ↑      |
+| timestamp  | Descending | ↓      |
+| **name**   | Descending | ↓      |
 
 5. 「作成」をクリック
 6. インデックス構築完了まで数分待つ
@@ -71,11 +74,13 @@ _firestore
 ## 影響範囲
 
 このインデックスがないと：
+
 - ✅ 招待受諾自体は成功する
 - ❌ 確認通知の待機がタイムアウトする
 - ❌ 同期タイミングが遅れる（5秒のフォールバック遅延）
 
 インデックス作成後は：
+
 - ✅ 確認通知が即座に検出される
 - ✅ 同期が高速化される
 

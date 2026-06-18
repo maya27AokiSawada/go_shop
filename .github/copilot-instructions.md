@@ -18,12 +18,14 @@
 
 ## Firebase プロジェクト設定
 
-| Flavor        | Project ID         | Project Number | 用途         |
-| ------------- | ------------------ | -------------- | ------------ |
-| `Flavor.prod` | `go-shopping-61515` | `37061888509` | 本番リリース |
-| `Flavor.dev`  | `gotoshop-572b7`   | `895658199748` | 開発・テスト |
+| Flavor        | 用途         | 設定方針                                         |
+| ------------- | ------------ | ------------------------------------------------ |
+| `Flavor.prod` | 本番リリース | 実際の Firebase 設定値は tracked file に書かない |
+| `Flavor.dev`  | 開発・テスト | 実際の Firebase 設定値は tracked file に書かない |
 
-- 設定ファイル: `lib/firebase_options.dart`（動的切替実装済み）
+- 設定ファイル: `lib/firebase_options.dart`（動的切替実装済み、追跡除外前提）
+- 環境変数: `.env`（AdMob / Sentry / 補助設定。追跡除外前提）
+- セットアップ手順: `SETUP.md`
 - Firebase MCP Server: `.vscode/settings.json` に設定済み（`npx -y firebase-tools@latest mcp`）
 
 ---
@@ -88,10 +90,12 @@
 - `lib/firebase_options.dart`（APIキー含む）
 - `*.env`, `key.properties`（認証情報）
 - `*.txt`（ログ・デバッグファイル）
+- `extensions/*.env`（メール送信や拡張機能の認証情報）
 
 **ドキュメント・コード内の禁止事項**:
 
 - ❌ APIキー・シークレットキーを平文で記載しない
+- ❌ Firebase Project ID / Project Number / Sentry DSN を tracked file に直書きしない
 - ❌ メールアドレス・個人情報を不必要に記載しない
 - ❌ パスワード・トークンを記載しない
 - ❌ `// TEMPORARY` などの本番不適切なコードをコミットしない
@@ -100,13 +104,19 @@
 
 - ✅ 機密情報が既にコミット済みの場合はマスキング（`AIzaSy********************`など）して再コミット
 - ✅ APIキーはローテーション後にローカルファイル（gitignore済み）のみに保存
+- ✅ Sentry を使う場合も `SENTRY_DSN` は `.env` や CI Secret にのみ保存する
 - ✅ Firestore Security Rulesは本番前に必ず厳格版を適用・デプロイ
 - ✅ APIキーの受け渡しはチャット外（ローカルファイル参照）で行う
 
+**設定場所の原則**:
+
+- Firebase 実値: `lib/firebase_options.dart`, `android/app/google-services.json`, `ios/GoogleService-Info-*.plist`
+- AdMob / Sentry 実値: `.env`
+- CI 用の実値: GitHub Secrets / Environment Secrets（例: `DOT_ENV`）
+
 **APIキー更新手順**:
 
-- prod: `android/app/google-services.json`（gitignore済み）
-- dev: `android/app/google-services-my.json`（gitignore済み）
-- 新キーは `C:\Users\fatim\secret.txt` を参照すること
+- `SETUP.md` の手順に従い、追跡除外ファイルをローカルで更新する
+- 実際のキーや DSN は tracked docs に転記しない
 
 ---

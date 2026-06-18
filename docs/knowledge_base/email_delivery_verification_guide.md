@@ -5,17 +5,20 @@
 ### 1. **Firebase Console での確認**
 
 #### 📊 Functions ログ確認
+
 1. **Firebase Console** → **Functions** → **ログ**
 2. 時間順にログを確認し、以下のメッセージを探す：
 
 **成功時のログ:**
+
 ```
 ✅ Message sent successfully: <messageId>
-✅ Email sent to: fatima.sumomo@gmail.com
+✅ Email sent to: tester@example.com
 ✅ SMTP connection established
 ```
 
 **エラー時のログ:**
+
 ```
 ❌ SMTP Authentication failed
 ❌ Connection timeout to mail.sakura.ne.jp
@@ -23,6 +26,7 @@
 ```
 
 #### 📈 Extensions 実行状況
+
 1. **Firebase Console** → **Extensions** → **Trigger Email**
 2. **実行状況** タブで送信履歴を確認
 3. **設定** で SMTP設定が正しいか確認
@@ -34,9 +38,10 @@
 Firebase Console → Firestore Database → `mail` コレクション
 
 **処理前（送信待ち）:**
+
 ```javascript
 {
-  to: "fatima.sumomo@gmail.com",
+  to: "tester@example.com",
   message: {
     subject: "Go Shop テスト",
     text: "テスト内容"
@@ -46,9 +51,10 @@ Firebase Console → Firestore Database → `mail` コレクション
 ```
 
 **処理後（送信完了）:**
+
 ```javascript
 {
-  to: "fatima.sumomo@gmail.com",
+  to: "tester@example.com",
   message: { ... },
   delivery: {
     state: "SUCCESS",
@@ -63,6 +69,7 @@ Firebase Console → Firestore Database → `mail` コレクション
 ```
 
 **送信失敗時:**
+
 ```javascript
 {
   delivery: {
@@ -89,18 +96,18 @@ Future<EmailDeliveryStatus> checkEmailDeliveryStatus(String docId) async {
         .collection('mail')
         .doc(docId)
         .get();
-    
+
     if (!doc.exists) {
       return EmailDeliveryStatus.notFound;
     }
-    
+
     final data = doc.data()!;
     final delivery = data['delivery'] as Map<String, dynamic>?;
-    
+
     if (delivery == null) {
       return EmailDeliveryStatus.pending;
     }
-    
+
     switch (delivery['state']) {
       case 'SUCCESS':
         return EmailDeliveryStatus.success;
@@ -130,12 +137,12 @@ enum EmailDeliveryStatus {
 // lib/widgets/email_test_button.dart に追加
 class EmailDeliveryStatusWidget extends StatefulWidget {
   final String documentId;
-  
+
   const EmailDeliveryStatusWidget({
     Key? key,
     required this.documentId,
   }) : super(key: key);
-  
+
   @override
   _EmailDeliveryStatusWidgetState createState() => _EmailDeliveryStatusWidgetState();
 }
@@ -143,7 +150,7 @@ class EmailDeliveryStatusWidget extends StatefulWidget {
 class _EmailDeliveryStatusWidgetState extends State<EmailDeliveryStatusWidget> {
   EmailDeliveryStatus? _status;
   Timer? _timer;
-  
+
   @override
   void initState() {
     super.initState();
@@ -153,21 +160,21 @@ class _EmailDeliveryStatusWidgetState extends State<EmailDeliveryStatusWidget> {
       _checkStatus();
     });
   }
-  
+
   Future<void> _checkStatus() async {
     final service = ref.read(emailTestServiceProvider);
     final status = await service.checkEmailDeliveryStatus(widget.documentId);
     setState(() {
       _status = status;
     });
-    
+
     // 成功またはエラーで自動停止
-    if (status == EmailDeliveryStatus.success || 
+    if (status == EmailDeliveryStatus.success ||
         status == EmailDeliveryStatus.error) {
       _timer?.cancel();
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -178,7 +185,7 @@ class _EmailDeliveryStatusWidgetState extends State<EmailDeliveryStatusWidget> {
       ),
     );
   }
-  
+
   Icon _getStatusIcon() {
     switch (_status) {
       case EmailDeliveryStatus.success:
@@ -191,7 +198,7 @@ class _EmailDeliveryStatusWidgetState extends State<EmailDeliveryStatusWidget> {
         return Icon(Icons.schedule, color: Colors.grey);
     }
   }
-  
+
   String _getStatusText() {
     switch (_status) {
       case EmailDeliveryStatus.success:
@@ -211,7 +218,7 @@ class _EmailDeliveryStatusWidgetState extends State<EmailDeliveryStatusWidget> {
 
 ### 4. **実際の受信確認**
 
-#### 📬 fatima.sumomo@gmail.com での確認
+#### 📬 テスト用メールアドレスでの確認
 
 1. **Gmail で受信確認**
    - 受信トレイ
@@ -219,6 +226,7 @@ class _EmailDeliveryStatusWidgetState extends State<EmailDeliveryStatusWidget> {
    - すべてのメールフォルダ
 
 2. **受信メール詳細確認**
+
    ```
    送信者: sumomo-planning@sakura.ne.jp
    件名: Go Shop - テスト送信
@@ -235,13 +243,13 @@ class _EmailDeliveryStatusWidgetState extends State<EmailDeliveryStatusWidget> {
 
 ```bash
 # Functions ログをリアルタイム表示
-firebase functions:log --project gotoshop-572b7
+firebase functions:log --project <your-firebase-project-id>
 
 # 特定期間のログ確認
-firebase functions:log --project gotoshop-572b7 --since 1h
+firebase functions:log --project <your-firebase-project-id> --since 1h
 
 # Firestore データ確認
-firebase firestore:export --project gotoshop-572b7
+firebase firestore:export --project <your-firebase-project-id>
 ```
 
 ### 6. **トラブルシューティング チェックリスト**
@@ -268,6 +276,6 @@ firebase firestore:export --project gotoshop-572b7
 
 1. **現在のテスト実行** → Firebase Console ログ確認
 2. **送信確認機能をアプリに追加** → リアルタイム状況表示
-3. **受信確認** → fatima.sumomo@gmail.com チェック
+3. **受信確認** → 任意のテスト受信先をチェック
 
 どの確認方法から始めますか？まずはFirebase Console のログ確認がおすすめです！
