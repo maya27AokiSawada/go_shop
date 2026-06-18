@@ -70,8 +70,16 @@ android {
             signingConfig = signingConfigs.getByName("release")
         }
     }
+
 }
 
 flutter {
     source = "../.."
+}
+
+// Keep local/public builds reproducible even when Crashlytics credentials are unavailable.
+tasks.configureEach {
+    if (name.startsWith("uploadCrashlyticsMappingFile")) {
+        enabled = false
+    }
 }
