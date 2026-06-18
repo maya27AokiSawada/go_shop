@@ -149,6 +149,20 @@ flutter build appbundle --release --flavor prod --dart-define=FLAVOR=prod
 dart run build_runner build --delete-conflicting-outputs
 ```
 
+### Android Release と Crashlytics Mapping Upload（2026-06-18）
+
+- `android/app/build.gradle.kts` では `uploadCrashlyticsMappingFile*` タスクを無効化している
+- 理由: 公開リポジトリ運用でローカル設定が未完了の場合、`uploadCrashlyticsMappingFileDevRelease` が `HTTP 400` で失敗し、APK 生成まで到達できないため
+- 前提: リリース APK 生成の再現性を優先し、マッピングアップロードは別工程（本番 CI / 正式リリース時）で実施する
+
+```kotlin
+tasks.configureEach {
+  if (name.startsWith("uploadCrashlyticsMappingFile")) {
+    enabled = false
+  }
+}
+```
+
 ### iOS IPA ビルド（TestFlight 配布）
 
 Distribution 証明書が keychain に登録されていない場合は `flutter build ipa` が失敗する。
