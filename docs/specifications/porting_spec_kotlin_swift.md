@@ -1,9 +1,11 @@
 # GoShopping アプリ 移植仕様説明書
+
 ## Kotlin (Android) / Swift (iOS) 向け
 
-**対象ブランチ**: `oneness`
+**対象ブランチ**: `origin/future/`
 **バージョン**: 1.1.0 (Build 16)
 **作成日**: 2026-06-04
+**最終更新**: 2026-06-20（2026-06-18〜06-19 コード修正を反映）
 
 ---
 
@@ -21,6 +23,15 @@
 10. [通知設計](#10-通知設計)
 11. [セキュリティルール](#11-セキュリティルール)
 12. [移植時の注意事項](#12-移植時の注意事項)
+
+### 変更履歴
+
+| 日付 | 変更内容 |
+|------|---------|
+| 2026-06-19 | ホワイトボード保存: オフライン時でも保存継続に変更（12-11） |
+| 2026-06-19 | パスワードリセット: Trigger Email廃止 → FirebaseAuth標準に変更（4-6） |
+| 2026-06-19 | メール招待: `mail`コレクション廃止 → `mailto:` URLスキームに変更（8-4） |
+| 2026-06-18 | Sentry DSN: ハードコード廃止 → `.env`読み込みに変更（12-10） |
 
 ---
 
@@ -316,7 +327,27 @@ Auth.auth().addStateDidChangeListener { auth, user in
 }
 ```
 
-### 4-6. エラーコード対応表
+### 4-6. パスワードリセット（2026-06-19 変更）
+
+> ⚠️ **変更**: Firestore Trigger Email（`mail`コレクション書き込み方式）は廃止。
+> FirebaseAuth標準の `sendPasswordResetEmail` を使用する。
+> `mail_rate_limit` コレクションによるレート制限も**不要**（Firebase側が制御）。
+
+```kotlin
+// Kotlin
+suspend fun sendPasswordResetEmail(email: String) {
+    FirebaseAuth.getInstance().sendPasswordResetEmail(email).await()
+}
+```
+
+```swift
+// Swift
+func sendPasswordResetEmail(email: String) async throws {
+    try await Auth.auth().sendPasswordReset(withEmail: email)
+}
+```
+
+### 4-7. エラーコード対応表
 
 | FirebaseAuthException code | 表示メッセージ |
 |---------------------------|--------------|
@@ -378,6 +409,7 @@ Firestore
 ```
 
 **重要**:
+
 - `allowedUid` に自分のUIDが含まれているグループのみ取得可能（Firestoreクエリ条件）
 - `ownerUid` は必ず `allowedUid` にも含まれる
 - グループID形式: `{DeviceIdPrefix}_{timestamp}` (例: `a3f8c9d2_1707835200000`)
@@ -416,6 +448,7 @@ Firestore
 ```
 
 **重要**:
+
 - `items` は `Map<String, SharedItem>` 形式（**配列ではない**）
 - キーは `itemId`
 - アイテム追加・更新は `items.{itemId}` フィールド単位で差分更新（全件置換禁止）
@@ -756,7 +789,39 @@ fun watchStrokes(groupId: String, whiteboardId: String): Flow<List<DrawingStroke
 ```
 INV_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ```
+
 （プレフィックス `INV_` + UUID v4）
+
+### 8-4. メール招待（2026-06-19 変更）
+
+> ⚠️ **変更**: Firestoreの `mail` コレクションへの書き込みによるTrigger Email方式は**廃止**。
+> メール招待は端末の標準メールクライアント（`mailto:` URLスキーム）を起動する方式に変更。
+
+```kotlin
+// Kotlin: メール招待
+fun sendInvitationEmail(email: String, groupName: String, inviterName: String, code: String) {
+    val subject = "$inviterName さんから「$groupName」グループへのご招待"
+    val body = "$inviterName さんから招待が届いています。\n招待コード: $code\n\nアプリ内で招待コードを入力して参加してください。"
+    val uri = Uri.parse("mailto:$email?subject=${Uri.encode(subject)}&body=${Uri.encode(body)}")
+    // startActivity(Intent(Intent.ACTION_VIEW, uri)) で起動
+}
+```
+
+```swift
+// Swift: メール招待
+func sendInvitationEmail(email: String, groupName: String, inviterName: String, code: String) {
+    let subject = "\(inviterName) さんから「\(groupName)」グループへのご招待"
+    let body = "\(inviterName) さんから招待が届いています。\n招待コード: \(code)\n\nアプリ内で招待コードを入力して参加してください。"
+    var components = URLComponents(string: "mailto:\(email)")!
+    components.queryItems = [
+        URLQueryItem(name: "subject", value: subject),
+        URLQueryItem(name: "body", value: body),
+    ]
+    if let url = components.url, UIApplication.shared.canOpenURL(url) {
+        UIApplication.shared.open(url)
+    }
+}
+```
 
 ---
 
@@ -765,6 +830,10 @@ INV_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ### 9-1. ストロークの保存（差分保存）
 
 ペンを離したタイミングで**未保存ストロークのみ**をFirestoreに保存する。
+
+> ⚠️ **2026-06-19 変更**: オフライン時でも保存処理を中止しない。
+> Firestoreオフライン永続化によりローカルキューへの書き込みは即時完了し、ネットワーク回復後に自動同期される。
+> オフライン判定でエラーを表示して処理を止める実装は**禁止**。
 
 ```kotlin
 // Kotlin: ストローク差分保存
@@ -777,9 +846,16 @@ class WhiteboardViewModel {
     }
 
     // 保存ボタン or 自動保存
-    fun saveStrokes() {
+    fun saveStrokes(isOffline: Boolean) {
         val newStrokes = workingStrokes.filter { unsavedStrokeIds.contains(it.strokeId) }
         if (newStrokes.isEmpty()) return
+
+        // オフラインでも保存を継続（Firestoreオフラインキューを活用）
+        // ❌ 旧実装: isOffline なら return していたが廃止
+        // ✅ 新実装: オフライン時は接続確認だけ行い、保存は継続する
+        if (isOffline) {
+            checkFirestoreConnection()  // バックグラウンドで接続確認（awaitしない）
+        }
 
         // fire-and-forget（awaitしない）
         viewModelScope.launch {
@@ -896,6 +972,7 @@ function isGroupMember() {
 ```
 
 クライアント側でも同様のチェックを実装すること:
+
 ```kotlin
 // Kotlin
 fun canAccessGroup(group: SharedGroup, currentUid: String): Boolean {
@@ -976,11 +1053,54 @@ firestore.collection("SharedGroups")
 ### 12-9. グループ離脱時のローカルクリーンアップ
 
 メンバー離脱時は以下をローカルからも即座に削除する：
+
 1. 該当グループのSharedGroupデータ
 2. 該当グループのすべてのSharedListデータ
 3. グループ一覧を再読み込み（UIを即座に反映）
 
 ネットワーク切断や他オーナーのオフライン状態に関わらず、**ローカルから即座に削除**してUIを更新すること。
+
+### 12-10. Sentry DSNのハードコード禁止（2026-06-18 変更）
+
+SentryのDSNをソースコードにハードコードしない。`.env` ファイルから読み込む。
+DSNが未設定の場合はSentryを無効化して起動を継続する。
+
+```kotlin
+// Kotlin: .envからDSNを読み込む例（Sentry Android SDK）
+val sentryDsn = BuildConfig.SENTRY_DSN.takeIf { it.isNotBlank() }
+if (sentryDsn != null) {
+    SentryAndroid.init(context) { options ->
+        options.dsn = sentryDsn
+        options.environment = BuildConfig.SENTRY_ENVIRONMENT.ifBlank { "production" }
+    }
+}
+```
+
+**`.env` に設定するキー**:
+
+| キー | 説明 |
+|-----|------|
+| `SENTRY_DSN` | SentryプロジェクトのDSN（未設定時はSentry無効） |
+| `SENTRY_ENVIRONMENT` | 環境名（未設定時: デバッグ=`development`, リリース=`production`） |
+
+### 12-11. ホワイトボード保存のオフライン対応（2026-06-19 変更）
+
+オフライン時にホワイトボード保存を**中止してはいけない**。Firestoreオフラインキューへの書き込みは即時完了し、ネットワーク回復後に自動同期される。
+
+```kotlin
+// ❌ 旧実装（禁止）
+if (isOffline) {
+    showError("ネットワーク障害のため保存できません")
+    return
+}
+
+// ✅ 新実装（オフラインでも継続）
+if (isOffline) {
+    checkFirestoreConnectionAsync()  // バックグラウンドで接続確認のみ
+}
+// 保存処理は継続する
+repository.saveStrokes(strokes)
+```
 
 ---
 
