@@ -810,9 +810,9 @@ class _WhiteboardEditorPageState extends ConsumerState<WhiteboardEditorPage>
 
     final networkMonitor = ref.read(networkMonitorProvider);
     if (networkMonitor.currentStatus == NetworkStatus.offline) {
-      AppLogger.warning('⛔ [SAVE] オフラインのため保存を中止');
-      SnackBarHelper.showWarning(context, 'ネットワーク障害のため保存できません');
-      return;
+      // Firestoreのオフライン永続化を活かすため、オフライン時でも保存処理は継続する。
+      AppLogger.warning('⚠️ [SAVE] オフライン判定中だが、オフラインキュー保存を継続');
+      unawaited(networkMonitor.checkFirestoreConnection());
     }
 
     AppLogger.info('💾 [SAVE] 保存処理開始');

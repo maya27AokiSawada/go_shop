@@ -79,18 +79,26 @@ class InvitationService {
   Future<void> _sendInvitationEmail(
       String email, String group, String inviter, String code) async {
     try {
-      await _firestore.collection('mail').add({
-        'to': email,
-        'message': {
-          'subject': ' さんから「」グループへのご招待',
-          'text': ' さんから招待が届いています。招待コード: ',
+      final subject = '$inviter さんから「$group」グループへのご招待';
+      final body =
+          '$inviter さんから招待が届いています。\n招待コード: $code\n\nアプリ内で招待コードを入力して参加してください。';
+      final uri = Uri(
+        scheme: 'mailto',
+        path: email,
+        queryParameters: {
+          'subject': subject,
+          'body': body,
         },
-      });
-    } catch (e) {
-      final uri = Uri(scheme: 'mailto', path: email);
+      );
+
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri);
+        Log.info('📧 メールクライアント起動: ${Log.maskEmail(email)}');
+      } else {
+        Log.warning('⚠️ メールクライアントを起動できません: ${Log.maskEmail(email)}');
       }
+    } catch (e) {
+      Log.warning('⚠️ 招待メール起動処理でエラー: $e');
     }
   }
 

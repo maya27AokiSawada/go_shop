@@ -160,7 +160,6 @@
 | ファイル名                      | クラス名                 | 役割                                                            |
 | ------------------------------- | ------------------------ | --------------------------------------------------------------- |
 | `email_management_service.dart` | `EmailManagementService` | メールアドレスの SharedPreferences への保存・読み込みを管理する |
-| `email_test_service.dart`       | `EmailTestService`       | 開発・テスト用にメール送信動作確認を行う                        |
 
 ---
 
@@ -188,4 +187,4 @@
 
 - 各サービスは `Provider` または `static メソッド` として提供されます。
 - Riverpod の Provider 経由で利用するものは `xxxServiceProvider` という名前の変数が定義されています。
-- テスト・開発向けのサービス（`email_test_service.dart`、`firebase_diagnostics_service.dart` など）は本番コードから呼ばれないよう注意してください。
+- テスト・開発向けのサービス（`firebase_diagnostics_service.dart` など）は本番コードから呼ばれないよう注意してください。

@@ -4,6 +4,15 @@ echo Android APKビルド開始
 echo ========================================
 echo.
 
+echo 0. Firebase設定チェック（prod）...
+powershell -ExecutionPolicy Bypass -File scripts\check_firebase_placeholders.ps1 -Flavor prod
+if errorlevel 1 (
+	echo.
+	echo Firebase設定チェックに失敗したためビルドを中止します。
+	pause
+	exit /b 1
+)
+
 echo 1. Flutterクリーン...
 flutter clean
 
