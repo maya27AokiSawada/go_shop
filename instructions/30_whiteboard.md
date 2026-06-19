@@ -50,6 +50,36 @@ strokeIds.forEach((s) => _unsavedStrokeIds.remove(s.strokeId));
 
 **注**: 旧 `addStrokesToWhiteboard`（arrayUnion）は廃止。strokes は全て subcollection で管理する。
 
+### 2-1. オフライン時も保存をブロックしない（重要）
+
+**NetworkStatus.offline だからといって保存処理を中止してはいけない。**
+UI層の `NetworkStatus` 判定は参考情報に過ぎず、実際の通信可否は Firestore SDK が判定する。
+オフラインキューの設計を尊重し、保存を継続する。
+
+```dart
+// ❌ 禁止 — オフラインで保存を中止
+if (networkMonitor.currentStatus == NetworkStatus.offline) {
+  showWarning('ネットワーク障害のため保存できません');
+  return; // 保存ブロック → Firestore オフラインキューが機能しない
+}
+
+// ✅ 正しい — オフライン判定でも保存を継続
+if (networkMonitor.currentStatus == NetworkStatus.offline) {
+  AppLogger.warning('⚠️ [SAVE] オフライン判定中だが、オフラインキュー保存を継続');
+  unawaited(networkMonitor.checkFirestoreConnection()); // バックグラウンド再確認
+}
+// 保存処理は継続 → Firestore SDK のオフラインキューに任せる
+unawaited(
+  repository.addStrokesToSubcollection(...)
+);
+```
+
+**理由**:
+
+- `NetworkStatus.offline` は非同期確認結果であり、ネットワーク状態の瞬間的な判定誤りが起こりうる
+- Firestore SDK は offline 状態を自動検知し、ローカルキューにオペレーションを積む設計
+- UI層で「オフラインなら中止」と判定すると、Firestore オフラインキュー機能が無効になり、ユーザーが保存できない
+
 ---
 
 ## 3. Firestore リスナーの実装ルール
