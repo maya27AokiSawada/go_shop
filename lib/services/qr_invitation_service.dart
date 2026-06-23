@@ -336,19 +336,71 @@ class QRInvitationService {
 
       Log.info('📥 Firestoreから招待詳細を取得: $invitationId');
 
-      // Firestoreから招待詳細を取得
-      final invitationDoc = await _firestore
-          .collection('SharedGroups')
-          .doc(sharedGroupId)
-          .collection('invitations')
-          .doc(invitationId)
-          .get();
-      _ref.read(networkMonitorProvider).reportFirestoreSuccess();
+      // Windows等で「書き込み直後に読み取り」すると未反映のことがあるため、短時間リトライする
+      const maxAttempts = 8;
+      final retryDelaysMs = <int>[250, 350, 500, 700, 1000, 1400, 1800];
 
-      if (!invitationDoc.exists) {
-        Log.error('❌ 招待が見つかりません: $invitationId');
-        Log.error(
-            '   検索パス: SharedGroups/$sharedGroupId/invitations/$invitationId');
+      DocumentSnapshot<Map<String, dynamic>>? invitationDoc;
+      for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          invitationDoc = await _firestore
+              .collection('SharedGroups')
+              .doc(sharedGroupId)
+              .collection('invitations')
+              .doc(invitationId)
+              .get()
+              .timeout(const Duration(seconds: 4));
+
+          _ref.read(networkMonitorProvider).reportFirestoreSuccess();
+
+          if (invitationDoc.exists) {
+            if (attempt > 1) {
+              Log.info(
+                  '✅ [QR_DECODE] 招待詳細取得リトライ成功: attempt=$attempt/$maxAttempts');
+            }
+            break;
+          }
+
+          final path = 'SharedGroups/$sharedGroupId/invitations/$invitationId';
+          if (attempt < maxAttempts) {
+            final delayMs = retryDelaysMs[attempt - 1];
+            Log.warning(
+                '⏳ [QR_DECODE] 招待未作成の可能性。待機して再試行: attempt=$attempt/$maxAttempts, delay=${delayMs}ms, path=$path');
+            await Future.delayed(Duration(milliseconds: delayMs));
+            continue;
+          }
+
+          Log.error('❌ 招待が見つかりません: $invitationId');
+          Log.error('   検索パス: $path');
+          return null;
+        } on FirebaseException catch (e) {
+          final shouldRetry = e.code == 'unavailable' ||
+              e.code == 'deadline-exceeded' ||
+              e.code == 'aborted' ||
+              e.code == 'internal';
+
+          if (attempt < maxAttempts && shouldRetry) {
+            final delayMs = retryDelaysMs[attempt - 1];
+            Log.warning(
+                '⏳ [QR_DECODE] Firestore一時エラーで再試行: code=${e.code}, attempt=$attempt/$maxAttempts, delay=${delayMs}ms');
+            await Future.delayed(Duration(milliseconds: delayMs));
+            continue;
+          }
+
+          rethrow;
+        } on TimeoutException {
+          if (attempt < maxAttempts) {
+            final delayMs = retryDelaysMs[attempt - 1];
+            Log.warning(
+                '⏳ [QR_DECODE] Firestore読み取りタイムアウトで再試行: attempt=$attempt/$maxAttempts, delay=${delayMs}ms');
+            await Future.delayed(Duration(milliseconds: delayMs));
+            continue;
+          }
+          rethrow;
+        }
+      }
+
+      if (invitationDoc == null || !invitationDoc.exists) {
         return null;
       }
 
