@@ -22,6 +22,27 @@
 - `securityKey` で Firestore のデータを検証する（改ざん防止）
 - v3.0（フル埋込み）との後方互換を維持する
 
+### v3.1 読み取りレース対策（必須）
+
+QR生成直後は、`SharedGroups/{groupId}/invitations/{invitationId}` が
+別端末から即時に見えないことがある（Firestore の反映タイミング差）。
+
+このため、受諾側の詳細取得は「1回で `exists == false` なら即失敗」ではなく、
+短時間リトライを行うこと。
+
+- 推奨: 最大 8 回、250ms からの段階的バックオフ
+- `unavailable` / `deadline-exceeded` / `aborted` / `internal` / 読み取りタイムアウトは再試行対象
+- 最終試行後も未取得の場合のみ「無効なQRコード」扱いにする
+
+```dart
+for (var attempt = 1; attempt <= 8; attempt++) {
+  final doc = await invitationRef.get().timeout(const Duration(seconds: 4));
+  if (doc.exists) return doc.data();
+  await Future.delayed(_backoff(attempt));
+}
+return null;
+```
+
 ### Firestore `/invitations/{invitationId}` のスキーマ
 
 ```text
