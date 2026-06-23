@@ -1,10 +1,11 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'dart:convert';
 
 import '../models/shared_group.dart';
 import '../models/invitation.dart';
@@ -154,12 +155,6 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
                                   style: const TextStyle(fontSize: 10)),
                             ],
                           );
-                        }
-
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const Center(
-                              child: CircularProgressIndicator());
                         }
 
                         final invitations = snapshot.data?.docs ?? [];
@@ -414,12 +409,24 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
 
     try {
       final qrService = ref.read(qrInvitationServiceProvider);
-      await qrService.createQRInvitationData(
+
+      // タイムアウト処理追加（30秒以内に完了必須）
+      await qrService
+          .createQRInvitationData(
         sharedGroupId: widget.group.groupId,
         groupName: widget.group.groupName,
         groupOwnerUid: widget.group.ownerUid ?? widget.group.groupId,
         groupAllowedUids: widget.group.allowedUid,
         invitationType: 'individual',
+      )
+          .timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw TimeoutException(
+            'QR招待生成がタイムアウト。ネットワークを確認してください。',
+            const Duration(seconds: 30),
+          );
+        },
       );
 
       if (mounted) {

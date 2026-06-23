@@ -38,8 +38,12 @@ class GroupListWidget extends ConsumerWidget {
     ref.watch(appUIModeProvider);
     final syncStatus = ref.watch(firestoreSyncStatusProvider);
 
-    // 同期中の場合はローディング表示
-    if (syncStatus == 'syncing') {
+    // 🔥 FIX: Windows スピナー固着防止
+    // 同期中でも idel, completed, error の場合は本体を表示
+    // これにより、タイムアウトや一時的なエラーでスピナーが永遠に表示される問題を防ぐ
+    final showSpinner = syncStatus == 'syncing';
+
+    if (showSpinner) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

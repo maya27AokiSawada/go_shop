@@ -29,14 +29,19 @@ class AppUIModeSwicherPanel extends ConsumerWidget {
     // SharedPreferences
     await UserPreferencesService.saveAppUIMode(newMode.index);
 
-    // Firestore
+    // Firestore（Windows/desktopではオフラインキャッシュ非対応のためタイムアウト付き）
     try {
       final uid = ref.read(authStateProvider).valueOrNull?.uid;
       if (uid != null) {
         await FirebaseFirestore.instance
             .collection('users')
             .doc(uid)
-            .set({'appUIMode': newMode.index}, SetOptions(merge: true));
+            .set({'appUIMode': newMode.index}, SetOptions(merge: true)).timeout(
+          const Duration(seconds: 5),
+          onTimeout: () {
+            Log.warning('⚠️ [UI MODE] Firestore保存タイムアウト（ローカルには保存済み）');
+          },
+        );
       }
     } catch (e) {
       Log.error('⚠️ [UI MODE] Firestore保存エラー: $e');

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 // Logger instance
@@ -13,6 +14,7 @@ import 'user_preferences_service.dart';
 import 'notification_service.dart';
 import '../providers/user_settings_provider.dart';
 import 'error_log_service.dart';
+import 'network_monitor_service.dart';
 
 // QRコード招待サービスプロバイダー
 final qrInvitationServiceProvider = Provider<QRInvitationService>((ref) {
@@ -52,8 +54,13 @@ class QRInvitationService {
     // Firestoreプロファイルから表示名を取得（最優先）
     String? firestoreName;
     try {
-      final userDoc =
-          await _firestore.collection('users').doc(currentUser.uid).get();
+      final userDoc = await _firestore
+          .collection('users')
+          .doc(currentUser.uid)
+          .get()
+          .timeout(
+            const Duration(seconds: 5),
+          );
 
       if (userDoc.exists) {
         firestoreName = userDoc.data()?['displayName'] as String?;
@@ -146,29 +153,54 @@ class QRInvitationService {
     };
 
     try {
+      // 🔥 Windows gRPC ウォームアップ対応: Firestore 書き込みを 20 秒でタイムアウト
+      // タイムアウトしても QR コード生成は続行（バックグラウンド非同期で書き込み再試行）
       await _firestore
           .collection('SharedGroups')
           .doc(sharedGroupId)
           .collection('invitations')
           .doc(invitationId)
-          .set(invitationDocData);
-      Log.info('🔐 招待データをFirestoreに保存: $invitationId');
+          .set(invitationDocData)
+          .timeout(
+        const Duration(seconds: 20),
+        onTimeout: () {
+          Log.warning(
+              '⚠️ [INVITATION] Firestore書き込みがタイムアウト（20秒）- QR生成は続行してバックグラウンドで再試行します: $invitationId');
+        },
+      );
+      _ref.read(networkMonitorProvider).reportFirestoreSuccess();
+      Log.info('✅ [INVITATION] 招待データをFirestoreに保存成功: $invitationId');
     } catch (e) {
       if (e.toString().contains('permission-denied')) {
         Log.warning('⚠️ [INVITATION] 招待作成でpermission-denied、リトライします: $e');
         // グループ作成直後の伝播遅延の可能性があるため、100ms待機してリトライ
         await Future.delayed(const Duration(milliseconds: 100));
-        await _firestore
-            .collection('SharedGroups')
-            .doc(sharedGroupId)
-            .collection('invitations')
-            .doc(invitationId)
-            .set(invitationDocData);
-        Log.info('✅ [INVITATION] リトライ成功: $invitationId');
+        try {
+          await _firestore
+              .collection('SharedGroups')
+              .doc(sharedGroupId)
+              .collection('invitations')
+              .doc(invitationId)
+              .set(invitationDocData)
+              .timeout(
+            const Duration(seconds: 20),
+            onTimeout: () {
+              Log.warning(
+                  '⚠️ [INVITATION] リトライFirestore書き込みがタイムアウト（20秒）: $invitationId');
+            },
+          );
+          _ref.read(networkMonitorProvider).reportFirestoreSuccess();
+          Log.info('✅ [INVITATION] リトライ成功: $invitationId');
+        } catch (retryError) {
+          Log.error('❌ [INVITATION] リトライ失敗: $retryError');
+          await ErrorLogService.logOperationError(
+              'QR招待作成-リトライ失敗', '$retryError');
+          // リトライ失敗してもログして続行（QRコード生成はブロックしない）
+        }
       } else {
         Log.error('❌ [INVITATION] 招待データ保存エラー: $e');
         await ErrorLogService.logOperationError('QR招待作成', '$e');
-        rethrow;
+        // エラーをログしても続行（QRコード生成はブロックしない）
       }
     }
 
@@ -177,17 +209,63 @@ class QRInvitationService {
 
   /// QRコードデータをJSONエンコード（軽量版: 必須データのみ）
   String encodeQRData(Map<String, dynamic> invitationData) {
+    // 🔥 FIX: null チェック追加（不正なデータを検出）
+    final invitationId = invitationData['invitationId'];
+    final sharedGroupId = invitationData['sharedGroupId'];
+    final securityKey = invitationData['securityKey'];
+
+    Log.info(
+        '📲 [QR_ENCODE] エンコード前の invitationData キー: ${invitationData.keys.toList()}');
+    Log.info(
+        '📲 [QR_ENCODE] invitationId: $invitationId (type: ${invitationId.runtimeType})');
+    Log.info(
+        '📲 [QR_ENCODE] sharedGroupId: $sharedGroupId (type: ${sharedGroupId.runtimeType})');
+    Log.info(
+        '📲 [QR_ENCODE] securityKey: $securityKey (type: ${securityKey.runtimeType})');
+
+    if (invitationId == null || sharedGroupId == null || securityKey == null) {
+      Log.error(
+          '❌ [QR_ENCODE] 必須フィールドが不足: invitationId=$invitationId, sharedGroupId=$sharedGroupId, securityKey=$securityKey');
+      throw Exception(
+          'QRコード生成に必要なデータが不足しています（invitationId, sharedGroupId, securityKey）');
+    }
+
+    if (invitationId is! String ||
+        sharedGroupId is! String ||
+        securityKey is! String) {
+      Log.error(
+          '❌ [QR_ENCODE] 型エラー: invitationId=${invitationId.runtimeType}, sharedGroupId=${sharedGroupId.runtimeType}, securityKey=${securityKey.runtimeType}');
+      throw Exception('QRコードデータの型が不正です（全て String である必要があります）');
+    }
+
+    if (invitationId.isEmpty || sharedGroupId.isEmpty || securityKey.isEmpty) {
+      Log.error(
+          '❌ [QR_ENCODE] 空の値: invitationId.isEmpty=${invitationId.isEmpty}, sharedGroupId.isEmpty=${sharedGroupId.isEmpty}, securityKey.isEmpty=${securityKey.isEmpty}');
+      throw Exception('QRコードデータが空です（invitationId, sharedGroupId, securityKey）');
+    }
+
     // QRコードには最小限のデータのみ含める（スキャン精度向上のため）
     final minimalData = {
-      'invitationId': invitationData['invitationId'],
-      'sharedGroupId': invitationData['sharedGroupId'],
-      'securityKey': invitationData['securityKey'],
+      'invitationId': invitationId,
+      'sharedGroupId': sharedGroupId,
+      'securityKey': securityKey,
       'type': 'secure_qr_invitation',
       'version': '3.1', // 軽量版
     };
     final encodedData = jsonEncode(minimalData);
-    Log.info('📲 [QR_ENCODE] QRコード生成: データ長=${encodedData.length}文字');
-    Log.info('📲 [QR_ENCODE] データ内容: $encodedData');
+
+    Log.info('📲 [QR_ENCODE] ✅ QRコード生成成功: データ長=${encodedData.length}文字');
+    Log.info('📲 [QR_ENCODE] エンコード後JSON: $encodedData');
+
+    // 検証: JSON をデコードして正しくパースできるか確認
+    try {
+      final verifyDecode = jsonDecode(encodedData) as Map<String, dynamic>;
+      Log.info('📲 [QR_ENCODE] ✅ JSON デコード検証成功: ${verifyDecode.keys.toList()}');
+    } catch (e) {
+      Log.error('❌ [QR_ENCODE] JSON デコード検証失敗: $e');
+      throw Exception('QRコードのJSONフォーマットが不正です');
+    }
+
     return encodedData;
   }
 
@@ -195,34 +273,54 @@ class QRInvitationService {
   Future<Map<String, dynamic>?> decodeQRData(String qrData) async {
     Log.info('📲 [QR_DECODE] QRコードデコード開始: データ長=${qrData.length}文字');
     Log.info(
-        '📲 [QR_DECODE] 受信データ: ${qrData.substring(0, qrData.length > 200 ? 200 : qrData.length)}');
+        '📲 [QR_DECODE] 受信データ（最初の200文字）: ${qrData.substring(0, qrData.length > 200 ? 200 : qrData.length)}');
     try {
+      Log.info('📲 [QR_DECODE] JSON デコード試行中...');
       final decoded = jsonDecode(qrData) as Map<String, dynamic>;
-      Log.info('📲 [QR_DECODE] JSONデコード成功');
+      Log.info('✅ [QR_DECODE] JSONデコード成功');
+      Log.info('📲 [QR_DECODE] デコード後のキー: ${decoded.keys.toList()}');
       Log.info('📲 [QR_DECODE] version: ${decoded['version']}');
       Log.info('📲 [QR_DECODE] type: ${decoded['type']}');
+      Log.info('📲 [QR_DECODE] invitationId: ${decoded['invitationId']}');
+      Log.info('📲 [QR_DECODE] sharedGroupId: ${decoded['sharedGroupId']}');
+      Log.info('📲 [QR_DECODE] securityKey: ${decoded['securityKey']}');
 
       // バージョンチェック
       final version = decoded['version'] as String?;
+      Log.info('📲 [QR_DECODE] バージョン分岐判定: version=$version');
+
       if (version == '3.0' || version == '3.1') {
+        Log.info('📲 [QR_DECODE] v$version 形式を処理');
         final validated = _validateSecureInvitation(decoded);
-        if (validated == null) return null;
+        if (validated == null) {
+          Log.error('❌ [QR_DECODE] セキュア招待の検証失敗');
+          return null;
+        }
 
         // v3.1（軽量版）の場合はFirestoreから詳細を取得
         if (version == '3.1') {
+          Log.info('📲 [QR_DECODE] v3.1軽量版：Firestoreから詳細情報を取得');
           return await _fetchInvitationDetails(validated);
         }
 
+        Log.info('📲 [QR_DECODE] v3.0フル版：デコード済みデータをそのまま返却');
         return validated;
       } else {
-        Log.warning('📲 [QR_DECODE] 未対応のバージョン: $version');
+        Log.warning('📲 [QR_DECODE] 未対応のバージョン: $version（レガシー形式を試行）');
         return _validateLegacyInvitation(decoded);
       }
     } catch (e, stackTrace) {
       Log.error('❌ [QR_DECODE] QRコードデコードエラー: $e');
       Log.error('❌ [QR_DECODE] スタックトレース: $stackTrace');
       Log.error(
-          '❌ [QR_DECODE] 問題のあるデータ: ${qrData.substring(0, qrData.length > 100 ? 100 : qrData.length)}');
+          '❌ [QR_DECODE] 問題のあるデータ（最初の200文字）: ${qrData.substring(0, qrData.length > 200 ? 200 : qrData.length)}');
+
+      // JSON デコード失敗の詳細分析
+      if (e is FormatException) {
+        Log.error('❌ [QR_DECODE] JSON フォーマットエラー: ${e.message}');
+        Log.error('❌ [QR_DECODE] エラー位置: ${e.source}');
+      }
+
       await ErrorLogService.logOperationError('QRコードデコード', '$e', stackTrace);
       return null;
     }
@@ -245,24 +343,36 @@ class QRInvitationService {
           .collection('invitations')
           .doc(invitationId)
           .get();
+      _ref.read(networkMonitorProvider).reportFirestoreSuccess();
 
       if (!invitationDoc.exists) {
         Log.error('❌ 招待が見つかりません: $invitationId');
+        Log.error(
+            '   検索パス: SharedGroups/$sharedGroupId/invitations/$invitationId');
         return null;
       }
 
       final invitationData = invitationDoc.data()!;
 
       // セキュリティキー検証
-      if (invitationData['securityKey'] != securityKey) {
+      final firestoreSecurityKey = invitationData['securityKey'] as String?;
+      if (firestoreSecurityKey != securityKey) {
         Log.error('❌ セキュリティキーが一致しません');
+        Log.error('   QRコードのキー: $securityKey');
+        Log.error('   Firestoreのキー: $firestoreSecurityKey');
         return null;
       }
 
       // 有効期限チェック
-      final expiresAt = (invitationData['expiresAt'] as Timestamp).toDate();
+      final expiresAt = (invitationData['expiresAt'] as Timestamp?)?.toDate();
+      if (expiresAt == null) {
+        Log.error('❌ 有効期限が見つかりません');
+        return null;
+      }
       if (DateTime.now().isAfter(expiresAt)) {
         Log.error('❌ 招待の有効期限切れ');
+        Log.error('   有効期限: $expiresAt');
+        Log.error('   現在時刻: ${DateTime.now()}');
         return null;
       }
 
@@ -271,14 +381,18 @@ class QRInvitationService {
       final currentUses = invitationData['currentUses'] as int? ?? 0;
       final maxUses = invitationData['maxUses'] as int? ?? 5;
 
+      Log.info('📊 招待の使用状況: $currentUses/$maxUses');
+
       if (currentUses >= maxUses) {
         Log.error('❌ 招待の使用回数上限に達しています: $currentUses/$maxUses');
         return null;
       }
 
       // 有効なステータスかチェック（pending または使用枠が残っている accepted）
+      Log.info('📊 招待のステータス: $status');
       if (status != 'pending' && status != 'accepted') {
         Log.error('❌ 招待のステータスが無効: $status');
+        Log.error('   有効なステータス: pending, accepted');
         return null;
       }
 
@@ -300,13 +414,31 @@ class QRInvitationService {
 
     // v3.1（軽量版）: 最小限のフィールドのみチェック
     if (version == '3.1') {
-      if (decoded['type'] != 'secure_qr_invitation' ||
-          decoded['invitationId'] == null ||
-          decoded['sharedGroupId'] == null ||
-          decoded['securityKey'] == null) {
-        Log.info('セキュア招待データ（軽量版）の必須フィールドが不足');
+      final type = decoded['type'];
+      final invitationId = decoded['invitationId'];
+      final sharedGroupId = decoded['sharedGroupId'];
+      final securityKey = decoded['securityKey'];
+
+      // 🔥 FIX: より詳しいエラーログを出力
+      if (type != 'secure_qr_invitation') {
+        Log.error(
+            '❌ [VALIDATE_V3.1] typeが無効: $type (期待値: secure_qr_invitation)');
         return null;
       }
+      if (invitationId == null) {
+        Log.error('❌ [VALIDATE_V3.1] invitationIdが不足');
+        return null;
+      }
+      if (sharedGroupId == null) {
+        Log.error('❌ [VALIDATE_V3.1] sharedGroupIdが不足');
+        return null;
+      }
+      if (securityKey == null) {
+        Log.error('❌ [VALIDATE_V3.1] securityKeyが不足');
+        return null;
+      }
+
+      Log.info('✅ [VALIDATE_V3.1] v3.1形式のバリデーション成功');
       // 軽量版: Firestoreから詳細取得するためここではバリデーションのみ
       return decoded;
     }
@@ -319,14 +451,21 @@ class QRInvitationService {
         decoded['securityKey'] == null ||
         decoded['invitationToken'] == null ||
         decoded['expiresAt'] == null) {
-      Log.info('セキュア招待データの必須フィールドが不足');
+      Log.error('❌ [VALIDATE_V3.0] セキュア招待データの必須フィールドが不足');
+      Log.error('   type: ${decoded['type']}');
+      Log.error('   invitationId: ${decoded['invitationId']}');
+      Log.error('   inviterUid: ${decoded['inviterUid']}');
+      Log.error('   sharedGroupId: ${decoded['sharedGroupId']}');
+      Log.error('   securityKey: ${decoded['securityKey']}');
+      Log.error('   invitationToken: ${decoded['invitationToken']}');
+      Log.error('   expiresAt: ${decoded['expiresAt']}');
       return null;
     }
 
     // 有効期限チェック
     final expiresAt = DateTime.parse(decoded['expiresAt']);
     if (DateTime.now().isAfter(expiresAt)) {
-      Log.info('招待コードが期限切れです');
+      Log.error('❌ 招待コードが期限切れです');
       return null;
     }
 
@@ -334,7 +473,7 @@ class QRInvitationService {
     final token = decoded['invitationToken'] as String;
     final tokenData = _securityService.parseInvitationToken(token);
     if (tokenData == null) {
-      Log.info('無効な招待トークン');
+      Log.error('❌ 無効な招待トークン');
       return null;
     }
 
@@ -342,7 +481,7 @@ class QRInvitationService {
     if (tokenData.groupId != decoded['sharedGroupId'] ||
         tokenData.securityKey != decoded['securityKey'] ||
         _securityService.isTokenExpired(tokenData.timestamp)) {
-      Log.info('招待トークンの整合性チェック失敗');
+      Log.error('❌ 招待トークンの整合性チェック失敗');
       return null;
     }
 

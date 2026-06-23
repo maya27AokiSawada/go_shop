@@ -1,4 +1,5 @@
 // lib/services/user_initialization_service.dart
+import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -258,7 +259,21 @@ class UserInitializationService {
 
       // 【重要】Firestore→Hive同期を先に実行して、Firestoreの状態を優先
       // これによりFirestoreで削除されたグループがHiveからも削除される
-      await syncFromFirestoreToHive(user);
+      // 🔥 タイムアウト設定（Windows gRPC ウォームアップに20秒待機）
+      try {
+        await syncFromFirestoreToHive(user).timeout(
+          const Duration(seconds: 20),
+          onTimeout: () {
+            Log.warning('⏱️ [SYNC] Firestore→Hive同期がタイムアウト（20秒）- スキップして続行');
+          },
+        );
+      } catch (e) {
+        if (e is TimeoutException) {
+          Log.warning('⏱️ [SYNC] タイムアウト例外を無視して継続: $e');
+        } else {
+          rethrow;
+        }
+      }
 
       // Hive→Firestore同期は実行しない（起動時はFirestoreが真実の情報源）
       // グループ作成・更新時のみ個別に同期する
@@ -640,6 +655,10 @@ class UserInitializationService {
           '✅ [SYNC] Firestore→Hive同期完了: $syncedCount 同期, $skippedCount スキップ');
     } catch (e) {
       Log.error('❌ [SYNC] Firestore→Hive同期エラー: $e');
+      // 🔥 FIX: エラーが起こっても例外を raise しない（スピナー固着防止）
+      // このメソッド内のエラーは既にログされているため、
+      // 呼び出し元で state = 'completed' に変更できるようにする
+      Log.warning('⚠️ [SYNC] 同期エラーを無視して、呼び出し元で処理を継続');
     }
   }
 

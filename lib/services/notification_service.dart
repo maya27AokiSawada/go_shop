@@ -147,7 +147,7 @@ class NotificationService {
         .orderBy('timestamp', descending: true)
         .snapshots()
         .listen(
-      (snapshot) {
+      (snapshot) async {
         AppLogger.info(
             '🔔 [NOTIFICATION] スナップショット受信: ${snapshot.docChanges.length}件の変更');
         AppLogger.info('🔔 [NOTIFICATION] 現在のドキュメント数: ${snapshot.docs.length}');
@@ -183,8 +183,13 @@ class NotificationService {
             AppLogger.info(
                 '🔔 [NOTIFICATION] 通知検出: type=${notification.type}, groupId=${notification.groupId}');
             AppLogger.info('🔔 [NOTIFICATION] _handleNotification()を呼び出します...');
-            _handleNotification(notification);
-            AppLogger.info('✅ [NOTIFICATION] _handleNotification()完了');
+            try {
+              await _handleNotification(notification);
+              AppLogger.info('✅ [NOTIFICATION] _handleNotification()完了');
+            } catch (e, stackTrace) {
+              AppLogger.error('❌ [NOTIFICATION] _handleNotification()失敗: $e');
+              AppLogger.error('❌ [NOTIFICATION] スタックトレース: $stackTrace');
+            }
           }
         }
       },
@@ -257,6 +262,7 @@ class NotificationService {
               .collection('notifications')
               .where('userId', isEqualTo: currentUser.uid)
               .where('timestamp', isGreaterThan: lastSyncTime)
+              .orderBy('timestamp', descending: true)
               .get(),
           Future<QuerySnapshot<Map<String, dynamic>>>.delayed(
             const Duration(seconds: 5),

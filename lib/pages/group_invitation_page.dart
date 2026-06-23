@@ -1,4 +1,4 @@
-import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -42,25 +42,40 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
 
       final qrService = ref.read(qrInvitationServiceProvider);
 
-      final invitationData = await qrService.createQRInvitationData(
+      // タイムアウト処理追加（30秒以内に完了必須）
+      final invitationData = await qrService
+          .createQRInvitationData(
         sharedGroupId: widget.group.groupId,
         groupName: widget.group.groupName,
         groupOwnerUid: widget.group.ownerUid ?? '',
         groupAllowedUids: widget.group.allowedUid,
         invitationType: _invitationType,
+      )
+          .timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw TimeoutException(
+            'QR招待生成がタイムアウトしました。Firestoreの接続を確認してください。',
+            const Duration(seconds: 30),
+          );
+        },
       );
 
-      final qrData = jsonEncode(invitationData);
+      final qrData = qrService.encodeQRData(invitationData);
 
-      setState(() {
-        _qrData = qrData;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _qrData = qrData;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = '${texts.inviteGenFailed}$e';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = '${texts.inviteGenFailed}$e';
+          _isLoading = false;
+        });
+      }
     }
   }
 

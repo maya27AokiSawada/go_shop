@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -46,13 +47,25 @@ class QRInviteButton extends ConsumerWidget {
     await ErrorHandler.handleAsync(
       operation: () async {
         final qrService = ref.read(qrInvitationServiceProvider);
-        final invitationData = await qrService.createQRInvitationData(
+
+        // タイムアウト処理追加（30秒以内に完了必須）
+        final invitationData = await qrService
+            .createQRInvitationData(
           sharedGroupId: sharedGroupId,
           groupName: groupName,
           groupOwnerUid: groupOwnerUid,
           groupAllowedUids: groupAllowedUids,
           customMessage: customMessage,
           invitationType: 'individual',
+        )
+            .timeout(
+          const Duration(seconds: 30),
+          onTimeout: () {
+            throw TimeoutException(
+              'QR招待生成がタイムアウト。Firestoreの接続を確認してください。',
+              const Duration(seconds: 30),
+            );
+          },
         );
 
         final qrData = qrService.encodeQRData(invitationData);

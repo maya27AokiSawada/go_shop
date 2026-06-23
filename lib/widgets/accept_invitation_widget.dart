@@ -319,16 +319,23 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
           throw Exception('ユーザー情報が取得できません');
         }
 
+        Log.info('🔍 [QR_SCAN] スキャンした QR データ（最初の200文字）:');
+        Log.info(
+            '   ${qrData.substring(0, qrData.length > 200 ? 200 : qrData.length)}');
+        Log.info('🔍 [QR_SCAN] データ長: ${qrData.length}文字');
+
         // QRデータをパース＆Firestoreから詳細取得（v3.1軽量版対応）
         final qrService = ref.read(qrInvitationServiceProvider);
         final invitationData = await qrService.decodeQRData(qrData);
 
         if (invitationData == null) {
+          Log.error('❌ [QR_SCAN] QRコードデコード失敗（nullが返された）');
           throw Exception('無効なQRコード形式です');
         }
 
+        Log.info('✅ [QR_SCAN] QRコードデコード成功');
         Log.info(
-            '🔍 [QR_SCAN] 受信したQRデータ: ${qrData.substring(0, qrData.length > 100 ? 100 : qrData.length)}...');
+            '🔍 [QR_SCAN] 受信したQRデータ（最初の150文字）: ${qrData.substring(0, qrData.length > 150 ? 150 : qrData.length)}...');
         Log.info(
             '🔍 [QR_SCAN] SharedGroupId: ${invitationData['sharedGroupId']}');
         Log.info('🔍 [QR_SCAN] groupName: ${invitationData['groupName']}');
