@@ -48,7 +48,7 @@ dependencies:
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   shared_preferences: ^2.2.2
-  shared_preferences_android: 2.4.17 # Flutter SDK compatible version
+  shared_preferences_android: ^2.4.23 # Flutter SDK compatible version
 
   # Code Generation
   freezed_annotation: ^2.4.1
@@ -63,31 +63,31 @@ dependencies:
   path_provider: ^2.1.5
   url_launcher: ^6.3.1
   crypto: ^3.0.3 # セキュリティキーのハッシュ化用
-  flutter_dotenv: ^5.1.0 # 環境変数管理
-  package_info_plus: ^8.0.0 # アプリバージョン情報取得
+  flutter_dotenv: ^6.0.1 # 環境変数管理
+  package_info_plus: ^10.1.0 # アプリバージョン情報取得
 
   # QR Code
   qr_flutter: ^4.1.0
   mobile_scanner: ^7.1.4 # Android/iOS用
   zxing_lib: ^1.1.4 # Windows用: Pure Dart QR decoder
   image: ^4.2.0 # Windows用: Image processing
-  file_picker: ^8.1.6 # Windows用: File picker
+  file_picker: ^12.0.0-beta.7 # Windows用: File picker
 
   # Sharing
-  share_plus: ^7.2.2
+  share_plus: ^13.1.0
 
   # Advertising
-  google_mobile_ads: ^5.1.0
+  google_mobile_ads: ^9.0.0
 
   # In-App Purchase
   in_app_purchase: ^3.2.0
-  geocoding: ^3.0.0 # 住所変換
+  geocoding: ^4.0.0 # 住所変換
 
   # Device Information
-  device_info_plus: ^10.1.2 # デバイス固有ID取得（グループ/リストID生成用）
+  device_info_plus: ^13.1.0 # デバイス固有ID取得（グループ/リストID生成用）
 
   # Drawing / Whiteboard
-  signature: ^5.5.0 # 手書き署名・描画機能（安定版）
+  signature: ^6.3.0 # 手書き署名・描画機能（安定版）
 
 dev_dependencies:
   flutter_test:
@@ -104,9 +104,9 @@ dev_dependencies:
   # fake_cloud_firestore: Cloud Firestore ^6.0.2に対応していないため、mockitoで手動モック作成
 
   # Linting
-  lints: ^2.1.1
-  custom_lint: ^0.5.11
-  flutter_lints: ^2.0.3
+  lints: ^6.1.0
+  custom_lint: ^0.6.4
+  flutter_lints: ^6.0.0
 
 dependency_overrides:
   flutter_plugin_android_lifecycle: ^2.0.34
