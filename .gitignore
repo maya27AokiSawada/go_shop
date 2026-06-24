@@ -109,3 +109,7 @@ secrets/
 
 # IDE metadata
 .metadata
+
+node_modules/
+package-lock.json
+package.json
