@@ -1,10 +1,11 @@
-import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../models/shared_group.dart';
 import '../services/qr_invitation_service.dart';
+import '../utils/app_logger.dart';
 import '../l10n/l10n.dart';
 
 class GroupInvitationPage extends ConsumerStatefulWidget {
@@ -42,26 +43,18 @@ class _GroupInvitationPageState extends ConsumerState<GroupInvitationPage> {
 
       final qrService = ref.read(qrInvitationServiceProvider);
 
-      // タイムアウト処理追加（30秒以内に完了必須）
-      final invitationData = await qrService
-          .createQRInvitationData(
+      final invitationData = await qrService.createQRInvitationData(
         sharedGroupId: widget.group.groupId,
         groupName: widget.group.groupName,
         groupOwnerUid: widget.group.ownerUid ?? '',
         groupAllowedUids: widget.group.allowedUid,
         invitationType: _invitationType,
-      )
-          .timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          throw TimeoutException(
-            'QR招待生成がタイムアウトしました。Firestoreの接続を確認してください。',
-            const Duration(seconds: 30),
-          );
-        },
       );
 
-      final qrData = qrService.encodeQRData(invitationData);
+      Log.info('✅ [QR_PAGE] 招待データ作成完了: ${invitationData['invitationId']}');
+
+      // v3.0: 全フィールドをQRに含める（Androidスキャン時にFirestore読み取り不要）
+      final qrData = jsonEncode(invitationData);
 
       if (mounted) {
         setState(() {

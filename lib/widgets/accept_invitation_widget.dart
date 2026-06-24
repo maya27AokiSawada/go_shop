@@ -312,6 +312,13 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
     setState(() => _isProcessing = true);
     Log.info('🔍 [QR_SCAN] _isProcessing=true に設定');
 
+    // QR検出直後にカメラを停止して onDetect の連続発火を防ぐ
+    try {
+      await _controller.stop();
+    } catch (e) {
+      Log.warning('⚠️ [QR_SCAN] カメラ停止エラー（無視）: $e');
+    }
+
     await ErrorHandler.handleAsync(
       operation: () async {
         final user = ref.read(authStateProvider).valueOrNull;
@@ -497,6 +504,10 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
               backgroundColor: Colors.red,
             ),
           );
+          // エラー後はカメラを再開して再スキャン可能にする
+          _controller.start().catchError((e) {
+            Log.warning('⚠️ [QR_SCAN] カメラ再開エラー: $e');
+          });
         }
       },
     );

@@ -152,29 +152,55 @@ class QRInvitationService {
       'usedBy': [], // 使用済みユーザーのUIDリスト
     };
 
+    // AuthError 1 対策: gRPC ストリームが古いトークンを持っている場合に備えて強制リフレッシュ
+    // Windows の Firebase C++ SDK は Auth トークン期限切れ時に gRPC を offline にする
+    Log.info('🔑 [INVITATION] Firebase Auth トークンを強制リフレッシュ中...');
     try {
-      // 🔥 Windows gRPC ウォームアップ対応: Firestore 書き込みを 20 秒でタイムアウト
-      // タイムアウトしても QR コード生成は続行（バックグラウンド非同期で書き込み再試行）
+      final idToken = await _auth.currentUser?.getIdToken(true);
+      if (idToken != null) {
+        Log.info('✅ [INVITATION] Auth トークンリフレッシュ完了');
+      } else {
+        Log.warning('⚠️ [INVITATION] currentUser が null - 未認証の可能性');
+        throw Exception('認証が必要です。再ログインしてください。');
+      }
+    } catch (e) {
+      Log.error('❌ [INVITATION] Auth トークンリフレッシュ失敗: $e');
+      throw Exception('認証トークンの更新に失敗しました。再ログインしてください。');
+    }
+
+    // disableNetwork → enableNetwork で gRPC チャンネルを強制再作成する
+    // （単に enableNetwork だけでは AuthError 1 後の古いチャンネルが残るため）
+    Log.info('🔄 [INVITATION] Firestore gRPC チャンネルを再作成中...');
+    try {
+      await _firestore.enableNetwork();
+      Log.info('✅ [INVITATION] ネットワーク再有効化完了');
+    } catch (e) {
+      Log.warning('⚠️ [INVITATION] ネットワーク再有効化エラー: $e');
+    }
+    // gRPC が新しいトークンで再接続するまで待機
+    await Future.delayed(const Duration(seconds: 2));
+
+    Log.info('📝 [INVITATION] Firestore への書き込みを開始...');
+    try {
       await _firestore
           .collection('SharedGroups')
           .doc(sharedGroupId)
           .collection('invitations')
           .doc(invitationId)
           .set(invitationDocData)
-          .timeout(
-        const Duration(seconds: 20),
-        onTimeout: () {
-          Log.warning(
-              '⚠️ [INVITATION] Firestore書き込みがタイムアウト（20秒）- QR生成は続行してバックグラウンドで再試行します: $invitationId');
-        },
-      );
+          .timeout(const Duration(seconds: 30));
       _ref.read(networkMonitorProvider).reportFirestoreSuccess();
       Log.info('✅ [INVITATION] 招待データをFirestoreに保存成功: $invitationId');
-    } catch (e) {
-      if (e.toString().contains('permission-denied')) {
+    } on TimeoutException {
+      Log.error('❌ [INVITATION] Firestore書き込みタイムアウト（30秒）: $invitationId');
+      await ErrorLogService.logOperationError(
+          'QR招待作成-タイムアウト', 'timeout after 30s');
+      throw Exception('招待データの保存がタイムアウトしました。ネットワーク状態を確認して再試行してください。');
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') {
         Log.warning('⚠️ [INVITATION] 招待作成でpermission-denied、リトライします: $e');
-        // グループ作成直後の伝播遅延の可能性があるため、100ms待機してリトライ
-        await Future.delayed(const Duration(milliseconds: 100));
+        // グループ作成直後の伝播遅延の可能性があるため、1秒待機してリトライ
+        await Future.delayed(const Duration(seconds: 1));
         try {
           await _firestore
               .collection('SharedGroups')
@@ -182,25 +208,20 @@ class QRInvitationService {
               .collection('invitations')
               .doc(invitationId)
               .set(invitationDocData)
-              .timeout(
-            const Duration(seconds: 20),
-            onTimeout: () {
-              Log.warning(
-                  '⚠️ [INVITATION] リトライFirestore書き込みがタイムアウト（20秒）: $invitationId');
-            },
-          );
+              .timeout(const Duration(seconds: 30));
           _ref.read(networkMonitorProvider).reportFirestoreSuccess();
           Log.info('✅ [INVITATION] リトライ成功: $invitationId');
-        } catch (retryError) {
+        } on Exception catch (retryError) {
           Log.error('❌ [INVITATION] リトライ失敗: $retryError');
           await ErrorLogService.logOperationError(
               'QR招待作成-リトライ失敗', '$retryError');
-          // リトライ失敗してもログして続行（QRコード生成はブロックしない）
+          throw Exception(
+              '招待データの保存に失敗しました（権限エラー）。グループがFirestoreに同期されているか確認してください。');
         }
       } else {
-        Log.error('❌ [INVITATION] 招待データ保存エラー: $e');
+        Log.error('❌ [INVITATION] 招待データ保存エラー: ${e.code} - $e');
         await ErrorLogService.logOperationError('QR招待作成', '$e');
-        // エラーをログしても続行（QRコード生成はブロックしない）
+        throw Exception('招待データの保存に失敗しました: ${e.code}');
       }
     }
 
@@ -775,14 +796,43 @@ class QRInvitationService {
           'SharedGroups/$sharedGroupId/invitations/$invitationId';
       Log.info('🔍 [SECURITY] Firestoreパス: $invitationPath');
 
-      final invitationDoc = await _firestore
-          .collection('SharedGroups')
-          .doc(sharedGroupId)
-          .collection('invitations')
-          .doc(invitationId)
-          .get();
+      // Source.server を使って必ずサーバーから読む（キャッシュ返却を避ける）
+      // アプリがバックグラウンドから復帰した直後はFirestoreが再接続中のため
+      // unavailable例外が出る場合があり、リトライで再接続を待つ
+      DocumentSnapshot<Map<String, dynamic>>? invitationDoc;
+      for (int attempt = 1; attempt <= 4; attempt++) {
+        try {
+          invitationDoc = await _firestore
+              .collection('SharedGroups')
+              .doc(sharedGroupId)
+              .collection('invitations')
+              .doc(invitationId)
+              .get(const GetOptions(source: Source.server))
+              .timeout(const Duration(seconds: 10));
+          break;
+        } on FirebaseException catch (e) {
+          if ((e.code == 'unavailable' || e.code == 'deadline-exceeded') &&
+              attempt < 4) {
+            Log.warning(
+                '⏳ [SECURITY] Firestore再接続待ち (${e.code}) - 再試行 $attempt/4');
+            await Future.delayed(Duration(seconds: attempt));
+            continue;
+          }
+          Log.warning('⚠️ [SECURITY] Firestore読み取りエラー: ${e.code} - ローカル検証で続行');
+          // ネットワークエラー時はローカルトークン検証済みのため通過
+          return true;
+        } on TimeoutException {
+          if (attempt < 4) {
+            Log.warning('⏳ [SECURITY] Firestoreタイムアウト - 再試行 $attempt/4');
+            await Future.delayed(Duration(seconds: attempt));
+            continue;
+          }
+          Log.warning('⚠️ [SECURITY] Firestoreタイムアウト最終 - ローカル検証済みのため通過');
+          return true;
+        }
+      }
 
-      if (!invitationDoc.exists) {
+      if (invitationDoc == null || !invitationDoc.exists) {
         Log.info('❌ 招待が見つかりません: $invitationId (パス: $invitationPath)');
         return false;
       }

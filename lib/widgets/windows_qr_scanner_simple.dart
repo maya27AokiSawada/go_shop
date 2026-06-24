@@ -39,7 +39,7 @@ class _WindowsQRScannerSimpleState extends State<WindowsQRScannerSimple> {
       Log.info('📁 画像ファイル選択開始...');
 
       // ファイル選択
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePickerPlatform.instance.pickFiles(
         type: FileType.image,
         allowMultiple: false,
       );
