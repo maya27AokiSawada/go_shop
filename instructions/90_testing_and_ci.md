@@ -149,6 +149,35 @@ flutter build appbundle --release --flavor prod --dart-define=FLAVOR=prod
 dart run build_runner build --delete-conflicting-outputs
 ```
 
+### Kotlin アップグレード時の languageVersion 互換性（2026-06-25）
+
+Kotlin コンパイラを 2.4.0 以降に上げると、サードパーティプラグイン（`sentry_flutter` 等）が `languageVersion = '1.6'` をターゲットにしているためビルドエラーになる場合がある。
+その際は `android/build.gradle.kts` に以下のブロックを追加して全サブプロジェクトに言語バージョン 2.0 を強制する:
+
+```kotlin
+// android/build.gradle.kts
+subprojects {
+    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class.java).configureEach {
+        compilerOptions {
+            languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0)
+        }
+    }
+}
+```
+
+また `android/app/build.gradle.kts` の `kotlin { compilerOptions { ... } }` ブロックにも同様に追加する:
+
+```kotlin
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
+        languageVersion = org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0
+    }
+}
+```
+
+---
+
 ### Android Release と Crashlytics Mapping Upload（2026-06-18）
 
 - `android/app/build.gradle.kts` では `uploadCrashlyticsMappingFile*` タスクを無効化している
