@@ -17,4 +17,5 @@ title: GoShopping ドキュメント
 
 - [プライバシーポリシー](specifications/privacy_policy)
 - [利用規約](specifications/terms_of_service)
+- [使用許諾契約書（EULA）](specifications/eula)
 - [データ・アカウント削除方法](specifications/data_deletion)
