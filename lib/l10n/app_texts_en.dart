@@ -1268,7 +1268,7 @@ class AppTextsEn extends AppTexts {
   @override
   String get packageNameLabel => 'Package Name';
   @override
-  String get appFooterSubtitle => 'sharing app';
+  String get appFooterSubtitle => 'Sharing App';
 
   // Invitation accept widget
   @override
@@ -1518,7 +1518,7 @@ class AppTextsEn extends AppTexts {
   String get qrScanInstruction => 'Align the QR code within the frame';
   @override
   String get qrManualInputHint =>
-      'If the QR code is not found, you can manually enter the invite code using the keyboard icon in the top right.';
+      'If the QR code cannot be scanned, you can manually enter the invite code using the keyboard icon in the top right.';
   @override
   String get inviteGenFailed => 'Failed to generate invitation: ';
   @override
@@ -1543,7 +1543,7 @@ class AppTextsEn extends AppTexts {
   @override
   String get howToInviteDesc => '1. Have the other person scan the QR code\n'
       '2. They will be automatically added as a member after accepting in the app\n'
-      '4. Check the group once you receive the acceptance notification';
+      '3. Check the group once you receive the acceptance notification';
 
   // QR scan screen extras
   @override
