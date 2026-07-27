@@ -87,6 +87,9 @@ key.properties
 *.txt
 android/key.properties
 
+# IDE / machine-specific settings
+android/.settings/
+
 # Logs & Debug files
 *.log
 flutter_*.log
