@@ -134,6 +134,23 @@ _ref.invalidate(allGroupsProvider);
   → 既存メンバー全員に groupMemberAdded 通知を送信
 ```
 
+### `acceptQRInvitation` の例外ハンドリング
+
+`acceptQRInvitation` は内部例外を **rethrow** する設計になっている。
+呼び出し元は必ず `ErrorHandler.handleAsync` でラップすること（現行 2 箇所ともラップ済み）。
+
+```dart
+// ✅ acceptQRInvitation の catch ブロック（サービス層）
+} catch (e, stackTrace) {
+  Log.error('QR招待受諾エラー: $e');
+  await ErrorLogService.logOperationError('QR招待受諾', '$e', stackTrace);
+  rethrow;  // 呼び出し元の ErrorHandler に伝播させて SnackBar に表示
+}
+```
+
+- `return false` にすると呼び出し元がエラー原因を知れず、デバッグが困難になる ❌
+- 呼び出し元が `ErrorHandler.handleAsync` を使っていれば `rethrow` は安全 ✅
+
 ### Firestore クエリに `Future.any()` タイムアウトを使う
 
 ```dart

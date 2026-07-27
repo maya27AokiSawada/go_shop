@@ -640,7 +640,12 @@ class QRInvitationService {
         throw Exception('招待のセキュリティ検証に失敗しました');
       }
 
-      final inviterUid = invitationData['inviterUid'] as String;
+      final inviterUid = invitationData['inviterUid'] as String?;
+      if (inviterUid == null || inviterUid.isEmpty) {
+        Log.error(
+            '❌ [ACCEPT] inviterUid が null または空 - invitationData: ${invitationData.keys.toList()}');
+        throw Exception('招待者の情報が取得できません（inviterUid不足）');
+      }
 
       // 自分自身への招待を防ぐ
       if (inviterUid == acceptorUid) {
@@ -715,19 +720,26 @@ class QRInvitationService {
       Log.info(
           '📤 [ACCEPTOR] 通知送信開始 - targetUserId: ${AppLogger.maskUserId(inviterUid)}');
 
-      await notificationService.sendNotification(
-        targetUserId: inviterUid,
-        groupId: groupId,
-        type: NotificationType.groupMemberAdded,
-        message: '$userName さんが「$groupName」への参加を希望しています',
-        metadata: {
-          'groupName': groupName,
-          'acceptorUid': acceptorUid,
-          'acceptorName': userName,
-          'invitationId': invitationData['invitationId'],
-          'timestamp': DateTime.now().toIso8601String(),
-        },
-      );
+      try {
+        await notificationService.sendNotification(
+          targetUserId: inviterUid,
+          groupId: groupId,
+          type: NotificationType.groupMemberAdded,
+          message: '$userName さんが「$groupName」への参加を希望しています',
+          metadata: {
+            'groupName': groupName,
+            'acceptorUid': acceptorUid,
+            'acceptorName': userName,
+            'invitationId': invitationData['invitationId'],
+            'timestamp': DateTime.now().toIso8601String(),
+          },
+        );
+      } catch (notifyError) {
+        Log.error('❌ [ACCEPTOR] 通知送信失敗: $notifyError');
+        // notifications コレクションへの書き込みが permission-denied の場合は
+        // Firestore rules のデプロイが必要 (firebase deploy --only firestore:rules)
+        rethrow;
+      }
 
       Log.info('✅ [ACCEPTOR] 通知送信完了 - 招待元の確認待ち');
 
@@ -756,10 +768,10 @@ class QRInvitationService {
       Log.info('✅ 招待受諾処理完了 - 招待元がメンバー追加を実施します');
 
       return true;
-    } catch (e) {
+    } catch (e, stackTrace) {
       Log.error('QR招待受諾エラー: $e');
-      await ErrorLogService.logOperationError('QR招待受諾', '$e');
-      return false;
+      await ErrorLogService.logOperationError('QR招待受諾', '$e', stackTrace);
+      rethrow;
     }
   }
 
