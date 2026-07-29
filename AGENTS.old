@@ -1,6 +1,6 @@
 # AGENTS.md - Developer Rules for Gemini
 
-## 重要指示 (Critical Instructions)
+## ⚠️ 重要指示 (Critical Instructions)
 
 Gemini Code Assist およびその他のコーディングエージェント（Agents）は、実装やコード修正、Git操作を行う前に、必ず **GitHub Copilot 用の指示書および設計ルール** を参照し、それに従ってください。
 
@@ -8,7 +8,7 @@ Gemini Code Assist およびその他のコーディングエージェント（A
 
 ### 1. 共通指示書 (Common Instructions)
 
-- [copilot-instructions.md](copilot-instructions.md) / [.github/copilot-instructions.md](copilot-instructions.md)
+- [copilot-instructions.md](copilot-instructions.md) / [.github/copilot-instructions.md](.github/copilot-instructions.md)
   - **Gitプッシュポリシー**: 原則 oneness ブランチへのみプッシュすること。明示的な指示がない限り main へ直接マージ/プッシュしない。
   - **メソッドシグネチャ変更ポリシー**: 既存メソッド、コンストラクタの引数や戻り値の型を変更する場合は、勝手に行わず必ず事前にユーザーの承認を得ること。
   - **機密情報の取り扱い定義**: APIキーや個人情報、ローカル設定ファイル（gitignore対象）のコミット厳禁。
@@ -26,7 +26,7 @@ Gemini Code Assist およびその他のコーディングエージェント（A
 
 ---
 
-## Gemini specific rules
+## 💡 Gemini specific rules
 
 - 回答やコード生成、リファクタリング、ファイルの編集を行う前に、上記の該当ドキュメントを読み込み、現行プロジェクトの設計方針や Riverpod の実装パターンに矛盾がないか確認してください。
 - 矛盾や確認事項がある場合は、勝手に進めず、まずはユーザーに質問してください。

@@ -6,6 +6,75 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function isAllowedNotificationType(type) {
+      return type in [
+        'group_member_added',
+        'group_updated',
+        'group_leave_requested',
+        'group_left',
+        'invitation_accepted',
+        'group_deleted',
+        'sync_confirmation',
+        'list_created',
+        'list_deleted',
+        'list_renamed',
+        'item_added',
+        'item_removed',
+        'item_purchased',
+        'whiteboard_updated',
+        'whiteboard_edit_started',
+        'whiteboard_edit_ended'
+      ];
+    }
+
+    function isSenderGroupMemberByGroupId(groupId) {
+      let groupPath = /databases/$(database)/documents/SharedGroups/$(groupId);
+      return exists(groupPath) && (
+        get(groupPath).data.ownerUid == request.auth.uid ||
+        request.auth.uid in get(groupPath).data.allowedUid
+      );
+    }
+
+    function isBaseNotificationCreateValid() {
+      return request.auth != null &&
+        request.resource.data.userId is string &&
+        request.resource.data.userId.size() > 0 &&
+        request.resource.data.type is string &&
+        isAllowedNotificationType(request.resource.data.type) &&
+        request.resource.data.groupId is string &&
+        request.resource.data.groupId.size() > 0 &&
+        request.resource.data.read == false &&
+        request.resource.data.senderId is string &&
+        request.resource.data.senderId == request.auth.uid &&
+        request.resource.data.senderName is string &&
+        request.resource.data.timestamp == request.time;
+    }
+
+    function isValidGroupMemberAddedCreate() {
+      let groupId = request.resource.data.groupId;
+      let groupPath = /databases/$(database)/documents/SharedGroups/$(groupId);
+      let invitationId = request.resource.data.metadata.invitationId;
+      let invitationPath = /databases/$(database)/documents/SharedGroups/$(groupId)/invitations/$(invitationId);
+      return 'metadata' in request.resource.data &&
+        request.resource.data.metadata is map &&
+        'acceptorUid' in request.resource.data.metadata &&
+        request.resource.data.metadata.acceptorUid is string &&
+        request.resource.data.metadata.acceptorUid == request.auth.uid &&
+        'invitationId' in request.resource.data.metadata &&
+        request.resource.data.metadata.invitationId is string &&
+        exists(groupPath) &&
+        exists(invitationPath) &&
+        get(invitationPath).data.groupId == groupId &&
+        get(invitationPath).data.status in ['pending', 'accepted'] &&
+        get(invitationPath).data.currentUses < get(invitationPath).data.maxUses &&
+        (
+          ('invitedBy' in get(invitationPath).data &&
+            get(invitationPath).data.invitedBy is string &&
+            request.resource.data.userId == get(invitationPath).data.invitedBy) ||
+          request.resource.data.userId == get(groupPath).data.ownerUid
+        );
+    }
+
     // ニュースコレクション：誰でも読み取り可能（未サインインでもOK）
     match /firestoreNews/{newsId} {
       allow read: if true;  // 誰でも読み取り可
@@ -18,8 +87,13 @@ service cloud.firestore {
       allow read: if request.auth != null &&
                      resource.data.userId == request.auth.uid;
 
-      // 認証済みユーザーは通知を作成可能
-      allow create: if request.auth != null;
+      // 通知作成は送信者整合性を必須化し、group_member_added は招待ドキュメント整合まで検証
+      allow create: if isBaseNotificationCreateValid() && (
+        (request.resource.data.type == 'group_member_added' &&
+          isValidGroupMemberAddedCreate()) ||
+        (request.resource.data.type != 'group_member_added' &&
+          isSenderGroupMemberByGroupId(request.resource.data.groupId))
+      );
 
       // 自分宛の通知のみ更新・削除可能（アカウント削除時の一括削除含む）
       allow update, delete: if request.auth != null &&

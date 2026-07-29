@@ -885,6 +885,10 @@ class NotificationService {
         return;
       }
 
+      if (targetUserId.trim().isEmpty) {
+        throw Exception('通知先ユーザーUIDが空です');
+      }
+
       AppLogger.info('========================================');
       AppLogger.info('🔔 [NOTIFICATION] 送信処理開始');
       AppLogger.info('   - type: ${type.value}');
@@ -1480,6 +1484,8 @@ class NotificationService {
               : '$editorNameさんがホワイトボードを更新しました',
           'timestamp': FieldValue.serverTimestamp(),
           'read': false,
+          'senderId': currentUser.uid,
+          'senderName': editorName,
           'metadata': {
             'whiteboardId': whiteboardId,
             'editorUid': currentUser.uid,
