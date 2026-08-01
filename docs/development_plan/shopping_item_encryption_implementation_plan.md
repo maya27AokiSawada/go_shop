@@ -146,3 +146,27 @@
 4. Phase 4（Host）
 5. Phase 5（UI）
 6. テスト強化と運用ログ整備
+
+## 10. 現在の実装状況（2026-08-01）
+
+- 実装済み:
+  - グループ鍵の生成・配布・ローカル保持
+  - 共有アイテム保存時の `name` 暗号化（鍵設定時のみ）
+  - 共有アイテム読み出し時の `name` 復号
+  - 鍵フィンガープリント変化検知による全アイテム再暗号化
+  - 既存平文 `name` 検出時の再暗号化フォールバック
+  - 再暗号化中フラグ（`keyReencryptionInProgress` / `keyRotationStatus`）更新
+
+- 未完了:
+  - 実機での鍵変更フローにおける再暗号化完了確認（Firestore値確認を含む）
+  - 再暗号化中フラグを利用したUI待機表示の最終調整
+
+## 11. セッション再開時の引き継ぎ
+
+1. `prod` フレーバーで実機起動し、既存平文アイテムを含むグループを開く。
+2. Firestore `SharedGroups/{groupId}` の以下フィールド遷移を確認する。
+   - `keyReencryptionInProgress`: `true -> false`
+   - `keyRotationStatus`: `reencrypting -> idle`
+3. 同グループ配下の `sharedLists.items.*.name` が暗号文字列へ置換されることを確認する。
+4. アプリ表示では復号済みの平文名として表示されることを確認する。
+5. 失敗時はログの `[HYBRID_KEY]` / `[KEY_EXCHANGE]` を優先確認する。
