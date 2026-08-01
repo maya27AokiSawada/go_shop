@@ -23,8 +23,10 @@ enum GroupKeyMode {
 class GroupKeyExchangeService {
   final FirebaseFirestore? _firestore;
   final GroupKeyEncryptionService _crypto = GroupKeyEncryptionService();
+  final Map<String, String> _groupKeyCache = <String, String>{};
 
   static const String _storagePrefix = 'group_key_v1:';
+  static const String _reencryptionFlagPrefix = 'group_key_reencrypting_v1:';
 
   GroupKeyExchangeService({FirebaseFirestore? firestore})
       : _firestore = firestore;
@@ -297,14 +299,20 @@ class GroupKeyExchangeService {
   /// ローカルに保存済みの鍵を取得する。
   Future<String?> getPersistedGroupKey({required String groupId}) async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_storageKey(groupId));
+    final value = prefs.getString(_storageKey(groupId));
+    if (value != null && value.isNotEmpty) {
+      _groupKeyCache[groupId] = value;
+    }
+    return value;
   }
 
   String _deriveRecipientSecret({
     required String groupId,
     required String memberUid,
+    String? groupKey,
   }) {
-    final seed = '$groupId:$memberUid';
+    final keyMaterial = groupKey ?? '';
+    final seed = '$groupId:$memberUid:$keyMaterial';
     final bytes = utf8.encode(seed);
     return base64.encode(sha256.convert(bytes).bytes);
   }
@@ -315,6 +323,7 @@ class GroupKeyExchangeService {
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_storageKey(groupId), groupKey);
+    _groupKeyCache[groupId] = groupKey;
   }
 
   String encryptItemName({
@@ -322,12 +331,16 @@ class GroupKeyExchangeService {
     required String memberUid,
     required String groupId,
   }) {
+    // 商品名は平文文字列のため、Base64へ正規化して既存の暗号化処理を再利用する。
+    final normalizedPlaintext = base64.encode(utf8.encode(plaintextName));
+    final activeGroupKey = _groupKeyCache[groupId] ?? '';
     final recipientSecret = _deriveRecipientSecret(
       groupId: groupId,
       memberUid: memberUid,
+      groupKey: activeGroupKey,
     );
     return _crypto.encryptGroupKey(
-      groupKey: plaintextName,
+      groupKey: normalizedPlaintext,
       recipientSecret: recipientSecret,
     );
   }
@@ -338,14 +351,72 @@ class GroupKeyExchangeService {
     required String memberUid,
     required String groupId,
   }) {
-    final recipientSecret = _deriveRecipientSecret(
+    // 新方式: グループ鍵を導出に含める
+    final keyedRecipientSecret = _deriveRecipientSecret(
       groupId: groupId,
       memberUid: memberUid,
+      groupKey: groupKey,
     );
-    return _crypto.decryptGroupKey(
-      encryptedGroupKey: encryptedName,
-      recipientSecret: recipientSecret,
-    );
+    try {
+      final normalizedPlaintext = _crypto.decryptGroupKey(
+        encryptedGroupKey: encryptedName,
+        recipientSecret: keyedRecipientSecret,
+      );
+      return utf8.decode(base64.decode(normalizedPlaintext));
+    } catch (_) {
+      // 旧方式との後方互換: groupKeyを導出に含めない。
+      final legacySecret = _deriveRecipientSecret(
+        groupId: groupId,
+        memberUid: memberUid,
+      );
+      final normalizedPlaintext = _crypto.decryptGroupKey(
+        encryptedGroupKey: encryptedName,
+        recipientSecret: legacySecret,
+      );
+      return utf8.decode(base64.decode(normalizedPlaintext));
+    }
+  }
+
+  /// アイテム名が本サービス形式で暗号化済みかを判定する。
+  bool isEncryptedItemName(String value) {
+    try {
+      final decoded = utf8.decode(base64.decode(value));
+      final payload = jsonDecode(decoded);
+      if (payload is! Map<String, dynamic>) {
+        return false;
+      }
+      return payload.containsKey('version') &&
+          payload.containsKey('ciphertext') &&
+          payload.containsKey('tag');
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> setReencryptionInProgress({
+    required String groupId,
+    required bool inProgress,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('$_reencryptionFlagPrefix$groupId', inProgress);
+
+    try {
+      await (_firestore ?? FirebaseFirestore.instance)
+          .collection('SharedGroups')
+          .doc(groupId)
+          .set({
+        'keyRotationStatus': inProgress ? 'reencrypting' : 'idle',
+        'keyReencryptionInProgress': inProgress,
+        'keyReencryptionUpdatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      Log.warning('⚠️ [KEY_EXCHANGE] 再暗号化フラグ更新失敗: $e');
+    }
+  }
+
+  Future<bool> isReencryptionInProgress({required String groupId}) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('$_reencryptionFlagPrefix$groupId') ?? false;
   }
 
   Future<void> _persistReencryptedItems({
