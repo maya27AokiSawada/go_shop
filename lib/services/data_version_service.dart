@@ -15,7 +15,7 @@ import 'user_preferences_service.dart';
 /// - 失敗時のロールバック機能
 class DataVersionService {
   static const String _dataVersionKey = 'data_version';
-  static const int _currentDataVersion = 3; // Firestore構造変更により3に変更
+  static const int _currentDataVersion = 4; // build 21: 運用前のため旧グループ/リストデータを初期化
 
   /// 現在のデータバージョンを取得
   static int get currentDataVersion => _currentDataVersion;
@@ -76,18 +76,13 @@ class DataVersionService {
       Log.info('🔍 データバージョンチェック: 保存済み=$savedVersion, 現在=$currentVersion');
 
       if (savedVersion < currentVersion) {
-        Log.warning('⚠️ データバージョンが古いため、データを削除して新規作成します');
-        Log.info('🔮 TODO: Playストア公開時にマイグレーション機能を実装予定');
-        Log.info('   - v1→v2: InvitationStatus.pendingをデフォルト値として設定');
-        Log.info('   - 既存メンバーのroleベースでinvitationStatus適切設定');
-        Log.info('   - データ構造の段階的変換とロールバック機能');
-
+        Log.warning('⚠️ データバージョンが古いため、旧グループ/リストデータを削除して新規作成します');
         await _clearAllHiveData();
         await UserPreferencesService.clearAllUserInfo(); // ユーザー名とメールもクリア
         await UserPreferencesService.saveDataVersion(currentVersion);
         return true; // データ削除が実行された
       } else if (savedVersion > currentVersion) {
-        Log.warning('⚠️ 保存されているデータバージョンが新しすぎます。現在バージョンに合わせます');
+        Log.warning('⚠️ 保存されているデータバージョンが新しすぎます。現在バージョンに合わせて初期化します');
         await _clearAllHiveData();
         await UserPreferencesService.clearAllUserInfo(); // ユーザー名とメールもクリア
         await UserPreferencesService.saveDataVersion(currentVersion);
@@ -123,11 +118,12 @@ class DataVersionService {
 
       for (final boxName in boxNames) {
         try {
-          if (Hive.isBoxOpen(boxName)) {
-            final box = Hive.box(boxName);
-            await box.clear();
-            Log.info('✅ $boxName を削除しました');
-          }
+          final box = Hive.isBoxOpen(boxName)
+              ? Hive.box(boxName)
+              : await Hive.openBox(boxName);
+          await box.clear();
+          await box.close();
+          Log.info('✅ $boxName をクリアしました');
         } catch (e) {
           Log.warning('⚠️ $boxName の削除でエラー: $e');
         }

@@ -13,6 +13,7 @@ import '../providers/auth_provider.dart';
 import '../utils/app_logger.dart';
 import '../utils/snackbar_helper.dart';
 import '../services/error_log_service.dart';
+import '../services/group_key_exchange_service.dart';
 import '../l10n/l10n.dart';
 
 /// 共有リスト画面
@@ -76,6 +77,7 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
 
         if (groupExists) {
           Log.info('✅ 既にグループが選択済み: $selectedGroupId');
+          await _ensureGroupKeyForCurrentGroup(selectedGroupId);
           return;
         }
       }
@@ -103,6 +105,7 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
             if (savedGroup != null) {
               await selectedGroupIdNotifier.selectGroup(savedGroup.groupId);
               Log.info('✅ カレントグループを復元: ${savedGroup.groupName}');
+              await _ensureGroupKeyForCurrentGroup(savedGroup.groupId);
               return;
             } else {
               Log.info('⚠️ 保存されたグループID ($savedGroupId) が見つかりません');
@@ -113,6 +116,7 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
           final firstGroup = groups.first;
           await selectedGroupIdNotifier.selectGroup(firstGroup.groupId);
           Log.info('✅ 最初のグループを自動選択: ${firstGroup.groupName}');
+          await _ensureGroupKeyForCurrentGroup(firstGroup.groupId);
         },
         loading: () {
           Log.info('⏳ グループ読み込み中...');
@@ -123,6 +127,68 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
       );
     } catch (e, stackTrace) {
       Log.error('❌ カレントグループ初期化で予期しないエラー: $e', stackTrace);
+    }
+  }
+
+  Future<void> _ensureGroupKeyForCurrentGroup(String groupId) async {
+    try {
+      final service = ref.read(groupKeyExchangeServiceProvider);
+      final persistedKey = await service.getPersistedGroupKey(groupId: groupId);
+      if (persistedKey != null && persistedKey.isNotEmpty) {
+        Log.info('✅ [KEY_EXCHANGE] グループ $groupId には既存鍵あり');
+        return;
+      }
+
+      final allGroupsAsync = ref.read(allGroupsProvider);
+      final group = await allGroupsAsync.when(
+        data: (groups) =>
+            Future.value(groups.where((g) => g.groupId == groupId).firstOrNull),
+        loading: () => Future.value(null),
+        error: (error, stack) => Future.value(null),
+      );
+
+      if (group == null) {
+        Log.warning('⚠️ [KEY_EXCHANGE] グループ情報が取得できないため鍵作成をスキップ: $groupId');
+        return;
+      }
+
+      final memberUids = group.members
+              ?.where((member) => member.memberId.isNotEmpty)
+              .map((member) => member.memberId)
+              .toList() ??
+          <String>[];
+
+      final created = await service.ensureGroupKeyForOwner(
+        groupId: groupId,
+        ownerUid: group.ownerUid ?? '',
+        memberUids: memberUids,
+      );
+
+      if (created) {
+        Log.info('✅ [KEY_EXCHANGE] グループアクセス時に鍵作成・配布を実行: $groupId');
+        final repository = ref.read(sharedListRepositoryProvider);
+        final lists = await repository.getSharedListsByGroup(groupId);
+        final listItems = <Map<String, dynamic>>[];
+
+        for (final list in lists) {
+          for (final item in list.items.values) {
+            listItems.add({
+              'memberId': item.memberId,
+              'name': item.name,
+            });
+          }
+        }
+
+        await service.reencryptSharedItemsForGroup(
+          groupId: groupId,
+          items: listItems,
+          repository: repository,
+        );
+      } else {
+        Log.info('ℹ️ [KEY_EXCHANGE] グループ $groupId は鍵作成対象外');
+      }
+    } catch (e) {
+      Log.error('❌ [KEY_EXCHANGE] グループアクセス時の鍵初期化失敗: $e');
     }
   }
 
@@ -382,6 +448,28 @@ class _SharedItemTile extends ConsumerWidget {
     required this.item,
   });
 
+  Future<String> _displayName(WidgetRef ref) async {
+    final service = ref.read(groupKeyExchangeServiceProvider);
+    final currentGroupKey =
+        await service.getPersistedGroupKey(groupId: list.groupId);
+
+    if (currentGroupKey == null || currentGroupKey.isEmpty) {
+      return item.name;
+    }
+
+    try {
+      final decryptedName = service.decryptItemName(
+        encryptedName: item.name,
+        groupKey: currentGroupKey,
+        memberUid: item.memberId,
+        groupId: list.groupId,
+      );
+      return decryptedName;
+    } catch (_) {
+      return item.name;
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Material(
@@ -411,12 +499,19 @@ class _SharedItemTile extends ConsumerWidget {
             onChanged: (value) =>
                 _togglePurchased(context, ref, value ?? false),
           ),
-          title: Text(
-            item.name,
-            style: TextStyle(
-              decoration: item.isPurchased ? TextDecoration.lineThrough : null,
-              color: item.isPurchased ? Colors.grey : null,
-            ),
+          title: FutureBuilder<String>(
+            future: _displayName(ref),
+            builder: (context, snapshot) {
+              final displayName = snapshot.data ?? item.name;
+              return Text(
+                displayName,
+                style: TextStyle(
+                  decoration:
+                      item.isPurchased ? TextDecoration.lineThrough : null,
+                  color: item.isPurchased ? Colors.grey : null,
+                ),
+              );
+            },
           ),
           subtitle: _buildSubtitle(),
         ),

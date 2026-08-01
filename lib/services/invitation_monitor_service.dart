@@ -9,6 +9,7 @@ import '../models/accepted_invitation.dart';
 import '../models/shared_list.dart';
 import '../services/accepted_invitation_service.dart';
 import '../providers/shared_list_provider.dart';
+import 'group_key_exchange_service.dart';
 
 /// 招待監視サービスプロバイダー
 final invitationMonitorServiceProvider =
@@ -91,7 +92,15 @@ class InvitationMonitorService {
         acceptorUid: invitation.acceptorUid,
       );
 
-      // 4. 処理済みマーク
+      // 4. 鍵交換イベントを作成して、参加者側で復号可能にする
+      final keyExchangeService = _ref.read(groupKeyExchangeServiceProvider);
+      await keyExchangeService.handleAcceptedInvitation(
+        groupId: invitation.SharedGroupId,
+        memberUid: invitation.acceptorUid,
+        ownerUid: _auth.currentUser?.uid ?? '',
+      );
+
+      // 5. 処理済みマーク
       final acceptedInvitationService =
           _ref.read(acceptedInvitationServiceProvider);
       await acceptedInvitationService.markAsProcessed(
