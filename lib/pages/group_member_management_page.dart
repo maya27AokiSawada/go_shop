@@ -451,6 +451,16 @@ class _GroupMemberManagementPageState
 
   Future<void> _regenerateGroupKey(SharedGroup group) async {
     try {
+      if (!_isOwner(group)) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('この操作はグループオーナーのみ実行できます'),
+          ),
+        );
+        return;
+      }
+
       final service = ref.read(groupKeyExchangeServiceProvider);
       final memberUids = group.members
               ?.where((member) => member.memberId.isNotEmpty)

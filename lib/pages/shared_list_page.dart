@@ -152,6 +152,14 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
         return;
       }
 
+      final currentUid = ref.read(authStateProvider).valueOrNull?.uid;
+      final ownerUid = group.ownerUid ?? '';
+      if (currentUid == null || ownerUid.isEmpty || currentUid != ownerUid) {
+        Log.info(
+            'ℹ️ [KEY_EXCHANGE] 非オーナーのため鍵作成をスキップ: groupId=$groupId, currentUid=${Log.maskUserId(currentUid)}, ownerUid=${Log.maskUserId(ownerUid)}');
+        return;
+      }
+
       final memberUids = group.members
               ?.where((member) => member.memberId.isNotEmpty)
               .map((member) => member.memberId)

@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -48,6 +49,13 @@ class GroupKeyExchangeService {
     bool forceRefresh = false,
   }) async {
     try {
+      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      if (ownerUid.isEmpty || currentUid == null || currentUid != ownerUid) {
+        Log.warning(
+            '⚠️ [KEY_EXCHANGE] 非オーナー実行を拒否: groupId=$groupId, currentUid=${Log.maskUserId(currentUid)}, ownerUid=${Log.maskUserId(ownerUid)}');
+        return false;
+      }
+
       final persistedKey = await getPersistedGroupKey(groupId: groupId);
       final shouldCreate =
           forceRefresh || persistedKey == null || persistedKey.isEmpty;
@@ -57,13 +65,15 @@ class GroupKeyExchangeService {
 
       final groupKey = _crypto.generateGroupKey();
       await _persistGroupKeyLocally(groupId: groupId, groupKey: groupKey);
-      if (_firestore != null) {
-        await rotateGroupKey(
-          groupId: groupId,
-          ownerUid: ownerUid,
-          memberUids: memberUids,
-        );
-      }
+      final distributionUids = {
+        ...memberUids.where((uid) => uid.isNotEmpty),
+        ownerUid,
+      }.toList();
+      await rotateGroupKey(
+        groupId: groupId,
+        ownerUid: ownerUid,
+        memberUids: distributionUids,
+      );
       return true;
     } catch (e) {
       Log.error('❌ [KEY_EXCHANGE] 鍵生成失敗: $e');
@@ -78,6 +88,13 @@ class GroupKeyExchangeService {
     required String ownerUid,
   }) async {
     try {
+      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      if (ownerUid.isEmpty || currentUid == null || currentUid != ownerUid) {
+        Log.warning(
+            '⚠️ [KEY_EXCHANGE] 招待受諾鍵処理を拒否（非オーナー）: groupId=$groupId, currentUid=${Log.maskUserId(currentUid)}, ownerUid=${Log.maskUserId(ownerUid)}');
+        return;
+      }
+
       final groupKey = _crypto.generateGroupKey();
       final recipientSecret = _deriveRecipientSecret(
         groupId: groupId,
@@ -255,6 +272,13 @@ class GroupKeyExchangeService {
     required List<String> memberUids,
   }) async {
     try {
+      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      if (ownerUid.isEmpty || currentUid == null || currentUid != ownerUid) {
+        Log.warning(
+            '⚠️ [KEY_EXCHANGE] 鍵ローテーションを拒否（非オーナー）: groupId=$groupId, currentUid=${Log.maskUserId(currentUid)}, ownerUid=${Log.maskUserId(ownerUid)}');
+        return;
+      }
+
       final newGroupKey = _crypto.generateGroupKey();
       await _persistGroupKeyLocally(groupId: groupId, groupKey: newGroupKey);
       for (final memberUid in memberUids) {
