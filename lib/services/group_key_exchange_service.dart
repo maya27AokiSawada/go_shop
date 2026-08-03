@@ -344,6 +344,30 @@ class GroupKeyExchangeService {
     return value;
   }
 
+  Future<bool> hasUsableGroupKey({required String groupId}) async {
+    final persistedKey = await getPersistedGroupKey(groupId: groupId);
+    return persistedKey != null && persistedKey.isNotEmpty;
+  }
+
+  Future<bool> waitForUsableGroupKey({
+    required String groupId,
+    Duration checkInterval = const Duration(seconds: 1),
+    int maxAttempts = 60,
+  }) async {
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
+      final hasKey = await hasUsableGroupKey(groupId: groupId);
+      if (hasKey) {
+        return true;
+      }
+
+      if (attempt < maxAttempts - 1) {
+        await Future.delayed(checkInterval);
+      }
+    }
+
+    return false;
+  }
+
   String _deriveRecipientSecret({
     required String groupId,
     required String memberUid,

@@ -5,6 +5,7 @@ import '../models/shared_list.dart';
 import '../providers/current_list_provider.dart';
 import '../providers/shared_group_provider.dart';
 import '../providers/shared_list_provider.dart';
+import '../providers/group_shared_lists_provider.dart';
 import '../providers/app_ui_mode_provider.dart';
 import '../config/app_ui_mode_config.dart';
 import '../widgets/shared_list_header_widget.dart';
@@ -27,6 +28,9 @@ class SharedListPage extends ConsumerStatefulWidget {
 
 class _SharedListPageState extends ConsumerState<SharedListPage> {
   String? _previousGroupId; // 前回のグループIDを保存
+  String? _lastTriggeredKeyRefreshGroupId;
+  Future<bool>? _keyWaitFuture;
+  String? _activeKeyWaitGroupId;
 
   @override
   void initState() {
@@ -157,6 +161,13 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
       if (currentUid == null || ownerUid.isEmpty || currentUid != ownerUid) {
         Log.info(
             'ℹ️ [KEY_EXCHANGE] 非オーナーのため鍵作成をスキップ: groupId=$groupId, currentUid=${Log.maskUserId(currentUid)}, ownerUid=${Log.maskUserId(ownerUid)}');
+        final hasKey = await service.hasUsableGroupKey(groupId: groupId);
+        if (!hasKey) {
+          Log.info(
+              'ℹ️ [KEY_EXCHANGE] 鍵がありません。参加メンバーとして鍵の解決を試みます: $groupId');
+          await service.resolveGroupKeyForMember(
+              groupId: groupId, memberUid: currentUid!);
+        }
         return;
       }
 
@@ -274,18 +285,130 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
     }
   }
 
+  Future<void> _refreshGroupDataAfterKeyReady(String groupId) async {
+    if (_lastTriggeredKeyRefreshGroupId == groupId) {
+      return;
+    }
+
+    _lastTriggeredKeyRefreshGroupId = groupId;
+
+    try {
+      final repository = ref.read(sharedListRepositoryProvider);
+      final lists = await repository.getSharedListsByGroup(groupId);
+      if (!mounted) return;
+
+      if (lists.isNotEmpty) {
+        ref.invalidate(groupSharedListsProvider);
+        Log.info('🔄 [KEY_EXCHANGE] 鍵取得後にグループ一覧を再取得: $groupId');
+      }
+
+      final currentList = ref.read(currentListProvider);
+      if (currentList != null && currentList.groupId == groupId) {
+        final refreshedList = lists
+            .where((list) => list.listId == currentList.listId)
+            .firstOrNull;
+        if (refreshedList != null) {
+          await ref
+              .read(currentListProvider.notifier)
+              .updateList(refreshedList, groupId: groupId);
+          Log.info('🔄 [KEY_EXCHANGE] カレントリストを再読込: ${refreshedList.listName}');
+        }
+      }
+    } catch (e) {
+      Log.error('❌ [KEY_EXCHANGE] 鍵取得後の再読込失敗: $e');
+    }
+  }
+
+  void _syncKeyWaitFuture(String? groupId, SharedList? currentList,
+      GroupKeyExchangeService keyService) {
+    if (groupId == null || currentList == null) {
+      _keyWaitFuture = null;
+      _activeKeyWaitGroupId = null;
+      return;
+    }
+
+    if (_activeKeyWaitGroupId == groupId && _keyWaitFuture != null) {
+      return;
+    }
+
+    _activeKeyWaitGroupId = groupId;
+    _keyWaitFuture = keyService.waitForUsableGroupKey(
+      groupId: groupId,
+      checkInterval: const Duration(seconds: 1),
+      maxAttempts: 60,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final currentList = ref.watch(currentListProvider);
+    final selectedGroupId = ref.watch(selectedGroupIdProvider);
+    final keyService = ref.watch(groupKeyExchangeServiceProvider);
+    _syncKeyWaitFuture(selectedGroupId, currentList, keyService);
+
+    final isWaitingForKey = selectedGroupId != null && currentList != null
+        ? FutureBuilder<bool>(
+            future: _keyWaitFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.done &&
+                  snapshot.hasData &&
+                  snapshot.data == true &&
+                  selectedGroupId.isNotEmpty) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _refreshGroupDataAfterKeyReady(selectedGroupId);
+                });
+              }
+
+              final waiting =
+                  snapshot.connectionState != ConnectionState.done ||
+                      snapshot.data != true;
+              return waiting
+                  ? Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.orange.shade300),
+                        ),
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.orange.shade700),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '共有鍵の受信待ちです。しばらくしてから再試行してください。',
+                                style: TextStyle(color: Colors.orange.shade900),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : const SizedBox.shrink();
+            },
+          )
+        : const SizedBox.shrink();
+
     return Stack(
       children: [
-        const SafeArea(
+        SafeArea(
           child: Column(
             children: [
               // ヘッダー：グループ選択＋リスト選択
-              SharedListHeaderWidget(),
-
+              const SharedListHeaderWidget(),
+              isWaitingForKey,
               // アイテム一覧
-              Expanded(
+              const Expanded(
                 child: _SharedItemsListWidget(),
               ),
             ],

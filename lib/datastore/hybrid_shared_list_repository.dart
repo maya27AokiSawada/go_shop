@@ -899,33 +899,39 @@ class HybridSharedListRepository implements SharedListRepository {
   @override
   Future<void> addSingleItem(String listId, SharedItem item) async {
     try {
+      final list = await _hiveRepo.getSharedListById(listId);
+      if (list == null) {
+        throw Exception('List not found in cache: $listId');
+      }
+
+      final keyService = _ref.read(groupKeyExchangeServiceProvider);
+      final hasUsableKey =
+          await keyService.hasUsableGroupKey(groupId: list.groupId);
+      if (!hasUsableKey) {
+        throw StateError('共有鍵がまだ取得できていないため保存できません');
+      }
+
       // 🔥 サインイン必須仕様: Firestore優先＋差分同期
       if (_firestoreRepo != null) {
         Log.info('🔥 [HYBRID_DIFF] Firestore優先モード - アイテム追加');
 
-        // ⚠️ 重要: まずHiveからgroupIdを取得（コレクショングループクエリを避ける）
-        final hiveList = await _hiveRepo.getSharedListById(listId);
-        if (hiveList == null) {
-          throw Exception('List not found in cache: $listId');
-        }
-
-        Log.info('📋 [HYBRID_DIFF] GroupId取得: ${hiveList.groupId}');
+        Log.info('📋 [HYBRID_DIFF] GroupId取得: ${list.groupId}');
 
         final encryptedItem = await _encryptItemForWrite(
-          groupId: hiveList.groupId,
+          groupId: list.groupId,
           item: item,
         );
 
         // 1. Firestoreに単一アイテムのみ追加（差分同期）
         // groupIdを使って直接パスでアクセス（パーミッションエラー回避）
         await _firestoreRepo!
-            .addSingleItemWithGroupId(listId, hiveList.groupId, encryptedItem);
+            .addSingleItemWithGroupId(listId, list.groupId, encryptedItem);
         Log.info('✅ [HYBRID_DIFF] Firestore: 単一アイテム追加完了 (${item.name})');
 
         // 2. Hiveキャッシュを更新（読み取り高速化）
-        final updatedItems = Map<String, SharedItem>.from(hiveList.items);
+        final updatedItems = Map<String, SharedItem>.from(list.items);
         updatedItems[encryptedItem.itemId] = encryptedItem;
-        final updatedList = hiveList.copyWith(
+        final updatedList = list.copyWith(
           items: updatedItems,
           updatedAt: DateTime.now(),
         );
@@ -934,17 +940,13 @@ class HybridSharedListRepository implements SharedListRepository {
       } else {
         // dev環境またはFirestore未初期化の場合のみHive
         Log.info('📝 [HYBRID_DIFF] dev環境 - Hiveに追加');
-        final hiveList = await _hiveRepo.getSharedListById(listId);
-        if (hiveList == null) {
-          throw Exception('List not found: $listId');
-        }
         final encryptedItem = await _encryptItemForWrite(
-          groupId: hiveList.groupId,
+          groupId: list.groupId,
           item: item,
         );
-        final updatedItems = Map<String, SharedItem>.from(hiveList.items);
+        final updatedItems = Map<String, SharedItem>.from(list.items);
         updatedItems[encryptedItem.itemId] = encryptedItem;
-        final updatedList = hiveList.copyWith(
+        final updatedList = list.copyWith(
           items: updatedItems,
           updatedAt: DateTime.now(),
         );
@@ -1023,30 +1025,36 @@ class HybridSharedListRepository implements SharedListRepository {
   @override
   Future<void> updateSingleItem(String listId, SharedItem item) async {
     try {
+      final list = await _hiveRepo.getSharedListById(listId);
+      if (list == null) {
+        throw Exception('List not found in cache: $listId');
+      }
+
+      final keyService = _ref.read(groupKeyExchangeServiceProvider);
+      final hasUsableKey =
+          await keyService.hasUsableGroupKey(groupId: list.groupId);
+      if (!hasUsableKey) {
+        throw StateError('共有鍵がまだ取得できていないため保存できません');
+      }
+
       // 🔥 サインイン必須仕様: Firestore優先＋差分同期
       if (_firestoreRepo != null) {
         Log.info('🔥 [HYBRID_DIFF] Firestore優先モード - アイテム更新');
 
-        // ⚠️ 重要: まずHiveからgroupIdを取得
-        final hiveList = await _hiveRepo.getSharedListById(listId);
-        if (hiveList == null) {
-          throw Exception('List not found in cache: $listId');
-        }
-
         final encryptedItem = await _encryptItemForWrite(
-          groupId: hiveList.groupId,
+          groupId: list.groupId,
           item: item,
         );
 
         // 1. Firestoreで単一アイテムのみ更新（差分同期）
-        await _firestoreRepo!.updateSingleItemWithGroupId(
-            listId, hiveList.groupId, encryptedItem);
+        await _firestoreRepo!
+            .updateSingleItemWithGroupId(listId, list.groupId, encryptedItem);
         Log.info('✅ [HYBRID_DIFF] Firestore: 単一アイテム更新完了 (${item.name})');
 
         // 2. Hiveキャッシュを更新
-        final updatedItems = Map<String, SharedItem>.from(hiveList.items);
+        final updatedItems = Map<String, SharedItem>.from(list.items);
         updatedItems[encryptedItem.itemId] = encryptedItem;
-        final updatedList = hiveList.copyWith(
+        final updatedList = list.copyWith(
           items: updatedItems,
           updatedAt: DateTime.now(),
         );
@@ -1055,15 +1063,13 @@ class HybridSharedListRepository implements SharedListRepository {
       } else {
         // dev環境またはFirestore未初期化の場合のみHive
         Log.info('📝 [HYBRID_DIFF] dev環境 - Hiveに更新');
-        final hiveList = await _hiveRepo.getSharedListById(listId);
-        if (hiveList == null) return;
         final encryptedItem = await _encryptItemForWrite(
-          groupId: hiveList.groupId,
+          groupId: list.groupId,
           item: item,
         );
-        final updatedItems = Map<String, SharedItem>.from(hiveList.items);
+        final updatedItems = Map<String, SharedItem>.from(list.items);
         updatedItems[encryptedItem.itemId] = encryptedItem;
-        final updatedList = hiveList.copyWith(
+        final updatedList = list.copyWith(
           items: updatedItems,
           updatedAt: DateTime.now(),
         );

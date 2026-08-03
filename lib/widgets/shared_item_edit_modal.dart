@@ -5,6 +5,7 @@ import '../config/app_mode_config.dart';
 import '../providers/app_mode_notifier_provider.dart';
 import '../providers/shared_list_provider.dart';
 import '../providers/auth_provider.dart';
+import '../services/group_key_exchange_service.dart';
 import '../utils/app_logger.dart';
 import '../l10n/l10n.dart';
 
@@ -226,14 +227,12 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
                                           child: Text(texts.intervalNone),
                                         ),
                                         ...List.generate(
-                                                30, (index) => index + 1)
-                                            .map(
-                                              (value) => DropdownMenuItem(
-                                                value: value,
-                                                child: Text('$value'),
-                                              ),
-                                            )
-                                            .toList(),
+                                            30, (index) => index + 1).map(
+                                          (value) => DropdownMenuItem(
+                                            value: value,
+                                            child: Text('$value'),
+                                          ),
+                                        ),
                                       ],
                                       onChanged: (value) {
                                         if (value != null) {
@@ -283,7 +282,9 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
                               Text(
                                 _intervalValue == 0
                                     ? texts.noRepeatPurchase
-                                    : texts.intervalDaysSuffix(_calculateIntervalDays(_intervalValue, _intervalUnit)),
+                                    : texts.intervalDaysSuffix(
+                                        _calculateIntervalDays(
+                                            _intervalValue, _intervalUnit)),
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.grey[600],
@@ -408,6 +409,32 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
   Future<void> _submitItem() async {
     if (_isSubmitting) return;
 
+    final repository = ref.read(sharedListRepositoryProvider);
+    final currentUser = ref.read(authStateProvider).value;
+    final currentMemberId = currentUser?.uid ?? 'anonymous';
+    final list = await repository.getSharedListById(widget.listId);
+    if (list == null) {
+      setState(() {
+        _validationError = 'リスト情報が見つかりません';
+      });
+      return;
+    }
+
+    final keyService = ref.read(groupKeyExchangeServiceProvider);
+    final hasUsableKey =
+        await keyService.hasUsableGroupKey(groupId: list.groupId);
+    if (!hasUsableKey) {
+      if (mounted && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('共有鍵の受信待ちです。少し待ってからもう一度お試しください。'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
     // バリデーション実行
     final validationError = _validateInput();
     if (validationError != null) {
@@ -425,10 +452,6 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
     });
 
     try {
-      final repository = ref.read(sharedListRepositoryProvider);
-      final currentUser = ref.read(authStateProvider).value;
-      final currentMemberId = currentUser?.uid ?? 'anonymous';
-
       if (widget.item == null) {
         // 新規作成: fire-and-forget（ローカルキャッシュ書き込み後に即時クローズ）
         final newItem = SharedItem.createNow(
