@@ -56,6 +56,13 @@ class GroupKeyExchangeService {
         return false;
       }
 
+      final blockedByReencryption =
+          await _isRotationBlockedByPendingReencryption(groupId: groupId);
+      if (blockedByReencryption) {
+        Log.warning('⛔ [KEY_EXCHANGE] 再暗号化完了前の鍵ローテーションを拒否: groupId=$groupId');
+        return false;
+      }
+
       final persistedKey = await getPersistedGroupKey(groupId: groupId);
       final shouldCreate =
           forceRefresh || persistedKey == null || persistedKey.isEmpty;
@@ -279,6 +286,13 @@ class GroupKeyExchangeService {
         return;
       }
 
+      final blockedByReencryption =
+          await _isRotationBlockedByPendingReencryption(groupId: groupId);
+      if (blockedByReencryption) {
+        Log.warning('⛔ [KEY_EXCHANGE] 再暗号化完了前の鍵ローテーションを拒否: groupId=$groupId');
+        return;
+      }
+
       final newGroupKey = _crypto.generateGroupKey();
       await _persistGroupKeyLocally(groupId: groupId, groupKey: newGroupKey);
       for (final memberUid in memberUids) {
@@ -441,6 +455,35 @@ class GroupKeyExchangeService {
   Future<bool> isReencryptionInProgress({required String groupId}) async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('$_reencryptionFlagPrefix$groupId') ?? false;
+  }
+
+  /// 再暗号化が完了していないため鍵ローテーションをブロックすべきかを返す。
+  Future<bool> isRotationBlockedByPendingReencryption({
+    required String groupId,
+  }) {
+    return _isRotationBlockedByPendingReencryption(groupId: groupId);
+  }
+
+  Future<bool> _isRotationBlockedByPendingReencryption({
+    required String groupId,
+  }) async {
+    final localInProgress = await isReencryptionInProgress(groupId: groupId);
+
+    try {
+      final snapshot = await (_firestore ?? FirebaseFirestore.instance)
+          .collection('SharedGroups')
+          .doc(groupId)
+          .get();
+      final data = snapshot.data();
+      final remoteInProgress = data?['keyReencryptionInProgress'] == true;
+      final rotationStatus = (data?['keyRotationStatus'] as String?) ?? '';
+      final remoteReencrypting = rotationStatus == 'reencrypting';
+
+      return localInProgress || remoteInProgress || remoteReencrypting;
+    } catch (e) {
+      Log.warning('⚠️ [KEY_EXCHANGE] 再暗号化状態のFirestore確認に失敗。ローカル判定を使用: $e');
+      return localInProgress;
+    }
   }
 
   Future<void> _persistReencryptedItems({

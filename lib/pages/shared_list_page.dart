@@ -166,6 +166,15 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
               .toList() ??
           <String>[];
 
+      final blockedByReencryption =
+          await service.isRotationBlockedByPendingReencryption(
+        groupId: groupId,
+      );
+      if (blockedByReencryption) {
+        Log.info('ℹ️ [KEY_EXCHANGE] 再暗号化完了待ちのため鍵ローテーションをスキップ: $groupId');
+        return;
+      }
+
       final created = await service.ensureGroupKeyForOwner(
         groupId: groupId,
         ownerUid: group.ownerUid ?? '',
@@ -193,7 +202,7 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
           repository: repository,
         );
       } else {
-        Log.info('ℹ️ [KEY_EXCHANGE] グループ $groupId は鍵作成対象外');
+        Log.info('ℹ️ [KEY_EXCHANGE] グループ $groupId は鍵作成対象外（既存鍵あり）');
       }
     } catch (e) {
       Log.error('❌ [KEY_EXCHANGE] グループアクセス時の鍵初期化失敗: $e');

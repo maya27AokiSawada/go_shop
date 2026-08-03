@@ -462,6 +462,20 @@ class _GroupMemberManagementPageState
       }
 
       final service = ref.read(groupKeyExchangeServiceProvider);
+      final blockedByReencryption =
+          await service.isRotationBlockedByPendingReencryption(
+        groupId: group.groupId,
+      );
+      if (blockedByReencryption) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('再暗号化が完了するまで鍵ローテーションは実行できません'),
+          ),
+        );
+        return;
+      }
+
       final memberUids = group.members
               ?.where((member) => member.memberId.isNotEmpty)
               .map((member) => member.memberId)
