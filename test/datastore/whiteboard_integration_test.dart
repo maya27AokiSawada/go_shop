@@ -1,4 +1,6 @@
 /// ホワイトボード統合テスト（マルチユーザー同時編集シナリオ）
+library;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:goshopping/models/whiteboard.dart';
 import 'package:flutter/material.dart';
@@ -307,7 +309,7 @@ void main() {
         final newStroke = DrawingStroke(
           strokeId: 'stroke-$i',
           points: [DrawingPoint(x: i * 100.0, y: i * 100.0)],
-          colorValue: Colors.black.value,
+          colorValue: Colors.black.toARGB32(),
           createdAt: DateTime.now(),
           authorId: 'user-123',
           authorName: 'User A',
@@ -390,7 +392,7 @@ void main() {
           strokeId: 'stroke-$i',
           points:
               List.generate(30, (j) => DrawingPoint(x: j * 10.0, y: i * 5.0)),
-          colorValue: Colors.black.value,
+          colorValue: Colors.black.toARGB32(),
           strokeWidth: 3.0,
           createdAt: DateTime.now(),
           authorId: 'user-${i % 3}',
@@ -429,7 +431,7 @@ void main() {
         final newStroke = DrawingStroke(
           strokeId: 'stroke-$i',
           points: [DrawingPoint(x: i * 10.0, y: i * 10.0)],
-          colorValue: Colors.black.value,
+          colorValue: Colors.black.toARGB32(),
           createdAt: DateTime.now(),
           authorId: 'user-123',
           authorName: 'User A',

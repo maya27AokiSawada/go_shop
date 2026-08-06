@@ -48,7 +48,7 @@
 ///   // ...
 /// }
 /// ```
-library l10n;
+library;
 
 export 'app_texts.dart';
 export 'app_texts_ja.dart';

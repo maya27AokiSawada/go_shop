@@ -263,7 +263,7 @@ void main() {
         when(mockAuth.currentUser).thenReturn(mockUser);
         when(mockAuth.signOut()).thenAnswer((_) async {
           when(mockAuth.currentUser).thenReturn(null);
-          return null;
+          return;
         });
 
         // Act

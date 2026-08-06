@@ -18,7 +18,7 @@ import '../services/user_preferences_service.dart';
 /// テストシナリオ実行ウィジェット
 /// Firebase認証とCRUD操作の統合テストを実行
 class TestScenarioWidget extends ConsumerStatefulWidget {
-  const TestScenarioWidget({Key? key}) : super(key: key);
+  const TestScenarioWidget({super.key});
 
   @override
   ConsumerState<TestScenarioWidget> createState() => _TestScenarioWidgetState();
