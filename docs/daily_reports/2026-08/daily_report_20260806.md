@@ -157,8 +157,47 @@ List<SharedItem> get activeItems {
 
 ---
 
+## 🌆 本日午後（2026-08-06）の実施内容
+
+### 1. Google Play Billing 8 要件の成果物確認 ✅
+
+**Purpose**: Play Console 警告への対応可否を、提出対象の成果物ベースで確認する。
+
+**Solution**:
+
+- outputs 配下の AAB を特定し、対象が `app-prod-release.aab` であることを確認
+- manifest merge レポートから依存解決を確認し、`com.android.billingclient:billing:8.0.0` を検出
+
+**検証結果**: AAB 成果物上で Billing Library 8.0.0 の使用を確認済み。
+
+**Modified Files**:
+
+- `build/app/outputs/logs/manifest-merger-prod-release-report.txt`（参照のみ、編集なし）
+
+**Status**: ✅ 確認完了
+
+---
+
+### 2. AGP 9 対応計画ドキュメント作成 ✅
+
+**Purpose**: AGP 9 移行に向けた前提・手順・検証観点を明文化する。
+
+**Solution**:
+
+- 現状分析（Gradle / Java / 依存プラグイン）を整理
+- Flutter SDK 互換性確認からビルド検証までの段階的な移行手順を記載
+
+**Modified Files**:
+
+- `docs/development_plan/agp9_upgrade_plan.md`（新規作成）
+
+**Status**: ✅ 作成完了
+
+---
+
 ## 📝 ドキュメント更新
 
 | ドキュメント | 更新内容 |
 |---|---|
-| （更新なし） | 理由: 午前中の変更は `activeItems` の並び順実装とテスト追加であり、プロジェクト指示書・仕様書の記載変更を要する仕様変更はないため |
+| `docs/development_plan/agp9_upgrade_plan.md` | AGP 9 アップグレードに向けた背景、互換性調査、実施ステップ、検証手順を新規追加 |
+| （更新なし） | 理由: プロジェクト共通指示書・機能別仕様書に直接反映が必要な仕様変更は本日は発生していないため |
