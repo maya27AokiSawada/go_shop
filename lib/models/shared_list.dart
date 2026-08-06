@@ -77,9 +77,45 @@ class SharedList with _$SharedList {
   }) = _SharedList;
 
   // 🆕 アクティブなアイテムのみ取得（isDeleted=falseのみ）
-  List<SharedItem> get activeItems =>
-      items.values.where((item) => !item.isDeleted).toList()
-        ..sort((a, b) => a.registeredDate.compareTo(b.registeredDate));
+  List<SharedItem> get activeItems {
+    final activeItems = items.values.where((item) => !item.isDeleted).toList();
+
+    activeItems.sort((a, b) {
+      final purchaseOrder = a.isPurchased == b.isPurchased
+          ? 0
+          : a.isPurchased
+              ? 1
+              : -1;
+      if (purchaseOrder != 0) {
+        return purchaseOrder;
+      }
+
+      final aDeadline = a.deadline;
+      final bDeadline = b.deadline;
+      final aHasDeadline = aDeadline != null;
+      final bHasDeadline = bDeadline != null;
+
+      if (aHasDeadline != bHasDeadline) {
+        return aHasDeadline ? -1 : 1;
+      }
+
+      if (aHasDeadline && bHasDeadline) {
+        final deadlineOrder = aDeadline.compareTo(bDeadline);
+        if (deadlineOrder != 0) {
+          return deadlineOrder;
+        }
+      }
+
+      final registeredOrder = a.registeredDate.compareTo(b.registeredDate);
+      if (registeredOrder != 0) {
+        return registeredOrder;
+      }
+
+      return a.name.compareTo(b.name);
+    });
+
+    return activeItems;
+  }
 
   // 🆕 削除済みアイテム数
   int get deletedItemCount =>

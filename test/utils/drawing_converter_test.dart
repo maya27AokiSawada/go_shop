@@ -25,7 +25,7 @@ void main() {
           const DrawingPoint(x: 30.0, y: 40.0),
           const DrawingPoint(x: 50.0, y: 60.0),
         ],
-        colorValue: Colors.black.value,
+        colorValue: Colors.black.toARGB32(),
         strokeWidth: 3.0,
         createdAt: DateTime.now(),
         authorId: 'test-user-1',
@@ -53,7 +53,7 @@ void main() {
           const DrawingPoint(x: 10.0, y: 20.0),
           const DrawingPoint(x: 30.0, y: 40.0),
         ],
-        colorValue: Colors.black.value,
+        colorValue: Colors.black.toARGB32(),
         strokeWidth: 3.0,
         createdAt: DateTime.now(),
         authorId: 'test-user-1',
@@ -97,7 +97,7 @@ void main() {
         points: [
           const DrawingPoint(x: 10.0, y: 20.0),
         ],
-        colorValue: Colors.black.value,
+        colorValue: Colors.black.toARGB32(),
         strokeWidth: 3.0,
         createdAt: DateTime.now(),
         authorId: 'test-user-1',
@@ -257,7 +257,7 @@ void main() {
       final stroke = DrawingStroke(
         strokeId: 'test-stroke-id',
         points: const [DrawingPoint(x: 10.0, y: 20.0)],
-        colorValue: Colors.black.value,
+        colorValue: Colors.black.toARGB32(),
         // strokeWidthは省略（デフォルト値使用）
         createdAt: DateTime.now(),
         authorId: 'user-123',
@@ -280,7 +280,7 @@ void main() {
             DrawingPoint(x: index * 10.0, y: index * 20.0),
             DrawingPoint(x: index * 10.0 + 5, y: index * 20.0 + 10),
           ],
-          colorValue: Colors.black.value,
+          colorValue: Colors.black.toARGB32(),
           strokeWidth: 3.0,
           createdAt: DateTime.now(),
           authorId: 'test-user',
@@ -373,9 +373,9 @@ void main() {
 
       final strokes = colors.map((color) {
         return DrawingStroke(
-          strokeId: 'stroke-${color.value}',
+          strokeId: 'stroke-${color.toARGB32()}',
           points: const [DrawingPoint(x: 10.0, y: 20.0)],
-          colorValue: color.value,
+          colorValue: color.toARGB32(),
           strokeWidth: 3.0,
           createdAt: DateTime.now(),
           authorId: 'test-user',
@@ -385,7 +385,7 @@ void main() {
 
       // Act & Assert
       for (int i = 0; i < strokes.length; i++) {
-        expect(strokes[i].colorValue, colors[i].value);
+        expect(strokes[i].colorValue, colors[i].toARGB32());
       }
     });
   });
@@ -396,7 +396,7 @@ void main() {
       final stroke1 = DrawingStroke(
         strokeId: 'stroke-1',
         points: const [DrawingPoint(x: 10.0, y: 20.0)],
-        colorValue: Colors.black.value,
+        colorValue: Colors.black.toARGB32(),
         strokeWidth: 3.0,
         createdAt: DateTime.now(),
         authorId: 'user-alice',
@@ -430,7 +430,7 @@ void main() {
       final stroke = DrawingStroke(
         strokeId: 'timestamp-stroke',
         points: const [DrawingPoint(x: 10.0, y: 20.0)],
-        colorValue: Colors.black.value,
+        colorValue: Colors.black.toARGB32(),
         strokeWidth: 3.0,
         createdAt: createdAt,
         authorId: 'test-user',
@@ -456,7 +456,7 @@ void main() {
       final stroke1 = DrawingStroke(
         strokeId: 'stroke-1',
         points: const [DrawingPoint(x: 10.0, y: 20.0)],
-        colorValue: Colors.black.value,
+        colorValue: Colors.black.toARGB32(),
         strokeWidth: 3.0,
         createdAt: time1,
         authorId: 'test-user',

@@ -27,6 +27,7 @@
 /// - Different roles require separate groups
 /// - Provide UI to copy existing members when creating new group
 /// - Multiple invitation selection for same email addresses
+library;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 

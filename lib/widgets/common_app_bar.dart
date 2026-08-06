@@ -8,7 +8,6 @@ import '../pages/notification_history_page.dart';
 import '../pages/error_history_page.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../config/app_mode_config.dart';
-import '../l10n/app_localizations.dart';
 import '../l10n/l10n.dart';
 import '../services/network_monitor_service.dart';
 

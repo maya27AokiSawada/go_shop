@@ -1,6 +1,7 @@
 /// 多言語対応システムの使用例
 ///
 /// このファイルは、実際のコードで使用する際の参考例です。
+library;
 
 import 'package:flutter/material.dart';
 import 'package:goshopping/l10n/l10n.dart';

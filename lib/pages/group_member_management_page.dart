@@ -13,7 +13,6 @@ import '../pages/group_invitation_page.dart';
 import '../widgets/member_tile_with_whiteboard.dart';
 import '../widgets/group_creation_with_copy_dialog.dart';
 import '../services/group_key_exchange_service.dart';
-import '../datastore/shared_list_repository.dart';
 import '../providers/shared_list_provider.dart';
 import '../l10n/l10n.dart';
 

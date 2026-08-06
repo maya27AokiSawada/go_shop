@@ -206,6 +206,58 @@ void main() {
       expect(list.activeItems.any((item) => item.name == '卵'), false);
     });
 
+    test('SharedList - activeItemsは未購入→購入済みの順に期限で並ぶ', () {
+      // Arrange
+      final baseDate = DateTime(2026, 1, 1);
+      final item1 = SharedItem.createNow(
+        memberId: 'user-123',
+        name: '牛乳',
+      ).copyWith(
+        isPurchased: false,
+        deadline: baseDate.add(const Duration(days: 3)),
+      );
+      final item2 = SharedItem.createNow(
+        memberId: 'user-123',
+        name: 'パン',
+      ).copyWith(
+        isPurchased: false,
+        deadline: null,
+      );
+      final item3 = SharedItem.createNow(
+        memberId: 'user-123',
+        name: '卵',
+      ).copyWith(
+        isPurchased: true,
+        deadline: baseDate.add(const Duration(days: 1)),
+      );
+      final item4 = SharedItem.createNow(
+        memberId: 'user-123',
+        name: 'チーズ',
+      ).copyWith(
+        isPurchased: true,
+        deadline: null,
+      );
+
+      final list = SharedList.create(
+        ownerUid: 'user-123',
+        groupId: 'group-001',
+        groupName: 'Test Group',
+        listName: 'Shopping List',
+        items: {
+          item1.itemId: item1,
+          item2.itemId: item2,
+          item3.itemId: item3,
+          item4.itemId: item4,
+        },
+      );
+
+      // Assert
+      expect(
+        list.activeItems.map((item) => item.name).toList(),
+        ['牛乳', 'パン', '卵', 'チーズ'],
+      );
+    });
+
     test('SharedItem - 定期購入アイテム作成', () {
       // Act
       final item = SharedItem.createNow(

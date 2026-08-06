@@ -95,10 +95,10 @@ class QRInviteDialog extends ConsumerWidget {
   final Map<String, dynamic> invitationData;
 
   const QRInviteDialog({
-    Key? key,
+    super.key,
     required this.qrData,
     required this.invitationData,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -209,7 +209,7 @@ class QRInviteDialog extends ConsumerWidget {
 
 /// QRコードスキャナーボタン
 class QRScanButton extends ConsumerWidget {
-  const QRScanButton({Key? key}) : super(key: key);
+  const QRScanButton({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -396,9 +396,9 @@ class QRInvitationAcceptDialog extends ConsumerWidget {
   final Map<String, dynamic> invitationData;
 
   const QRInvitationAcceptDialog({
-    Key? key,
+    super.key,
     required this.invitationData,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

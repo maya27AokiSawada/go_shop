@@ -1,4 +1,6 @@
 /// ホワイトボードRepositoryのユニットテスト
+library;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:goshopping/models/whiteboard.dart';
 import 'package:flutter/material.dart';
@@ -66,7 +68,7 @@ void main() {
       final stroke = DrawingStroke(
         strokeId: 'stroke-001',
         points: points,
-        colorValue: Colors.black.value,
+        colorValue: Colors.black.toARGB32(),
         strokeWidth: 3.0,
         createdAt: now,
         authorId: 'user-123',
@@ -76,7 +78,7 @@ void main() {
       // Assert
       expect(stroke.strokeId, 'stroke-001');
       expect(stroke.points.length, 3);
-      expect(stroke.colorValue, Colors.black.value);
+      expect(stroke.colorValue, Colors.black.toARGB32());
       expect(stroke.strokeWidth, 3.0);
       expect(stroke.createdAt, now);
       expect(stroke.authorId, 'user-123');
@@ -88,7 +90,7 @@ void main() {
       final stroke = DrawingStroke(
         strokeId: 'stroke-001',
         points: const [DrawingPoint(x: 0, y: 0)],
-        colorValue: Colors.black.value,
+        colorValue: Colors.black.toARGB32(),
         createdAt: DateTime.now(),
         authorId: 'user-123',
         authorName: 'Test User',
@@ -332,9 +334,9 @@ void main() {
       final strokes = colors
           .map(
             (color) => DrawingStroke(
-              strokeId: 'stroke-${color.value}',
+              strokeId: 'stroke-${color.toARGB32()}',
               points: const [DrawingPoint(x: 0, y: 0)],
-              colorValue: color.value,
+              colorValue: color.toARGB32(),
               createdAt: DateTime.now(),
               authorId: 'user-123',
               authorName: 'Test User',
@@ -344,7 +346,7 @@ void main() {
 
       // Assert
       expect(strokes.length, 5);
-      expect(strokes[0].colorValue, Colors.black.value);
+      expect(strokes[0].colorValue, Colors.black.toARGB32());
       expect(strokes[1].colorValue, Colors.red.value);
       expect(strokes[2].colorValue, Colors.green.value);
     });
@@ -359,7 +361,7 @@ void main() {
             (width) => DrawingStroke(
               strokeId: 'stroke-$width',
               points: const [DrawingPoint(x: 0, y: 0)],
-              colorValue: Colors.black.value,
+              colorValue: Colors.black.toARGB32(),
               strokeWidth: width,
               createdAt: DateTime.now(),
               authorId: 'user-123',
@@ -386,7 +388,7 @@ void main() {
           strokeId: 'stroke-$i',
           points:
               List.generate(50, (j) => DrawingPoint(x: j * 1.0, y: i * 1.0)),
-          colorValue: Colors.black.value,
+          colorValue: Colors.black.toARGB32(),
           strokeWidth: 3.0,
           createdAt: DateTime.now(),
           authorId: 'user-123',

@@ -13,10 +13,10 @@ class MemberRoleManagementWidget extends ConsumerWidget {
   final String currentUserUid;
 
   const MemberRoleManagementWidget({
-    Key? key,
+    super.key,
     required this.group,
     required this.currentUserUid,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

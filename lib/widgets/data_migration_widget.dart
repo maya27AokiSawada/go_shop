@@ -20,11 +20,11 @@ class DataMigrationWidget extends ConsumerStatefulWidget {
   final String? newVersion;
 
   const DataMigrationWidget({
-    Key? key,
+    super.key,
     required this.onMigrationComplete,
     this.oldVersion,
     this.newVersion,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<DataMigrationWidget> createState() =>
