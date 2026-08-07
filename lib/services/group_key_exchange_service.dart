@@ -23,14 +23,16 @@ enum GroupKeyMode {
 
 class GroupKeyExchangeService {
   final FirebaseFirestore? _firestore;
+  final FirebaseAuth? _auth;
   final GroupKeyEncryptionService _crypto = GroupKeyEncryptionService();
   final Map<String, String> _groupKeyCache = <String, String>{};
 
   static const String _storagePrefix = 'group_key_v1:';
   static const String _reencryptionFlagPrefix = 'group_key_reencrypting_v1:';
 
-  GroupKeyExchangeService({FirebaseFirestore? firestore})
-      : _firestore = firestore;
+  GroupKeyExchangeService({FirebaseFirestore? firestore, FirebaseAuth? auth})
+      : _firestore = firestore,
+        _auth = auth;
 
   /// グループ鍵が未設定の場合は平文として扱う。
   Future<GroupKeyMode> getGroupKeyMode({required String groupId}) async {
@@ -49,7 +51,7 @@ class GroupKeyExchangeService {
     bool forceRefresh = false,
   }) async {
     try {
-      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      final currentUid = (_auth ?? FirebaseAuth.instance).currentUser?.uid;
       if (ownerUid.isEmpty || currentUid == null || currentUid != ownerUid) {
         Log.warning(
             '⚠️ [KEY_EXCHANGE] 非オーナー実行を拒否: groupId=$groupId, currentUid=${Log.maskUserId(currentUid)}, ownerUid=${Log.maskUserId(ownerUid)}');
@@ -95,14 +97,21 @@ class GroupKeyExchangeService {
     required String ownerUid,
   }) async {
     try {
-      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      final currentUid = (_auth ?? FirebaseAuth.instance).currentUser?.uid;
       if (ownerUid.isEmpty || currentUid == null || currentUid != ownerUid) {
         Log.warning(
             '⚠️ [KEY_EXCHANGE] 招待受諾鍵処理を拒否（非オーナー）: groupId=$groupId, currentUid=${Log.maskUserId(currentUid)}, ownerUid=${Log.maskUserId(ownerUid)}');
         return;
       }
 
-      final groupKey = _crypto.generateGroupKey();
+      String? groupKey = await getPersistedGroupKey(groupId: groupId);
+      if (groupKey == null || groupKey.isEmpty) {
+        Log.info(
+            '🔑 [KEY_EXCHANGE] 新規グループキーを生成: groupId=$groupId, ownerUid=$ownerUid');
+        groupKey = _crypto.generateGroupKey();
+        await _persistGroupKeyLocally(groupId: groupId, groupKey: groupKey);
+      }
+
       final recipientSecret = _deriveRecipientSecret(
         groupId: groupId,
         memberUid: memberUid,
@@ -279,7 +288,7 @@ class GroupKeyExchangeService {
     required List<String> memberUids,
   }) async {
     try {
-      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      final currentUid = (_auth ?? FirebaseAuth.instance).currentUser?.uid;
       if (ownerUid.isEmpty || currentUid == null || currentUid != ownerUid) {
         Log.warning(
             '⚠️ [KEY_EXCHANGE] 鍵ローテーションを拒否（非オーナー）: groupId=$groupId, currentUid=${Log.maskUserId(currentUid)}, ownerUid=${Log.maskUserId(ownerUid)}');

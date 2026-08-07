@@ -66,6 +66,22 @@ status: 'pending'  // pending | accepted | expired
 expiresAt: ...     // 作成から 24 時間
 ```
 
+### 鍵交換イベント（`keyExchangeEvents`）の権限要件
+
+受諾側が復号するには、次のドキュメント読み取りが必須。
+
+- `SharedGroups/{groupId}/keyExchangeEvents/{memberUid}`
+
+Firestore Security Rules で最低限以下を許可すること。
+
+- `read`: グループオーナー、または `memberUid` 本人
+- `create`: グループオーナー
+- `update`: グループオーナー、または `memberUid` 本人（`status=confirmed` 更新）
+- `delete`: グループオーナー
+
+このルールが無い場合、受諾端末で `permission-denied` が発生し、
+`resolveGroupKeyForMember()` が失敗して復号不能になる。
+
 ### 使用回数の更新はアトミックに
 
 ```dart

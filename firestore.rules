@@ -202,6 +202,35 @@ service cloud.firestore {
         );
       }
 
+      // keyExchangeEvents サブコレクション（グループ鍵配布）
+      match /keyExchangeEvents/{memberUid} {
+        // 読み取り: オーナーまたは対象メンバー、かつグループメンバーのみ
+        allow read: if request.auth != null && (
+          get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid ||
+          request.auth.uid == memberUid
+        ) && (
+          get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.allowedUid
+        );
+
+        // 作成: グループオーナーのみ（鍵配布イベント作成）
+        allow create: if request.auth != null &&
+          get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid;
+
+        // 更新: オーナーまたは対象メンバー（受諾側 confirmed 更新）
+        allow update: if request.auth != null && (
+          get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid ||
+          request.auth.uid == memberUid
+        ) && (
+          get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.allowedUid
+        );
+
+        // 削除: グループオーナーのみ
+        allow delete: if request.auth != null &&
+          get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid;
+      }
+
       // whiteboards サブコレクション（ホワイトボード機能）
       match /whiteboards/{whiteboardId} {
         // 読み取り：グループメンバーのみ
