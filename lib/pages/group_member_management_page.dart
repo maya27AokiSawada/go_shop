@@ -12,6 +12,8 @@ import '../widgets/member_selection_dialog.dart';
 import '../pages/group_invitation_page.dart';
 import '../widgets/member_tile_with_whiteboard.dart';
 import '../widgets/group_creation_with_copy_dialog.dart';
+import '../services/group_key_exchange_service.dart';
+import '../providers/shared_list_provider.dart';
 import '../l10n/l10n.dart';
 
 /// グループのメンバー管理画面
@@ -106,6 +108,14 @@ class _GroupMemberManagementPageState
                     );
                   },
           ),
+          if (_isOwner(widget.group))
+            IconButton(
+              icon: const Icon(Icons.vpn_key),
+              tooltip: '鍵を作り直す',
+              onPressed: () async {
+                await _regenerateGroupKey(widget.group);
+              },
+            ),
           IconButton(
             icon: const Icon(Icons.person_add),
             tooltip: texts.inviteMembers,
@@ -421,6 +431,99 @@ class _GroupMemberManagementPageState
   }
 
   /// 現在のユーザーが招待権限を持っているかチェック
+  bool _isOwner(SharedGroup group) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return false;
+
+    final currentMember = group.members?.firstWhere(
+      (member) => member.memberId == currentUser.uid,
+      orElse: () => const SharedGroupMember(
+        memberId: '',
+        name: '',
+        contact: '',
+        role: SharedGroupRole.member,
+      ),
+    );
+
+    return currentMember?.role == SharedGroupRole.owner;
+  }
+
+  Future<void> _regenerateGroupKey(SharedGroup group) async {
+    try {
+      if (!_isOwner(group)) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('この操作はグループオーナーのみ実行できます'),
+          ),
+        );
+        return;
+      }
+
+      final service = ref.read(groupKeyExchangeServiceProvider);
+      final blockedByReencryption =
+          await service.isRotationBlockedByPendingReencryption(
+        groupId: group.groupId,
+      );
+      if (blockedByReencryption) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('再暗号化が完了するまで鍵ローテーションは実行できません'),
+          ),
+        );
+        return;
+      }
+
+      final memberUids = group.members
+              ?.where((member) => member.memberId.isNotEmpty)
+              .map((member) => member.memberId)
+              .toList() ??
+          <String>[];
+      final created = await service.ensureGroupKeyForOwner(
+        groupId: group.groupId,
+        ownerUid: group.ownerUid ?? '',
+        memberUids: memberUids,
+        forceRefresh: true,
+      );
+
+      if (created) {
+        final repository = ref.read(sharedListRepositoryProvider);
+        final lists = await repository.getSharedListsByGroup(group.groupId);
+        final listItems = <Map<String, dynamic>>[];
+
+        for (final list in lists) {
+          for (final item in list.items.values) {
+            listItems.add({
+              'memberId': item.memberId,
+              'name': item.name,
+            });
+          }
+        }
+
+        await service.reencryptSharedItemsForGroup(
+          groupId: group.groupId,
+          items: listItems,
+          repository: repository,
+        );
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            created ? '新しい鍵を作成して配布しました' : '鍵はすでに設定済みです',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('鍵の再作成に失敗しました: $e')),
+      );
+    }
+  }
+
   bool _canInviteMembers() {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) return false;

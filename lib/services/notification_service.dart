@@ -13,6 +13,7 @@ import '../config/app_ui_mode_config.dart';
 import '../datastore/hive_shared_group_repository.dart'; // hiveSharedGroupRepositoryProvider
 import '../datastore/firestore_shared_group_repository.dart';
 import '../models/shared_group.dart';
+import 'group_key_exchange_service.dart';
 
 /// 通知サービスプロバイダー
 final notificationServiceProvider = Provider<NotificationService>((ref) {
@@ -422,6 +423,8 @@ class NotificationService {
                 _ref.read(userInitializationServiceProvider);
             await userInitService.syncFromFirestoreToHive(currentUser);
             AppLogger.info('✅ [NOTIFICATION] Firestore→Hive同期完了');
+
+            await _resolveGroupKeyForCurrentUser(notification.groupId);
           }
           // UI更新
           AppLogger.info('🔄 [NOTIFICATION] プロバイダー無効化開始...');
@@ -473,6 +476,7 @@ class NotificationService {
           await userInitService.syncFromFirestoreToHive(currentUser);
           _ref.invalidate(allGroupsProvider);
           await _autoSelectAcceptedGroupIfNeeded(syncGroupId);
+          await _resolveGroupKeyForCurrentUser(syncGroupId);
 
           AppLogger.info('✅ [NOTIFICATION] 確認通知による同期完了');
           break;
@@ -619,6 +623,52 @@ class NotificationService {
     } catch (e) {
       AppLogger.warning('⚠️ [NOTIFICATION] 受諾グループ自動選択スキップ: $e');
     }
+  }
+
+  Future<void> _resolveGroupKeyForCurrentUser(String groupId) async {
+    if (groupId.isEmpty) return;
+
+    final currentUid = _auth.currentUser?.uid;
+    if (currentUid == null || currentUid.isEmpty) {
+      return;
+    }
+
+    final keyService = _ref.read(groupKeyExchangeServiceProvider);
+    final hasKey = await keyService.hasUsableGroupKey(groupId: groupId);
+    if (hasKey) {
+      AppLogger.info(
+          '✅ [NOTIFICATION] 既存のグループ鍵を確認: ${AppLogger.maskGroupId(groupId)}');
+      return;
+    }
+
+    const retryDelaysMs = <int>[400, 700, 1000, 1400, 1800, 2300, 3000];
+    final maxAttempts = retryDelaysMs.length + 1;
+
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        final resolvedKey = await keyService.resolveGroupKeyForMember(
+          groupId: groupId,
+          memberUid: currentUid,
+        );
+
+        if (resolvedKey != null && resolvedKey.isNotEmpty) {
+          AppLogger.info(
+              '✅ [NOTIFICATION] グループ鍵の解決成功: groupId=${AppLogger.maskGroupId(groupId)}, attempt=$attempt/$maxAttempts');
+          return;
+        }
+      } catch (e) {
+        AppLogger.warning(
+            '⚠️ [NOTIFICATION] 鍵解決試行でエラー: groupId=${AppLogger.maskGroupId(groupId)}, attempt=$attempt/$maxAttempts, error=$e');
+      }
+
+      if (attempt < maxAttempts) {
+        final delayMs = retryDelaysMs[attempt - 1];
+        await Future.delayed(Duration(milliseconds: delayMs));
+      }
+    }
+
+    AppLogger.warning(
+        '⚠️ [NOTIFICATION] グループ鍵の解決が未完了: groupId=${AppLogger.maskGroupId(groupId)}, uid=${AppLogger.maskUserId(currentUid)}');
   }
 
   Future<void> _handleGroupLeaveRequested(
@@ -813,6 +863,21 @@ class NotificationService {
 
       AppLogger.info('✅ [OWNER] Hive更新完了: グループ更新完了');
 
+      // 招待受諾の本処理経路でも鍵交換イベントを必ず作成する。
+      final ownerUid = _auth.currentUser?.uid ?? '';
+      if (ownerUid.isNotEmpty) {
+        final keyExchangeService = _ref.read(groupKeyExchangeServiceProvider);
+        await keyExchangeService.handleAcceptedInvitation(
+          groupId: groupId,
+          memberUid: acceptorUid,
+          ownerUid: ownerUid,
+        );
+        AppLogger.info(
+            '✅ [OWNER] 鍵交換イベント作成完了: ${AppLogger.maskUserId(acceptorUid)}');
+      } else {
+        AppLogger.warning('⚠️ [OWNER] 鍵交換をスキップ: ownerUid が取得できません');
+      }
+
       // 🔥 CRITICAL FIX: 既存メンバー全員に通知を送信
       AppLogger.info('📤 [OWNER] 既存メンバーへの通知送信開始');
       final existingMemberIds = currentGroup.allowedUid
@@ -883,6 +948,10 @@ class NotificationService {
       if (currentUser == null) {
         AppLogger.error('❌ [NOTIFICATION] 認証なし - 送信スキップ');
         return;
+      }
+
+      if (targetUserId.trim().isEmpty) {
+        throw Exception('通知先ユーザーUIDが空です');
       }
 
       AppLogger.info('========================================');
@@ -1480,6 +1549,8 @@ class NotificationService {
               : '$editorNameさんがホワイトボードを更新しました',
           'timestamp': FieldValue.serverTimestamp(),
           'read': false,
+          'senderId': currentUser.uid,
+          'senderName': editorName,
           'metadata': {
             'whiteboardId': whiteboardId,
             'editorUid': currentUser.uid,

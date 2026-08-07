@@ -306,3 +306,38 @@ if (!currentGroups.any((g) => g.groupId == newGroup.groupId)) {
   state = AsyncData([...currentGroups, newGroup]);
 }
 ```
+
+---
+
+## 10. アイテム名暗号化ルール（2026-08 追加）
+
+SharedItem の `name` は、グループ鍵が存在する場合は **保存時に暗号化**、表示や編集前の読み出し時に **復号** する。
+
+### 保存時（必須）
+
+- 対象: `addSingleItem` / `updateSingleItem`
+- 実装層: `HybridSharedListRepository`
+- ルール:
+  - 鍵未設定: 平文のまま保存
+  - 鍵設定済み: `name` を暗号化して Firestore / Hive へ保存
+  - 既に暗号化済みの値は二重暗号化しない
+
+### 読み出し時（必須）
+
+- 対象: `getSharedListById` / `getSharedListsByGroup` / `watchSharedList`
+- 実装層: `HybridSharedListRepository`
+- ルール:
+  - 鍵設定済みかつ暗号化形式の `name` を復号して UI へ返す
+  - 復号失敗時はクラッシュさせず、ログ出力して現値を維持
+
+### 鍵作成・変更時の再暗号化
+
+- グループ鍵のフィンガープリントを保持し、変更検出時にグループ配下の全アイテムを再暗号化する
+- さらに、鍵が変わっていなくても平文 `name` が残っていれば再暗号化を実行する
+- 再暗号化中は `keyReencryptionInProgress` / `keyRotationStatus=reencrypting` を更新し、完了時に解除する
+
+### 禁止事項
+
+- UI 層でのみ暗号化し、Repository への保存時処理を省略する
+- 暗号化判定なしで毎回暗号化し、二重暗号化を発生させる
+- 再暗号化中フラグを更新せず、並行処理で整合性を崩す

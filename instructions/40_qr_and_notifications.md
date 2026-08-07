@@ -43,6 +43,19 @@ for (var attempt = 1; attempt <= 8; attempt++) {
 return null;
 ```
 
+### 旧招待データへの後方互換
+
+旧形式の招待データでは `inviterUid` が欠落していることがあるため、
+受諾処理では以下の優先順位で招待元 UID を解決すること。
+
+1. `inviterUid`
+2. `invitedBy`
+3. `groupOwnerUid`
+4. `SharedGroups/{groupId}.ownerUid` へのフォールバック
+
+`inviterUid` が空のままでは受諾処理が失敗するため、
+古い招待データでも安全に扱えるようにすること。
+
 ### Firestore `/invitations/{invitationId}` のスキーマ
 
 ```text
@@ -52,6 +65,22 @@ usedBy: []         // 受諾済み UID
 status: 'pending'  // pending | accepted | expired
 expiresAt: ...     // 作成から 24 時間
 ```
+
+### 鍵交換イベント（`keyExchangeEvents`）の権限要件
+
+受諾側が復号するには、次のドキュメント読み取りが必須。
+
+- `SharedGroups/{groupId}/keyExchangeEvents/{memberUid}`
+
+Firestore Security Rules で最低限以下を許可すること。
+
+- `read`: グループオーナー、または `memberUid` 本人
+- `create`: グループオーナー
+- `update`: グループオーナー、または `memberUid` 本人（`status=confirmed` 更新）
+- `delete`: グループオーナー
+
+このルールが無い場合、受諾端末で `permission-denied` が発生し、
+`resolveGroupKeyForMember()` が失敗して復号不能になる。
 
 ### 使用回数の更新はアトミックに
 
@@ -85,6 +114,21 @@ messenger?.showSnackBar(...);
 
 `userId(ASC)` + `read(ASC)` + `timestamp(DESC)` の複合インデックスが必要。
 `firestore.indexes.json` にデプロイ済みであることを確認すること。
+
+### 通知作成時のセキュリティ要件
+
+通知の作成時は、次の条件を Firestore Security Rules でも守ること。
+
+- `request.auth != null` であること
+- `senderId` が `request.auth.uid` と一致すること
+- `targetUserId` が空文字でないこと
+- `type` が許可済みリストに含まれること
+- `groupId` が空文字でないこと
+- `read` は `false` であること
+- `senderName` が文字列であること
+
+特に `group_member_added` は、招待ドキュメントとの整合性を確認し、
+`invitationId` / `acceptorUid` / `currentUses < maxUses` なども検証すること。
 
 ### 通知受信時の処理
 

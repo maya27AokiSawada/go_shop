@@ -32,7 +32,6 @@ class GroupInvitationDialog extends ConsumerStatefulWidget {
 
 class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
   bool _isCreating = false;
-  final Set<String> _processedAcceptances = {}; // 処理済みの受諾を追跡
 
   @override
   void initState() {
@@ -76,6 +75,51 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
 
   @override
   Widget build(BuildContext context) {
+    // allGroupsProviderを監視して、グループメンバーの変更を検知
+    ref.listen<AsyncValue<List<SharedGroup>>>(allGroupsProvider,
+        (previous, next) {
+      final newGroups = next.asData?.value;
+      if (newGroups == null) return;
+
+      final oldGroups = previous?.asData?.value;
+
+      final newGroup = newGroups.firstWhere(
+        (g) => g.groupId == widget.group.groupId,
+        orElse: () => null,
+      );
+      if (newGroup == null) return;
+
+      // 以前のグループ状態を取得。previousがnullの場合は初期のwidget.groupを使用
+      final oldGroup = oldGroups
+              ?.firstWhere(
+                (g) => g.groupId == widget.group.groupId,
+                orElse: () => widget.group,
+              ) ??
+          widget.group;
+
+      final oldUids = Set.from(oldGroup.allowedUid);
+      final newUids = Set.from(newGroup.allowedUid);
+      final newMemberUids = newUids.difference(oldUids);
+
+      if (newMemberUids.isNotEmpty) {
+        // 新しいメンバーの名前を取得
+        final memberName = newGroup.members
+                ?.firstWhere(
+                  (m) => m.memberId == newMemberUids.first,
+                  orElse: () =>
+                      const SharedGroupMember(memberId: '', name: '新しいユーザー'),
+                )
+                .name ??
+            '新しいユーザー';
+
+        if (mounted) {
+          SnackBarHelper.showSuccess(context, '$memberName さんがグループに参加しました');
+          // ダイアログを閉じる
+          Navigator.of(context).pop();
+        }
+      }
+    });
+
     return Dialog(
       child: Container(
         width: MediaQuery.of(context).size.width * 0.9,
@@ -197,9 +241,6 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
                             ),
                           );
                         }
-
-                        // 招待の usedBy 配列を監視してグループメンバーを自動追加
-                        _processInvitationAcceptances(filteredInvitations);
 
                         return Column(
                           children: filteredInvitations.map((doc) {
@@ -490,107 +531,6 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
           SnackBarHelper.showError(context, '削除エラー: $e');
         }
       }
-    }
-  }
-
-  /// 招待受諾を監視してグループメンバーを自動追加
-  void _processInvitationAcceptances(List<QueryDocumentSnapshot> invitations) {
-    for (final invitationDoc in invitations) {
-      try {
-        final data = invitationDoc.data() as Map<String, dynamic>?;
-        if (data == null) continue;
-
-        final usedBy = (data['usedBy'] as List<dynamic>?)?.cast<String>() ?? [];
-
-        // 新しく追加されたUIDを検出
-        for (final acceptorUid in usedBy) {
-          final key = '${invitationDoc.id}_$acceptorUid';
-          if (!_processedAcceptances.contains(key)) {
-            _processedAcceptances.add(key);
-
-            // グループに受諾者を追加（非同期処理）
-            _addAcceptorToGroup(acceptorUid, data);
-          }
-        }
-      } catch (e) {
-        Log.error('招待受諾処理エラー: $e');
-      }
-    }
-  }
-
-  /// グループに受諾者を追加
-  Future<void> _addAcceptorToGroup(
-      String acceptorUid, Map<String, dynamic> invitationData) async {
-    try {
-      final groupId = widget.group.groupId;
-      final currentAllowedUids = List<String>.from(widget.group.allowedUid);
-
-      // 既に追加済みの場合はスキップ
-      if (currentAllowedUids.contains(acceptorUid)) {
-        Log.info('✅ [INVITATION_MONITOR] 既にメンバー追加済み: $acceptorUid');
-        return;
-      }
-
-      // allowedUidに追加
-      currentAllowedUids.add(acceptorUid);
-
-      // 受諾者の名前を取得（招待データから、または通知から）
-      final acceptorName = invitationData['acceptorName'] as String? ?? 'ユーザー';
-
-      // メンバーリストに追加
-      final updatedMembers =
-          List<SharedGroupMember>.from(widget.group.members ?? []);
-      updatedMembers.add(
-        SharedGroupMember(
-          memberId: acceptorUid,
-          name: acceptorName,
-          contact: '', // 空文字列（後で受諾者が設定可能）
-          role: SharedGroupRole.member,
-          isSignedIn: true,
-          invitationStatus: InvitationStatus.accepted,
-          acceptedAt: DateTime.now(),
-        ),
-      );
-
-      Log.info(
-          '📤 [INVITATION_MONITOR] Firestoreへグループ更新: allowedUid追加 $acceptorUid');
-
-      // Firestoreに更新（ownerとして実行）
-      await FirebaseFirestore.instance
-          .collection('SharedGroups')
-          .doc(groupId)
-          .update({
-        'allowedUid': currentAllowedUids,
-        'members': updatedMembers
-            .map((m) => {
-                  'memberId': m.memberId,
-                  'name': m.name,
-                  'contact': m.contact,
-                  'role': m.role.name,
-                  'isSignedIn': m.isSignedIn,
-                  'invitationStatus': m.invitationStatus.name,
-                  'acceptedAt': m.acceptedAt?.toIso8601String(),
-                })
-            .toList(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      Log.info('✅ [INVITATION_MONITOR] グループ更新完了: $acceptorUid を追加');
-
-      // ローカルのHiveも更新
-      final repository = ref.read(SharedGroupRepositoryProvider);
-      final updatedGroup = widget.group.copyWith(
-        allowedUid: currentAllowedUids,
-        members: updatedMembers,
-      );
-      await repository.updateGroup(groupId, updatedGroup);
-
-      // UI通知
-      if (mounted) {
-        SnackBarHelper.showSuccess(context, '$acceptorName さんがグループに参加しました');
-      }
-    } catch (e) {
-      Log.error('❌ [INVITATION_MONITOR] グループ更新エラー: $e');
     }
   }
 }

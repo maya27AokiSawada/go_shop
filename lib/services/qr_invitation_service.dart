@@ -470,6 +470,16 @@ class QRInvitationService {
       }
 
       Log.info('✅ 招待詳細取得成功');
+
+      // 旧招待データ互換: 欠落しうるキーを補完
+      invitationData['inviterUid'] =
+          (invitationData['inviterUid'] as String?) ??
+              (invitationData['invitedBy'] as String?) ??
+              (invitationData['groupOwnerUid'] as String?) ??
+              '';
+      invitationData['groupName'] =
+          (invitationData['groupName'] as String?) ?? 'グループ';
+
       // 🔥 FIX: QRコードのバージョン"3.1"を保持（Firestoreの"3.0"で上書きしない）
       invitationData['version'] = '3.1';
       return invitationData;
@@ -640,11 +650,11 @@ class QRInvitationService {
         throw Exception('招待のセキュリティ検証に失敗しました');
       }
 
-      final inviterUid = invitationData['inviterUid'] as String?;
+      final inviterUid = await _resolveInviterUid(invitationData);
+
       if (inviterUid == null || inviterUid.isEmpty) {
-        Log.error(
-            '❌ [ACCEPT] inviterUid が null または空 - invitationData: ${invitationData.keys.toList()}');
-        throw Exception('招待者の情報が取得できません（inviterUid不足）');
+        throw Exception(
+            '招待データに招待元UIDがありません（inviterUid/invitedBy/groupOwnerUid）');
       }
 
       // 自分自身への招待を防ぐ
@@ -720,26 +730,19 @@ class QRInvitationService {
       Log.info(
           '📤 [ACCEPTOR] 通知送信開始 - targetUserId: ${AppLogger.maskUserId(inviterUid)}');
 
-      try {
-        await notificationService.sendNotification(
-          targetUserId: inviterUid,
-          groupId: groupId,
-          type: NotificationType.groupMemberAdded,
-          message: '$userName さんが「$groupName」への参加を希望しています',
-          metadata: {
-            'groupName': groupName,
-            'acceptorUid': acceptorUid,
-            'acceptorName': userName,
-            'invitationId': invitationData['invitationId'],
-            'timestamp': DateTime.now().toIso8601String(),
-          },
-        );
-      } catch (notifyError) {
-        Log.error('❌ [ACCEPTOR] 通知送信失敗: $notifyError');
-        // notifications コレクションへの書き込みが permission-denied の場合は
-        // Firestore rules のデプロイが必要 (firebase deploy --only firestore:rules)
-        rethrow;
-      }
+      await notificationService.sendNotification(
+        targetUserId: inviterUid,
+        groupId: groupId,
+        type: NotificationType.groupMemberAdded,
+        message: '$userName さんが「$groupName」への参加を希望しています',
+        metadata: {
+          'groupName': groupName,
+          'acceptorUid': acceptorUid,
+          'acceptorName': userName,
+          'invitationId': invitationData['invitationId'],
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      );
 
       Log.info('✅ [ACCEPTOR] 通知送信完了 - 招待元の確認待ち');
 
@@ -768,11 +771,53 @@ class QRInvitationService {
       Log.info('✅ 招待受諾処理完了 - 招待元がメンバー追加を実施します');
 
       return true;
-    } catch (e, stackTrace) {
+    } catch (e) {
       Log.error('QR招待受諾エラー: $e');
-      await ErrorLogService.logOperationError('QR招待受諾', '$e', stackTrace);
+      await ErrorLogService.logOperationError('QR招待受諾', '$e');
       rethrow;
     }
+  }
+
+  Future<String?> _resolveInviterUid(
+      Map<String, dynamic> invitationData) async {
+    final directInviterUid = invitationData['inviterUid'] as String?;
+    if (directInviterUid != null && directInviterUid.isNotEmpty) {
+      return directInviterUid;
+    }
+
+    final invitedBy = invitationData['invitedBy'] as String?;
+    if (invitedBy != null && invitedBy.isNotEmpty) {
+      return invitedBy;
+    }
+
+    final groupOwnerUid = invitationData['groupOwnerUid'] as String?;
+    if (groupOwnerUid != null && groupOwnerUid.isNotEmpty) {
+      return groupOwnerUid;
+    }
+
+    // 最終フォールバック: グループ本体から ownerUid を取得
+    final groupId = invitationData['sharedGroupId'] as String?;
+    if (groupId == null || groupId.isEmpty) {
+      return null;
+    }
+
+    try {
+      final groupDoc =
+          await _firestore.collection('SharedGroups').doc(groupId).get();
+      if (!groupDoc.exists) {
+        return null;
+      }
+
+      final ownerUid = groupDoc.data()?['ownerUid'] as String?;
+      if (ownerUid != null && ownerUid.isNotEmpty) {
+        Log.info('✅ [ACCEPTOR] ownerUid フォールバックで招待元UIDを補完');
+        return ownerUid;
+      }
+    } catch (e) {
+      Log.warning('⚠️ [ACCEPTOR] ownerUid フォールバック取得エラー: $e');
+    }
+
+    return null;
   }
 
   /// 招待のセキュリティを検証（Firestoreから取得）

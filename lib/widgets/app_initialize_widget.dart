@@ -161,31 +161,16 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
       final needsMigration = await migrationNotifier.checkMigrationNeeded();
 
       if (needsMigration && mounted) {
-        Log.info('🔄 マイグレーションが必要です');
+        Log.info('🔄 旧データバージョンを検出しました。初期化して続行します');
 
-        // バージョン情報を取得
         final dataVersionService = DataVersionService();
-        final oldVersion = await dataVersionService.getSavedVersionString();
-        final newVersion = DataVersionService.currentVersionString;
-
-        if (!mounted) return;
-        // マイグレーション画面をフルスクリーン表示
-        await Navigator.of(context).push(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                DataMigrationWidget(
-              oldVersion: oldVersion,
-              newVersion: newVersion,
-              onMigrationComplete: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            transitionDuration: Duration.zero,
-            reverseTransitionDuration: Duration.zero,
-          ),
+        await dataVersionService.checkAndMigrateData();
+        await dataVersionService.saveDataVersion(
+          DataVersionService.currentDataVersion,
         );
+        migrationNotifier.completeMigration();
 
-        Log.info('✅ マイグレーション完了');
+        Log.info('✅ 初期化完了');
       } else {
         Log.info('ℹ️ マイグレーション不要');
       }
