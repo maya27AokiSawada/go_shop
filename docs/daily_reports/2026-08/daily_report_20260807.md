@@ -178,3 +178,24 @@
 |---|---|
 | docs/daily_reports/2026-08/daily_report_20260807.md | 本日の鍵交換不具合対応、ルート原因、修正、検証結果を記録 |
 | instructions/40_qr_and_notifications.md | keyExchangeEvents ルール要件と受諾側の権限要件を追記 |
+
+---
+
+## 追記（2026-08-08）
+
+### 鍵交換 unit テストの未解消2件を修正 ✅
+
+- `test/services/group_key_exchange_service_test.dart` の owner 系テストで、`FirebaseAuth` のみモックしていたため `FirebaseFirestore.instance` 参照時に `No Firebase App` が発生。
+- Firestore モック注入と必要スタブ追加（`SharedGroups/{groupId}.get()`、`keyExchangeEvents/{memberUid}.set(...)`、グループドキュメント `set(...)`）を実施。
+- `mockito` import とモック名衝突回避（`firebase_auth_mocks` の prefix import）を反映。
+
+**追加検証結果**:
+
+| テスト | 結果 |
+|---|---|
+| test/services/group_key_exchange_service_test.dart | 3 passed / 0 failed |
+| test/services/group_key_encryption_service_test.dart | passed |
+| test/services/invitation_key_exchange_test.dart | passed |
+| test/group_key_exchange_service_test.dart | passed |
+
+**Status**: ✅ 鍵交換関連 unit テストは全件パス

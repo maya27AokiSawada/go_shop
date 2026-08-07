@@ -1,6 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:firebase_auth_mocks/firebase_auth_mocks.dart' as auth_mocks;
 import 'package:goshopping/services/group_key_exchange_service.dart';
+import 'package:mockito/mockito.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'invitation_key_exchange_test.mocks.dart';
 
 void main() {
   late GroupKeyExchangeService service;
@@ -21,7 +25,40 @@ void main() {
   });
 
   test('owner can create and persist a new group key', () async {
-    final created = await service.ensureGroupKeyForOwner(
+    final mockFirestore = MockFirebaseFirestore();
+    final mockSharedGroupsCollection =
+        MockCollectionReference<Map<String, dynamic>>();
+    final mockGroupDoc = MockDocumentReference<Map<String, dynamic>>();
+    final mockGroupSnapshot = MockDocumentSnapshot<Map<String, dynamic>>();
+    final mockKeyExchangeCollection =
+        MockCollectionReference<Map<String, dynamic>>();
+    final mockKeyExchangeDoc = MockDocumentReference<Map<String, dynamic>>();
+
+    when(mockFirestore.collection('SharedGroups'))
+        .thenReturn(mockSharedGroupsCollection);
+    when(mockSharedGroupsCollection.doc(any)).thenReturn(mockGroupDoc);
+    when(mockGroupDoc.get()).thenAnswer((_) async => mockGroupSnapshot);
+    when(mockGroupSnapshot.data()).thenReturn({
+      'keyReencryptionInProgress': false,
+      'keyRotationStatus': 'idle',
+      'ownerUid': 'owner-a',
+      'allowedUid': ['owner-a', 'member-a'],
+    });
+    when(mockGroupDoc.collection('keyExchangeEvents'))
+        .thenReturn(mockKeyExchangeCollection);
+    when(mockKeyExchangeCollection.doc(any)).thenReturn(mockKeyExchangeDoc);
+    when(mockKeyExchangeDoc.set(any, any)).thenAnswer((_) async => {});
+    when(mockGroupDoc.set(any, any)).thenAnswer((_) async => {});
+
+    final ownerService = GroupKeyExchangeService(
+      auth: auth_mocks.MockFirebaseAuth(
+        signedIn: true,
+        mockUser: auth_mocks.MockUser(uid: 'owner-a'),
+      ),
+      firestore: mockFirestore,
+    );
+
+    final created = await ownerService.ensureGroupKeyForOwner(
       groupId: 'group-a',
       ownerUid: 'owner-a',
       memberUids: ['member-a'],
@@ -29,20 +66,54 @@ void main() {
     );
 
     expect(created, isTrue);
-    final persisted = await service.getPersistedGroupKey(groupId: 'group-a');
+    final persisted =
+        await ownerService.getPersistedGroupKey(groupId: 'group-a');
     expect(persisted, isNotNull);
     expect(persisted, isNotEmpty);
   });
 
   test('reencrypts shared item payloads when a group key exists', () async {
-    await service.ensureGroupKeyForOwner(
+    final mockFirestore = MockFirebaseFirestore();
+    final mockSharedGroupsCollection =
+        MockCollectionReference<Map<String, dynamic>>();
+    final mockGroupDoc = MockDocumentReference<Map<String, dynamic>>();
+    final mockGroupSnapshot = MockDocumentSnapshot<Map<String, dynamic>>();
+    final mockKeyExchangeCollection =
+        MockCollectionReference<Map<String, dynamic>>();
+    final mockKeyExchangeDoc = MockDocumentReference<Map<String, dynamic>>();
+
+    when(mockFirestore.collection('SharedGroups'))
+        .thenReturn(mockSharedGroupsCollection);
+    when(mockSharedGroupsCollection.doc(any)).thenReturn(mockGroupDoc);
+    when(mockGroupDoc.get()).thenAnswer((_) async => mockGroupSnapshot);
+    when(mockGroupSnapshot.data()).thenReturn({
+      'keyReencryptionInProgress': false,
+      'keyRotationStatus': 'idle',
+      'ownerUid': 'owner-b',
+      'allowedUid': ['owner-b', 'member-b'],
+    });
+    when(mockGroupDoc.collection('keyExchangeEvents'))
+        .thenReturn(mockKeyExchangeCollection);
+    when(mockKeyExchangeCollection.doc(any)).thenReturn(mockKeyExchangeDoc);
+    when(mockKeyExchangeDoc.set(any, any)).thenAnswer((_) async => {});
+    when(mockGroupDoc.set(any, any)).thenAnswer((_) async => {});
+
+    final ownerService = GroupKeyExchangeService(
+      auth: auth_mocks.MockFirebaseAuth(
+        signedIn: true,
+        mockUser: auth_mocks.MockUser(uid: 'owner-b'),
+      ),
+      firestore: mockFirestore,
+    );
+
+    await ownerService.ensureGroupKeyForOwner(
       groupId: 'group-b',
       ownerUid: 'owner-b',
       memberUids: ['member-b'],
       forceRefresh: true,
     );
 
-    await service.reencryptSharedItemsForGroup(
+    await ownerService.reencryptSharedItemsForGroup(
       groupId: 'group-b',
       items: [
         {'memberId': 'member-b', 'name': 'milk'},
