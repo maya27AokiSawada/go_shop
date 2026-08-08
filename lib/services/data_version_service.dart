@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../utils/app_logger.dart';
@@ -108,8 +111,14 @@ class DataVersionService {
     try {
       Log.info('🗑️ 古いHiveデータを削除中...');
 
+      await _ensureHiveInitializedForMaintenance();
+
       // 各Boxを削除
       final boxNames = [
+        'SharedGroups',
+        'sharedLists',
+        'userSettings',
+        'subscriptions',
         'SharedGroupBox',
         'sharedListBox',
         'sharedItemBox',
@@ -118,12 +127,12 @@ class DataVersionService {
 
       for (final boxName in boxNames) {
         try {
-          final box = Hive.isBoxOpen(boxName)
-              ? Hive.box(boxName)
-              : await Hive.openBox(boxName);
-          await box.clear();
-          await box.close();
-          Log.info('✅ $boxName をクリアしました');
+          if (Hive.isBoxOpen(boxName)) {
+            await Hive.box(boxName).close();
+          }
+
+          await Hive.deleteBoxFromDisk(boxName);
+          Log.info('✅ $boxName を削除しました');
         } catch (e) {
           Log.warning('⚠️ $boxName の削除でエラー: $e');
         }
@@ -132,6 +141,22 @@ class DataVersionService {
       Log.info('✅ 全てのHiveデータ削除完了');
     } catch (e) {
       Log.error('❌ Hiveデータ削除エラー: $e');
+    }
+  }
+
+  Future<void> _ensureHiveInitializedForMaintenance() async {
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final hiveDir = Directory('${directory.path}/hive_db');
+
+      if (!await hiveDir.exists()) {
+        await hiveDir.create(recursive: true);
+      }
+
+      Hive.init(hiveDir.path);
+      Log.info('✅ Hiveメンテナンス用初期化完了: ${hiveDir.path}');
+    } catch (e) {
+      Log.warning('⚠️ Hiveメンテナンス用初期化を継続できませんでした: $e');
     }
   }
 

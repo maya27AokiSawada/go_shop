@@ -1135,16 +1135,25 @@ class SelectedGroupIdNotifier extends StateNotifier<String?> {
 final selectedGroupIdProvider =
     StateNotifierProvider<SelectedGroupIdNotifier, String?>((ref) {
   final notifier = SelectedGroupIdNotifier();
+  var isDisposed = false;
+
+  ref.onDispose(() {
+    isDisposed = true;
+  });
 
   // allGroupsProviderの変更を監視して、選択されたグループが存在するか検証
   ref.listen<AsyncValue<List<SharedGroup>>>(allGroupsProvider,
       (previous, next) {
     next.whenData((groups) {
-      if (groups.isEmpty) {
-        notifier.clearSelection();
-      } else {
-        notifier.validateAndRestoreSelection(groups);
-      }
+      Future.microtask(() {
+        if (isDisposed) return;
+
+        if (groups.isEmpty) {
+          notifier.clearSelection();
+        } else {
+          notifier.validateAndRestoreSelection(groups);
+        }
+      });
     });
   });
 

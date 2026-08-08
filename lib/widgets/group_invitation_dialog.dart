@@ -87,14 +87,12 @@ class _GroupInvitationDialogState extends ConsumerState<GroupInvitationDialog> {
         (g) => g.groupId == widget.group.groupId,
         orElse: () => null,
       );
-      if (newGroup == null) return;
 
       // 以前のグループ状態を取得。previousがnullの場合は初期のwidget.groupを使用
-      final oldGroup = oldGroups
-              ?.firstWhere(
-                (g) => g.groupId == widget.group.groupId,
-                orElse: () => widget.group,
-              ) ??
+      final oldGroup = oldGroups?.firstWhere(
+            (g) => g.groupId == widget.group.groupId,
+            orElse: () => widget.group,
+          ) ??
           widget.group;
 
       final oldUids = Set.from(oldGroup.allowedUid);
