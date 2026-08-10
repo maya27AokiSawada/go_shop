@@ -23,7 +23,8 @@ class UserPreferencesService {
   static const String _keyAppMode = 'app_mode'; // 0=shopping, 1=todo
   static const String _keyAppUIMode = 'app_ui_mode'; // 0=single, 1=multi
   static const String _keyEnableListNotifications = 'enable_list_notifications';
-  static const String _keyLanguageCode = 'language_code'; // 'ja' or 'en'
+  static const String _keyLanguageCode =
+      'language_code'; // 'ja' / 'en' / 'pt' / 'zh'
 
   // 課金タイプキャッシュ（Firestoreデータロスト時のフォールバック用）
   static const String _keyPurchaseTypeCache = 'purchase_type_cache';

@@ -51,7 +51,10 @@
 library;
 
 export 'app_texts.dart';
+export 'app_texts_en.dart';
 export 'app_texts_ja.dart';
+export 'app_texts_pt.dart';
+export 'app_texts_zh_hans.dart';
 export 'app_localizations.dart';
 
 /// グローバルアクセス用のショートカット

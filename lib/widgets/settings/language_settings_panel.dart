@@ -5,7 +5,7 @@ import '../../l10n/l10n.dart';
 import '../../services/user_preferences_service.dart';
 import '../../utils/app_logger.dart';
 
-/// 表示言語設定パネル（日本語 / English）
+/// 表示言語設定パネル
 class LanguageSettingsPanel extends ConsumerStatefulWidget {
   const LanguageSettingsPanel({super.key});
 
@@ -26,7 +26,10 @@ class _LanguageSettingsPanelState extends ConsumerState<LanguageSettingsPanel> {
 
   Future<void> _loadSavedLanguage() async {
     final saved = await UserPreferencesService.getLanguageCode();
-    if (saved != null && saved.isNotEmpty && mounted) {
+    if (saved != null &&
+        saved.isNotEmpty &&
+        AppLocalizations.supportedLanguages.contains(saved) &&
+        mounted) {
       setState(() {
         _selectedLang = saved;
       });
@@ -34,7 +37,10 @@ class _LanguageSettingsPanelState extends ConsumerState<LanguageSettingsPanel> {
   }
 
   Future<void> _onLanguageChanged(String newLang) async {
-    if (newLang == _selectedLang) return;
+    if (!AppLocalizations.supportedLanguages.contains(newLang) ||
+        newLang == _selectedLang) {
+      return;
+    }
 
     AppLocalizations.setLanguage(newLang);
     await UserPreferencesService.saveLanguageCode(newLang);
@@ -49,9 +55,7 @@ class _LanguageSettingsPanelState extends ConsumerState<LanguageSettingsPanel> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            newLang == 'en' ? texts.languageChangedEn : texts.languageChangedJa,
-          ),
+          content: Text(AppLocalizations.getLanguageChangedMessage(newLang)),
           duration: const Duration(seconds: 3),
         ),
       );
@@ -92,22 +96,34 @@ class _LanguageSettingsPanelState extends ConsumerState<LanguageSettingsPanel> {
             style: TextStyle(fontSize: 12, color: Colors.teal.shade600),
           ),
           const SizedBox(height: 12),
-          SegmentedButton<String>(
-            segments: [
-              ButtonSegment<String>(
-                value: 'ja',
-                label: Text(texts.languageJa),
-                icon: const Icon(Icons.flag, size: 16),
+          DropdownButtonFormField<String>(
+            initialValue: _selectedLang,
+            decoration: InputDecoration(
+              isDense: true,
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
               ),
-              const ButtonSegment<String>(
-                value: 'en',
-                label: Text('English'),
-                icon: Icon(Icons.language, size: 16),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.teal.shade200),
               ),
-            ],
-            selected: {_selectedLang},
-            onSelectionChanged: (Set<String> newSelection) {
-              _onLanguageChanged(newSelection.first);
+            ),
+            items: AppLocalizations.supportedLanguages
+                .map(
+                  (langCode) => DropdownMenuItem<String>(
+                    value: langCode,
+                    child: Text(AppLocalizations.getLanguageName(langCode)),
+                  ),
+                )
+                .toList(),
+            onChanged: (newLang) {
+              if (newLang != null) {
+                _onLanguageChanged(newLang);
+              }
             },
           ),
         ],
