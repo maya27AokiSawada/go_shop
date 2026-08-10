@@ -144,6 +144,53 @@ applicationId = "net.sumomo_planning.goshopping_dev"
 
 ---
 
+### 4. dev環境用Firestore セキュリティルール デプロイ ✅
+
+**Purpose**: dev環境（`gotoshop-572b7`）でFirestoreセキュリティルールを有効化し、dev フレーバーのFirestore アクセス権限を適切に制御する
+
+**Background**:
+- prod環境（`goshopping-48db9`）にはセキュリティルールがすでにデプロイ済み
+- dev環境でも同一のセキュリティルール（`firestore.rules`）をデプロイする必要があった
+- devフレーバーの基本動作確認をするため
+
+**Problem / Root Cause**:
+
+dev環境でdevフレーバーがFirestoreにアクセスできない状況が発生。SH-54D（dev フレーバー）でアプリクラッシュが見られた。
+
+原因: **Firestore セキュリティルールがdev環境にデプロイされていない**
+
+**Solution**:
+
+Firebase CLI で dev環境にセキュリティルールをデプロイ:
+
+```bash
+cd e:\FlutterProject\goshopping
+npx -y firebase-tools@latest deploy --only firestore:rules --project gotoshop-572b7
+```
+
+**Result**:
+```
+=== Deploying to 'gotoshop-572b7'...
+✅ cloud.firestore: rules file firestore.rules compiled successfully
+✅ firestore: released rules firestore.rules to cloud.firestore
+✅ Deploy complete!
+```
+
+**検証結果**:
+
+| テスト / 確認 | 結果 |
+|---|---|
+| dev フレーバーの起動 | 成功（SH-54D実機） |
+| Firestore アクセス | 正常（セキュリティルール デプロイ後エラー解消） |
+
+**Modified Files**:
+
+- なし（既存の `firestore.rules` をdev環境にデプロイのみ）
+
+**Status**: ✅ 完了・dev フレーバー基本動作確認済み
+
+---
+
 ## 🐛 発見された問題
 
 ### dev flavor と debug google-services.json の client 不一致 ✅
@@ -162,6 +209,7 @@ applicationId = "net.sumomo_planning.goshopping_dev"
 1. ✅ zh 切替時の未実装例外（完了日: 2026-08-10）
 2. ✅ 言語追加時の設定 UI 拡張性不足（完了日: 2026-08-10）
 3. ✅ dev Google Services client 不一致ビルド失敗（完了日: 2026-08-10）
+4. ✅ dev環境Firestore セキュリティルール未デプロイ（完了日: 2026-08-10）
 
 ### 対応中 🔄
 
@@ -204,6 +252,7 @@ applicationId（build.gradle）
 
 1. SH-54D で pt/zh 切替の実画面確認と軽微文言修正
 2. 必要に応じて iOS/dev 側 Firebase 設定の再点検
+3. dev 環境での機能テスト継続
 
 ---
 
