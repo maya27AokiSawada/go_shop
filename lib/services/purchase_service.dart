@@ -26,6 +26,7 @@ class _ProductIds {
 /// 5. [dispose] でリソース解放
 class PurchaseService {
   static const String _logTag = 'PurchaseService';
+  static const bool _monetizationEnabled = false;
 
   final InAppPurchase _iap = InAppPurchase.instance;
   StreamSubscription<List<PurchaseDetails>>? _subscription;
@@ -38,6 +39,12 @@ class PurchaseService {
 
   /// ストリーム監視を開始し、ストアが利用可能か確認する
   Future<void> initialize() async {
+    if (!_monetizationEnabled) {
+      Log.info('[$_logTag] 課金機能は無効化されているため初期化をスキップ');
+      _isAvailable = false;
+      return;
+    }
+
     try {
       _isAvailable = await _iap.isAvailable();
       if (!_isAvailable) {
@@ -62,6 +69,11 @@ class PurchaseService {
 
   /// 商品情報を Google Play から取得
   Future<void> loadProducts() async {
+    if (!_monetizationEnabled) {
+      Log.info('[$_logTag] 課金機能無効化のため商品取得をスキップ');
+      return;
+    }
+
     try {
       final response = await _iap.queryProductDetails(_ProductIds.all);
 
@@ -82,47 +94,17 @@ class PurchaseService {
 
   /// サブスクリプション（¥100/2ヶ月）を購入
   Future<void> buySubscription() async {
-    await _buy(_ProductIds.subscription, isSubscription: true);
+    Log.info('[$_logTag] 課金機能は無効化されているため購入を中止');
   }
 
   /// 買い切り（¥1,000）を購入
   Future<void> buyOneTimePurchase() async {
-    await _buy(_ProductIds.oneTimePurchase, isSubscription: false);
-  }
-
-  Future<void> _buy(String productId, {required bool isSubscription}) async {
-    if (!_isAvailable) {
-      Log.warning('[$_logTag] ストアが利用不可');
-      return;
-    }
-
-    final product = _products.where((p) => p.id == productId).firstOrNull;
-    if (product == null) {
-      Log.warning('[$_logTag] 商品が見つかりません: $productId');
-      return;
-    }
-
-    final PurchaseParam param = PurchaseParam(productDetails: product);
-
-    try {
-      if (isSubscription) {
-        await _iap.buyNonConsumable(purchaseParam: param);
-      } else {
-        await _iap.buyNonConsumable(purchaseParam: param);
-      }
-    } catch (e) {
-      Log.error('[$_logTag] 購入エラー: $e');
-    }
+    Log.info('[$_logTag] 課金機能は無効化されているため購入を中止');
   }
 
   /// 購入の復元（再インストール時など）
   Future<void> restorePurchases() async {
-    if (!_isAvailable) return;
-    try {
-      await _iap.restorePurchases();
-    } catch (e) {
-      Log.error('[$_logTag] 購入復元エラー: $e');
-    }
+    Log.info('[$_logTag] 課金機能は無効化されているため復元をスキップ');
   }
 
   /// 購入ストリームのコールバック

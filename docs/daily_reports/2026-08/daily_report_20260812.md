@@ -267,3 +267,55 @@ flutter config --jdk-dir "C:\src\jdk-21"
 | `instructions/20_groups_lists_items.md` | 現状仕様と整合する暗号化ルールを維持 |
 
 **指示書更新**: なし（理由: 本日の修正は実装とドキュメント整合の更新であり、既存のプロジェクト指示書の基本方針に破綻はないため）
+
+---
+
+## 🕛 午後の追加作業（収益化停止・整理・リリース）
+
+### 1. 広告以外の収益化を停止 ✅
+
+**Purpose**: 非広告収益化をオフにして、公開動作を「広告中心」に固定する。
+
+**Background**: 課金UI・復元処理・Premium画面が残っていて、アプリの公開方針と実装がズレていた。
+
+**Solution**:
+
+```dart
+// ✅ 課金機能を無効化
+static const bool _monetizationEnabled = false;
+```
+
+**Modified Files**:
+
+- `lib/services/purchase_service.dart`
+- `lib/pages/premium_page.dart`
+- `lib/widgets/settings/purchase_plan_panel.dart`
+- `lib/widgets/payment_reminder_widget.dart`
+- `lib/widgets/app_initialize_widget.dart`
+
+**Status**: ✅ 完了
+
+### 2. 未使用の招待ダイアログを保管 ✅
+
+**Purpose**: 使われていない旧実装をアクティブコードから切り離す。
+
+**Solution**:
+
+- `lib/widgets/group_invitation_dialog.dart` を `deprecated/group_invitation_dialog.dart` に移動
+
+**Status**: ✅ 完了
+
+### 3. AAB リリースビルド（build 25） ✅
+
+**Purpose**: 最終リリース用 AAB を指定ビルド番号で作成する。
+
+```powershell
+flutter build appbundle --release --flavor prod --dart-define=FLAVOR=prod --build-number=25
+```
+
+**検証結果**:
+
+- 生成先: `build/app/outputs/bundle/prodRelease/app-prod-release.aab`
+- 確認結果: `bundle_exists`
+
+**Status**: ✅ 完了

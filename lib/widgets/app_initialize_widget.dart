@@ -19,7 +19,6 @@ import '../providers/app_ui_mode_provider.dart';
 import '../providers/user_settings_provider.dart';
 import '../providers/shared_group_provider.dart'; // forceSyncProvider
 import '../providers/hive_provider.dart';
-import '../providers/purchase_type_provider.dart';
 import '../providers/purchase_sync_provider.dart';
 import '../l10n/app_localizations.dart';
 
@@ -275,13 +274,12 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
         }
       }
 
-      // 🆕 Google Play課金リストア（Android起動時に1回だけ実行）
-      // FirestoreデータロストへのフォールバックとしてGoogle Playに問い合わせて再同期
+      // 課金機能は無効化されているため、Google Play購入の自動リストアは実行しない
       if (!_purchaseRestoreExecuted &&
           Platform.isAndroid &&
           currentUser != null) {
         _purchaseRestoreExecuted = true;
-        _restorePurchasesInBackground();
+        Log.info('ℹ️ [APP_INIT] 課金機能無効化のためGoogle Play購入リストアをスキップ');
       }
 
       // AdMob SDK 初期化（Android/iOSのみ）
@@ -319,24 +317,6 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
       });
     } catch (e) {
       Log.error('❌ 定期購入リセットエラー: $e');
-    }
-  }
-
-  /// Google Play 購入を復元してFirestoreを再同期（バックグラウンド処理）
-  ///
-  /// Firestoreデータロスト後の課金状態復旧に使用。
-  /// アプリ起動時・認証済みユーザーがいる場合のみ実行。
-  Future<void> _restorePurchasesInBackground() async {
-    try {
-      Future.delayed(const Duration(seconds: 3), () async {
-        Log.info('🔄 [PURCHASE_RESTORE] 起動時Google Play課金リストア開始');
-        final purchaseService = ref.read(purchaseServiceProvider);
-        await purchaseService.initialize();
-        await purchaseService.restorePurchases();
-        Log.info('✅ [PURCHASE_RESTORE] 起動時リストア完了');
-      });
-    } catch (e) {
-      Log.error('❌ [PURCHASE_RESTORE] 起動時リストアエラー: $e');
     }
   }
 
