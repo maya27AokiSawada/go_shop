@@ -98,20 +98,25 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      isTodo
-                          ? (isEditMode ? texts.editTask : texts.addTask)
-                          : (isEditMode
-                              ? texts.editItem
-                              : texts.addShoppingItem),
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                    Expanded(
+                      child: Text(
+                        isTodo
+                            ? (isEditMode ? texts.editTask : texts.addTask)
+                            : (isEditMode
+                                ? texts.editItem
+                                : texts.addShoppingItem),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                     IconButton(
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
                       icon: const Icon(Icons.close),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
@@ -206,77 +211,109 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
                                 children: [
                                   const Icon(Icons.repeat),
                                   const SizedBox(width: 8),
-                                  Text(texts.purchaseIntervalOptional),
+                                  Expanded(
+                                    child: Text(
+                                      texts.purchaseIntervalOptional,
+                                    ),
+                                  ),
                                 ],
                               ),
                               const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    flex: 2,
-                                    child: DropdownButtonFormField<int>(
-                                      initialValue: _intervalValue,
-                                      decoration: const InputDecoration(
-                                        contentPadding: EdgeInsets.symmetric(
-                                            horizontal: 12, vertical: 8),
-                                        border: OutlineInputBorder(),
-                                      ),
-                                      items: [
-                                        DropdownMenuItem(
-                                          value: 0,
-                                          child: Text(texts.intervalNone),
-                                        ),
-                                        ...List.generate(
-                                            30, (index) => index + 1).map(
-                                          (value) => DropdownMenuItem(
-                                            value: value,
-                                            child: Text('$value'),
-                                          ),
-                                        ),
-                                      ],
-                                      onChanged: (value) {
-                                        if (value != null) {
-                                          setState(() {
-                                            _intervalValue = value;
-                                          });
-                                        }
-                                      },
+                              LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final useVerticalLayout =
+                                      constraints.maxWidth < 420;
+
+                                  final intervalValueField =
+                                      DropdownButtonFormField<int>(
+                                    initialValue: _intervalValue,
+                                    isExpanded: true,
+                                    decoration: const InputDecoration(
+                                      contentPadding: EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 8),
+                                      border: OutlineInputBorder(),
                                     ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    flex: 3,
-                                    child: DropdownButtonFormField<String>(
-                                      initialValue: _intervalUnit,
-                                      decoration: const InputDecoration(
-                                        contentPadding: EdgeInsets.symmetric(
-                                            horizontal: 12, vertical: 8),
-                                        border: OutlineInputBorder(),
+                                    items: [
+                                      DropdownMenuItem(
+                                        value: 0,
+                                        child: Text(
+                                          texts.intervalNone,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                       ),
-                                      items: [
-                                        DropdownMenuItem(
-                                          value: 'day',
-                                          child: Text(texts.perDay),
+                                      ...List.generate(30, (index) => index + 1)
+                                          .map(
+                                        (value) => DropdownMenuItem(
+                                          value: value,
+                                          child: Text('$value'),
                                         ),
-                                        DropdownMenuItem(
-                                          value: 'week',
-                                          child: Text(texts.perWeek),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: 'month',
-                                          child: Text(texts.perMonth),
-                                        ),
-                                      ],
-                                      onChanged: (value) {
-                                        if (value != null) {
-                                          setState(() {
-                                            _intervalUnit = value;
-                                          });
-                                        }
-                                      },
+                                      ),
+                                    ],
+                                    onChanged: (value) {
+                                      if (value != null) {
+                                        setState(() {
+                                          _intervalValue = value;
+                                        });
+                                      }
+                                    },
+                                  );
+
+                                  final intervalUnitField =
+                                      DropdownButtonFormField<String>(
+                                    initialValue: _intervalUnit,
+                                    isExpanded: true,
+                                    decoration: const InputDecoration(
+                                      contentPadding: EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 8),
+                                      border: OutlineInputBorder(),
                                     ),
-                                  ),
-                                ],
+                                    items: [
+                                      DropdownMenuItem(
+                                        value: 'day',
+                                        child: Text(texts.perDay),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'week',
+                                        child: Text(texts.perWeek),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'month',
+                                        child: Text(texts.perMonth),
+                                      ),
+                                    ],
+                                    onChanged: (value) {
+                                      if (value != null) {
+                                        setState(() {
+                                          _intervalUnit = value;
+                                        });
+                                      }
+                                    },
+                                  );
+
+                                  if (useVerticalLayout) {
+                                    return Column(
+                                      children: [
+                                        intervalValueField,
+                                        const SizedBox(height: 8),
+                                        intervalUnitField,
+                                      ],
+                                    );
+                                  }
+
+                                  return Row(
+                                    children: [
+                                      Expanded(
+                                        flex: 2,
+                                        child: intervalValueField,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        flex: 3,
+                                        child: intervalUnitField,
+                                      ),
+                                    ],
+                                  );
+                                },
                               ),
                               const SizedBox(height: 8),
                               Text(
@@ -330,8 +367,11 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                Wrap(
+                  alignment: WrapAlignment.end,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     TextButton(
                       onPressed: _isSubmitting
@@ -339,7 +379,6 @@ class _SharedItemEditModalState extends ConsumerState<SharedItemEditModal> {
                           : () => Navigator.of(context).pop(),
                       child: Text(texts.cancel),
                     ),
-                    const SizedBox(width: 8),
                     ElevatedButton(
                       onPressed: _isSubmitting ? null : _submitItem,
                       child: _isSubmitting

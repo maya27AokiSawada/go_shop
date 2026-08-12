@@ -700,7 +700,64 @@
 
 ---
 
-### 25. 🔐 InvitationSecurityService
+### 25. 🔐 GroupKeyEncryptionService
+
+**ファイル**: `lib/services/group_key_encryption_service.dart`
+**行数**: 96行
+
+**目的**: グループ共通鍵の生成・暗号化・復号を担当するコア暗号化サービス
+
+**主要機能**:
+
+- グループ鍵生成（`generateGroupKey()`）
+- 受信者ごとの秘密情報生成（`generateRecipientSecret()`）
+- 共通鍵の暗号化・復号（`encryptGroupKey()` / `decryptGroupKey()`）
+- SHA-256 由来の派生鍵と XOR による簡易的な秘匿化
+
+**実装上の注意**:
+
+- 実装は完全なAESではなく、グループ鍵の配布を安全に行うための簡易暗号化レイヤーを提供する。
+- 共有アイテム名の保存時には `GroupKeyExchangeService` 経由でこの暗号化を利用する。
+
+**使用場所**:
+
+- `group_key_exchange_service.dart` - 鍵生成・配布・復号の制御
+- `hybrid_shared_list_repository.dart` - SharedItem の保存/復号時に適用
+
+---
+
+### 26. 🔁 GroupKeyExchangeService
+
+**ファイル**: `lib/services/group_key_exchange_service.dart`
+**行数**: 500行超
+
+**目的**: グループ鍵のライフサイクル管理、再暗号化制御、Firestore 連携を担うサービス
+
+**主要機能**:
+
+- グループ鍵のローカル保存・取得（SharedPreferences）
+- オーナーによる鍵生成とメンバー配布
+- 受諾者側での鍵復号とローカル反映
+- 再暗号化中フラグの管理（`keyReencryptionInProgress` / `keyRotationStatus`）
+- 共有アイテムの再暗号化判定とフォールバック
+
+**暗号化対象**:
+
+- `SharedItem.name` の保存時暗号化
+- 既存の平文 `name` の検出と再暗号化
+- 鍵ローテーション時の全件再暗号化
+
+**Providerパターン**: `groupKeyExchangeServiceProvider`
+
+**使用場所**:
+
+- `shared_list_page.dart` - ローテーションや再暗号化のUI制御
+- `group_member_management_page.dart` - 参加メンバー管理の整合性確認
+- `hybrid_shared_list_repository.dart` - 保存/読み取り時の暗号化フロー
+
+---
+
+### 27. 🔐 InvitationSecurityService
 
 **ファイル**: `lib/services/invitation_security_service.dart`
 **行数**: 231行

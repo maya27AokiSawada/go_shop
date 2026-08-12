@@ -44,10 +44,14 @@ class _UserNamePanelWidgetState extends ConsumerState<UserNamePanelWidget> {
                 children: [
                   const Icon(Icons.person, color: Colors.blue),
                   const SizedBox(width: 8),
-                  Text(
-                    texts.userNameSetting,
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold),
+                  Expanded(
+                    child: Text(
+                      texts.userNameSetting,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ],
               ),
@@ -85,6 +89,7 @@ class _UserNamePanelWidgetState extends ConsumerState<UserNamePanelWidget> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: _isLoading ? null : _saveUserName,
+                  iconAlignment: IconAlignment.start,
                   icon: _isLoading
                       ? const SizedBox(
                           width: 16,
@@ -92,7 +97,11 @@ class _UserNamePanelWidgetState extends ConsumerState<UserNamePanelWidget> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.save),
-                  label: Text(_isLoading ? texts.saving : texts.saveUserName),
+                  label: Text(
+                    _isLoading ? texts.saving : texts.saveUserName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green.shade100,
                     foregroundColor: Colors.green.shade800,

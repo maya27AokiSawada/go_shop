@@ -184,6 +184,11 @@ Future<void> _initializeApp() async {
       // 🔥 クラッシュレポート初期化（Platform判定で分岐）
       if (Platform.isAndroid || Platform.isIOS) {
         // Android/iOS: Firebase Crashlytics
+        final enableCrashlyticsCollection =
+            F.appFlavor == Flavor.dev || !kDebugMode;
+        await FirebaseCrashlytics.instance
+            .setCrashlyticsCollectionEnabled(enableCrashlyticsCollection);
+
         FlutterError.onError = (errorDetails) {
           FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
           AppLogger.error(
@@ -196,7 +201,8 @@ Future<void> _initializeApp() async {
           return true;
         };
 
-        AppLogger.info('✅ Firebase Crashlytics初期化成功（Android/iOS）');
+        AppLogger.info(
+            '✅ Firebase Crashlytics初期化成功（Android/iOS, collectionEnabled: $enableCrashlyticsCollection）');
       } else {
         // Windows/Linux/macOS: Sentry
         // Sentry初期化はmain()で実行済み
