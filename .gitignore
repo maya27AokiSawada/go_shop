@@ -81,6 +81,10 @@ extensions/*.env
 *.p12
 *.jks
 *.keystore
+*.p8
+*.cer
+*.crt
+*.mobileprovision
 key.properties
 
 # Log & debug files (機密情報・不要ファイル)
