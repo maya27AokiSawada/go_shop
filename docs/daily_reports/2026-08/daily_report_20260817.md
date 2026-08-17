@@ -6,7 +6,8 @@
 - [x] オーナー／メンバー間の鍵更新ロジックの整理
 - [x] 古い鍵ドキュメントを無視する修正
 - [x] 回帰テストの追加と確認
-- [ ] SH54D 実機での最終確認（継続予定）
+- [x] 追加のデータ観測と status/confirmed の挙動確認
+- [ ] SH54D 実機での最終確認（明日継続）
 
 ---
 
@@ -73,6 +74,24 @@ if (keyVersion < activeKeyVersion) {
 
 **Status**: ✅ 完了
 
+### 3. status と confirmed の関係の確認 ✅
+
+**Purpose**: `status: ready` がそのまま残る現象が、ローテーション失敗なのか、member 側の復号確認漏れなのかを切り分ける。
+
+**Observation**:
+
+- Firestore 上では `keyVersion` が最新へ更新されることが確認できた
+- しかし member 側の `keyExchangeEvents/{memberUid}` は `status: "ready"` のまま残ることがある
+- これは「配布成功・復号未完了」の状態であり、ローテーション自体が失敗したわけではない
+
+**Interpretation**:
+
+- `status: "ready"` は「オーナーが配布した」状態
+- `status: "confirmed"` は「メンバーが復号してローカル保存まで完了した」状態
+- 実際の UI ハングやスピナー固着は、この `confirmed` 更新が行われていないケースに起因している可能性が高い
+
+**Status**: ✅ 調査完了・明日対応予定
+
 ---
 
 ## 🐛 発見された問題
@@ -83,6 +102,13 @@ if (keyVersion < activeKeyVersion) {
 - **原因**: 古い `keyExchangeEvents` が `activeKeyVersion` より前の世代として採用されていた
 - **対処**: 古い鍵世代を無視し、ローカル鍵と Firestore のバージョン整合を強制するように修正
 - **状態**: ✅ 修正完了
+
+### 受信完了の確認漏れ ⚠️
+
+- **症状**: `keyVersion` は最新へ進むが、member 側の `status` が `ready` のまま残る
+- **原因**: member 側が `resolveGroupKeyForMember()` を完了して `confirmed` を更新していない状態
+- **対処**: 明日、local version と activeKeyVersion の差分検出と自動再解決を再確認する
+- **状態**: 🔄 次回調査予定
 
 ---
 
@@ -98,11 +124,13 @@ if (keyVersion < activeKeyVersion) {
 
 ### 対応中 🔄
 
-1. 🔄 SH54D 実機での最終確認
+1. 🔄 member 側 `confirmed` 更新漏れの再確認
+2. 🔄 SH54D 実機での最終確認（明日）
 
 ### 未着手 ⏳
 
 1. ⏳ 実機での完了確認（UI での復号成功の最終確認）
+2. ⏳ `ready` のまま残る鍵交換ドキュメントの自動修復の確定
 
 ---
 
@@ -135,9 +163,10 @@ if (keyVersion < activeKeyVersion) {
 
 ## 🗓 翌日（2026-08-18）の予定
 
-1. SH54D 実機での最終キー復号確認
-2. 実際の Firestore 状態を再確認し、v1 の stale doc が残っていないか検証
-3. 必要に応じて owner → member の再配布を最終実行
+1. member 側の `confirmed` 更新漏れの検証
+2. SH54D 実機での最終キー復号確認
+3. 実際の Firestore 状態を再確認し、`ready` のまま残る doc がないか検証
+4. 必要に応じて owner → member の再配布を最終実行
 
 ---
 
