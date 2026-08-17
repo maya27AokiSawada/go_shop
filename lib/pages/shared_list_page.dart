@@ -161,10 +161,27 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
       if (currentUid == null || ownerUid.isEmpty || currentUid != ownerUid) {
         Log.info(
             'ℹ️ [KEY_EXCHANGE] 非オーナーのため鍵作成をスキップ: groupId=$groupId, currentUid=${Log.maskUserId(currentUid)}, ownerUid=${Log.maskUserId(ownerUid)}');
+
+        final shouldRefresh = currentUid != null
+            ? await service.shouldRefreshGroupKey(
+                groupId: groupId,
+                memberUid: currentUid,
+              )
+            : false;
+
+        if (shouldRefresh) {
+          Log.info(
+              '🔄 [KEY_EXCHANGE] メンバー端末でローカル鍵のバージョン差分を検出 → 再解決を実行: $groupId');
+          await service.resolveGroupKeyForMember(
+            groupId: groupId,
+            memberUid: currentUid,
+          );
+          return;
+        }
+
         final hasKey = await service.hasUsableGroupKey(groupId: groupId);
         if (!hasKey) {
-          Log.info(
-              'ℹ️ [KEY_EXCHANGE] 鍵がありません。参加メンバーとして鍵の解決を試みます: $groupId');
+          Log.info('ℹ️ [KEY_EXCHANGE] 鍵がありません。参加メンバーとして鍵の解決を試みます: $groupId');
           await service.resolveGroupKeyForMember(
               groupId: groupId, memberUid: currentUid!);
         }

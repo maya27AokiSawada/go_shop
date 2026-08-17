@@ -114,7 +114,8 @@ void main() {
     expect(resolvedKey, ownerKey);
   });
 
-  test('hasUsableGroupKey returns false when the cached local key is older than activeKeyVersion',
+  test(
+      'hasUsableGroupKey returns false when the cached local key is older than activeKeyVersion',
       () async {
     final groupService = GroupKeyExchangeService(firestore: mockFirestore);
     final groupSnapshot = MockDocumentSnapshot<Map<String, dynamic>>();
@@ -131,13 +132,36 @@ void main() {
     expect(hasUsableKey, isFalse);
   });
 
-  test('resolveGroupKeyForMember ignores stale key exchange docs older than activeKeyVersion',
+  test(
+      'shouldRefreshGroupKey returns true when the cached local version is behind activeKeyVersion',
+      () async {
+    final groupService = GroupKeyExchangeService(firestore: mockFirestore);
+    final groupSnapshot = MockDocumentSnapshot<Map<String, dynamic>>();
+
+    when(mockGroupDoc.get()).thenAnswer((_) async => groupSnapshot);
+    when(groupSnapshot.data()).thenReturn({'activeKeyVersion': 2});
+    await SharedPreferences.getInstance().then((prefs) async {
+      await prefs.setString('group_key_v1:test-group-id', 'legacy-key');
+      await prefs.setInt('group_key_version_v1:test-group-id', 1);
+    });
+
+    final shouldRefresh = await groupService.shouldRefreshGroupKey(
+      groupId: groupId,
+      memberUid: member1Uid,
+    );
+
+    expect(shouldRefresh, isTrue);
+  });
+
+  test(
+      'resolveGroupKeyForMember ignores stale key exchange docs older than activeKeyVersion',
       () async {
     final groupService = GroupKeyExchangeService(firestore: mockFirestore);
     final staleExchangeDoc = MockDocumentReference<Map<String, dynamic>>();
     final staleSnapshot = MockDocumentSnapshot<Map<String, dynamic>>();
 
-    when(mockKeyExchangeCollection.doc(member1Uid)).thenReturn(staleExchangeDoc);
+    when(mockKeyExchangeCollection.doc(member1Uid))
+        .thenReturn(staleExchangeDoc);
     when(staleExchangeDoc.get()).thenAnswer((_) async => staleSnapshot);
     when(staleSnapshot.exists).thenReturn(true);
     when(staleSnapshot.data()).thenReturn({

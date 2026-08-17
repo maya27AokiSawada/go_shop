@@ -415,7 +415,8 @@ class GroupKeyExchangeService {
     }
 
     final localVersion = await getPersistedGroupKeyVersion(groupId: groupId);
-    final inactiveRemoteVersion = await _getGroupActiveKeyVersion(groupId: groupId);
+    final inactiveRemoteVersion =
+        await _getGroupActiveKeyVersion(groupId: groupId);
     if (inactiveRemoteVersion != null &&
         inactiveRemoteVersion > 1 &&
         localVersion == null) {
@@ -425,6 +426,39 @@ class GroupKeyExchangeService {
       return localVersion >= inactiveRemoteVersion;
     }
     return true;
+  }
+
+  Future<bool> shouldRefreshGroupKey({
+    required String groupId,
+    required String memberUid,
+  }) async {
+    final activeVersion = await _getGroupActiveKeyVersion(groupId: groupId);
+    if (activeVersion == null) {
+      return false;
+    }
+
+    final localVersion = await getPersistedGroupKeyVersion(groupId: groupId);
+    if (localVersion == null) {
+      return true;
+    }
+
+    if (localVersion < activeVersion) {
+      return true;
+    }
+
+    try {
+      final exchangeDoc = await (_firestore ?? FirebaseFirestore.instance)
+          .collection('SharedGroups')
+          .doc(groupId)
+          .collection('keyExchangeEvents')
+          .doc(memberUid)
+          .get();
+      final docVersion =
+          (exchangeDoc.data()?['keyVersion'] as num?)?.toInt() ?? 1;
+      return docVersion < activeVersion;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<bool> waitForUsableGroupKey({
