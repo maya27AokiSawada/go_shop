@@ -28,6 +28,7 @@ class GroupKeyExchangeService {
   final Map<String, String> _groupKeyCache = <String, String>{};
 
   static const String _storagePrefix = 'group_key_v1:';
+  static const String _localVersionPrefix = 'group_key_version_v1:';
   static const String _reencryptionFlagPrefix = 'group_key_reencrypting_v1:';
 
   GroupKeyExchangeService({FirebaseFirestore? firestore, FirebaseAuth? auth})
@@ -121,6 +122,13 @@ class GroupKeyExchangeService {
         recipientSecret: recipientSecret,
       );
 
+      final groupDoc = await (_firestore ?? FirebaseFirestore.instance)
+          .collection('SharedGroups')
+          .doc(groupId)
+          .get();
+      final activeKeyVersion =
+          (groupDoc.data()?['activeKeyVersion'] as num?)?.toInt() ?? 1;
+
       final exchangeDocRef = (_firestore ?? FirebaseFirestore.instance)
           .collection('SharedGroups')
           .doc(groupId)
@@ -132,7 +140,7 @@ class GroupKeyExchangeService {
         'memberUid': memberUid,
         'ownerUid': ownerUid,
         'encryptedGroupKey': encryptedGroupKey,
-        'keyVersion': 1,
+        'keyVersion': activeKeyVersion,
         'status': 'ready',
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
@@ -142,7 +150,7 @@ class GroupKeyExchangeService {
           .collection('SharedGroups')
           .doc(groupId)
           .set({
-        'activeKeyVersion': 1,
+        'activeKeyVersion': activeKeyVersion,
         'activeKeyUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
@@ -175,6 +183,26 @@ class GroupKeyExchangeService {
           return null;
         }
 
+        final groupDoc = await (_firestore ?? FirebaseFirestore.instance)
+            .collection('SharedGroups')
+            .doc(groupId)
+            .get();
+        final activeKeyVersion =
+            (groupDoc.data()?['activeKeyVersion'] as num?)?.toInt() ?? 1;
+        final keyVersion =
+            (exchangeDoc.data()?['keyVersion'] as num?)?.toInt() ?? 1;
+
+        if (keyVersion < activeKeyVersion) {
+          Log.warning(
+              '⚠️ [KEY_EXCHANGE] 古い鍵世代を無視: groupId=$groupId, memberUid=$memberUid, docVersion=$keyVersion, activeVersion=$activeKeyVersion');
+          await _clearPersistedGroupKey(groupId: groupId);
+          if (attempt < 4) {
+            await Future.delayed(const Duration(milliseconds: 500));
+            continue;
+          }
+          return null;
+        }
+
         final encryptedGroupKey =
             exchangeDoc.data()?['encryptedGroupKey'] as String?;
         if (encryptedGroupKey == null || encryptedGroupKey.isEmpty) {
@@ -195,7 +223,10 @@ class GroupKeyExchangeService {
         );
 
         await _persistGroupKeyLocally(
-            groupId: groupId, groupKey: decryptedGroupKey);
+          groupId: groupId,
+          groupKey: decryptedGroupKey,
+          version: activeKeyVersion,
+        );
         await exchangeDoc.reference.update({
           'status': 'confirmed',
           'updatedAt': FieldValue.serverTimestamp(),
@@ -302,8 +333,20 @@ class GroupKeyExchangeService {
         return;
       }
 
+      final groupDoc = await (_firestore ?? FirebaseFirestore.instance)
+          .collection('SharedGroups')
+          .doc(groupId)
+          .get();
+      final currentVersion =
+          (groupDoc.data()?['activeKeyVersion'] as num?)?.toInt() ?? 1;
+      final nextVersion = currentVersion + 1;
+
       final newGroupKey = _crypto.generateGroupKey();
-      await _persistGroupKeyLocally(groupId: groupId, groupKey: newGroupKey);
+      await _persistGroupKeyLocally(
+        groupId: groupId,
+        groupKey: newGroupKey,
+        version: nextVersion,
+      );
       for (final memberUid in memberUids) {
         final recipientSecret = _deriveRecipientSecret(
           groupId: groupId,
@@ -324,7 +367,7 @@ class GroupKeyExchangeService {
           'memberUid': memberUid,
           'ownerUid': ownerUid,
           'encryptedGroupKey': encryptedGroupKey,
-          'keyVersion': 2,
+          'keyVersion': nextVersion,
           'status': 'ready',
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
@@ -334,7 +377,7 @@ class GroupKeyExchangeService {
           .collection('SharedGroups')
           .doc(groupId)
           .set({
-        'activeKeyVersion': 2,
+        'activeKeyVersion': nextVersion,
         'activeKeyUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } catch (e) {
@@ -344,6 +387,18 @@ class GroupKeyExchangeService {
   }
 
   /// ローカルに保存済みの鍵を取得する。
+  Future<int?> getPersistedGroupKeyVersion({required String groupId}) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_localVersionKey(groupId));
+  }
+
+  Future<void> _clearPersistedGroupKey({required String groupId}) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_storageKey(groupId));
+    await prefs.remove(_localVersionKey(groupId));
+    _groupKeyCache.remove(groupId);
+  }
+
   Future<String?> getPersistedGroupKey({required String groupId}) async {
     final prefs = await SharedPreferences.getInstance();
     final value = prefs.getString(_storageKey(groupId));
@@ -355,7 +410,21 @@ class GroupKeyExchangeService {
 
   Future<bool> hasUsableGroupKey({required String groupId}) async {
     final persistedKey = await getPersistedGroupKey(groupId: groupId);
-    return persistedKey != null && persistedKey.isNotEmpty;
+    if (persistedKey == null || persistedKey.isEmpty) {
+      return false;
+    }
+
+    final localVersion = await getPersistedGroupKeyVersion(groupId: groupId);
+    final inactiveRemoteVersion = await _getGroupActiveKeyVersion(groupId: groupId);
+    if (inactiveRemoteVersion != null &&
+        inactiveRemoteVersion > 1 &&
+        localVersion == null) {
+      return false;
+    }
+    if (localVersion != null && inactiveRemoteVersion != null) {
+      return localVersion >= inactiveRemoteVersion;
+    }
+    return true;
   }
 
   Future<bool> waitForUsableGroupKey({
@@ -391,10 +460,26 @@ class GroupKeyExchangeService {
   Future<void> _persistGroupKeyLocally({
     required String groupId,
     required String groupKey,
+    int? version,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_storageKey(groupId), groupKey);
+    if (version != null) {
+      await prefs.setInt(_localVersionKey(groupId), version);
+    }
     _groupKeyCache[groupId] = groupKey;
+  }
+
+  Future<int?> _getGroupActiveKeyVersion({required String groupId}) async {
+    try {
+      final doc = await (_firestore ?? FirebaseFirestore.instance)
+          .collection('SharedGroups')
+          .doc(groupId)
+          .get();
+      return (doc.data()?['activeKeyVersion'] as num?)?.toInt();
+    } catch (_) {
+      return null;
+    }
   }
 
   String encryptItemName({
@@ -531,4 +616,5 @@ class GroupKeyExchangeService {
   }
 
   String _storageKey(String groupId) => '$_storagePrefix$groupId';
+  String _localVersionKey(String groupId) => '$_localVersionPrefix$groupId';
 }

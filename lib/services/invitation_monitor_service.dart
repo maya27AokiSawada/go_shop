@@ -74,14 +74,32 @@ class InvitationMonitorService {
     Log.info(
         '🔄 招待処理中: ${invitation.acceptorName} (${invitation.acceptorUid})');
 
+    final currentUid = _auth.currentUser?.uid;
+    if (currentUid == null || currentUid.isEmpty) {
+      Log.warning(
+          '⚠️ [INVITATION] オーナーUIDが未取得のため処理を中断: ${invitation.SharedGroupId}');
+      return;
+    }
+
+    final groupDoc = await _firestore
+        .collection('SharedGroups')
+        .doc(invitation.SharedGroupId)
+        .get();
+    final ownerUid = groupDoc.data()?['ownerUid'] as String? ?? '';
+    if (currentUid != ownerUid) {
+      Log.warning(
+          '⚠️ [INVITATION] グループオーナーではないため招待処理をスキップ: currentUid=${AppLogger.maskUserId(currentUid)}, ownerUid=${AppLogger.maskUserId(ownerUid)}, groupId=${invitation.SharedGroupId}');
+      return;
+    }
+
     try {
-      // 1. SharedGroupのallowedUidsに追加
+      // 1. SharedGroupのallowedUidに追加
       await _updateSharedGroupAllowedUids(
         groupId: invitation.SharedGroupId,
         newUid: invitation.acceptorUid,
       );
 
-      // 2. SharedListのallowedUidsに追加
+      // 2. SharedListのallowedUidに追加
       await _updateSharedListAllowedUids(
         listId: invitation.sharedListId,
         newUid: invitation.acceptorUid,
@@ -135,19 +153,19 @@ class InvitationMonitorService {
     try {
       // Firestoreの SharedGroup ドキュメントを直接更新
       await _firestore.collection('SharedGroups').doc(groupId).update({
-        'allowedUids': FieldValue.arrayUnion([newUid]),
+        'allowedUid': FieldValue.arrayUnion([newUid]),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
       Log.info(
-          '✅ SharedGroup allowedUids更新: $groupId + ${AppLogger.maskUserId(newUid)}');
+          '✅ SharedGroup allowedUid更新: $groupId + ${AppLogger.maskUserId(newUid)}');
     } catch (e) {
       Log.error('❌ SharedGroup更新エラー: $e');
       rethrow;
     }
   }
 
-  /// SharedListのallowedUidsを更新
+  /// SharedListのallowedUidを更新
   Future<void> _updateSharedListAllowedUids({
     required String listId,
     required String newUid,
@@ -155,12 +173,12 @@ class InvitationMonitorService {
     try {
       // Firestoreの SharedList ドキュメントを直接更新
       await _firestore.collection('sharedLists').doc(listId).update({
-        'allowedUids': FieldValue.arrayUnion([newUid]),
+        'allowedUid': FieldValue.arrayUnion([newUid]),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
       Log.info(
-          '✅ SharedList allowedUids更新: $listId + ${AppLogger.maskUserId(newUid)}');
+          '✅ SharedList allowedUid更新: $listId + ${AppLogger.maskUserId(newUid)}');
     } catch (e) {
       Log.error('❌ SharedList更新エラー: $e');
       rethrow;
@@ -203,13 +221,13 @@ class InvitationMonitorService {
     try {
       // SharedGroupから削除
       await _firestore.collection('SharedGroups').doc(groupId).update({
-        'allowedUids': FieldValue.arrayRemove([revokeUid]),
+        'allowedUid': FieldValue.arrayRemove([revokeUid]),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
       // SharedListから削除
       await _firestore.collection('sharedLists').doc(listId).update({
-        'allowedUids': FieldValue.arrayRemove([revokeUid]),
+        'allowedUid': FieldValue.arrayRemove([revokeUid]),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 

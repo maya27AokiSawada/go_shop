@@ -82,6 +82,40 @@ Firestore Security Rules で最低限以下を許可すること。
 このルールが無い場合、受諾端末で `permission-denied` が発生し、
 `resolveGroupKeyForMember()` が失敗して復号不能になる。
 
+### 鍵交換の責務分離とオーナー限定（必須）
+
+鍵の生成・配布・ローテーションは、グループオーナーのみが発火する。
+参加者は既存鍵の取得と復号だけを行い、書き込み（鍵生成・配布・更新）は行わない。
+
+- オーナー発火: `handleAcceptedInvitation()` / `ensureGroupKeyForOwner()` / `rotateGroupKey()`
+- 参加者発火: `resolveGroupKeyForMember()` / `hasUsableGroupKey()` / `waitForUsableGroupKey()`
+- 共有権限フィールド: `allowedUid` を正とする。`allowedUids` は旧名・レガシー名として扱い、新規保存は禁止
+- `keyExchangeEvents/{memberUid}` の作成・更新は基本的にオーナーが行う
+- メンバー側の責務は「暗号化された鍵を読む」「ローカルへ保存する」「復号する」だけに限定する
+
+#### 正しいフロー
+
+```text
+1. 受諾者が招待承認
+2. オーナーが SharedGroup / SharedList の allowedUid を更新
+3. オーナーが keyExchangeEvents/{memberUid} を作成
+4. オーナーが新しいグループ鍵を生成し、各メンバーへ配布
+5. 受諾者が resolveGroupKeyForMember() で復号し、ローカル保存
+```
+
+#### 禁止事項
+
+- 参加者端末側から `ensureGroupKeyForOwner()` / `rotateGroupKey()` を直接呼ばない
+- `allowedUids` を新規に追加・更新しない
+- `keyExchangeEvents` の作成をメンバー側で代行しない
+- `activeKeyVersion` の更新をメンバー側で行わない
+
+#### 実装上の注意
+
+- オーナー判定は `currentUser.uid == group.ownerUid` で厳密に確認する
+- 既存鍵がある場合でも、再配布時には `forceRefresh` / `rotateGroupKey` の経路を明示してオーナーの管理フローに戻す
+- Firestore Rules とアプリ実装の両方で `allowedUid` を標準に揃える
+
 ### 使用回数の更新はアトミックに
 
 ```dart

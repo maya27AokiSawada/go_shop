@@ -864,8 +864,14 @@ class NotificationService {
       AppLogger.info('✅ [OWNER] Hive更新完了: グループ更新完了');
 
       // 招待受諾の本処理経路でも鍵交換イベントを必ず作成する。
+      // ここはグループオーナーのみが発火する入口であり、メンバー側では実行しない。
       final ownerUid = _auth.currentUser?.uid ?? '';
-      if (ownerUid.isNotEmpty) {
+      if (ownerUid.isEmpty) {
+        AppLogger.warning('⚠️ [OWNER] 鍵交換をスキップ: ownerUid が取得できません');
+      } else if (currentGroup.ownerUid != ownerUid) {
+        AppLogger.warning(
+            '⚠️ [OWNER] 鍵交換をスキップ: currentUser=${AppLogger.maskUserId(ownerUid)} はグループオーナーではありません');
+      } else {
         final keyExchangeService = _ref.read(groupKeyExchangeServiceProvider);
         await keyExchangeService.handleAcceptedInvitation(
           groupId: groupId,
@@ -874,8 +880,6 @@ class NotificationService {
         );
         AppLogger.info(
             '✅ [OWNER] 鍵交換イベント作成完了: ${AppLogger.maskUserId(acceptorUid)}');
-      } else {
-        AppLogger.warning('⚠️ [OWNER] 鍵交換をスキップ: ownerUid が取得できません');
       }
 
       // 🔥 CRITICAL FIX: 既存メンバー全員に通知を送信

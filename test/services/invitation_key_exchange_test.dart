@@ -24,6 +24,7 @@ void main() {
   late MockCollectionReference<Map<String, dynamic>> mockKeyExchangeCollection;
   late MockDocumentReference<Map<String, dynamic>> mockGroupDoc;
   late MockDocumentReference<Map<String, dynamic>> mockKeyExchangeDoc;
+  late MockDocumentSnapshot<Map<String, dynamic>> mockGroupSnapshot;
   late MockDocumentSnapshot<Map<String, dynamic>> mockKeyExchangeSnapshot;
   late MockFirebaseAuth mockAuth;
   late MockUser mockUser;
@@ -45,6 +46,7 @@ void main() {
     mockSharedGroupsCollection = MockCollectionReference();
     mockKeyExchangeCollection = MockCollectionReference();
     mockGroupDoc = MockDocumentReference();
+    mockGroupSnapshot = MockDocumentSnapshot();
     mockKeyExchangeDoc = MockDocumentReference();
     mockKeyExchangeSnapshot = MockDocumentSnapshot();
 
@@ -53,6 +55,8 @@ void main() {
     when(mockSharedGroupsCollection.doc(groupId)).thenReturn(mockGroupDoc);
     when(mockGroupDoc.collection('keyExchangeEvents'))
         .thenReturn(mockKeyExchangeCollection);
+    when(mockGroupDoc.get()).thenAnswer((_) async => mockGroupSnapshot);
+    when(mockGroupSnapshot.data()).thenReturn({'activeKeyVersion': 1});
 
     // Default mock for key exchange document
     when(mockKeyExchangeCollection.doc(any)).thenReturn(mockKeyExchangeDoc);
@@ -108,6 +112,52 @@ void main() {
     // Assert that the member resolved the same key
     expect(resolvedKey, isNotNull);
     expect(resolvedKey, ownerKey);
+  });
+
+  test('hasUsableGroupKey returns false when the cached local key is older than activeKeyVersion',
+      () async {
+    final groupService = GroupKeyExchangeService(firestore: mockFirestore);
+    final groupSnapshot = MockDocumentSnapshot<Map<String, dynamic>>();
+
+    when(mockGroupDoc.get()).thenAnswer((_) async => groupSnapshot);
+    when(groupSnapshot.data()).thenReturn({'activeKeyVersion': 2});
+    await SharedPreferences.getInstance().then((prefs) async {
+      await prefs.setString('group_key_v1:test-group-id', 'legacy-key');
+      await prefs.setInt('group_key_version_v1:test-group-id', 1);
+    });
+
+    final hasUsableKey = await groupService.hasUsableGroupKey(groupId: groupId);
+
+    expect(hasUsableKey, isFalse);
+  });
+
+  test('resolveGroupKeyForMember ignores stale key exchange docs older than activeKeyVersion',
+      () async {
+    final groupService = GroupKeyExchangeService(firestore: mockFirestore);
+    final staleExchangeDoc = MockDocumentReference<Map<String, dynamic>>();
+    final staleSnapshot = MockDocumentSnapshot<Map<String, dynamic>>();
+
+    when(mockKeyExchangeCollection.doc(member1Uid)).thenReturn(staleExchangeDoc);
+    when(staleExchangeDoc.get()).thenAnswer((_) async => staleSnapshot);
+    when(staleSnapshot.exists).thenReturn(true);
+    when(staleSnapshot.data()).thenReturn({
+      'encryptedGroupKey': 'stale-encrypted-key',
+      'keyVersion': 1,
+      'status': 'confirmed',
+    });
+    when(staleSnapshot.reference).thenReturn(staleExchangeDoc);
+    when(staleExchangeDoc.update(any)).thenAnswer((_) async {});
+
+    final groupSnapshot = MockDocumentSnapshot<Map<String, dynamic>>();
+    when(mockGroupDoc.get()).thenAnswer((_) async => groupSnapshot);
+    when(groupSnapshot.data()).thenReturn({'activeKeyVersion': 2});
+
+    final resolvedKey = await groupService.resolveGroupKeyForMember(
+      groupId: groupId,
+      memberUid: member1Uid,
+    );
+
+    expect(resolvedKey, isNull);
   });
 
   test('a second invited member gets the same group key', () async {

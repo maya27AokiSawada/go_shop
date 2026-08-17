@@ -424,7 +424,72 @@ flutter build web
 - `SENTRY_ENVIRONMENT` が空欄になっていないか
 - `DOT_ENV` Secret を使う CI では `.env` に Sentry 設定が含まれているか
 
-## 16. 関連ドキュメント
+## 16. 鍵ローテーションと再配布の運用手順
+
+### 16.1 基本方針
+
+グループ鍵の生成、再配布、ローテーションは、必ずグループオーナーのみが実行します。
+メンバー端末は鍵を受け取って復号する役割に限定し、鍵の生成や更新を発火させてはいけません。
+
+正しい責務分離:
+
+- オーナー: `ensureGroupKeyForOwner()` / `rotateGroupKey()` / `handleAcceptedInvitation()`
+- メンバー: `resolveGroupKeyForMember()` / `hasUsableGroupKey()` / `waitForUsableGroupKey()`
+
+### 16.2 実行順序
+
+1. `currentUser.uid == group.ownerUid` を確認する
+2. `memberUids` を収集する（オーナー自身と全メンバー）
+3. `GroupKeyExchangeService.ensureGroupKeyForOwner(...)` か `rotateGroupKey(...)` を呼ぶ
+4. 各メンバーに対して `SharedGroups/{groupId}/keyExchangeEvents/{memberUid}` を作成する
+5. `activeKeyVersion` を更新する
+6. 受諾側で `resolveGroupKeyForMember(groupId, memberUid)` を実行してローカルへ保存する
+7. 復号成功後に `status: 'confirmed'` を更新する
+
+### 16.3 必須チェック
+
+- `group.ownerUid` と `FirebaseAuth.currentUser.uid` が一致していること
+- `keyReencryptionInProgress` / `keyRotationStatus` が `reencrypting` でないこと
+- `allowedUid` の更新先が `allowedUid` であること（`allowedUids` ではない）
+- 参加者が `ensureGroupKeyForOwner()` や `rotateGroupKey()` を直接呼ばないこと
+
+### 16.4 禁止事項
+
+- メンバー端末から鍵の生成やローテーションを実行しない
+- `allowedUids` を新規で使わない
+- `keyExchangeEvents` をメンバー側から作成しない
+- `activeKeyVersion` をメンバー側で上書きしない
+- 再暗号化中にローテーションを実行しない
+
+### 16.5 失敗時の確認ポイント
+
+鍵が配布されない場合は、次を順に確認します。
+
+1. オーナー権限があるか
+2. `allowedUid` に対象メンバーが存在するか
+3. `keyExchangeEvents/{memberUid}` が作成されているか
+4. Firestore Security Rules で `read/create/update/delete` が許可されているか
+5. `status` が `ready` のまま残っていないか
+6. 受諾側が `resolveGroupKeyForMember()` を再試行しているか
+
+### 16.6 Firestore Rule 上の要件
+
+最低限、`SharedGroups/{groupId}/keyExchangeEvents/{memberUid}` には以下が必要です。
+
+- `read`: オーナーまたは対象メンバー
+- `create`: オーナーのみ
+- `update`: オーナーまたは対象メンバー（`status=confirmed` の更新）
+- `delete`: オーナーのみ
+
+### 16.7 実務上の推奨
+
+- 既存鍵の上書きは `forceRefresh: true` を明示して owner 経路で実行する
+- 途中で再暗号化中ならローテーションを止める
+- 受諾側での復号失敗時は再試行を行い、最後に `null` を返す前にログを残す
+- 運用で `allowedUid` と `allowedUids` の表記が混ざっていると、権限判定が崩れるため統一を維持する
+
+## 17. 関連ドキュメント
 
 - `docs/knowledge_base/ios_flavor_setup.md`
 - `docs/SECURITY_ACTION_REQUIRED.md`
+- `instructions/40_qr_and_notifications.md`
