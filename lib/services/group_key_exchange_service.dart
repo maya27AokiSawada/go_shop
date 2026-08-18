@@ -422,8 +422,70 @@ class GroupKeyExchangeService {
         localVersion == null) {
       return false;
     }
+
+    final currentUid = await _getCurrentUidSafely();
     if (localVersion != null && inactiveRemoteVersion != null) {
-      return localVersion >= inactiveRemoteVersion;
+      final isCurrentVersion = localVersion >= inactiveRemoteVersion;
+      if (!isCurrentVersion) {
+        return false;
+      }
+    }
+
+    if (currentUid != null && currentUid.isNotEmpty) {
+      final doc = await (_firestore ?? FirebaseFirestore.instance)
+          .collection('SharedGroups')
+          .doc(groupId)
+          .collection('keyExchangeEvents')
+          .doc(currentUid)
+          .get();
+      final docVersion = (doc.data()?['keyVersion'] as num?)?.toInt();
+      final remoteActiveVersion = inactiveRemoteVersion ?? docVersion ?? 1;
+      if (docVersion != null && docVersion < remoteActiveVersion) {
+        Log.warning(
+            '⚠️ [KEY_EXCHANGE] 古い keyVersion の confirmed を無効扱い: groupId=$groupId, memberUid=$currentUid, docVersion=$docVersion, activeVersion=$remoteActiveVersion');
+        await _clearPersistedGroupKey(groupId: groupId);
+        return false;
+      }
+
+      final status = (doc.data()?['status'] as String?) ?? '';
+      if (status.isNotEmpty && status != 'confirmed') {
+        return false;
+      }
+
+      final encryptedGroupKey = doc.data()?['encryptedGroupKey'] as String?;
+      if (encryptedGroupKey != null && encryptedGroupKey.isNotEmpty) {
+        try {
+          final recipientSecret = _deriveRecipientSecret(
+            groupId: groupId,
+            memberUid: currentUid,
+          );
+          final decrypted = _crypto.decryptGroupKey(
+            encryptedGroupKey: encryptedGroupKey,
+            recipientSecret: recipientSecret,
+          );
+          if (decrypted.isEmpty || decrypted != persistedKey) {
+            Log.warning(
+                '⚠️ [KEY_EXCHANGE] ローカル鍵と暗号文が不一致のため無効扱い: groupId=$groupId, memberUid=$currentUid, activeVersion=$remoteActiveVersion');
+            await _clearPersistedGroupKey(groupId: groupId);
+            return false;
+          }
+        } catch (_) {
+          Log.warning(
+              '⚠️ [KEY_EXCHANGE] 鍵復号に失敗したためローカル鍵を破棄: groupId=$groupId, memberUid=$currentUid');
+          await _clearPersistedGroupKey(groupId: groupId);
+          return false;
+        }
+      }
+    }
+
+    if (currentUid != null && currentUid.isNotEmpty) {
+      final status = await _getKeyExchangeStatus(
+        groupId: groupId,
+        memberUid: currentUid,
+      );
+      if (status != null && status != 'confirmed') {
+        return false;
+      }
     }
     return true;
   }
@@ -455,6 +517,10 @@ class GroupKeyExchangeService {
           .get();
       final docVersion =
           (exchangeDoc.data()?['keyVersion'] as num?)?.toInt() ?? 1;
+      final status = (exchangeDoc.data()?['status'] as String?) ?? '';
+      if (status != 'confirmed') {
+        return true;
+      }
       return docVersion < activeVersion;
     } catch (_) {
       return false;
@@ -502,6 +568,35 @@ class GroupKeyExchangeService {
       await prefs.setInt(_localVersionKey(groupId), version);
     }
     _groupKeyCache[groupId] = groupKey;
+  }
+
+  Future<String?> _getCurrentUidSafely() async {
+    try {
+      if (_auth != null) {
+        return _auth.currentUser?.uid;
+      }
+      return FirebaseAuth.instance.currentUser?.uid;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<String?> _getKeyExchangeStatus({
+    required String groupId,
+    required String memberUid,
+  }) async {
+    try {
+      final doc = await (_firestore ?? FirebaseFirestore.instance)
+          .collection('SharedGroups')
+          .doc(groupId)
+          .collection('keyExchangeEvents')
+          .doc(memberUid)
+          .get();
+      final status = (doc.data()?['status'] as String?) ?? '';
+      return status.isEmpty ? null : status;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<int?> _getGroupActiveKeyVersion({required String groupId}) async {

@@ -64,6 +64,12 @@ void main() {
         .thenAnswer((_) async => mockKeyExchangeSnapshot);
     when(mockKeyExchangeDoc.set(any, any)).thenAnswer((_) async => {});
     when(mockKeyExchangeDoc.update(any)).thenAnswer((_) async => {});
+    when(mockKeyExchangeSnapshot.exists).thenReturn(true);
+    when(mockKeyExchangeSnapshot.data()).thenReturn({
+      'encryptedGroupKey': 'encrypted-key',
+      'keyVersion': 1,
+      'status': 'ready',
+    });
     when(mockKeyExchangeSnapshot.reference).thenReturn(mockKeyExchangeDoc);
 
     // Mock SharedPreferences
@@ -114,6 +120,44 @@ void main() {
     expect(resolvedKey, ownerKey);
   });
 
+  test('owner resolves and confirms its own key after creation', () async {
+    final ownerService =
+        GroupKeyExchangeService(firestore: mockFirestore, auth: mockAuth);
+    final capturedOwnerUpdates = <Map<String, dynamic>>[];
+
+    when(mockKeyExchangeCollection.doc(ownerUid))
+        .thenReturn(mockKeyExchangeDoc);
+    when(mockKeyExchangeDoc.set(any, any)).thenAnswer((invocation) async {
+      final payload = invocation.positionalArguments[0];
+      if (payload is Map) {
+        final data = Map<String, dynamic>.from(payload);
+        when(mockKeyExchangeSnapshot.data()).thenReturn(data);
+      }
+    });
+    when(mockKeyExchangeDoc.update(any)).thenAnswer((invocation) async {
+      final payload = invocation.positionalArguments[0];
+      if (payload is Map) {
+        capturedOwnerUpdates.add(Map<String, dynamic>.from(payload));
+      }
+    });
+    when(mockKeyExchangeSnapshot.exists).thenReturn(true);
+
+    await ownerService.handleAcceptedInvitation(
+      groupId: groupId,
+      memberUid: ownerUid,
+      ownerUid: ownerUid,
+    );
+
+    final resolvedKey = await ownerService.resolveGroupKeyForMember(
+      groupId: groupId,
+      memberUid: ownerUid,
+    );
+
+    expect(resolvedKey, isNotNull);
+    expect(capturedOwnerUpdates, isNotEmpty);
+    expect(capturedOwnerUpdates.last['status'], 'confirmed');
+  });
+
   test(
       'hasUsableGroupKey returns false when the cached local key is older than activeKeyVersion',
       () async {
@@ -125,6 +169,74 @@ void main() {
     await SharedPreferences.getInstance().then((prefs) async {
       await prefs.setString('group_key_v1:test-group-id', 'legacy-key');
       await prefs.setInt('group_key_version_v1:test-group-id', 1);
+    });
+
+    final hasUsableKey = await groupService.hasUsableGroupKey(groupId: groupId);
+
+    expect(hasUsableKey, isFalse);
+  });
+
+  test(
+      'hasUsableGroupKey returns false when the exchange doc is still ready even with the current local version',
+      () async {
+    final groupService = GroupKeyExchangeService(
+      firestore: mockFirestore,
+      auth: mockAuth,
+    );
+    final groupSnapshot = MockDocumentSnapshot<Map<String, dynamic>>();
+
+    when(mockAuth.currentUser).thenReturn(mockUser);
+    when(mockUser.uid).thenReturn(member1Uid);
+    when(mockGroupDoc.get()).thenAnswer((_) async => groupSnapshot);
+    when(groupSnapshot.data()).thenReturn({'activeKeyVersion': 2});
+    when(mockKeyExchangeCollection.doc(member1Uid))
+        .thenReturn(mockKeyExchangeDoc);
+    when(mockKeyExchangeDoc.get())
+        .thenAnswer((_) async => mockKeyExchangeSnapshot);
+    when(mockKeyExchangeSnapshot.exists).thenReturn(true);
+    when(mockKeyExchangeSnapshot.data()).thenReturn({
+      'encryptedGroupKey': 'encrypted-key',
+      'keyVersion': 2,
+      'status': 'ready',
+    });
+
+    await SharedPreferences.getInstance().then((prefs) async {
+      await prefs.setString('group_key_v1:test-group-id', 'legacy-key');
+      await prefs.setInt('group_key_version_v1:test-group-id', 2);
+    });
+
+    final hasUsableKey = await groupService.hasUsableGroupKey(groupId: groupId);
+
+    expect(hasUsableKey, isFalse);
+  });
+
+  test(
+      'hasUsableGroupKey returns false when a confirmed doc is older than activeKeyVersion',
+      () async {
+    final groupService = GroupKeyExchangeService(
+      firestore: mockFirestore,
+      auth: mockAuth,
+    );
+    final groupSnapshot = MockDocumentSnapshot<Map<String, dynamic>>();
+
+    when(mockAuth.currentUser).thenReturn(mockUser);
+    when(mockUser.uid).thenReturn(member1Uid);
+    when(mockGroupDoc.get()).thenAnswer((_) async => groupSnapshot);
+    when(groupSnapshot.data()).thenReturn({'activeKeyVersion': 2});
+    when(mockKeyExchangeCollection.doc(member1Uid))
+        .thenReturn(mockKeyExchangeDoc);
+    when(mockKeyExchangeDoc.get())
+        .thenAnswer((_) async => mockKeyExchangeSnapshot);
+    when(mockKeyExchangeSnapshot.exists).thenReturn(true);
+    when(mockKeyExchangeSnapshot.data()).thenReturn({
+      'encryptedGroupKey': 'encrypted-key',
+      'keyVersion': 1,
+      'status': 'confirmed',
+    });
+
+    await SharedPreferences.getInstance().then((prefs) async {
+      await prefs.setString('group_key_v1:test-group-id', 'legacy-key');
+      await prefs.setInt('group_key_version_v1:test-group-id', 2);
     });
 
     final hasUsableKey = await groupService.hasUsableGroupKey(groupId: groupId);

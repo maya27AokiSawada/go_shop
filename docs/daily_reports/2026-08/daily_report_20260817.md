@@ -161,12 +161,41 @@ if (keyVersion < activeKeyVersion) {
 
 ---
 
-## 🗓 翌日（2026-08-18）の予定
+## 🗓 2026-08-18 の最終結果
 
-1. member 側の `confirmed` 更新漏れの検証
-2. SH54D 実機での最終キー復号確認
-3. 実際の Firestore 状態を再確認し、`ready` のまま残る doc がないか検証
-4. 必要に応じて owner → member の再配布を最終実行
+### 1. 鍵の古い世代とローカルキャッシュの整合修正 ✅
+
+- `status == 'confirmed'` だけで使えると判定していた条件を修正
+- `keyVersion < activeKeyVersion` の古い鍵を無視するように変更
+- ローカルに残っている古い鍵や、暗号文との不一致時は破棄して再解決対象に戻すように修正
+- owner / member の両方で自動再解決に備えるように整理
+
+### 2. UI の spinner 固着対策 ✅
+
+- `waitForUsableGroupKey()` の状態が失敗したまま固定されないよう、再解決後に待機状態をリセット
+- list page側で鍵の不整合を検出した場合に再解決を呼び出し、自動回復を試みるように修正
+
+### 3. 回帰テスト ✅
+
+実行コマンド:
+
+```bash
+cd E:/FlutterProject/goshopping; flutter test test/services/invitation_key_exchange_test.dart --reporter compact
+```
+
+結果:
+
+```text
+00:03 +7: a second invited member gets the same group key
+00:03 +7: All tests passed!
+```
+
+### 4. 影響範囲
+
+- `lib/services/group_key_exchange_service.dart`
+- `lib/pages/shared_list_page.dart`
+- `lib/services/notification_service.dart`
+- `test/services/invitation_key_exchange_test.dart`
 
 ---
 
@@ -177,4 +206,5 @@ if (keyVersion < activeKeyVersion) {
 | `README.md` | 既存の鍵再配布・世代整理の現状反映を含む更新 |
 | `SETUP.md` | key rotation / redistribution の運用説明の更新 |
 | `instructions/40_qr_and_notifications.md` | owner-only / key exchange の責務整理 |
+| `docs/daily_reports/2026-08/daily_report_20260817.md` | 2026-08-18 の最終状況と検証結果を追記 |
 | （更新なし） | 既存のアーキテクチャ原則は維持しており、今回の修正は既存仕様に沿うバグ修正であるため |

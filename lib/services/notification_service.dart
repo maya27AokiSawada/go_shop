@@ -634,11 +634,17 @@ class NotificationService {
     }
 
     final keyService = _ref.read(groupKeyExchangeServiceProvider);
-    final hasKey = await keyService.hasUsableGroupKey(groupId: groupId);
-    if (hasKey) {
-      AppLogger.info(
-          '✅ [NOTIFICATION] 既存のグループ鍵を確認: ${AppLogger.maskGroupId(groupId)}');
-      return;
+    final shouldRefresh = await keyService.shouldRefreshGroupKey(
+      groupId: groupId,
+      memberUid: currentUid,
+    );
+    if (!shouldRefresh) {
+      final hasKey = await keyService.hasUsableGroupKey(groupId: groupId);
+      if (hasKey) {
+        AppLogger.info(
+            '✅ [NOTIFICATION] 既存のグループ鍵を確認: ${AppLogger.maskGroupId(groupId)}');
+        return;
+      }
     }
 
     const retryDelaysMs = <int>[400, 700, 1000, 1400, 1800, 2300, 3000];

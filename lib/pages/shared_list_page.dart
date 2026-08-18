@@ -134,11 +134,30 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
     }
   }
 
+  void _resetKeyWaitFuture(String? groupId) {
+    if (groupId == null || _activeKeyWaitGroupId == groupId) {
+      _keyWaitFuture = null;
+      _activeKeyWaitGroupId = null;
+    }
+  }
+
   Future<void> _ensureGroupKeyForCurrentGroup(String groupId) async {
     try {
       final service = ref.read(groupKeyExchangeServiceProvider);
       final persistedKey = await service.getPersistedGroupKey(groupId: groupId);
-      if (persistedKey != null && persistedKey.isNotEmpty) {
+      final currentUid = ref.read(authStateProvider).valueOrNull?.uid;
+      final shouldRefresh = currentUid != null
+          ? await service.shouldRefreshGroupKey(
+              groupId: groupId,
+              memberUid: currentUid,
+            )
+          : false;
+      final hasUsableKey = await service.hasUsableGroupKey(groupId: groupId);
+
+      if (persistedKey != null &&
+          persistedKey.isNotEmpty &&
+          !shouldRefresh &&
+          hasUsableKey) {
         Log.info('✅ [KEY_EXCHANGE] グループ $groupId には既存鍵あり');
         return;
       }
@@ -156,7 +175,6 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
         return;
       }
 
-      final currentUid = ref.read(authStateProvider).valueOrNull?.uid;
       final ownerUid = group.ownerUid ?? '';
       if (currentUid == null || ownerUid.isEmpty || currentUid != ownerUid) {
         Log.info(
@@ -172,6 +190,7 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
         if (shouldRefresh) {
           Log.info(
               '🔄 [KEY_EXCHANGE] メンバー端末でローカル鍵のバージョン差分を検出 → 再解決を実行: $groupId');
+          _resetKeyWaitFuture(groupId);
           await service.resolveGroupKeyForMember(
             groupId: groupId,
             memberUid: currentUid,
@@ -182,10 +201,23 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
         final hasKey = await service.hasUsableGroupKey(groupId: groupId);
         if (!hasKey) {
           Log.info('ℹ️ [KEY_EXCHANGE] 鍵がありません。参加メンバーとして鍵の解決を試みます: $groupId');
+          _resetKeyWaitFuture(groupId);
           await service.resolveGroupKeyForMember(
               groupId: groupId, memberUid: currentUid!);
         }
         return;
+      }
+
+      final hasUsableOwnerKey =
+          await service.hasUsableGroupKey(groupId: groupId);
+      if (!hasUsableOwnerKey) {
+        Log.info(
+            '🔄 [KEY_EXCHANGE] オーナー自身の鍵状態が未確認のため、self-confirm を実行: $groupId');
+        _resetKeyWaitFuture(groupId);
+        await service.resolveGroupKeyForMember(
+          groupId: groupId,
+          memberUid: currentUid,
+        );
       }
 
       final memberUids = group.members
@@ -228,6 +260,15 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
           groupId: groupId,
           items: listItems,
           repository: repository,
+        );
+
+        // ローテーション完了後は、全アイテムの再暗号化を終えてから
+        // オーナー自身の鍵解決状況を confirmed に更新する。
+        // これを先に行うと、アイテムがまだ暗号化済みの状態で usable と見なされて
+        // しまい、UIが ciphertext のまま残る場合がある。
+        await service.resolveGroupKeyForMember(
+          groupId: groupId,
+          memberUid: ownerUid,
         );
       } else {
         Log.info('ℹ️ [KEY_EXCHANGE] グループ $groupId は鍵作成対象外（既存鍵あり）');
@@ -349,11 +390,19 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
     }
 
     _activeKeyWaitGroupId = groupId;
-    _keyWaitFuture = keyService.waitForUsableGroupKey(
+    _keyWaitFuture = keyService
+        .waitForUsableGroupKey(
       groupId: groupId,
       checkInterval: const Duration(seconds: 1),
       maxAttempts: 60,
-    );
+    )
+        .then((result) {
+      if (!result) {
+        _keyWaitFuture = null;
+        _activeKeyWaitGroupId = null;
+      }
+      return result;
+    });
   }
 
   @override
