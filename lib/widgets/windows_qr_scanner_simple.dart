@@ -39,18 +39,18 @@ class _WindowsQRScannerSimpleState extends State<WindowsQRScannerSimple> {
       Log.info('📁 画像ファイル選択開始...');
 
       // ファイル選択
-      final result = await FilePickerPlatform.instance.pickFiles(
+      final files = await FilePicker.pickFiles(
         type: FileType.image,
         allowMultiple: false,
       );
 
-      if (result == null || result.files.isEmpty) {
+      if (files.isEmpty) {
         Log.info('ℹ️ ファイル選択がキャンセルされました');
         setState(() => _isProcessing = false);
         return;
       }
 
-      final filePath = result.files.first.path;
+      final filePath = files.first.path;
       if (filePath == null) {
         Log.error('❌ ファイルパスが取得できません');
         setState(() {

@@ -57,7 +57,7 @@ android {
         }
         create("dev") {
             dimension = "default"
-            applicationId = "net.sumomo_planning.goshopping_dev"
+            applicationId = "net.sumomo_planning.goshopping.dev"
             versionNameSuffix = "-dev"
         }
     }

@@ -113,7 +113,13 @@ class _GroupMemberManagementPageState
               icon: const Icon(Icons.vpn_key),
               tooltip: '鍵を作り直す',
               onPressed: () async {
-                await _regenerateGroupKey(widget.group);
+                // メンバー漏れ防止のため、必ず最新のグループ情報（members）を取得してから実行する
+                final groups = ref.read(allGroupsProvider).valueOrNull ?? [];
+                final latestGroup = groups.firstWhere(
+                  (g) => g.groupId == widget.group.groupId,
+                  orElse: () => widget.group,
+                );
+                await _regenerateGroupKey(latestGroup);
               },
             ),
           IconButton(

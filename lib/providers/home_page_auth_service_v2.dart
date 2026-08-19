@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../utils/app_logger.dart';
 import '../helpers/ui_helper.dart';
 import '../l10n/l10n.dart';
@@ -135,11 +136,15 @@ class HomePageAuthService {
   }
 
   /// About Dialog表示
-  void showAppAboutDialog() {
+  Future<void> showAppAboutDialog() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+
+    if (!context.mounted) return;
+
     showAboutDialog(
       context: context,
       applicationName: 'Go Shop',
-      applicationVersion: '1.0.0',
+      applicationVersion: packageInfo.version,
       applicationIcon: Container(
         width: 64,
         height: 64,
@@ -165,7 +170,7 @@ class HomePageAuthService {
         const Text('開発者: 金ヶ江 真也 ファーティマ (Maya Fatima Kanagae)'),
         const Text('お問い合わせ: support@example.com'),
         const SizedBox(height: 16),
-        const Text('© 2024 Go Shop. All rights reserved.'),
+        Text('© ${DateTime.now().year} Go Shop. All rights reserved.'),
       ],
     );
   }
