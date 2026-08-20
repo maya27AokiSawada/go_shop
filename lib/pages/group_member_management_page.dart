@@ -208,8 +208,15 @@ class _GroupMemberManagementPageState
           const SizedBox(height: 8),
           // グループ名編集TextField
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text('${texts.groupName}: '),
+              Flexible(
+                child: Text(
+                  '${texts.groupName}: ',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
               Expanded(
                 child: TextField(
                   controller: _groupNameController,
@@ -225,9 +232,17 @@ class _GroupMemberManagementPageState
             ],
           ),
           const SizedBox(height: 8),
-          Text('${texts.groupMembers}: ${members.length}${texts.people}'),
+          Text(
+            '${texts.groupMembers}: ${members.length}${texts.people}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
           if (group.ownerName?.isNotEmpty == true)
-            Text('${texts.owner}: ${group.ownerName}'),
+            Text(
+              '${texts.owner}: ${group.ownerName}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
         ],
       ),
     );

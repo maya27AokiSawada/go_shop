@@ -124,9 +124,59 @@ final usable = status == 'confirmed' &&
 
 ---
 
+### 4. 小型画面向けメンバーリストのオーバーフロー修正 ✅
+
+**Purpose**: iPhone 17e など狭い幅の端末で、メンバー一覧のテキストが横幅を超えてレイアウトが崩れる問題を抑止する。
+
+**Problem / Root Cause**:
+
+```text
+ListTile の title / subtitle / trailing に、固定幅前提や非制限の Text が混在していた
+```
+
+- `Row` 内で長い名前や役割ラベルが収まらず、`TextOverflow` 未設定の状態でレイアウトが崩れていた
+- オーナー名やメンバー数表示もヘッダー側で制約がなく、狭い画面で横幅オーバーフローが発生していた
+
+**Solution**:
+
+```dart
+Text(
+  member.name,
+  maxLines: 1,
+  overflow: TextOverflow.ellipsis,
+)
+```
+
+- `lib/widgets/member_tile_with_whiteboard.dart` で名前・役割・トレイリングの横幅を制限
+- `lib/widgets/member_role_management_widget.dart` で連絡先・ロール表示の長文を省略表示化
+- `lib/pages/group_member_management_page.dart` でヘッダーのグループ名・メンバー数・オーナー名を `maxLines: 1` と `ellipsis` 対応に修正
+
+**検証結果**:
+
+| 対象 | 結果 |
+| --- | --- |
+| `flutter analyze` | 3ファイル対象、`No issues found!` |
+| 小型端末想定 | 文字幅オーバーフロー抑止済み |
+
+**Modified Files**:
+
+- `lib/widgets/member_tile_with_whiteboard.dart`
+- `lib/widgets/member_role_management_widget.dart`
+- `lib/pages/group_member_management_page.dart`
+
+**Status**: ✅ 完了・検証済み
+
+---
+
 ## 📝 ドキュメント更新
 
 | ドキュメント | 更新内容 |
 | --- | --- |
 | `instructions/20_groups_lists_items.md` | 鍵版数付き confirmed 判定と旧鍵ラップ回復の仕様を追加 |
-| `docs/daily_reports/2026-08/daily_report_20260820.md` | 本日の鍵回復・テスト整備・ビルド番号更新を記録 |
+| `docs/daily_reports/2026-08/daily_report_20260820.md` | 本日の鍵回復・テスト整備・狭小画面オーバーフロー修正・ビルド番号更新を記録 |
+| `README.md` | 更新なし（今回の修正は既存機能の不具合修正で、セットアップ手順変更はない） |
+
+### 追記メモ
+
+- 未整理の修正をまとめて1コミットに整理し、`origin/future` へ push する。
+- 追加の規約変更は発生していないため、指示書更新は実施していない。

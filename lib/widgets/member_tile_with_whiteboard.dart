@@ -81,7 +81,13 @@ class _MemberTileWithWhiteboardState
         ),
         title: Row(
           children: [
-            Text(member.name),
+            Expanded(
+              child: Text(
+                member.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
             if (isCurrentUser) ...[
               const SizedBox(width: 8),
               Container(
@@ -98,29 +104,37 @@ class _MemberTileWithWhiteboardState
             ],
           ],
         ),
-        subtitle: Text(_getRoleLabel(currentMember.role)),
+        subtitle: Text(
+          _getRoleLabel(currentMember.role),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         trailing: _isOpening
             ? const SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    isCurrentUser ? Icons.draw : Icons.visibility,
-                    size: 16,
-                    color: Colors.grey[600],
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    isCurrentUser
-                        ? texts.doubleTapToOpen
-                        : texts.doubleTapToView,
-                    style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-                  ),
-                ],
+            : FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isCurrentUser ? Icons.draw : Icons.visibility,
+                      size: 16,
+                      color: Colors.grey[600],
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      isCurrentUser
+                          ? texts.doubleTapToOpen
+                          : texts.doubleTapToView,
+                      style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
               ),
       ),
     );

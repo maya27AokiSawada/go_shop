@@ -93,13 +93,23 @@ class MemberRoleManagementWidget extends ConsumerWidget {
           size: 20,
         ),
       ),
-      title: Text(member.name),
+      title: Text(
+        member.name,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(member.contact),
+          Text(
+            member.contact,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
           Text(
             _getRoleDisplayName(member.role),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: _getRoleColor(member.role),
               fontSize: 12,
