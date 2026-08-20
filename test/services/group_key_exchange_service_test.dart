@@ -72,6 +72,68 @@ void main() {
     expect(persisted, isNotEmpty);
   });
 
+  test('rotation writes a recovery envelope for the current key version',
+      () async {
+    final mockFirestore = MockFirebaseFirestore();
+    final mockSharedGroupsCollection =
+        MockCollectionReference<Map<String, dynamic>>();
+    final mockGroupDoc = MockDocumentReference<Map<String, dynamic>>();
+    final mockGroupSnapshot = MockDocumentSnapshot<Map<String, dynamic>>();
+    final mockKeyExchangeCollection =
+        MockCollectionReference<Map<String, dynamic>>();
+    final mockKeyExchangeDoc = MockDocumentReference<Map<String, dynamic>>();
+    final mockRecoveryCollection =
+        MockCollectionReference<Map<String, dynamic>>();
+    final mockRecoveryDoc = MockDocumentReference<Map<String, dynamic>>();
+    final recoveryWrites = <Map<String, dynamic>>[];
+
+    when(mockFirestore.collection('SharedGroups'))
+        .thenReturn(mockSharedGroupsCollection);
+    when(mockSharedGroupsCollection.doc('group-a')).thenReturn(mockGroupDoc);
+    when(mockGroupDoc.get()).thenAnswer((_) async => mockGroupSnapshot);
+    when(mockGroupSnapshot.data()).thenReturn({
+      'activeKeyVersion': 4,
+      'keyReencryptionInProgress': false,
+      'keyRotationStatus': 'idle',
+    });
+    when(mockGroupDoc.collection('keyExchangeEvents'))
+        .thenReturn(mockKeyExchangeCollection);
+    when(mockKeyExchangeCollection.doc(any)).thenReturn(mockKeyExchangeDoc);
+    when(mockKeyExchangeDoc.set(any, any)).thenAnswer((_) async {});
+    when(mockGroupDoc.collection('keyRecoveryEnvelopes'))
+        .thenReturn(mockRecoveryCollection);
+    when(mockRecoveryCollection.doc('4-to-5')).thenReturn(mockRecoveryDoc);
+    when(mockRecoveryDoc.set(any)).thenAnswer((invocation) async {
+      recoveryWrites.add(
+        Map<String, dynamic>.from(invocation.positionalArguments[0]),
+      );
+    });
+    when(mockGroupDoc.set(any, any)).thenAnswer((_) async {});
+
+    final ownerService = GroupKeyExchangeService(
+      auth: auth_mocks.MockFirebaseAuth(
+        signedIn: true,
+        mockUser: auth_mocks.MockUser(uid: 'owner-a'),
+      ),
+      firestore: mockFirestore,
+    );
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+        'group_key_v1:group-a', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=');
+    await prefs.setInt('group_key_version_v1:group-a', 4);
+
+    await ownerService.rotateGroupKey(
+      groupId: 'group-a',
+      ownerUid: 'owner-a',
+      memberUids: ['owner-a', 'member-a'],
+    );
+
+    expect(recoveryWrites, hasLength(1));
+    expect(recoveryWrites.single['fromVersion'], 4);
+    expect(recoveryWrites.single['toVersion'], 5);
+    expect(recoveryWrites.single['encryptedGroupKey'], isNotEmpty);
+  });
+
   test('reencrypts shared item payloads when a group key exists', () async {
     final mockFirestore = MockFirebaseFirestore();
     final mockSharedGroupsCollection =

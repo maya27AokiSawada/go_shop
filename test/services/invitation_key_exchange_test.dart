@@ -1,8 +1,12 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
+import 'package:goshopping/services/group_key_encryption_service.dart';
 import 'package:goshopping/services/group_key_exchange_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -294,6 +298,108 @@ void main() {
     );
 
     expect(resolvedKey, isNull);
+  });
+
+  test('resolveGroupKeyForMember marks a confirmed stale exchange doc as stale',
+      () async {
+    final groupService = GroupKeyExchangeService(firestore: mockFirestore);
+    final staleExchangeDoc = MockDocumentReference<Map<String, dynamic>>();
+    final staleSnapshot = MockDocumentSnapshot<Map<String, dynamic>>();
+    final updates = <Map<String, dynamic>>[];
+
+    when(mockKeyExchangeCollection.doc(member1Uid))
+        .thenReturn(staleExchangeDoc);
+    when(staleExchangeDoc.get()).thenAnswer((_) async => staleSnapshot);
+    when(staleSnapshot.exists).thenReturn(true);
+    when(staleSnapshot.data()).thenReturn({
+      'encryptedGroupKey': 'stale-encrypted-key',
+      'keyVersion': 1,
+      'status': 'confirmed',
+      'confirmedKeyVersion': 1,
+    });
+    when(staleSnapshot.reference).thenReturn(staleExchangeDoc);
+    when(staleExchangeDoc.update(any)).thenAnswer((invocation) async {
+      updates.add(Map<String, dynamic>.from(invocation.positionalArguments[0]));
+    });
+
+    final groupSnapshot = MockDocumentSnapshot<Map<String, dynamic>>();
+    when(mockGroupDoc.get()).thenAnswer((_) async => groupSnapshot);
+    when(groupSnapshot.data()).thenReturn({'activeKeyVersion': 2});
+
+    final resolvedKey = await groupService.resolveGroupKeyForMember(
+      groupId: groupId,
+      memberUid: member1Uid,
+    );
+
+    expect(resolvedKey, isNull);
+    expect(updates, isNotEmpty);
+    expect(updates.last['status'], 'stale');
+    expect(updates.last['staleKeyVersion'], 1);
+    expect(updates.last['expectedKeyVersion'], 2);
+  });
+
+  test(
+      'resolveGroupKeyForMember recovers the active key from an old-key envelope',
+      () async {
+    final groupService = GroupKeyExchangeService(firestore: mockFirestore);
+    final staleExchangeDoc = MockDocumentReference<Map<String, dynamic>>();
+    final staleSnapshot = MockDocumentSnapshot<Map<String, dynamic>>();
+    final recoveryCollection = MockCollectionReference<Map<String, dynamic>>();
+    final recoveryDoc = MockDocumentReference<Map<String, dynamic>>();
+    final recoverySnapshot = MockDocumentSnapshot<Map<String, dynamic>>();
+    final updates = <Map<String, dynamic>>[];
+    final crypto = GroupKeyEncryptionService();
+    final oldKey = crypto.generateGroupKey();
+    final newKey = crypto.generateGroupKey();
+    final recoverySecret = base64.encode(
+      sha256.convert(utf8.encode('$groupId:2:3:$oldKey')).bytes,
+    );
+
+    when(mockGroupSnapshot.data()).thenReturn({'activeKeyVersion': 3});
+    when(mockKeyExchangeCollection.doc(member1Uid))
+        .thenReturn(staleExchangeDoc);
+    when(staleExchangeDoc.get()).thenAnswer((_) async => staleSnapshot);
+    when(staleSnapshot.exists).thenReturn(true);
+    when(staleSnapshot.data()).thenReturn({
+      'encryptedGroupKey': 'old-encrypted-key',
+      'keyVersion': 2,
+      'status': 'stale',
+    });
+    when(staleSnapshot.reference).thenReturn(staleExchangeDoc);
+    when(staleExchangeDoc.update(any)).thenAnswer((invocation) async {
+      updates.add(Map<String, dynamic>.from(invocation.positionalArguments[0]));
+    });
+    when(mockGroupDoc.collection('keyRecoveryEnvelopes'))
+        .thenReturn(recoveryCollection);
+    when(recoveryCollection.doc('2-to-3')).thenReturn(recoveryDoc);
+    when(recoveryDoc.get()).thenAnswer((_) async => recoverySnapshot);
+    when(recoverySnapshot.exists).thenReturn(true);
+    when(recoverySnapshot.data()).thenReturn({
+      'fromVersion': 2,
+      'toVersion': 3,
+      'encryptedGroupKey': crypto.encryptGroupKey(
+        groupKey: newKey,
+        recipientSecret: recoverySecret,
+      ),
+      'expiresAt': Timestamp.fromDate(
+        DateTime.now().add(const Duration(minutes: 5)),
+      ),
+    });
+
+    await SharedPreferences.getInstance().then((prefs) async {
+      await prefs.setString('group_key_v1:test-group-id', oldKey);
+      await prefs.setInt('group_key_version_v1:test-group-id', 2);
+    });
+
+    final recoveredKey = await groupService.resolveGroupKeyForMember(
+      groupId: groupId,
+      memberUid: member1Uid,
+    );
+
+    expect(recoveredKey, newKey);
+    expect(updates, isNotEmpty);
+    expect(updates.last['keyVersion'], 3);
+    expect(updates.last['confirmedKeyVersion'], 3);
   });
 
   test('a second invited member gets the same group key', () async {

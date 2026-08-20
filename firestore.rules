@@ -231,6 +231,18 @@ service cloud.firestore {
           get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid;
       }
 
+      // 鍵ローテーション時の短期回復用エンベロープ。
+      // 現在有効なメンバーだけが旧鍵で次世代鍵を復旧でき、書き込みはオーナーに限定する。
+      match /keyRecoveryEnvelopes/{envelopeId} {
+        allow read: if request.auth != null && (
+          get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.allowedUid
+        );
+
+        allow create, update, delete: if request.auth != null &&
+          get(/databases/$(database)/documents/SharedGroups/$(groupId)).data.ownerUid == request.auth.uid;
+      }
+
       // whiteboards サブコレクション（ホワイトボード機能）
       match /whiteboards/{whiteboardId} {
         // 読み取り：グループメンバーのみ

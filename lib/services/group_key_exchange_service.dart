@@ -67,18 +67,25 @@ class GroupKeyExchangeService {
       }
 
       final persistedKey = await getPersistedGroupKey(groupId: groupId);
-      final shouldCreate =
-          forceRefresh || persistedKey == null || persistedKey.isEmpty;
+      final distributionUids = {
+        ...memberUids.where((uid) => uid.isNotEmpty),
+        ownerUid,
+      }.toList();
+      if (forceRefresh && persistedKey != null && persistedKey.isNotEmpty) {
+        await rotateGroupKey(
+          groupId: groupId,
+          ownerUid: ownerUid,
+          memberUids: distributionUids,
+        );
+        return true;
+      }
+      final shouldCreate = persistedKey == null || persistedKey.isEmpty;
       if (!shouldCreate) {
         return false;
       }
 
       final groupKey = _crypto.generateGroupKey();
       await _persistGroupKeyLocally(groupId: groupId, groupKey: groupKey);
-      final distributionUids = {
-        ...memberUids.where((uid) => uid.isNotEmpty),
-        ownerUid,
-      }.toList();
       await rotateGroupKey(
         groupId: groupId,
         ownerUid: ownerUid,
@@ -142,6 +149,7 @@ class GroupKeyExchangeService {
         'encryptedGroupKey': encryptedGroupKey,
         'keyVersion': activeKeyVersion,
         'status': 'ready',
+        'confirmedKeyVersion': FieldValue.delete(),
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
@@ -195,7 +203,43 @@ class GroupKeyExchangeService {
         if (keyVersion < activeKeyVersion) {
           Log.warning(
               '⚠️ [KEY_EXCHANGE] 古い鍵世代を無視: groupId=$groupId, memberUid=$memberUid, docVersion=$keyVersion, activeVersion=$activeKeyVersion');
+          final recoveredGroupKey = await _recoverGroupKeyFromEnvelope(
+            groupId: groupId,
+            memberUid: memberUid,
+            fromVersion: keyVersion,
+            toVersion: activeKeyVersion,
+          );
+          if (recoveredGroupKey != null) {
+            await _persistGroupKeyLocally(
+              groupId: groupId,
+              groupKey: recoveredGroupKey,
+              version: activeKeyVersion,
+            );
+            final recipientSecret = _deriveRecipientSecret(
+              groupId: groupId,
+              memberUid: memberUid,
+            );
+            await exchangeDoc.reference.update({
+              'encryptedGroupKey': _crypto.encryptGroupKey(
+                groupKey: recoveredGroupKey,
+                recipientSecret: recipientSecret,
+              ),
+              'keyVersion': activeKeyVersion,
+              'status': 'confirmed',
+              'confirmedKeyVersion': activeKeyVersion,
+              'recoveredFromKeyVersion': keyVersion,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+            Log.info(
+                '✅ [KEY_EXCHANGE] 旧鍵ラップから現行鍵を復旧: groupId=$groupId, memberUid=$memberUid, fromVersion=$keyVersion, toVersion=$activeKeyVersion');
+            return recoveredGroupKey;
+          }
           await _clearPersistedGroupKey(groupId: groupId);
+          await _markKeyExchangeStale(
+            exchangeDoc: exchangeDoc,
+            keyVersion: keyVersion,
+            activeKeyVersion: activeKeyVersion,
+          );
           if (attempt < 4) {
             await Future.delayed(const Duration(milliseconds: 500));
             continue;
@@ -225,10 +269,44 @@ class GroupKeyExchangeService {
         await _persistGroupKeyLocally(
           groupId: groupId,
           groupKey: decryptedGroupKey,
-          version: activeKeyVersion,
+          version: keyVersion,
         );
+
+        final latestGroupDoc = await (_firestore ?? FirebaseFirestore.instance)
+            .collection('SharedGroups')
+            .doc(groupId)
+            .get();
+        final latestActiveKeyVersion =
+            (latestGroupDoc.data()?['activeKeyVersion'] as num?)?.toInt() ?? 1;
+        final latestExchangeDoc = await exchangeDoc.reference.get();
+        final latestKeyVersion =
+            (latestExchangeDoc.data()?['keyVersion'] as num?)?.toInt() ?? 1;
+        final latestEncryptedGroupKey =
+            latestExchangeDoc.data()?['encryptedGroupKey'] as String?;
+
+        if (latestActiveKeyVersion != keyVersion ||
+            latestKeyVersion != keyVersion ||
+            latestEncryptedGroupKey != encryptedGroupKey) {
+          Log.warning(
+              '⚠️ [KEY_EXCHANGE] 確認前に鍵世代が更新されたため再解決: groupId=$groupId, memberUid=$memberUid, resolvedVersion=$keyVersion, activeVersion=$latestActiveKeyVersion, docVersion=$latestKeyVersion');
+          await _clearPersistedGroupKey(groupId: groupId);
+          if (latestKeyVersion < latestActiveKeyVersion) {
+            await _markKeyExchangeStale(
+              exchangeDoc: latestExchangeDoc,
+              keyVersion: latestKeyVersion,
+              activeKeyVersion: latestActiveKeyVersion,
+            );
+          }
+          if (attempt < 4) {
+            await Future.delayed(const Duration(milliseconds: 500));
+            continue;
+          }
+          return null;
+        }
+
         await exchangeDoc.reference.update({
           'status': 'confirmed',
+          'confirmedKeyVersion': keyVersion,
           'updatedAt': FieldValue.serverTimestamp(),
         });
 
@@ -340,6 +418,9 @@ class GroupKeyExchangeService {
       final currentVersion =
           (groupDoc.data()?['activeKeyVersion'] as num?)?.toInt() ?? 1;
       final nextVersion = currentVersion + 1;
+      final previousGroupKey = await getPersistedGroupKey(groupId: groupId);
+      final previousLocalVersion =
+          await getPersistedGroupKeyVersion(groupId: groupId);
 
       final newGroupKey = _crypto.generateGroupKey();
       await _persistGroupKeyLocally(
@@ -347,6 +428,17 @@ class GroupKeyExchangeService {
         groupKey: newGroupKey,
         version: nextVersion,
       );
+      if (previousGroupKey != null &&
+          previousGroupKey.isNotEmpty &&
+          previousLocalVersion == currentVersion) {
+        await _createKeyRecoveryEnvelope(
+          groupId: groupId,
+          previousGroupKey: previousGroupKey,
+          newGroupKey: newGroupKey,
+          fromVersion: currentVersion,
+          toVersion: nextVersion,
+        );
+      }
       for (final memberUid in memberUids) {
         final recipientSecret = _deriveRecipientSecret(
           groupId: groupId,
@@ -369,6 +461,7 @@ class GroupKeyExchangeService {
           'encryptedGroupKey': encryptedGroupKey,
           'keyVersion': nextVersion,
           'status': 'ready',
+          'confirmedKeyVersion': FieldValue.delete(),
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
       }
@@ -439,16 +532,18 @@ class GroupKeyExchangeService {
           .doc(currentUid)
           .get();
       final docVersion = (doc.data()?['keyVersion'] as num?)?.toInt();
+      final confirmedVersion =
+          (doc.data()?['confirmedKeyVersion'] as num?)?.toInt();
       final remoteActiveVersion = inactiveRemoteVersion ?? docVersion ?? 1;
-      if (docVersion != null && docVersion < remoteActiveVersion) {
-        Log.warning(
-            '⚠️ [KEY_EXCHANGE] 古い keyVersion の confirmed を無効扱い: groupId=$groupId, memberUid=$currentUid, docVersion=$docVersion, activeVersion=$remoteActiveVersion');
-        await _clearPersistedGroupKey(groupId: groupId);
-        return false;
-      }
-
       final status = (doc.data()?['status'] as String?) ?? '';
-      if (status.isNotEmpty && status != 'confirmed') {
+      final isConfirmedForActiveVersion = docVersion != null &&
+          docVersion == remoteActiveVersion &&
+          confirmedVersion == remoteActiveVersion &&
+          status == 'confirmed';
+      if (!isConfirmedForActiveVersion) {
+        Log.warning(
+            '⚠️ [KEY_EXCHANGE] 現行世代で未確認の鍵を無効扱い: groupId=$groupId, memberUid=$currentUid, docVersion=$docVersion, confirmedVersion=$confirmedVersion, activeVersion=$remoteActiveVersion, status=$status');
+        await _clearPersistedGroupKey(groupId: groupId);
         return false;
       }
 
@@ -517,11 +612,15 @@ class GroupKeyExchangeService {
           .get();
       final docVersion =
           (exchangeDoc.data()?['keyVersion'] as num?)?.toInt() ?? 1;
+      final confirmedVersion =
+          (exchangeDoc.data()?['confirmedKeyVersion'] as num?)?.toInt();
       final status = (exchangeDoc.data()?['status'] as String?) ?? '';
-      if (status != 'confirmed') {
+      if (status != 'confirmed' ||
+          docVersion != activeVersion ||
+          confirmedVersion != activeVersion) {
         return true;
       }
-      return docVersion < activeVersion;
+      return false;
     } catch (_) {
       return false;
     }
@@ -597,6 +696,114 @@ class GroupKeyExchangeService {
     } catch (_) {
       return null;
     }
+  }
+
+  Future<void> _markKeyExchangeStale({
+    required DocumentSnapshot<Map<String, dynamic>> exchangeDoc,
+    required int keyVersion,
+    required int activeKeyVersion,
+  }) async {
+    try {
+      await exchangeDoc.reference.update({
+        'status': 'stale',
+        'confirmedKeyVersion': FieldValue.delete(),
+        'staleKeyVersion': keyVersion,
+        'expectedKeyVersion': activeKeyVersion,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      Log.warning('⚠️ [KEY_EXCHANGE] stale 状態の更新をスキップ: $e');
+    }
+  }
+
+  Future<void> _createKeyRecoveryEnvelope({
+    required String groupId,
+    required String previousGroupKey,
+    required String newGroupKey,
+    required int fromVersion,
+    required int toVersion,
+  }) async {
+    final envelopeSecret = _deriveRecoveryEnvelopeSecret(
+      groupId: groupId,
+      groupKey: previousGroupKey,
+      fromVersion: fromVersion,
+      toVersion: toVersion,
+    );
+    await (_firestore ?? FirebaseFirestore.instance)
+        .collection('SharedGroups')
+        .doc(groupId)
+        .collection('keyRecoveryEnvelopes')
+        .doc('$fromVersion-to-$toVersion')
+        .set({
+      'fromVersion': fromVersion,
+      'toVersion': toVersion,
+      'encryptedGroupKey': _crypto.encryptGroupKey(
+        groupKey: newGroupKey,
+        recipientSecret: envelopeSecret,
+      ),
+      'expiresAt': Timestamp.fromDate(
+        DateTime.now().add(const Duration(days: 1)),
+      ),
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<String?> _recoverGroupKeyFromEnvelope({
+    required String groupId,
+    required String memberUid,
+    required int fromVersion,
+    required int toVersion,
+  }) async {
+    final localKey = await getPersistedGroupKey(groupId: groupId);
+    final localVersion = await getPersistedGroupKeyVersion(groupId: groupId);
+    if (localKey == null || localKey.isEmpty || localVersion != fromVersion) {
+      return null;
+    }
+
+    try {
+      final envelope = await (_firestore ?? FirebaseFirestore.instance)
+          .collection('SharedGroups')
+          .doc(groupId)
+          .collection('keyRecoveryEnvelopes')
+          .doc('$fromVersion-to-$toVersion')
+          .get();
+      final data = envelope.data();
+      final expiresAt = data?['expiresAt'] as Timestamp?;
+      final encryptedGroupKey = data?['encryptedGroupKey'] as String?;
+      if (!envelope.exists ||
+          data?['fromVersion'] != fromVersion ||
+          data?['toVersion'] != toVersion ||
+          expiresAt == null ||
+          !expiresAt.toDate().isAfter(DateTime.now()) ||
+          encryptedGroupKey == null ||
+          encryptedGroupKey.isEmpty) {
+        return null;
+      }
+
+      return _crypto.decryptGroupKey(
+        encryptedGroupKey: encryptedGroupKey,
+        recipientSecret: _deriveRecoveryEnvelopeSecret(
+          groupId: groupId,
+          groupKey: localKey,
+          fromVersion: fromVersion,
+          toVersion: toVersion,
+        ),
+      );
+    } catch (e) {
+      Log.warning(
+          '⚠️ [KEY_EXCHANGE] 回復用鍵エンベロープの復号失敗: groupId=$groupId, memberUid=$memberUid, error=$e');
+      return null;
+    }
+  }
+
+  String _deriveRecoveryEnvelopeSecret({
+    required String groupId,
+    required String groupKey,
+    required int fromVersion,
+    required int toVersion,
+  }) {
+    final seed = '$groupId:$fromVersion:$toVersion:$groupKey';
+    return base64.encode(sha256.convert(utf8.encode(seed)).bytes);
   }
 
   Future<int?> _getGroupActiveKeyVersion({required String groupId}) async {
