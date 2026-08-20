@@ -104,7 +104,7 @@ void main() {
       expect(decoded.containsKey('groupName'), isFalse);
     });
 
-    test('必須フィールドが欠落している場合でもエラーにならず処理される', () {
+    test('必須フィールドが欠落している場合はエラーになる', () {
       // Arrange
       final service = QRInvitationService(
         mockRef,
@@ -118,16 +118,10 @@ void main() {
         'securityKey': 'test-security-key',
       };
 
-      // Act
-      final encodedData = service.encodeQRData(invitationData);
-
-      // Assert
-      expect(encodedData, isNotEmpty);
-
-      final decoded = jsonDecode(encodedData);
-      expect(decoded['invitationId'], equals('test-invitation-id'));
-      expect(decoded['sharedGroupId'], isNull);
-      expect(decoded['securityKey'], equals('test-security-key'));
+      expect(
+        () => service.encodeQRData(invitationData),
+        throwsA(isA<Exception>()),
+      );
     });
   });
 

@@ -336,8 +336,18 @@ SharedItem の `name` は、グループ鍵が存在する場合は **保存時�
 - さらに、鍵が変わっていなくても平文 `name` が残っていれば再暗号化を実行する
 - 再暗号化中は `keyReencryptionInProgress` / `keyRotationStatus=reencrypting` を更新し、完了時に解除する
 
+### 鍵ローテーション時のメンバー回復
+
+- 有効な鍵は `SharedGroups.activeKeyVersion`、各 `keyExchangeEvents/{memberUid}.keyVersion`、`confirmedKeyVersion` がすべて一致し、かつ `status == confirmed` の場合だけ利用可能とする
+- 現行版より古い交換イベントを検出したメンバーはローカル鍵を無効化し、`status: stale`、期待する版数を記録する
+- オーナーが現行鍵 `vN` を保持した状態で `vN+1` へローテーションする場合、`keyRecoveryEnvelopes/N-to-N+1` に次鍵を旧鍵でラップして保存する
+- 回復エンベロープは現時点で許可されているメンバーだけが読み取れ、期限は作成から24時間とする
+- メンバーはローカルに `vN` を持つ場合のみエンベロープを復号して `vN+1` を保存し、自身の交換イベントを現行版の `confirmed` に更新できる
+- エンベロープが存在しない、期限切れ、または旧鍵がない場合は、オーナーからの通常の再配布を待つ
+
 ### 禁止事項
 
 - UI 層でのみ暗号化し、Repository への保存時処理を省略する
 - 暗号化判定なしで毎回暗号化し、二重暗号化を発生させる
 - 再暗号化中フラグを更新せず、並行処理で整合性を崩す
+- `status: confirmed` だけで鍵を利用可能と判定する（確認済み版数とグループ現行版の一致確認を省略する）

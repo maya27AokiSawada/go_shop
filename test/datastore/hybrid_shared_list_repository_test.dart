@@ -29,6 +29,7 @@ import 'package:goshopping/datastore/hybrid_shared_list_repository.dart';
 import 'package:goshopping/datastore/hive_shared_list_repository.dart';
 import 'package:goshopping/datastore/firestore_shared_list_repository.dart';
 import 'package:goshopping/services/list_notification_batch_service.dart';
+import 'package:goshopping/services/group_key_exchange_service.dart';
 import 'package:goshopping/flavors.dart';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -484,8 +485,18 @@ class MockListNotificationBatchService extends Mock
       ) as Future<void>;
 }
 
+class _PlaintextGroupKeyExchangeService extends GroupKeyExchangeService {
+  @override
+  Future<String?> getPersistedGroupKey({required String groupId}) async => null;
+
+  @override
+  Future<bool> hasUsableGroupKey({required String groupId}) async => true;
+}
+
 class MockRef extends Fake implements Ref {
   final MockListNotificationBatchService _mockNotificationService;
+  final GroupKeyExchangeService _keyExchangeService =
+      _PlaintextGroupKeyExchangeService();
 
   MockRef(this._mockNotificationService);
 
@@ -499,6 +510,9 @@ class MockRef extends Fake implements Ref {
     // Handle listNotificationBatchServiceProvider reads
     if (provider == listNotificationBatchServiceProvider) {
       return _mockNotificationService as T;
+    }
+    if (provider == groupKeyExchangeServiceProvider) {
+      return _keyExchangeService as T;
     }
     throw UnimplementedError('MockRef.read called for $provider');
   }

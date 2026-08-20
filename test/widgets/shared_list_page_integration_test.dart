@@ -14,6 +14,7 @@ import 'package:goshopping/datastore/shared_list_repository.dart';
 import 'package:goshopping/models/shared_group.dart';
 import 'package:goshopping/models/shared_list.dart';
 import 'package:goshopping/pages/shared_list_page.dart';
+import 'package:goshopping/services/group_key_exchange_service.dart';
 import 'package:goshopping/l10n/l10n.dart';
 import 'package:goshopping/providers/current_list_provider.dart';
 import 'package:goshopping/providers/shared_group_provider.dart'; // selectedGroupIdProvider
@@ -225,6 +226,44 @@ class MockSharedGroupRepository implements SharedGroupRepository {
   Future<int> cleanupDeletedGroups() => throw UnimplementedError();
 }
 
+class _TestAllGroupsNotifier extends AllGroupsNotifier {
+  _TestAllGroupsNotifier() {
+    state = AsyncData([
+      createMockGroup('group_1', 'テストグループ'),
+    ]);
+  }
+}
+
+class _ReadyGroupKeyExchangeService extends GroupKeyExchangeService {
+  @override
+  Future<bool> waitForUsableGroupKey({
+    required String groupId,
+    Duration checkInterval = const Duration(seconds: 1),
+    int maxAttempts = 60,
+  }) async =>
+      true;
+
+  @override
+  Future<bool> hasUsableGroupKey({required String groupId}) async => true;
+
+  @override
+  Future<bool> shouldRefreshGroupKey({
+    required String groupId,
+    required String memberUid,
+  }) async =>
+      false;
+}
+
+List<Override> sharedListPageTestOverrides(
+    MockSharedListRepository repository) {
+  return [
+    sharedListRepositoryProvider.overrideWithValue(repository),
+    allGroupsProvider.overrideWith(() => _TestAllGroupsNotifier()),
+    groupKeyExchangeServiceProvider
+        .overrideWithValue(_ReadyGroupKeyExchangeService()),
+  ];
+}
+
 void main() {
   group('SharedListPage Integration Tests - Basic UI', () {
     testWidgets('✅ Page renders without crash with no list selected',
@@ -240,8 +279,7 @@ void main() {
           currentListProvider.overrideWith(
             (ref) => CurrentListNotifier(),
           ),
-          sharedListRepositoryProvider
-              .overrideWithValue(mockRepo), // 🔥 Mock Repository
+          ...sharedListPageTestOverrides(mockRepo),
         ],
       );
 
@@ -290,8 +328,7 @@ void main() {
               return notifier;
             },
           ),
-          sharedListRepositoryProvider
-              .overrideWithValue(mockRepo), // 🔥 Mock Repository
+          ...sharedListPageTestOverrides(mockRepo),
         ],
       );
 
@@ -356,8 +393,7 @@ void main() {
               return notifier;
             },
           ),
-          sharedListRepositoryProvider
-              .overrideWithValue(mockRepo), // 🔥 Mock Repository
+          ...sharedListPageTestOverrides(mockRepo),
           SharedGroupRepositoryProvider.overrideWithValue(
               mockGroupRepo), // 🔥 Mock Group Repository
         ],
@@ -414,8 +450,7 @@ void main() {
               return notifier;
             },
           ),
-          sharedListRepositoryProvider
-              .overrideWithValue(mockRepo), // 🔥 Mock Repository
+          ...sharedListPageTestOverrides(mockRepo),
         ],
       );
 
@@ -466,8 +501,7 @@ void main() {
               return notifier;
             },
           ),
-          sharedListRepositoryProvider
-              .overrideWithValue(mockRepo), // 🔥 Mock Repository
+          ...sharedListPageTestOverrides(mockRepo),
         ],
       );
 
@@ -554,8 +588,7 @@ void main() {
               return notifier;
             },
           ),
-          sharedListRepositoryProvider
-              .overrideWithValue(mockRepo), // 🔥 Mock Repository
+          ...sharedListPageTestOverrides(mockRepo),
           SharedGroupRepositoryProvider.overrideWithValue(
               mockGroupRepo), // 🔥 Mock Group Repository
         ],
@@ -625,8 +658,7 @@ void main() {
               return notifier;
             },
           ),
-          sharedListRepositoryProvider
-              .overrideWithValue(mockRepo), // 🔥 Mock Repository
+          ...sharedListPageTestOverrides(mockRepo),
           SharedGroupRepositoryProvider.overrideWithValue(
               mockGroupRepo), // 🔥 Mock Group Repository
         ],
@@ -690,8 +722,7 @@ void main() {
               return notifier;
             },
           ),
-          sharedListRepositoryProvider
-              .overrideWithValue(mockRepo), // 🔥 Mock Repository
+          ...sharedListPageTestOverrides(mockRepo),
           SharedGroupRepositoryProvider.overrideWithValue(
               mockGroupRepo), // 🔥 Mock Group Repository
         ],
