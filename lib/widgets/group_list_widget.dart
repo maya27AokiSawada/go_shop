@@ -19,6 +19,8 @@ import '../config/app_ui_mode_config.dart';
 import '../l10n/l10n.dart';
 import '../datastore/hive_shared_group_repository.dart';
 import '../datastore/hive_shared_list_repository.dart';
+import '../services/ad_service.dart'; // 🆕 HomeBannerAdWidget
+import '../providers/subscription_provider.dart'; // 🆕 shouldShowAdsProvider
 // 🔥 REMOVED: import 'initial_setup_widget.dart'; グループページ内にメッセージ表示に変更
 
 /// グループをリスト表示するウィジェット
@@ -200,11 +202,22 @@ class GroupListWidget extends ConsumerWidget {
       );
     }
 
+    // 🆕 Freeプランの場合、グループリストの下にバナー広告を表示
+    final shouldShowAds = ref.watch(shouldShowAdsProvider);
+
     return ListView.builder(
-      itemCount: groups.length,
+      itemCount: groups.length + (shouldShowAds ? 1 : 0), // 広告表示時は+1
       padding:
           const EdgeInsets.only(bottom: 80), // FloatingActionButtonの分の余白を追加
       itemBuilder: (context, index) {
+        // 最後のアイテムが広告の場合は広告ウィジェットを返す
+        if (shouldShowAds && index == groups.length) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: HomeBannerAdWidget(),
+          );
+        }
+
         return _buildGroupTile(
           context,
           ref,

@@ -227,6 +227,14 @@ class SelectedGroupNotifier extends AsyncNotifier<SharedGroup?> {
       return;
     }
 
+    final isPremium = ref.read(isPremiumActiveProvider);
+    final memberCount = currentGroup.members?.length ?? 0;
+    if (!isPremium && memberCount >= 10) {
+      const message = 'Free プランでは1グループのメンバーは10人までです。Premium にアップグレードしてください。';
+      Log.warning('⚠️ [ADD MEMBER] $message');
+      throw Exception(message);
+    }
+
     final repository = ref.read(SharedGroupRepositoryProvider);
 
     try {

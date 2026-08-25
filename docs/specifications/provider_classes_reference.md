@@ -426,9 +426,9 @@ if (groupLists.length == 1) {
 
 **依存プロバイダー**: subscriptionProvider
 
-**ロジック**: トライアル期間中または有料プラン有効期限内で`true`
+**ロジック**: 有効なPremiumプランで`true`。トライアルは提供しない。
 
-**使用場所**: HomePage, PremiumPage（機能制限チェック）
+**使用場所**: グループ作成・メンバー追加の上限チェック、Premiumへのモード切替、広告表示制御
 
 ---
 
@@ -713,9 +713,9 @@ Future<SharedGroup?> build() async {
 
 **依存プロバイダー**: subscriptionProvider
 
-**ロジック**: `!isPremiumActive`（プレミアム非アクティブなら広告表示）
+**ロジック**: ログイン済みかつ`!isPremiumActive`の場合に`true`
 
-**使用場所**: HomePage, NewsAndAdsPanelWidget（AdBannerWidget表示制御）
+**使用場所**: GroupListWidgetなどのバナー広告表示制御
 
 ---
 

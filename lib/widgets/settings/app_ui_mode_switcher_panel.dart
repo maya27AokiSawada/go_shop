@@ -167,6 +167,44 @@ class AppUIModeSwicherPanel extends ConsumerWidget {
         return;
       }
 
+      final groupsOverMemberLimit =
+          groups.where((group) => (group.members?.length ?? 0) > 10).toList();
+      if (groupsOverMemberLimit.isNotEmpty) {
+        if (!context.mounted) return;
+        final t = texts;
+        final groupDetails = groupsOverMemberLimit
+            .map((group) =>
+                '・${group.groupName}: ${group.members?.length ?? 0}人')
+            .join('\n');
+        await showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('⚠️ メンバー数が多すぎます'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Free プランは1グループにつき最大10人までです。'),
+                const SizedBox(height: 12),
+                Text(
+                  groupDetails,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                const Text('メンバーを10人以下にしてから切り替えてください。'),
+              ],
+            ),
+            actions: [
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(t.ok),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+
       // グループ数が 3 個以下：通常の Single 切り替えフロー
       final selectedGroupId = ref.read(selectedGroupIdProvider);
       if (selectedGroupId == null) {

@@ -14,6 +14,7 @@ import '../widgets/member_tile_with_whiteboard.dart';
 import '../widgets/group_creation_with_copy_dialog.dart';
 import '../services/group_key_exchange_service.dart';
 import '../providers/shared_list_provider.dart';
+import '../providers/subscription_provider.dart';
 import '../l10n/l10n.dart';
 
 /// グループのメンバー管理画面
@@ -683,6 +684,27 @@ class _GroupMemberManagementPageState
 
   void _addMember(SharedGroupMember member) async {
     try {
+      final isPremium = ref.read(isPremiumActiveProvider);
+      final groups = ref.read(allGroupsProvider).valueOrNull ?? [];
+      final currentGroup = groups
+              .where((group) => group.groupId == widget.group.groupId)
+              .firstOrNull ??
+          widget.group;
+      final memberCount = currentGroup.members?.length ?? 0;
+
+      if (!isPremium && memberCount >= 10) {
+        const message = 'Free プランでは1グループのメンバーは10人までです。Premium にアップグレードしてください。';
+        AppLogger.warning('⚠️ [MEMBER_MGMT] $message');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(message),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
       await ref.read(SharedGroupRepositoryProvider).addMember(
             widget.group.groupId,
             member,
