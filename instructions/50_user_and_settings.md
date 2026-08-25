@@ -203,15 +203,17 @@ deduplicatedGroups.sort((a, b) =>
 | enum 値                  | Firestore 値  | 広告制御                           | 価格               |
 | ------------------------ | ------------- | ---------------------------------- | ------------------ |
 | `PurchaseType.free`      | `'free'`      | バナー・インタースティシャルあり   | 無料               |
-| `PurchaseType.subscribe` | `'subscribe'` | **全広告非表示**                   | ¥200/3ヶ月         |
-| `PurchaseType.purchase`  | `'purchase'`  | **インタースティシャルのみ非表示** | ¥1,000（買い切り） |
+| `PurchaseType.subscribe` | `'subscribe'` | **全広告非表示**                   | Premium月額（日本: ¥200/月、その他: おおむねUS$2/月） |
+| `PurchaseType.purchase`  | `'purchase'`  | **インタースティシャルのみ非表示** | 旧買い切りプラン（新規販売なし） |
 
-### Google Play 商品ID
+### 有効なPremium商品ID
 
 | 商品ID                    | 種別     | 価格       |
 | ------------------------- | -------- | ---------- |
-| `goshopping_subscribe`    | 定期購読 | ¥200/3ヶ月 |
-| `goshopping_onetime_1000` | 非消費型 | ¥1,000     |
+| `goshopping_premium_monthly` | 自動更新サブスクリプション | ストアのローカル価格を表示。未取得時は日本語で¥200/月、その他でUS$2/月 |
+
+- `PurchaseService` は現在、上記の月額SKUだけを商品情報取得の対象にする。
+- `goshopping_subscribe`、`goshopping_onetime_1000`、`goshopping_premium_yearly` はレガシーまたは将来用の定義であり、新規購入UIには表示しない。
 
 ### Firestore スキーマ（`/users/{uid}`）
 
@@ -221,11 +223,13 @@ purchaseType: 'free' | 'subscribe' | 'purchase'  // 課金タイプ（デフォ�
 
 ### 課金フロー
 
-1. `PurchasePlanPanel` でユーザーが購入ボタンをタップ
-2. `PurchaseService.buySubscription()` / `buyOneTimePurchase()` → Google Play 購入UI表示
-3. 購入完了後 `_handlePurchase()` が `FirestoreUserNameService.savePurchaseType()` を呼ぶ
-4. `purchaseTypeProvider`（`StreamProvider`）が Firestore 変化を検知してUIを自動更新
-5. `AdService.shouldShowSignInAd()` / `shouldShowBannerAd()` が次回以降の広告表示を制御
+1. 認証済みユーザーの設定画面に `PurchasePlanPanel` を表示する。
+2. パネル初期化時に `PurchaseService.initialize()` を実行し、ストア利用可否と月額SKUの商品情報を取得する。
+3. 「Premiumを有効化」で `PurchaseService.buyPremiumMonthly()` が `PurchaseParam` を使ってストア購入UIを開く。購入開始だけではMultiモードへ切り替えない。
+4. 購入または復元の完了後、`_handlePurchase()` が `goshopping_premium_monthly` を `PurchaseType.subscribe` として `FirestoreUserNameService.savePurchaseType()` へ保存する。
+5. `purchaseTypeProvider`（`StreamProvider`）が Firestore 変化を検知してUIを自動更新する。
+6. `purchaseSyncProvider` がHiveの `SubscriptionState` へ反映し、`isPremiumActiveProvider`、Free/Premiumの上限、広告表示を更新する。
+7. 「購入を復元」は `PurchaseService.restorePurchases()` を実行する。
 
 ### 広告チェックの原則
 
@@ -244,4 +248,4 @@ purchaseType: 'free' | 'subscribe' | 'purchase'  // 課金タイプ（デフォ�
 ### セキュリティ注意事項
 
 - `purchaseType` の書き込みは **購入確認後のみ**行う（`PurchaseStatus.purchased` / `restored` のみ）
-- クライアントから `purchaseType: 'subscribe'` を任意に書き込めてしまうため、**本番では Cloud Functions でレシート検証**を行うことが推奨（現在は Google Play ストリームのみで判定）
+- クライアントから `purchaseType: 'subscribe'` を任意に書き込めてしまうため、**本番公開前に Cloud Functions等でGoogle Play / App Storeのレシート検証を実装すること**。現在は端末の購入ストリームを起点にした反映のみ。

@@ -5,7 +5,7 @@ Firebase Auth と Cloud Firestore を中心に、Hive をローカルキャッ�
 
 ## 現在の状態
 
-- 現在のアプリバージョンは `1.1.0+26` です。
+- 現在のアプリバージョンは `1.1.0+28` です。
 - 認証前提アプリです。主要機能はサインイン後に利用します。
 - データの正本は Firestore です。Hive はキャッシュおよびローカル保持に使います。
 - `Flavor.dev` と `Flavor.prod` はどちらも Firebase を使用します。
@@ -15,6 +15,8 @@ Firebase Auth と Cloud Firestore を中心に、Hive をローカルキャッ�
 - グループ共通鍵の生成・配布・ローテーションは、オーナー権限でのみ発火する設計に整理済みです。
 - QR 招待後の鍵交換、復号待ち再試行、Firestore Security Rules の整合性修正を反映済みです。
 - iOS / Firebase / Apple signing / flavor 設定の整合確認と運用整理を完了しています。
+- Freeプランは最大3グループ・各グループ最大10人、Premiumプランは上限なしです。
+- Premium月額は設定画面から有効化・購入復元できます。表示価格はストアのローカル価格を優先します。
 
 ## Firebase プロジェクト
 
@@ -33,6 +35,8 @@ Firebase Auth と Cloud Firestore を中心に、Hive をローカルキャッ�
 - アイテム名の暗号化と再暗号化状態管理
 - オーナー限定の鍵ローテーションとメンバー追加フロー
 - ホワイトボード共有機能
+- Freeプランのグループ一覧下に表示されるバナー広告と、Premiumの広告非表示
+- Premium月額サブスクリプション（設定画面から購入・復元）
 - オフライン時も Firestore SDK の永続化機能を活かした動作
 - Riverpod ベースの状態管理
 

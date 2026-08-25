@@ -21,6 +21,17 @@ await _hiveRepo.createGroup(...);
 
 ---
 
+## 1.1 Free / Premium プランのグループ制限
+
+| プラン | グループ数 | 1グループのメンバー数 |
+| ------ | ---------- | ---------------------- |
+| Free | 最大3個 | 最大10人 |
+| Premium | 上限なし | 上限なし |
+
+- グループ作成時は `AllGroupsNotifier.createNewGroup()` で `isPremiumActiveProvider` を確認し、Freeプランの4個目を拒否する。
+- メンバー追加時は、管理画面の直接リポジトリ呼び出しと `SelectedGroupNotifier.addMember()` の両方で上限を確認する。片方だけの検証では別経路から制限を回避できる。
+- PremiumからFreeへ切り替える前に、グループ数が3個以下であり、すべてのグループのメンバー数が10人以下であることを確認する。
+
 ## 2. ID 生成
 
 - グループ ID: `DeviceIdPrefix_timestamp`（例: `a3f8c9d2_1707835200000`）
