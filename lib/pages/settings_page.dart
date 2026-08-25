@@ -9,6 +9,7 @@ import '../widgets/settings/auth_status_panel.dart';
 import '../widgets/settings/firestore_sync_status_panel.dart';
 import '../widgets/settings/app_ui_mode_switcher_panel.dart';
 import '../widgets/settings/app_mode_switcher_panel.dart';
+import '../widgets/settings/purchase_plan_panel.dart';
 import '../widgets/settings/language_settings_panel.dart';
 import '../widgets/settings/whiteboard_settings_panel.dart';
 import '../widgets/settings/developer_tools_section.dart';
@@ -78,6 +79,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 const SizedBox(height: 20),
                 const AppUIModeSwicherPanel(),
                 const SizedBox(height: 20),
+                if (isAuthenticated) ...[
+                  const PurchasePlanPanel(),
+                  const SizedBox(height: 20),
+                ],
                 const AppModeSwitcherPanel(),
                 const SizedBox(height: 20),
                 const LanguageSettingsPanel(),

@@ -10,9 +10,9 @@ import '../../providers/shared_group_provider.dart';
 import '../../providers/current_list_provider.dart';
 import '../../providers/shared_list_provider.dart';
 import '../../providers/subscription_provider.dart'; // 🆕 Premium チェック用
+import '../../providers/purchase_type_provider.dart';
 import '../../datastore/user_settings_repository.dart';
 import '../../services/user_preferences_service.dart';
-import '../../services/purchase_service.dart'; // 🆕 課金処理
 import '../../utils/app_logger.dart';
 import '../../l10n/l10n.dart';
 
@@ -88,7 +88,7 @@ class AppUIModeSwicherPanel extends ConsumerWidget {
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('¥500/月で Premium に'),
+                child: const Text('Premiumを有効化'),
               ),
             ],
           ),
@@ -96,17 +96,23 @@ class AppUIModeSwicherPanel extends ConsumerWidget {
 
         if (confirmed != true) return;
 
-        // 🆕 課금フロー発火（PurchaseService）
+        // Premium購入フローを開始。購入完了後はpurchaseSyncProviderが状態を反映する。
         try {
           Log.info('💳 [MODE SWITCH] Premium 購入フローを開始');
-          // TODO: 実装時に PurchaseService.buyPremiumMonthly() を呼び出す
-          // 課金UI/ストア連携は別で実装
+          final purchaseService = ref.read(purchaseServiceProvider);
+          await purchaseService.initialize();
+          if (!purchaseService.isAvailable) {
+            throw Exception('ストアに接続できません');
+          }
+          await purchaseService.buyPremiumMonthly();
+          if (!context.mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('課金フローを開始します...'),
+              content: Text('ストアの購入画面でPremiumを有効化してください。'),
               duration: Duration(seconds: 2),
             ),
           );
+          return;
         } catch (e) {
           Log.error('❌ [MODE SWITCH] 課金エラー: $e');
           if (context.mounted) {

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show PlatformDispatcher;
 
 import 'package:in_app_purchase/in_app_purchase.dart';
 import '../models/purchase_type.dart';
@@ -19,11 +20,9 @@ class _ProductIds {
   /// Premium プラン年額（新規）
   static const String premiumYearly = 'goshopping_premium_yearly';
 
+  /// 現在ストアに登録済みのPremium月額SKUのみを取得する。
   static const Set<String> all = {
-    subscription,
-    oneTimePurchase,
     premiumMonthly,
-    premiumYearly
   };
 }
 
@@ -37,7 +36,7 @@ class _ProductIds {
 /// 5. [dispose] でリソース解放
 class PurchaseService {
   static const String _logTag = 'PurchaseService';
-  static const bool _monetizationEnabled = false;
+  static const bool _monetizationEnabled = true;
 
   final InAppPurchase _iap = InAppPurchase.instance;
   StreamSubscription<List<PurchaseDetails>>? _subscription;
@@ -64,7 +63,7 @@ class PurchaseService {
       }
 
       // 購入完了ストリームを購読
-      _subscription = _iap.purchaseStream.listen(
+      _subscription ??= _iap.purchaseStream.listen(
         _onPurchaseUpdated,
         onError: (Object error) {
           Log.error('[$_logTag] 購入ストリームエラー: $error');
@@ -131,7 +130,9 @@ class PurchaseService {
       }
 
       Log.info('[$_logTag] Premium Monthly の購入フローを開始');
-      await _iap.buyNonConsumable(productDetails: product);
+      await _iap.buyNonConsumable(
+        purchaseParam: PurchaseParam(productDetails: product),
+      );
     } catch (e) {
       Log.error('[$_logTag] buyPremiumMonthly エラー: $e');
     }
@@ -154,7 +155,9 @@ class PurchaseService {
       }
 
       Log.info('[$_logTag] Premium Yearly の購入フローを開始');
-      await _iap.buyNonConsumable(productDetails: product);
+      await _iap.buyNonConsumable(
+        purchaseParam: PurchaseParam(productDetails: product),
+      );
     } catch (e) {
       Log.error('[$_logTag] buyPremiumYearly エラー: $e');
     }
@@ -209,6 +212,7 @@ class PurchaseService {
   PurchaseType _purchaseTypeForProduct(String productId) {
     switch (productId) {
       case _ProductIds.subscription:
+      case _ProductIds.premiumMonthly:
         return PurchaseType.subscribe;
       case _ProductIds.oneTimePurchase:
         return PurchaseType.purchase;
@@ -228,6 +232,18 @@ class PurchaseService {
 
   String get oneTimePurchasePrice =>
       getPrice(_ProductIds.oneTimePurchase, '¥1,000');
+
+  String get premiumMonthlyPrice =>
+      getPrice(_ProductIds.premiumMonthly, _premiumMonthlyFallbackPrice);
+
+  String get _premiumMonthlyFallbackPrice {
+    switch (PlatformDispatcher.instance.locale.languageCode) {
+      case 'ja':
+        return '¥200/月';
+      default:
+        return 'US\$2/month';
+    }
+  }
 
   void dispose() {
     _subscription?.cancel();
