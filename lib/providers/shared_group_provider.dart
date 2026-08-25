@@ -21,6 +21,7 @@ import '../services/notification_service.dart';
 import '../services/network_monitor_service.dart';
 import 'auth_provider.dart';
 import 'user_specific_hive_provider.dart';
+import 'subscription_provider.dart'; // 🆕 Premium チェック用
 
 // Logger instance
 
@@ -698,6 +699,19 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
 
   Future<void> createNewGroup(String groupName) async {
     Log.info('🆕 [CREATE GROUP] createNewGroup: $groupName');
+
+    // 🆕 Premium チェック（Free プランは3個まで制限）
+    final isPremium = ref.read(isPremiumActiveProvider);
+    final currentGroups = state.value ?? [];
+
+    if (!isPremium && currentGroups.length >= 3) {
+      Log.error(
+        '❌ [CREATE GROUP] Free プランではグループは3個までです（現在: ${currentGroups.length}個）',
+      );
+      throw Exception(
+        'Free プランでは最大3グループまでです。Premium にアップグレードするか、既存のグループを削除してください。',
+      );
+    }
 
     // 🔒 Firebase認証チェック（本番環境のみ）
     User? currentUser;

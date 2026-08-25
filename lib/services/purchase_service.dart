@@ -7,13 +7,24 @@ import '../utils/app_logger.dart';
 
 /// Google Play 商品ID
 class _ProductIds {
-  /// サブスク：¥200 / 3ヶ月
+  /// サブスク：¥200 / 3ヶ月（レガシー）
   static const String subscription = 'goshopping_subscribe';
 
   /// 買い切り：¥1,000（非消費型）
   static const String oneTimePurchase = 'goshopping_onetime_1000';
 
-  static const Set<String> all = {subscription, oneTimePurchase};
+  /// Premium プラン月額（新規）
+  static const String premiumMonthly = 'goshopping_premium_monthly';
+
+  /// Premium プラン年額（新規）
+  static const String premiumYearly = 'goshopping_premium_yearly';
+
+  static const Set<String> all = {
+    subscription,
+    oneTimePurchase,
+    premiumMonthly,
+    premiumYearly
+  };
 }
 
 /// アプリ内課金サービス
@@ -102,9 +113,67 @@ class PurchaseService {
     Log.info('[$_logTag] 課金機能は無効化されているため購入を中止');
   }
 
-  /// 購入の復元（再インストール時など）
+  /// Premium プラン（月額）を購入
+  Future<void> buyPremiumMonthly() async {
+    if (!_monetizationEnabled) {
+      Log.warning('[$_logTag] 課金機能は無効化されているため Premium 購入を中止');
+      return;
+    }
+
+    try {
+      final product = _products
+          .where((p) => p.id == _ProductIds.premiumMonthly)
+          .firstOrNull;
+      if (product == null) {
+        Log.error(
+            '[$_logTag] Premium Monthly 商品が見つかりません（SKU: ${_ProductIds.premiumMonthly}）');
+        return;
+      }
+
+      Log.info('[$_logTag] Premium Monthly の購入フローを開始');
+      await _iap.buyNonConsumable(productDetails: product);
+    } catch (e) {
+      Log.error('[$_logTag] buyPremiumMonthly エラー: $e');
+    }
+  }
+
+  /// Premium プラン（年額）を購入
+  Future<void> buyPremiumYearly() async {
+    if (!_monetizationEnabled) {
+      Log.warning('[$_logTag] 課金機能は無効化されているため Premium 購入を中止');
+      return;
+    }
+
+    try {
+      final product =
+          _products.where((p) => p.id == _ProductIds.premiumYearly).firstOrNull;
+      if (product == null) {
+        Log.error(
+            '[$_logTag] Premium Yearly 商品が見つかりません（SKU: ${_ProductIds.premiumYearly}）');
+        return;
+      }
+
+      Log.info('[$_logTag] Premium Yearly の購入フローを開始');
+      await _iap.buyNonConsumable(productDetails: product);
+    } catch (e) {
+      Log.error('[$_logTag] buyPremiumYearly エラー: $e');
+    }
+  }
+
+  /// 🆕 購入の復元（再インストール時など）
   Future<void> restorePurchases() async {
-    Log.info('[$_logTag] 課金機能は無効化されているため復元をスキップ');
+    if (!_monetizationEnabled) {
+      Log.info('[$_logTag] 課金機能は無効化されているため復元をスキップ');
+      return;
+    }
+
+    try {
+      Log.info('[$_logTag] 購入履歴を復元中...');
+      await _iap.restorePurchases();
+      Log.info('[$_logTag] 購入履歴の復元が完了しました');
+    } catch (e) {
+      Log.error('[$_logTag] restorePurchases エラー: $e');
+    }
   }
 
   /// 購入ストリームのコールバック
