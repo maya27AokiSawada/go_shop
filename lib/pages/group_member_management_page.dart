@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../config/subscription_limits.dart';
 import '../models/shared_group.dart';
 import '../config/app_ui_mode_config.dart';
 import '../providers/app_ui_mode_provider.dart';
@@ -492,6 +493,7 @@ class _GroupMemberManagementPageState
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('再暗号化が完了するまで鍵ローテーションは実行できません'),
+            backgroundColor: Colors.red,
           ),
         );
         return;
@@ -685,6 +687,7 @@ class _GroupMemberManagementPageState
   void _addMember(SharedGroupMember member) async {
     try {
       final isPremium = ref.read(isPremiumActiveProvider);
+      final limits = SubscriptionLimits.forPremiumStatus(isPremium);
       final groups = ref.read(allGroupsProvider).valueOrNull ?? [];
       final currentGroup = groups
               .where((group) => group.groupId == widget.group.groupId)
@@ -692,12 +695,14 @@ class _GroupMemberManagementPageState
           widget.group;
       final memberCount = currentGroup.members?.length ?? 0;
 
-      if (!isPremium && memberCount >= 10) {
-        const message = 'Free プランでは1グループのメンバーは10人までです。Premium にアップグレードしてください。';
+      if (memberCount >= limits.maxMembersPerGroup) {
+        final message = isPremium
+            ? 'Premium プランでは1グループのメンバーは${limits.maxMembersPerGroup}人までです。'
+            : 'Free プランでは1グループのメンバーは${limits.maxMembersPerGroup}人までです。Premium にアップグレードしてください。';
         AppLogger.warning('⚠️ [MEMBER_MGMT] $message');
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(message),
             backgroundColor: Colors.orange,
           ),

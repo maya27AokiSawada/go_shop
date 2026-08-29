@@ -84,9 +84,27 @@ class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
           const SizedBox(height: 12),
           Text(
             isPremium
-                ? '広告なしで、グループ数とメンバー数の上限なく利用できます。'
-                : '広告なし、グループ数とメンバー数の上限なしで利用できます。',
+                ? '広告なしで、最大20グループ、1グループ50人まで利用できます。'
+                : '広告なし、最大20グループ、1グループ50人まで利用できます。',
             style: TextStyle(fontSize: 13, color: Colors.grey.shade800),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.business_outlined,
+                size: 16,
+                color: Colors.grey.shade700,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'グループ数・メンバー数の上限を緩和したBusinessプランを今後導入予定です。',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                ),
+              ),
+            ],
           ),
           if (!isPremium) ...[
             const SizedBox(height: 12),

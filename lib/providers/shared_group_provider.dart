@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/subscription_limits.dart';
 import '../utils/app_logger.dart';
 import '../models/shared_group.dart' hide SyncStatus;
 import '../models/shared_group.dart' as models show SyncStatus;
@@ -228,9 +229,12 @@ class SelectedGroupNotifier extends AsyncNotifier<SharedGroup?> {
     }
 
     final isPremium = ref.read(isPremiumActiveProvider);
+    final limits = SubscriptionLimits.forPremiumStatus(isPremium);
     final memberCount = currentGroup.members?.length ?? 0;
-    if (!isPremium && memberCount >= 10) {
-      const message = 'Free プランでは1グループのメンバーは10人までです。Premium にアップグレードしてください。';
+    if (memberCount >= limits.maxMembersPerGroup) {
+      final message = isPremium
+          ? 'Premium プランでは1グループのメンバーは${limits.maxMembersPerGroup}人までです。'
+          : 'Free プランでは1グループのメンバーは${limits.maxMembersPerGroup}人までです。Premium にアップグレードしてください。';
       Log.warning('⚠️ [ADD MEMBER] $message');
       throw Exception(message);
     }
@@ -708,16 +712,20 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
   Future<void> createNewGroup(String groupName) async {
     Log.info('🆕 [CREATE GROUP] createNewGroup: $groupName');
 
-    // 🆕 Premium チェック（Free プランは3個まで制限）
+    // プランごとのグループ数上限を確認
     final isPremium = ref.read(isPremiumActiveProvider);
+    final limits = SubscriptionLimits.forPremiumStatus(isPremium);
     final currentGroups = state.value ?? [];
 
-    if (!isPremium && currentGroups.length >= 3) {
+    if (currentGroups.length >= limits.maxGroups) {
+      final planName = isPremium ? 'Premium' : 'Free';
       Log.error(
-        '❌ [CREATE GROUP] Free プランではグループは3個までです（現在: ${currentGroups.length}個）',
+        '❌ [CREATE GROUP] $planName プランではグループは${limits.maxGroups}個までです（現在: ${currentGroups.length}個）',
       );
       throw Exception(
-        'Free プランでは最大3グループまでです。Premium にアップグレードするか、既存のグループを削除してください。',
+        isPremium
+            ? 'Premium プランでは最大${limits.maxGroups}グループまでです。既存のグループを削除してください。'
+            : 'Free プランでは最大${limits.maxGroups}グループまでです。Premium にアップグレードするか、既存のグループを削除してください。',
       );
     }
 
