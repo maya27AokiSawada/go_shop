@@ -4,7 +4,24 @@ import 'dart:ui' show PlatformDispatcher;
 import 'package:in_app_purchase/in_app_purchase.dart';
 import '../models/purchase_type.dart';
 import '../services/firestore_user_name_service.dart';
+import '../services/error_log_service.dart';
 import '../utils/app_logger.dart';
+
+enum PurchaseFlowStatus {
+  idle,
+  pending,
+  purchased,
+  restored,
+  canceled,
+  error,
+}
+
+class PurchaseFlowState {
+  final PurchaseFlowStatus status;
+  final String? message;
+
+  const PurchaseFlowState(this.status, {this.message});
+}
 
 /// Google Play 商品ID
 class _ProductIds {
@@ -40,15 +57,37 @@ class PurchaseService {
 
   final InAppPurchase _iap = InAppPurchase.instance;
   StreamSubscription<List<PurchaseDetails>>? _subscription;
+  Future<void>? _initializationFuture;
+  final StreamController<PurchaseFlowState> _statusController =
+      StreamController<PurchaseFlowState>.broadcast();
 
   List<ProductDetails> _products = [];
   bool _isAvailable = false;
+  PurchaseFlowState _currentState =
+      const PurchaseFlowState(PurchaseFlowStatus.idle);
 
   List<ProductDetails> get products => List.unmodifiable(_products);
   bool get isAvailable => _isAvailable;
+  PurchaseFlowState get currentState => _currentState;
+  Stream<PurchaseFlowState> get statusStream => _statusController.stream;
+
+  void _setStatus(PurchaseFlowStatus status, {String? message}) {
+    _currentState = PurchaseFlowState(status, message: message);
+    if (!_statusController.isClosed) {
+      _statusController.add(_currentState);
+    }
+  }
 
   /// ストリーム監視を開始し、ストアが利用可能か確認する
-  Future<void> initialize() async {
+  Future<void> initialize() {
+    return _initializationFuture ??= _initialize().whenComplete(() {
+      if (!_isAvailable) {
+        _initializationFuture = null;
+      }
+    });
+  }
+
+  Future<void> _initialize() async {
     if (!_monetizationEnabled) {
       Log.info('[$_logTag] 課金機能は無効化されているため初期化をスキップ');
       _isAvailable = false;
@@ -67,6 +106,10 @@ class PurchaseService {
         _onPurchaseUpdated,
         onError: (Object error) {
           Log.error('[$_logTag] 購入ストリームエラー: $error');
+          _setStatus(
+            PurchaseFlowStatus.error,
+            message: '購入状態の確認に失敗しました。時間をおいて再度お試しください。',
+          );
         },
         cancelOnError: false,
       );
@@ -126,15 +169,34 @@ class PurchaseService {
       if (product == null) {
         Log.error(
             '[$_logTag] Premium Monthly 商品が見つかりません（SKU: ${_ProductIds.premiumMonthly}）');
+        _setStatus(
+          PurchaseFlowStatus.error,
+          message: 'Premium商品を取得できませんでした。',
+        );
         return;
       }
 
       Log.info('[$_logTag] Premium Monthly の購入フローを開始');
-      await _iap.buyNonConsumable(
+      _setStatus(
+        PurchaseFlowStatus.pending,
+        message: 'ストアで購入手続きを進めています。',
+      );
+      final started = await _iap.buyNonConsumable(
         purchaseParam: PurchaseParam(productDetails: product),
       );
+      if (!started) {
+        _setStatus(
+          PurchaseFlowStatus.error,
+          message: '購入手続きを開始できませんでした。',
+        );
+      }
     } catch (e) {
       Log.error('[$_logTag] buyPremiumMonthly エラー: $e');
+      await ErrorLogService.logOperationError('Premium購入', '$e');
+      _setStatus(
+        PurchaseFlowStatus.error,
+        message: '購入手続きでエラーが発生しました。',
+      );
     }
   }
 
@@ -172,10 +234,25 @@ class PurchaseService {
 
     try {
       Log.info('[$_logTag] 購入履歴を復元中...');
+      _setStatus(
+        PurchaseFlowStatus.pending,
+        message: '購入履歴を確認しています。',
+      );
       await _iap.restorePurchases();
       Log.info('[$_logTag] 購入履歴の復元が完了しました');
+      if (_currentState.status == PurchaseFlowStatus.pending) {
+        _setStatus(
+          PurchaseFlowStatus.idle,
+          message: '購入履歴を確認しました。復元対象がある場合は自動的に反映されます。',
+        );
+      }
     } catch (e) {
       Log.error('[$_logTag] restorePurchases エラー: $e');
+      await ErrorLogService.logOperationError('購入の復元', '$e');
+      _setStatus(
+        PurchaseFlowStatus.error,
+        message: '購入履歴の復元に失敗しました。',
+      );
     }
   }
 
@@ -183,7 +260,16 @@ class PurchaseService {
   Future<void> _onPurchaseUpdated(
       List<PurchaseDetails> purchaseDetailsList) async {
     for (final purchase in purchaseDetailsList) {
-      await _handlePurchase(purchase);
+      try {
+        await _handlePurchase(purchase);
+      } catch (e, stackTrace) {
+        Log.error('[$_logTag] 購入更新処理エラー: $e', e, stackTrace);
+        await ErrorLogService.logOperationError('購入状態更新', '$e', stackTrace);
+        _setStatus(
+          PurchaseFlowStatus.error,
+          message: '購入状態を反映できませんでした。購入の復元をお試しください。',
+        );
+      }
     }
   }
 
@@ -191,34 +277,79 @@ class PurchaseService {
     Log.info(
         '[$_logTag] 購入更新: id=${purchase.productID}, status=${purchase.status}');
 
-    if (purchase.status == PurchaseStatus.purchased ||
-        purchase.status == PurchaseStatus.restored) {
-      // Firestore に課金タイプを保存
-      final type = _purchaseTypeForProduct(purchase.productID);
-      await FirestoreUserNameService.savePurchaseType(type);
-      Log.info('[$_logTag] 課金タイプ更新: ${type.firestoreValue}');
-    }
+    switch (purchase.status) {
+      case PurchaseStatus.pending:
+        _setStatus(
+          PurchaseFlowStatus.pending,
+          message: '購入処理を確認しています。',
+        );
+        return;
+      case PurchaseStatus.purchased:
+      case PurchaseStatus.restored:
+        if (!_isSupportedProduct(purchase.productID)) {
+          throw StateError('未対応の商品IDです: ${purchase.productID}');
+        }
 
-    if (purchase.status == PurchaseStatus.error) {
-      Log.error('[$_logTag] 購入エラー: ${purchase.error}');
-    }
+        // 権限を永続化できた場合だけストア側の購入を完了する。
+        final type = _purchaseTypeForProduct(purchase.productID);
+        await persistPurchaseType(type);
+        Log.info('[$_logTag] 課金タイプ更新: ${type.firestoreValue}');
 
-    // Android: 購入確定（consumeまたはacknowledge）
-    if (purchase.pendingCompletePurchase) {
-      await _iap.completePurchase(purchase);
+        if (purchase.pendingCompletePurchase) {
+          await _iap.completePurchase(purchase);
+        }
+
+        final restored = purchase.status == PurchaseStatus.restored;
+        _setStatus(
+          restored ? PurchaseFlowStatus.restored : PurchaseFlowStatus.purchased,
+          message: restored ? 'Premiumプランを復元しました。' : 'Premiumプランが有効になりました。',
+        );
+        return;
+      case PurchaseStatus.error:
+        final message = purchase.error?.message ?? '購入処理でエラーが発生しました。';
+        Log.error('[$_logTag] 購入エラー: ${purchase.error}');
+        await ErrorLogService.logOperationError('Premium購入', message);
+        _setStatus(PurchaseFlowStatus.error, message: message);
+        return;
+      case PurchaseStatus.canceled:
+        _setStatus(
+          PurchaseFlowStatus.canceled,
+          message: '購入はキャンセルされました。',
+        );
+        return;
     }
   }
 
+  bool _isSupportedProduct(String productId) {
+    return isSupportedProductId(productId);
+  }
+
+  static bool isSupportedProductId(String productId) {
+    return productId == _ProductIds.subscription ||
+        productId == _ProductIds.premiumMonthly ||
+        productId == _ProductIds.premiumYearly ||
+        productId == _ProductIds.oneTimePurchase;
+  }
+
   PurchaseType _purchaseTypeForProduct(String productId) {
+    return purchaseTypeForProductId(productId);
+  }
+
+  static PurchaseType purchaseTypeForProductId(String productId) {
     switch (productId) {
       case _ProductIds.subscription:
       case _ProductIds.premiumMonthly:
+      case _ProductIds.premiumYearly:
         return PurchaseType.subscribe;
       case _ProductIds.oneTimePurchase:
         return PurchaseType.purchase;
       default:
-        return PurchaseType.free;
+        throw ArgumentError.value(productId, 'productId', '未対応の商品IDです');
     }
+  }
+
+  Future<void> persistPurchaseType(PurchaseType type) {
+    return FirestoreUserNameService.savePurchaseType(type);
   }
 
   /// 商品の価格文字列を取得（商品が見つからない場合はデフォルト表示）
@@ -247,5 +378,8 @@ class PurchaseService {
 
   void dispose() {
     _subscription?.cancel();
+    _subscription = null;
+    _initializationFuture = null;
+    _statusController.close();
   }
 }

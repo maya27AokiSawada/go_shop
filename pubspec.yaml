@@ -108,6 +108,7 @@ dev_dependencies:
   lints: ^6.1.0
   custom_lint: ^0.6.4
   flutter_lints: ^6.0.0
+  in_app_purchase_platform_interface: 1.4.1
 
 dependency_overrides:
   flutter_plugin_android_lifecycle: ^2.0.34

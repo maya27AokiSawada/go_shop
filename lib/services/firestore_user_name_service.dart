@@ -301,7 +301,9 @@ class FirestoreUserNameService {
   static Future<void> savePurchaseType(PurchaseType type) async {
     try {
       final user = _auth.currentUser;
-      if (user == null) return;
+      if (user == null) {
+        throw StateError('課金タイプを保存するにはサインインが必要です');
+      }
 
       await _firestore.collection('users').doc(user.uid).set(
         {
@@ -317,6 +319,7 @@ class FirestoreUserNameService {
     } catch (e) {
       Log.error('❌ 課金タイプ保存エラー: $e');
       await ErrorLogService.logOperationError('課金タイプ保存', '$e');
+      rethrow;
     }
   }
 

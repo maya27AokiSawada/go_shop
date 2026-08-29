@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -20,6 +22,7 @@ import '../providers/user_settings_provider.dart';
 import '../providers/shared_group_provider.dart'; // forceSyncProvider
 import '../providers/hive_provider.dart';
 import '../providers/purchase_sync_provider.dart';
+import '../providers/purchase_type_provider.dart';
 import '../l10n/app_localizations.dart';
 
 /// アプリ初期化を管理するウィジェット
@@ -57,9 +60,6 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
   bool _isInitializing = false;
   AppInitStatus _initializationStatus = AppInitStatus.preparingApp;
 
-  // アプリセッション内でリストアを1回だけ実行するフラグ
-  static bool _purchaseRestoreExecuted = false;
-
   @override
   void initState() {
     super.initState();
@@ -76,6 +76,10 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
       _startAuthListener();
     } else {
       Log.info('⚠️ [APP_INIT] Skipping auth listener (not prod/dev flavor)');
+    }
+
+    if (Platform.isAndroid || Platform.isIOS) {
+      unawaited(ref.read(purchaseServiceProvider).initialize());
     }
   }
 
@@ -272,14 +276,6 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
         } catch (e) {
           Log.warning('⚠️ [APP_INIT] 通知チェックエラー（続行）: $e');
         }
-      }
-
-      // 課金状態は purchaseSyncProvider（Firestoreリアルタイム同期）および設定画面の手動復元で管理
-      if (!_purchaseRestoreExecuted &&
-          Platform.isAndroid &&
-          currentUser != null) {
-        _purchaseRestoreExecuted = true;
-        Log.info('ℹ️ [APP_INIT] 課金状態はFirestoreリアルタイム同期および手動復元で管理');
       }
 
       // AdMob SDK 初期化（Android/iOSのみ）

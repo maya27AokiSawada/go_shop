@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/purchase_type_provider.dart';
 import '../../providers/subscription_provider.dart';
+import '../../services/purchase_service.dart';
 
 /// Premium月額プランの購入・復元を行う設定パネル。
 class PurchasePlanPanel extends ConsumerStatefulWidget {
@@ -14,37 +17,50 @@ class PurchasePlanPanel extends ConsumerStatefulWidget {
 class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
   bool _isLoading = true;
   bool _isStoreAvailable = false;
+  late final PurchaseService _purchaseService;
+  late PurchaseFlowState _purchaseState;
+  StreamSubscription<PurchaseFlowState>? _statusSubscription;
 
   @override
   void initState() {
     super.initState();
+    _purchaseService = ref.read(purchaseServiceProvider);
+    _purchaseState = _purchaseService.currentState;
+    _statusSubscription = _purchaseService.statusStream.listen((state) {
+      if (!mounted) return;
+      setState(() => _purchaseState = state);
+    });
     _initializePurchaseService();
   }
 
+  @override
+  void dispose() {
+    _statusSubscription?.cancel();
+    super.dispose();
+  }
+
   Future<void> _initializePurchaseService() async {
-    final service = ref.read(purchaseServiceProvider);
-    await service.initialize();
+    await _purchaseService.initialize();
     if (!mounted) return;
     setState(() {
-      _isStoreAvailable = service.isAvailable;
+      _isStoreAvailable = _purchaseService.isAvailable;
       _isLoading = false;
     });
   }
 
   Future<void> _startPurchase() async {
-    final service = ref.read(purchaseServiceProvider);
-    await service.buyPremiumMonthly();
+    await _purchaseService.buyPremiumMonthly();
   }
 
   Future<void> _restorePurchases() async {
-    final service = ref.read(purchaseServiceProvider);
-    await service.restorePurchases();
+    await _purchaseService.restorePurchases();
   }
 
   @override
   Widget build(BuildContext context) {
     final isPremium = ref.watch(isPremiumActiveProvider);
-    final service = ref.read(purchaseServiceProvider);
+    final isPurchasePending =
+      _purchaseState.status == PurchaseFlowStatus.pending;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -109,16 +125,21 @@ class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
           if (!isPremium) ...[
             const SizedBox(height: 12),
             FilledButton.icon(
-              onPressed:
-                  _isLoading || !_isStoreAvailable ? null : _startPurchase,
-              icon: _isLoading
+              onPressed: _isLoading || !_isStoreAvailable || isPurchasePending
+                ? null
+                : _startPurchase,
+              icon: _isLoading || isPurchasePending
                   ? const SizedBox(
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.workspace_premium),
-              label: Text('Premiumを有効化 (${service.premiumMonthlyPrice})'),
+              label: Text(
+                isPurchasePending
+                    ? '処理中'
+                    : 'Premiumを有効化 (${_purchaseService.premiumMonthlyPrice})',
+              ),
             ),
             if (!_isLoading && !_isStoreAvailable) ...[
               const SizedBox(height: 8),
@@ -128,10 +149,26 @@ class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
               ),
             ],
           ],
+            if (_purchaseState.message != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _purchaseState.message!,
+              style: TextStyle(
+                fontSize: 12,
+                color: _purchaseState.status == PurchaseFlowStatus.error
+                    ? Colors.red.shade700
+                    : _purchaseState.status == PurchaseFlowStatus.purchased ||
+                            _purchaseState.status == PurchaseFlowStatus.restored
+                        ? Colors.green.shade700
+                        : Colors.grey.shade700,
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           TextButton.icon(
-            onPressed:
-                _isLoading || !_isStoreAvailable ? null : _restorePurchases,
+            onPressed: _isLoading || !_isStoreAvailable || isPurchasePending
+                ? null
+                : _restorePurchases,
             icon: const Icon(Icons.restore, size: 18),
             label: const Text('購入を復元'),
           ),

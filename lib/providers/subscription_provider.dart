@@ -8,6 +8,8 @@ enum SubscriptionPlan {
   free, // 無料プラン（広告あり）
   yearly, // 年間プラン（500円）
   threeYear, // 3年プラン（800円）
+  monthly, // Premium月額プラン
+  legacyPurchase, // 旧買い切りプラン
 }
 
 /// 課金状態
@@ -69,6 +71,10 @@ class SubscriptionState {
         return '年間プラン（¥500）';
       case SubscriptionPlan.threeYear:
         return '3年プラン（¥800）';
+      case SubscriptionPlan.monthly:
+        return 'Premiumプラン（月額）';
+      case SubscriptionPlan.legacyPurchase:
+        return '買い切り（旧プラン）';
     }
   }
 
@@ -81,6 +87,10 @@ class SubscriptionState {
         return 500;
       case SubscriptionPlan.threeYear:
         return 800;
+      case SubscriptionPlan.monthly:
+        return 200;
+      case SubscriptionPlan.legacyPurchase:
+        return 0;
     }
   }
 
@@ -230,17 +240,18 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
   ///
   /// Firestore `purchaseType` が `subscribe` または `purchase` の場合に、
   /// Hive の SubscriptionState をプレミアム相当に更新する。
-  /// 有効期限は購入日から1年（サブスクの場合は定期更新されるため実質的なガード）。
+  /// 月額サブスクは35日間のオフライン猶予を持たせ、Firestoreから有料状態を
+  /// 受信するたびに更新する。旧買い切りは実質無期限として扱う。
   Future<void> syncFromGooglePlay(PurchaseType purchaseType) async {
     final now = DateTime.now();
-    // サブスクは1年の有効期限（Google Playが管理するため長めに設定）
-    // 買い切りは実質無期限（10年）
     final expiryDuration = purchaseType == PurchaseType.subscribe
-        ? const Duration(days: 365)
-        : const Duration(days: 365 * 10);
+        ? const Duration(days: 35)
+        : const Duration(days: 365 * 100);
 
     state = state.copyWith(
-      plan: SubscriptionPlan.yearly, // どちらのプランもpremium相当
+      plan: purchaseType == PurchaseType.subscribe
+          ? SubscriptionPlan.monthly
+          : SubscriptionPlan.legacyPurchase,
       purchaseDate: now,
       expiryDate: now.add(expiryDuration),
       isTrialActive: false,

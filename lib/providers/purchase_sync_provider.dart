@@ -4,6 +4,10 @@ import '../models/purchase_type.dart';
 import 'purchase_type_provider.dart';
 import 'subscription_provider.dart';
 
+bool shouldResetSubscriptionToFree(SubscriptionState currentState) {
+  return !currentState.isTrialActive || currentState.remainingTrialDays == 0;
+}
+
 /// Firestore課金状態（purchaseTypeProvider）をHive課金状態（subscriptionProvider）に橋渡しするProvider
 ///
 /// このProviderをwatch/listenすることで、Google Play課金の結果が
@@ -21,15 +25,15 @@ final purchaseSyncProvider = Provider<void>((ref) {
     switch (purchaseType) {
       case PurchaseType.subscribe:
       case PurchaseType.purchase:
-        // Google Playで有料購入済み → Hiveをプレミアム状態に同期
-        // すでにプレミアムならスキップ（無駄な書き込み防止）
-        if (!currentState.isPremiumActive) {
-          notifier.syncFromGooglePlay(purchaseType);
-        }
+        // Firestoreの更新ごとにローカル猶予期限も更新する。
+        notifier.syncFromGooglePlay(purchaseType);
         break;
       case PurchaseType.free:
-        // Firestoreがfreeの場合、試用期間が有効なら何もしない
-        // （試用期間はFirestoreに依存せずHiveで管理するため）
+        // Firestoreの失効・解約反映をHiveにも適用する。
+        // 有効な無料体験だけはFirestoreのpurchaseTypeに依存しないため維持する。
+        if (shouldResetSubscriptionToFree(currentState)) {
+          notifier.resetToFree();
+        }
         break;
     }
   });

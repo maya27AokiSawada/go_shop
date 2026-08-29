@@ -223,13 +223,20 @@ purchaseType: 'free' | 'subscribe' | 'purchase'  // 課金タイプ（デフォ�
 
 ### 課金フロー
 
-1. 認証済みユーザーの設定画面に `PurchasePlanPanel` を表示する。
-2. パネル初期化時に `PurchaseService.initialize()` を実行し、ストア利用可否と月額SKUの商品情報を取得する。
+1. Android / iOSではアプリ起動直後に `PurchaseService.initialize()` を実行し、購入ストリームを購読する。設定画面を開くまで購読を遅延させない。
+2. 認証済みユーザーの設定画面に `PurchasePlanPanel` を表示し、ストア利用可否と月額SKUの商品情報を反映する。
 3. 「Premiumを有効化」で `PurchaseService.buyPremiumMonthly()` が `PurchaseParam` を使ってストア購入UIを開く。購入開始だけではMultiモードへ切り替えない。
-4. 購入または復元の完了後、`_handlePurchase()` が `goshopping_premium_monthly` を `PurchaseType.subscribe` として `FirestoreUserNameService.savePurchaseType()` へ保存する。
+4. 購入または復元の完了後、`_handlePurchase()` が `goshopping_premium_monthly` を `PurchaseType.subscribe` として `FirestoreUserNameService.savePurchaseType()` へ保存する。保存に成功した場合だけ `completePurchase()` を呼ぶ。
 5. `purchaseTypeProvider`（`StreamProvider`）が Firestore 変化を検知してUIを自動更新する。
-6. `purchaseSyncProvider` がHiveの `SubscriptionState` へ反映し、`isPremiumActiveProvider`、Free/Premiumの上限、広告表示を更新する。
+6. `purchaseSyncProvider` がHiveの `SubscriptionState` へ反映し、`isPremiumActiveProvider`、Free/Premiumの上限、広告表示を更新する。Firestoreの明示的な `free` は、有効な無料体験中を除いてローカルにも即時反映する。
 7. 「購入を復元」は `PurchaseService.restorePurchases()` を実行する。
+
+### クライアント側の課金状態管理
+
+- Firestoreの `purchaseType` を課金権限の正とし、SharedPreferencesのキャッシュで明示的な `free` を上書きしない。
+- 認証状態の変更時は `purchaseTypeProvider` が購読対象ユーザーを切り替える。
+- 月額PremiumはHiveに35日間のオフライン猶予として保存し、Firestoreから有料状態を受信するたびに期限を更新する。
+- 購入UIは `pending` / `purchased` / `restored` / `canceled` / `error` を表示し、処理中の多重操作を禁止する。
 
 ### 広告チェックの原則
 
@@ -248,4 +255,5 @@ purchaseType: 'free' | 'subscribe' | 'purchase'  // 課金タイプ（デフォ�
 ### セキュリティ注意事項
 
 - `purchaseType` の書き込みは **購入確認後のみ**行う（`PurchaseStatus.purchased` / `restored` のみ）
-- クライアントから `purchaseType: 'subscribe'` を任意に書き込めてしまうため、**本番公開前に Cloud Functions等でGoogle Play / App Storeのレシート検証を実装すること**。現在は端末の購入ストリームを起点にした反映のみ。
+- クライアントから `purchaseType: 'subscribe'` を任意に書き込めてしまうため、**本番公開前にCloud Functions等でGoogle Play / App Storeのレシート検証を実装すること**。実装後はクライアントからの `purchaseType` 更新をSecurity Rulesで禁止する。
+- Functions側では初回検証だけでなく、Google Play RTDN / App Store Server Notificationsによる更新、解約、返金、猶予期間、保留、失効の反映も行う。

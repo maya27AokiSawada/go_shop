@@ -26,7 +26,7 @@ class UserPreferencesService {
   static const String _keyLanguageCode =
       'language_code'; // 'ja' / 'en' / 'pt' / 'zh'
 
-  // 課金タイプキャッシュ（Firestoreデータロスト時のフォールバック用）
+  // 課金タイプキャッシュ（最終確認値の記録用）
   static const String _keyPurchaseTypeCache = 'purchase_type_cache';
   static const String _keyPurchaseTypeCacheTimestamp =
       'purchase_type_cache_timestamp';
@@ -515,11 +515,11 @@ class UserPreferencesService {
         false;
   }
 
-  // ==================== 課金タイプキャッシュ（Firestoreロスト対策） ====================
+  // ==================== 課金タイプキャッシュ（最終確認値） ====================
 
   /// 課金タイプをローカルにキャッシュ保存
   ///
-  /// Firestoreデータがロストした場合のフォールバック用。
+  /// 診断・復旧時に参照する最終確認値。権限判定ではFirestoreを正とする。
   /// [value] は `'free'` / `'subscribe'` / `'purchase'` のいずれか。
   static Future<void> savePurchaseTypeCache(String value) async {
     await ErrorHandler.handleAsync(

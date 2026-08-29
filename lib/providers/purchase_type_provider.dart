@@ -1,40 +1,32 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/purchase_type.dart';
+import 'auth_provider.dart';
 import '../services/firestore_user_name_service.dart';
 import '../services/purchase_service.dart';
 import '../services/user_preferences_service.dart';
 
 /// 課金タイプを Firestore からリアルタイム監視するプロバイダー
 ///
-/// Firestoreデータがロスト（null or 'free'）した場合は、
-/// ローカルキャッシュ（SharedPreferences）の値でフォールバックする。
+/// Firestoreを課金権限の正として扱う。ローカルキャッシュは最終確認値の記録用で、
+/// Firestoreが明示した`free`を上書きする権限判定には使用しない。
 final purchaseTypeProvider = StreamProvider<PurchaseType>((ref) {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) return Stream.value(PurchaseType.free);
+  final authState = ref.watch(authStateProvider);
 
-  return FirestoreUserNameService.watchPurchaseType()
-      .asyncMap((firestoreType) async {
-    // Firestoreが有料状態を返している場合はそのまま使用し、キャッシュを更新
-    if (firestoreType != PurchaseType.free) {
-      await UserPreferencesService.savePurchaseTypeCache(
-          firestoreType.firestoreValue);
-      return firestoreType;
-    }
+  return authState.when(
+    loading: () => const Stream<PurchaseType>.empty(),
+    error: (_, __) => const Stream<PurchaseType>.empty(),
+    data: (user) {
+      if (user == null) return Stream.value(PurchaseType.free);
 
-    // Firestoreがfreeを返した場合はローカルキャッシュを確認
-    final cached = await UserPreferencesService.loadPurchaseTypeCache();
-    if (cached != null && cached != 'free') {
-      final cachedType = PurchaseTypeExt.fromFirestoreValue(cached);
-      if (cachedType != PurchaseType.free) {
-        // キャッシュに有料状態が残っている → Firestoreロストの可能性
-        // キャッシュ値を返してプレミアム機能を維持する
-        return cachedType;
-      }
-    }
-
-    return PurchaseType.free;
-  });
+      return FirestoreUserNameService.watchPurchaseType()
+          .asyncMap((firestoreType) async {
+        await UserPreferencesService.savePurchaseTypeCache(
+          firestoreType.firestoreValue,
+        );
+        return firestoreType;
+      });
+    },
+  );
 });
 
 /// PurchaseService のシングルトンプロバイダー
