@@ -112,7 +112,7 @@ batch2.update(group.reference, {
 
 - モード判定は `ref.watch(appUIModeProvider) == AppUIMode.single` を使う
 - `isSingle` が true のとき、グループ追加 FAB・リストDropdown・add/deleteボタンを非表示にする
-- single → multi 変更はプレミアム機能（`isPremiumActiveProvider` でゲート）
+- single → multi 変更は Free / Premium 共通で利用可能。Free プランのグループ数・メンバー数上限は各操作側で適用する
 - multi → single 変更は確認ダイアログを必ず表示する
 - **Hive に新フィールドを追加したら `UserSettingsAdapterOverride` の `read()` と `write()` を必ず更新する**（null安全のため `(fields[N] as Type?) ?? defaultValue` パターンを使う）
 - **新規ユーザーのデフォルトは `appUIMode: 0`（シングルモード）**。`firestore_user_name_service.dart` の `saveUserName()` で新規ドキュメント作成時に `appUIMode: 0` を明示設定すること。SharedPreferences に前ユーザーの stale な値（`1` = multi）が残っていても上書きされる。

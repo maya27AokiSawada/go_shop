@@ -274,12 +274,12 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
         }
       }
 
-      // 課金機能は無効化されているため、Google Play購入の自動リストアは実行しない
+      // 課金状態は purchaseSyncProvider（Firestoreリアルタイム同期）および設定画面の手動復元で管理
       if (!_purchaseRestoreExecuted &&
           Platform.isAndroid &&
           currentUser != null) {
         _purchaseRestoreExecuted = true;
-        Log.info('ℹ️ [APP_INIT] 課金機能無効化のためGoogle Play購入リストアをスキップ');
+        Log.info('ℹ️ [APP_INIT] 課金状態はFirestoreリアルタイム同期および手動復元で管理');
       }
 
       // AdMob SDK 初期化（Android/iOSのみ）

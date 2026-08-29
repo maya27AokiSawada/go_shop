@@ -3,10 +3,10 @@ enum PurchaseType {
   /// 無料（広告あり）
   free,
 
-  /// サブスク：¥100/2ヶ月（全広告非表示）
+  /// Premiumプラン（月額）（全広告非表示）
   subscribe,
 
-  /// 買い切り：¥1,000（インタースティシャル広告のみ非表示）
+  /// 買い切り：旧プラン（インタースティシャル広告のみ非表示）
   purchase,
 }
 
@@ -29,9 +29,9 @@ extension PurchaseTypeExt on PurchaseType {
       case PurchaseType.free:
         return '無料プラン';
       case PurchaseType.subscribe:
-        return 'サブスク（¥100/2ヶ月）';
+        return 'Premiumプラン（月額）';
       case PurchaseType.purchase:
-        return '買い切り（¥1,000）';
+        return '買い切り（旧プラン）';
     }
   }
 
