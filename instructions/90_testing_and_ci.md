@@ -149,6 +149,28 @@ flutter build appbundle --release --flavor prod --dart-define=FLAVOR=prod
 dart run build_runner build --delete-conflicting-outputs
 ```
 
+### Cloud Functions / Firestore Rules
+
+```bash
+# Functions依存をlockどおりにインストール
+cd functions
+npm ci
+
+# レシート検証を含むFunctions単体テスト
+npm test
+
+# リポジトリルートでFunctions定義を読み込み確認
+firebase emulators:exec --only functions --project demo-goshopping "cmd /c exit 0"
+
+# Firestore Rulesのコンパイル確認
+firebase emulators:exec --only firestore --project demo-goshopping "cmd /c exit 0"
+```
+
+- ストアAPIを呼ぶ判定ロジックは依存注入し、実ネットワークなしのNode単体テストで検証する。
+- raw purchase token / StoreKit JWSをfixtureやログへ保存しない。テスト値は架空の文字列を使う。
+- レシート検証変更時は、正常、期限切れ、取消、商品不一致、別ユーザーへのtoken再利用、acknowledge順序を確認する。
+- Functionsと課金フィールド保護Rulesは同時にデプロイし、Rulesだけを先行させない。
+
 ### Kotlin アップグレード時の languageVersion 互換性（2026-06-25）
 
 Kotlin コンパイラを 2.4.0 以降に上げると、サードパーティプラグイン（`sentry_flutter` 等）が `languageVersion = '1.6'` をターゲットにしているためビルドエラーになる場合がある。
