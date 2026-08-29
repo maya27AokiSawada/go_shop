@@ -238,6 +238,59 @@ TEST_SCENARIO_PASSWORD=change_me
 - 現在のアプリ運用では Firebase Extensions Trigger Email は未使用
 - そのため SMTP / Trigger Email の設定は必須ではない
 
+### 5.1 Functions レシート検証
+
+`verifyPurchase` CallableはFirebase AuthとApp Checkを要求し、Google Playまたは
+App Storeの検証に成功した場合だけPremium権限をFirestoreへ保存します。
+
+Functions依存をインストール:
+
+```bash
+cd functions
+npm ci
+```
+
+非機密パラメータは、初回deploy時のFirebase CLIプロンプトで入力します。
+プロジェクト別に事前設定する場合は、追跡しない`functions/.env.<projectId>`へ記載します:
+
+```env
+GOOGLE_PLAY_PACKAGE_NAME=your.android.package.name
+APPLE_BUNDLE_ID=your.apple.bundle.id
+APPLE_APP_ID=1234567890
+```
+
+- `GOOGLE_PLAY_PACKAGE_NAME`: Play Consoleへ登録した本番application ID
+- `APPLE_BUNDLE_ID`: App Store Connectへ登録した本番Bundle ID
+- `APPLE_APP_ID`: App Store Connectの数値Apple ID。Sandboxだけなら空でもよいが、本番検証では必須
+
+Google Play側:
+
+1. Google Play Android Developer APIを有効化する
+2. Functions実行サービスアカウントをPlay ConsoleのAPIアクセスへ追加する
+3. 対象アプリの注文・サブスクリプション参照および購入acknowledgeに必要な権限を付与する
+4. `goshopping_premium_monthly`の商品と有効なbase planを作成する
+
+App Store側:
+
+1. App Store Connectで同じ商品IDの自動更新サブスクリプションを作成する
+2. Agreements, Tax, and Bankingを有効にする
+3. StoreKit 2が返す署名済み取引JWSを使用する。旧StoreKit 1 receiptはこのCallableでは拒否する
+
+デプロイと確認:
+
+```bash
+cd functions
+npm test
+firebase deploy --only functions:verifyPurchase,firestore:rules
+```
+
+注意:
+
+- raw purchase token / StoreKit JWSはFirestoreへ保存しない
+- `purchaseReceipts/{sha256}`で同じ購入を別Firebaseユーザーへ付け替えることを防止する
+- Functionsをデプロイする前に新しいFirestore Rulesだけを先行配信しない。旧クライアントの直接書き込みが拒否される
+- 継続的な更新・解約・返金・保留・失効の即時反映には、別途Google Play RTDNとApp Store Server Notificationsの設定が必要
+
 ## 6. AdMob 設定
 
 このアプリは `google_mobile_ads` を使用しています。

@@ -226,10 +226,12 @@ purchaseType: 'free' | 'subscribe' | 'purchase'  // 課金タイプ（デフォ�
 1. Android / iOSではアプリ起動直後に `PurchaseService.initialize()` を実行し、購入ストリームを購読する。設定画面を開くまで購読を遅延させない。
 2. 認証済みユーザーの設定画面に `PurchasePlanPanel` を表示し、ストア利用可否と月額SKUの商品情報を反映する。
 3. 「Premiumを有効化」で `PurchaseService.buyPremiumMonthly()` が `PurchaseParam` を使ってストア購入UIを開く。購入開始だけではMultiモードへ切り替えない。
-4. 購入または復元の完了後、`_handlePurchase()` が `goshopping_premium_monthly` を `PurchaseType.subscribe` として `FirestoreUserNameService.savePurchaseType()` へ保存する。保存に成功した場合だけ `completePurchase()` を呼ぶ。
-5. `purchaseTypeProvider`（`StreamProvider`）が Firestore 変化を検知してUIを自動更新する。
-6. `purchaseSyncProvider` がHiveの `SubscriptionState` へ反映し、`isPremiumActiveProvider`、Free/Premiumの上限、広告表示を更新する。Firestoreの明示的な `free` は、有効な無料体験中を除いてローカルにも即時反映する。
-7. 「購入を復元」は `PurchaseService.restorePurchases()` を実行する。
+4. 購入または復元の完了後、`_handlePurchase()` がストアの検証データを `verifyPurchase` Callableへ送る。
+5. FunctionsがGoogle Play Developer APIまたはApple署名済みStoreKit 2取引を検証し、成功時だけAdmin SDKで `purchaseType: subscribe` を保存する。
+6. Google PlayはFunctions側でacknowledgeする。App Storeは検証成功後にクライアントが取引をfinishする。
+7. `purchaseTypeProvider`（`StreamProvider`）がFirestore変化を検知してUIを自動更新する。
+8. `purchaseSyncProvider` がHiveの `SubscriptionState` へ反映し、`isPremiumActiveProvider`、Free/Premiumの上限、広告表示を更新する。Firestoreの明示的な `free` は、有効な無料体験中を除いてローカルにも即時反映する。
+9. 「購入を復元」は `PurchaseService.restorePurchases()` を実行し、復元取引も同じCallableで再検証する。
 
 ### クライアント側の課金状態管理
 
@@ -254,6 +256,7 @@ purchaseType: 'free' | 'subscribe' | 'purchase'  // 課金タイプ（デフォ�
 
 ### セキュリティ注意事項
 
-- `purchaseType` の書き込みは **購入確認後のみ**行う（`PurchaseStatus.purchased` / `restored` のみ）
-- クライアントから `purchaseType: 'subscribe'` を任意に書き込めてしまうため、**本番公開前にCloud Functions等でGoogle Play / App Storeのレシート検証を実装すること**。実装後はクライアントからの `purchaseType` 更新をSecurity Rulesで禁止する。
+- `purchaseType` / `purchaseVerification` はSecurity Rulesでクライアント書き込みを禁止し、検証済みFunctionsのAdmin SDKだけが更新する。
+- raw purchase token / StoreKit JWSはFirestoreへ保存しない。SHA-256指紋だけを保存し、同じ購入の別Firebaseユーザーへの使い回しを拒否する。
+- `verifyPurchase` CallableはFirebase AuthとApp Checkを必須とする。
 - Functions側では初回検証だけでなく、Google Play RTDN / App Store Server Notificationsによる更新、解約、返金、猶予期間、保留、失効の反映も行う。

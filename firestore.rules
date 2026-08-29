@@ -115,8 +115,24 @@ service cloud.firestore {
 
     // ユーザードキュメント（displayName, email, createdAt, updatedAt）
     match /users/{userId} {
-      // 自分のプロファイルのみ読み書き可能（アカウント削除含む）
-      allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+      function isOwnProfile() {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      function hasProtectedPurchaseFields(data) {
+        return data.keys().hasAny(['purchaseType', 'purchaseVerification']);
+      }
+
+      function changesProtectedPurchaseFields() {
+        return request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['purchaseType', 'purchaseVerification']);
+      }
+
+      // 課金権限はレシート検証済みFunctions（Admin SDK）のみ更新可能。
+      allow read, delete: if isOwnProfile();
+      allow create: if isOwnProfile() &&
+        !hasProtectedPurchaseFields(request.resource.data);
+      allow update: if isOwnProfile() && !changesProtectedPurchaseFields();
 
       // 受諾招待コレクション：誰でも書き込み可能（招待受諾用）
       match /acceptedInvitations/{acceptorUid} {

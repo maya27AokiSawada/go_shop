@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:ui' show PlatformDispatcher;
 
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import '../models/purchase_type.dart';
-import '../services/firestore_user_name_service.dart';
 import '../services/error_log_service.dart';
 import '../utils/app_logger.dart';
 
@@ -21,6 +21,12 @@ class PurchaseFlowState {
   final String? message;
 
   const PurchaseFlowState(this.status, {this.message});
+}
+
+class VerifiedPurchaseResult {
+  final bool storeAcknowledged;
+
+  const VerifiedPurchaseResult({required this.storeAcknowledged});
 }
 
 /// Google Play 商品ID
@@ -290,12 +296,12 @@ class PurchaseService {
           throw StateError('未対応の商品IDです: ${purchase.productID}');
         }
 
-        // 権限を永続化できた場合だけストア側の購入を完了する。
-        final type = _purchaseTypeForProduct(purchase.productID);
-        await persistPurchaseType(type);
-        Log.info('[$_logTag] 課金タイプ更新: ${type.firestoreValue}');
+        // Functionsでストア検証と権限付与が完了した場合だけ取引を完了する。
+        final verification = await verifyPurchaseWithServer(purchase);
+        Log.info('[$_logTag] サーバー購入検証完了: ${purchase.productID}');
 
-        if (purchase.pendingCompletePurchase) {
+        if (purchase.pendingCompletePurchase &&
+            !verification.storeAcknowledged) {
           await _iap.completePurchase(purchase);
         }
 
@@ -348,8 +354,36 @@ class PurchaseService {
     }
   }
 
-  Future<void> persistPurchaseType(PurchaseType type) {
-    return FirestoreUserNameService.savePurchaseType(type);
+  Future<VerifiedPurchaseResult> verifyPurchaseWithServer(
+    PurchaseDetails purchase,
+  ) async {
+    final source = purchase.verificationData.source;
+    final platform = switch (source) {
+      'google_play' => 'google_play',
+      'app_store' => 'app_store',
+      _ => throw StateError('未対応の購入元です: $source'),
+    };
+    final verificationData = purchase.verificationData.serverVerificationData;
+    if (verificationData.isEmpty) {
+      throw StateError('ストア検証データが空です');
+    }
+
+    final callable = FirebaseFunctions.instanceFor(
+      region: 'asia-northeast1',
+    ).httpsCallable('verifyPurchase');
+    final response = await callable.call<Map<String, dynamic>>({
+      'platform': platform,
+      'productId': purchase.productID,
+      'verificationData': verificationData,
+    });
+    final data = response.data;
+    if (data['verified'] != true || data['purchaseType'] != 'subscribe') {
+      throw StateError('サーバーが購入を承認しませんでした');
+    }
+
+    return VerifiedPurchaseResult(
+      storeAcknowledged: data['storeAcknowledged'] == true,
+    );
   }
 
   /// 商品の価格文字列を取得（商品が見つからない場合はデフォルト表示）

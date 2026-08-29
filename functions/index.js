@@ -2,15 +2,126 @@
 
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { defineString } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
+const {
+  PREMIUM_PRODUCT_ID,
+  ReceiptValidationError,
+  acknowledgeGooglePurchase,
+  persistVerifiedEntitlement,
+  verifyApplePurchase,
+  verifyGooglePurchase,
+} = require("./receipt_verification");
 
 initializeApp();
 
 const REGION = "asia-northeast1";
 const BACKUP_PREFIX = "firestore-snapshots";
 const RETENTION_DAYS = 5;
+const GOOGLE_PLAY_PACKAGE_NAME = defineString("GOOGLE_PLAY_PACKAGE_NAME", {
+  default: "net.sumomo_planning.goshopping",
+});
+const APPLE_BUNDLE_ID = defineString("APPLE_BUNDLE_ID", {
+  default: "net.sumomo-planning.goshopping",
+});
+const APPLE_APP_ID = defineString("APPLE_APP_ID", { default: "" });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 0. ストア購入検証（Callable）
+//    ストア照会・署名検証に成功した場合のみAdmin SDKでPremium権限を付与する
+// ─────────────────────────────────────────────────────────────────────────────
+exports.verifyPurchase = onCall(
+  {
+    region: REGION,
+    enforceAppCheck: true,
+    timeoutSeconds: 60,
+    memory: "256MiB",
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "認証が必要です");
+    }
+
+    const platform = request.data?.platform;
+    const productId = request.data?.productId;
+    const verificationData = request.data?.verificationData;
+    if (productId !== PREMIUM_PRODUCT_ID) {
+      throw new HttpsError("invalid-argument", "未対応の商品IDです");
+    }
+
+    try {
+      let verification;
+      if (platform === "google_play") {
+        verification = await verifyGooglePurchase({
+          packageName: GOOGLE_PLAY_PACKAGE_NAME.value(),
+          productId,
+          purchaseToken: verificationData,
+        });
+      } else if (platform === "app_store") {
+        const appAppleIdValue = APPLE_APP_ID.value();
+        const appAppleId = appAppleIdValue
+          ? Number.parseInt(appAppleIdValue, 10)
+          : undefined;
+        verification = await verifyApplePurchase({
+          bundleId: APPLE_BUNDLE_ID.value(),
+          appAppleId,
+          productId,
+          signedTransaction: verificationData,
+        });
+      } else {
+        throw new ReceiptValidationError(
+          "invalid-argument",
+          "未対応のストアです",
+        );
+      }
+
+      await persistVerifiedEntitlement({
+        db: getFirestore(),
+        uid: request.auth.uid,
+        platform,
+        productId,
+        verification,
+      });
+
+      if (platform === "google_play" &&
+        verification.needsAcknowledgement) {
+        await acknowledgeGooglePurchase({
+          packageName: GOOGLE_PLAY_PACKAGE_NAME.value(),
+          productId,
+          purchaseToken: verificationData,
+        });
+        verification.storeAcknowledged = true;
+      }
+
+      console.log(
+        `Purchase verified: uid=${request.auth.uid.slice(0, 3)}***, ` +
+        `platform=${platform}, product=${productId}`,
+      );
+      return {
+        verified: true,
+        purchaseType: "subscribe",
+        expiresAt: verification.expiresAt.toISOString(),
+        storeAcknowledged: verification.storeAcknowledged,
+      };
+    } catch (error) {
+      console.error("Purchase verification failed", {
+        uid: `${request.auth.uid.slice(0, 3)}***`,
+        platform,
+        productId,
+        error: error?.message,
+      });
+      if (error instanceof ReceiptValidationError) {
+        throw new HttpsError(error.code, error.message);
+      }
+      throw new HttpsError(
+        "unavailable",
+        "ストアで購入を確認できませんでした。時間をおいて再度お試しください",
+      );
+    }
+  },
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. スケジュールバックアップ

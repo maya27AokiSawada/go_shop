@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_platform_interface/in_app_purchase_platform_interface.dart';
-import 'package:goshopping/models/purchase_type.dart';
 import 'package:goshopping/services/purchase_service.dart';
 
 void main() {
@@ -43,12 +42,28 @@ void main() {
     fakePlatform.emit([purchase]);
     await completed;
 
-    expect(service.events, ['persist:subscribe']);
+    expect(service.verifyCallCount, 1);
     expect(fakePlatform.completedProductIds, ['goshopping_premium_monthly']);
   });
 
+  test('Functionsでacknowledge済みの場合はクライアントでcompleteしない', () async {
+    service.storeAcknowledged = true;
+    await service.initialize();
+    final completed = service.statusStream.firstWhere(
+      (state) => state.status == PurchaseFlowStatus.purchased,
+    );
+    final purchase = createPurchase(PurchaseStatus.purchased)
+      ..pendingCompletePurchase = true;
+
+    fakePlatform.emit([purchase]);
+    await completed;
+
+    expect(service.verifyCallCount, 1);
+    expect(fakePlatform.completedProductIds, isEmpty);
+  });
+
   test('権限保存に失敗した購入はcompleteしない', () async {
-    service.failPersistence = true;
+    service.failVerification = true;
     await service.initialize();
     final failed = service.statusStream.firstWhere(
       (state) => state.status == PurchaseFlowStatus.error,
@@ -77,7 +92,7 @@ void main() {
     fakePlatform.emit([createPurchase(PurchaseStatus.canceled)]);
     await canceledState;
 
-    expect(service.events, isEmpty);
+    expect(service.verifyCallCount, 0);
     expect(fakePlatform.completedProductIds, isEmpty);
   });
 
@@ -94,7 +109,7 @@ void main() {
     fakePlatform.emit([purchase]);
     await failed;
 
-    expect(service.events, isEmpty);
+    expect(service.verifyCallCount, 0);
     expect(fakePlatform.completedProductIds, isEmpty);
   });
 
@@ -126,15 +141,19 @@ PurchaseDetails createPurchase(
 }
 
 class TestPurchaseService extends PurchaseService {
-  final List<String> events = [];
-  bool failPersistence = false;
+  int verifyCallCount = 0;
+  bool failVerification = false;
+  bool storeAcknowledged = false;
 
   @override
-  Future<void> persistPurchaseType(PurchaseType type) async {
-    if (failPersistence) {
-      throw StateError('save failed');
+  Future<VerifiedPurchaseResult> verifyPurchaseWithServer(
+    PurchaseDetails purchase,
+  ) async {
+    verifyCallCount++;
+    if (failVerification) {
+      throw StateError('verification failed');
     }
-    events.add('persist:${type.firestoreValue}');
+    return VerifiedPurchaseResult(storeAcknowledged: storeAcknowledged);
   }
 }
 
