@@ -1,5 +1,8 @@
 "use strict";
 
+const dotenv = require("dotenv");
+dotenv.config({ path: ".env.production" });
+
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { defineString } = require("firebase-functions/params");
@@ -20,13 +23,9 @@ initializeApp();
 const REGION = "asia-northeast1";
 const BACKUP_PREFIX = "firestore-snapshots";
 const RETENTION_DAYS = 5;
-const GOOGLE_PLAY_PACKAGE_NAME = defineString("GOOGLE_PLAY_PACKAGE_NAME", {
-  default: "net.sumomo_planning.goshopping",
-});
-const APPLE_BUNDLE_ID = defineString("APPLE_BUNDLE_ID", {
-  default: "net.sumomo-planning.goshopping",
-});
-const APPLE_APP_ID = defineString("APPLE_APP_ID", { default: "" });
+const GOOGLE_PLAY_PACKAGE_NAME = process.env.GOOGLE_PLAY_PACKAGE_NAME;
+const APPLE_BUNDLE_ID = process.env.APPLE_BUNDLE_ID;
+const APPLE_APP_ID = process.env.APPLE_APP_ID;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 0. ストア購入検証（Callable）
@@ -55,17 +54,17 @@ exports.verifyPurchase = onCall(
       let verification;
       if (platform === "google_play") {
         verification = await verifyGooglePurchase({
-          packageName: GOOGLE_PLAY_PACKAGE_NAME.value(),
+          packageName: GOOGLE_PLAY_PACKAGE_NAME,
           productId,
           purchaseToken: verificationData,
         });
       } else if (platform === "app_store") {
-        const appAppleIdValue = APPLE_APP_ID.value();
+        const appAppleIdValue = APPLE_APP_ID;
         const appAppleId = appAppleIdValue
           ? Number.parseInt(appAppleIdValue, 10)
           : undefined;
         verification = await verifyApplePurchase({
-          bundleId: APPLE_BUNDLE_ID.value(),
+          bundleId: APPLE_BUNDLE_ID,
           appAppleId,
           productId,
           signedTransaction: verificationData,
@@ -88,7 +87,7 @@ exports.verifyPurchase = onCall(
       if (platform === "google_play" &&
         verification.needsAcknowledgement) {
         await acknowledgeGooglePurchase({
-          packageName: GOOGLE_PLAY_PACKAGE_NAME.value(),
+          packageName: GOOGLE_PLAY_PACKAGE_NAME,
           productId,
           purchaseToken: verificationData,
         });
