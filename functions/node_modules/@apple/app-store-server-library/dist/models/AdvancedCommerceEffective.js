@@ -1,0 +1,19 @@
+"use strict";
+// Copyright (c) 2026 Apple Inc. Licensed under MIT License.
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.AdvancedCommerceEffectiveValidator = exports.AdvancedCommerceEffective = void 0;
+const Validator_1 = require("./Validator");
+/**
+ * A string value that indicates when a requested change to an auto-renewable subscription goes into effect.
+ *
+ * {@link https://developer.apple.com/documentation/advancedcommerceapi/effective effective}
+ */
+var AdvancedCommerceEffective;
+(function (AdvancedCommerceEffective) {
+    AdvancedCommerceEffective["IMMEDIATELY"] = "IMMEDIATELY";
+    AdvancedCommerceEffective["NEXT_BILL_CYCLE"] = "NEXT_BILL_CYCLE";
+})(AdvancedCommerceEffective || (exports.AdvancedCommerceEffective = AdvancedCommerceEffective = {}));
+class AdvancedCommerceEffectiveValidator extends Validator_1.StringValidator {
+}
+exports.AdvancedCommerceEffectiveValidator = AdvancedCommerceEffectiveValidator;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiQWR2YW5jZWRDb21tZXJjZUVmZmVjdGl2ZS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL21vZGVscy9BZHZhbmNlZENvbW1lcmNlRWZmZWN0aXZlLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSw0REFBNEQ7OztBQUU1RCwyQ0FBNkM7QUFFN0M7Ozs7R0FJRztBQUNILElBQVkseUJBR1g7QUFIRCxXQUFZLHlCQUF5QjtJQUNqQyx3REFBMkIsQ0FBQTtJQUMzQixnRUFBbUMsQ0FBQTtBQUN2QyxDQUFDLEVBSFcseUJBQXlCLHlDQUF6Qix5QkFBeUIsUUFHcEM7QUFFRCxNQUFhLGtDQUFtQyxTQUFRLDJCQUFlO0NBQUc7QUFBMUUsZ0ZBQTBFIiwic291cmNlc0NvbnRlbnQiOlsiLy8gQ29weXJpZ2h0IChjKSAyMDI2IEFwcGxlIEluYy4gTGljZW5zZWQgdW5kZXIgTUlUIExpY2Vuc2UuXG5cbmltcG9ydCB7IFN0cmluZ1ZhbGlkYXRvciB9IGZyb20gXCIuL1ZhbGlkYXRvclwiXG5cbi8qKlxuICogQSBzdHJpbmcgdmFsdWUgdGhhdCBpbmRpY2F0ZXMgd2hlbiBhIHJlcXVlc3RlZCBjaGFuZ2UgdG8gYW4gYXV0by1yZW5ld2FibGUgc3Vic2NyaXB0aW9uIGdvZXMgaW50byBlZmZlY3QuXG4gKlxuICoge0BsaW5rIGh0dHBzOi8vZGV2ZWxvcGVyLmFwcGxlLmNvbS9kb2N1bWVudGF0aW9uL2FkdmFuY2VkY29tbWVyY2VhcGkvZWZmZWN0aXZlIGVmZmVjdGl2ZX1cbiAqL1xuZXhwb3J0IGVudW0gQWR2YW5jZWRDb21tZXJjZUVmZmVjdGl2ZSB7XG4gICAgSU1NRURJQVRFTFkgPSBcIklNTUVESUFURUxZXCIsXG4gICAgTkVYVF9CSUxMX0NZQ0xFID0gXCJORVhUX0JJTExfQ1lDTEVcIlxufVxuXG5leHBvcnQgY2xhc3MgQWR2YW5jZWRDb21tZXJjZUVmZmVjdGl2ZVZhbGlkYXRvciBleHRlbmRzIFN0cmluZ1ZhbGlkYXRvciB7fSJdfQ==

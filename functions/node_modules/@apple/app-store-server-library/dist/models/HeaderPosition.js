@@ -1,0 +1,19 @@
+"use strict";
+// Copyright (c) 2026 Apple Inc. Licensed under MIT License.
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.HeaderPositionValidator = exports.HeaderPosition = void 0;
+const Validator_1 = require("./Validator");
+/**
+ * The position where the header text appears in a message.
+ *
+ * {@link https://developer.apple.com/documentation/retentionmessaging/headerposition headerPosition}
+ */
+var HeaderPosition;
+(function (HeaderPosition) {
+    HeaderPosition["ABOVE_BODY"] = "ABOVE_BODY";
+    HeaderPosition["ABOVE_IMAGE"] = "ABOVE_IMAGE";
+})(HeaderPosition || (exports.HeaderPosition = HeaderPosition = {}));
+class HeaderPositionValidator extends Validator_1.StringValidator {
+}
+exports.HeaderPositionValidator = HeaderPositionValidator;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiSGVhZGVyUG9zaXRpb24uanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi9tb2RlbHMvSGVhZGVyUG9zaXRpb24udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLDREQUE0RDs7O0FBRTVELDJDQUE4QztBQUU5Qzs7OztHQUlHO0FBQ0gsSUFBWSxjQUdYO0FBSEQsV0FBWSxjQUFjO0lBQ3RCLDJDQUF5QixDQUFBO0lBQ3pCLDZDQUEyQixDQUFBO0FBQy9CLENBQUMsRUFIVyxjQUFjLDhCQUFkLGNBQWMsUUFHekI7QUFFRCxNQUFhLHVCQUF3QixTQUFRLDJCQUFlO0NBQUc7QUFBL0QsMERBQStEIiwic291cmNlc0NvbnRlbnQiOlsiLy8gQ29weXJpZ2h0IChjKSAyMDI2IEFwcGxlIEluYy4gTGljZW5zZWQgdW5kZXIgTUlUIExpY2Vuc2UuXG5cbmltcG9ydCB7IFN0cmluZ1ZhbGlkYXRvciB9IGZyb20gXCIuL1ZhbGlkYXRvclwiO1xuXG4vKipcbiAqIFRoZSBwb3NpdGlvbiB3aGVyZSB0aGUgaGVhZGVyIHRleHQgYXBwZWFycyBpbiBhIG1lc3NhZ2UuXG4gKlxuICoge0BsaW5rIGh0dHBzOi8vZGV2ZWxvcGVyLmFwcGxlLmNvbS9kb2N1bWVudGF0aW9uL3JldGVudGlvbm1lc3NhZ2luZy9oZWFkZXJwb3NpdGlvbiBoZWFkZXJQb3NpdGlvbn1cbiAqL1xuZXhwb3J0IGVudW0gSGVhZGVyUG9zaXRpb24ge1xuICAgIEFCT1ZFX0JPRFkgPSBcIkFCT1ZFX0JPRFlcIixcbiAgICBBQk9WRV9JTUFHRSA9IFwiQUJPVkVfSU1BR0VcIixcbn1cblxuZXhwb3J0IGNsYXNzIEhlYWRlclBvc2l0aW9uVmFsaWRhdG9yIGV4dGVuZHMgU3RyaW5nVmFsaWRhdG9yIHt9XG4iXX0=

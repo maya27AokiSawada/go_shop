@@ -1,0 +1,20 @@
+"use strict";
+// Copyright (c) 2026 Apple Inc. Licensed under MIT License.
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.AdvancedCommerceRefundTypeValidator = exports.AdvancedCommerceRefundType = void 0;
+const Validator_1 = require("./Validator");
+/**
+ * Information about the refund request for an item, such as its SKU, the refund amount, reason, and type.
+ *
+ * {@link https://developer.apple.com/documentation/advancedcommerceapi/requestrefunditem RequestRefundItem}
+ */
+var AdvancedCommerceRefundType;
+(function (AdvancedCommerceRefundType) {
+    AdvancedCommerceRefundType["FULL"] = "FULL";
+    AdvancedCommerceRefundType["PRORATED"] = "PRORATED";
+    AdvancedCommerceRefundType["CUSTOM"] = "CUSTOM";
+})(AdvancedCommerceRefundType || (exports.AdvancedCommerceRefundType = AdvancedCommerceRefundType = {}));
+class AdvancedCommerceRefundTypeValidator extends Validator_1.StringValidator {
+}
+exports.AdvancedCommerceRefundTypeValidator = AdvancedCommerceRefundTypeValidator;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiQWR2YW5jZWRDb21tZXJjZVJlZnVuZFR5cGUuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi9tb2RlbHMvQWR2YW5jZWRDb21tZXJjZVJlZnVuZFR5cGUudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLDREQUE0RDs7O0FBRTVELDJDQUE2QztBQUU3Qzs7OztHQUlHO0FBQ0gsSUFBWSwwQkFJWDtBQUpELFdBQVksMEJBQTBCO0lBQ2xDLDJDQUFhLENBQUE7SUFDYixtREFBcUIsQ0FBQTtJQUNyQiwrQ0FBaUIsQ0FBQTtBQUNyQixDQUFDLEVBSlcsMEJBQTBCLDBDQUExQiwwQkFBMEIsUUFJckM7QUFFRCxNQUFhLG1DQUFvQyxTQUFRLDJCQUFlO0NBQUc7QUFBM0Usa0ZBQTJFIiwic291cmNlc0NvbnRlbnQiOlsiLy8gQ29weXJpZ2h0IChjKSAyMDI2IEFwcGxlIEluYy4gTGljZW5zZWQgdW5kZXIgTUlUIExpY2Vuc2UuXG5cbmltcG9ydCB7IFN0cmluZ1ZhbGlkYXRvciB9IGZyb20gXCIuL1ZhbGlkYXRvclwiXG5cbi8qKlxuICogSW5mb3JtYXRpb24gYWJvdXQgdGhlIHJlZnVuZCByZXF1ZXN0IGZvciBhbiBpdGVtLCBzdWNoIGFzIGl0cyBTS1UsIHRoZSByZWZ1bmQgYW1vdW50LCByZWFzb24sIGFuZCB0eXBlLlxuICpcbiAqIHtAbGluayBodHRwczovL2RldmVsb3Blci5hcHBsZS5jb20vZG9jdW1lbnRhdGlvbi9hZHZhbmNlZGNvbW1lcmNlYXBpL3JlcXVlc3RyZWZ1bmRpdGVtIFJlcXVlc3RSZWZ1bmRJdGVtfVxuICovXG5leHBvcnQgZW51bSBBZHZhbmNlZENvbW1lcmNlUmVmdW5kVHlwZSB7XG4gICAgRlVMTCA9IFwiRlVMTFwiLFxuICAgIFBST1JBVEVEID0gXCJQUk9SQVRFRFwiLFxuICAgIENVU1RPTSA9IFwiQ1VTVE9NXCJcbn1cblxuZXhwb3J0IGNsYXNzIEFkdmFuY2VkQ29tbWVyY2VSZWZ1bmRUeXBlVmFsaWRhdG9yIGV4dGVuZHMgU3RyaW5nVmFsaWRhdG9yIHt9Il19

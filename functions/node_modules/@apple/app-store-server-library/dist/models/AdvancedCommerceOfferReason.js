@@ -1,0 +1,20 @@
+"use strict";
+// Copyright (c) 2026 Apple Inc. Licensed under MIT License.
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.AdvancedCommerceOfferReasonValidator = exports.AdvancedCommerceOfferReason = void 0;
+const Validator_1 = require("./Validator");
+/**
+ * The reason for the offer.
+ *
+ * {@link https://developer.apple.com/documentation/advancedcommerceapi/offer Offer}
+ */
+var AdvancedCommerceOfferReason;
+(function (AdvancedCommerceOfferReason) {
+    AdvancedCommerceOfferReason["ACQUISITION"] = "ACQUISITION";
+    AdvancedCommerceOfferReason["WIN_BACK"] = "WIN_BACK";
+    AdvancedCommerceOfferReason["RETENTION"] = "RETENTION";
+})(AdvancedCommerceOfferReason || (exports.AdvancedCommerceOfferReason = AdvancedCommerceOfferReason = {}));
+class AdvancedCommerceOfferReasonValidator extends Validator_1.StringValidator {
+}
+exports.AdvancedCommerceOfferReasonValidator = AdvancedCommerceOfferReasonValidator;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiQWR2YW5jZWRDb21tZXJjZU9mZmVyUmVhc29uLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vbW9kZWxzL0FkdmFuY2VkQ29tbWVyY2VPZmZlclJlYXNvbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsNERBQTREOzs7QUFFNUQsMkNBQTZDO0FBRTdDOzs7O0dBSUc7QUFDSCxJQUFZLDJCQUlYO0FBSkQsV0FBWSwyQkFBMkI7SUFDbkMsMERBQTJCLENBQUE7SUFDM0Isb0RBQXFCLENBQUE7SUFDckIsc0RBQXVCLENBQUE7QUFDM0IsQ0FBQyxFQUpXLDJCQUEyQiwyQ0FBM0IsMkJBQTJCLFFBSXRDO0FBRUQsTUFBYSxvQ0FBcUMsU0FBUSwyQkFBZTtDQUFHO0FBQTVFLG9GQUE0RSIsInNvdXJjZXNDb250ZW50IjpbIi8vIENvcHlyaWdodCAoYykgMjAyNiBBcHBsZSBJbmMuIExpY2Vuc2VkIHVuZGVyIE1JVCBMaWNlbnNlLlxuXG5pbXBvcnQgeyBTdHJpbmdWYWxpZGF0b3IgfSBmcm9tIFwiLi9WYWxpZGF0b3JcIlxuXG4vKipcbiAqIFRoZSByZWFzb24gZm9yIHRoZSBvZmZlci5cbiAqXG4gKiB7QGxpbmsgaHR0cHM6Ly9kZXZlbG9wZXIuYXBwbGUuY29tL2RvY3VtZW50YXRpb24vYWR2YW5jZWRjb21tZXJjZWFwaS9vZmZlciBPZmZlcn1cbiAqL1xuZXhwb3J0IGVudW0gQWR2YW5jZWRDb21tZXJjZU9mZmVyUmVhc29uIHtcbiAgICBBQ1FVSVNJVElPTiA9IFwiQUNRVUlTSVRJT05cIixcbiAgICBXSU5fQkFDSyA9IFwiV0lOX0JBQ0tcIixcbiAgICBSRVRFTlRJT04gPSBcIlJFVEVOVElPTlwiXG59XG5cbmV4cG9ydCBjbGFzcyBBZHZhbmNlZENvbW1lcmNlT2ZmZXJSZWFzb25WYWxpZGF0b3IgZXh0ZW5kcyBTdHJpbmdWYWxpZGF0b3Ige30iXX0=

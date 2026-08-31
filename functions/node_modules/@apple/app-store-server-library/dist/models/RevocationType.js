@@ -1,0 +1,20 @@
+"use strict";
+// Copyright (c) 2025 Apple Inc. Licensed under MIT License.
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.RevocationTypeValidator = exports.RevocationType = void 0;
+const Validator_1 = require("./Validator");
+/**
+ * The type of the refund or revocation that applies to the transaction.
+ *
+ * {@link https://developer.apple.com/documentation/appstoreservernotifications/revocationtype revocationType}
+ */
+var RevocationType;
+(function (RevocationType) {
+    RevocationType["REFUND_FULL"] = "REFUND_FULL";
+    RevocationType["REFUND_PRORATED"] = "REFUND_PRORATED";
+    RevocationType["FAMILY_REVOKE"] = "FAMILY_REVOKE";
+})(RevocationType || (exports.RevocationType = RevocationType = {}));
+class RevocationTypeValidator extends Validator_1.StringValidator {
+}
+exports.RevocationTypeValidator = RevocationTypeValidator;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiUmV2b2NhdGlvblR5cGUuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi9tb2RlbHMvUmV2b2NhdGlvblR5cGUudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLDREQUE0RDs7O0FBRTVELDJDQUE4QztBQUU5Qzs7OztHQUlHO0FBQ0gsSUFBWSxjQUlYO0FBSkQsV0FBWSxjQUFjO0lBQ3RCLDZDQUEyQixDQUFBO0lBQzNCLHFEQUFtQyxDQUFBO0lBQ25DLGlEQUErQixDQUFBO0FBQ25DLENBQUMsRUFKVyxjQUFjLDhCQUFkLGNBQWMsUUFJekI7QUFFRCxNQUFhLHVCQUF3QixTQUFRLDJCQUFlO0NBQUc7QUFBL0QsMERBQStEIiwic291cmNlc0NvbnRlbnQiOlsiLy8gQ29weXJpZ2h0IChjKSAyMDI1IEFwcGxlIEluYy4gTGljZW5zZWQgdW5kZXIgTUlUIExpY2Vuc2UuXG5cbmltcG9ydCB7IFN0cmluZ1ZhbGlkYXRvciB9IGZyb20gXCIuL1ZhbGlkYXRvclwiO1xuXG4vKipcbiAqIFRoZSB0eXBlIG9mIHRoZSByZWZ1bmQgb3IgcmV2b2NhdGlvbiB0aGF0IGFwcGxpZXMgdG8gdGhlIHRyYW5zYWN0aW9uLlxuICpcbiAqIHtAbGluayBodHRwczovL2RldmVsb3Blci5hcHBsZS5jb20vZG9jdW1lbnRhdGlvbi9hcHBzdG9yZXNlcnZlcm5vdGlmaWNhdGlvbnMvcmV2b2NhdGlvbnR5cGUgcmV2b2NhdGlvblR5cGV9XG4gKi9cbmV4cG9ydCBlbnVtIFJldm9jYXRpb25UeXBlIHtcbiAgICBSRUZVTkRfRlVMTCA9IFwiUkVGVU5EX0ZVTExcIixcbiAgICBSRUZVTkRfUFJPUkFURUQgPSBcIlJFRlVORF9QUk9SQVRFRFwiLFxuICAgIEZBTUlMWV9SRVZPS0UgPSBcIkZBTUlMWV9SRVZPS0VcIixcbn1cblxuZXhwb3J0IGNsYXNzIFJldm9jYXRpb25UeXBlVmFsaWRhdG9yIGV4dGVuZHMgU3RyaW5nVmFsaWRhdG9yIHt9XG4iXX0=

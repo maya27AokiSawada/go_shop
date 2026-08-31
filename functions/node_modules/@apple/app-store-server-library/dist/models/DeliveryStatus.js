@@ -1,0 +1,22 @@
+"use strict";
+// Copyright (c) 2025 Apple Inc. Licensed under MIT License.
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.DeliveryStatusValidator = exports.DeliveryStatus = void 0;
+const Validator_1 = require("./Validator");
+/**
+ * A value that indicates whether the app successfully delivered an In-App Purchase that works properly.
+ *
+ * {@link https://developer.apple.com/documentation/appstoreserverapi/deliverystatus deliveryStatus}
+ */
+var DeliveryStatus;
+(function (DeliveryStatus) {
+    DeliveryStatus["DELIVERED"] = "DELIVERED";
+    DeliveryStatus["UNDELIVERED_QUALITY_ISSUE"] = "UNDELIVERED_QUALITY_ISSUE";
+    DeliveryStatus["UNDELIVERED_WRONG_ITEM"] = "UNDELIVERED_WRONG_ITEM";
+    DeliveryStatus["UNDELIVERED_SERVER_OUTAGE"] = "UNDELIVERED_SERVER_OUTAGE";
+    DeliveryStatus["UNDELIVERED_OTHER"] = "UNDELIVERED_OTHER";
+})(DeliveryStatus || (exports.DeliveryStatus = DeliveryStatus = {}));
+class DeliveryStatusValidator extends Validator_1.StringValidator {
+}
+exports.DeliveryStatusValidator = DeliveryStatusValidator;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiRGVsaXZlcnlTdGF0dXMuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi9tb2RlbHMvRGVsaXZlcnlTdGF0dXMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLDREQUE0RDs7O0FBRTVELDJDQUE4QztBQUU5Qzs7OztHQUlHO0FBQ0gsSUFBWSxjQU1YO0FBTkQsV0FBWSxjQUFjO0lBQ3RCLHlDQUF1QixDQUFBO0lBQ3ZCLHlFQUF1RCxDQUFBO0lBQ3ZELG1FQUFpRCxDQUFBO0lBQ2pELHlFQUF1RCxDQUFBO0lBQ3ZELHlEQUF1QyxDQUFBO0FBQzNDLENBQUMsRUFOVyxjQUFjLDhCQUFkLGNBQWMsUUFNekI7QUFHRCxNQUFhLHVCQUF3QixTQUFRLDJCQUFlO0NBQUc7QUFBL0QsMERBQStEIiwic291cmNlc0NvbnRlbnQiOlsiLy8gQ29weXJpZ2h0IChjKSAyMDI1IEFwcGxlIEluYy4gTGljZW5zZWQgdW5kZXIgTUlUIExpY2Vuc2UuXG5cbmltcG9ydCB7IFN0cmluZ1ZhbGlkYXRvciB9IGZyb20gXCIuL1ZhbGlkYXRvclwiO1xuXG4vKipcbiAqIEEgdmFsdWUgdGhhdCBpbmRpY2F0ZXMgd2hldGhlciB0aGUgYXBwIHN1Y2Nlc3NmdWxseSBkZWxpdmVyZWQgYW4gSW4tQXBwIFB1cmNoYXNlIHRoYXQgd29ya3MgcHJvcGVybHkuXG4gKlxuICoge0BsaW5rIGh0dHBzOi8vZGV2ZWxvcGVyLmFwcGxlLmNvbS9kb2N1bWVudGF0aW9uL2FwcHN0b3Jlc2VydmVyYXBpL2RlbGl2ZXJ5c3RhdHVzIGRlbGl2ZXJ5U3RhdHVzfVxuICovXG5leHBvcnQgZW51bSBEZWxpdmVyeVN0YXR1cyB7XG4gICAgREVMSVZFUkVEID0gXCJERUxJVkVSRURcIixcbiAgICBVTkRFTElWRVJFRF9RVUFMSVRZX0lTU1VFID0gXCJVTkRFTElWRVJFRF9RVUFMSVRZX0lTU1VFXCIsXG4gICAgVU5ERUxJVkVSRURfV1JPTkdfSVRFTSA9IFwiVU5ERUxJVkVSRURfV1JPTkdfSVRFTVwiLFxuICAgIFVOREVMSVZFUkVEX1NFUlZFUl9PVVRBR0UgPSBcIlVOREVMSVZFUkVEX1NFUlZFUl9PVVRBR0VcIixcbiAgICBVTkRFTElWRVJFRF9PVEhFUiA9IFwiVU5ERUxJVkVSRURfT1RIRVJcIixcbn1cblxuXG5leHBvcnQgY2xhc3MgRGVsaXZlcnlTdGF0dXNWYWxpZGF0b3IgZXh0ZW5kcyBTdHJpbmdWYWxpZGF0b3Ige31cbiJdfQ==

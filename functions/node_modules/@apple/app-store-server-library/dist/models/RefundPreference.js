@@ -1,0 +1,20 @@
+"use strict";
+// Copyright (c) 2025 Apple Inc. Licensed under MIT License.
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.RefundPreferenceValidator = exports.RefundPreference = void 0;
+const Validator_1 = require("./Validator");
+/**
+ * A value that indicates your preferred outcome for the refund request.
+ *
+ * {@link https://developer.apple.com/documentation/appstoreserverapi/refundpreference refundPreference}
+ */
+var RefundPreference;
+(function (RefundPreference) {
+    RefundPreference["DECLINE"] = "DECLINE";
+    RefundPreference["GRANT_FULL"] = "GRANT_FULL";
+    RefundPreference["GRANT_PRORATED"] = "GRANT_PRORATED";
+})(RefundPreference || (exports.RefundPreference = RefundPreference = {}));
+class RefundPreferenceValidator extends Validator_1.StringValidator {
+}
+exports.RefundPreferenceValidator = RefundPreferenceValidator;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiUmVmdW5kUHJlZmVyZW5jZS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL21vZGVscy9SZWZ1bmRQcmVmZXJlbmNlLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSw0REFBNEQ7OztBQUU1RCwyQ0FBOEM7QUFFOUM7Ozs7R0FJRztBQUNILElBQVksZ0JBSVg7QUFKRCxXQUFZLGdCQUFnQjtJQUN4Qix1Q0FBbUIsQ0FBQTtJQUNuQiw2Q0FBeUIsQ0FBQTtJQUN6QixxREFBaUMsQ0FBQTtBQUNyQyxDQUFDLEVBSlcsZ0JBQWdCLGdDQUFoQixnQkFBZ0IsUUFJM0I7QUFFRCxNQUFhLHlCQUEwQixTQUFRLDJCQUFlO0NBQUc7QUFBakUsOERBQWlFIiwic291cmNlc0NvbnRlbnQiOlsiLy8gQ29weXJpZ2h0IChjKSAyMDI1IEFwcGxlIEluYy4gTGljZW5zZWQgdW5kZXIgTUlUIExpY2Vuc2UuXG5cbmltcG9ydCB7IFN0cmluZ1ZhbGlkYXRvciB9IGZyb20gXCIuL1ZhbGlkYXRvclwiO1xuXG4vKipcbiAqIEEgdmFsdWUgdGhhdCBpbmRpY2F0ZXMgeW91ciBwcmVmZXJyZWQgb3V0Y29tZSBmb3IgdGhlIHJlZnVuZCByZXF1ZXN0LlxuICpcbiAqIHtAbGluayBodHRwczovL2RldmVsb3Blci5hcHBsZS5jb20vZG9jdW1lbnRhdGlvbi9hcHBzdG9yZXNlcnZlcmFwaS9yZWZ1bmRwcmVmZXJlbmNlIHJlZnVuZFByZWZlcmVuY2V9XG4gKi9cbmV4cG9ydCBlbnVtIFJlZnVuZFByZWZlcmVuY2Uge1xuICAgIERFQ0xJTkUgPSBcIkRFQ0xJTkVcIixcbiAgICBHUkFOVF9GVUxMID0gXCJHUkFOVF9GVUxMXCIsXG4gICAgR1JBTlRfUFJPUkFURUQgPSBcIkdSQU5UX1BST1JBVEVEXCIsXG59XG5cbmV4cG9ydCBjbGFzcyBSZWZ1bmRQcmVmZXJlbmNlVmFsaWRhdG9yIGV4dGVuZHMgU3RyaW5nVmFsaWRhdG9yIHt9Il19

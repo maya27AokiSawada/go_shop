@@ -1,0 +1,20 @@
+"use strict";
+// Copyright (c) 2026 Apple Inc. Licensed under MIT License.
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.AdvancedCommerceReasonValidator = exports.AdvancedCommerceReason = void 0;
+const Validator_1 = require("./Validator");
+/**
+ * The data your app provides to change an item of an auto-renewable subscription.
+ *
+ * {@link https://developer.apple.com/documentation/advancedcommerceapi/subscriptionmodifychangeitem SubscriptionModifyChangeItem}
+ */
+var AdvancedCommerceReason;
+(function (AdvancedCommerceReason) {
+    AdvancedCommerceReason["UPGRADE"] = "UPGRADE";
+    AdvancedCommerceReason["DOWNGRADE"] = "DOWNGRADE";
+    AdvancedCommerceReason["APPLY_OFFER"] = "APPLY_OFFER";
+})(AdvancedCommerceReason || (exports.AdvancedCommerceReason = AdvancedCommerceReason = {}));
+class AdvancedCommerceReasonValidator extends Validator_1.StringValidator {
+}
+exports.AdvancedCommerceReasonValidator = AdvancedCommerceReasonValidator;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiQWR2YW5jZWRDb21tZXJjZVJlYXNvbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL21vZGVscy9BZHZhbmNlZENvbW1lcmNlUmVhc29uLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSw0REFBNEQ7OztBQUU1RCwyQ0FBNkM7QUFFN0M7Ozs7R0FJRztBQUNILElBQVksc0JBSVg7QUFKRCxXQUFZLHNCQUFzQjtJQUM5Qiw2Q0FBbUIsQ0FBQTtJQUNuQixpREFBdUIsQ0FBQTtJQUN2QixxREFBMkIsQ0FBQTtBQUMvQixDQUFDLEVBSlcsc0JBQXNCLHNDQUF0QixzQkFBc0IsUUFJakM7QUFFRCxNQUFhLCtCQUFnQyxTQUFRLDJCQUFlO0NBQUc7QUFBdkUsMEVBQXVFIiwic291cmNlc0NvbnRlbnQiOlsiLy8gQ29weXJpZ2h0IChjKSAyMDI2IEFwcGxlIEluYy4gTGljZW5zZWQgdW5kZXIgTUlUIExpY2Vuc2UuXG5cbmltcG9ydCB7IFN0cmluZ1ZhbGlkYXRvciB9IGZyb20gXCIuL1ZhbGlkYXRvclwiXG5cbi8qKlxuICogVGhlIGRhdGEgeW91ciBhcHAgcHJvdmlkZXMgdG8gY2hhbmdlIGFuIGl0ZW0gb2YgYW4gYXV0by1yZW5ld2FibGUgc3Vic2NyaXB0aW9uLlxuICogXG4gKiB7QGxpbmsgaHR0cHM6Ly9kZXZlbG9wZXIuYXBwbGUuY29tL2RvY3VtZW50YXRpb24vYWR2YW5jZWRjb21tZXJjZWFwaS9zdWJzY3JpcHRpb25tb2RpZnljaGFuZ2VpdGVtIFN1YnNjcmlwdGlvbk1vZGlmeUNoYW5nZUl0ZW19XG4gKi9cbmV4cG9ydCBlbnVtIEFkdmFuY2VkQ29tbWVyY2VSZWFzb24ge1xuICAgIFVQR1JBREUgPSBcIlVQR1JBREVcIixcbiAgICBET1dOR1JBREUgPSBcIkRPV05HUkFERVwiLFxuICAgIEFQUExZX09GRkVSID0gXCJBUFBMWV9PRkZFUlwiXG59XG5cbmV4cG9ydCBjbGFzcyBBZHZhbmNlZENvbW1lcmNlUmVhc29uVmFsaWRhdG9yIGV4dGVuZHMgU3RyaW5nVmFsaWRhdG9yIHt9Il19

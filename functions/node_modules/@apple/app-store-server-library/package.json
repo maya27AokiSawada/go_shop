@@ -1,0 +1,42 @@
+{
+  "name": "@apple/app-store-server-library",
+  "version": "3.1.0",
+  "description": "The App Store Server Library",
+  "main": "dist/index.js",
+  "keywords": [],
+  "author": "Apple Inc.",
+  "license": "MIT",
+  "repository": {
+    "url": "https://github.com/apple/app-store-server-library-node"
+  },
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/jsrsasign": "^10.5.12",
+    "@types/node": "^25.4.0",
+    "@types/node-fetch": "^2.6.13",
+    "base64url": "^3.0.1",
+    "jsonwebtoken": "^9.0.2",
+    "jsrsasign": "^11.0.0",
+    "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "jest": "^30.0.5",
+    "ts-jest": "^29.1.1",
+    "typedoc": "^0.28.7",
+    "typescript": "^5.3.3"
+  },
+  "resolutions": {
+    "@babel/traverse": "^7.23.6",
+    "semver": "^6.3.1"
+  },
+  "scripts": {
+    "build": "tsc -p .",
+    "test": "jest",
+    "build-docs": "typedoc index.ts"
+  },
+  "files": [
+    "dist"
+  ]
+}

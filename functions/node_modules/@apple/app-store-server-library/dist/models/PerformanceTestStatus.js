@@ -1,0 +1,20 @@
+"use strict";
+// Copyright (c) 2026 Apple Inc. Licensed under MIT License.
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.PerformanceTestStatusValidator = exports.PerformanceTestStatus = void 0;
+const Validator_1 = require("./Validator");
+/**
+ * The status of the performance test.
+ *
+ * {@link https://developer.apple.com/documentation/retentionmessaging/performanceteststatus PerformanceTestStatus}
+ */
+var PerformanceTestStatus;
+(function (PerformanceTestStatus) {
+    PerformanceTestStatus["PENDING"] = "PENDING";
+    PerformanceTestStatus["PASS"] = "PASS";
+    PerformanceTestStatus["FAIL"] = "FAIL";
+})(PerformanceTestStatus || (exports.PerformanceTestStatus = PerformanceTestStatus = {}));
+class PerformanceTestStatusValidator extends Validator_1.StringValidator {
+}
+exports.PerformanceTestStatusValidator = PerformanceTestStatusValidator;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiUGVyZm9ybWFuY2VUZXN0U3RhdHVzLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vbW9kZWxzL1BlcmZvcm1hbmNlVGVzdFN0YXR1cy50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsNERBQTREOzs7QUFFNUQsMkNBQThDO0FBRTlDOzs7O0dBSUc7QUFDSCxJQUFZLHFCQUlYO0FBSkQsV0FBWSxxQkFBcUI7SUFDN0IsNENBQW1CLENBQUE7SUFDbkIsc0NBQWEsQ0FBQTtJQUNiLHNDQUFhLENBQUE7QUFDakIsQ0FBQyxFQUpXLHFCQUFxQixxQ0FBckIscUJBQXFCLFFBSWhDO0FBRUQsTUFBYSw4QkFBK0IsU0FBUSwyQkFBZTtDQUFHO0FBQXRFLHdFQUFzRSIsInNvdXJjZXNDb250ZW50IjpbIi8vIENvcHlyaWdodCAoYykgMjAyNiBBcHBsZSBJbmMuIExpY2Vuc2VkIHVuZGVyIE1JVCBMaWNlbnNlLlxuXG5pbXBvcnQgeyBTdHJpbmdWYWxpZGF0b3IgfSBmcm9tIFwiLi9WYWxpZGF0b3JcIjtcblxuLyoqXG4gKiBUaGUgc3RhdHVzIG9mIHRoZSBwZXJmb3JtYW5jZSB0ZXN0LlxuICpcbiAqIHtAbGluayBodHRwczovL2RldmVsb3Blci5hcHBsZS5jb20vZG9jdW1lbnRhdGlvbi9yZXRlbnRpb25tZXNzYWdpbmcvcGVyZm9ybWFuY2V0ZXN0c3RhdHVzIFBlcmZvcm1hbmNlVGVzdFN0YXR1c31cbiAqL1xuZXhwb3J0IGVudW0gUGVyZm9ybWFuY2VUZXN0U3RhdHVzIHtcbiAgICBQRU5ESU5HID0gXCJQRU5ESU5HXCIsXG4gICAgUEFTUyA9IFwiUEFTU1wiLFxuICAgIEZBSUwgPSBcIkZBSUxcIixcbn1cblxuZXhwb3J0IGNsYXNzIFBlcmZvcm1hbmNlVGVzdFN0YXR1c1ZhbGlkYXRvciBleHRlbmRzIFN0cmluZ1ZhbGlkYXRvciB7fVxuIl19

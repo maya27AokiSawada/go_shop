@@ -1,0 +1,22 @@
+"use strict";
+// Copyright (c) 2024 Apple Inc. Licensed under MIT License.
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ConsumptionRequestReasonValidator = exports.ConsumptionRequestReason = void 0;
+const Validator_1 = require("./Validator");
+/**
+ * The customer-provided reason for a refund request.
+ *
+ * {@link https://developer.apple.com/documentation/appstoreservernotifications/consumptionrequestreason consumptionRequestReason}
+ */
+var ConsumptionRequestReason;
+(function (ConsumptionRequestReason) {
+    ConsumptionRequestReason["UNINTENDED_PURCHASE"] = "UNINTENDED_PURCHASE";
+    ConsumptionRequestReason["FULFILLMENT_ISSUE"] = "FULFILLMENT_ISSUE";
+    ConsumptionRequestReason["UNSATISFIED_WITH_PURCHASE"] = "UNSATISFIED_WITH_PURCHASE";
+    ConsumptionRequestReason["LEGAL"] = "LEGAL";
+    ConsumptionRequestReason["OTHER"] = "OTHER";
+})(ConsumptionRequestReason || (exports.ConsumptionRequestReason = ConsumptionRequestReason = {}));
+class ConsumptionRequestReasonValidator extends Validator_1.StringValidator {
+}
+exports.ConsumptionRequestReasonValidator = ConsumptionRequestReasonValidator;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiQ29uc3VtcHRpb25SZXF1ZXN0UmVhc29uLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vbW9kZWxzL0NvbnN1bXB0aW9uUmVxdWVzdFJlYXNvbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsNERBQTREOzs7QUFFNUQsMkNBQThDO0FBRTlDOzs7O0dBSUc7QUFDSCxJQUFZLHdCQU1YO0FBTkQsV0FBWSx3QkFBd0I7SUFDaEMsdUVBQTJDLENBQUE7SUFDM0MsbUVBQXVDLENBQUE7SUFDdkMsbUZBQXVELENBQUE7SUFDdkQsMkNBQWUsQ0FBQTtJQUNmLDJDQUFlLENBQUE7QUFDbkIsQ0FBQyxFQU5XLHdCQUF3Qix3Q0FBeEIsd0JBQXdCLFFBTW5DO0FBRUQsTUFBYSxpQ0FBa0MsU0FBUSwyQkFBZTtDQUFHO0FBQXpFLDhFQUF5RSIsInNvdXJjZXNDb250ZW50IjpbIi8vIENvcHlyaWdodCAoYykgMjAyNCBBcHBsZSBJbmMuIExpY2Vuc2VkIHVuZGVyIE1JVCBMaWNlbnNlLlxuXG5pbXBvcnQgeyBTdHJpbmdWYWxpZGF0b3IgfSBmcm9tIFwiLi9WYWxpZGF0b3JcIjtcblxuLyoqXG4gKiBUaGUgY3VzdG9tZXItcHJvdmlkZWQgcmVhc29uIGZvciBhIHJlZnVuZCByZXF1ZXN0LlxuICpcbiAqIHtAbGluayBodHRwczovL2RldmVsb3Blci5hcHBsZS5jb20vZG9jdW1lbnRhdGlvbi9hcHBzdG9yZXNlcnZlcm5vdGlmaWNhdGlvbnMvY29uc3VtcHRpb25yZXF1ZXN0cmVhc29uIGNvbnN1bXB0aW9uUmVxdWVzdFJlYXNvbn1cbiAqL1xuZXhwb3J0IGVudW0gQ29uc3VtcHRpb25SZXF1ZXN0UmVhc29uIHtcbiAgICBVTklOVEVOREVEX1BVUkNIQVNFID0gXCJVTklOVEVOREVEX1BVUkNIQVNFXCIsXG4gICAgRlVMRklMTE1FTlRfSVNTVUUgPSBcIkZVTEZJTExNRU5UX0lTU1VFXCIsXG4gICAgVU5TQVRJU0ZJRURfV0lUSF9QVVJDSEFTRSA9IFwiVU5TQVRJU0ZJRURfV0lUSF9QVVJDSEFTRVwiLFxuICAgIExFR0FMID0gXCJMRUdBTFwiLFxuICAgIE9USEVSID0gXCJPVEhFUlwiLFxufVxuXG5leHBvcnQgY2xhc3MgQ29uc3VtcHRpb25SZXF1ZXN0UmVhc29uVmFsaWRhdG9yIGV4dGVuZHMgU3RyaW5nVmFsaWRhdG9yIHt9Il19

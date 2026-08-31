@@ -1,0 +1,21 @@
+"use strict";
+// Copyright (c) 2023 Apple Inc. Licensed under MIT License.
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.OfferDiscountTypeValidator = exports.OfferDiscountType = void 0;
+const Validator_1 = require("./Validator");
+/**
+ * The payment mode for a discount offer on an In-App Purchase.
+ *
+ * {@link https://developer.apple.com/documentation/appstoreserverapi/offerdiscounttype offerDiscountType}
+ */
+var OfferDiscountType;
+(function (OfferDiscountType) {
+    OfferDiscountType["FREE_TRIAL"] = "FREE_TRIAL";
+    OfferDiscountType["PAY_AS_YOU_GO"] = "PAY_AS_YOU_GO";
+    OfferDiscountType["PAY_UP_FRONT"] = "PAY_UP_FRONT";
+    OfferDiscountType["ONE_TIME"] = "ONE_TIME";
+})(OfferDiscountType || (exports.OfferDiscountType = OfferDiscountType = {}));
+class OfferDiscountTypeValidator extends Validator_1.StringValidator {
+}
+exports.OfferDiscountTypeValidator = OfferDiscountTypeValidator;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiT2ZmZXJEaXNjb3VudFR5cGUuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi9tb2RlbHMvT2ZmZXJEaXNjb3VudFR5cGUudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLDREQUE0RDs7O0FBRTVELDJDQUE4QztBQUU5Qzs7OztHQUlHO0FBQ0gsSUFBWSxpQkFLWDtBQUxELFdBQVksaUJBQWlCO0lBQ3pCLDhDQUF5QixDQUFBO0lBQ3pCLG9EQUErQixDQUFBO0lBQy9CLGtEQUE2QixDQUFBO0lBQzdCLDBDQUFxQixDQUFBO0FBQ3pCLENBQUMsRUFMVyxpQkFBaUIsaUNBQWpCLGlCQUFpQixRQUs1QjtBQUVELE1BQWEsMEJBQTJCLFNBQVEsMkJBQWU7Q0FBRztBQUFsRSxnRUFBa0UiLCJzb3VyY2VzQ29udGVudCI6WyIvLyBDb3B5cmlnaHQgKGMpIDIwMjMgQXBwbGUgSW5jLiBMaWNlbnNlZCB1bmRlciBNSVQgTGljZW5zZS5cblxuaW1wb3J0IHsgU3RyaW5nVmFsaWRhdG9yIH0gZnJvbSBcIi4vVmFsaWRhdG9yXCI7XG5cbi8qKlxuICogVGhlIHBheW1lbnQgbW9kZSBmb3IgYSBkaXNjb3VudCBvZmZlciBvbiBhbiBJbi1BcHAgUHVyY2hhc2UuXG4gKlxuICoge0BsaW5rIGh0dHBzOi8vZGV2ZWxvcGVyLmFwcGxlLmNvbS9kb2N1bWVudGF0aW9uL2FwcHN0b3Jlc2VydmVyYXBpL29mZmVyZGlzY291bnR0eXBlIG9mZmVyRGlzY291bnRUeXBlfVxuICovXG5leHBvcnQgZW51bSBPZmZlckRpc2NvdW50VHlwZSB7XG4gICAgRlJFRV9UUklBTCA9IFwiRlJFRV9UUklBTFwiLFxuICAgIFBBWV9BU19ZT1VfR08gPSBcIlBBWV9BU19ZT1VfR09cIixcbiAgICBQQVlfVVBfRlJPTlQgPSBcIlBBWV9VUF9GUk9OVFwiLFxuICAgIE9ORV9USU1FID0gXCJPTkVfVElNRVwiXG59XG5cbmV4cG9ydCBjbGFzcyBPZmZlckRpc2NvdW50VHlwZVZhbGlkYXRvciBleHRlbmRzIFN0cmluZ1ZhbGlkYXRvciB7fSJdfQ==

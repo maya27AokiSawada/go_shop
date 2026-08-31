@@ -1,0 +1,28 @@
+"use strict";
+// Copyright (c) 2023 Apple Inc. Licensed under MIT License.
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.FirstSendAttemptResultValidator = exports.FirstSendAttemptResult = void 0;
+const Validator_1 = require("./Validator");
+/**
+ * An error or result that the App Store server receives when attempting to send an App Store server notification to your server.
+ *
+ * {@link https://developer.apple.com/documentation/appstoreserverapi/firstsendattemptresult firstSendAttemptResult}
+ */
+var FirstSendAttemptResult;
+(function (FirstSendAttemptResult) {
+    FirstSendAttemptResult["SUCCESS"] = "SUCCESS";
+    FirstSendAttemptResult["TIMED_OUT"] = "TIMED_OUT";
+    FirstSendAttemptResult["TLS_ISSUE"] = "TLS_ISSUE";
+    FirstSendAttemptResult["CIRCULAR_REDIRECT"] = "CIRCULAR_REDIRECT";
+    FirstSendAttemptResult["NO_RESPONSE"] = "NO_RESPONSE";
+    FirstSendAttemptResult["SOCKET_ISSUE"] = "SOCKET_ISSUE";
+    FirstSendAttemptResult["UNSUPPORTED_CHARSET"] = "UNSUPPORTED_CHARSET";
+    FirstSendAttemptResult["INVALID_RESPONSE"] = "INVALID_RESPONSE";
+    FirstSendAttemptResult["PREMATURE_CLOSE"] = "PREMATURE_CLOSE";
+    FirstSendAttemptResult["UNSUCCESSFUL_HTTP_RESPONSE_CODE"] = "UNSUCCESSFUL_HTTP_RESPONSE_CODE";
+    FirstSendAttemptResult["OTHER"] = "OTHER";
+})(FirstSendAttemptResult || (exports.FirstSendAttemptResult = FirstSendAttemptResult = {}));
+class FirstSendAttemptResultValidator extends Validator_1.StringValidator {
+}
+exports.FirstSendAttemptResultValidator = FirstSendAttemptResultValidator;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiRmlyc3RTZW5kQXR0ZW1wdFJlc3VsdC5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL21vZGVscy9GaXJzdFNlbmRBdHRlbXB0UmVzdWx0LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSw0REFBNEQ7OztBQUU1RCwyQ0FBeUQ7QUFFekQ7Ozs7R0FJRztBQUNILElBQVksc0JBWVg7QUFaRCxXQUFZLHNCQUFzQjtJQUM5Qiw2Q0FBbUIsQ0FBQTtJQUNuQixpREFBdUIsQ0FBQTtJQUN2QixpREFBdUIsQ0FBQTtJQUN2QixpRUFBdUMsQ0FBQTtJQUN2QyxxREFBMkIsQ0FBQTtJQUMzQix1REFBNkIsQ0FBQTtJQUM3QixxRUFBMkMsQ0FBQTtJQUMzQywrREFBcUMsQ0FBQTtJQUNyQyw2REFBbUMsQ0FBQTtJQUNuQyw2RkFBbUUsQ0FBQTtJQUNuRSx5Q0FBZSxDQUFBO0FBQ25CLENBQUMsRUFaVyxzQkFBc0Isc0NBQXRCLHNCQUFzQixRQVlqQztBQUVELE1BQWEsK0JBQWdDLFNBQVEsMkJBQWU7Q0FBRztBQUF2RSwwRUFBdUUiLCJzb3VyY2VzQ29udGVudCI6WyIvLyBDb3B5cmlnaHQgKGMpIDIwMjMgQXBwbGUgSW5jLiBMaWNlbnNlZCB1bmRlciBNSVQgTGljZW5zZS5cblxuaW1wb3J0IHsgU3RyaW5nVmFsaWRhdG9yLCBWYWxpZGF0b3IgfSBmcm9tIFwiLi9WYWxpZGF0b3JcIjtcblxuLyoqXG4gKiBBbiBlcnJvciBvciByZXN1bHQgdGhhdCB0aGUgQXBwIFN0b3JlIHNlcnZlciByZWNlaXZlcyB3aGVuIGF0dGVtcHRpbmcgdG8gc2VuZCBhbiBBcHAgU3RvcmUgc2VydmVyIG5vdGlmaWNhdGlvbiB0byB5b3VyIHNlcnZlci5cbiAqXG4gKiB7QGxpbmsgaHR0cHM6Ly9kZXZlbG9wZXIuYXBwbGUuY29tL2RvY3VtZW50YXRpb24vYXBwc3RvcmVzZXJ2ZXJhcGkvZmlyc3RzZW5kYXR0ZW1wdHJlc3VsdCBmaXJzdFNlbmRBdHRlbXB0UmVzdWx0fVxuICovXG5leHBvcnQgZW51bSBGaXJzdFNlbmRBdHRlbXB0UmVzdWx0IHtcbiAgICBTVUNDRVNTID0gXCJTVUNDRVNTXCIsXG4gICAgVElNRURfT1VUID0gXCJUSU1FRF9PVVRcIixcbiAgICBUTFNfSVNTVUUgPSBcIlRMU19JU1NVRVwiLFxuICAgIENJUkNVTEFSX1JFRElSRUNUID0gXCJDSVJDVUxBUl9SRURJUkVDVFwiLFxuICAgIE5PX1JFU1BPTlNFID0gXCJOT19SRVNQT05TRVwiLFxuICAgIFNPQ0tFVF9JU1NVRSA9IFwiU09DS0VUX0lTU1VFXCIsXG4gICAgVU5TVVBQT1JURURfQ0hBUlNFVCA9IFwiVU5TVVBQT1JURURfQ0hBUlNFVFwiLFxuICAgIElOVkFMSURfUkVTUE9OU0UgPSBcIklOVkFMSURfUkVTUE9OU0VcIixcbiAgICBQUkVNQVRVUkVfQ0xPU0UgPSBcIlBSRU1BVFVSRV9DTE9TRVwiLFxuICAgIFVOU1VDQ0VTU0ZVTF9IVFRQX1JFU1BPTlNFX0NPREUgPSBcIlVOU1VDQ0VTU0ZVTF9IVFRQX1JFU1BPTlNFX0NPREVcIixcbiAgICBPVEhFUiA9IFwiT1RIRVJcIixcbn1cblxuZXhwb3J0IGNsYXNzIEZpcnN0U2VuZEF0dGVtcHRSZXN1bHRWYWxpZGF0b3IgZXh0ZW5kcyBTdHJpbmdWYWxpZGF0b3Ige30iXX0=

@@ -1,0 +1,19 @@
+"use strict";
+// Copyright (c) 2023 Apple Inc. Licensed under MIT License.
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.TransactionReasonValidator = exports.TransactionReason = void 0;
+const Validator_1 = require("./Validator");
+/**
+ * The cause of a purchase transaction, which indicates whether it’s a customer’s purchase or a renewal for an auto-renewable subscription that the system initiates.
+ *
+ * {@link https://developer.apple.com/documentation/appstoreserverapi/transactionreason transactionReason}
+ */
+var TransactionReason;
+(function (TransactionReason) {
+    TransactionReason["PURCHASE"] = "PURCHASE";
+    TransactionReason["RENEWAL"] = "RENEWAL";
+})(TransactionReason || (exports.TransactionReason = TransactionReason = {}));
+class TransactionReasonValidator extends Validator_1.StringValidator {
+}
+exports.TransactionReasonValidator = TransactionReasonValidator;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiVHJhbnNhY3Rpb25SZWFzb24uanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi9tb2RlbHMvVHJhbnNhY3Rpb25SZWFzb24udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLDREQUE0RDs7O0FBRTVELDJDQUE4QztBQUU5Qzs7OztHQUlHO0FBQ0gsSUFBWSxpQkFHWDtBQUhELFdBQVksaUJBQWlCO0lBQ3pCLDBDQUFxQixDQUFBO0lBQ3JCLHdDQUFtQixDQUFBO0FBQ3ZCLENBQUMsRUFIVyxpQkFBaUIsaUNBQWpCLGlCQUFpQixRQUc1QjtBQUVELE1BQWEsMEJBQTJCLFNBQVEsMkJBQWU7Q0FBRztBQUFsRSxnRUFBa0UiLCJzb3VyY2VzQ29udGVudCI6WyIvLyBDb3B5cmlnaHQgKGMpIDIwMjMgQXBwbGUgSW5jLiBMaWNlbnNlZCB1bmRlciBNSVQgTGljZW5zZS5cblxuaW1wb3J0IHsgU3RyaW5nVmFsaWRhdG9yIH0gZnJvbSBcIi4vVmFsaWRhdG9yXCI7XG5cbi8qKlxuICogVGhlIGNhdXNlIG9mIGEgcHVyY2hhc2UgdHJhbnNhY3Rpb24sIHdoaWNoIGluZGljYXRlcyB3aGV0aGVyIGl04oCZcyBhIGN1c3RvbWVy4oCZcyBwdXJjaGFzZSBvciBhIHJlbmV3YWwgZm9yIGFuIGF1dG8tcmVuZXdhYmxlIHN1YnNjcmlwdGlvbiB0aGF0IHRoZSBzeXN0ZW0gaW5pdGlhdGVzLlxuICpcbiAqIHtAbGluayBodHRwczovL2RldmVsb3Blci5hcHBsZS5jb20vZG9jdW1lbnRhdGlvbi9hcHBzdG9yZXNlcnZlcmFwaS90cmFuc2FjdGlvbnJlYXNvbiB0cmFuc2FjdGlvblJlYXNvbn1cbiAqL1xuZXhwb3J0IGVudW0gVHJhbnNhY3Rpb25SZWFzb24ge1xuICAgIFBVUkNIQVNFID0gXCJQVVJDSEFTRVwiLFxuICAgIFJFTkVXQUwgPSBcIlJFTkVXQUxcIixcbn1cblxuZXhwb3J0IGNsYXNzIFRyYW5zYWN0aW9uUmVhc29uVmFsaWRhdG9yIGV4dGVuZHMgU3RyaW5nVmFsaWRhdG9yIHt9XG4iXX0=

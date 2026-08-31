@@ -1,0 +1,17 @@
+"use strict";
+// Copyright (c) 2026 Apple Inc. Licensed under MIT License.
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.BillingPlanTypeValidator = exports.BillingPlanType = void 0;
+const Validator_1 = require("./Validator");
+/**
+ * {@link https://developer.apple.com/documentation/appstoreserverapi/billingplantype billingPlanType}
+ */
+var BillingPlanType;
+(function (BillingPlanType) {
+    BillingPlanType["BILLED_UPFRONT"] = "BILLED_UPFRONT";
+    BillingPlanType["MONTHLY"] = "MONTHLY";
+})(BillingPlanType || (exports.BillingPlanType = BillingPlanType = {}));
+class BillingPlanTypeValidator extends Validator_1.StringValidator {
+}
+exports.BillingPlanTypeValidator = BillingPlanTypeValidator;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiQmlsbGluZ1BsYW5UeXBlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vbW9kZWxzL0JpbGxpbmdQbGFuVHlwZS50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsNERBQTREOzs7QUFFNUQsMkNBQTZDO0FBRTdDOztHQUVHO0FBQ0gsSUFBWSxlQUdYO0FBSEQsV0FBWSxlQUFlO0lBQ3ZCLG9EQUFpQyxDQUFBO0lBQ2pDLHNDQUFtQixDQUFBO0FBQ3ZCLENBQUMsRUFIVyxlQUFlLCtCQUFmLGVBQWUsUUFHMUI7QUFFRCxNQUFhLHdCQUF5QixTQUFRLDJCQUFlO0NBQUc7QUFBaEUsNERBQWdFIiwic291cmNlc0NvbnRlbnQiOlsiLy8gQ29weXJpZ2h0IChjKSAyMDI2IEFwcGxlIEluYy4gTGljZW5zZWQgdW5kZXIgTUlUIExpY2Vuc2UuXG5cbmltcG9ydCB7IFN0cmluZ1ZhbGlkYXRvciB9IGZyb20gXCIuL1ZhbGlkYXRvclwiXG5cbi8qKlxuICoge0BsaW5rIGh0dHBzOi8vZGV2ZWxvcGVyLmFwcGxlLmNvbS9kb2N1bWVudGF0aW9uL2FwcHN0b3Jlc2VydmVyYXBpL2JpbGxpbmdwbGFudHlwZSBiaWxsaW5nUGxhblR5cGV9XG4gKi9cbmV4cG9ydCBlbnVtIEJpbGxpbmdQbGFuVHlwZSB7XG4gICAgQklMTEVEX1VQRlJPTlQgPSBcIkJJTExFRF9VUEZST05UXCIsXG4gICAgTU9OVEhMWSA9IFwiTU9OVEhMWVwiLFxufVxuXG5leHBvcnQgY2xhc3MgQmlsbGluZ1BsYW5UeXBlVmFsaWRhdG9yIGV4dGVuZHMgU3RyaW5nVmFsaWRhdG9yIHt9XG4iXX0=

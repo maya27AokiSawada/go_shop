@@ -1,0 +1,19 @@
+"use strict";
+// Copyright (c) 2023 Apple Inc. Licensed under MIT License.
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.RevocationReasonValidator = exports.RevocationReason = void 0;
+const Validator_1 = require("./Validator");
+/**
+ * The reason for a refunded transaction.
+ *
+ * {@link https://developer.apple.com/documentation/appstoreserverapi/revocationreason revocationReason}
+ */
+var RevocationReason;
+(function (RevocationReason) {
+    RevocationReason[RevocationReason["REFUNDED_DUE_TO_ISSUE"] = 1] = "REFUNDED_DUE_TO_ISSUE";
+    RevocationReason[RevocationReason["REFUNDED_FOR_OTHER_REASON"] = 0] = "REFUNDED_FOR_OTHER_REASON";
+})(RevocationReason || (exports.RevocationReason = RevocationReason = {}));
+class RevocationReasonValidator extends Validator_1.NumberValidator {
+}
+exports.RevocationReasonValidator = RevocationReasonValidator;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiUmV2b2NhdGlvblJlYXNvbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL21vZGVscy9SZXZvY2F0aW9uUmVhc29uLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSw0REFBNEQ7OztBQUU1RCwyQ0FBOEM7QUFFOUM7Ozs7R0FJRztBQUNILElBQVksZ0JBR1g7QUFIRCxXQUFZLGdCQUFnQjtJQUN4Qix5RkFBeUIsQ0FBQTtJQUN6QixpR0FBNkIsQ0FBQTtBQUNqQyxDQUFDLEVBSFcsZ0JBQWdCLGdDQUFoQixnQkFBZ0IsUUFHM0I7QUFFRCxNQUFhLHlCQUEwQixTQUFRLDJCQUFlO0NBQUc7QUFBakUsOERBQWlFIiwic291cmNlc0NvbnRlbnQiOlsiLy8gQ29weXJpZ2h0IChjKSAyMDIzIEFwcGxlIEluYy4gTGljZW5zZWQgdW5kZXIgTUlUIExpY2Vuc2UuXG5cbmltcG9ydCB7IE51bWJlclZhbGlkYXRvciB9IGZyb20gXCIuL1ZhbGlkYXRvclwiO1xuXG4vKipcbiAqIFRoZSByZWFzb24gZm9yIGEgcmVmdW5kZWQgdHJhbnNhY3Rpb24uXG4gKlxuICoge0BsaW5rIGh0dHBzOi8vZGV2ZWxvcGVyLmFwcGxlLmNvbS9kb2N1bWVudGF0aW9uL2FwcHN0b3Jlc2VydmVyYXBpL3Jldm9jYXRpb25yZWFzb24gcmV2b2NhdGlvblJlYXNvbn1cbiAqL1xuZXhwb3J0IGVudW0gUmV2b2NhdGlvblJlYXNvbiB7XG4gICAgUkVGVU5ERURfRFVFX1RPX0lTU1VFID0gMSxcbiAgICBSRUZVTkRFRF9GT1JfT1RIRVJfUkVBU09OID0gMCxcbn1cblxuZXhwb3J0IGNsYXNzIFJldm9jYXRpb25SZWFzb25WYWxpZGF0b3IgZXh0ZW5kcyBOdW1iZXJWYWxpZGF0b3Ige30iXX0=
