@@ -1,5 +1,44 @@
 # Go Shop - AI Coding Agent Instructions
 
+## 🚀 Quick Start for AI Agents (January 2026)
+
+**Naming Conventions**:
+- Use `sharedGroup`, `sharedList`, and `sharedItem` for models and related components.
+- The refactoring from `shoppingList` and `shoppingItem` is mostly complete. Ensure new code follows the `shared` naming convention.
+
+**Hive TypeIDs**:
+- 0: SharedGroupRole
+- 1: SharedGroupMember
+- 2: SharedGroup
+- 3: SharedItem
+- 4: SharedList
+- 6: UserSettings
+
+**Architecture**:
+- The app uses a hybrid repository pattern (Hive for local cache, Firestore for remote).
+- Data is read from Hive first (cache-first), then synced from Firestore.
+- UI-related logic should be in the `pages` and `widgets` directories.
+- Business logic is managed by Riverpod `Notifier` classes in the `providers` directory.
+- Data access is handled by repositories in the `datastore` directory.
+
+### Git Push ポリシー (2026-07-01以降)
+
+**最重要ルール:**
+- **`oneness` ブランチは凍結されました。今後、このブランチへのコミットやプッシュは一切行わないでください。**
+- 開発は `main` ブランチ、または `future` プレフィックスを持つブランチ (`future/feature-name` など) で行います。
+
+**通常のワークフロー:**
+1. `main` ブランチから新しい `future/` ブランチを作成します。
+2. 作業完了後、`main` ブランチにマージします。
+
+# 開発ブランチへのプッシュ
+git push origin future/your-feature-name
+
+# mainブランチへのマージ後
+git push origin main
+
+---
+
 ## Recent Implementations (2026-01-01)
 
 ### 1. Windowsデスクトップサポート追加 ✅
@@ -83,26 +122,3 @@ StatefulBuilder(
 ```
 
 **Note**: グループ作成（`group_creation_with_copy_dialog.dart`）は既に `_isLoading` で二重送信防止済み
-
----
-
-## 🚀 Quick Start for AI Agents (January 2026)
-
-**Naming Conventions**:
-- Use `sharedGroup`, `sharedList`, and `sharedItem` for models and related components.
-- The refactoring from `shoppingList` and `shoppingItem` is mostly complete. Ensure new code follows the `shared` naming convention.
-
-**Hive TypeIDs**:
-- 0: SharedGroupRole
-- 1: SharedGroupMember
-- 2: SharedGroup
-- 3: SharedItem
-- 4: SharedList
-- 6: UserSettings
-
-**Architecture**:
-- The app uses a hybrid repository pattern (Hive for local cache, Firestore for remote).
-- Data is read from Hive first (cache-first), then synced from Firestore.
-- UI-related logic should be in the `pages` and `widgets` directories.
-- Business logic is managed by Riverpod `Notifier` classes in the `providers` directory.
-- Data access is handled by repositories in the `datastore` directory.
