@@ -189,7 +189,7 @@ Future<void> _initializeApp() async {
       }
 
       // 🔐 Firebase App Check 初期化
-      // debugビルド: デバッグプロバイダーを使用（Firebase ConsoleにデバッグトークンA9A1910D-ECE4-47F8-94C4-A3C1E301D269登録済み）
+      // debugビルド: デバッグプロバイダーを使用（端末ログのトークンをFirebase Consoleに登録）
       // releaseビルド: Play Integrity を使用
       if (Platform.isAndroid || Platform.isIOS) {
         await FirebaseAppCheck.instance.activate(

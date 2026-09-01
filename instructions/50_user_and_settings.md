@@ -232,6 +232,7 @@ purchaseType: 'free' | 'subscribe' | 'purchase'  // 課金タイプ（デフォ�
 7. `purchaseTypeProvider`（`StreamProvider`）がFirestore変化を検知してUIを自動更新する。
 8. `purchaseSyncProvider` がHiveの `SubscriptionState` へ反映し、`isPremiumActiveProvider`、Free/Premiumの上限、広告表示を更新する。Firestoreの明示的な `free` は、有効な無料体験中を除いてローカルにも即時反映する。
 9. 「購入を復元」は `PurchaseService.restorePurchases()` を実行し、復元取引も同じCallableで再検証する。
+10. Google Playが購入開始を受け付けない場合は、既所有購入の可能性を考慮して自動的に `restorePurchases()` を実行する。復元された購入トークンも必ず既存のFunctions検証へ送る。
 
 ### クライアント側の課金状態管理
 
@@ -239,6 +240,8 @@ purchaseType: 'free' | 'subscribe' | 'purchase'  // 課金タイプ（デフォ�
 - 認証状態の変更時は `purchaseTypeProvider` が購読対象ユーザーを切り替える。
 - 月額PremiumはHiveに35日間のオフライン猶予として保存し、Firestoreから有料状態を受信するたびに期限を更新する。
 - 購入UIは `pending` / `purchased` / `restored` / `canceled` / `error` を表示し、処理中の多重操作を禁止する。
+- ストアへ接続できても月額SKUを取得できない場合は購入ボタンを無効化し、ストアアカウントとアプリの配布元を確認する案内を表示する。復元ボタンは利用可能なまま維持する。
+- Google Playのprod商品を使うE2E確認は、prod packageをPlay Storeのテストトラックからインストールして行う。applicationIdが異なるdev packageやローカルインストールAPKでprod SKUの取得を前提にしない。
 
 ### 広告チェックの原則
 

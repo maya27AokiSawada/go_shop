@@ -121,6 +121,16 @@ void main() {
     expect(service.currentState.status, PurchaseFlowStatus.idle);
     expect(service.currentState.message, contains('購入履歴を確認しました'));
   });
+
+  test('購入フローを開始できない場合は既存の購入履歴を復元する', () async {
+    fakePlatform.buyNonConsumableResult = false;
+    await service.initialize();
+
+    await service.buyPremiumMonthly();
+
+    expect(fakePlatform.restorePurchasesCallCount, 1);
+    expect(service.currentState.status, PurchaseFlowStatus.idle);
+  });
 }
 
 PurchaseDetails createPurchase(
@@ -162,6 +172,8 @@ class FakePurchasePlatform extends InAppPurchasePlatform {
       StreamController<List<PurchaseDetails>>.broadcast();
   final List<String> completedProductIds = [];
   int purchaseStreamReadCount = 0;
+  int restorePurchasesCallCount = 0;
+  bool buyNonConsumableResult = true;
 
   void emit(List<PurchaseDetails> purchases) {
     _controller.add(purchases);
@@ -183,9 +195,23 @@ class FakePurchasePlatform extends InAppPurchasePlatform {
     Set<String> identifiers,
   ) async {
     return ProductDetailsResponse(
-      productDetails: const [],
+      productDetails: [
+        ProductDetails(
+          id: 'goshopping_premium_monthly',
+          title: 'Premium Monthly',
+          description: 'Premium monthly subscription',
+          price: '¥200',
+          rawPrice: 200,
+          currencyCode: 'JPY',
+        ),
+      ],
       notFoundIDs: const [],
     );
+  }
+
+  @override
+  Future<bool> buyNonConsumable({required PurchaseParam purchaseParam}) async {
+    return buyNonConsumableResult;
   }
 
   @override
@@ -194,5 +220,7 @@ class FakePurchasePlatform extends InAppPurchasePlatform {
   }
 
   @override
-  Future<void> restorePurchases({String? applicationUserName}) async {}
+  Future<void> restorePurchases({String? applicationUserName}) async {
+    restorePurchasesCallCount++;
+  }
 }

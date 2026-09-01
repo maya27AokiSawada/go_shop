@@ -74,6 +74,8 @@ class PurchaseService {
 
   List<ProductDetails> get products => List.unmodifiable(_products);
   bool get isAvailable => _isAvailable;
+  bool get isPremiumMonthlyAvailable =>
+      _products.any((product) => product.id == _ProductIds.premiumMonthly);
   PurchaseFlowState get currentState => _currentState;
   Stream<PurchaseFlowState> get statusStream => _statusController.stream;
 
@@ -191,10 +193,8 @@ class PurchaseService {
         purchaseParam: PurchaseParam(productDetails: product),
       );
       if (!started) {
-        _setStatus(
-          PurchaseFlowStatus.error,
-          message: '購入手続きを開始できませんでした。',
-        );
+        Log.warning('[$_logTag] 購入フローを開始できないため、既存の購入履歴を確認します');
+        await restorePurchases();
       }
     } catch (e) {
       Log.error('[$_logTag] buyPremiumMonthly エラー: $e');

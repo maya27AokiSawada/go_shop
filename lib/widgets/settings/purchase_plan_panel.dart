@@ -17,6 +17,7 @@ class PurchasePlanPanel extends ConsumerStatefulWidget {
 class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
   bool _isLoading = true;
   bool _isStoreAvailable = false;
+  bool _isPremiumProductAvailable = false;
   late final PurchaseService _purchaseService;
   late PurchaseFlowState _purchaseState;
   StreamSubscription<PurchaseFlowState>? _statusSubscription;
@@ -44,6 +45,7 @@ class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
     if (!mounted) return;
     setState(() {
       _isStoreAvailable = _purchaseService.isAvailable;
+      _isPremiumProductAvailable = _purchaseService.isPremiumMonthlyAvailable;
       _isLoading = false;
     });
   }
@@ -60,7 +62,7 @@ class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
   Widget build(BuildContext context) {
     final isPremium = ref.watch(isPremiumActiveProvider);
     final isPurchasePending =
-      _purchaseState.status == PurchaseFlowStatus.pending;
+        _purchaseState.status == PurchaseFlowStatus.pending;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -125,9 +127,12 @@ class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
           if (!isPremium) ...[
             const SizedBox(height: 12),
             FilledButton.icon(
-              onPressed: _isLoading || !_isStoreAvailable || isPurchasePending
-                ? null
-                : _startPurchase,
+              onPressed: _isLoading ||
+                      !_isStoreAvailable ||
+                      !_isPremiumProductAvailable ||
+                      isPurchasePending
+                  ? null
+                  : _startPurchase,
               icon: _isLoading || isPurchasePending
                   ? const SizedBox(
                       width: 18,
@@ -147,9 +152,15 @@ class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
                 'ストアに接続できません。ストアアプリのあるAndroidまたはiOS端末でお試しください。',
                 style: TextStyle(fontSize: 12, color: Colors.red.shade700),
               ),
+            ] else if (!_isLoading && !_isPremiumProductAvailable) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Premium商品をストアから取得できませんでした。購入に使用するストアアカウントとアプリの配布元を確認してください。',
+                style: TextStyle(fontSize: 12, color: Colors.red.shade700),
+              ),
             ],
           ],
-            if (_purchaseState.message != null) ...[
+          if (_purchaseState.message != null) ...[
             const SizedBox(height: 8),
             Text(
               _purchaseState.message!,
