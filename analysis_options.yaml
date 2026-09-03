@@ -1,4 +1,4 @@
-﻿include: package:flutter_lints/flutter.yaml
+include: package:flutter_lints/flutter.yaml
 
 analyzer:
   exclude:
@@ -6,6 +6,11 @@ analyzer:
     - "**/*.freezed.dart"
     - "build/**"
     - "deprecated/**"
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - linux/**
 
   errors:
     missing_required_param: error

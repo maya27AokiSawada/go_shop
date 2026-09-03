@@ -9,6 +9,15 @@
 - [x] Android build 29のprod release AABを生成する
 - [ ] Play Storeテストトラック配布版で購入・復元・Firestore反映をE2E確認する
 
+## 📝 今日のTodo
+
+- [ ] build 29 がクローズドテスト配布済みであることをPlay Consoleで確認する
+- [ ] SH-54D / Pixel 9 にテストトラック版を入れて、prod package で起動確認する
+- [ ] Premium購入フローを実行し、Google Play での支払い完了とFunctions `verifyPurchase` の成功を確認する
+- [ ] Firestore への `purchaseType: subscribe` 反映と Premium UI 更新を確認する
+- [ ] 購入復元経路を再確認し、既存購入が権限へ反映されるかを検証する
+- [ ] 確認結果をログとして残し、必要なら RTDN / App Store Server Notifications の実装方針を整理する
+
 ---
 
 ## ✅ 完了した作業

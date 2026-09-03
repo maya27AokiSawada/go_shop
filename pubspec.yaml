@@ -16,7 +16,7 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.1.0+29
+version: 1.1.0+31
 
 environment:
   sdk: ^3.4.0
@@ -34,11 +34,11 @@ dependencies:
     sdk: flutter
 
   # Firebase
-  firebase_core: ^4.1.1
-  firebase_auth: ^6.3.0
-  cloud_firestore: ^6.0.2
-  firebase_crashlytics: ^5.0.5 # クラッシュログ収集（Android/iOS）
-  firebase_app_check: ^0.4.2 # App Checkトークン保護
+  firebase_core: ^4.14.0
+  firebase_auth: ^6.6.1
+  cloud_firestore: ^6.9.0
+  firebase_crashlytics: ^5.3.0
+  firebase_app_check: ^0.4.7
   sentry_flutter: ^8.9.0 # クラッシュログ収集（Windows/Linux/macOS）
 
   # State Management
@@ -78,18 +78,18 @@ dependencies:
   # Advertising
   # 9.1.0 triggers the Xcode framework-module import issue on iOS builds in this project;
   # pin to the last compatible version that still supports the current ad APIs.
-  google_mobile_ads: 5.3.1
+  google_mobile_ads: ^9.1.0
 
   # In-App Purchase
   in_app_purchase: ^3.2.0
-  geocoding: ^4.0.0 # 住所変換
+  geocoding: ^5.0.0 # 住所変換
 
   # Device Information
-  device_info_plus: ^13.1.0 # デバイス固有ID取得（グループ・リストID生成用）
+  device_info_plus: ^13.2.0 # デバイス固有ID取得（グループ・リストID生成用）
 
   # Drawing / Whiteboard
   signature: ^6.3.0 # 手書き署名・描画機能（安定版）
-  cloud_functions: 6.4.0
+  cloud_functions: ^6.4.0
 
 dev_dependencies:
   flutter_test:
@@ -102,7 +102,7 @@ dev_dependencies:
 
   # Testing
   mockito: ^5.4.4
-  firebase_auth_mocks: ^0.15.1 # Firebase Auth mocking for unit tests (compatible with firebase_core ^4.1.1)
+  # firebase_auth_mocks: ^0.15.1 # Firebase Auth mocking for unit tests (compatible with firebase_core ^4.1.1)
   # fake_cloud_firestore: Cloud Firestore ^6.0.2に未対応のため、mockitoで手動モックを作成
 
   # Linting
