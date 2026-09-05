@@ -76,9 +76,13 @@ dependencies:
   share_plus: ^13.1.0
 
   # Advertising
-  # 9.1.0 triggers the Xcode framework-module import issue on iOS builds in this project;
-  # pin to the last compatible version that still supports the current ad APIs.
-  google_mobile_ads: ^9.1.0
+  # 9.1.0 adds the Ad Preloading APIs whose iOS source references GADPreloadConfigurationV2,
+  # which Google-Mobile-Ads-SDK only ships as a private/Beta header. With this project's
+  # static-framework linking that header is invisible and `flutter build ipa` fails to compile
+  # FLTAdPreloader.m. The app only uses BannerAd/InterstitialAd, so pin to 9.0.0 (exact) until
+  # the plugin fixes the static-framework case. A caret range here would let pub upgrade jump
+  # back to 9.1.0 and re-break iOS, so keep it pinned.
+  google_mobile_ads: 9.0.0
 
   # In-App Purchase
   in_app_purchase: ^3.2.0
