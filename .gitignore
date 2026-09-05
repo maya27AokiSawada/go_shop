@@ -116,6 +116,9 @@ pubspec.lock
 secret/
 secrets/
 
+# Local Play Console exports (account and project identifiers)
+docs/troubleshooting/*.pdf
+
 # IDE metadata
 .metadata
 
