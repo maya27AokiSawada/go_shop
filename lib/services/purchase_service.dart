@@ -41,11 +41,12 @@ class _ProductIds {
   static const String premiumMonthly = 'goshopping_premium_monthly';
 
   /// Premium プラン年額（新規）
-  static const String premiumYearly = 'goshopping_premium_yearly';
+  static const String premiumYearly = 'goshopping-premium-annual';
 
-  /// 現在ストアに登録済みのPremium月額SKUのみを取得する。
+  /// 現在ストアに登録済みのPremium SKU一覧。
   static const Set<String> all = {
     premiumMonthly,
+    premiumYearly,
   };
 }
 
@@ -76,6 +77,8 @@ class PurchaseService {
   bool get isAvailable => _isAvailable;
   bool get isPremiumMonthlyAvailable =>
       _products.any((product) => product.id == _ProductIds.premiumMonthly);
+  bool get isPremiumYearlyAvailable =>
+      _products.any((product) => product.id == _ProductIds.premiumYearly);
   PurchaseFlowState get currentState => _currentState;
   Stream<PurchaseFlowState> get statusStream => _statusController.stream;
 
@@ -214,20 +217,38 @@ class PurchaseService {
     }
 
     try {
-      final product =
-          _products.where((p) => p.id == _ProductIds.premiumYearly).firstOrNull;
+      final product = _products
+          .where((p) => p.id == _ProductIds.premiumYearly)
+          .firstOrNull;
       if (product == null) {
         Log.error(
             '[$_logTag] Premium Yearly 商品が見つかりません（SKU: ${_ProductIds.premiumYearly}）');
+        _setStatus(
+          PurchaseFlowStatus.error,
+          message: 'Premium商品を取得できませんでした。',
+        );
         return;
       }
 
       Log.info('[$_logTag] Premium Yearly の購入フローを開始');
-      await _iap.buyNonConsumable(
+      _setStatus(
+        PurchaseFlowStatus.pending,
+        message: 'ストアで購入手続きを進めています。',
+      );
+      final started = await _iap.buyNonConsumable(
         purchaseParam: PurchaseParam(productDetails: product),
       );
+      if (!started) {
+        Log.warning('[$_logTag] 購入フローを開始できないため、既存の購入履歴を確認します');
+        await restorePurchases();
+      }
     } catch (e) {
       Log.error('[$_logTag] buyPremiumYearly エラー: $e');
+      await ErrorLogService.logOperationError('Premium購入', '$e');
+      _setStatus(
+        PurchaseFlowStatus.error,
+        message: '購入手続きでエラーが発生しました。',
+      );
     }
   }
 
@@ -401,12 +422,24 @@ class PurchaseService {
   String get premiumMonthlyPrice =>
       getPrice(_ProductIds.premiumMonthly, _premiumMonthlyFallbackPrice);
 
+  String get premiumYearlyPrice =>
+      getPrice(_ProductIds.premiumYearly, _premiumYearlyFallbackPrice);
+
   String get _premiumMonthlyFallbackPrice {
     switch (PlatformDispatcher.instance.locale.languageCode) {
       case 'ja':
         return '¥200/月';
       default:
         return 'US\$2/month';
+    }
+  }
+
+  String get _premiumYearlyFallbackPrice {
+    switch (PlatformDispatcher.instance.locale.languageCode) {
+      case 'ja':
+        return '¥2,000/年';
+      default:
+        return 'US\$20/year';
     }
   }
 

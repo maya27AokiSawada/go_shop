@@ -18,6 +18,7 @@ class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
   bool _isLoading = true;
   bool _isStoreAvailable = false;
   bool _isPremiumProductAvailable = false;
+  bool _isPremiumYearlyProductAvailable = false;
   late final PurchaseService _purchaseService;
   late PurchaseFlowState _purchaseState;
   StreamSubscription<PurchaseFlowState>? _statusSubscription;
@@ -46,12 +47,18 @@ class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
     setState(() {
       _isStoreAvailable = _purchaseService.isAvailable;
       _isPremiumProductAvailable = _purchaseService.isPremiumMonthlyAvailable;
+      _isPremiumYearlyProductAvailable =
+          _purchaseService.isPremiumYearlyAvailable;
       _isLoading = false;
     });
   }
 
   Future<void> _startPurchase() async {
     await _purchaseService.buyPremiumMonthly();
+  }
+
+  Future<void> _startYearlyPurchase() async {
+    await _purchaseService.buyPremiumYearly();
   }
 
   Future<void> _restorePurchases() async {
@@ -157,6 +164,20 @@ class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
               Text(
                 'Premium商品をストアから取得できませんでした。購入に使用するストアアカウントとアプリの配布元を確認してください。',
                 style: TextStyle(fontSize: 12, color: Colors.red.shade700),
+              ),
+            ],
+            if (!_isLoading &&
+                _isStoreAvailable &&
+                _isPremiumYearlyProductAvailable) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: isPurchasePending ? null : _startYearlyPurchase,
+                icon: const Icon(Icons.workspace_premium_outlined),
+                label: Text(
+                  isPurchasePending
+                      ? '処理中'
+                      : '年払いでPremiumを有効化 (${_purchaseService.premiumYearlyPrice})',
+                ),
               ),
             ],
           ],

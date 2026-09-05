@@ -211,102 +211,6 @@ class AdService {
   }
 }
 
-/// ニュース欄用の地域広告ウィジェット
-class LocalNewsAdWidget extends ConsumerStatefulWidget {
-  const LocalNewsAdWidget({super.key});
-
-  @override
-  ConsumerState<LocalNewsAdWidget> createState() => _LocalNewsAdWidgetState();
-}
-
-class _LocalNewsAdWidgetState extends ConsumerState<LocalNewsAdWidget> {
-  BannerAd? _bannerAd;
-  bool _isAdLoaded = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadBannerAd();
-  }
-
-  void _loadBannerAd() async {
-    final adService = ref.read(adServiceProvider);
-
-    // 課金ステータスチェック：バナー広告を非表示にする場合はスキップ
-    final shouldShow = await adService.shouldShowBannerAd();
-    if (!shouldShow) return;
-
-    _bannerAd = await adService.createBannerAd(
-      size: AdSize.banner,
-      onAdLoaded: () {
-        setState(() {
-          _isAdLoaded = true;
-        });
-      },
-      onAdFailedToLoad: () {
-        setState(() {
-          _isAdLoaded = false;
-        });
-      },
-    );
-    _bannerAd!.load();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(8.0),
-        color: Colors.grey.shade50,
-      ),
-      child: Column(
-        children: [
-          // 広告ラベル
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-            child: const Text(
-              '🏪 近隣店舗情報',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          // 広告バナー
-          if (_isAdLoaded && _bannerAd != null)
-            SizedBox(
-              height: _bannerAd!.size.height.toDouble(),
-              width: _bannerAd!.size.width.toDouble(),
-              child: AdWidget(ad: _bannerAd!),
-            )
-          else
-            Container(
-              height: 60,
-              width: double.infinity,
-              color: Colors.grey.shade200,
-              child: const Center(
-                child: Text(
-                  '地域情報を読み込み中...',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _bannerAd?.dispose();
-    super.dispose();
-  }
-}
-
 /// ホーム画面用のバナー広告ウィジェット
 class HomeBannerAdWidget extends ConsumerStatefulWidget {
   const HomeBannerAdWidget({super.key});
@@ -331,6 +235,11 @@ class _HomeBannerAdWidgetState extends ConsumerState<HomeBannerAdWidget> {
   void _loadBannerAd() async {
     try {
       final adService = ref.read(adServiceProvider);
+
+      // 課金ステータスチェック：バナー広告を非表示にする場合はスキップ
+      final shouldShow = await adService.shouldShowBannerAd();
+      if (!shouldShow || !mounted) return;
+
       _bannerAd = await adService.createBannerAd(
         size: AdSize.mediumRectangle,
         onAdLoaded: () {

@@ -6,7 +6,7 @@ enum PurchaseType {
   /// Premiumプラン（月額）（全広告非表示）
   subscribe,
 
-  /// 買い切り：旧プラン（インタースティシャル広告のみ非表示）
+  /// 買い切り：旧プラン（全広告非表示）
   purchase,
 }
 
@@ -52,5 +52,5 @@ extension PurchaseTypeExt on PurchaseType {
       this == PurchaseType.subscribe || this == PurchaseType.purchase;
 
   /// バナー広告を非表示にするか
-  bool get hidesBannerAds => this == PurchaseType.subscribe;
+  bool get hidesBannerAds => this != PurchaseType.free;
 }

@@ -11,12 +11,18 @@ const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
 const {
   PREMIUM_PRODUCT_ID,
+  PREMIUM_ANNUAL_PRODUCT_ID,
   ReceiptValidationError,
   acknowledgeGooglePurchase,
   persistVerifiedEntitlement,
   verifyApplePurchase,
   verifyGooglePurchase,
 } = require("./receipt_verification");
+
+const SUPPORTED_PREMIUM_PRODUCT_IDS = new Set([
+  PREMIUM_PRODUCT_ID,
+  PREMIUM_ANNUAL_PRODUCT_ID,
+]);
 
 initializeApp();
 
@@ -46,7 +52,7 @@ exports.verifyPurchase = onCall(
     const platform = request.data?.platform;
     const productId = request.data?.productId;
     const verificationData = request.data?.verificationData;
-    if (productId !== PREMIUM_PRODUCT_ID) {
+    if (!SUPPORTED_PREMIUM_PRODUCT_IDS.has(productId)) {
       throw new HttpsError("invalid-argument", "未対応の商品IDです");
     }
 
