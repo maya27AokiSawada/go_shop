@@ -222,11 +222,10 @@ class _InitialSetupWidgetState extends ConsumerState<InitialSetupWidget> {
       Log.error('❌ [INITIAL_SETUP] グループ作成エラー: $e');
       Log.error('スタックトレース: $stackTrace');
       if (mounted) {
-        SnackBarHelper.showCustom(
+        final errorMessage = e.toString().replaceAll('Exception: ', '');
+        SnackBarHelper.showError(
           this.context,
-          message: '${texts.createGroupFailed}: ${e.toString()}',
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 5),
+          '${texts.createGroupFailed}: $errorMessage',
         );
       }
     }

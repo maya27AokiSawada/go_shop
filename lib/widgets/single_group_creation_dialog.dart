@@ -8,6 +8,7 @@ import '../providers/shared_list_provider.dart';
 import '../providers/current_list_provider.dart';
 import '../datastore/hybrid_shared_list_repository.dart';
 import '../utils/app_logger.dart';
+import '../utils/snackbar_helper.dart';
 import '../screens/qr_scan_screen.dart';
 import '../l10n/l10n.dart';
 
@@ -119,9 +120,8 @@ class _SingleGroupCreationDialogState
     } catch (e) {
       AppLogger.error('❌ [SINGLE DIALOG] 作成エラー: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('グループ作成に失敗しました: $e')),
-        );
+        final errorMessage = e.toString().replaceAll('Exception: ', '');
+        SnackBarHelper.showError(context, 'グループ作成に失敗しました: $errorMessage');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

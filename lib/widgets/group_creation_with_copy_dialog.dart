@@ -734,7 +734,11 @@ class _GroupCreationWithCopyDialogState
           _isLoading = false;
         });
 
-        // エラー時はfalseを返す（Snackbarは呼び出し元で表示）
+        // 🔥 FIX: ユーザーにエラー（上限到達など）を通知
+        final errorMessage = e.toString().replaceAll('Exception: ', '');
+        SnackBarHelper.showError(context, 'グループ作成に失敗しました: $errorMessage');
+
+        // エラー時はfalseを返す
         Navigator.of(context).pop(false);
       }
     }
