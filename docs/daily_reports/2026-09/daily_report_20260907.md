@@ -317,12 +317,37 @@ com.apple.developer.devicecheck.appattest-environment = development
 
 ---
 
+## 🕐 午後の追記（審査提出準備・スクリーンショット・シミュレータ検証）
+
+※ 午後の作業はコンソール操作・シミュレータ検証が中心で、コード変更はなし。
+
+### A. スクリーンショット撮影環境の構築 ✅
+
+- iPhone 17 Pro Max（6.9型 / 1320×2868）と iPad Pro 13インチ M5（13型 / 2064×2752）のシミュレータを起動し、`--dart-define=IAP_MOCK=true` でアプリを実行。購入パネルがモック価格（¥200/月・¥1,500/年）で表示されることを確認。
+- 購入パネルはサインイン必須の画面配下にあるため、シミュレータ機種ごとに発行される App Check デバッグトークンを Firebase Console のデバッグトークンに登録してサインインする運用を確認（実機用トークンとは別。トークンは秘密情報のためコミット・記録しない）。
+
+### B. App Check enforce 解除直後に Firestore が全 `permission-denied` になった件 ✅
+
+- **症状**: Auth / Firestore の App Check を「適用しない」に変更した直後、iPad シミュレータでリスト作成が `[cloud_firestore/permission-denied]` で失敗。プロフィール同期・課金タイプ取得・ニュース取得・グループ取得もすべて同エラー。
+- **切り分け**: `firestoreNews`（ルールは `allow read: if true` の無条件公開）の読み取りまで `permission-denied` になっていた → セキュリティルールではなく App Check がリクエストを弾いている。
+- **原因**: App Check enforce 解除の反映には最大 15〜20 分かかり、その間クライアントは無効トークンのまま拒否され続ける。加えて当該シミュレータのデバッグトークンが未登録だった。
+- **対処**: シミュレータのデバッグトークンを登録し、`flutter run` でホットリスタート（App Check 再初期化）すれば enforce が残っていても通る。enforce 解除で通す場合は反映まで待つ。Firestore の App Check は「アプリ単位」で解除する必要がある（API 単位ではない）。
+- **状態**: 切り分け完了・回避手順を確立（設定変更のみ、コード変更なし）
+
+### C. App Store Connect の提出ステータス整理 ✅
+
+- 「審査準備完了（Ready to Submit）」は必須項目が揃っただけで、**まだ提出していない／審査に入っていない**状態であることを確認。「審査へ提出」を押して初めて「審査待ち」→「審査中」へ進む。
+- App 内課金（サブスク）の「提出準備完了」も同義。単体では提出できず、アプリのバージョン提出時に同梱する。提出前に TestFlight にアップロードした build をバージョンへ紐付ける必要がある。
+
+---
+
 ## 🗓 翌日（2026-09-08）の予定
 
 1. TestFlight build 33 を App Store Connect へアップロードし、実機で App Attest（production）経由のサインインを確認する
 2. App Store 用スクリーンショットの残りサイズを撮影し、アルファ除去のうえアップロードする
 3. 有料App契約が有効化されたら、Premium 月額／年払いの実機購入・復元を E2E で確認する
 4. App Check の Authentication enforce 状態を最終確認する（本番 App Attest の動作確認後）
+5. アプリバージョンに build 33 と App 内課金を紐付けて審査へ提出する
 
 ---
 
@@ -330,7 +355,7 @@ com.apple.developer.devicecheck.appattest-environment = development
 
 | ドキュメント | 更新内容 |
 |---|---|
-| `docs/daily_reports/2026-09/daily_report_20260907.md` | 本日の日報を新規作成 |
+| `docs/daily_reports/2026-09/daily_report_20260907.md` | 本日の日報を新規作成（午後にスクリーンショット・App Check 反映遅延・審査提出ステータスの追記） |
 | `ios/Runner.xcodeproj/project.pbxproj` | App Attest entitlements を `Release-prod` / `Profile-prod` に配線 |
 | `ios/Runner/RunnerRelease.entitlements` | `appattest-environment = development` を削除（配布ビルドを production 環境に）＋経緯コメント |
 | `lib/main.dart` | `--dart-define=APP_CHECK_DEBUG=true` で App Check の Debug プロバイダを選択可能に |
