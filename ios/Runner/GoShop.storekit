@@ -1,0 +1,89 @@
+{
+  "identifier" : "D619FFEE-487B-47B8-A299-3B6C01AEAFA0",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_applicationInternalID" : "0000000000",
+    "_developerTeamID" : "9A34XAPY8W",
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 0,
+    "_locale" : "ja_JP",
+    "_storefront" : "JPN",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "BFEEF85C-BCFC-4135-82A2-CD09A8E1F50C",
+      "localizations" : [
+        {
+          "description" : "",
+          "displayName" : "Premium",
+          "locale" : "ja_JP"
+        }
+      ],
+      "name" : "Premium",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "200",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "F1DF514C-1541-4F53-A4DD-389BA641DD12",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "広告なし・最大20グループ・1グループ50人",
+              "displayName" : "Premium（月額）",
+              "locale" : "ja_JP"
+            }
+          ],
+          "productID" : "goshopping_premium_monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Premium Monthly",
+          "subscriptionGroupID" : "BFEEF85C-BCFC-4135-82A2-CD09A8E1F50C",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "1500",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "5A23B422-1B90-436E-B77A-303A7C886672",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "広告なし・最大20グループ・1グループ50人（年額）",
+              "displayName" : "Premium（年額）",
+              "locale" : "ja_JP"
+            }
+          ],
+          "productID" : "goshopping_premium_annual",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Premium Annual",
+          "subscriptionGroupID" : "BFEEF85C-BCFC-4135-82A2-CD09A8E1F50C",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}
