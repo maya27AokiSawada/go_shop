@@ -12,6 +12,7 @@ const ANDROID_PUBLISHER_SCOPE =
     "https://www.googleapis.com/auth/androidpublisher";
 const PREMIUM_PRODUCT_ID = "goshopping_premium_monthly";
 const PREMIUM_ANNUAL_PRODUCT_ID = "goshopping-premium-annual";
+const PREMIUM_ANNUAL_IOS_ID = "goshopping_premium_annual";
 const ACTIVE_GOOGLE_STATES = new Set([
     "SUBSCRIPTION_STATE_ACTIVE",
     "SUBSCRIPTION_STATE_IN_GRACE_PERIOD",
@@ -321,6 +322,7 @@ async function persistVerifiedEntitlement({
 module.exports = {
     PREMIUM_PRODUCT_ID,
     PREMIUM_ANNUAL_PRODUCT_ID,
+    PREMIUM_ANNUAL_IOS_ID,
     ReceiptValidationError,
     acknowledgeGooglePurchase,
     evaluateAppleTransaction,

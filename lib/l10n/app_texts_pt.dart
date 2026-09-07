@@ -411,6 +411,15 @@ class AppTextsPt extends AppTextsEn {
   String get termsOfService => 'Termos de serviço';
 
   @override
+  String get subscriptionNotesTitle => 'Subscription Notes';
+
+  @override
+  String get subscriptionNotesBody => '• Payment will be charged to your Apple ID account at the confirmation of purchase.\n'
+      '• Subscription automatically renews unless it is canceled at least 24 hours before the end of the current period.\n'
+      '• Your account will be charged for renewal within 24 hours prior to the end of the current period.\n'
+      '• You can manage and cancel your subscriptions by going to your account settings on the App Store after purchase.';
+
+  @override
   String get logout => 'Sair';
 
   @override

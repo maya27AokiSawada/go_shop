@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../providers/purchase_type_provider.dart';
 import '../../providers/subscription_provider.dart';
 import '../../services/purchase_service.dart';
+import '../../l10n/l10n.dart';
 
 /// Premium月額プランの購入・復元を行う設定パネル。
 class PurchasePlanPanel extends ConsumerStatefulWidget {
@@ -204,7 +207,56 @@ class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
             icon: const Icon(Icons.restore, size: 18),
             label: const Text('購入を復元'),
           ),
+          if (Platform.isIOS && !isPremium) ...[
+            const Divider(height: 24),
+            Text(
+              texts.subscriptionNotesTitle,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              texts.subscriptionNotesBody,
+              style: const TextStyle(fontSize: 11, color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildLegalLink(
+                  texts.privacyPolicy,
+                  'https://maya27aokisawada.github.io/go_shop/specifications/privacy_policy',
+                ),
+                const Text(' | ', style: TextStyle(color: Colors.grey)),
+                _buildLegalLink(
+                  texts.termsOfService,
+                  'https://maya27aokisawada.github.io/go_shop/specifications/terms_of_service',
+                ),
+              ],
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildLegalLink(String label, String url) {
+    return InkWell(
+      onTap: () async {
+        final uri = Uri.parse(url);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            color: Colors.blue,
+            decoration: TextDecoration.underline,
+          ),
+        ),
       ),
     );
   }

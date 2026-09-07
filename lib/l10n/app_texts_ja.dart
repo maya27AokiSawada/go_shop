@@ -357,6 +357,15 @@ class AppTextsJa extends AppTexts {
   String get termsOfService => '利用規約';
 
   @override
+  String get subscriptionNotesTitle => 'サブスクリプションに関する注意事項';
+
+  @override
+  String get subscriptionNotesBody => '・お支払いは購入確定時にお客様のApple IDアカウントに請求されます。\n'
+      '・現在の期間が終了する24時間以上前に自動更新をオフにしない限り、サブスクリプションは自動的に更新されます。\n'
+      '・現在の期間が終了する24時間前以内に、更新料がアカウントに請求されます。\n'
+      '・購入後、お客様のアカウント設定からサブスクリプションの管理および自動更新をオフにすることができます。';
+
+  @override
   String get logout => 'ログアウト';
 
   @override

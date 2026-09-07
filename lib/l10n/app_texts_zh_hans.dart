@@ -406,6 +406,15 @@ class AppTextsZhHans extends AppTextsEn {
   String get termsOfService => '服务条款';
 
   @override
+  String get subscriptionNotesTitle => '订阅说明';
+
+  @override
+  String get subscriptionNotesBody => '• 确认购买后，费用将从您的 Apple ID 账户中扣除。\n'
+      '• 订阅会自动续订，除非在当前有效期结束前至少 24 小时关闭自动续订。\n'
+      '• 账户将在当前有效期结束前的 24 小时内扣除续订费用。\n'
+      '• 购买后，您可以前往 App Store 账户设置管理订阅并关闭自动续订。';
+
+  @override
   String get logout => '退出';
 
   @override

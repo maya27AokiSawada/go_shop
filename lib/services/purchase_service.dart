@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'dart:ui' show PlatformDispatcher;
 
 import 'package:cloud_functions/cloud_functions.dart';
@@ -29,7 +30,7 @@ class VerifiedPurchaseResult {
   const VerifiedPurchaseResult({required this.storeAcknowledged});
 }
 
-/// Google Play 商品ID
+/// Google Play / App Store 商品ID
 class _ProductIds {
   /// サブスク：¥200 / 3ヶ月（レガシー）
   static const String subscription = 'goshopping_subscribe';
@@ -37,16 +38,28 @@ class _ProductIds {
   /// 買い切り：¥1,000（非消費型）
   static const String oneTimePurchase = 'goshopping_onetime_1000';
 
-  /// Premium プラン月額（新規）
+  /// Premium プラン月額 (Android/iOS共通)
   static const String premiumMonthly = 'goshopping_premium_monthly';
 
-  /// Premium プラン年額（新規）
-  static const String premiumYearly = 'goshopping-premium-annual';
+  /// Premium プラン年額 (Android: ハイフン, iOS: アンダーバー)
+  static const String premiumYearlyAndroid = 'goshopping-premium-annual';
+  static const String premiumYearlyIOS = 'goshopping_premium_annual';
 
-  /// 現在ストアに登録済みのPremium SKU一覧。
-  static const Set<String> all = {
+  /// 現在のプラットフォームに対応する年額プランID
+  static String get premiumYearly =>
+      Platform.isIOS ? premiumYearlyIOS : premiumYearlyAndroid;
+
+  /// 現在のプラットフォームでストアに登録済みのPremium SKU一覧。
+  static Set<String> get all => {
+        premiumMonthly,
+        premiumYearly,
+      };
+
+  /// 全プラットフォームのサポート済みPremium商品ID一覧（検証用）
+  static final Set<String> supportedPremium = {
     premiumMonthly,
-    premiumYearly,
+    premiumYearlyAndroid,
+    premiumYearlyIOS,
   };
 }
 
@@ -61,6 +74,12 @@ class _ProductIds {
 class PurchaseService {
   static const String _logTag = 'PurchaseService';
   static const bool _monetizationEnabled = true;
+
+  /// --dart-define=IAP_MOCK=true でストアに接続せずダミー商品を注入する。
+  /// App Store Connect の有料App契約が未有効で queryProductDetails が空になる場合の
+  /// スクリーンショット撮影・UI確認用。購入処理自体はストア未接続なので成立しない。
+  static const bool _iapMock =
+      bool.fromEnvironment('IAP_MOCK', defaultValue: false);
 
   final InAppPurchase _iap = InAppPurchase.instance;
   StreamSubscription<List<PurchaseDetails>>? _subscription;
@@ -105,6 +124,13 @@ class PurchaseService {
       return;
     }
 
+    if (_iapMock) {
+      Log.warning('[$_logTag] ⚠️ IAP_MOCK 有効: ダミー商品で初期化します（購入は不可）');
+      _isAvailable = true;
+      await loadProducts();
+      return;
+    }
+
     try {
       _isAvailable = await _iap.isAvailable();
       if (!_isAvailable) {
@@ -138,6 +164,13 @@ class PurchaseService {
       return;
     }
 
+    if (_iapMock) {
+      _products = _mockProducts();
+      Log.warning(
+          '[$_logTag] ⚠️ IAP_MOCK 商品を注入: ${_products.map((p) => p.id).toList()}');
+      return;
+    }
+
     try {
       final response = await _iap.queryProductDetails(_ProductIds.all);
 
@@ -154,6 +187,36 @@ class PurchaseService {
     } catch (e) {
       Log.error('[$_logTag] loadProducts エラー: $e');
     }
+  }
+
+  /// IAP_MOCK 用のダミー商品（現在プラットフォームの Premium SKU）。
+  static List<ProductDetails> _mockProducts() {
+    final isJa =
+        PlatformDispatcher.instance.locale.languageCode == 'ja';
+    return [
+      ProductDetails(
+        id: _ProductIds.premiumMonthly,
+        title: isJa ? 'Premium（月額）' : 'Premium (Monthly)',
+        description: isJa
+            ? '広告なし・最大20グループ・1グループ50人'
+            : 'No ads, up to 20 groups, 50 members per group',
+        price: isJa ? '¥200/月' : r'US$1.99/month',
+        rawPrice: isJa ? 200 : 1.99,
+        currencyCode: isJa ? 'JPY' : 'USD',
+        currencySymbol: isJa ? '¥' : r'$',
+      ),
+      ProductDetails(
+        id: _ProductIds.premiumYearly,
+        title: isJa ? 'Premium（年額）' : 'Premium (Annual)',
+        description: isJa
+            ? '広告なし・最大20グループ・1グループ50人（年額）'
+            : 'No ads, up to 20 groups, 50 members per group (annual)',
+        price: isJa ? '¥1,500/年' : r'US$14.99/year',
+        rawPrice: isJa ? 1500 : 14.99,
+        currencyCode: isJa ? 'JPY' : 'USD',
+        currencySymbol: isJa ? '¥' : r'$',
+      ),
+    ];
   }
 
   /// サブスクリプション（¥100/2ヶ月）を購入
@@ -353,9 +416,8 @@ class PurchaseService {
 
   static bool isSupportedProductId(String productId) {
     return productId == _ProductIds.subscription ||
-        productId == _ProductIds.premiumMonthly ||
-        productId == _ProductIds.premiumYearly ||
-        productId == _ProductIds.oneTimePurchase;
+        productId == _ProductIds.oneTimePurchase ||
+        _ProductIds.supportedPremium.contains(productId);
   }
 
   PurchaseType _purchaseTypeForProduct(String productId) {
@@ -363,16 +425,14 @@ class PurchaseService {
   }
 
   static PurchaseType purchaseTypeForProductId(String productId) {
-    switch (productId) {
-      case _ProductIds.subscription:
-      case _ProductIds.premiumMonthly:
-      case _ProductIds.premiumYearly:
-        return PurchaseType.subscribe;
-      case _ProductIds.oneTimePurchase:
-        return PurchaseType.purchase;
-      default:
-        throw ArgumentError.value(productId, 'productId', '未対応の商品IDです');
+    if (productId == _ProductIds.subscription ||
+        _ProductIds.supportedPremium.contains(productId)) {
+      return PurchaseType.subscribe;
     }
+    if (productId == _ProductIds.oneTimePurchase) {
+      return PurchaseType.purchase;
+    }
+    throw ArgumentError.value(productId, 'productId', '未対応の商品IDです');
   }
 
   Future<VerifiedPurchaseResult> verifyPurchaseWithServer(
@@ -430,16 +490,16 @@ class PurchaseService {
       case 'ja':
         return '¥200/月';
       default:
-        return 'US\$2/month';
+        return 'US\$1.99/month';
     }
   }
 
   String get _premiumYearlyFallbackPrice {
     switch (PlatformDispatcher.instance.locale.languageCode) {
       case 'ja':
-        return '¥2,000/年';
+        return '¥1,500/年';
       default:
-        return 'US\$20/year';
+        return 'US\$14.99/year';
     }
   }
 

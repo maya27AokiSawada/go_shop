@@ -12,6 +12,7 @@ const { getStorage } = require("firebase-admin/storage");
 const {
   PREMIUM_PRODUCT_ID,
   PREMIUM_ANNUAL_PRODUCT_ID,
+  PREMIUM_ANNUAL_IOS_ID,
   ReceiptValidationError,
   acknowledgeGooglePurchase,
   persistVerifiedEntitlement,
@@ -22,6 +23,7 @@ const {
 const SUPPORTED_PREMIUM_PRODUCT_IDS = new Set([
   PREMIUM_PRODUCT_ID,
   PREMIUM_ANNUAL_PRODUCT_ID,
+  PREMIUM_ANNUAL_IOS_ID,
 ]);
 
 initializeApp();
