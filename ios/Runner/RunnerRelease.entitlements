@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+		App Attest 環境は entitlement で明示しない。
+		- キー未指定時: App Store / TestFlight 配布ビルドは自動的に production 環境になり、
+		  Firebase App Check（production の App Attest サーバでのみ検証）が通る。
+		- Xcode 直インストール等の development 署名ビルドは development 環境になるため、
+		  ローカル検証では --dart-define=APP_CHECK_DEBUG=true で Debug プロバイダを使う（lib/main.dart 参照）。
+		以前は <string>development</string> を指定しており、production の App Check 検証が
+		403「App attestation failed」で失敗していた。
+	-->
+</dict>
+</plist>

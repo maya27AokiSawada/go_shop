@@ -190,17 +190,26 @@ Future<void> _initializeApp() async {
 
       // 🔐 Firebase App Check 初期化
       // debugビルド: デバッグプロバイダーを使用（端末ログのトークンをFirebase Consoleに登録）
-      // releaseビルド: Play Integrity を使用
+      // releaseビルド: Android=Play Integrity / iOS=App Attest（production 環境）
+      //
+      // --dart-define=APP_CHECK_DEBUG=true を付けると release/profile ビルドでも
+      // Debug プロバイダを使う。App Attest は App Store / TestFlight 配布ビルドの
+      // production 環境でしか Firebase の検証を通らないため、実機へ直接インストールした
+      // ローカルビルドで App Check enforce 下の動作確認をする場合に使用する。
+      const useAppCheckDebug =
+          bool.fromEnvironment('APP_CHECK_DEBUG', defaultValue: false);
+      final useDebugAppCheckProvider = kDebugMode || useAppCheckDebug;
       if (Platform.isAndroid || Platform.isIOS) {
         await FirebaseAppCheck.instance.activate(
-          providerAndroid: kDebugMode
+          providerAndroid: useDebugAppCheckProvider
               ? const AndroidDebugProvider()
               : const AndroidPlayIntegrityProvider(),
-          providerApple: kDebugMode
+          providerApple: useDebugAppCheckProvider
               ? const AppleDebugProvider()
               : const AppleAppAttestProvider(),
         );
-        AppLogger.info('✅ Firebase App Check 初期化完了 (debug: $kDebugMode)');
+        AppLogger.info(
+            '✅ Firebase App Check 初期化完了 (debugProvider: $useDebugAppCheckProvider, kDebugMode: $kDebugMode, APP_CHECK_DEBUG: $useAppCheckDebug)');
       }
 
       // Firebase Auth の状態確認
