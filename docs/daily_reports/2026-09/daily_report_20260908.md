@@ -110,6 +110,42 @@
 
 ---
 
+### 5. AAB ビルド中の「Windows クラッシュ」（JVM OOM）調査と対処 ✅
+
+**Symptom**: `flutter build appbundle` がビルド途中で落ち、Windows のクラッシュに見える。
+
+**切り分け（残っていたクラッシュ生成物から特定）**:
+
+- `android/java_pid13712.hprof`（774MB、`-XX:+HeapDumpOnOutOfMemoryError` が生成）
+- `android/.kotlin/errors/*.log`（同時刻、末尾すべて `Caused by: java.lang.OutOfMemoryError: Java heap space`。Kotlin 2.4.0 FIR が `mobile_scanner-7.4.0` の supertype 解決中 / `flutter_embedding_release` jar 読み込み中に枯渇）
+- `android/replay_pid36236.log`（3.2MB、中身が `com.android.tools.r8.*` だらけ = R8 実行中に HotSpot JIT コンパイラスレッドがクラッシュした際のリプレイダンプ）
+
+→ ネイティブクラッシュではなく **JVM の `OutOfMemoryError`**。`mobile_scanner` / embedding jar は「そこでヒープが尽きた」だけで原因ではない。
+
+**Root Cause**: `android/gradle.properties`（※ルート `.gitignore` で管理対象外＝ローカル専用ファイル）に
+`kotlin.compiler.execution.strategy=in-process` + `kotlin.daemon.enabled=false` があり、
+Kotlin コンパイルが Gradle デーモン JVM 内で R8 shrink / D8 dex / AAPT2 と `-Xmx8G` を共有していた。
+release AAB + R8 は最も重い組み合わせで、共有 8G では不足 → OOM。
+`-Xint`（JIT 無効）は R8 の JIT クラッシュ回避の応急処置だったが、メモリには効かずビルドを大幅に遅くするだけ。
+
+**Solution（`android/gradle.properties` のローカル修正・追跡ファイル変更なし）**:
+
+| 項目 | 変更 |
+|---|---|
+| `org.gradle.jvmargs` | `-Xmx8G -XX:MaxMetaspaceSize=4G -XX:ReservedCodeCacheSize=512m ... -XX:+UseSerialGC -Xint` → `-Xmx6g -XX:MaxMetaspaceSize=1g -XX:+UseParallelGC -XX:+HeapDumpOnOutOfMemoryError`（`-Xint` / SerialGC / 4G metaspace を撤去） |
+| Kotlin コンパイル | `kotlin.compiler.execution.strategy=in-process` と `kotlin.daemon.enabled=false` を削除し、`kotlin.daemon.jvmargs=-Xmx4g -XX:+UseParallelGC` を追加。専用デーモン＋専用 4G ヒープに分離して R8/D8/AAPT2 とヒープを食い合わないようにした |
+| `android/.gitignore` | `.kotlin/` / `java_pid*.hprof` / `replay_pid*.log` / `hs_err_pid*.log` を追加（追跡対象・本コミットに含む） |
+| クリーンアップ | `android/java_pid13712.hprof`（774MB）/ `android/replay_pid36236.log` / `android/.kotlin/` を削除 |
+
+**Verified**: 上記設定で `flutter build appbundle` が正常完了することをユーザーが確認。
+
+**再発時の対応案**: `org.gradle.jvmargs` に `-XX:-TieredCompilation` を追加、または AGP 8.11.1 を最新へ上げて新しい R8 を使う。
+参考環境: マシン RAM 64GB / JDK 21 Temurin / Gradle 8.14 / AGP 8.11.1 / Kotlin 2.4.0。
+
+**Status**: ✅ 対処完了・ビルド成功を確認
+
+---
+
 ## 🗓 翌日（2026-09-09）の予定
 
 1. サブスク審査の結果を確認し、リジェクト時は指摘に対応する
@@ -123,7 +159,8 @@
 
 | ドキュメント | 更新内容 |
 |---|---|
-| `docs/daily_reports/2026-09/daily_report_20260908.md` | 本日の日報を新規作成 |
+| `docs/daily_reports/2026-09/daily_report_20260908.md` | 本日の日報を新規作成。AAB ビルド中の JVM OOM 調査・対処（作業5）を追記 |
+| `android/.gitignore` | JVM クラッシュ生成物（`.kotlin/` / `java_pid*.hprof` / `replay_pid*.log` / `hs_err_pid*.log`）を除外に追加 |
 | `docs/daily_reports/2026-09/daily_report_20260907.md` | 前日分の見出しの iOS 年額 SKU 表記を `goshopping2_premium_annual` に修正（ユーザー編集分） |
 | `README.md` | アプリバージョンを `1.1.0+34` に更新。Premium 月額・年払いの記述と iOS/Android 商品ID分岐、最近の成果を追記 |
 | `SETUP.md` | App Store 側手順に iOS は `goshopping2_` 接頭辞である旨を明記 |
