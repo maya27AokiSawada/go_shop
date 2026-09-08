@@ -11,6 +11,7 @@ const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
 const {
   PREMIUM_PRODUCT_ID,
+  PREMIUM_MONTHLY_IOS_ID,
   PREMIUM_ANNUAL_PRODUCT_ID,
   PREMIUM_ANNUAL_IOS_ID,
   ReceiptValidationError,
@@ -22,6 +23,7 @@ const {
 
 const SUPPORTED_PREMIUM_PRODUCT_IDS = new Set([
   PREMIUM_PRODUCT_ID,
+  PREMIUM_MONTHLY_IOS_ID,
   PREMIUM_ANNUAL_PRODUCT_ID,
   PREMIUM_ANNUAL_IOS_ID,
 ]);

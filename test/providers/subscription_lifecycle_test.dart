@@ -45,6 +45,22 @@ void main() {
       );
     });
 
+    test('プラットフォーム別のPremium SKUはすべてsubscribeへ変換される', () {
+      for (final sku in [
+        'goshopping_premium_monthly', // Android 月額
+        'goshopping2_premium_monthly', // iOS 月額
+        'goshopping-premium-annual', // Android 年額
+        'goshopping2_premium_annual', // iOS 年額
+      ]) {
+        expect(PurchaseService.isSupportedProductId(sku), isTrue, reason: sku);
+        expect(
+          PurchaseService.purchaseTypeForProductId(sku),
+          PurchaseType.subscribe,
+          reason: sku,
+        );
+      }
+    });
+
     test('未対応SKUは無料権限として処理されない', () {
       expect(PurchaseService.isSupportedProductId('unknown_product'), isFalse);
       expect(

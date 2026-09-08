@@ -38,12 +38,17 @@ class _ProductIds {
   /// 買い切り：¥1,000（非消費型）
   static const String oneTimePurchase = 'goshopping_onetime_1000';
 
-  /// Premium プラン月額 (Android/iOS共通)
-  static const String premiumMonthly = 'goshopping_premium_monthly';
+  /// Premium プラン月額 (Android: goshopping_ 接頭辞, iOS: goshopping2_ 接頭辞)
+  static const String premiumMonthlyAndroid = 'goshopping_premium_monthly';
+  static const String premiumMonthlyIOS = 'goshopping2_premium_monthly';
 
-  /// Premium プラン年額 (Android: ハイフン, iOS: アンダーバー)
+  /// 現在のプラットフォームに対応する月額プランID
+  static String get premiumMonthly =>
+      Platform.isIOS ? premiumMonthlyIOS : premiumMonthlyAndroid;
+
+  /// Premium プラン年額 (Android: goshopping-premium-annual, iOS: goshopping2_premium_annual)
   static const String premiumYearlyAndroid = 'goshopping-premium-annual';
-  static const String premiumYearlyIOS = 'goshopping_premium_annual';
+  static const String premiumYearlyIOS = 'goshopping2_premium_annual';
 
   /// 現在のプラットフォームに対応する年額プランID
   static String get premiumYearly =>
@@ -57,7 +62,8 @@ class _ProductIds {
 
   /// 全プラットフォームのサポート済みPremium商品ID一覧（検証用）
   static final Set<String> supportedPremium = {
-    premiumMonthly,
+    premiumMonthlyAndroid,
+    premiumMonthlyIOS,
     premiumYearlyAndroid,
     premiumYearlyIOS,
   };

@@ -208,12 +208,14 @@ deduplicatedGroups.sort((a, b) =>
 
 ### 有効なPremium商品ID
 
-| 商品ID                    | 種別     | 価格       |
-| ------------------------- | -------- | ---------- |
-| `goshopping_premium_monthly` | 自動更新サブスクリプション | ストアのローカル価格を表示。未取得時は日本語で¥200/月、その他でUS$2/月 |
+| 商品ID (Android / iOS)                          | 種別     | 価格       |
+| ---------------------------------------------- | -------- | ---------- |
+| `goshopping_premium_monthly` / `goshopping2_premium_monthly` | 自動更新サブスクリプション（月額） | ストアのローカル価格を表示。未取得時は日本語で¥200/月、その他でUS$2/月 |
+| `goshopping-premium-annual` / `goshopping2_premium_annual`   | 自動更新サブスクリプション（年額） | ストアのローカル価格を表示。未取得時は日本語で¥1,500/年、その他でUS$14.99/year |
 
-- `PurchaseService` は現在、上記の月額SKUだけを商品情報取得の対象にする。
-- `goshopping_subscribe`、`goshopping_onetime_1000`、`goshopping_premium_yearly` はレガシーまたは将来用の定義であり、新規購入UIには表示しない。
+- iOS の SKU は `goshopping2_` 接頭辞、Android は従来どおり。`_ProductIds` が `Platform.isIOS` で分岐し、サーバー検証（`functions/`）も両方の ID を許可リストに含める。
+- `PurchaseService` は現在、上記の月額・年額 SKU を商品情報取得の対象にする。
+- `goshopping_subscribe`、`goshopping_onetime_1000` はレガシー定義であり、新規購入UIには表示しない。
 
 ### Firestore スキーマ（`/users/{uid}`）
 

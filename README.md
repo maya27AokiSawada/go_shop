@@ -5,7 +5,7 @@ Firebase Auth と Cloud Firestore を中心に、Hive をローカルキャッ�
 
 ## 現在の状態
 
-- 現在のアプリバージョンは `1.1.0+28` です。
+- 現在のアプリバージョンは `1.1.0+34` です。
 - 認証前提アプリです。主要機能はサインイン後に利用します。
 - データの正本は Firestore です。Hive はキャッシュおよびローカル保持に使います。
 - `Flavor.dev` と `Flavor.prod` はどちらも Firebase を使用します。
@@ -16,7 +16,8 @@ Firebase Auth と Cloud Firestore を中心に、Hive をローカルキャッ�
 - QR 招待後の鍵交換、復号待ち再試行、Firestore Security Rules の整合性修正を反映済みです。
 - iOS / Firebase / Apple signing / flavor 設定の整合確認と運用整理を完了しています。
 - Freeプランは最大3グループ・各グループ最大10人、Premiumプランは上限なしです。
-- Premium月額は設定画面から有効化・購入復元できます。表示価格はストアのローカル価格を優先します。
+- Premium は月額・年払いを設定画面から有効化・購入復元できます。表示価格はストアのローカル価格を優先します。
+- Premium のサブスク商品IDは iOS が `goshopping2_` 接頭辞、Android は `goshopping_` / `goshopping-` 表記で、`PurchaseService` が `Platform.isIOS` で分岐します。
 
 ## Firebase プロジェクト
 
@@ -36,7 +37,7 @@ Firebase Auth と Cloud Firestore を中心に、Hive をローカルキャッ�
 - オーナー限定の鍵ローテーションとメンバー追加フロー
 - ホワイトボード共有機能
 - Freeプランのグループ一覧下に表示されるバナー広告と、Premiumの広告非表示
-- Premium月額サブスクリプション（設定画面から購入・復元）
+- Premium サブスクリプション（月額・年払い、設定画面から購入・復元）
 - オフライン時も Firestore SDK の永続化機能を活かした動作
 - Riverpod ベースの状態管理
 
@@ -253,6 +254,8 @@ README には長い変更履歴を持たせず、日々の修正や検証ログ�
 - ホワイトボードのペンモード編集ロック安定化と deviceId ベース所有判定導入
 - 実機テストで見つかった複数の UI / 同期バグ修正
 - iOS flavor 対応と Apple signing / Firebase 設定の整理
+- Premium 年払いプランの追加と、iOS / Android で商品ID接頭辞を分岐する `PurchaseService` 整理（`goshopping2_` / `goshopping_`）
+- ストア購入の Functions 検証（`verifyPurchase`）で月額・年額 SKU を全プラットフォーム許可
 
 詳細な経緯は `docs/daily_reports/` を参照してください。
 

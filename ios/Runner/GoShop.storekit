@@ -48,7 +48,7 @@
               "locale" : "ja_JP"
             }
           ],
-          "productID" : "goshopping_premium_monthly",
+          "productID" : "goshopping2_premium_monthly",
           "recurringSubscriptionPeriod" : "P1M",
           "referenceName" : "Premium Monthly",
           "subscriptionGroupID" : "BFEEF85C-BCFC-4135-82A2-CD09A8E1F50C",
@@ -73,7 +73,7 @@
               "locale" : "ja_JP"
             }
           ],
-          "productID" : "goshopping_premium_annual",
+          "productID" : "goshopping2_premium_annual",
           "recurringSubscriptionPeriod" : "P1Y",
           "referenceName" : "Premium Annual",
           "subscriptionGroupID" : "BFEEF85C-BCFC-4135-82A2-CD09A8E1F50C",

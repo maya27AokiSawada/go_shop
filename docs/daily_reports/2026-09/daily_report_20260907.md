@@ -143,7 +143,7 @@
 
 ---
 
-### 6. iOS 年払いプラン（`goshopping_premium_annual`）のクライアント／サーバー対応 ✅
+### 6. iOS 年払いプラン（`goshopping2_premium_annual`）のクライアント／サーバー対応 ✅
 
 **Purpose**: iOS は年額 SKU にアンダースコア表記（`goshopping_premium_annual`）を使うため、Android のハイフン表記（`goshopping-premium-annual`）と分岐させ、サーバー検証でも受理する。
 
@@ -353,17 +353,17 @@ com.apple.developer.devicecheck.appattest-environment = development
 
 ## 📝 ドキュメント更新
 
-| ドキュメント | 更新内容 |
-|---|---|
-| `docs/daily_reports/2026-09/daily_report_20260907.md` | 本日の日報を新規作成（午後にスクリーンショット・App Check 反映遅延・審査提出ステータスの追記） |
-| `ios/Runner.xcodeproj/project.pbxproj` | App Attest entitlements を `Release-prod` / `Profile-prod` に配線 |
-| `ios/Runner/RunnerRelease.entitlements` | `appattest-environment = development` を削除（配布ビルドを production 環境に）＋経緯コメント |
-| `lib/main.dart` | `--dart-define=APP_CHECK_DEBUG=true` で App Check の Debug プロバイダを選択可能に |
-| `lib/services/purchase_service.dart` | iOS/Android 年額 SKU 分岐、`supportedPremium`、フォールバック価格更新、`--dart-define=IAP_MOCK=true` のダミー商品注入 |
-| `lib/widgets/settings/purchase_plan_panel.dart` | iOS 向けサブスク注意事項・法的リンクを追加 |
-| `lib/l10n/app_texts*.dart`（5言語） | `subscriptionNotesTitle` / `subscriptionNotesBody` を追加 |
-| `functions/index.js` / `functions/receipt_verification.js` | サーバー検証の許可商品 ID に `goshopping_premium_annual`（iOS 年払い）を追加 |
-| `lib/widgets/group_creation_with_copy_dialog.dart` ほか2ダイアログ | グループ作成失敗時に `SnackBarHelper.showError` で理由を通知 |
-| `ios/Runner/GoShop.storekit` / `prod.xcscheme` | スクショ／サンドボックス確認用の StoreKit Configuration を追加 |
-| `pubspec.yaml` | TestFlight 用に `version: 1.1.0+33` へ更新 |
-| 指示書・README | 更新なし（理由: 恒久ルールやアーキテクチャの変更を伴わないため） |
+| ドキュメント                                                       | 更新内容                                                                                                              |
+| ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| `docs/daily_reports/2026-09/daily_report_20260907.md`              | 本日の日報を新規作成（午後にスクリーンショット・App Check 反映遅延・審査提出ステータスの追記）                        |
+| `ios/Runner.xcodeproj/project.pbxproj`                             | App Attest entitlements を `Release-prod` / `Profile-prod` に配線                                                     |
+| `ios/Runner/RunnerRelease.entitlements`                            | `appattest-environment = development` を削除（配布ビルドを production 環境に）＋経緯コメント                          |
+| `lib/main.dart`                                                    | `--dart-define=APP_CHECK_DEBUG=true` で App Check の Debug プロバイダを選択可能に                                     |
+| `lib/services/purchase_service.dart`                               | iOS/Android 年額 SKU 分岐、`supportedPremium`、フォールバック価格更新、`--dart-define=IAP_MOCK=true` のダミー商品注入 |
+| `lib/widgets/settings/purchase_plan_panel.dart`                    | iOS 向けサブスク注意事項・法的リンクを追加                                                                            |
+| `lib/l10n/app_texts*.dart`（5言語）                                | `subscriptionNotesTitle` / `subscriptionNotesBody` を追加                                                             |
+| `functions/index.js` / `functions/receipt_verification.js`         | サーバー検証の許可商品 ID に `goshopping_premium_annual`（iOS 年払い）を追加                                          |
+| `lib/widgets/group_creation_with_copy_dialog.dart` ほか2ダイアログ | グループ作成失敗時に `SnackBarHelper.showError` で理由を通知                                                          |
+| `ios/Runner/GoShop.storekit` / `prod.xcscheme`                     | スクショ／サンドボックス確認用の StoreKit Configuration を追加                                                        |
+| `pubspec.yaml`                                                     | TestFlight 用に `version: 1.1.0+33` へ更新                                                                            |
+| 指示書・README                                                     | 更新なし（理由: 恒久ルールやアーキテクチャの変更を伴わないため）                                                      |

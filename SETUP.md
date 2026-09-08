@@ -272,7 +272,7 @@ Google Play側:
 
 App Store側:
 
-1. App Store Connectで同じ商品IDの自動更新サブスクリプションを作成する
+1. App Store Connectで自動更新サブスクリプションを作成する。商品IDはiOS専用の `goshopping2_` 接頭辞（`goshopping2_premium_monthly` / `goshopping2_premium_annual`）を使う
 2. Agreements, Tax, and Bankingを有効にする
 3. StoreKit 2が返す署名済み取引JWSを使用する。旧StoreKit 1 receiptはこのCallableでは拒否する
 
