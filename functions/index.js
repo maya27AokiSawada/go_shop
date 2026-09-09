@@ -5,6 +5,7 @@ dotenv.config({ path: ".env.production" });
 
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onMessagePublished } = require("firebase-functions/v2/pubsub");
 const { defineString } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
@@ -20,6 +21,7 @@ const {
   verifyApplePurchase,
   verifyGooglePurchase,
 } = require("./receipt_verification");
+const { handlePlayRtdn } = require("./play_rtdn");
 
 const SUPPORTED_PREMIUM_PRODUCT_IDS = new Set([
   PREMIUM_PRODUCT_ID,
@@ -34,6 +36,7 @@ const REGION = "asia-northeast1";
 const BACKUP_PREFIX = "firestore-snapshots";
 const RETENTION_DAYS = 5;
 const GOOGLE_PLAY_PACKAGE_NAME = process.env.GOOGLE_PLAY_PACKAGE_NAME;
+const PLAY_RTDN_TOPIC = process.env.PLAY_RTDN_TOPIC || "play-rtdn";
 const APPLE_BUNDLE_ID = process.env.APPLE_BUNDLE_ID;
 const APPLE_APP_ID = process.env.APPLE_APP_ID;
 
@@ -128,6 +131,44 @@ exports.verifyPurchase = onCall(
         "unavailable",
         "ストアで購入を確認できませんでした。時間をおいて再度お試しください",
       );
+    }
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 0.5 Google Play リアルタイム デベロッパー通知（RTDN）
+//     Play Console の請求サービス設定で登録した Pub/Sub トピックを購読し、
+//     更新・解約・保留・失効・返金を Firestore の権限へ反映する。
+// ─────────────────────────────────────────────────────────────────────────────
+exports.playRtdnHandler = onMessagePublished(
+  {
+    topic: PLAY_RTDN_TOPIC,
+    region: REGION,
+    timeoutSeconds: 60,
+    memory: "256MiB",
+    retry: true,
+  },
+  async (event) => {
+    try {
+      const result = await handlePlayRtdn({
+        db: getFirestore(),
+        message: event.data?.message,
+        packageName: GOOGLE_PLAY_PACKAGE_NAME,
+      });
+      console.log("[play-rtdn] handled", result);
+    } catch (error) {
+      // ペイロード不正は再送しても直らないので ack して捨てる。
+      if (error && error.name === "RtdnError") {
+        console.error("[play-rtdn] permanent error, dropping message", {
+          error: error.message,
+        });
+        return;
+      }
+      // ストア照会や Firestore の一時障害は例外を投げて Pub/Sub 再送に委ねる。
+      console.error("[play-rtdn] transient error, will retry", {
+        error: error?.message,
+      });
+      throw error;
     }
   },
 );

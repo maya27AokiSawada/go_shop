@@ -289,7 +289,54 @@ firebase deploy --only functions:verifyPurchase,firestore:rules
 - raw purchase token / StoreKit JWSはFirestoreへ保存しない
 - `purchaseReceipts/{sha256}`で同じ購入を別Firebaseユーザーへ付け替えることを防止する
 - Functionsをデプロイする前に新しいFirestore Rulesだけを先行配信しない。旧クライアントの直接書き込みが拒否される
-- 継続的な更新・解約・返金・保留・失効の即時反映には、別途Google Play RTDNとApp Store Server Notificationsの設定が必要
+- 継続的な更新・解約・返金・保留・失効の即時反映には、次の 5.2（Google Play RTDN）と別途 App Store Server Notifications の設定が必要
+
+### 5.2 Google Play リアルタイム デベロッパー通知（RTDN）
+
+`verifyPurchase` は購入時点の検証のみ。更新・解約・保留・失効・返金を継続反映するため、
+`playRtdnHandler`（`functions/play_rtdn.js`）が Cloud Pub/Sub トピックを購読して
+`purchaseReceipts` と `users/{uid}.purchaseType` を更新する。
+
+セットアップ手順:
+
+1. GCP で Pub/Sub トピックを作成（既定名 `play-rtdn`）
+
+   ```bash
+   gcloud pubsub topics create play-rtdn --project <PROJECT_ID>
+   ```
+
+2. Google Play の配信サービスアカウントに publish 権限を付与する
+
+   ```bash
+   gcloud pubsub topics add-iam-policy-binding play-rtdn --project <PROJECT_ID> \
+     --member="serviceAccount:google-play-developer-notifications@system.gserviceaccount.com" \
+     --role="roles/pubsub.publisher"
+   ```
+
+3. Functions をデプロイする（トピックが存在してから）
+
+   ```bash
+   cd functions
+   npm test
+   firebase deploy --only functions:playRtdnHandler
+   ```
+
+4. Play Console → 「収益化のセットアップ」→「Google Play 請求サービス」
+
+   - 「リアルタイムの通知を有効にする」を ON
+   - トピック名に `projects/<PROJECT_ID>/topics/play-rtdn` を入力
+   - 「通知の内容」は「定期購入と取り消し済みの購入のみ」で十分（現行課金はサブスクのみ）
+   - 「テスト通知を送信」で疎通確認。ログに `[play-rtdn] テスト通知を受信` が出れば成功
+
+補足:
+
+- 既定と違うトピック名にする場合は `functions/.env.<projectId>` に `PLAY_RTDN_TOPIC=...` を設定する
+- 「ライセンス」欄の Base64 RSA 公開鍵はサーバー検証を行っているため使用しない（アプリへの埋め込み不要）
+- 通知は uid を含まないため、ローカルの `purchaseReceipts/{sha256(google_play:token)}` に保存済みの
+  uid で本人を特定する。初回購入がクライアント検証より先に届いた場合はスキップし、後続の
+  `verifyPurchase` が権限を付与する
+- ペイロード不正は再送しても直らないため ack して破棄。ストア照会・Firestore の一時障害は
+  例外を投げて Pub/Sub の再送に委ねる
 
 ## 6. AdMob 設定
 

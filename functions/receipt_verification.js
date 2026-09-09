@@ -160,6 +160,27 @@ async function verifyGooglePurchase({
   };
 }
 
+/**
+ * subscriptionsv2 の生レスポンスを取得する（有効性判定はしない）。
+ * RTDN 受信時に「現在のストア状態」を能動照会するために使う。
+ */
+async function fetchGoogleSubscriptionV2({
+  packageName,
+  purchaseToken,
+  authClient,
+}) {
+  const token = requireNonEmptyString(purchaseToken, "purchaseToken", 10000);
+  const client =
+    authClient ||
+    (await new GoogleAuth({ scopes: [ANDROID_PUBLISHER_SCOPE] }).getClient());
+  const url =
+    "https://androidpublisher.googleapis.com/androidpublisher/v3/" +
+    `applications/${encodeURIComponent(packageName)}/` +
+    `purchases/subscriptionsv2/tokens/${encodeURIComponent(token)}`;
+  const response = await client.request({ url, method: "GET" });
+  return response.data;
+}
+
 async function acknowledgeGooglePurchase({
   packageName,
   productId,
@@ -324,6 +345,7 @@ async function persistVerifiedEntitlement({
 }
 
 module.exports = {
+  ACTIVE_GOOGLE_STATES,
   PREMIUM_PRODUCT_ID,
   PREMIUM_MONTHLY_IOS_ID,
   PREMIUM_ANNUAL_PRODUCT_ID,
@@ -332,6 +354,7 @@ module.exports = {
   acknowledgeGooglePurchase,
   evaluateAppleTransaction,
   evaluateGoogleSubscription,
+  fetchGoogleSubscriptionV2,
   fingerprint,
   persistVerifiedEntitlement,
   verifyApplePurchase,
