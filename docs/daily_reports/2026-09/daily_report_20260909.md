@@ -227,6 +227,31 @@ prime 済み鍵での暗号往復）。
 Phase 5（バリデーション）+ 実機 2 端末 E2E は次回**。
 **リリース順序**: Phase 2（decrypt-only）を先に配布 → 全クライアント復号可能後に Phase 3。
 
+**⏸ Phase 3 後の実機デバッグ（未解決・中断）**:
+
+**症状**: 実機でグループメンバーの `name` / `contact` が復号されず、暗号エンベロープ
+（Base64 文字列）のまま UI に表示される。書き込みの暗号化（Phase 3）は動作しているが
+読み取り側で平文に戻らない。
+
+**切り分け用に追加したトレースログ**（`🔎` マーカー、コミット `<pending>`）:
+
+| 位置 | ログ | 目的 |
+|---|---|---|
+| `group_field_cipher.dart` `sharedGroupCodecProvider` | `🔎 [GF_CFG]` | コーデックが `cipher=on, encryptOnWrite=true` で構成されたか |
+| `group_field_cipher.dart` `primeKey` | `🔎 [GF_PRIME]` | groupId ごとの `getPersistedGroupKey` 結果の鍵長（`-1` = null＝永続鍵なし） |
+| `shared_group_firestore_codec.dart` `_dec` | `🔎 [GF_DEC]` | `cipher=null` / passthrough / 復号 OK / 復号 FAIL(err) のどれを通ったか |
+| `group_key_exchange_service.dart` `_deriveGroupFieldSecret` | `🔎 [GF_SECRET]` | 導出 secret の先頭・使用した鍵長／先頭 |
+| `group_key_exchange_service.dart` `encryptGroupField` | `🔎 [GF_ENC]` | 書き込み時に使った鍵長／先頭 |
+
+**現時点の仮説**: 読み取り経路でグループ鍵が prime されておらず（`GF_PRIME` が `keyLen=-1`）、
+`decryptGroupField` が空の `activeGroupKey` で secret を導出 → 書き込み時（鍵あり）と
+異なる secret になり復号失敗 → keyless フォールバックも失敗 → 生の暗号文を返す。
+Phase 2 で prime 経路を全 read に入れたはずなので、どの経路が prime を通っていないか、
+または `getPersistedGroupKey` 自体が実機で空を返しているかをログで確認する必要がある。
+
+**次回**: 実機で `🔎` ログを採取 → prime を通っていない read 経路 or 永続鍵の欠落を特定 → 修正。
+解決するまで Phase 3 は配布しない（Phase 2 の decrypt-only 配布が先という順序は維持）。
+
 ---
 
 ## 🗓 翌日（2026-09-10）の予定
@@ -234,7 +259,7 @@ Phase 5（バリデーション）+ 実機 2 端末 E2E は次回**。
 1. `play-rtdn` トピック作成 + IAM 付与 + `playRtdnHandler` デプロイ
 2. Play Console の請求サービス設定にトピック名を入力し「テスト通知」で疎通確認（ログに `[play-rtdn] テスト通知を受信`）
 3. Sandbox / 内部テストで「解約 → 失効」が `users/{uid}.purchaseType=free` に反映されることを実機確認
-4. **グループメンバー暗号化 Phase 4**（既存平文データの再暗号化パスを `hybrid_shared_group_repository` に追加・アイテム名の `_reencryptAllItemsIfKeyChanged` 相当）+ **Phase 5**（バリデーションの重複チェックを復号済み members で）+ 実機 2 端末 E2E
+4. **グループメンバー暗号化の実機復号バグを解決**（`🔎` ログ採取 → prime を通らない read 経路 or 永続鍵欠落を特定 → 修正）。その後に **Phase 4**（既存平文データの再暗号化パスを `hybrid_shared_group_repository` に追加・アイテム名の `_reencryptAllItemsIfKeyChanged` 相当）+ **Phase 5**（バリデーションの重複チェックを復号済み members で）+ 実機 2 端末 E2E
 5. iOS の App Store Server Notifications V2 対応を設計する
 6. 特商法表記の仮置き値（電話受付時間・提供時期・英語表記）を確定する
 7. （9/8 からの継続）サブスク審査結果の確認と、必要なら iOS の年払いボタン表示の実機確認
@@ -314,6 +339,16 @@ Phase 5（バリデーション）+ 実機 2 端末 E2E は次回**。
 | `test/{datastore/shared_group_firestore_codec_test,services/group_key_exchange_field_test}.dart` | Phase 3 分のテスト |
 | `docs/development_plan/group_member_encryption_implementation_plan.md` | Phase 3 完了を反映 |
 | `docs/daily_reports/2026-09/daily_report_20260909.md` | 作業4に Phase 3 を追記、翌日予定を更新 |
+
+### コミット `<pending>`（Phase 3 後の実機復号デバッグ・トレースログ）
+
+| ファイル | 更新内容 |
+|---|---|
+| `lib/datastore/group_field_cipher.dart` | `🔎 [GF_PRIME]` / `🔎 [GF_CFG]` トレースログ |
+| `lib/datastore/shared_group_firestore_codec.dart` | `_dec` に `🔎 [GF_DEC]`（cipher=null / passthrough / OK / FAIL）トレースログ |
+| `lib/services/group_key_exchange_service.dart` | `_deriveGroupFieldSecret` に `🔎 [GF_SECRET]`、`encryptGroupField` に `🔎 [GF_ENC]` トレースログ |
+
+ロジック変更なし。バグ特定後にログは撤去する。
 
 ### 未追跡・本コミット対象外
 
