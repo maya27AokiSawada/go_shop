@@ -180,10 +180,26 @@
 | 共有リスト画面を開く | `hasUsableGroupKey` / `resolveGroupKeyForMember`（世代チェック） | `shared_list_page.dart` |
 | アイテムを読むたび | `getPersistedGroupKey` でキャッシュ再ロード | `_decryptListForRead` |
 
-### Phase 3: 書き込み暗号化を有効化
+### Phase 3: 書き込み暗号化を有効化 ✅ 完了
 
-- `groupToFirestore` / `memberToMap` の暗号化を ON。
-- 以後の書き込みは暗号文。既存ドキュメントは平文のまま（読みは Phase 2 で平文対応済み）。
+- `sharedGroupCodecProvider` を `encryptOnWrite: true` に。
+- `GroupKeyExchangeService.encryptGroupField` に **鍵なしガード**を追加:
+  使用可能なグループ鍵が無ければ暗号化せず平文を返す（鍵未設定グループ・鍵未取得端末で
+  groupId のみ由来の弱い暗号文を作らない）。アイテム名暗号化と同じ方針。
+- コーデックに `encryptGroupPrimed` / `encryptMembersPrimed`（書き込み前に鍵を prime）。
+- 書き込みサイトを prime 付きに:
+  - `firestore_shared_group_repository`: `_groupToFirestore` を async 化し `primeKey` 後に変換。
+    `createGroup` / `updateGroup` / `addMember` / `removeMember` の呼び出しを `await`
+  - `sync_service` / `user_initialization_service`（×2）/ `enhanced_invitation_service`（×2）:
+    `encryptGroup` → `await encryptGroupPrimed`
+  - `notification_service`: `encryptMembers` → `await encryptMembersPrimed`
+  - `firestore_migration_service._groupToFirestore`: async 化
+- 以後の `SharedGroups` 書き込みは、**グループ鍵が設定済みのグループのみ**
+  members[].name/contact・ownerName/ownerEmail を暗号化。未設定なら平文のまま。
+- 既存の平文ドキュメントは次回書き込みまで平文（読みは Phase 2 の復号フォールバックで対応）。
+  能動的な再暗号化は Phase 4。
+- **リリース順序**: Phase 2（decrypt-only）を先に配布し、全クライアントが復号可能に
+  なってから Phase 3 を配布すること。同時配布すると旧クライアントが暗号文を読めない。
 
 ### Phase 4: 既存データの再暗号化
 
@@ -255,17 +271,23 @@
      個別の鍵解決は不要（Firestore→Hive 同期と live stream の両方が復号済み）
   5. `app_initialize_widget._performAppInitialization` の先頭で
      `ref.read(sharedGroupCodecProvider)`
-- ⏳ Phase 3〜5 未着手
-- 次アクション: Phase 3（`sharedGroupCodecProvider` の `encryptOnWrite: true` 化 →
-  書き込み暗号化 ON）。その前に Phase 2 を decrypt-only リリースとして配布
+- ✅ Phase 3 実装完了（書き込み暗号化 ON。鍵なしガード + prime 付き write。
+  analyze 新規警告なし、`flutter test test/datastore/` ほか 185 件緑）
+- ⏳ Phase 4（既存平文データの再暗号化パス）・Phase 5（バリデーション）未着手
+- 次アクション: Phase 4 — `hybrid_shared_group_repository` に、グループ読み出し時
+  `members[].name/contact` / `ownerName` / `ownerEmail` に平文が混じっていて鍵が
+  利用可能なら暗号化して書き戻す処理（アイテム名の `_reencryptAllItemsIfKeyChanged` 相当）
 
-### Phase 2 の残注意点
+### Phase 2〜3 の残注意点
 
 - `sharedGroupFirestoreCodec()` は module-level のミュータブル状態。テスト分離のため
   `resetSharedGroupCodec()` を用意済み。
-- Phase 3 は `group_field_cipher.dart` の `encryptOnWrite: false` を `true` に変える 1 行 +
-  Phase 4（既存平文データの再暗号化パス）。
 - `watchUserGroups` の `.asyncMap` 化で、prime（SharedPreferences 読み）が遅いと
   stream イベントが直列にキューされる。初回以降はキャッシュ済みで実質ゼロ。
-- 鍵未取得のまま復号すると生の暗号文が表示される既知制約は Phase 2 でも同じ
-  （decrypt-only 期間はデータが平文なので実害なし。Phase 3 以降で顕在化）。
+- Phase 3 でも、鍵未取得の端末では暗号化済みグループの members が暗号文表示になる
+  既知制約（アイテム名と同じ）。読み経路の prime + Phase 4 の再暗号化 + 通知受信時の
+  `resolveGroupKeyForMember` で回復する。
+- `decryptGroupField` の keyless フォールバックは Phase 3 のガード導入後は
+  新規に生成されない（防御的に残置）。
+- 実機 2 端末での E2E（グループ作成 → 鍵設定 → 招待 → 受諾 → メンバー一覧が平文表示 /
+  Firestore 上は暗号文）は未実施。

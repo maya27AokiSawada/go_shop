@@ -32,16 +32,21 @@ class GroupKeyServiceFieldCipher implements GroupFieldCipher {
   }
 }
 
-/// Phase 2（decrypt-only）: cipher 付きコーデックをアプリ全体へ適用する。
+/// cipher 付きコーデックをアプリ全体へ適用する。
 ///
 /// アプリ初期化で一度 `ref.read(sharedGroupCodecProvider)` すると、
 /// [configureSharedGroupCodec] が呼ばれて全 `SharedGroups` 読み書きサイトが
-/// 復号対応になる（書き込みの暗号化は Phase 3 まで OFF）。
+/// 暗号化・復号対応になる。
+///
+/// Phase 3: `encryptOnWrite: true`。以後の `SharedGroups` 書き込みは
+/// members[].name/contact・ownerName/ownerEmail を暗号化する
+/// （グループ鍵が設定済みのグループのみ。未設定なら平文のまま）。
+/// 既存の平文ドキュメントは次回書き込みまで平文のまま（読みは復号フォールバックで対応）。
 final sharedGroupCodecProvider = Provider<SharedGroupFirestoreCodec>((ref) {
   final keyService = ref.read(groupKeyExchangeServiceProvider);
   final codec = SharedGroupFirestoreCodec(
     cipher: GroupKeyServiceFieldCipher(keyService),
-    encryptOnWrite: false, // Phase 2: 復号のみ。Phase 3 で true にする。
+    encryptOnWrite: true, // Phase 3
   );
   configureSharedGroupCodec(codec);
   return codec;

@@ -821,8 +821,8 @@ class NotificationService {
       }
 
       // Firestoreに更新（name/contact は暗号化した写しで書き込む）
-      final encMembers = sharedGroupFirestoreCodec()
-          .encryptMembers(updatedMembers, groupId: groupId);
+      final encMembers = await sharedGroupFirestoreCodec()
+          .encryptMembersPrimed(updatedMembers, groupId: groupId);
       await FirebaseFirestore.instance
           .collection('SharedGroups')
           .doc(groupId)

@@ -62,8 +62,8 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
 
       // 新しいアーキテクチャ: ルートの'SharedGroups'にドキュメントを作成
       final groupDocRef = _groupsCollection.doc(groupId);
-      final groupData = {
-        ..._groupToFirestore(newGroup),
+      final groupData = <String, dynamic>{
+        ...(await _groupToFirestore(newGroup)),
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       };
@@ -161,7 +161,7 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
   @override
   Future<SharedGroup> updateGroup(String groupId, SharedGroup group) async {
     try {
-      final updateData = _groupToFirestore(group);
+      final updateData = await _groupToFirestore(group);
       Log.info('🔍 [FIRESTORE UPDATE] groupId: $groupId');
       Log.info('🔍 [FIRESTORE UPDATE] group.allowedUid: ${group.allowedUid}');
       Log.info(
@@ -170,7 +170,7 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
       // set(merge: true)を使用してドキュメントが存在しない場合も対応
       // Windows版Firestoreのスレッド問題を回避
       await Future.microtask(() async {
-        await _groupsCollection.doc(groupId).set({
+        await _groupsCollection.doc(groupId).set(<String, dynamic>{
           ...updateData,
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
@@ -230,10 +230,9 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
 
       // グループデータを更新（members配列が含まれている）
       // Windows版Firestoreのスレッド問題を回避
+      final data = await _groupToFirestore(updatedGroup);
       await Future.microtask(() async {
-        await _groupsCollection
-            .doc(groupId)
-            .update(_groupToFirestore(updatedGroup));
+        await _groupsCollection.doc(groupId).update(data);
       });
 
       Log.info(
@@ -254,10 +253,9 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
 
       // グループデータを更新（members配列が含まれている）
       // Windows版Firestoreのスレッド問題を回避
+      final data = await _groupToFirestore(updatedGroup);
       await Future.microtask(() async {
-        await _groupsCollection
-            .doc(groupId)
-            .update(_groupToFirestore(updatedGroup));
+        await _groupsCollection.doc(groupId).update(data);
       });
 
       Log.info(
@@ -312,8 +310,11 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
   // Firestore <-> SharedGroup 変換は SharedGroupFirestoreCodec に一元化。
   // （旧 _memberToFirestore / _memberFromFirestore / _parseDateTime* は撤去）
 
-  Map<String, dynamic> _groupToFirestore(SharedGroup group) =>
-      _codec.groupToFirestore(group);
+  /// 書き込み前にグループ鍵をキャッシュへ prime してから暗号化・シリアライズする。
+  Future<Map<String, dynamic>> _groupToFirestore(SharedGroup group) async {
+    await _codec.primeKey(group.groupId);
+    return _codec.groupToFirestore(group);
+  }
 
   SharedGroup _groupFromFirestore(DocumentSnapshot doc) =>
       _codec.groupFromDoc(doc);

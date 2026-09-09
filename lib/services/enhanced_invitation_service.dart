@@ -184,7 +184,8 @@ class EnhancedInvitationService {
 
     // Update Firestore（name/contact・owner name/email を暗号化して書き込む）
     await groupDoc.reference.update(
-      sharedGroupFirestoreCodec().encryptGroup(updatedGroup).toJson(),
+      (await sharedGroupFirestoreCodec().encryptGroupPrimed(updatedGroup))
+          .toJson(),
     );
 
     // メール招待機能は実装しない（QR招待を使用）
@@ -235,7 +236,8 @@ class EnhancedInvitationService {
 
       // Update Firestore（name/contact・owner name/email を暗号化して書き込む）
       await groupDoc.reference.update(
-        sharedGroupFirestoreCodec().encryptGroup(updatedGroup).toJson(),
+        (await sharedGroupFirestoreCodec().encryptGroupPrimed(updatedGroup))
+          .toJson(),
       );
 
       developer.log('✅ 招待受諾完了: UID $userUid → グループ「${group.groupName}」');

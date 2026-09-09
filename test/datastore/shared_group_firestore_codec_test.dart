@@ -93,6 +93,22 @@ void main() {
       expect(identical(codec.encryptGroup(group), group), isTrue);
     });
 
+    test('encryptGroupPrimed / encryptMembersPrimed are no-ops', () async {
+      final group = SharedGroup(
+        groupName: 'G',
+        groupId: 'g1',
+        ownerUid: 'o',
+        ownerName: 'Owner',
+        allowedUid: const ['o'],
+        members: [_member()],
+      );
+      expect(identical(await codec.encryptGroupPrimed(group), group), isTrue);
+      final m = [_member()];
+      final out = await codec.encryptMembersPrimed(m, groupId: 'g1');
+      expect(out.single.name, m.single.name); // 平文のまま
+      expect(cipher.primedGroupIds, isEmpty); // prime も呼ばれない
+    });
+
     test('reads still decrypt', () {
       final back = codec.memberFromMap(
         {'memberId': 'm1', 'name': 'enc:g1:Alice', 'contact': 'enc:g1:a@e.com', 'role': 'member'},
@@ -271,6 +287,36 @@ void main() {
       expect(cipher.primedGroupIds, ['g1']);
       expect(out.ownerName, 'Owner');
       expect(out.members!.single.name, 'Alice');
+    });
+
+    test('encryptGroupPrimed primes the key before encrypting', () async {
+      final group = SharedGroup(
+        groupName: 'G',
+        groupId: 'g1',
+        ownerUid: 'o',
+        ownerName: 'Owner Name',
+        ownerEmail: 'owner@example.com',
+        allowedUid: const ['o'],
+        members: [_member(id: 'm1', name: 'Alice', contact: 'alice@example.com')],
+      );
+
+      final out = await codec.encryptGroupPrimed(group);
+      expect(cipher.primedGroupIds, ['g1']);
+      expect(out.ownerName, 'enc:g1:Owner Name');
+      expect(out.members!.single.name, 'enc:g1:Alice');
+      // 逆変換で戻る
+      expect(codec.decryptGroup(out).members!.single.name, 'Alice');
+    });
+
+    test('encryptMembersPrimed primes and encrypts name/contact only', () async {
+      final out = await codec.encryptMembersPrimed(
+        [_member(id: 'm1', name: 'Al', contact: 'a@e.com')],
+        groupId: 'g9',
+      );
+      expect(cipher.primedGroupIds, contains('g9'));
+      expect(out.single.name, 'enc:g9:Al');
+      expect(out.single.contact, 'enc:g9:a@e.com');
+      expect(out.single.memberId, 'm1');
     });
 
     test('decryptGroupsPrimed primes each distinct groupId once', () async {

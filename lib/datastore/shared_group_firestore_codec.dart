@@ -91,6 +91,25 @@ class SharedGroupFirestoreCodec {
     return groups.map(decryptGroup).toList();
   }
 
+  /// [encryptGroup] の鍵 prime 付き非同期版（Phase 3）。
+  /// 書き込み前に鍵をキャッシュへ載せてから暗号化する。鍵が無ければ
+  /// `encryptGroupField` 側の判定で平文のまま返る。
+  Future<SharedGroup> encryptGroupPrimed(SharedGroup group) async {
+    if (!encryptsOnWrite) return group;
+    await _cipher!.primeKey(group.groupId);
+    return encryptGroup(group);
+  }
+
+  /// [encryptMembers] の鍵 prime 付き非同期版（Phase 3）。
+  Future<List<SharedGroupMember>> encryptMembersPrimed(
+    Iterable<SharedGroupMember>? members, {
+    required String groupId,
+  }) async {
+    if (!encryptsOnWrite) return members?.toList() ?? const [];
+    await _cipher!.primeKey(groupId);
+    return encryptMembers(members, groupId: groupId);
+  }
+
   // ===========================================================================
   // メンバー
   // ===========================================================================

@@ -917,8 +917,14 @@ class GroupKeyExchangeService {
     required String groupId,
     String? groupKey,
   }) {
-    final normalized = base64.encode(utf8.encode(plaintext));
     final activeGroupKey = groupKey ?? _groupKeyCache[groupId] ?? '';
+    // 使用可能なグループ鍵が無ければ暗号化しない（平文のまま返す）。
+    // アイテム名暗号化と同じ方針。鍵未設定グループ・鍵未取得端末で
+    // groupId のみ由来の弱い暗号文を生成しないため。
+    if (activeGroupKey.isEmpty) {
+      return plaintext;
+    }
+    final normalized = base64.encode(utf8.encode(plaintext));
     final secret = _deriveGroupFieldSecret(
       groupId: groupId,
       groupKey: activeGroupKey,

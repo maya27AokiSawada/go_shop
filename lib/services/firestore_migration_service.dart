@@ -66,7 +66,7 @@ class FirestoreDataMigrationService {
 
         // 新構造: /SharedGroups/{groupId} にグループデータを保存
         final newGroupRef = _firestore.collection('SharedGroups').doc(groupId);
-        batch.set(newGroupRef, _groupToFirestore(group));
+        batch.set(newGroupRef, await _groupToFirestore(group));
 
         // 新構造: 全メンバーのメンバーシップを作成
         for (final member in group.members ?? <SharedGroupMember>[]) {
@@ -197,8 +197,8 @@ class FirestoreDataMigrationService {
   }
 
   /// SharedGroupをFirestoreデータに変換（name/contact・owner name/email を暗号化）
-  Map<String, dynamic> _groupToFirestore(SharedGroup group) {
-    final enc = sharedGroupFirestoreCodec().encryptGroup(group);
+  Future<Map<String, dynamic>> _groupToFirestore(SharedGroup group) async {
+    final enc = await sharedGroupFirestoreCodec().encryptGroupPrimed(group);
     return {
       'groupId': enc.groupId,
       'groupName': enc.groupName,

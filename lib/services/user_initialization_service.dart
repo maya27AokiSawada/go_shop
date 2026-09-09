@@ -384,7 +384,8 @@ class UserInitializationService {
         }
 
         // owner name/email・members[].name/contact を暗号化した写しを使う。
-        final encGroup = sharedGroupFirestoreCodec().encryptGroup(group);
+        final encGroup =
+            await sharedGroupFirestoreCodec().encryptGroupPrimed(group);
         await docRef.set({
           'groupId': encGroup.groupId,
           'groupName': encGroup.groupName,
@@ -511,8 +512,8 @@ class UserInitializationService {
           Log.info(
               '📤 [SYNC] local状態のグループをFirestoreにアップロード: ${hiveGroup.groupName}');
           try {
-            final encHiveGroup =
-                sharedGroupFirestoreCodec().encryptGroup(hiveGroup);
+            final encHiveGroup = await sharedGroupFirestoreCodec()
+                .encryptGroupPrimed(hiveGroup);
             await SharedGroupsRef.doc(hiveGroup.groupId).set({
               'groupId': encHiveGroup.groupId,
               'groupName': encHiveGroup.groupName,

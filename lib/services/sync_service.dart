@@ -184,7 +184,7 @@ class SyncService {
 
       // owner name/email・members[].name/contact を暗号化した写しを使う
       // （マップ形状 = isSignedIn 等はこのサイト固有のまま維持）。
-      final enc = sharedGroupFirestoreCodec().encryptGroup(group);
+      final enc = await sharedGroupFirestoreCodec().encryptGroupPrimed(group);
       await _firestore.collection('SharedGroups').doc(group.groupId).set({
         'groupId': enc.groupId,
         'groupName': enc.groupName,
