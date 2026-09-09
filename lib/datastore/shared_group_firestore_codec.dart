@@ -2,6 +2,26 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/shared_group.dart';
 
+SharedGroupFirestoreCodec _activeCodec = const SharedGroupFirestoreCodec();
+
+/// アプリ全体で使う `SharedGroups` 用コーデックを取得する。
+///
+/// すべての `SharedGroups` 読み書きサイトはこれを経由すること。Phase 1 では
+/// cipher なし（平文のまま・挙動不変）。Phase 3 で [configureSharedGroupCodec] に
+/// cipher 付きコーデックを渡すと、全サイトが一括で暗号化へ切り替わる。
+SharedGroupFirestoreCodec sharedGroupFirestoreCodec() => _activeCodec;
+
+/// 全サイト共通のコーデックを差し替える（Phase 3 の暗号化 ON スイッチ）。
+/// アプリ初期化時に一度だけ呼ぶ想定。テストでも利用可。
+void configureSharedGroupCodec(SharedGroupFirestoreCodec codec) {
+  _activeCodec = codec;
+}
+
+/// テスト用: 既定（cipher なし）へ戻す。
+void resetSharedGroupCodec() {
+  _activeCodec = const SharedGroupFirestoreCodec();
+}
+
 /// グループ共有フィールド（メンバーの name / contact、オーナーの name / email）の
 /// 暗号化・復号を担う最小インターフェース。
 ///
@@ -98,6 +118,39 @@ class SharedGroupFirestoreCodec {
         .toList();
   }
 
+  /// メンバー配列の name/contact だけを暗号化した写しを返す（他フィールドは不変）。
+  /// 独自マップ形状で書き込むサイト向けのフック。`cipher == null` なら素通し。
+  List<SharedGroupMember> encryptMembers(
+    Iterable<SharedGroupMember>? members, {
+    required String groupId,
+  }) {
+    if (_cipher == null || members == null) {
+      return members?.toList() ?? const [];
+    }
+    return members
+        .map((m) => m.copyWithExtra(
+              name: _enc(m.name, groupId),
+              contact: _enc(m.contact, groupId),
+            ))
+        .toList();
+  }
+
+  /// [encryptMembers] の逆。暗号文でない値・復号失敗はそのまま返す。
+  List<SharedGroupMember> decryptMembers(
+    Iterable<SharedGroupMember>? members, {
+    required String groupId,
+  }) {
+    if (_cipher == null || members == null) {
+      return members?.toList() ?? const [];
+    }
+    return members
+        .map((m) => m.copyWithExtra(
+              name: _dec(m.name, groupId),
+              contact: _dec(m.contact, groupId),
+            ))
+        .toList();
+  }
+
   // ===========================================================================
   // グループ本体
   // ===========================================================================
@@ -162,6 +215,26 @@ class SharedGroupFirestoreCodec {
           ?.map((m) => m.copyWithExtra(
                 name: _dec(m.name, group.groupId),
                 contact: _dec(m.contact, group.groupId),
+              ))
+          .toList(),
+    );
+  }
+
+  /// `SharedGroup` の `ownerName` / `ownerEmail` / `members[].name` /
+  /// `members[].contact` を暗号化した写しを返す（[decryptGroup] の逆）。
+  ///
+  /// 各書き込みサイトが独自のマップ形状（`isSignedIn` などの追加フィールド）を
+  /// 保ったまま暗号化だけを差し込めるようにするためのフック。
+  /// `cipher == null` なら素通し。すでに暗号化済みの値は二重暗号化しない。
+  SharedGroup encryptGroup(SharedGroup group) {
+    if (_cipher == null) return group;
+    return group.copyWith(
+      ownerName: _encNullable(group.ownerName, group.groupId),
+      ownerEmail: _encNullable(group.ownerEmail, group.groupId),
+      members: group.members
+          ?.map((m) => m.copyWithExtra(
+                name: _enc(m.name, group.groupId),
+                contact: _enc(m.contact, group.groupId),
               ))
           .toList(),
     );

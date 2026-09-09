@@ -4,14 +4,24 @@ import 'package:goshopping/utils/app_logger.dart';
 import 'package:uuid/uuid.dart';
 import '../models/shared_group.dart';
 import '../datastore/shared_group_repository.dart';
+import 'shared_group_firestore_codec.dart';
 
 class FirestoreSharedGroupRepository implements SharedGroupRepository {
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final Uuid _uuid = const Uuid();
 
+  /// Firestore マップ変換（メンバー name/contact・owner name/email の暗号化含む）。
+  /// 明示注入が無ければアプリ共通コーデック（Phase 1 時点は cipher なし＝平文）。
+  final SharedGroupFirestoreCodec? _injectedCodec;
+  SharedGroupFirestoreCodec get _codec =>
+      _injectedCodec ?? sharedGroupFirestoreCodec();
+
   // FirebaseFirestoreインスタンスを直接受け取る
-  FirestoreSharedGroupRepository(this._firestore);
+  FirestoreSharedGroupRepository(
+    this._firestore, {
+    SharedGroupFirestoreCodec? codec,
+  }) : _injectedCodec = codec;
 
   /// 購入グループコレクション（ルート直下 - QR招待のため）
   CollectionReference get _groupsCollection {
@@ -292,108 +302,14 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
   // Firestore変換ヘルパー
   // =================================================================
 
-  Map<String, dynamic> _groupToFirestore(SharedGroup group) {
-    return {
-      'groupName': group.groupName,
-      'groupId': group.groupId,
-      'ownerUid': group.ownerUid,
-      'ownerName': group.ownerName,
-      'ownerEmail': group.ownerEmail,
-      'allowedUid': group.allowedUid, // 🔥 CRITICAL: 招待機能に必須
-      'members':
-          group.members?.map((m) => _memberToFirestore(m)).toList() ?? [],
-      'createdAt':
-          group.createdAt != null ? Timestamp.fromDate(group.createdAt!) : null,
-      'updatedAt':
-          group.updatedAt != null ? Timestamp.fromDate(group.updatedAt!) : null,
-      'isDeleted': group.isDeleted, // 削除フラグも保存
-      // v4: シンプル化されたデータ構造
-    };
-  }
+  // Firestore <-> SharedGroup 変換は SharedGroupFirestoreCodec に一元化。
+  // （旧 _memberToFirestore / _memberFromFirestore / _parseDateTime* は撤去）
 
-  Map<String, dynamic> _memberToFirestore(SharedGroupMember m) {
-    return {
-      'memberId': m.memberId,
-      'name': m.name,
-      'contact': m.contact,
-      'role': m.role.name, // enumを文字列として保存
-      'invitedAt':
-          m.invitedAt != null ? Timestamp.fromDate(m.invitedAt!) : null,
-      'acceptedAt':
-          m.acceptedAt != null ? Timestamp.fromDate(m.acceptedAt!) : null,
-    };
-  }
+  Map<String, dynamic> _groupToFirestore(SharedGroup group) =>
+      _codec.groupToFirestore(group);
 
-  SharedGroup _groupFromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-
-    final membersList = (data['members'] as List<dynamic>?)
-            ?.map((memberData) =>
-                _memberFromFirestore(memberData as Map<String, dynamic>))
-            .toList() ??
-        [];
-
-    return SharedGroup(
-      groupName: data['groupName'] ?? '',
-      groupId: data['groupId'] ?? doc.id,
-      ownerUid: data['ownerUid'] ?? '',
-      ownerName: data['ownerName'] ?? '',
-      ownerEmail: data['ownerEmail'] ?? '',
-      allowedUid:
-          List<String>.from(data['allowedUid'] ?? []), // 🔥 CRITICAL: これが抜けていた！
-      members: membersList,
-      createdAt: _parseDateTime(data['createdAt']),
-      updatedAt: _parseDateTime(data['updatedAt']),
-      isDeleted: data['isDeleted'] ?? false,
-    );
-  }
-
-  SharedGroupMember _memberFromFirestore(Map<String, dynamic> data) {
-    return SharedGroupMember(
-      memberId: data['uid'] ?? data['memberId'] ?? '',
-      name: data['displayName'] ?? data['name'] ?? '',
-      contact: data['contact'] ?? '',
-      role: SharedGroupRole.values.firstWhere((e) => e.name == data['role'],
-          orElse: () => SharedGroupRole.member),
-      invitedAt: _parseDateTime(data['invitedAt'] ?? data['joinedAt']),
-      acceptedAt:
-          _parseDateTimeNullable(data['acceptedAt'] ?? data['joinedAt']),
-    );
-  }
-
-  /// Timestamp型またはString型をDateTime型に安全に変換する
-  DateTime _parseDateTime(dynamic value) {
-    if (value == null) return DateTime.now();
-    try {
-      if (value is Timestamp) {
-        return value.toDate();
-      } else if (value is String) {
-        return DateTime.parse(value);
-      } else {
-        Log.error('❌ [PARSE_DATETIME] Unknown type: ${value.runtimeType}');
-        return DateTime.now();
-      }
-    } catch (e, stackTrace) {
-      Log.error('❌ [PARSE_DATETIME] Error: $e', e, stackTrace);
-      return DateTime.now();
-    }
-  }
-
-  /// Timestamp型またはString型をnullableなDateTime型に安全に変換する
-  DateTime? _parseDateTimeNullable(dynamic value) {
-    if (value == null) return null;
-    try {
-      if (value is Timestamp) {
-        return value.toDate();
-      } else if (value is String) {
-        return DateTime.parse(value);
-      } else {
-        return null;
-      }
-    } catch (e) {
-      return null;
-    }
-  }
+  SharedGroup _groupFromFirestore(DocumentSnapshot doc) =>
+      _codec.groupFromDoc(doc);
 
   @override
   Future<int> cleanupDeletedGroups() async {

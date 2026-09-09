@@ -12,6 +12,7 @@ import '../providers/current_list_provider.dart'; // currentListProvider
 import '../config/app_ui_mode_config.dart';
 import '../datastore/hive_shared_group_repository.dart'; // hiveSharedGroupRepositoryProvider
 import '../datastore/firestore_shared_group_repository.dart';
+import '../datastore/shared_group_firestore_codec.dart';
 import '../models/shared_group.dart';
 import 'group_key_exchange_service.dart';
 
@@ -819,13 +820,15 @@ class NotificationService {
         );
       }
 
-      // Firestoreに更新
+      // Firestoreに更新（name/contact は暗号化した写しで書き込む）
+      final encMembers = sharedGroupFirestoreCodec()
+          .encryptMembers(updatedMembers, groupId: groupId);
       await FirebaseFirestore.instance
           .collection('SharedGroups')
           .doc(groupId)
           .update({
         'allowedUid': updatedAllowedUid,
-        'members': updatedMembers
+        'members': encMembers
             .map((m) => {
                   'memberId': m.memberId,
                   'name': m.name,

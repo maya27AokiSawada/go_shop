@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/shared_group.dart';
 import '../datastore/shared_group_repository.dart';
+import '../datastore/shared_group_firestore_codec.dart';
 import '../providers/shared_group_provider.dart';
 import '../utils/app_logger.dart';
 import '../flavors.dart';
@@ -63,7 +64,8 @@ class SyncService {
         }
 
         try {
-          final group = SharedGroup.fromJson(data);
+          final group = sharedGroupFirestoreCodec()
+              .decryptGroup(SharedGroup.fromJson(data));
           await _repository.updateGroup(doc.id, group);
           syncedCount++;
         } catch (e) {
@@ -134,7 +136,8 @@ class SyncService {
         return true;
       }
 
-      final group = SharedGroup.fromJson(groupData);
+      final group = sharedGroupFirestoreCodec()
+          .decryptGroup(SharedGroup.fromJson(groupData));
       await _repository.updateGroup(groupId, group);
 
       AppLogger.info(
@@ -179,14 +182,17 @@ class SyncService {
       AppLogger.info(
           '⬆️ [SYNC] グループをFirestoreにアップロード: ${AppLogger.maskGroup(group.groupName, group.groupId)}');
 
+      // owner name/email・members[].name/contact を暗号化した写しを使う
+      // （マップ形状 = isSignedIn 等はこのサイト固有のまま維持）。
+      final enc = sharedGroupFirestoreCodec().encryptGroup(group);
       await _firestore.collection('SharedGroups').doc(group.groupId).set({
-        'groupId': group.groupId,
-        'groupName': group.groupName,
-        'ownerUid': group.ownerUid,
-        'ownerName': group.ownerName,
-        'ownerEmail': group.ownerEmail,
-        'allowedUid': [group.ownerUid],
-        'members': (group.members ?? [])
+        'groupId': enc.groupId,
+        'groupName': enc.groupName,
+        'ownerUid': enc.ownerUid,
+        'ownerName': enc.ownerName,
+        'ownerEmail': enc.ownerEmail,
+        'allowedUid': [enc.ownerUid],
+        'members': (enc.members ?? [])
             .map((m) => {
                   'memberId': m.memberId,
                   'name': m.name,

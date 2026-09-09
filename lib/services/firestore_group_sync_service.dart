@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/app_logger.dart';
 import '../models/shared_group.dart';
+import '../datastore/shared_group_firestore_codec.dart';
 import '../flavors.dart';
 import 'user_preferences_service.dart';
 import 'error_log_service.dart';
@@ -234,7 +235,7 @@ class FirestoreGroupSyncService {
       return snapshot.docs
           .map((doc) {
             final groupData = doc.data();
-            return SharedGroup(
+            final group = SharedGroup(
               groupId: doc.id,
               groupName: groupData['groupName'] ?? '',
               ownerName: groupData['ownerName'],
@@ -262,6 +263,8 @@ class FirestoreGroupSyncService {
                   [],
               isDeleted: groupData['isDeleted'] ?? false,
             );
+            // members[].name/contact・owner name/email が暗号化されていれば復号する。
+            return sharedGroupFirestoreCodec().decryptGroup(group);
           })
           .where((g) => !g.isDeleted)
           .toList();

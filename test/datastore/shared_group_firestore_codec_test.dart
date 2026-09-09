@@ -39,8 +39,42 @@ SharedGroupMember _member({
 }
 
 void main() {
+  group('sharedGroupFirestoreCodec() module-level switch', () {
+    tearDown(resetSharedGroupCodec);
+
+    test('defaults to a cipher-less codec', () {
+      expect(sharedGroupFirestoreCodec().encryptionEnabled, isFalse);
+    });
+
+    test('configureSharedGroupCodec swaps the active codec for all callers', () {
+      configureSharedGroupCodec(SharedGroupFirestoreCodec(cipher: _FakeCipher()));
+      expect(sharedGroupFirestoreCodec().encryptionEnabled, isTrue);
+
+      final map = sharedGroupFirestoreCodec()
+          .memberToMap(_member(), groupId: 'g1');
+      expect(map['name'], 'enc:g1:Alice');
+
+      resetSharedGroupCodec();
+      expect(sharedGroupFirestoreCodec().encryptionEnabled, isFalse);
+    });
+  });
+
   group('SharedGroupFirestoreCodec without cipher (legacy behavior)', () {
     const codec = SharedGroupFirestoreCodec();
+
+    test('encryptGroup / decryptGroup are no-ops when cipher is null', () {
+      final group = SharedGroup(
+        groupName: 'G',
+        groupId: 'g1',
+        ownerUid: 'o',
+        ownerName: 'Owner',
+        ownerEmail: 'o@e.com',
+        allowedUid: const ['o'],
+        members: [_member()],
+      );
+      expect(identical(codec.encryptGroup(group), group), isTrue);
+      expect(identical(codec.decryptGroup(group), group), isTrue);
+    });
 
     test('member map keeps name/contact as plaintext', () {
       final map = codec.memberToMap(_member(), groupId: 'g1');
@@ -145,6 +179,48 @@ void main() {
       expect(back.members!.first.name, 'Owner Name');
       expect(back.members!.last.contact, 'alice@example.com');
       expect(back.allowedUid, ['owner', 'm1']);
+    });
+
+    test('encryptGroup / decryptGroup round-trip preserves other fields', () {
+      final group = SharedGroup(
+        groupName: 'Family',
+        groupId: 'g1',
+        ownerUid: 'owner',
+        ownerName: 'Owner Name',
+        ownerEmail: 'owner@example.com',
+        allowedUid: const ['owner', 'm1'],
+        members: [
+          _member(id: 'm1', name: 'Alice', contact: 'alice@example.com'),
+        ],
+      );
+
+      final encrypted = codec.encryptGroup(group);
+      expect(encrypted.ownerName, 'enc:g1:Owner Name');
+      expect(encrypted.members!.single.name, 'enc:g1:Alice');
+      // 非対象フィールドは不変
+      expect(encrypted.allowedUid, ['owner', 'm1']);
+      expect(encrypted.members!.single.memberId, 'm1');
+      expect(encrypted.members!.single.role, SharedGroupRole.member);
+
+      final back = codec.decryptGroup(encrypted);
+      expect(back.ownerName, 'Owner Name');
+      expect(back.members!.single.name, 'Alice');
+      expect(back.members!.single.contact, 'alice@example.com');
+    });
+
+    test('encryptGroup is idempotent (no double encryption)', () {
+      final group = SharedGroup(
+        groupName: 'G',
+        groupId: 'g1',
+        ownerUid: 'o',
+        ownerName: 'N',
+        allowedUid: const ['o'],
+        members: [_member(id: 'm1', name: 'A', contact: 'a@e.com')],
+      );
+      final once = codec.encryptGroup(group);
+      final twice = codec.encryptGroup(once);
+      expect(twice.members!.single.name, once.members!.single.name);
+      expect(twice.ownerName, once.ownerName);
     });
 
     test('decryptGroup post-hook decrypts an already-built group', () {

@@ -2,6 +2,7 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/shared_group.dart';
+import '../datastore/shared_group_firestore_codec.dart';
 import 'firestore_converter.dart';
 import 'app_logger.dart';
 
@@ -31,9 +32,10 @@ class FirestoreHelper {
         return null;
       }
 
-      // Timestamp変換してSharedGroupに変換
+      // Timestamp変換してSharedGroupに変換（暗号化された name/contact は復号）
       final convertedData = FirestoreConverter.convertTimestamps(data);
-      final group = SharedGroup.fromJson(convertedData);
+      final group = sharedGroupFirestoreCodec()
+          .decryptGroup(SharedGroup.fromJson(convertedData));
 
       AppLogger.info(
           '✅ [FIRESTORE] グループ取得: ${group.groupName}, allowedUid: ${group.allowedUid}');
@@ -71,9 +73,11 @@ class FirestoreHelper {
         try {
           final data = doc.data();
           final convertedData = FirestoreConverter.convertTimestamps(data);
-          final group = SharedGroup.fromJson(convertedData).copyWith(
-            groupId: doc.id, // ドキュメントIDを確実に設定
-          );
+          final group = sharedGroupFirestoreCodec()
+              .decryptGroup(SharedGroup.fromJson(convertedData))
+              .copyWith(
+                groupId: doc.id, // ドキュメントIDを確実に設定
+              );
           groups.add(group);
         } catch (e) {
           AppLogger.warning('⚠️ [FIRESTORE] グループ変換エラー (${doc.id}): $e');

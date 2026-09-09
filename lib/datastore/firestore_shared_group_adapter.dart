@@ -7,6 +7,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/app_logger.dart';
 
 /// FirestoreをHive互換インターフェースで使用するためのアダプター
+///
+/// ⚠️ レガシー: 現行の主経路は [FirestoreSharedGroupRepository]。本クラスへの
+/// 生成参照は現状存在しない。メンバー name/contact 暗号化
+/// （[SharedGroupFirestoreCodec]）にも未対応。復活させる場合はコーデック経由に
+/// 統一すること。`memberEmails` 平文配列もここでしか使われていない。
 class FirestoreSharedGroupAdapter implements SharedGroupRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;

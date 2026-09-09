@@ -85,25 +85,48 @@
 - 単体テスト（`test/datastore/shared_group_firestore_codec_test.dart`,
   `test/services/group_key_exchange_field_test.dart`）15 件
 
-### Phase 1: 全経路をコーデックへ差し替え（暗号化はまだ OFF）
+### Phase 1: 全経路をコーデックへ差し替え（暗号化はまだ OFF）✅ 完了
 
 各サイトの手組み `{'name': ..., 'contact': ...}` / `ownerName` / `ownerEmail` を
-`SharedGroupFirestoreCodec`（`cipher: null`）経由に置換する。**この時点では挙動不変**。
+`SharedGroupFirestoreCodec`（`cipher: null`）経由に置換した。**挙動不変**
+（`encryptGroup` / `decryptGroup` は cipher なしなら同一インスタンスを返す）。
 
-対象:
+コーデックの共通取得口: `sharedGroupFirestoreCodec()`（`shared_group_firestore_codec.dart`
+の module-level）。Phase 3 で `configureSharedGroupCodec(...)` に cipher 付きを渡すと
+全サイトが一括で暗号化へ切り替わる。DI していないサイトもこれで対応。
 
-- [ ] `firestore_shared_group_repository.dart`: `_groupToFirestore` / `_memberToFirestore` /
-      `_groupFromFirestore` / `_memberFromFirestore` をコーデック委譲に
-- [ ] `firestore_group_sync_service.dart`: 3 箇所の読み書き
-- [ ] `sync_service.dart`: `members` 書き込み
-- [ ] `user_initialization_service.dart`: 2 箇所（Hive→Firestore push）
-- [ ] `notification_service.dart`: `members` 更新（L828 付近）
-- [ ] `firestore_migration_service.dart`: 読み書き
-- [ ] `firestore_shared_group_adapter.dart`: 委譲 or 明示的に非対応コメント
-- [ ] `hybrid_shared_group_repository.dart`: Firestore 由来結果に `codec.decryptGroup` を通す
+書き込みサイト向けフック:
+- `codec.encryptGroup(SharedGroup) -> SharedGroup` … owner/members を暗号化した写し
+- `codec.encryptMembers(members, groupId:) -> List<SharedGroupMember>` … 独自マップ形状用
 
-コーデックの provider を用意（`sharedGroupFirestoreCodecProvider`）。DI していない
-サイトは `GroupKeyExchangeService()` から直接生成でも可（アイテム名実装と同様）。
+読み出しサイト向けフック:
+- `codec.decryptGroup(SharedGroup) -> SharedGroup`
+- `codec.decryptMembers(members, groupId:)`
+
+対象と対応:
+
+- [x] `firestore_shared_group_repository.dart`: `_groupToFirestore` / `_groupFromFirestore` を
+      `codec.groupToFirestore` / `codec.groupFromDoc` に委譲。旧 `_memberToFirestore` /
+      `_memberFromFirestore` / `_parseDateTime*` を撤去
+- [x] `sync_service.dart`: 読み 2 箇所に `decryptGroup`、`_uploadGroupToFirestore` に `encryptGroup`
+- [x] `user_initialization_service.dart`: 書き込み 2 箇所に `encryptGroup`、Firestore→Hive 反映に `decryptGroup`
+- [x] `notification_service.dart`: 招待受諾時のメンバー追記 write に `encryptMembers`
+      （L1033 / L1533 の read は `memberId` / `allowedUid` しか見ないので変更不要）
+- [x] `firestore_migration_service.dart`: `_groupToFirestore` に `encryptGroup`
+- [x] `firestore_group_sync_service.dart`: `watchUserGroups`（`SharedGroups` 監視）に `decryptGroup`。
+      `groups`（旧コレクション）系の `_fetchUserGroups` / `syncGroup` / `saveGroupToFirestore` は対象外
+- [x] `firestore_helper.dart`: `fetchGroup` / `fetchUserGroups` に `decryptGroup`
+- [x] `enhanced_invitation_service.dart`: `SharedGroup.fromJson` 3 箇所に `decryptGroup`、
+      `updatedGroup.toJson()` 2 箇所に `encryptGroup`
+- [x] `firestore_shared_group_adapter.dart`: レガシー・未参照。ヘッダーコメントで明示（未対応）
+- [x] `hybrid_shared_group_repository.dart`: 直接 Firestore を読まず `_firestoreRepo` 経由なので変更不要
+
+変更不要と確認したもの:
+
+- `qr_invitation_service.dart`: `SharedGroups` へのアクセスは `invitations` サブコレクションと
+  `ownerUid` の読みのみ。members 名/連絡先には触れない
+- `invitation_monitor_service.dart`: `ownerUid` 読み + `allowedUid` 更新のみ
+- `notification_service.dart` の 2 つの read（一斉通知 / ホワイトボード通知）
 
 ### Phase 2: 復号を先行有効化（decrypt-only リリース）
 
@@ -166,7 +189,16 @@
 
 ## 9. 現在の状況（2026-09-09）
 
-- ✅ Phase 0 完了（暗号プリミティブ + コーデック + 単体テスト 15 件）
-- ⏳ Phase 1〜5 未着手
-- 次アクション: Phase 1（`firestore_shared_group_repository.dart` から着手し、
-  既存 repo テストが緑のまま委譲できることを確認 → 残りサイトへ展開）
+- ✅ Phase 0 完了（暗号プリミティブ + コーデック + 単体テスト）
+- ✅ Phase 1 完了（全 `SharedGroups` 読み書き経路をコーデック経由に統一。cipher なし＝挙動不変。
+  `flutter analyze lib/` で新規警告なし、`flutter test test/datastore/` ほか 173 件緑）
+- ⏳ Phase 2〜5 未着手
+- 次アクション: Phase 2（`configureSharedGroupCodec` に decrypt 対応のみのコーデックを常時注入し、
+  全クライアントへ先行配布 → その後 Phase 3 で書き込み暗号化を ON）
+
+### Phase 1 の残注意点
+
+- `sharedGroupFirestoreCodec()` は module-level のミュータブル状態。テスト分離のため
+  `resetSharedGroupCodec()` を用意済み。
+- Phase 3 で cipher を注入する箇所（アプリ初期化のどこで `configureSharedGroupCodec` を呼ぶか、
+  グループ鍵キャッシュの temperature 管理）は Phase 2/3 で設計する。

@@ -12,6 +12,7 @@ import '../providers/hive_provider.dart'; // Hive Box プロバイダー
 import '../datastore/hive_shared_group_repository.dart'
     show hiveSharedGroupRepositoryProvider;
 import '../datastore/firestore_shared_group_repository.dart'; // Repository型チェック用
+import '../datastore/shared_group_firestore_codec.dart';
 import '../flavors.dart';
 import 'notification_service.dart';
 import 'list_notification_batch_service.dart';
@@ -382,14 +383,16 @@ class UserInitializationService {
           Log.warning('⚠️ [SYNC] Firestore読み取りエラー、Hiveのみ使用: $e');
         }
 
+        // owner name/email・members[].name/contact を暗号化した写しを使う。
+        final encGroup = sharedGroupFirestoreCodec().encryptGroup(group);
         await docRef.set({
-          'groupId': group.groupId,
-          'groupName': group.groupName,
-          'ownerUid': group.ownerUid,
-          'ownerName': group.ownerName,
-          'ownerEmail': group.ownerEmail,
+          'groupId': encGroup.groupId,
+          'groupName': encGroup.groupName,
+          'ownerUid': encGroup.ownerUid,
+          'ownerName': encGroup.ownerName,
+          'ownerEmail': encGroup.ownerEmail,
           'allowedUid': finalAllowedUid, // マージ後のallowedUid
-          'members': group.members
+          'members': encGroup.members
                   ?.map((member) => {
                         'memberId': member.memberId,
                         'name': member.name,
@@ -508,14 +511,16 @@ class UserInitializationService {
           Log.info(
               '📤 [SYNC] local状態のグループをFirestoreにアップロード: ${hiveGroup.groupName}');
           try {
+            final encHiveGroup =
+                sharedGroupFirestoreCodec().encryptGroup(hiveGroup);
             await SharedGroupsRef.doc(hiveGroup.groupId).set({
-              'groupId': hiveGroup.groupId,
-              'groupName': hiveGroup.groupName,
-              'ownerUid': hiveGroup.ownerUid,
-              'ownerName': hiveGroup.ownerName,
-              'ownerEmail': hiveGroup.ownerEmail,
-              'allowedUid': [hiveGroup.ownerUid],
-              'members': (hiveGroup.members ?? [])
+              'groupId': encHiveGroup.groupId,
+              'groupName': encHiveGroup.groupName,
+              'ownerUid': encHiveGroup.ownerUid,
+              'ownerName': encHiveGroup.ownerName,
+              'ownerEmail': encHiveGroup.ownerEmail,
+              'allowedUid': [encHiveGroup.ownerUid],
+              'members': (encHiveGroup.members ?? [])
                   .map((m) => {
                         'memberId': m.memberId,
                         'name': m.name,
@@ -619,11 +624,14 @@ class UserInitializationService {
           // Firestoreの Timestamp を DateTime に変換してから fromJson を使用
           final convertedData = FirestoreConverter.convertTimestamps(data);
 
-          // SharedGroup.fromJson()を使用してallowedUidを含む全フィールドを正しく復元
-          final group = models.SharedGroup.fromJson(convertedData).copyWith(
-            groupId: doc.id, // ドキュメントIDを確実に設定
-            updatedAt: DateTime.now(),
-          );
+          // SharedGroup.fromJson()を使用してallowedUidを含む全フィールドを正しく復元。
+          // members[].name/contact・owner name/email は暗号化されている場合があるため復号する。
+          final group = sharedGroupFirestoreCodec()
+              .decryptGroup(models.SharedGroup.fromJson(convertedData))
+              .copyWith(
+                groupId: doc.id, // ドキュメントIDを確実に設定
+                updatedAt: DateTime.now(),
+              );
 
           Log.info('🔍 [SYNC] グループ同期: ${group.groupName}');
           Log.info('   groupId: ${group.groupId}');

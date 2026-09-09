@@ -2,6 +2,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/shared_group.dart';
+import '../datastore/shared_group_firestore_codec.dart';
 import '../providers/auth_provider.dart';
 import 'dart:developer' as developer;
 import 'error_log_service.dart';
@@ -28,7 +29,8 @@ class EnhancedInvitationService {
       final invitableGroups = <GroupInvitationOption>[];
 
       for (final doc in userGroups.docs) {
-        final group = SharedGroup.fromJson(doc.data());
+        final group = sharedGroupFirestoreCodec()
+            .decryptGroup(SharedGroup.fromJson(doc.data()));
 
         // Check if current user can invite to this group (owner or manager)
         final currentMember = group.members?.firstWhere(
@@ -143,7 +145,8 @@ class EnhancedInvitationService {
       throw Exception('グループが見つかりません');
     }
 
-    final group = SharedGroup.fromJson(groupDoc.data()!);
+    final group = sharedGroupFirestoreCodec()
+        .decryptGroup(SharedGroup.fromJson(groupDoc.data()!));
 
     // Verify current user can invite (owner or manager)
     final currentMember = group.members?.firstWhere(
@@ -179,8 +182,10 @@ class EnhancedInvitationService {
       members: updatedMembers,
     );
 
-    // Update Firestore
-    await groupDoc.reference.update(updatedGroup.toJson());
+    // Update Firestore（name/contact・owner name/email を暗号化して書き込む）
+    await groupDoc.reference.update(
+      sharedGroupFirestoreCodec().encryptGroup(updatedGroup).toJson(),
+    );
 
     // メール招待機能は実装しない（QR招待を使用）
     // Email invitations are not implemented - use QR code invitations instead
@@ -204,7 +209,8 @@ class EnhancedInvitationService {
         throw Exception('グループが見つかりません');
       }
 
-      final group = SharedGroup.fromJson(groupDoc.data()!);
+      final group = sharedGroupFirestoreCodec()
+          .decryptGroup(SharedGroup.fromJson(groupDoc.data()!));
 
       // Update member info with actual user name
       final updatedMembers = group.members?.map((member) {
@@ -227,8 +233,10 @@ class EnhancedInvitationService {
         members: updatedMembers,
       );
 
-      // Update Firestore
-      await groupDoc.reference.update(updatedGroup.toJson());
+      // Update Firestore（name/contact・owner name/email を暗号化して書き込む）
+      await groupDoc.reference.update(
+        sharedGroupFirestoreCodec().encryptGroup(updatedGroup).toJson(),
+      );
 
       developer.log('✅ 招待受諾完了: UID $userUid → グループ「${group.groupName}」');
     } catch (e) {

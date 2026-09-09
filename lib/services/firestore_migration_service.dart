@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/shared_group.dart';
+import '../datastore/shared_group_firestore_codec.dart';
 import '../utils/app_logger.dart';
 
 /// Firestoreデータマイグレーションサービス
@@ -195,15 +196,16 @@ class FirestoreDataMigrationService {
     }
   }
 
-  /// SharedGroupをFirestoreデータに変換
+  /// SharedGroupをFirestoreデータに変換（name/contact・owner name/email を暗号化）
   Map<String, dynamic> _groupToFirestore(SharedGroup group) {
+    final enc = sharedGroupFirestoreCodec().encryptGroup(group);
     return {
-      'groupId': group.groupId,
-      'groupName': group.groupName,
-      'ownerUid': group.ownerUid,
-      'ownerName': group.ownerName,
-      'ownerEmail': group.ownerEmail,
-      'members': group.members
+      'groupId': enc.groupId,
+      'groupName': enc.groupName,
+      'ownerUid': enc.ownerUid,
+      'ownerName': enc.ownerName,
+      'ownerEmail': enc.ownerEmail,
+      'members': enc.members
               ?.map((member) => {
                     'memberId': member.memberId,
                     'name': member.name,
