@@ -219,8 +219,9 @@ class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
               style: const TextStyle(fontSize: 11, color: Colors.grey),
             ),
             const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 _buildLegalLink(
                   texts.privacyPolicy,
@@ -230,6 +231,11 @@ class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
                 _buildLegalLink(
                   texts.termsOfService,
                   'https://maya27aokisawada.github.io/go_shop/specifications/terms_of_service',
+                ),
+                const Text(' | ', style: TextStyle(color: Colors.grey)),
+                _buildLegalLink(
+                  texts.commercialDisclosure,
+                  'https://maya27aokisawada.github.io/go_shop/specifications/tokushoho',
                 ),
               ],
             ),

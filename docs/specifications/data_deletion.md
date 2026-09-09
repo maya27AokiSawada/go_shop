@@ -5,7 +5,7 @@ description: How to delete your account and data in GoShopping
 
 # Data Deletion / データ削除
 
-**Last Updated: April 14, 2026 / 最終更新日: 2026年4月14日**
+**Last Updated: July 1, 2026 / 最終更新日: 2026年7月1日**
 
 ---
 
@@ -39,11 +39,11 @@ When you delete your account, the following data is permanently removed:
 
 If you cannot access the app, send a deletion request by email:
 
-- **Email**: ansize.oneness@gmail.com or support@sumomo-planning.net
+- **Email**: support@sumomo-planning.net
 - **Subject**: `GoShopping Account Deletion Request`
 - **Include**: Your registered email address
 
-Note: maya27AokiSawada is the development lead. The app is operated by Ansize Co., Ltd.
+Note: maya27AokiSawada is the development lead. The app is operated by Kinomoto Sumomo Planning.
 
 We will delete your account and data within **3 business days**.
 
@@ -85,7 +85,7 @@ GoShoppingでは、いつでもアカウントと関連するすべてのデー�
 
 アプリにアクセスできない場合は、メールでご依頼ください：
 
-- **メールアドレス**: ansize.oneness@gmail.com または support@sumomo-planning.net（開発責任者: maya27AokiSawada）
+- **メールアドレス**: support@sumomo-planning.net（開発責任者: maya27AokiSawada）
 - **件名**: `GoShopping アカウント削除依頼`
 - **記載事項**: 登録メールアドレス
 
@@ -101,8 +101,8 @@ GoShoppingでは、いつでもアカウントと関連するすべてのデー�
 
 ## Contact / お問い合わせ
 
-**Operator**: Ansize Co., Ltd.
-**Email**: ansize.oneness@gmail.com
+**Operator**: Kinomoto Sumomo Planning
+**Email**: info@sumomo-planning.net
 **Development Lead**: maya27AokiSawada
 **Developer Email**: support@sumomo-planning.net
 **GitHub**: <https://github.com/maya27AokiSawada/go_shop>

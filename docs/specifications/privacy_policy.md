@@ -1,10 +1,10 @@
 # プライバシーポリシー
 
-**最終更新日: 2026年8月12日**
+**最終更新日: 2026年7月1日**
 
 [English Version](#english-version)
 
-GoShopping（以下「本アプリ」）は、株式会社Ansize（以下「運営者」）が提供する買い物リスト・TODOリスト共有アプリケーションです。本プライバシーポリシーは、本アプリにおける個人情報の取り扱いについて説明します。
+GoShopping（以下「本アプリ」）は、木之本すもも企画（以下「運営者」）が提供する買い物リスト・TODOリスト共有アプリケーションです。本プライバシーポリシーは、本アプリにおける個人情報の取り扱いについて説明します。
 
 ## 1. 収集する情報
 
@@ -161,7 +161,7 @@ Cloud Firestore に保存されたデータは **本アプリのプロジェク�
 
 アプリにアクセスできない場合は、以下の方法でもお問い合わせいただけます:
 
-1. **メール**: <ansize.oneness@gmail.com> または <support@sumomo-planning.net>（開発責任者: maya27AokiSawada）にアカウント削除のご依頼を送信
+1. **メール**: <support@sumomo-planning.net>（開発責任者: maya27AokiSawada）にアカウント削除のご依頼を送信
 2. **件名**: 「GoShopping アカウント削除依頼」
 3. **記載事項**: 登録メールアドレス
 
@@ -214,8 +214,8 @@ Cloud Firestore に保存されたデータへのアクセスは Firebase Securi
 
 本プライバシーポリシーに関するご質問は、以下の連絡先までお願いします。
 
-**運営者**: 株式会社Ansize
-**メールアドレス**: <ansize.oneness@gmail.com>
+**運営者**: 木之本すもも企画
+**メールアドレス**: <info@sumomo-planning.net>
 **開発責任者**: maya27AokiSawada
 **開発者メール**: support@sumomo-planning.net
 **GitHub**: <https://github.com/maya27AokiSawada/go_shop>
@@ -228,9 +228,9 @@ Cloud Firestore に保存されたデータへのアクセスは Firebase Securi
 
 # Privacy Policy
 
-**Last Updated: May 11, 2026**
+**Last Updated: July 1, 2026**
 
-GoShopping (hereinafter "the App") is a shopping list and TODO list sharing application provided by Ansize Co., Ltd. (hereinafter "the Operator"). This Privacy Policy explains how we handle personal information in the App.
+GoShopping (hereinafter "the App") is a shopping list and TODO list sharing application provided by Kinomoto Sumomo Planning (hereinafter "the Operator"). This Privacy Policy explains how we handle personal information in the App.
 
 ## 1. Information We Collect
 
@@ -385,7 +385,7 @@ Users can delete their account at any time. After account deletion, the followin
 
 If you cannot access the app, you can also contact us using the following method:
 
-1. **Email**: Send an account deletion request to <ansize.oneness@gmail.com> or <support@sumomo-planning.net>
+1. **Email**: Send an account deletion request to <support@sumomo-planning.net>
 2. **Subject**: "GoShopping Account Deletion Request"
 3. **Required Information**: Your registered email address
 
@@ -434,8 +434,8 @@ This Privacy Policy may be changed without notice due to legal changes or servic
 
 For questions about this Privacy Policy, please contact:
 
-**Operator**: Ansize Co., Ltd.
-**Email**: <ansize.oneness@gmail.com>
+**Operator**: Kinomoto Sumomo Planning
+**Email**: <info@sumomo-planning.net>
 **Lead Developer**: maya27AokiSawada
 **Developer Email**: support@sumomo-planning.net
 **GitHub**: <https://github.com/maya27AokiSawada/go_shop>

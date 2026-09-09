@@ -357,6 +357,9 @@ class AppTextsJa extends AppTexts {
   String get termsOfService => '利用規約';
 
   @override
+  String get commercialDisclosure => '特定商取引法に基づく表記';
+
+  @override
   String get subscriptionNotesTitle => 'サブスクリプションに関する注意事項';
 
   @override

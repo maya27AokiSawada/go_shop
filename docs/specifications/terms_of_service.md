@@ -1,8 +1,8 @@
 # 利用規約
 
-**最終更新日: 2026年5月11日**
+**最終更新日: 2026年7月1日**
 
-GoShopping（以下「本アプリ」）をご利用いただきありがとうございます。本利用規約（以下「本規約」）は、株式会社Ansize（以下「運営者」）が提供する本アプリの利用条件を定めるものです。
+GoShopping（以下「本アプリ」）をご利用いただきありがとうございます。本利用規約（以下「本規約」）は、木之本すもも企画（以下「運営者」）が提供する本アプリの利用条件を定めるものです。
 
 ## 第1条（適用）
 
@@ -96,7 +96,7 @@ GoShopping（以下「本アプリ」）をご利用いただきありがとう�
 
 ## 第12条（知的財産権）
 
-1. 本アプリに関する知的財産権は、すべて運営者（株式会社Ansize）に帰属します。
+1. 本アプリに関する知的財産権は、すべて運営者（木之本すもも企画）に帰属します。
 2. ユーザーは、本アプリの利用許諾を得るものであり、所有権を取得するものではありません。
 
 ## 第13条（データのバックアップ）
@@ -119,8 +119,8 @@ GoShopping（以下「本アプリ」）をご利用いただきありがとう�
 
 本規約に関するご質問は、以下の連絡先までお願いします。
 
-**運営者**: 株式会社Ansize
-**メールアドレス**: ansize.oneness@gmail.com
+**運営者**: 木之本すもも企画
+**メールアドレス**: info@sumomo-planning.net
 **開発責任者**: maya27AokiSawada
 **開発者メール**: support@sumomo-planning.net
 **GitHub**: <https://github.com/maya27AokiSawada/go_shop>
@@ -133,9 +133,9 @@ GoShopping（以下「本アプリ」）をご利用いただきありがとう�
 
 # Terms of Service
 
-**Last Updated: May 11, 2026**
+**Last Updated: July 1, 2026**
 
-Thank you for using GoShopping (hereinafter "the App"). These Terms of Service (hereinafter "the Terms") set forth the conditions for using the App provided by Ansize Co., Ltd. (hereinafter "the Operator").
+Thank you for using GoShopping (hereinafter "the App"). These Terms of Service (hereinafter "the Terms") set forth the conditions for using the App provided by Kinomoto Sumomo Planning (hereinafter "the Operator").
 
 ## Article 1 (Application)
 
@@ -229,7 +229,7 @@ The Developer may suspend or delete accounts without prior notice if users:
 
 ## Article 12 (Intellectual Property Rights)
 
-1. All intellectual property rights related to the App belong to Ansize Co., Ltd. (the Operator).
+1. All intellectual property rights related to the App belong to Kinomoto Sumomo Planning (the Operator).
 2. Users receive a license to use the App but do not acquire ownership.
 
 ## Article 13 (Data Backup)
@@ -252,8 +252,8 @@ The Developer may suspend or delete accounts without prior notice if users:
 
 For questions about these Terms, please contact:
 
-**Operator**: Ansize Co., Ltd.
-**Email**: ansize.oneness@gmail.com
+**Operator**: Kinomoto Sumomo Planning
+**Email**: info@sumomo-planning.net
 **Lead Developer**: maya27AokiSawada
 **Developer Email**: support@sumomo-planning.net
 **GitHub**: <https://github.com/maya27AokiSawada/go_shop>

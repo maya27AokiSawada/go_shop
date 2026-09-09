@@ -148,6 +148,7 @@ abstract class AppTexts {
   String get version;
   String get privacyPolicy;
   String get termsOfService;
+  String get commercialDisclosure;
   String get subscriptionNotesTitle;
   String get subscriptionNotesBody;
   String get logout;

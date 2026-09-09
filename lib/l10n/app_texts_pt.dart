@@ -411,6 +411,9 @@ class AppTextsPt extends AppTextsEn {
   String get termsOfService => 'Termos de serviço';
 
   @override
+  String get commercialDisclosure => 'Lei de Transações Comerciais (Japão)';
+
+  @override
   String get subscriptionNotesTitle => 'Subscription Notes';
 
   @override

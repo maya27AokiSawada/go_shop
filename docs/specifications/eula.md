@@ -1,10 +1,10 @@
 # 使用許諾契約書（EULA）
 
-**最終更新日: 2026年5月7日**
+**最終更新日: 2026年7月1日**
 
 [English Version](#english-version)
 
-本使用許諾契約書（以下「本契約」）は、株式会社Ansize（以下「運営者」）と、GoShopping アプリケーション（以下「本ソフトウェア」）を使用するお客様（以下「ユーザー」）との間に締結される法的な契約です。本ソフトウェアをインストールまたは使用することにより、ユーザーは本契約に同意したものとみなされます。
+本使用許諾契約書（以下「本契約」）は、木之本すもも企画（以下「運営者」）と、GoShopping アプリケーション（以下「本ソフトウェア」）を使用するお客様（以下「ユーザー」）との間に締結される法的な契約です。本ソフトウェアをインストールまたは使用することにより、ユーザーは本契約に同意したものとみなされます。
 
 ---
 
@@ -92,8 +92,8 @@
 
 ## 第10条（お問い合わせ）
 
-**運営者**: 株式会社Ansize
-**メールアドレス**: ansize.oneness@gmail.com
+**運営者**: 木之本すもも企画
+**メールアドレス**: info@sumomo-planning.net
 **開発責任者**: maya27AokiSawada
 **開発者メール**: support@sumomo-planning.net
 **GitHub**: <https://github.com/maya27AokiSawada/go_shop>
@@ -102,9 +102,9 @@
 
 ## End User License Agreement (EULA) {#english-version}
 
-**Last Updated: May 7, 2026**
+**Last Updated: July 1, 2026**
 
-This End User License Agreement ("Agreement") is a legal agreement between Ansize Co., Ltd. ("Developer") and you ("User") regarding the use of the GoShopping application ("Software"). By installing or using the Software, you agree to be bound by this Agreement.
+This End User License Agreement ("Agreement") is a legal agreement between Kinomoto Sumomo Planning ("Developer") and you ("User") regarding the use of the GoShopping application ("Software"). By installing or using the Software, you agree to be bound by this Agreement.
 
 ---
 
@@ -189,8 +189,8 @@ This Agreement is governed by the laws of Japan. Any disputes shall be subject t
 
 ## Article 10 (Contact)
 
-**Developer**: Ansize Co., Ltd.
-**Email**: ansize.oneness@gmail.com
+**Developer**: Kinomoto Sumomo Planning
+**Email**: info@sumomo-planning.net
 **Contact**: maya27AokiSawada
 **Developer Email**: support@sumomo-planning.net
 **GitHub**: <https://github.com/maya27AokiSawada/go_shop>

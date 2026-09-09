@@ -359,6 +359,9 @@ class AppTextsEn extends AppTexts {
   String get termsOfService => 'Terms of Service';
 
   @override
+  String get commercialDisclosure => 'Commercial Transactions Act (Japan)';
+
+  @override
   String get subscriptionNotesTitle => 'Subscription Notes';
 
   @override

@@ -406,6 +406,9 @@ class AppTextsZhHans extends AppTextsEn {
   String get termsOfService => '服务条款';
 
   @override
+  String get commercialDisclosure => '特定商业交易法披露（日本）';
+
+  @override
   String get subscriptionNotesTitle => '订阅说明';
 
   @override

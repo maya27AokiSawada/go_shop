@@ -56,10 +56,11 @@ Pages -> Widgets -> Providers -> Services -> Repositories -> Data Models
 
 | ファイル名                                 | 概要                                                                               | 言語         | 最終更新   |
 | ------------------------------------------ | ---------------------------------------------------------------------------------- | ------------ | ---------- |
-| [privacy_policy.md](privacy_policy.md)     | プライバシーポリシー（個人情報の取り扱い、Firebase/AdMob利用、位置情報の詳細説明） | 日本語・英語 | 2026-05-11 |
-| [terms_of_service.md](terms_of_service.md) | 利用規約（サービス利用条件、有料プラン導入後も広告付き無料プラン継続を明記）       | 日本語・英語 | 2026-05-11 |
-| [data_deletion.md](data_deletion.md)       | データ・アカウント削除方法（Play Console データ削除 URL 用）                       | 英語・日本語 | 2026-04-14 |
-| [eula.md](eula.md)                         | 使用許諾契約書（アプリ利用条件、禁止事項、ライセンス範囲）                         | 日本語・英語 | 2026-05-07 |
+| [privacy_policy.md](privacy_policy.md)     | プライバシーポリシー（個人情報の取り扱い、Firebase/AdMob利用、位置情報の詳細説明） | 日本語・英語 | 2026-07-01 |
+| [terms_of_service.md](terms_of_service.md) | 利用規約（サービス利用条件、有料プラン導入後も広告付き無料プラン継続を明記）       | 日本語・英語 | 2026-07-01 |
+| [data_deletion.md](data_deletion.md)       | データ・アカウント削除方法（Play Console データ削除 URL 用）                       | 英語・日本語 | 2026-07-01 |
+| [eula.md](eula.md)                         | 使用許諾契約書（アプリ利用条件、禁止事項、ライセンス範囲）                         | 日本語・英語 | 2026-07-01 |
+| [tokushoho.md](tokushoho.md)               | 特定商取引法に基づく表記（サブスクリプションの事業者情報・価格・解約・返金）       | 日本語・英語 | 2026-07-01 |
 
 ---
 

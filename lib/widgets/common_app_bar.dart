@@ -310,6 +310,12 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
               url:
                   'https://maya27aokisawada.github.io/go_shop/specifications/data_deletion#english',
             ),
+            (
+              icon: Icons.receipt_long_outlined,
+              label: texts.commercialDisclosure,
+              url:
+                  'https://maya27aokisawada.github.io/go_shop/specifications/tokushoho#english-summary',
+            ),
           ]
         : [
             (
@@ -329,6 +335,12 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
               label: texts.deleteAccountAndData,
               url:
                   'https://maya27aokisawada.github.io/go_shop/specifications/data_deletion',
+            ),
+            (
+              icon: Icons.receipt_long_outlined,
+              label: texts.commercialDisclosure,
+              url:
+                  'https://maya27aokisawada.github.io/go_shop/specifications/tokushoho',
             ),
           ];
 
