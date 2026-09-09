@@ -130,10 +130,55 @@
 
 ### Phase 2: 復号を先行有効化（decrypt-only リリース）
 
-- コーデックに常に cipher を注入する。
-- **書き込みは平文のまま**（`groupToFirestore` の暗号化を feature フラグで OFF、または
-  段階を分ける）。`_dec` は平文パススルーなので無害。
+- コーデックに常に cipher を注入する（`configureSharedGroupCodec`）。
+- cipher アダプターには **`ref.read(groupKeyExchangeServiceProvider)` のシングルトン**を渡す。
+  `GroupKeyServiceFieldCipher(GroupKeyExchangeService())` のように `new` すると別インスタンス＝
+  別 `_groupKeyCache` になり、アイテム名側で温めた鍵が効かない（現状の
+  `group_field_cipher.dart` の例はこの誤りなので Phase 2 で修正）。
+- **書き込みは平文のまま**（`encryptGroup` / `memberToMap` の暗号化を feature フラグで OFF、
+  または段階を分ける）。`_dec` は平文パススルーなので無害。
 - 目的: 全クライアントが「暗号文が来ても復号できる」状態を先に配る。
+
+#### Phase 2 の必須要件：鍵の取得タイミング（2026-09-09 の設計議論）
+
+「参加時＋鍵更新通知受信時」だけでは**不十分**。鍵マテリアルを受け取るタイミングとしては
+正しいが、復号を成立させるには以下が必要（アイテム名暗号化が既にやっていることと同じ）。
+
+1. **グループ読みの choke point で毎回ローカル永続鍵をキャッシュへ再ロードする**
+   `GroupKeyExchangeService._groupKeyCache` はプロセス内のみ。アプリ再起動で空になる。
+   鍵が SharedPreferences に残っていても `getPersistedGroupKey(groupId:)` を呼ぶまで
+   キャッシュに載らない。`decryptGroup()` は現在**同期**でキャッシュ直読みのため、
+   再起動後の最初の読みは空鍵→ keyless フォールバックも失敗→暗号文が UI に出る。
+   - 対応案: `decryptGroup` の**非同期版**を用意し、内部で
+     `await keyService.getPersistedGroupKey(groupId:)` を先に呼ぶ。または
+     `firestore_group_sync_service.watchUserGroups` /
+     `user_initialization_service`（Firestore→Hive）/ `firestore_helper` /
+     `enhanced_invitation_service` のループで groupId ごとに 1 回 prime する。
+
+2. **メンバー情報の最初の表示入口（グループ一覧 / メンバー管理画面ロード）でも鍵解決を呼ぶ**
+   現状の鍵解決（`resolveGroupKeyForMember` / `hasUsableGroupKey` /
+   `shouldRefreshGroupKey`）は主に `shared_list_page.dart`（共有リストを開いたとき）と
+   通知受信時（`notification_service.dart:638`）。グループ一覧・メンバー管理画面は
+   それより手前でメンバー `name` / `contact` を表示するため、そこでも解決が要る。
+
+3. **読み時の世代チェックで自己修復**
+   オフライン中に鍵更新通知を取りこぼすとローカル鍵が旧世代。読み時に
+   フィンガープリント / `keyVersion` 不一致を検出して再取得する
+   （アイテムの `_reencryptAllItemsIfKeyChanged` / `shouldRefreshGroupKey` 相当）。
+
+4. **2 台目の端末 / 再インストール**
+   参加操作は端末 A で発生済みのため端末 B に永続鍵がない。`resolveGroupKeyForMember`
+   （recovery envelope）で取り直しが必要だが、それは端末 B で「どこか」が呼ばないと
+   走らない。上記 1・2 の prime 経路がこれも兼ねる。
+
+現状の鍵取得ポイント（参考）:
+
+| タイミング | 処理 | 場所 |
+|---|---|---|
+| 参加（受諾） | 鍵交換で取得・永続化 | `handleAcceptedInvitation` |
+| 通知受信 | `shouldRefreshGroupKey` → `resolveGroupKeyForMember` | `notification_service.dart:638` |
+| 共有リスト画面を開く | `hasUsableGroupKey` / `resolveGroupKeyForMember`（世代チェック） | `shared_list_page.dart` |
+| アイテムを読むたび | `getPersistedGroupKey` でキャッシュ再ロード | `_decryptListForRead` |
 
 ### Phase 3: 書き込み暗号化を有効化
 
@@ -192,9 +237,16 @@
 - ✅ Phase 0 完了（暗号プリミティブ + コーデック + 単体テスト）
 - ✅ Phase 1 完了（全 `SharedGroups` 読み書き経路をコーデック経由に統一。cipher なし＝挙動不変。
   `flutter analyze lib/` で新規警告なし、`flutter test test/datastore/` ほか 173 件緑）
-- ⏳ Phase 2〜5 未着手
-- 次アクション: Phase 2（`configureSharedGroupCodec` に decrypt 対応のみのコーデックを常時注入し、
-  全クライアントへ先行配布 → その後 Phase 3 で書き込み暗号化を ON）
+- ✅ Phase 2 の設計方針を確定（鍵取得タイミング。上記 5.Phase 2 に反映）
+- ⏳ Phase 2 実装〜Phase 5 未着手
+- 次アクション: Phase 2 実装
+  1. `group_field_cipher.dart` を provider シングルトンの `GroupKeyExchangeService` を
+     受け取る形に修正
+  2. `decryptGroup` の非同期版（内部で `getPersistedGroupKey` を prime）を追加
+  3. `firestore_group_sync_service` / `user_initialization_service` / `firestore_helper` /
+     `enhanced_invitation_service` の read 経路を非同期 prime 版へ差し替え
+  4. グループ一覧 / メンバー管理画面ロードで鍵解決を呼ぶ
+  5. `configureSharedGroupCodec` をアプリ初期化で 1 回呼ぶ（decrypt-only）
 
 ### Phase 1 の残注意点
 
