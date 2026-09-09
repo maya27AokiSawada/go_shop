@@ -904,7 +904,12 @@ class GroupKeyExchangeService {
     String groupKey = '',
   }) {
     final seed = 'group-field-v1:$groupId:$groupKey';
-    return base64.encode(sha256.convert(utf8.encode(seed)).bytes);
+    final secret = base64.encode(sha256.convert(utf8.encode(seed)).bytes);
+    // ignore: avoid_print
+    print('🔎 [GF_SECRET] gid=$groupId keyLen=${groupKey.length} '
+        'keyHead=${groupKey.isEmpty ? "" : groupKey.substring(0, groupKey.length < 6 ? groupKey.length : 6)} '
+        'secretHead=${secret.substring(0, 10)}');
+    return secret;
   }
 
   /// グループ共通フィールドの平文を暗号化する。
@@ -924,6 +929,9 @@ class GroupKeyExchangeService {
     if (activeGroupKey.isEmpty) {
       return plaintext;
     }
+    // ignore: avoid_print
+    print('🔎 [GF_ENC] gid=$groupId keyLen=${activeGroupKey.length} '
+        'keyHead=${activeGroupKey.substring(0, 6)}');
     final normalized = base64.encode(utf8.encode(plaintext));
     final secret = _deriveGroupFieldSecret(
       groupId: groupId,

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 import '../models/shared_group.dart';
 
@@ -317,12 +318,22 @@ class SharedGroupFirestoreCodec {
 
   String _dec(String value, String groupId) {
     final cipher = _cipher;
-    if (cipher == null || value.isEmpty || !cipher.isEncrypted(value)) {
+    if (cipher == null) {
+      debugPrint('🔎 [GF_DEC] cipher=null groupId=$groupId '
+          'encrypted=${value.isNotEmpty}');
+      return value;
+    }
+    if (value.isEmpty || !cipher.isEncrypted(value)) {
+      debugPrint('🔎 [GF_DEC] passthrough groupId=$groupId '
+          'empty=${value.isEmpty} isEnc=${value.isNotEmpty && cipher.isEncrypted(value)}');
       return value;
     }
     try {
-      return cipher.decrypt(ciphertext: value, groupId: groupId);
-    } catch (_) {
+      final out = cipher.decrypt(ciphertext: value, groupId: groupId);
+      debugPrint('🔎 [GF_DEC] OK groupId=$groupId -> "${out.length > 24 ? out.substring(0, 24) : out}"');
+      return out;
+    } catch (e) {
+      debugPrint('🔎 [GF_DEC] FAIL groupId=$groupId err=$e');
       // 鍵未取得などで復号できない場合は生値を返す（UI 側で表示は崩れる）。
       return value;
     }

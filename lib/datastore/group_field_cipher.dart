@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/group_key_exchange_service.dart';
@@ -28,7 +29,8 @@ class GroupKeyServiceFieldCipher implements GroupFieldCipher {
   @override
   Future<void> primeKey(String groupId) async {
     // ローカル永続鍵をメモリキャッシュへ再ロード（戻り値は使わない）。
-    await _service.getPersistedGroupKey(groupId: groupId);
+    final k = await _service.getPersistedGroupKey(groupId: groupId);
+    debugPrint('🔎 [GF_PRIME] groupId=$groupId keyLen=${k?.length ?? -1}');
   }
 }
 
@@ -49,5 +51,7 @@ final sharedGroupCodecProvider = Provider<SharedGroupFirestoreCodec>((ref) {
     encryptOnWrite: true, // Phase 3
   );
   configureSharedGroupCodec(codec);
+  debugPrint('🔎 [GF_CFG] sharedGroupCodec configured '
+      '(cipher=on, encryptOnWrite=true)');
   return codec;
 });
