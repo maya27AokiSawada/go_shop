@@ -885,6 +885,81 @@ class GroupKeyExchangeService {
     }
   }
 
+  // ===========================================================================
+  // グループ共有フィールド（members[].name / members[].contact / ownerName /
+  // ownerEmail）の暗号化。
+  //
+  // アイテム名との違い:
+  //  - アイテム名は「所有メンバー」単位の秘密で暗号化する（_deriveRecipientSecret に
+  //    memberUid を含める）。
+  //  - グループ共有フィールドは「グループの全メンバーが相互に読める」必要があるため、
+  //    memberUid を含めない groupId + groupKey 由来のグループ共通秘密で暗号化する。
+  //  暗号エンベロープ（version/ciphertext/tag の JSON を Base64 化した形式）は
+  //  アイテム名と共通なので、判定には isEncryptedItemName をそのまま使える。
+  // ===========================================================================
+
+  /// グループ共通フィールド用の秘密情報を導出する。memberUid は含めない。
+  String _deriveGroupFieldSecret({
+    required String groupId,
+    String groupKey = '',
+  }) {
+    final seed = 'group-field-v1:$groupId:$groupKey';
+    return base64.encode(sha256.convert(utf8.encode(seed)).bytes);
+  }
+
+  /// グループ共通フィールドの平文を暗号化する。
+  ///
+  /// [groupKey] を渡さない場合はローカルキャッシュ済みのグループ鍵を使う。
+  /// グループ鍵が未設定（空文字）の場合でも往復は成立するが、実際の秘匿には
+  /// 呼び出し側で鍵設定済みかを確認すること。
+  String encryptGroupField({
+    required String plaintext,
+    required String groupId,
+    String? groupKey,
+  }) {
+    final normalized = base64.encode(utf8.encode(plaintext));
+    final activeGroupKey = groupKey ?? _groupKeyCache[groupId] ?? '';
+    final secret = _deriveGroupFieldSecret(
+      groupId: groupId,
+      groupKey: activeGroupKey,
+    );
+    return _crypto.encryptGroupKey(
+      groupKey: normalized,
+      recipientSecret: secret,
+    );
+  }
+
+  /// グループ共通フィールドの暗号文を復号する。
+  ///
+  /// 新方式（groupKey を導出に含める）で失敗した場合は、旧方式
+  /// （groupKey を含めない）でフォールバックする。
+  String decryptGroupField({
+    required String ciphertext,
+    required String groupId,
+    String? groupKey,
+  }) {
+    final activeGroupKey = groupKey ?? _groupKeyCache[groupId] ?? '';
+    try {
+      final normalized = _crypto.decryptGroupKey(
+        encryptedGroupKey: ciphertext,
+        recipientSecret: _deriveGroupFieldSecret(
+          groupId: groupId,
+          groupKey: activeGroupKey,
+        ),
+      );
+      return utf8.decode(base64.decode(normalized));
+    } catch (_) {
+      final normalized = _crypto.decryptGroupKey(
+        encryptedGroupKey: ciphertext,
+        recipientSecret: _deriveGroupFieldSecret(groupId: groupId),
+      );
+      return utf8.decode(base64.decode(normalized));
+    }
+  }
+
+  /// 値が本サービス形式の暗号エンベロープかを判定する（アイテム名と共通形式）。
+  bool isEncryptedGroupField(String value) => isEncryptedItemName(value);
+
   Future<void> setReencryptionInProgress({
     required String groupId,
     required bool inProgress,
