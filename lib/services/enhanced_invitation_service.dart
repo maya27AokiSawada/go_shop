@@ -29,8 +29,8 @@ class EnhancedInvitationService {
       final invitableGroups = <GroupInvitationOption>[];
 
       for (final doc in userGroups.docs) {
-        final group = sharedGroupFirestoreCodec()
-            .decryptGroup(SharedGroup.fromJson(doc.data()));
+        final group = await sharedGroupFirestoreCodec()
+            .decryptGroupPrimed(SharedGroup.fromJson(doc.data()));
 
         // Check if current user can invite to this group (owner or manager)
         final currentMember = group.members?.firstWhere(
@@ -145,8 +145,8 @@ class EnhancedInvitationService {
       throw Exception('グループが見つかりません');
     }
 
-    final group = sharedGroupFirestoreCodec()
-        .decryptGroup(SharedGroup.fromJson(groupDoc.data()!));
+    final group = await sharedGroupFirestoreCodec()
+        .decryptGroupPrimed(SharedGroup.fromJson(groupDoc.data()!));
 
     // Verify current user can invite (owner or manager)
     final currentMember = group.members?.firstWhere(
@@ -209,8 +209,8 @@ class EnhancedInvitationService {
         throw Exception('グループが見つかりません');
       }
 
-      final group = sharedGroupFirestoreCodec()
-          .decryptGroup(SharedGroup.fromJson(groupDoc.data()!));
+      final group = await sharedGroupFirestoreCodec()
+          .decryptGroupPrimed(SharedGroup.fromJson(groupDoc.data()!));
 
       // Update member info with actual user name
       final updatedMembers = group.members?.map((member) {

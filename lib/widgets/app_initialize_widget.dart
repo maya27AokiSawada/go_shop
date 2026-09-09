@@ -20,6 +20,7 @@ import '../config/app_ui_mode_config.dart';
 import '../providers/app_ui_mode_provider.dart';
 import '../providers/user_settings_provider.dart';
 import '../providers/shared_group_provider.dart'; // forceSyncProvider
+import '../datastore/group_field_cipher.dart'; // sharedGroupCodecProvider
 import '../providers/hive_provider.dart';
 import '../providers/purchase_sync_provider.dart';
 import '../providers/purchase_type_provider.dart';
@@ -131,6 +132,10 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
 
     try {
       Log.info('🚀 AppInitializeWidget: 初期化開始');
+
+      // ステップ0: グループメンバー暗号化コーデックを適用（Phase 2: 復号のみ）。
+      // これ以降の SharedGroups 読み出しは暗号文が来ても復号される。
+      ref.read(sharedGroupCodecProvider);
 
       // ステップ1: マイグレーションチェック
       await _checkAndHandleMigration();

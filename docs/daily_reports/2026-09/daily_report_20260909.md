@@ -6,7 +6,7 @@
 - [x] 規約類の最終更新日を 2026-07-01 に統一する
 - [x] 特定商取引法に基づく表記を新設し、特商法違反にならない事業者情報を設定する
 - [x] Google Play リアルタイム デベロッパー通知（RTDN）を実装し、更新・解約・失効・返金をサーバー側で権限へ反映する
-- [~] グループメンバーの `name` / `contact` を暗号化する（Phase 0〜1 完了 + Phase 2 設計確定・実装は午後）
+- [~] グループメンバーの `name` / `contact` を暗号化する（Phase 0〜2 完了。Phase 3 以降は次回）
 - [x] 本日の作業を日報にまとめて `sumomo-planning` へコミットする
 
 ---
@@ -182,16 +182,29 @@
 
 詳細は `docs/development_plan/group_member_encryption_implementation_plan.md`（更新済み）。
 
-**Status**: ⏸ Phase 1 まで完了・コミット済み。Phase 2 実装は午後再開。
+**Phase 2（decrypt-only。書き込みは平文のまま）✅ コミット `<pending>`**:
 
-**午後の再開ポイント（Phase 2 実装）**:
+| ファイル | 対応 |
+|---|---|
+| `shared_group_firestore_codec.dart` | `GroupFieldCipher.primeKey` を追加。コーデックに `primeKey` / `decryptGroupPrimed` / `decryptGroupsPrimed` と `encryptOnWrite` フラグ（`encryptsOnWrite` getter）。`encryptOnWrite: false` で書き込み時は暗号化しない |
+| `group_field_cipher.dart` | `GroupKeyServiceFieldCipher.primeKey` = `getPersistedGroupKey`。`sharedGroupCodecProvider`（**provider シングルトンの `GroupKeyExchangeService`** を注入・`encryptOnWrite: false`）を追加 |
+| `firestore_shared_group_repository.dart` | `getAllGroups` / `getGroupById` / `deleteGroup` で `primeKey` 後に変換 |
+| `firestore_group_sync_service.dart` | `watchUserGroups` の `.map` → `.asyncMap` で groupId ごとに prime |
+| `sync_service.dart` / `user_initialization_service.dart` / `firestore_helper.dart` / `enhanced_invitation_service.dart` | `decryptGroup` → `await decryptGroupPrimed` |
+| `app_initialize_widget.dart` | `_performAppInitialization` 先頭で `ref.read(sharedGroupCodecProvider)` |
 
-1. `group_field_cipher.dart` を provider シングルトンの `GroupKeyExchangeService` 受け取りに修正
-2. `decryptGroup` の非同期版（内部で `getPersistedGroupKey` を prime）を追加
-3. `firestore_group_sync_service` / `user_initialization_service` / `firestore_helper` /
-   `enhanced_invitation_service` の read 経路を非同期 prime 版へ差し替え
-4. グループ一覧 / メンバー管理画面ロードで鍵解決を呼ぶ
-5. `configureSharedGroupCodec` をアプリ初期化で 1 回呼ぶ（decrypt-only リリース）
+**判断**: グループ一覧 / メンバー管理画面は `allGroupsProvider`（Hive・平文）を読むため個別の
+鍵解決は**不要**。Firestore→Hive 同期（`user_initialization_service` / `sync_service`）と
+live stream（`firestore_group_sync_service.watchUserGroups`）の両方が復号済みになったため、
+UI に届く時点で平文。
+
+**Verified**: `flutter analyze lib/` 新規警告なし。`flutter test test/datastore/` ほか
+**176 件緑**。コーデックテストに Phase 2 分（`decryptGroupPrimed` の prime 呼び出し、
+decrypt-only モード）を追加。
+
+**Status**: ✅ Phase 0〜2 完了・コミット済み。**Phase 3（`encryptOnWrite: true` 化 →
+書き込み暗号化 ON）+ Phase 4（既存平文の再暗号化パス）は次回**。
+Phase 2 は decrypt-only リリースとして先に配布する。
 
 ---
 
@@ -200,7 +213,7 @@
 1. `play-rtdn` トピック作成 + IAM 付与 + `playRtdnHandler` デプロイ
 2. Play Console の請求サービス設定にトピック名を入力し「テスト通知」で疎通確認（ログに `[play-rtdn] テスト通知を受信`）
 3. Sandbox / 内部テストで「解約 → 失効」が `users/{uid}.purchaseType=free` に反映されることを実機確認
-4. **グループメンバー暗号化 Phase 2 実装**（本日午後に着手・上記「午後の再開ポイント」参照）
+4. **グループメンバー暗号化 Phase 3**（`sharedGroupCodecProvider` を `encryptOnWrite: true` に）+ **Phase 4**（既存平文データの再暗号化パスを `hybrid_shared_group_repository` に追加）+ 実機 2 端末テスト
 5. iOS の App Store Server Notifications V2 対応を設計する
 6. 特商法表記の仮置き値（電話受付時間・提供時期・英語表記）を確定する
 7. （9/8 からの継続）サブスク審査結果の確認と、必要なら iOS の年払いボタン表示の実機確認
@@ -256,12 +269,24 @@
 | `lib/datastore/firestore_shared_group_adapter.dart` | レガシー明示コメント |
 | `docs/development_plan/group_member_encryption_implementation_plan.md` | Phase 1 完了・Phase 2 設計を反映 |
 
+### コミット `<pending>`（グループメンバー暗号化 Phase 2 = decrypt-only）
+
+| ファイル | 更新内容 |
+|---|---|
+| `lib/datastore/shared_group_firestore_codec.dart` | `GroupFieldCipher.primeKey` / `decryptGroupPrimed` / `decryptGroupsPrimed` / `encryptOnWrite` フラグ |
+| `lib/datastore/group_field_cipher.dart` | `primeKey` 実装 + `sharedGroupCodecProvider`（provider シングルトン注入・decrypt-only） |
+| `lib/datastore/firestore_shared_group_repository.dart` | read 3 メソッドで `primeKey` 後に変換 |
+| `lib/services/firestore_group_sync_service.dart` | `watchUserGroups` を `.asyncMap` 化して prime |
+| `lib/services/{sync_service,user_initialization_service,enhanced_invitation_service}.dart` / `lib/utils/firestore_helper.dart` | `decryptGroup` → `await decryptGroupPrimed` |
+| `lib/widgets/app_initialize_widget.dart` | 初期化先頭で `sharedGroupCodecProvider` を read |
+| `test/datastore/shared_group_firestore_codec_test.dart` | Phase 2 分のテスト追加 |
+| `docs/development_plan/group_member_encryption_implementation_plan.md` | Phase 2 完了を反映 |
+
 ### 本コミット（日報追記）
 
 | ファイル | 更新内容 |
 |---|---|
-| `docs/daily_reports/2026-09/daily_report_20260909.md` | 作業4（グループメンバー暗号化 Phase 0〜1 + Phase 2 設計）を追記、翌日予定を更新 |
-| `docs/development_plan/group_member_encryption_implementation_plan.md` | Phase 2 の鍵取得タイミング要件を追記 |
+| `docs/daily_reports/2026-09/daily_report_20260909.md` | 作業4に Phase 2 実装の詳細を追記、翌日予定を更新 |
 
 ### 未追跡・本コミット対象外
 

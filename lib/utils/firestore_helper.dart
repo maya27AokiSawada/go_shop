@@ -32,10 +32,10 @@ class FirestoreHelper {
         return null;
       }
 
-      // Timestamp変換してSharedGroupに変換（暗号化された name/contact は復号）
+      // Timestamp変換してSharedGroupに変換（鍵を prime して name/contact を復号）
       final convertedData = FirestoreConverter.convertTimestamps(data);
-      final group = sharedGroupFirestoreCodec()
-          .decryptGroup(SharedGroup.fromJson(convertedData));
+      final group = await sharedGroupFirestoreCodec()
+          .decryptGroupPrimed(SharedGroup.fromJson(convertedData));
 
       AppLogger.info(
           '✅ [FIRESTORE] グループ取得: ${group.groupName}, allowedUid: ${group.allowedUid}');
@@ -73,8 +73,8 @@ class FirestoreHelper {
         try {
           final data = doc.data();
           final convertedData = FirestoreConverter.convertTimestamps(data);
-          final group = sharedGroupFirestoreCodec()
-              .decryptGroup(SharedGroup.fromJson(convertedData))
+          final group = (await sharedGroupFirestoreCodec()
+                  .decryptGroupPrimed(SharedGroup.fromJson(convertedData)))
               .copyWith(
                 groupId: doc.id, // ドキュメントIDを確実に設定
               );

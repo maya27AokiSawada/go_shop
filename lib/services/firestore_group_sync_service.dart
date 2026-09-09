@@ -231,7 +231,12 @@ class FirestoreGroupSyncService {
         .collection('SharedGroups')
         .where('allowedUid', arrayContains: user.uid)
         .snapshots()
-        .map((snapshot) {
+        .asyncMap((snapshot) async {
+      final codec = sharedGroupFirestoreCodec();
+      // 復号のためグループ鍵をキャッシュへ prime してから変換する。
+      for (final doc in snapshot.docs) {
+        await codec.primeKey(doc.id);
+      }
       return snapshot.docs
           .map((doc) {
             final groupData = doc.data();
@@ -264,7 +269,7 @@ class FirestoreGroupSyncService {
               isDeleted: groupData['isDeleted'] ?? false,
             );
             // members[].name/contact・owner name/email が暗号化されていれば復号する。
-            return sharedGroupFirestoreCodec().decryptGroup(group);
+            return codec.decryptGroup(group);
           })
           .where((g) => !g.isDeleted)
           .toList();

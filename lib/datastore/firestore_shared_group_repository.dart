@@ -127,6 +127,11 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
         return [];
       }
 
+      // 復号のためグループ鍵をキャッシュへ prime してから変換する。
+      final codec = _codec;
+      for (final doc in groupsSnapshot.docs) {
+        await codec.primeKey(doc.id);
+      }
       final userGroups =
           groupsSnapshot.docs.map((doc) => _groupFromFirestore(doc)).toList();
 
@@ -145,6 +150,7 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
         throw Exception('Group not found: $groupId');
       }
 
+      await _codec.primeKey(groupId); // 復号のため鍵をキャッシュへ
       return _groupFromFirestore(doc);
     } catch (e, stackTrace) {
       Log.error('❌ Firestore getGroupById error: $e', e, stackTrace);
@@ -193,6 +199,7 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
         throw Exception('Group not found: $groupId (User: ${user?.uid})');
       }
 
+      await _codec.primeKey(groupId);
       final group = _groupFromFirestore(doc);
 
       // 論理削除: isDeletedフラグを立てる（物理削除はしない）

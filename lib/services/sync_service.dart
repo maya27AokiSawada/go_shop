@@ -64,8 +64,8 @@ class SyncService {
         }
 
         try {
-          final group = sharedGroupFirestoreCodec()
-              .decryptGroup(SharedGroup.fromJson(data));
+          final group = await sharedGroupFirestoreCodec()
+              .decryptGroupPrimed(SharedGroup.fromJson(data));
           await _repository.updateGroup(doc.id, group);
           syncedCount++;
         } catch (e) {
@@ -136,8 +136,8 @@ class SyncService {
         return true;
       }
 
-      final group = sharedGroupFirestoreCodec()
-          .decryptGroup(SharedGroup.fromJson(groupData));
+      final group = await sharedGroupFirestoreCodec()
+          .decryptGroupPrimed(SharedGroup.fromJson(groupData));
       await _repository.updateGroup(groupId, group);
 
       AppLogger.info(

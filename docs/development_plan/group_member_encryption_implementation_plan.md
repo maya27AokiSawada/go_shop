@@ -238,19 +238,34 @@
 - ✅ Phase 1 完了（全 `SharedGroups` 読み書き経路をコーデック経由に統一。cipher なし＝挙動不変。
   `flutter analyze lib/` で新規警告なし、`flutter test test/datastore/` ほか 173 件緑）
 - ✅ Phase 2 の設計方針を確定（鍵取得タイミング。上記 5.Phase 2 に反映）
-- ⏳ Phase 2 実装〜Phase 5 未着手
-- 次アクション: Phase 2 実装
-  1. `group_field_cipher.dart` を provider シングルトンの `GroupKeyExchangeService` を
-     受け取る形に修正
-  2. `decryptGroup` の非同期版（内部で `getPersistedGroupKey` を prime）を追加
-  3. `firestore_group_sync_service` / `user_initialization_service` / `firestore_helper` /
-     `enhanced_invitation_service` の read 経路を非同期 prime 版へ差し替え
-  4. グループ一覧 / メンバー管理画面ロードで鍵解決を呼ぶ
-  5. `configureSharedGroupCodec` をアプリ初期化で 1 回呼ぶ（decrypt-only）
+- ✅ Phase 2 実装完了（decrypt-only。書き込みは平文のまま。analyze 新規警告なし、
+  `flutter test test/datastore/` ほか 176 件緑）
+  1. `GroupFieldCipher` に `primeKey`、`GroupKeyServiceFieldCipher.primeKey` =
+     `getPersistedGroupKey`。`sharedGroupCodecProvider`（provider シングルトンの
+     `GroupKeyExchangeService` を注入・`encryptOnWrite: false`）
+  2. コーデックに `primeKey` / `decryptGroupPrimed` / `decryptGroupsPrimed` /
+     `encryptOnWrite` フラグ（`encryptsOnWrite` getter）
+  3. read 経路を prime 付きに:
+     - `firestore_shared_group_repository`: `getAllGroups` / `getGroupById` /
+       `deleteGroup` で `primeKey` 後に変換
+     - `firestore_group_sync_service.watchUserGroups`: `.map` → `.asyncMap` で prime
+     - `sync_service` / `user_initialization_service` / `firestore_helper` /
+       `enhanced_invitation_service`: `decryptGroup` → `await decryptGroupPrimed`
+  4. グループ一覧 / メンバー管理画面は `allGroupsProvider`（Hive・平文）を読むため
+     個別の鍵解決は不要（Firestore→Hive 同期と live stream の両方が復号済み）
+  5. `app_initialize_widget._performAppInitialization` の先頭で
+     `ref.read(sharedGroupCodecProvider)`
+- ⏳ Phase 3〜5 未着手
+- 次アクション: Phase 3（`sharedGroupCodecProvider` の `encryptOnWrite: true` 化 →
+  書き込み暗号化 ON）。その前に Phase 2 を decrypt-only リリースとして配布
 
-### Phase 1 の残注意点
+### Phase 2 の残注意点
 
 - `sharedGroupFirestoreCodec()` は module-level のミュータブル状態。テスト分離のため
   `resetSharedGroupCodec()` を用意済み。
-- Phase 3 で cipher を注入する箇所（アプリ初期化のどこで `configureSharedGroupCodec` を呼ぶか、
-  グループ鍵キャッシュの temperature 管理）は Phase 2/3 で設計する。
+- Phase 3 は `group_field_cipher.dart` の `encryptOnWrite: false` を `true` に変える 1 行 +
+  Phase 4（既存平文データの再暗号化パス）。
+- `watchUserGroups` の `.asyncMap` 化で、prime（SharedPreferences 読み）が遅いと
+  stream イベントが直列にキューされる。初回以降はキャッシュ済みで実質ゼロ。
+- 鍵未取得のまま復号すると生の暗号文が表示される既知制約は Phase 2 でも同じ
+  （decrypt-only 期間はデータが平文なので実害なし。Phase 3 以降で顕在化）。

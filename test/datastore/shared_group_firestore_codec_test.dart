@@ -5,6 +5,7 @@ import 'package:goshopping/models/shared_group.dart';
 /// 決定的なフェイク暗号器。`enc:` プレフィックスで「暗号化済み」を表現する。
 class _FakeCipher implements GroupFieldCipher {
   final Set<String> seenGroupIds = {};
+  final List<String> primedGroupIds = [];
 
   @override
   String encrypt({required String plaintext, required String groupId}) {
@@ -22,6 +23,11 @@ class _FakeCipher implements GroupFieldCipher {
 
   @override
   bool isEncrypted(String value) => value.startsWith('enc:');
+
+  @override
+  Future<void> primeKey(String groupId) async {
+    primedGroupIds.add(groupId);
+  }
 }
 
 SharedGroupMember _member({
@@ -56,6 +62,49 @@ void main() {
 
       resetSharedGroupCodec();
       expect(sharedGroupFirestoreCodec().encryptionEnabled, isFalse);
+    });
+  });
+
+  group('SharedGroupFirestoreCodec decrypt-only (Phase 2)', () {
+    late _FakeCipher cipher;
+    late SharedGroupFirestoreCodec codec;
+
+    setUp(() {
+      cipher = _FakeCipher();
+      codec = SharedGroupFirestoreCodec(cipher: cipher, encryptOnWrite: false);
+    });
+
+    test('writes stay plaintext', () {
+      final map = codec.memberToMap(_member(), groupId: 'g1');
+      expect(map['name'], 'Alice');
+      expect(map['contact'], 'alice@example.com');
+      expect(cipher.seenGroupIds, isEmpty);
+    });
+
+    test('encryptGroup is a no-op (returns same instance)', () {
+      final group = SharedGroup(
+        groupName: 'G',
+        groupId: 'g1',
+        ownerUid: 'o',
+        ownerName: 'Owner',
+        allowedUid: const ['o'],
+        members: [_member()],
+      );
+      expect(identical(codec.encryptGroup(group), group), isTrue);
+    });
+
+    test('reads still decrypt', () {
+      final back = codec.memberFromMap(
+        {'memberId': 'm1', 'name': 'enc:g1:Alice', 'contact': 'enc:g1:a@e.com', 'role': 'member'},
+        groupId: 'g1',
+      );
+      expect(back.name, 'Alice');
+      expect(back.contact, 'a@e.com');
+    });
+
+    test('encryptsOnWrite is false, encryptionEnabled is true', () {
+      expect(codec.encryptsOnWrite, isFalse);
+      expect(codec.encryptionEnabled, isTrue);
     });
   });
 
@@ -206,6 +255,45 @@ void main() {
       expect(back.ownerName, 'Owner Name');
       expect(back.members!.single.name, 'Alice');
       expect(back.members!.single.contact, 'alice@example.com');
+    });
+
+    test('decryptGroupPrimed primes the key before decrypting', () async {
+      final encryptedGroup = SharedGroup(
+        groupName: 'G',
+        groupId: 'g1',
+        ownerUid: 'o',
+        ownerName: 'enc:g1:Owner',
+        allowedUid: const ['o'],
+        members: [_member(name: 'enc:g1:Alice', contact: 'enc:g1:a@e.com')],
+      );
+
+      final out = await codec.decryptGroupPrimed(encryptedGroup);
+      expect(cipher.primedGroupIds, ['g1']);
+      expect(out.ownerName, 'Owner');
+      expect(out.members!.single.name, 'Alice');
+    });
+
+    test('decryptGroupsPrimed primes each distinct groupId once', () async {
+      final groups = [
+        SharedGroup(
+          groupName: 'A',
+          groupId: 'g1',
+          ownerUid: 'o',
+          allowedUid: const ['o'],
+          members: [_member(name: 'enc:g1:Al', contact: 'enc:g1:a@e')],
+        ),
+        SharedGroup(
+          groupName: 'B',
+          groupId: 'g2',
+          ownerUid: 'o',
+          allowedUid: const ['o'],
+          members: [_member(name: 'enc:g2:Bo', contact: 'enc:g2:b@e')],
+        ),
+      ];
+      final out = await codec.decryptGroupsPrimed(groups);
+      expect(cipher.primedGroupIds.toSet(), {'g1', 'g2'});
+      expect(out[0].members!.single.name, 'Al');
+      expect(out[1].members!.single.name, 'Bo');
     });
 
     test('encryptGroup is idempotent (no double encryption)', () {

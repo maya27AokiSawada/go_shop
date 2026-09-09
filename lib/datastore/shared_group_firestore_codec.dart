@@ -31,6 +31,13 @@ abstract class GroupFieldCipher {
   String encrypt({required String plaintext, required String groupId});
   String decrypt({required String ciphertext, required String groupId});
   bool isEncrypted(String value);
+
+  /// ローカル永続鍵をメモリキャッシュへ再ロードする。
+  ///
+  /// [encrypt] / [decrypt] は同期でキャッシュ直読みのため、アプリ再起動後など
+  /// キャッシュが空の状態では復号に失敗する。復号前にこれを await して
+  /// キャッシュを温めること（アイテム名暗号化の `getPersistedGroupKey` と同じ）。
+  Future<void> primeKey(String groupId);
 }
 
 /// `SharedGroup` / `SharedGroupMember` と Firestore ドキュメントマップの
@@ -43,13 +50,46 @@ abstract class GroupFieldCipher {
 /// すべての `SharedGroups` 読み書きを本コーデック経由に統一する。
 ///
 /// [cipher] を渡さない場合は平文のまま（暗号化なし）。既存挙動と等価。
+///
+/// [encryptOnWrite] が false のときは**復号のみ**行い、書き込み時は暗号化しない
+/// （Phase 2 の decrypt-only リリース用）。Phase 3 で true にする。
 class SharedGroupFirestoreCodec {
-  const SharedGroupFirestoreCodec({GroupFieldCipher? cipher}) : _cipher = cipher;
+  const SharedGroupFirestoreCodec({
+    GroupFieldCipher? cipher,
+    bool encryptOnWrite = true,
+  })  : _cipher = cipher,
+        _encryptOnWrite = encryptOnWrite;
 
   final GroupFieldCipher? _cipher;
+  final bool _encryptOnWrite;
 
   /// 暗号化が有効か（= cipher が注入されているか）。
   bool get encryptionEnabled => _cipher != null;
+
+  /// 書き込み時に暗号化するか（Phase 2 は false）。
+  bool get encryptsOnWrite => _cipher != null && _encryptOnWrite;
+
+  /// グループ鍵をローカル永続化からキャッシュへ再ロードする。
+  /// cipher 未注入なら何もしない。
+  Future<void> primeKey(String groupId) async {
+    await _cipher?.primeKey(groupId);
+  }
+
+  /// [decryptGroup] の鍵 prime 付き非同期版。単一グループ読み出しの後段で使う。
+  Future<SharedGroup> decryptGroupPrimed(SharedGroup group) async {
+    if (_cipher == null) return group;
+    await _cipher.primeKey(group.groupId);
+    return decryptGroup(group);
+  }
+
+  /// 複数グループを、重複 groupId をまとめて prime してから復号する。
+  Future<List<SharedGroup>> decryptGroupsPrimed(List<SharedGroup> groups) async {
+    if (_cipher == null) return groups;
+    for (final gid in groups.map((g) => g.groupId).toSet()) {
+      await _cipher.primeKey(gid);
+    }
+    return groups.map(decryptGroup).toList();
+  }
 
   // ===========================================================================
   // メンバー
@@ -124,7 +164,7 @@ class SharedGroupFirestoreCodec {
     Iterable<SharedGroupMember>? members, {
     required String groupId,
   }) {
-    if (_cipher == null || members == null) {
+    if (!encryptsOnWrite || members == null) {
       return members?.toList() ?? const [];
     }
     return members
@@ -227,7 +267,7 @@ class SharedGroupFirestoreCodec {
   /// 保ったまま暗号化だけを差し込めるようにするためのフック。
   /// `cipher == null` なら素通し。すでに暗号化済みの値は二重暗号化しない。
   SharedGroup encryptGroup(SharedGroup group) {
-    if (_cipher == null) return group;
+    if (!encryptsOnWrite) return group;
     return group.copyWith(
       ownerName: _encNullable(group.ownerName, group.groupId),
       ownerEmail: _encNullable(group.ownerEmail, group.groupId),
@@ -246,7 +286,7 @@ class SharedGroupFirestoreCodec {
 
   String _enc(String value, String groupId) {
     final cipher = _cipher;
-    if (cipher == null || value.isEmpty) return value;
+    if (cipher == null || !_encryptOnWrite || value.isEmpty) return value;
     if (cipher.isEncrypted(value)) return value; // 二重暗号化を防ぐ
     return cipher.encrypt(plaintext: value, groupId: groupId);
   }

@@ -625,9 +625,10 @@ class UserInitializationService {
           final convertedData = FirestoreConverter.convertTimestamps(data);
 
           // SharedGroup.fromJson()を使用してallowedUidを含む全フィールドを正しく復元。
-          // members[].name/contact・owner name/email は暗号化されている場合があるため復号する。
-          final group = sharedGroupFirestoreCodec()
-              .decryptGroup(models.SharedGroup.fromJson(convertedData))
+          // members[].name/contact・owner name/email は暗号化されている場合があるため
+          // 鍵を prime してから復号する。
+          final group = (await sharedGroupFirestoreCodec()
+                  .decryptGroupPrimed(models.SharedGroup.fromJson(convertedData)))
               .copyWith(
                 groupId: doc.id, // ドキュメントIDを確実に設定
                 updatedAt: DateTime.now(),
