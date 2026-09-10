@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 import '../models/shared_group.dart';
 
@@ -90,6 +89,39 @@ class SharedGroupFirestoreCodec {
       await _cipher.primeKey(gid);
     }
     return groups.map(decryptGroup).toList();
+  }
+
+  /// [group] に暗号化済みのグループ共有フィールド
+  /// （ownerName / ownerEmail / members[].name / members[].contact）が
+  /// 含まれるか。cipher 未注入なら常に false。
+  bool groupHasEncryptedFields(SharedGroup group) {
+    final cipher = _cipher;
+    if (cipher == null) return false;
+    bool enc(String? v) => v != null && v.isNotEmpty && cipher.isEncrypted(v);
+    if (enc(group.ownerName) || enc(group.ownerEmail)) return true;
+    final members = group.members;
+    if (members != null) {
+      for (final m in members) {
+        if (enc(m.name) || enc(m.contact)) return true;
+      }
+    }
+    return false;
+  }
+
+  /// 暗号文を含むグループだけを prime + 復号する（平文グループに対する
+  /// 無駄な永続鍵読みを避ける）。頻繁に呼ばれる読み取り経路向け。
+  Future<List<SharedGroup>> decryptGroupsPrimedLazy(
+      List<SharedGroup> groups) async {
+    if (_cipher == null) return groups;
+    final needsWork =
+        groups.where(groupHasEncryptedFields).map((g) => g.groupId).toSet();
+    if (needsWork.isEmpty) return groups;
+    for (final gid in needsWork) {
+      await _cipher.primeKey(gid);
+    }
+    return groups
+        .map((g) => needsWork.contains(g.groupId) ? decryptGroup(g) : g)
+        .toList();
   }
 
   /// [encryptGroup] の鍵 prime 付き非同期版（Phase 3）。
@@ -318,22 +350,11 @@ class SharedGroupFirestoreCodec {
 
   String _dec(String value, String groupId) {
     final cipher = _cipher;
-    if (cipher == null) {
-      debugPrint('🔎 [GF_DEC] cipher=null groupId=$groupId '
-          'encrypted=${value.isNotEmpty}');
-      return value;
-    }
-    if (value.isEmpty || !cipher.isEncrypted(value)) {
-      debugPrint('🔎 [GF_DEC] passthrough groupId=$groupId '
-          'empty=${value.isEmpty} isEnc=${value.isNotEmpty && cipher.isEncrypted(value)}');
-      return value;
-    }
+    if (cipher == null) return value;
+    if (value.isEmpty || !cipher.isEncrypted(value)) return value;
     try {
-      final out = cipher.decrypt(ciphertext: value, groupId: groupId);
-      debugPrint('🔎 [GF_DEC] OK groupId=$groupId -> "${out.length > 24 ? out.substring(0, 24) : out}"');
-      return out;
-    } catch (e) {
-      debugPrint('🔎 [GF_DEC] FAIL groupId=$groupId err=$e');
+      return cipher.decrypt(ciphertext: value, groupId: groupId);
+    } catch (_) {
       // 鍵未取得などで復号できない場合は生値を返す（UI 側で表示は崩れる）。
       return value;
     }

@@ -6,6 +6,7 @@ import '../models/shared_group.dart';
 import '../datastore/shared_group_repository.dart';
 import '../datastore/shared_group_firestore_codec.dart';
 import '../providers/shared_group_provider.dart';
+import 'group_key_exchange_service.dart';
 import '../utils/app_logger.dart';
 import '../flavors.dart';
 import 'error_log_service.dart';
@@ -24,6 +25,31 @@ class SyncService {
 
   SharedGroupRepository get _repository =>
       _ref.read(SharedGroupRepositoryProvider);
+
+  /// 暗号化フィールドを持つグループについて、復号ループの前にローカル鍵を prime する。
+  Future<void> _primeEncryptedGroupKeys(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+    String memberUid,
+  ) async {
+    try {
+      final keyService = _ref.read(groupKeyExchangeServiceProvider);
+      final encryptedGroupIds = <String>[];
+      for (final doc in docs) {
+        final data = doc.data();
+        if ((data['isDeleted'] as bool? ?? false)) continue;
+        if (keyService.groupDocHasEncryptedFields(data)) {
+          encryptedGroupIds.add(doc.id);
+        }
+      }
+      if (encryptedGroupIds.isEmpty) return;
+      await keyService.primeMemberGroupKeysForSync(
+        groupIds: encryptedGroupIds,
+        memberUid: memberUid,
+      );
+    } catch (e) {
+      AppLogger.warning('⚠️ [SYNC] 同期前の鍵 prime でエラー（無視）: $e');
+    }
+  }
 
   /// 全グループを同期（Firestore → Hive）
   /// アプリ起動時などに使用
@@ -49,6 +75,10 @@ class SyncService {
       );
 
       AppLogger.info('📊 [SYNC] Firestoreクエリ完了: ${snapshot.docs.length}個のグループ');
+
+      // 🔑 復号ループの前に、暗号化フィールドを持つグループの鍵を prime する。
+      // これを怠ると鍵解決前の復号が暗号文を Hive に焼き込み、以後 UI が戻らない。
+      await _primeEncryptedGroupKeys(snapshot.docs, user.uid);
 
       int syncedCount = 0;
       int skippedCount = 0;

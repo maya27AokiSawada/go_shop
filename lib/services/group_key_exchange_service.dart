@@ -904,12 +904,7 @@ class GroupKeyExchangeService {
     String groupKey = '',
   }) {
     final seed = 'group-field-v1:$groupId:$groupKey';
-    final secret = base64.encode(sha256.convert(utf8.encode(seed)).bytes);
-    // ignore: avoid_print
-    print('🔎 [GF_SECRET] gid=$groupId keyLen=${groupKey.length} '
-        'keyHead=${groupKey.isEmpty ? "" : groupKey.substring(0, groupKey.length < 6 ? groupKey.length : 6)} '
-        'secretHead=${secret.substring(0, 10)}');
-    return secret;
+    return base64.encode(sha256.convert(utf8.encode(seed)).bytes);
   }
 
   /// グループ共通フィールドの平文を暗号化する。
@@ -929,9 +924,6 @@ class GroupKeyExchangeService {
     if (activeGroupKey.isEmpty) {
       return plaintext;
     }
-    // ignore: avoid_print
-    print('🔎 [GF_ENC] gid=$groupId keyLen=${activeGroupKey.length} '
-        'keyHead=${activeGroupKey.substring(0, 6)}');
     final normalized = base64.encode(utf8.encode(plaintext));
     final secret = _deriveGroupFieldSecret(
       groupId: groupId,
@@ -973,6 +965,84 @@ class GroupKeyExchangeService {
 
   /// 値が本サービス形式の暗号エンベロープかを判定する（アイテム名と共通形式）。
   bool isEncryptedGroupField(String value) => isEncryptedItemName(value);
+
+  /// Firestore の `SharedGroups` ドキュメントマップに、暗号化済みの
+  /// グループ共有フィールド（members[].name/contact・ownerName/ownerEmail）が
+  /// 1つでも含まれるかを判定する。
+  ///
+  /// 同期前に鍵 prime が必要なグループだけを選別するために使う
+  /// （平文のみのグループに無駄な鍵解決を走らせない）。
+  bool groupDocHasEncryptedFields(Map<String, dynamic> data) {
+    bool enc(Object? v) => v is String && v.isNotEmpty && isEncryptedGroupField(v);
+    if (enc(data['ownerName']) || enc(data['ownerEmail'])) {
+      return true;
+    }
+    final members = data['members'];
+    if (members is List) {
+      for (final m in members) {
+        if (m is Map && (enc(m['name']) || enc(m['contact']))) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /// Firestore→Hive 同期の**前に**、ローカルに使用可能なグループ鍵が無い
+  /// グループについて `keyExchangeEvents` から鍵を解決・永続化する。
+  ///
+  /// これを行わないと、鍵解決前に走る同期が members[].name/contact 等の
+  /// 暗号文をそのまま Hive に焼き込み、以後 UI が復号済みへ戻らなくなる
+  /// （鍵はリスト初回オープン時にしか解決されなかった）。
+  ///
+  /// ベストエフォート: 個々の失敗は握りつぶす。全体で [budget] を超えたら打ち切る。
+  /// [groupIds] は「暗号化フィールドを含むグループ」だけを渡すこと
+  /// （[groupDocHasEncryptedFields] で選別）。
+  Future<void> primeMemberGroupKeysForSync({
+    required List<String> groupIds,
+    required String memberUid,
+    Duration budget = const Duration(seconds: 12),
+  }) async {
+    if (groupIds.isEmpty || memberUid.isEmpty) {
+      return;
+    }
+    final deadline = DateTime.now().add(budget);
+
+    // 既に使用可能な鍵があるグループは除外する。
+    final pending = <String>[];
+    for (final gid in groupIds.toSet()) {
+      try {
+        if (!await hasUsableGroupKey(groupId: gid)) {
+          pending.add(gid);
+        }
+      } catch (_) {
+        pending.add(gid);
+      }
+    }
+    if (pending.isEmpty) {
+      return;
+    }
+
+    Log.info('🔑 [KEY_EXCHANGE] 同期前のグループ鍵 prime を実行: ${pending.length}グループ');
+
+    const concurrency = 4;
+    for (var i = 0; i < pending.length; i += concurrency) {
+      if (DateTime.now().isAfter(deadline)) {
+        Log.warning(
+            '⏱️ [KEY_EXCHANGE] 同期前の鍵 prime が時間切れ（未処理 ${pending.length - i}グループ）');
+        break;
+      }
+      final batch = pending.skip(i).take(concurrency).map((gid) async {
+        try {
+          await resolveGroupKeyForMember(groupId: gid, memberUid: memberUid)
+              .timeout(const Duration(seconds: 4));
+        } catch (_) {
+          // ベストエフォート: 次回の同期／リストオープンで再試行される。
+        }
+      });
+      await Future.wait(batch);
+    }
+  }
 
   Future<void> setReencryptionInProgress({
     required String groupId,

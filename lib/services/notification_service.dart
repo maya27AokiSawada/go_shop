@@ -661,6 +661,9 @@ class NotificationService {
         if (resolvedKey != null && resolvedKey.isNotEmpty) {
           AppLogger.info(
               '✅ [NOTIFICATION] グループ鍵の解決成功: groupId=${AppLogger.maskGroupId(groupId)}, attempt=$attempt/$maxAttempts');
+          // 暗号文のまま Hive にキャッシュされたグループを平文へ戻す。
+          _ref.invalidate(allGroupsProvider);
+          _ref.invalidate(selectedGroupProvider);
           return;
         }
       } catch (e) {

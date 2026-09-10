@@ -195,6 +195,7 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
             groupId: groupId,
             memberUid: currentUid,
           );
+          _refreshGroupsAfterKeyResolved();
           return;
         }
 
@@ -204,6 +205,7 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
           _resetKeyWaitFuture(groupId);
           await service.resolveGroupKeyForMember(
               groupId: groupId, memberUid: currentUid!);
+          _refreshGroupsAfterKeyResolved();
         }
         return;
       }
@@ -276,6 +278,16 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
     } catch (e) {
       Log.error('❌ [KEY_EXCHANGE] グループアクセス時の鍵初期化失敗: $e');
     }
+  }
+
+  /// グループ鍵が（遅れて）解決されたあと、暗号文のまま Hive にキャッシュされた
+  /// グループを平文へ戻すため allGroupsProvider を再構築させる。
+  /// selectedGroupProvider / メンバー管理画面は allGroupsProvider を watch して
+  /// いるため、これで復号済みの名前・連絡先が表示される。
+  void _refreshGroupsAfterKeyResolved() {
+    if (!mounted) return;
+    Log.info('🔄 [KEY_EXCHANGE] 鍵解決後に allGroupsProvider を再構築');
+    ref.invalidate(allGroupsProvider);
   }
 
   /// シングルモード時にカレントリストが未選択の場合、自動復元・自動作成を試みる

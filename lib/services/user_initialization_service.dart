@@ -13,6 +13,7 @@ import '../datastore/hive_shared_group_repository.dart'
     show hiveSharedGroupRepositoryProvider;
 import '../datastore/firestore_shared_group_repository.dart'; // Repository型チェック用
 import '../datastore/shared_group_firestore_codec.dart';
+import 'group_key_exchange_service.dart';
 import '../flavors.dart';
 import 'notification_service.dart';
 import 'list_notification_batch_service.dart';
@@ -599,6 +600,28 @@ class UserInitializationService {
             Log.warning('⚠️ [SYNC] グループ削除失敗: ${hiveGroup.groupId}, $e');
           }
         }
+      }
+
+      // 🔑 復号ループの前に、暗号化フィールドを持つグループの鍵を prime する。
+      // 鍵解決前に復号すると暗号文を Hive に焼き込み、以後 UI が復号済みへ戻らない。
+      try {
+        final keyService = _ref.read(groupKeyExchangeServiceProvider);
+        final encryptedGroupIds = <String>[];
+        for (final doc in snapshot.docs) {
+          final data = doc.data();
+          if ((data['isDeleted'] as bool? ?? false)) continue;
+          if (keyService.groupDocHasEncryptedFields(data)) {
+            encryptedGroupIds.add(doc.id);
+          }
+        }
+        if (encryptedGroupIds.isNotEmpty) {
+          await keyService.primeMemberGroupKeysForSync(
+            groupIds: encryptedGroupIds,
+            memberUid: user.uid,
+          );
+        }
+      } catch (e) {
+        Log.warning('⚠️ [SYNC] 同期前の鍵 prime でエラー（無視）: $e');
       }
 
       for (final doc in snapshot.docs) {

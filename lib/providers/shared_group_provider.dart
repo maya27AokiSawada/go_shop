@@ -10,6 +10,7 @@ import '../models/shared_group.dart' as models show SyncStatus;
 import '../datastore/shared_group_repository.dart';
 import '../datastore/hive_shared_group_repository.dart';
 import '../datastore/hybrid_shared_group_repository.dart';
+import '../datastore/shared_group_firestore_codec.dart';
 import '../flavors.dart';
 import '../helpers/security_validator.dart';
 import '../services/access_control_service.dart';
@@ -573,6 +574,19 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
           (b.updatedAt ?? DateTime(0)).compareTo(a.updatedAt ?? DateTime(0)));
       Log.info('🔄 [ALL GROUPS] updatedAt降順でソート完了');
 
+      // 🔓 Hive にキャッシュ済みのグループが暗号文のまま（members[].name/contact・
+      // ownerName/ownerEmail）の場合に備え、鍵を prime して復号する。
+      // 鍵解決前に走った同期が暗号文を Hive に焼き込むことがあり、鍵到達後の
+      // 再表示（allGroupsProvider の再構築）でここが平文へ戻す。
+      // 平文はコーデックの判定でそのまま通過する（冪等）。
+      List<SharedGroup> resolvedGroups = deduplicatedGroups;
+      try {
+        resolvedGroups = await sharedGroupFirestoreCodec()
+            .decryptGroupsPrimedLazy(deduplicatedGroups);
+      } catch (e) {
+        Log.warning('⚠️ [ALL GROUPS] グループフィールドの復号でエラー（元の値を使用）: $e');
+      }
+
       // 🔥 Firestoreリアルタイムリスナーを設定（prod + 認証済みのみ）
       // 他デバイスでのグループ作成/変更をリアルタイムでiPhone/iPad等に反映する
       if (F.appFlavor == Flavor.prod && currentUser != null) {
@@ -603,7 +617,7 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
         Log.info('✅ [ALL GROUPS] Firestoreリアルタイムリスナー設定完了');
       }
 
-      return deduplicatedGroups;
+      return resolvedGroups;
     } catch (e, stackTrace) {
       Log.error('❌ [ALL GROUPS] エラー発生: $e');
       Log.error('❌ [ALL GROUPS] スタックトレース: $stackTrace');
