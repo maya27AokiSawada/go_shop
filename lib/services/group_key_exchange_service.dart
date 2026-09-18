@@ -26,10 +26,12 @@ class GroupKeyExchangeService {
   final FirebaseAuth? _auth;
   final GroupKeyEncryptionService _crypto = GroupKeyEncryptionService();
   final Map<String, String> _groupKeyCache = <String, String>{};
+  final Map<String, String> _previousGroupKeyCache = <String, String>{};
 
   static const String _storagePrefix = 'group_key_v1:';
   static const String _localVersionPrefix = 'group_key_version_v1:';
   static const String _reencryptionFlagPrefix = 'group_key_reencrypting_v1:';
+  static const String _previousStoragePrefix = 'group_key_previous_v1:';
 
   GroupKeyExchangeService({FirebaseFirestore? firestore, FirebaseAuth? auth})
       : _firestore = firestore,
@@ -489,7 +491,9 @@ class GroupKeyExchangeService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_storageKey(groupId));
     await prefs.remove(_localVersionKey(groupId));
+    await prefs.remove(_previousStorageKey(groupId));
     _groupKeyCache.remove(groupId);
+    _previousGroupKeyCache.remove(groupId);
   }
 
   Future<String?> getPersistedGroupKey({required String groupId}) async {
@@ -497,6 +501,25 @@ class GroupKeyExchangeService {
     final value = prefs.getString(_storageKey(groupId));
     if (value != null && value.isNotEmpty) {
       _groupKeyCache[groupId] = value;
+    }
+    final previousValue = prefs.getString(_previousStorageKey(groupId));
+    if (previousValue != null && previousValue.isNotEmpty) {
+      _previousGroupKeyCache[groupId] = previousValue;
+    }
+    return value;
+  }
+
+  /// 直前（1世代前）にこの端末で使われていたグループ鍵を返す。
+  ///
+  /// 鍵ローテーション直後、グループ共有フィールド（members[].name/contact,
+  /// ownerName/ownerEmail）は再暗号化されるまで旧鍵の暗号文のまま残るため、
+  /// [decryptGroupField] のフォールバック復号や [reencryptGroupFieldsIfKeyChanged]
+  /// による再暗号化に使う。2世代以上前の鍵は保持しない。
+  Future<String?> getPreviousPersistedGroupKey({required String groupId}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final value = prefs.getString(_previousStorageKey(groupId));
+    if (value != null && value.isNotEmpty) {
+      _previousGroupKeyCache[groupId] = value;
     }
     return value;
   }
@@ -662,6 +685,15 @@ class GroupKeyExchangeService {
     int? version,
   }) async {
     final prefs = await SharedPreferences.getInstance();
+    final existingKey = prefs.getString(_storageKey(groupId));
+    if (existingKey != null &&
+        existingKey.isNotEmpty &&
+        existingKey != groupKey) {
+      // 鍵が切り替わる直前の値を1世代分だけ退避する。グループ共有フィールドは
+      // ローテーション時に再暗号化されないため、切り替わり直後の復号・移行に使う。
+      await prefs.setString(_previousStorageKey(groupId), existingKey);
+      _previousGroupKeyCache[groupId] = existingKey;
+    }
     await prefs.setString(_storageKey(groupId), groupKey);
     if (version != null) {
       await prefs.setInt(_localVersionKey(groupId), version);
@@ -904,12 +936,7 @@ class GroupKeyExchangeService {
     String groupKey = '',
   }) {
     final seed = 'group-field-v1:$groupId:$groupKey';
-    final secret = base64.encode(sha256.convert(utf8.encode(seed)).bytes);
-    // ignore: avoid_print
-    print('🔎 [GF_SECRET] gid=$groupId keyLen=${groupKey.length} '
-        'keyHead=${groupKey.isEmpty ? "" : groupKey.substring(0, groupKey.length < 6 ? groupKey.length : 6)} '
-        'secretHead=${secret.substring(0, 10)}');
-    return secret;
+    return base64.encode(sha256.convert(utf8.encode(seed)).bytes);
   }
 
   /// グループ共通フィールドの平文を暗号化する。
@@ -929,9 +956,6 @@ class GroupKeyExchangeService {
     if (activeGroupKey.isEmpty) {
       return plaintext;
     }
-    // ignore: avoid_print
-    print('🔎 [GF_ENC] gid=$groupId keyLen=${activeGroupKey.length} '
-        'keyHead=${activeGroupKey.substring(0, 6)}');
     final normalized = base64.encode(utf8.encode(plaintext));
     final secret = _deriveGroupFieldSecret(
       groupId: groupId,
@@ -945,8 +969,11 @@ class GroupKeyExchangeService {
 
   /// グループ共通フィールドの暗号文を復号する。
   ///
-  /// 新方式（groupKey を導出に含める）で失敗した場合は、旧方式
-  /// （groupKey を含めない）でフォールバックする。
+  /// 新方式（groupKey を導出に含める）で失敗した場合、[groupKey] が明示指定
+  /// されていなければ直前のグループ鍵（[getPreviousPersistedGroupKey]）で
+  /// フォールバック復号を試みる。鍵ローテーション直後、まだ再暗号化されて
+  /// いないグループ共有フィールドを復号するための救済経路。
+  /// それでも失敗した場合は旧方式（groupKey を含めない）でフォールバックする。
   String decryptGroupField({
     required String ciphertext,
     required String groupId,
@@ -963,6 +990,22 @@ class GroupKeyExchangeService {
       );
       return utf8.decode(base64.decode(normalized));
     } catch (_) {
+      final previousGroupKey =
+          groupKey == null ? _previousGroupKeyCache[groupId] : null;
+      if (previousGroupKey != null && previousGroupKey.isNotEmpty) {
+        try {
+          final normalized = _crypto.decryptGroupKey(
+            encryptedGroupKey: ciphertext,
+            recipientSecret: _deriveGroupFieldSecret(
+              groupId: groupId,
+              groupKey: previousGroupKey,
+            ),
+          );
+          return utf8.decode(base64.decode(normalized));
+        } catch (_) {
+          // 直前鍵でも失敗 → 旧々方式へフォールバック
+        }
+      }
       final normalized = _crypto.decryptGroupKey(
         encryptedGroupKey: ciphertext,
         recipientSecret: _deriveGroupFieldSecret(groupId: groupId),
@@ -973,6 +1016,105 @@ class GroupKeyExchangeService {
 
   /// 値が本サービス形式の暗号エンベロープかを判定する（アイテム名と共通形式）。
   bool isEncryptedGroupField(String value) => isEncryptedItemName(value);
+
+  /// グループ鍵ローテーション後、グループ共有フィールド（members[].name/contact,
+  /// ownerName/ownerEmail）が旧鍵の暗号文のまま残っていれば、現在の鍵で
+  /// 再暗号化して Firestore に書き戻す。
+  ///
+  /// アイテム名の `_reencryptAllItemsIfKeyChanged`（hybrid_shared_list_repository.dart）
+  /// に相当する処理。こちらは端末のローカル鍵ストレージが1世代前の鍵を
+  /// 保持している（[getPreviousPersistedGroupKey]）ことを前提にしており、
+  /// 2世代以上前の鍵しか復号できない状態は対象外（[decryptGroupField] の
+  /// フォールバックでも救済できない）。
+  Future<void> reencryptGroupFieldsIfKeyChanged({
+    required String groupId,
+  }) async {
+    try {
+      final currentKey =
+          _groupKeyCache[groupId] ?? await getPersistedGroupKey(groupId: groupId);
+      if (currentKey == null || currentKey.isEmpty) {
+        return;
+      }
+
+      final previousKey = _previousGroupKeyCache[groupId] ??
+          await getPreviousPersistedGroupKey(groupId: groupId);
+      if (previousKey == null ||
+          previousKey.isEmpty ||
+          previousKey == currentKey) {
+        return;
+      }
+
+      final docRef = (_firestore ?? FirebaseFirestore.instance)
+          .collection('SharedGroups')
+          .doc(groupId);
+      final snapshot = await docRef.get();
+      final data = snapshot.data();
+      if (data == null) {
+        return;
+      }
+
+      var migratedAny = false;
+      String? migrateField(dynamic value) {
+        if (value is! String || value.isEmpty || !isEncryptedGroupField(value)) {
+          return value is String ? value : null;
+        }
+        try {
+          final plaintext = decryptGroupField(
+            ciphertext: value,
+            groupId: groupId,
+            groupKey: previousKey,
+          );
+          final reencrypted = encryptGroupField(
+            plaintext: plaintext,
+            groupId: groupId,
+            groupKey: currentKey,
+          );
+          migratedAny = true;
+          return reencrypted;
+        } catch (e) {
+          Log.warning(
+              '⚠️ [KEY_EXCHANGE] グループフィールド移行スキップ（旧鍵で復号失敗）: groupId=$groupId, error=$e');
+          return value;
+        }
+      }
+
+      final updates = <String, dynamic>{};
+
+      final newOwnerName = migrateField(data['ownerName']);
+      if (newOwnerName != null) updates['ownerName'] = newOwnerName;
+      final newOwnerEmail = migrateField(data['ownerEmail']);
+      if (newOwnerEmail != null) updates['ownerEmail'] = newOwnerEmail;
+
+      final rawMembers = data['members'] as List<dynamic>?;
+      if (rawMembers != null) {
+        final newMembers = <Map<String, dynamic>>[];
+        for (final raw in rawMembers) {
+          if (raw is! Map) continue;
+          final member = Map<String, dynamic>.from(raw);
+          final newName = migrateField(member['name'] ?? member['displayName']);
+          if (newName != null) {
+            member['name'] = newName;
+            member.remove('displayName');
+          }
+          final newContact = migrateField(member['contact']);
+          if (newContact != null) member['contact'] = newContact;
+          newMembers.add(member);
+        }
+        if (migratedAny) {
+          updates['members'] = newMembers;
+        }
+      }
+
+      if (migratedAny) {
+        updates['updatedAt'] = FieldValue.serverTimestamp();
+        await docRef.set(updates, SetOptions(merge: true));
+        Log.info(
+            '🔐 [KEY_EXCHANGE] 鍵変更を検出したためグループ共有フィールドを再暗号化: groupId=$groupId');
+      }
+    } catch (e) {
+      Log.warning('⚠️ [KEY_EXCHANGE] グループフィールド再暗号化チェック失敗: groupId=$groupId, error=$e');
+    }
+  }
 
   Future<void> setReencryptionInProgress({
     required String groupId,
@@ -1042,4 +1184,6 @@ class GroupKeyExchangeService {
 
   String _storageKey(String groupId) => '$_storagePrefix$groupId';
   String _localVersionKey(String groupId) => '$_localVersionPrefix$groupId';
+  String _previousStorageKey(String groupId) =>
+      '$_previousStoragePrefix$groupId';
 }
