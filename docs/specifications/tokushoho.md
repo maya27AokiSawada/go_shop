@@ -16,7 +16,7 @@ description: Legal disclosure based on Japan's Act on Specified Commercial Trans
 | 販売事業者 | 木之本すもも企画（きのもとすももきかく） |
 | 運営統括責任者 | 金ヶ江 真也（かながえ しんや） |
 | 所在地 | 〒498-0021 愛知県弥富市鯏浦町下本田73-6 |
-| 電話番号 | 070-9456-6309（受付時間: 平日 10:00〜17:00 / 土日祝・年末年始を除く） |
+| 電話番号 | 070-9456-6309（受付時間: 平日 13:00〜17:00 / 土日祝・年末年始を除く） |
 | メールアドレス | support@sumomo-planning.net |
 | ホームページ | <https://maya27aokisawada.github.io/go_shop/> |
 | 販売価格 | GoShopping Premium（月額）: 200円（税込）／月<br>GoShopping Premium（年額）: 1,500円（税込）／年<br>表示価格は日本国内向けの金額です。実際の請求額は、購入時点で App Store / Google Play に表示される金額（消費税込）が適用されます。 |
@@ -43,7 +43,7 @@ This page is a legal disclosure required by Japan's Act on Specified Commercial 
 | Seller | Kinomoto Sumomo Planning |
 | Responsible manager | Shinya Kanagae |
 | Address | 73-6 Shimohonden, Ukishima-cho, Yatomi-shi, Aichi 498-0021, Japan |
-| Phone | +81 70-9456-6309 (weekdays 10:00–17:00 JST, excluding weekends and holidays) |
+| Phone | +81 70-9456-6309 (weekdays 13:00–17:00 JST, excluding weekends and holidays) |
 | Email | support@sumomo-planning.net |
 | Website | <https://maya27aokisawada.github.io/go_shop/> |
 | Price | GoShopping Premium (monthly): JPY 200 / month (tax included)<br>GoShopping Premium (annual): JPY 1,500 / year (tax included)<br>The amount actually charged is the price shown on the App Store / Google Play at the time of purchase (tax included). Prices outside Japan differ. |
