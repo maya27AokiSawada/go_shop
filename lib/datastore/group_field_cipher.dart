@@ -27,8 +27,12 @@ class GroupKeyServiceFieldCipher implements GroupFieldCipher {
 
   @override
   Future<void> primeKey(String groupId) async {
-    // ローカル永続鍵をメモリキャッシュへ再ロード（戻り値は使わない）。
+    // ローカル永続鍵をメモリキャッシュへ再ロード。
     await _service.getPersistedGroupKey(groupId: groupId);
+    // 鍵ローテーション直後で旧鍵の暗号文が残っていれば、現在の鍵へ移行する。
+    // 復号（decrypt）より前に呼ばれる前提のため、ここで直しておけば
+    // 通常の decrypt は常に現行鍵で成功するようになる。
+    await _service.reencryptGroupFieldsIfKeyChanged(groupId: groupId);
   }
 }
 

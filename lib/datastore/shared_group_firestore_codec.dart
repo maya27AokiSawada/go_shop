@@ -350,8 +350,12 @@ class SharedGroupFirestoreCodec {
 
   String _dec(String value, String groupId) {
     final cipher = _cipher;
-    if (cipher == null) return value;
-    if (value.isEmpty || !cipher.isEncrypted(value)) return value;
+    if (cipher == null) {
+      return value;
+    }
+    if (value.isEmpty || !cipher.isEncrypted(value)) {
+      return value;
+    }
     try {
       return cipher.decrypt(ciphertext: value, groupId: groupId);
     } catch (_) {
