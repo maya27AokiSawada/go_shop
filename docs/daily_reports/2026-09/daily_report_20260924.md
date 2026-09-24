@@ -144,13 +144,102 @@ Enforce 状態、登録済みデバッグトークンの有効期限）の確認
 
 ---
 
+### 4. 午後の実機検証で発覚した3つの独立したバグの調査・修正 ✅
+
+午前中に保留とした「App Check 強制設定下での断続的 PERMISSION_DENIED」を
+実機（Android エミュレーター + SH-54D）で継続調査した結果、App Check とは
+別に**3つの独立したバグ**が重なって発生していたことが判明した。
+
+**原因A: `main_dev.dart` / `main_prod.dart` に App Check 初期化が存在しない**
+
+`FirebaseAppCheck.instance.activate()` は [`lib/main.dart`](../../../lib/main.dart)
+にしか実装されておらず、`-t lib/main_dev.dart` / `-t lib/main_prod.dart` で
+起動したセッションでは App Check が一度も初期化されず、無検証トークンで
+Firestore にリクエストし続けていた。Firebase Console の App Check 使用状況が
+「77%検証済み / 23%未検証」だったのは、起動時の entry point 次第で
+App Check が有効化されたりされなかったりしていたため。
+
+**対応**: [`lib/main_dev.dart`](../../../lib/main_dev.dart) と
+[`lib/main_prod.dart`](../../../lib/main_prod.dart) に `main.dart` と同一の
+App Check 初期化ブロックを追加。
+
+**原因B: `group_member_added` 通知が3箇所で設計上絶対に通らないルールに違反**
+
+Firestore の `isValidGroupMemberAddedCreate()` ルールは `group_member_added`
+タイプの通知を「招待受諾者が招待元へ送る」用途専用に設計しており、
+`metadata.acceptorUid` / `metadata.invitationId` が実在の招待ドキュメントと
+整合することを必須にしている。一方、以下3箇所は同じタイプを
+「メンバー変更を知らせる」汎用通知として誤用しており、必須メタデータを
+満たせないため**常に** `PERMISSION_DENIED` になっていた:
+
+- [`group_creation_with_copy_dialog.dart`](../../../lib/widgets/group_creation_with_copy_dialog.dart):
+  グループ作成者への自己通知（2箇所）
+- [`notification_service.dart`](../../../lib/services/notification_service.dart):
+  既存メンバーへの新メンバー参加通知、受諾者への承認通知
+
+**対応**: 上記3箇所（実際には同一パターンの4呼び出し）のタイプを
+`NotificationType.groupUpdated`（送信者がグループメンバーであることのみを
+要求する緩いルール）に変更。正規の「受諾者→招待元」通知
+（[`qr_invitation_service.dart`](../../../lib/services/qr_invitation_service.dart)）
+は変更なし。
+
+**原因C: 本番 Firestore ルールに `keyRecoveryEnvelopes` のブロックが丸ごと欠落**
+
+鍵ローテーション（`rotateGroupKey`）が `SharedGroups/{groupId}/keyRecoveryEnvelopes/`
+への書き込みで必ず失敗する問題を診断ログで追跡した結果、
+`server.ownerUid` / `currentUid` が完全一致しているにもかかわらず拒否される
+ことが判明。ユーザーが Firebase Console のルールを直接確認したところ、
+ローカルの [`firestore.rules`](../../../firestore.rules) にある
+`keyRecoveryEnvelopes` の `match` ブロックが本番に一度もデプロイされて
+いなかった（ルールが無いパスはデフォルト拒否）。ついでに `users/{userId}`
+の課金フィールド保護（`hasProtectedPurchaseFields` 等）も本番未反映だった
+ことが判明。
+
+**対応**: ユーザーが Firebase Console のルールエディタでローカル
+`firestore.rules` の内容を貼り付けて公開。デプロイ後、鍵ローテーションが
+`keyRecoveryEnvelope 書き込み成功` → `keyExchangeEvents 書き込み成功` →
+`activeKeyVersion 更新成功` まで完走することを診断ログで確認。
+
+**副次確認事項**:
+- `group_member_management_page.dart` / `shared_list_page.dart` の
+  `members[].name` 復号は `allGroupsProvider` のリアルタイムリスナー
+  （`FirestoreGroupSyncService.watchUserGroups()`）駆動で自動的に
+  再試行される設計であることをコードで確認。テストで短時間に4回連続
+  ローテーションした際は鍵の世代が飛び複数回の再試行を要したが、
+  通常運用（単発ローテーション）およびメンバー端末を完全終了→再起動
+  した状態からの単発ローテーションでは、いずれも自動復号を実機で確認済み。
+- [`qr_invitation_service.dart:752-769`](../../../lib/services/qr_invitation_service.dart#L752-L769)
+  の招待受諾直後の自己検証クエリが、宛先が自分ではない通知を読もうとして
+  `PERMISSION_DENIED` になる非致命的な既知の問題を発見（try/catchで
+  警告ログのみ、処理は継続するため実害なし）。今回は未修正・情報共有のみ。
+
+**Status**: ✅ 実装・実機検証・本番ルールデプロイ完了。
+
+---
+
+### 5. ビルド 1.1.0+39 のリリースビルド作成 ✅
+
+上記修正を反映し、`pubspec.yaml` のビルド番号を 38 → 39 に更新。
+`prod` flavor で Android App Bundle と iOS IPA をビルドし、クローズド
+テスト配信用の成果物を作成した。
+
+- Android AAB: `build/app/outputs/bundle/prodRelease/app-prod-release.aab`（80.4MB）
+- iOS IPA: `build/ios/ipa/go_shop.ipa`（44.3MB、自動署名・Team 9A34XAPY8W）
+
+アップロード（Play Console / App Store Connect）はユーザーが別途実施。
+
+**Status**: ✅ ビルド完了。
+
+---
+
 ## 🗓 次回の予定（引き継ぎ）
 
-1. **App Check / Firestore 断続的 PERMISSION_DENIED の調査**: Firebase Console
-   で `gotoshop-572b7` プロジェクトの App Check 強制設定（Cloud Firestore の
-   Enforce/Monitor）と、登録済みデバッグトークンの有効期限を確認する。
-2. 今回の修正（原因1〜4）が本番相当のシナリオ（複数メンバー・複数回ローテーション）
-   でも問題ないか、機会があれば追加の実機 E2E を行う。
+1. `qr_invitation_service.dart` の招待受諾直後の自己検証クエリ
+   （非自分宛て通知への read）を見直す（優先度低、非致命的）。
+2. 短時間の連続ローテーションで鍵世代が飛んだ場合の収束を早める改善
+   （`keyRecoveryEnvelopes` の複数世代チェーン走査など）を検討する
+   （優先度低、通常運用では発生しにくい）。
+3. クローズドテストでの実配信後のフィードバック確認。
 
 ---
 
@@ -165,7 +254,13 @@ Enforce 状態、登録済みデバッグトークンの有効期限）の確認
 | `lib/pages/group_member_management_page.dart` | `initState()` で `ensureGroupKeyAvailable()` を呼び、画面単独表示時にも鍵解決を実行するよう追加 |
 | `lib/services/group_key_exchange_service.dart` | `rotateGroupKey`: ローカル鍵永続化を Firestore 書き込み成功後に移動（失敗→再試行時の previous key 汚染を防止）。`ensureGroupKeyForOwner`: 新規グループ作成時の使い捨て鍵生成・事前永続化を削除（previous key 永久汚染バグの修正）。`reencryptGroupFieldsIfKeyChanged`: `migrateField` で current key を先に試すよう変更（無駄な失敗試行・警告ログを削減） |
 | `test/services/group_key_exchange_field_rotation_test.dart` | 上記3点の回帰テストを追加（計6件） |
-| `docs/daily_reports/2026-09/daily_report_20260924.md` | **新規**: 本日の日報 |
+| `lib/main_dev.dart` | App Check 初期化ブロックを追加（`main.dart` と同内容） |
+| `lib/main_prod.dart` | App Check 初期化ブロックを追加（`main.dart` と同内容） |
+| `lib/widgets/group_creation_with_copy_dialog.dart` | 自己通知の `NotificationType` を `groupMemberAdded` → `groupUpdated` に変更（3箇所） |
+| `lib/services/notification_service.dart` | 既存メンバー通知・受諾承認通知の `NotificationType` を `groupMemberAdded` → `groupUpdated` に変更（2箇所） |
+| `firestore.rules` | **本番デプロイのみ**（ローカルファイルは変更なし）。`keyRecoveryEnvelopes` ブロック等、未デプロイだった内容を Firebase Console から公開 |
+| `pubspec.yaml` | ビルド番号を `38` → `39` に更新 |
+| `docs/daily_reports/2026-09/daily_report_20260924.md` | 本日の日報（午前・午後の作業を追記） |
 
 ### 未追跡・本コミット対象外
 

@@ -654,7 +654,7 @@ class _GroupCreationWithCopyDialogState
             try {
               await notificationService.sendNotification(
                 targetUserId: currentUser.uid,
-                type: NotificationType.groupMemberAdded,
+                type: NotificationType.groupUpdated,
                 groupId: newGroupId,
                 message: '新しいグループ「$groupName」を作成しました',
                 metadata: {
@@ -680,7 +680,7 @@ class _GroupCreationWithCopyDialogState
             try {
               await notificationService.sendNotification(
                 targetUserId: currentUser.uid,
-                type: NotificationType.groupMemberAdded,
+                type: NotificationType.groupUpdated,
                 groupId: newGroupId,
                 message: '新しいグループ「$groupName」を作成しました',
                 metadata: {
@@ -913,7 +913,7 @@ class _GroupCreationWithCopyDialogState
               // 🔥 FIX: タイムアウトを設定（5秒）
               await notificationService.sendNotification(
                 targetUserId: member.memberId,
-                type: NotificationType.groupMemberAdded,
+                type: NotificationType.groupUpdated,
                 groupId: groupId,
                 message: '$senderName さんが「$groupName」にあなたを追加しました',
                 metadata: {

@@ -905,7 +905,7 @@ class NotificationService {
           await sendNotification(
             targetUserId: memberId,
             groupId: groupId,
-            type: NotificationType.groupMemberAdded,
+            type: NotificationType.groupUpdated,
             message: '$finalAcceptorName さんが「${currentGroup.groupName}」に参加しました',
             metadata: {
               'groupName': currentGroup.groupName,
@@ -930,7 +930,7 @@ class NotificationService {
         await sendNotification(
           targetUserId: acceptorUid,
           groupId: groupId,
-          type: NotificationType.groupMemberAdded,
+          type: NotificationType.groupUpdated,
           message: '「${currentGroup.groupName}」への参加が承認されました',
           metadata: {
             'groupName': currentGroup.groupName,

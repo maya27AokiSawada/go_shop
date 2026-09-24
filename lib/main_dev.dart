@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:hive/hive.dart';
@@ -161,6 +162,30 @@ Future<void> _initializeApp() async {
 
       // 指数バックオフ（初回500ms）でFirebase初期化リトライ（Android DNS解決対応）
       await _initFirebaseWithBackoff();
+
+      // 🔐 Firebase App Check 初期化
+      // debugビルド: デバッグプロバイダーを使用（端末ログのトークンをFirebase Consoleに登録）
+      // releaseビルド: Android=Play Integrity / iOS=App Attest（production 環境）
+      //
+      // --dart-define=APP_CHECK_DEBUG=true を付けると release/profile ビルドでも
+      // Debug プロバイダを使う。App Attest は App Store / TestFlight 配布ビルドの
+      // production 環境でしか Firebase の検証を通らないため、実機へ直接インストールした
+      // ローカルビルドで App Check enforce 下の動作確認をする場合に使用する。
+      const useAppCheckDebug =
+          bool.fromEnvironment('APP_CHECK_DEBUG', defaultValue: false);
+      final useDebugAppCheckProvider = kDebugMode || useAppCheckDebug;
+      if (Platform.isAndroid || Platform.isIOS) {
+        await FirebaseAppCheck.instance.activate(
+          providerAndroid: useDebugAppCheckProvider
+              ? const AndroidDebugProvider()
+              : const AndroidPlayIntegrityProvider(),
+          providerApple: useDebugAppCheckProvider
+              ? const AppleDebugProvider()
+              : const AppleAppAttestProvider(),
+        );
+        AppLogger.info(
+            '✅ Firebase App Check 初期化完了 (debugProvider: $useDebugAppCheckProvider, kDebugMode: $kDebugMode, APP_CHECK_DEBUG: $useAppCheckDebug)');
+      }
 
       // Firebase Auth の状態確認
       AppLogger.info('🔐 Firebase Auth インスタンス: ${FirebaseAuth.instance}');
