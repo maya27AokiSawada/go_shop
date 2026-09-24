@@ -155,7 +155,7 @@ flutterfire configure --project=<your-prod-project-id>
 補足:
 
 - Android アプリの `applicationId` と Firebase に登録した Android app が一致している必要があります
-- `prod` flavor は `net.sumomo_planning.goshopping`、`dev` flavor は `net.sumomo_planning.go_shop.dev` の `package_name` が必要です
+- `prod` flavor は `net.sumomo_planning.goshopping`、`dev` flavor は `net.sumomo_planning.goshopping.dev` の `package_name` が必要です
 - `API key not valid` が出る場合、`src/<flavor>/google-services.json` がプレースホルダー（`YOUR_*`）のままの可能性が高いです
 
 ### 4.4 iOS: `GoogleService-Info.plist`
