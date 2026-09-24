@@ -14,6 +14,7 @@ import '../pages/group_invitation_page.dart';
 import '../widgets/member_tile_with_whiteboard.dart';
 import '../widgets/group_creation_with_copy_dialog.dart';
 import '../services/group_key_exchange_service.dart';
+import '../services/group_key_access_coordinator.dart';
 import '../providers/shared_list_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../l10n/l10n.dart';
@@ -44,6 +45,16 @@ class _GroupMemberManagementPageState
     super.initState();
     _displayGroupName = widget.group.groupName;
     _groupNameController = TextEditingController(text: widget.group.groupName);
+
+    // 鍵ローテーション後にリスト画面を開かないとメンバー名・連絡先が復号されない
+    // 不具合の対策: この画面を開いた時点でも鍵解決・再配布を試みる。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ensureGroupKeyAvailable(
+        ref: ref,
+        groupId: widget.group.groupId,
+        isMounted: () => mounted,
+      );
+    });
   }
 
   @override

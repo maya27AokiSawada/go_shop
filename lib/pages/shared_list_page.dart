@@ -15,6 +15,7 @@ import '../utils/app_logger.dart';
 import '../utils/snackbar_helper.dart';
 import '../services/error_log_service.dart';
 import '../services/group_key_exchange_service.dart';
+import '../services/group_key_access_coordinator.dart';
 import '../l10n/l10n.dart';
 
 /// 共有リスト画面
@@ -142,152 +143,12 @@ class _SharedListPageState extends ConsumerState<SharedListPage> {
   }
 
   Future<void> _ensureGroupKeyForCurrentGroup(String groupId) async {
-    try {
-      final service = ref.read(groupKeyExchangeServiceProvider);
-      final persistedKey = await service.getPersistedGroupKey(groupId: groupId);
-      final currentUid = ref.read(authStateProvider).valueOrNull?.uid;
-      final shouldRefresh = currentUid != null
-          ? await service.shouldRefreshGroupKey(
-              groupId: groupId,
-              memberUid: currentUid,
-            )
-          : false;
-      final hasUsableKey = await service.hasUsableGroupKey(groupId: groupId);
-
-      if (persistedKey != null &&
-          persistedKey.isNotEmpty &&
-          !shouldRefresh &&
-          hasUsableKey) {
-        Log.info('✅ [KEY_EXCHANGE] グループ $groupId には既存鍵あり');
-        return;
-      }
-
-      final allGroupsAsync = ref.read(allGroupsProvider);
-      final group = await allGroupsAsync.when(
-        data: (groups) =>
-            Future.value(groups.where((g) => g.groupId == groupId).firstOrNull),
-        loading: () => Future.value(null),
-        error: (error, stack) => Future.value(null),
-      );
-
-      if (group == null) {
-        Log.warning('⚠️ [KEY_EXCHANGE] グループ情報が取得できないため鍵作成をスキップ: $groupId');
-        return;
-      }
-
-      final ownerUid = group.ownerUid ?? '';
-      if (currentUid == null || ownerUid.isEmpty || currentUid != ownerUid) {
-        Log.info(
-            'ℹ️ [KEY_EXCHANGE] 非オーナーのため鍵作成をスキップ: groupId=$groupId, currentUid=${Log.maskUserId(currentUid)}, ownerUid=${Log.maskUserId(ownerUid)}');
-
-        final shouldRefresh = currentUid != null
-            ? await service.shouldRefreshGroupKey(
-                groupId: groupId,
-                memberUid: currentUid,
-              )
-            : false;
-
-        if (shouldRefresh) {
-          Log.info(
-              '🔄 [KEY_EXCHANGE] メンバー端末でローカル鍵のバージョン差分を検出 → 再解決を実行: $groupId');
-          _resetKeyWaitFuture(groupId);
-          await service.resolveGroupKeyForMember(
-            groupId: groupId,
-            memberUid: currentUid,
-          );
-          _refreshGroupsAfterKeyResolved();
-          return;
-        }
-
-        final hasKey = await service.hasUsableGroupKey(groupId: groupId);
-        if (!hasKey) {
-          Log.info('ℹ️ [KEY_EXCHANGE] 鍵がありません。参加メンバーとして鍵の解決を試みます: $groupId');
-          _resetKeyWaitFuture(groupId);
-          await service.resolveGroupKeyForMember(
-              groupId: groupId, memberUid: currentUid!);
-          _refreshGroupsAfterKeyResolved();
-        }
-        return;
-      }
-
-      final hasUsableOwnerKey =
-          await service.hasUsableGroupKey(groupId: groupId);
-      if (!hasUsableOwnerKey) {
-        Log.info(
-            '🔄 [KEY_EXCHANGE] オーナー自身の鍵状態が未確認のため、self-confirm を実行: $groupId');
-        _resetKeyWaitFuture(groupId);
-        await service.resolveGroupKeyForMember(
-          groupId: groupId,
-          memberUid: currentUid,
-        );
-      }
-
-      final memberUids = group.members
-              ?.where((member) => member.memberId.isNotEmpty)
-              .map((member) => member.memberId)
-              .toList() ??
-          <String>[];
-
-      final blockedByReencryption =
-          await service.isRotationBlockedByPendingReencryption(
-        groupId: groupId,
-      );
-      if (blockedByReencryption) {
-        Log.info('ℹ️ [KEY_EXCHANGE] 再暗号化完了待ちのため鍵ローテーションをスキップ: $groupId');
-        return;
-      }
-
-      final created = await service.ensureGroupKeyForOwner(
-        groupId: groupId,
-        ownerUid: group.ownerUid ?? '',
-        memberUids: memberUids,
-      );
-
-      if (created) {
-        Log.info('✅ [KEY_EXCHANGE] グループアクセス時に鍵作成・配布を実行: $groupId');
-        final repository = ref.read(sharedListRepositoryProvider);
-        final lists = await repository.getSharedListsByGroup(groupId);
-        final listItems = <Map<String, dynamic>>[];
-
-        for (final list in lists) {
-          for (final item in list.items.values) {
-            listItems.add({
-              'memberId': item.memberId,
-              'name': item.name,
-            });
-          }
-        }
-
-        await service.reencryptSharedItemsForGroup(
-          groupId: groupId,
-          items: listItems,
-          repository: repository,
-        );
-
-        // ローテーション完了後は、全アイテムの再暗号化を終えてから
-        // オーナー自身の鍵解決状況を confirmed に更新する。
-        // これを先に行うと、アイテムがまだ暗号化済みの状態で usable と見なされて
-        // しまい、UIが ciphertext のまま残る場合がある。
-        await service.resolveGroupKeyForMember(
-          groupId: groupId,
-          memberUid: ownerUid,
-        );
-      } else {
-        Log.info('ℹ️ [KEY_EXCHANGE] グループ $groupId は鍵作成対象外（既存鍵あり）');
-      }
-    } catch (e) {
-      Log.error('❌ [KEY_EXCHANGE] グループアクセス時の鍵初期化失敗: $e');
-    }
-  }
-
-  /// グループ鍵が（遅れて）解決されたあと、暗号文のまま Hive にキャッシュされた
-  /// グループを平文へ戻すため allGroupsProvider を再構築させる。
-  /// selectedGroupProvider / メンバー管理画面は allGroupsProvider を watch して
-  /// いるため、これで復号済みの名前・連絡先が表示される。
-  void _refreshGroupsAfterKeyResolved() {
-    if (!mounted) return;
-    Log.info('🔄 [KEY_EXCHANGE] 鍵解決後に allGroupsProvider を再構築');
-    ref.invalidate(allGroupsProvider);
+    await ensureGroupKeyAvailable(
+      ref: ref,
+      groupId: groupId,
+      isMounted: () => mounted,
+      resetKeyWait: _resetKeyWaitFuture,
+    );
   }
 
   /// シングルモード時にカレントリストが未選択の場合、自動復元・自動作成を試みる

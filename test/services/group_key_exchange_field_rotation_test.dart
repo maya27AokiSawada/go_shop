@@ -155,6 +155,142 @@ void main() {
     );
   });
 
+  test('reencryptGroupFieldsIfKeyChanged does not rewrite fields that were '
+      'already migrated to the current key (regression: repeated calls used '
+      'to keep retrying already-migrated fields with the previous key, '
+      'causing a Firestore write -> realtime listener -> re-check feedback '
+      'loop)', () async {
+    final mockFirestore = MockFirebaseFirestore();
+    final mockCollection = MockCollectionReference<Map<String, dynamic>>();
+    final mockGroupDoc = MockDocumentReference<Map<String, dynamic>>();
+    final mockGroupSnapshot = MockDocumentSnapshot<Map<String, dynamic>>();
+
+    final service = GroupKeyExchangeService(firestore: mockFirestore);
+
+    // 前回の呼び出しで既に new-key へ再暗号化済みのフィールド。
+    final currentOwnerName = service.encryptGroupField(
+      plaintext: 'Owner',
+      groupId: groupId,
+      groupKey: 'new-key',
+    );
+    final currentMemberName = service.encryptGroupField(
+      plaintext: 'Alice',
+      groupId: groupId,
+      groupKey: 'new-key',
+    );
+
+    when(mockFirestore.collection('SharedGroups')).thenReturn(mockCollection);
+    when(mockCollection.doc(groupId)).thenReturn(mockGroupDoc);
+    when(mockGroupDoc.get()).thenAnswer((_) async => mockGroupSnapshot);
+    when(mockGroupSnapshot.data()).thenReturn({
+      'ownerName': currentOwnerName,
+      'members': [
+        {
+          'memberId': 'm1',
+          'name': currentMemberName,
+          'role': 'member',
+        },
+      ],
+    });
+
+    // 端末は old-key -> new-key へローテーション済みのまま
+    // （previous key はまだ残っている）。
+    SharedPreferences.setMockInitialValues({
+      'group_key_v1:$groupId': 'new-key',
+      'group_key_previous_v1:$groupId': 'old-key',
+    });
+    await service.getPersistedGroupKey(groupId: groupId);
+
+    await service.reencryptGroupFieldsIfKeyChanged(groupId: groupId);
+
+    // 既に current key で復号できるフィールドしかないので、
+    // Firestore への書き戻しは発生しない
+    // （書き戻しが起きるとリアルタイムリスナーが再発火し、
+    // 同じチェックが延々と繰り返される）。
+    verifyNever(mockGroupDoc.set(any, any));
+  });
+
+  test('rotateGroupKey does not corrupt the previously persisted key when a '
+      'retry follows a Firestore write failure', () async {
+    final mockFirestore = MockFirebaseFirestore();
+    final mockAuth = MockFirebaseAuth();
+    final mockUser = MockUser();
+    final mockGroupCollection = MockCollectionReference<Map<String, dynamic>>();
+    final mockGroupDoc = MockDocumentReference<Map<String, dynamic>>();
+    final mockGroupSnapshot = MockDocumentSnapshot<Map<String, dynamic>>();
+    final mockExchangeCollection =
+        MockCollectionReference<Map<String, dynamic>>();
+    final mockExchangeDoc = MockDocumentReference<Map<String, dynamic>>();
+
+    const ownerUid = 'owner-uid';
+    const memberUid = 'member-uid';
+
+    when(mockAuth.currentUser).thenReturn(mockUser);
+    when(mockUser.uid).thenReturn(ownerUid);
+
+    when(mockFirestore.collection('SharedGroups'))
+        .thenReturn(mockGroupCollection);
+    when(mockGroupCollection.doc(groupId)).thenReturn(mockGroupDoc);
+    when(mockGroupDoc.get()).thenAnswer((_) async => mockGroupSnapshot);
+    // Firestore 上の activeKeyVersion は、書き込みが一度も成功していない
+    // 想定なので常に 1 のまま返す。
+    when(mockGroupSnapshot.data()).thenReturn({'activeKeyVersion': 1});
+    when(mockGroupDoc.collection('keyExchangeEvents'))
+        .thenReturn(mockExchangeCollection);
+    when(mockExchangeCollection.doc(memberUid)).thenReturn(mockExchangeDoc);
+    when(mockGroupDoc.set(any, any)).thenAnswer((_) async {});
+
+    var exchangeWriteAttempts = 0;
+    when(mockExchangeDoc.set(any, any)).thenAnswer((_) async {
+      exchangeWriteAttempts++;
+      if (exchangeWriteAttempts == 1) {
+        // 1 回目は権限エラー等で失敗する（今回の実機で再現した状況）。
+        throw Exception('permission-denied');
+      }
+    });
+
+    final service =
+        GroupKeyExchangeService(firestore: mockFirestore, auth: mockAuth);
+
+    // ローテーション前から端末に保存されていた「本物の旧鍵」。
+    SharedPreferences.setMockInitialValues({
+      'group_key_v1:$groupId': 'true-old-key',
+    });
+    await service.getPersistedGroupKey(groupId: groupId);
+
+    // 1 回目のローテーションは Firestore への配布中に失敗する。
+    await expectLater(
+      service.rotateGroupKey(
+        groupId: groupId,
+        ownerUid: ownerUid,
+        memberUids: [memberUid],
+      ),
+      throwsA(anything),
+    );
+
+    // 失敗した 1 回目の後も、ローカルの鍵は書き換えられていないこと。
+    expect(await service.getPersistedGroupKey(groupId: groupId), 'true-old-key');
+
+    // 2 回目のローテーションは成功する（App Check 登録などで解消された想定）。
+    await service.rotateGroupKey(
+      groupId: groupId,
+      ownerUid: ownerUid,
+      memberUids: [memberUid],
+    );
+
+    // 新しい鍵に切り替わっていること。
+    final newKey = await service.getPersistedGroupKey(groupId: groupId);
+    expect(newKey, isNot('true-old-key'));
+    expect(await service.getPersistedGroupKeyVersion(groupId: groupId), 2);
+
+    // previous スロットには、1 回目の失敗で生成された使われなかった鍵ではなく
+    // 「本物の旧鍵」が残っていること。
+    expect(
+      await service.getPreviousPersistedGroupKey(groupId: groupId),
+      'true-old-key',
+    );
+  });
+
   test('reencryptGroupFieldsIfKeyChanged is a no-op when the key has not '
       'changed', () async {
     final mockFirestore = MockFirebaseFirestore();
@@ -168,6 +304,60 @@ void main() {
 
     await service.reencryptGroupFieldsIfKeyChanged(groupId: groupId);
 
+    verifyNever(mockFirestore.collection(any));
+  });
+
+  test('ensureGroupKeyForOwner does not poison the previous-key slot when '
+      'creating the very first key for a brand new group (regression: a '
+      'throwaway key generated before rotateGroupKey used to end up as the '
+      'previous key forever, causing reencryptGroupFieldsIfKeyChanged to '
+      'fail and warn on every read of any newly created group)', () async {
+    final mockFirestore = MockFirebaseFirestore();
+    final mockAuth = MockFirebaseAuth();
+    final mockUser = MockUser();
+    final mockGroupCollection = MockCollectionReference<Map<String, dynamic>>();
+    final mockGroupDoc = MockDocumentReference<Map<String, dynamic>>();
+    final mockGroupSnapshot = MockDocumentSnapshot<Map<String, dynamic>>();
+    final mockExchangeCollection =
+        MockCollectionReference<Map<String, dynamic>>();
+    final mockExchangeDoc = MockDocumentReference<Map<String, dynamic>>();
+
+    const ownerUid = 'owner-uid';
+
+    when(mockAuth.currentUser).thenReturn(mockUser);
+    when(mockUser.uid).thenReturn(ownerUid);
+
+    when(mockFirestore.collection('SharedGroups'))
+        .thenReturn(mockGroupCollection);
+    when(mockGroupCollection.doc(groupId)).thenReturn(mockGroupDoc);
+    when(mockGroupDoc.get()).thenAnswer((_) async => mockGroupSnapshot);
+    // ブランドニューなグループなのでドキュメントはまだ存在しない。
+    when(mockGroupSnapshot.data()).thenReturn(null);
+    when(mockGroupDoc.collection('keyExchangeEvents'))
+        .thenReturn(mockExchangeCollection);
+    when(mockExchangeCollection.doc(ownerUid)).thenReturn(mockExchangeDoc);
+    when(mockExchangeDoc.set(any, any)).thenAnswer((_) async {});
+    when(mockGroupDoc.set(any, any)).thenAnswer((_) async {});
+
+    final service =
+        GroupKeyExchangeService(firestore: mockFirestore, auth: mockAuth);
+
+    final created = await service.ensureGroupKeyForOwner(
+      groupId: groupId,
+      ownerUid: ownerUid,
+      memberUids: const [],
+    );
+
+    expect(created, isTrue);
+    expect(await service.getPersistedGroupKey(groupId: groupId), isNotNull);
+    // 使い捨ての鍵が previous スロットへ紛れ込んでいないこと。
+    expect(await service.getPreviousPersistedGroupKey(groupId: groupId), isNull);
+
+    // previous key が無いので、以後このグループを読み込んでも
+    // reencryptGroupFieldsIfKeyChanged は即座に no-op で返るはず
+    // （Firestoreへのアクセスなし = 警告の連発が起きない）。
+    clearInteractions(mockFirestore);
+    await service.reencryptGroupFieldsIfKeyChanged(groupId: groupId);
     verifyNever(mockFirestore.collection(any));
   });
 }

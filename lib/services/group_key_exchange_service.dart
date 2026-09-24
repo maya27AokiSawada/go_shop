@@ -86,8 +86,15 @@ class GroupKeyExchangeService {
         return false;
       }
 
-      final groupKey = _crypto.generateGroupKey();
-      await _persistGroupKeyLocally(groupId: groupId, groupKey: groupKey);
+      // rotateGroupKey が自前で鍵を生成・配布・永続化するため、ここで
+      // 使い捨ての鍵を先に生成して persist してはならない。先に persist すると
+      // rotateGroupKey 内の _persistGroupKeyLocally がそれを「previous key」
+      // として退避してしまい、一度も配布・使用されていない鍵が previous に
+      // 残り続ける。previous key は本来「実際に暗号化に使われた1世代前の鍵」
+      // であるべきで、これが崩れるとグループ共有フィールドの移行チェックが
+      // 新規グループ作成直後から永久に失敗し続ける
+      // （reencryptGroupFieldsIfKeyChanged が毎回 previous key での復号を
+      // 試みては失敗し、グループを読み込むたびに警告を出し続ける）。
       await rotateGroupKey(
         groupId: groupId,
         ownerUid: ownerUid,
@@ -425,11 +432,6 @@ class GroupKeyExchangeService {
           await getPersistedGroupKeyVersion(groupId: groupId);
 
       final newGroupKey = _crypto.generateGroupKey();
-      await _persistGroupKeyLocally(
-        groupId: groupId,
-        groupKey: newGroupKey,
-        version: nextVersion,
-      );
       if (previousGroupKey != null &&
           previousGroupKey.isNotEmpty &&
           previousLocalVersion == currentVersion) {
@@ -475,6 +477,16 @@ class GroupKeyExchangeService {
         'activeKeyVersion': nextVersion,
         'activeKeyUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+
+      // ローカルへの反映は Firestore への配布が全て成功した後に行う。
+      // 途中で失敗した場合にここより前で永続化すると、previous key が
+      // 配布されなかった鍵で上書きされ、再試行時に本来の旧鍵を失って
+      // グループ共有フィールドの復号ができなくなる。
+      await _persistGroupKeyLocally(
+        groupId: groupId,
+        groupKey: newGroupKey,
+        version: nextVersion,
+      );
     } catch (e) {
       Log.error('❌ [KEY_EXCHANGE] 鍵ローテーション失敗: $e');
       rethrow;
@@ -1135,6 +1147,21 @@ class GroupKeyExchangeService {
       String? migrateField(dynamic value) {
         if (value is! String || value.isEmpty || !isEncryptedGroupField(value)) {
           return value is String ? value : null;
+        }
+        // 既に current key で復号できるなら移行済み。previous key での
+        // 再試行は行わない。これを省くと、移行済みフィールドについても
+        // 毎回 previous key での復号を試みて失敗ログを出し続けるうえ、
+        // 他のフィールドの移行書き込みがリアルタイムリスナーを再度発火させ、
+        // 際限なく同じ失敗を繰り返す原因になる。
+        try {
+          decryptGroupField(
+            ciphertext: value,
+            groupId: groupId,
+            groupKey: currentKey,
+          );
+          return value;
+        } catch (_) {
+          // current key で復号できない = まだ previous key のまま。移行を試みる。
         }
         try {
           final plaintext = decryptGroupField(
