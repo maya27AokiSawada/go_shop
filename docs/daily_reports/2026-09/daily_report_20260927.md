@@ -5,6 +5,8 @@
 - [x] 紹介動画（基本機能・招待機能）のリンクを README / GitHub Pages に挿入する
 - [x] `emulator-5554` の Firebase App Check デバッグトークンを特定する
 - [x] 上記トークン登録によりサインインできることを確認する
+- [x] App Store Connect のマーケティングURL用に、GitHub Pages 専用ページを新規作成する
+- [x] ビルド `1.1.0+39` を App Store に公開申請する
 - [x] 本日の作業を日報にまとめて `sumomo-planning` へコミット・プッシュする
 
 ---
@@ -60,9 +62,39 @@ Android エミュレーターの Firebase App Check デバッグトークンを�
 
 ---
 
+### 3. マーケティングURL用 GitHub Pages ページの新規作成 ✅
+
+**Purpose**: App Store Connect の「マーケティングURL」に設定するリンク先を検討。
+既存の `docs/index.md`（開発日報・仕様書・ナレッジベース・トラブルシューティングへの
+導線を含むドキュメントポータル）をそのまま使うと、一般ユーザーや審査担当者に
+開発者向けの内部ドキュメントが露出してしまうため不適切と判断。
+
+**対応**:
+
+- [`docs/marketing.md`](../../marketing.md) を新規作成。紹介動画2本（基本機能・招待機能）
+  の `<iframe>` 埋め込みと、一般ユーザー向けの機能紹介、プライバシーポリシー等の
+  法的ドキュメントへのリンクのみを掲載し、開発日報・仕様書一覧・ナレッジベース・
+  トラブルシューティングへのリンクは含めない構成にした。
+- マーケティングURLとして案内した値: `https://maya27aokisawada.github.io/go_shop/marketing`
+  （`sumomo-planning` へのプッシュ後、GitHub Pages の再デプロイで反映）
+
+**Status**: ✅ 完了。
+
+---
+
+### 4. ビルド `1.1.0+39` の App Store 公開申請 ✅
+
+**対応**: `pubspec.yaml` の `version: 1.1.0+39` を対象ビルドとして、App Store Connect
+より公開審査へ申請。
+
+**Status**: ✅ 申請済み。審査結果は次回以降に追記。
+
+---
+
 ## 🗓 次回の予定（引き継ぎ）
 
-特になし。次回作業時に追記。
+- App Store Connect でビルド `1.1.0+39` の審査状況を確認する。
+- 審査通過後、マーケティングURLに `docs/marketing.md` のページを設定する。
 
 ---
 
@@ -71,8 +103,9 @@ Android エミュレーターの Firebase App Check デバッグトークンを�
 | ファイル | 更新内容 |
 |---|---|
 | `README.md` | 「紹介動画」セクションを追加（基本機能・招待機能、サムネイル+リンク形式） |
+| `docs/marketing.md` | マーケティングURL専用ページを新規作成（紹介動画+機能紹介+法的ドキュメントリンクのみ） |
 | `docs/index.md` | 「紹介動画」セクションを追加（基本機能・招待機能、`<iframe>` 埋め込み） |
-| `docs/daily_reports/2026-09/daily_report_20260927.md` | 本日の日報（新規） |
+| `docs/daily_reports/2026-09/daily_report_20260927.md` | 本日の日報（マーケティングページ作成・ビルド39申請を追記） |
 
 ### 未追跡・本コミット対象外
 
