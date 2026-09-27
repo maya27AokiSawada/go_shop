@@ -6,6 +6,16 @@ title: GoShopping ドキュメント
 
 家族の買い物リストを共有するFlutterアプリのドキュメントサイトです。
 
+## 紹介動画
+
+基本機能紹介動画（限定公開）です。
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/AZOzcONX_iM" title="GoShopping 基本機能紹介動画" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+
+招待機能紹介動画（限定公開）です。
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/qPNgUP1KEJo" title="GoShopping 招待機能紹介動画" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+
 ## ドキュメント一覧
 
 - [仕様書](specifications/)

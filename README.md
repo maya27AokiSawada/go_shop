@@ -3,6 +3,16 @@
 家族・グループ向けの買い物リスト共有 Flutter アプリです。
 Firebase Auth と Cloud Firestore を中心に、Hive をローカルキャッシュとして併用する構成で、複数デバイス間のリアルタイム共有を前提にしています。
 
+## 紹介動画
+
+基本機能紹介動画（限定公開）です。
+
+[![GoShopping 基本機能紹介動画](https://img.youtube.com/vi/AZOzcONX_iM/hqdefault.jpg)](https://youtu.be/AZOzcONX_iM)
+
+招待機能紹介動画（限定公開）です。
+
+[![GoShopping 招待機能紹介動画](https://img.youtube.com/vi/qPNgUP1KEJo/hqdefault.jpg)](https://youtu.be/qPNgUP1KEJo)
+
 ## 現在の状態
 
 - 現在のアプリバージョンは `1.1.0+34` です。
