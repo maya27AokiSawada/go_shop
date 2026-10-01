@@ -33,7 +33,6 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
-/windows/
 /ios/Flutter/Flutter.framework
 /macos/
 /linux/
@@ -90,6 +89,10 @@ key.properties
 
 # Log & debug files (機密情報・不要ファイル)
 *.txt
+# ...but CMake build files for desktop targets (windows/, linux/, macos/) are
+# source, not logs -- the blanket *.txt rule above was silently blocking new
+# ones (e.g. windows/CMakeLists.txt) from ever being tracked.
+!**/CMakeLists.txt
 android/key.properties
 android/gradle.properties
 
@@ -126,3 +129,5 @@ docs/troubleshooting/*.pdf
 node_modules/
 package-lock.json
 package.json
+# Widget Preview related
+.widget_preview/
