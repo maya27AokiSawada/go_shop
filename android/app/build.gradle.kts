@@ -12,11 +12,20 @@ plugins {
 dependencies {
     implementation(platform("com.google.firebase:firebase-bom:34.6.0"))
     implementation("com.google.firebase:firebase-analytics")
+    // google_mobile_ads pulls in play-services-ads-api:25.3.0, which pins
+    // androidx.work:work-runtime:2.7.0. That version crashes building its
+    // Room WorkDatabase on Android 15/16 (RuntimeException: Failed to create
+    // an instance of androidx.work.impl.WorkDatabase), killing the app on
+    // launch. Force a current work-runtime so Gradle's conflict resolution
+    // picks it over the stale transitive pin.
+    implementation("androidx.work:work-runtime:2.12.0")
 }
 
 android {
     namespace = "net.sumomo_planning.goshopping"
-    compileSdk = flutter.compileSdkVersion
+    // package_info_plus requires compileSdk 36+; override the Flutter-provided
+    // default (34) until the bundled Flutter SDK raises it.
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
