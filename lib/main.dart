@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:io' show Platform;
 import 'dart:ui' as ui;
+import 'package:flutter/services.dart' show appFlavor;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -10,7 +12,7 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:hive/hive.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'dart:io' show Platform;
+
 import 'firebase_options.dart';
 import 'screens/home_screen.dart';
 // QRコード招待機能
@@ -158,7 +160,14 @@ Future<void> _initializeApp() async {
 
   await _loadEnvOnce();
 
-  AppLogger.info('⚙️ フレーバー: ${F.appFlavor} (--dart-define=FLAVORで指定)');
+  final flavorName =
+      appFlavor ?? const String.fromEnvironment('FLAVOR', defaultValue: 'prod');
+  F.appFlavor = switch (flavorName) {
+    'dev' => Flavor.dev,
+    'staging' => Flavor.staging,
+    _ => Flavor.prod,
+  };
+  AppLogger.info('⚙️ フレーバー設定完了: ${F.appFlavor}');
 
   // Firebase初期化（prodとdev両方で有効化 - 2025-12-08変更）
   if (F.appFlavor == Flavor.prod || F.appFlavor == Flavor.dev) {
@@ -167,13 +176,17 @@ Future<void> _initializeApp() async {
 
       AppLogger.info('🎯 現在のプラットフォーム: $defaultTargetPlatform');
       AppLogger.info(
-          '📋 プロジェクトID: ${DefaultFirebaseOptions.currentPlatform.projectId}');
+        '📋 プロジェクトID: ${DefaultFirebaseOptions.currentPlatform.projectId}',
+      );
       AppLogger.info(
-          '📋 アプリID: ${DefaultFirebaseOptions.currentPlatform.appId}');
+        '📋 アプリID: ${DefaultFirebaseOptions.currentPlatform.appId}',
+      );
       AppLogger.info(
-          '📋 API Key: ${DefaultFirebaseOptions.currentPlatform.apiKey}');
+        '📋 API Key: ${DefaultFirebaseOptions.currentPlatform.apiKey}',
+      );
       AppLogger.info(
-          '📋 Auth Domain: ${DefaultFirebaseOptions.currentPlatform.authDomain}');
+        '📋 Auth Domain: ${DefaultFirebaseOptions.currentPlatform.authDomain}',
+      );
 
       // 指数バックオフ（初回500ms）でFirebase初期化リトライ（Android DNS解決対応）
       await _initFirebaseWithBackoff();
@@ -216,7 +229,8 @@ Future<void> _initializeApp() async {
       AppLogger.info('🔐 Firebase Auth インスタンス: ${FirebaseAuth.instance}');
       final currentUser = FirebaseAuth.instance.currentUser;
       AppLogger.info(
-          '🔐 現在のユーザー: ${currentUser != null ? AppLogger.maskUserId(currentUser.uid) : "未ログイン"}');
+        '🔐 現在のユーザー: ${currentUser != null ? AppLogger.maskUserId(currentUser.uid) : "未ログイン"}',
+      );
 
       // Firestore の状態確認
       AppLogger.info('🗃️ Firestore インスタンス: ${FirebaseFirestore.instance}');
@@ -275,12 +289,14 @@ Future<void> _initializeApp() async {
   if (!Hive.isAdapterRegistered(3)) {
     Hive.registerAdapter(SharedItemAdapterOverride());
     AppLogger.info(
-        '✅ SharedItemAdapterOverride registered (backward compatible)');
+      '✅ SharedItemAdapterOverride registered (backward compatible)',
+    );
   }
   if (!Hive.isAdapterRegistered(6)) {
     Hive.registerAdapter(UserSettingsAdapterOverride());
     AppLogger.info(
-        '✅ UserSettingsAdapterOverride registered (backward compatible)');
+      '✅ UserSettingsAdapterOverride registered (backward compatible)',
+    );
   }
 
   // グローバルHiveアダプター登録のみ実行（Box開封はUserSpecificHiveServiceに委任）

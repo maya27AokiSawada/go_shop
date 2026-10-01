@@ -1,5 +1,5 @@
-import java.util.Properties
 import java.nio.charset.StandardCharsets
+import java.util.Properties
 
 plugins {
     id("com.android.application")

@@ -258,3 +258,15 @@ xcodebuild -exportArchive \
 - `DocumentSnapshot<Map<String, dynamic>>` の手動モック作成
 - CI で `windows-latest` を使う（`ubuntu-latest` を使うこと）
 - `flutter pub upgrade` 後にビルド確認なしで push
+
+## 8. 現行SDK・Androidビルド基盤
+
+- Flutter stable: `3.47.5`（Dart `3.13.4`）
+- Android Gradle Plugin: `9.4.0`
+- Gradle Wrapper: `9.6.0`
+- Kotlin: `2.4.0`
+- JVM: JDK `21` LTS
+
+SDK更新後は `flutter pub get` とprod/dev flavorのAndroidビルドを確認する。
+Gradle daemonのJVMクラッシュが発生する場合は、`hs_err_pid*.log` の例外種別と
+問題フレームを確認し、JDKの変更だけでなくGradleのファイル監視・キャッシュも切り分ける。
