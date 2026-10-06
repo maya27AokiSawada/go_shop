@@ -27,8 +27,8 @@
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data android:name="flutterEmbedding" android:value="2" />
 
-        <!-- AdMob App ID -->
-        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-7163325066755382~2053597705" />
+        <!-- AdMob App ID (injected from .env ADMOB_APP_ID by app/build.gradle.kts) -->
+        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="${admobAppId}" />
     </application>
 
     <!-- Queries declaration to allow querying other apps that support ACTION_PROCESS_TEXT.

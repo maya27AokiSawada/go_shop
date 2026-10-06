@@ -39,7 +39,20 @@ android {
         keystorePropertiesFile.reader().use { keystoreProperties.load(it) }
     }
 
+    // AdMob App ID comes from the untracked project-root .env (same file the
+    // Dart side reads via flutter_dotenv). Without it, fall back to Google's
+    // sample App ID: the Mobile Ads SDK crashes on launch if the manifest
+    // meta-data is missing or empty.
+    val dotEnvFile = rootProject.file("../.env")
+    val dotEnv = Properties()
+    if (dotEnvFile.exists()) {
+        dotEnvFile.reader().use { dotEnv.load(it) }
+    }
+    val admobAppId = dotEnv.getProperty("ADMOB_APP_ID")?.trim().orEmpty()
+        .ifEmpty { "ca-app-pub-3940256099942544~3347511713" }
+
     defaultConfig {
+        manifestPlaceholders["admobAppId"] = admobAppId
         applicationId = "net.sumomo_planning.goshopping"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
