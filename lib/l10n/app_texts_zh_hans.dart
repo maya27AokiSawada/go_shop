@@ -418,6 +418,20 @@ class AppTextsZhHans extends AppTextsEn {
       '• 购买后，您可以前往 App Store 账户设置管理订阅并关闭自动续订。';
 
   @override
+  String get subscriptionPreReleaseTitle => '预发布中';
+
+  @override
+  String get subscriptionPreReleaseBody => '目前为预发布阶段，暂不接受 Premium 套餐的订阅。';
+
+  @override
+  String subscriptionSalesStartNotice(int year, int month) =>
+      '付费功能预计于$year年$month月开放。';
+
+  @override
+  String subscriptionPreReleaseBlocked(int year, int month) =>
+      '目前处于预发布阶段，无法购买 Premium 套餐。付费功能预计于$year年$month月开放。';
+
+  @override
   String get logout => '退出';
 
   @override

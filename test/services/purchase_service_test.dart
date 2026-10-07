@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_platform_interface/in_app_purchase_platform_interface.dart';
+import 'package:goshopping/config/subscription_sales_config.dart';
 import 'package:goshopping/services/purchase_service.dart';
 
 void main() {
@@ -131,6 +132,67 @@ void main() {
     expect(fakePlatform.restorePurchasesCallCount, 1);
     expect(service.currentState.status, PurchaseFlowStatus.idle);
   });
+
+  test('プレ公開期間中は月額・年額の購入フローを開始しない', () async {
+    service.salesOpen = false;
+    await service.initialize();
+
+    await service.buyPremiumMonthly();
+    await service.buyPremiumYearly();
+
+    expect(fakePlatform.buyNonConsumableCallCount, 0);
+    expect(fakePlatform.restorePurchasesCallCount, 0);
+    expect(service.currentState.status, PurchaseFlowStatus.idle);
+    expect(service.currentState.message, contains('2027年1月'));
+  });
+
+  test('Firestoreの課金開始日が過去なら受付を開始する', () async {
+    service.salesOpen = null;
+    service.fetchedSalesStartDate = DateTime(2000, 1, 1);
+
+    await service.refreshSalesStartDate();
+
+    expect(service.salesStartDate, DateTime(2000, 1, 1));
+    expect(service.isSalesOpen, isTrue);
+  });
+
+  test('Firestoreの課金開始日が未来なら受付をブロックし案内に反映する', () async {
+    service.salesOpen = null;
+    service.fetchedSalesStartDate = DateTime(2999, 4, 1);
+    await service.initialize();
+
+    await service.refreshSalesStartDate();
+    await service.buyPremiumMonthly();
+
+    expect(service.isSalesOpen, isFalse);
+    expect(fakePlatform.buyNonConsumableCallCount, 0);
+    expect(service.currentState.message, contains('2999年4月'));
+  });
+
+  test('課金開始日が未設定または取得失敗なら既定値を維持する', () async {
+    service.fetchedSalesStartDate = null;
+    await service.refreshSalesStartDate();
+    expect(
+      service.salesStartDate,
+      SubscriptionSalesConfig.defaultSalesStartDate,
+    );
+
+    service.failFetchSalesStartDate = true;
+    await service.refreshSalesStartDate();
+    expect(
+      service.salesStartDate,
+      SubscriptionSalesConfig.defaultSalesStartDate,
+    );
+  });
+
+  test('プレ公開期間中も購入の復元は実行できる', () async {
+    service.salesOpen = false;
+    await service.initialize();
+
+    await service.restorePurchases();
+
+    expect(fakePlatform.restorePurchasesCallCount, 1);
+  });
 }
 
 PurchaseDetails createPurchase(
@@ -154,6 +216,21 @@ class TestPurchaseService extends PurchaseService {
   int verifyCallCount = 0;
   bool failVerification = false;
   bool storeAcknowledged = false;
+  // null の場合は課金開始日による本来の判定を使う。
+  bool? salesOpen = true;
+  DateTime? fetchedSalesStartDate;
+  bool failFetchSalesStartDate = false;
+
+  @override
+  bool get isSalesOpen => salesOpen ?? super.isSalesOpen;
+
+  @override
+  Future<DateTime?> fetchSalesStartDate() async {
+    if (failFetchSalesStartDate) {
+      throw StateError('fetch failed');
+    }
+    return fetchedSalesStartDate;
+  }
 
   @override
   Future<VerifiedPurchaseResult> verifyPurchaseWithServer(
@@ -174,6 +251,7 @@ class FakePurchasePlatform extends InAppPurchasePlatform {
   int purchaseStreamReadCount = 0;
   int restorePurchasesCallCount = 0;
   bool buyNonConsumableResult = true;
+  int buyNonConsumableCallCount = 0;
 
   void emit(List<PurchaseDetails> purchases) {
     _controller.add(purchases);
@@ -211,6 +289,7 @@ class FakePurchasePlatform extends InAppPurchasePlatform {
 
   @override
   Future<bool> buyNonConsumable({required PurchaseParam purchaseParam}) async {
+    buyNonConsumableCallCount++;
     return buyNonConsumableResult;
   }
 

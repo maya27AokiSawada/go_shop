@@ -151,6 +151,10 @@ abstract class AppTexts {
   String get commercialDisclosure;
   String get subscriptionNotesTitle;
   String get subscriptionNotesBody;
+  String get subscriptionPreReleaseTitle;
+  String get subscriptionPreReleaseBody;
+  String subscriptionSalesStartNotice(int year, int month);
+  String subscriptionPreReleaseBlocked(int year, int month);
   String get logout;
   String get deleteAccount;
   String get confirmDeleteAccount;

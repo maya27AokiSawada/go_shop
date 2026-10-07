@@ -223,6 +223,16 @@ deduplicatedGroups.sort((a, b) =>
 purchaseType: 'free' | 'subscribe' | 'purchase'  // 課金タイプ（デフォルト: omitted → free）
 ```
 
+### プレ公開期間（2026年中）の新規受付ブロック
+
+- Premiumの新規受付は **2027年1月開始**。2026年中はプレ公開期間として新規購入をブロックする。
+- 課金開始日は Firestore の `appConfig/subscription` ドキュメントの `salesStartDate`（Timestamp 型）で管理する。読み取りは認証済みユーザーのみ、書き込みは Firebase Console / Admin SDK のみ。
+- `PurchaseService.refreshSalesStartDate()` が課金開始日を読み出す。`PurchasePlanPanel` の初期化時に呼び出す。
+- ドキュメント・フィールドが未設定、または取得に失敗した場合は `SubscriptionSalesConfig.defaultSalesStartDate`（2027年1月1日、端末のローカル時刻）を使う。
+- `PurchaseService.isSalesOpen` が `false` の間、`buyPremiumMonthly()` / `buyPremiumYearly()` はストア購入UIを開かずに案内メッセージを返す。
+- `PurchasePlanPanel` は購入ボタンの代わりに「プレ公開中」「課金はyyyy年M月開始予定」の案内を表示する（年月は課金開始日から生成）。
+- 「購入を復元」と、購入ストリームで届いた取引の検証は期間中も止めない（既存のPremium利用者を維持するため）。
+
 ### 課金フロー
 
 1. Android / iOSではアプリ起動直後に `PurchaseService.initialize()` を実行し、購入ストリームを購読する。設定画面を開くまで購読を遅延させない。

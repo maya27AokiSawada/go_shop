@@ -2,8 +2,11 @@ import 'dart:async';
 import 'dart:io' show Platform;
 import 'dart:ui' show PlatformDispatcher;
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import '../config/subscription_sales_config.dart';
+import '../l10n/l10n.dart';
 import '../models/purchase_type.dart';
 import '../services/error_log_service.dart';
 import '../utils/app_logger.dart';
@@ -95,6 +98,7 @@ class PurchaseService {
 
   List<ProductDetails> _products = [];
   bool _isAvailable = false;
+  DateTime _salesStartDate = SubscriptionSalesConfig.defaultSalesStartDate;
   PurchaseFlowState _currentState =
       const PurchaseFlowState(PurchaseFlowStatus.idle);
 
@@ -106,6 +110,53 @@ class PurchaseService {
       _products.any((product) => product.id == _ProductIds.premiumYearly);
   PurchaseFlowState get currentState => _currentState;
   Stream<PurchaseFlowState> get statusStream => _statusController.stream;
+
+  /// 課金開始日。[refreshSalesStartDate] で Firestore の値に更新する。
+  DateTime get salesStartDate => _salesStartDate;
+
+  /// Premiumの新規受付が始まっているか（プレ公開期間中は false）。
+  bool get isSalesOpen => SubscriptionSalesConfig.isSalesOpen(_salesStartDate);
+
+  /// Firestore の `appConfig/subscription` から課金開始日を取得する。
+  /// ドキュメントまたはフィールドが未設定の場合は null を返す。
+  Future<DateTime?> fetchSalesStartDate() async {
+    final doc = await FirebaseFirestore.instance
+        .doc(SubscriptionSalesConfig.firestoreDocPath)
+        .get();
+    final value = doc.data()?[SubscriptionSalesConfig.salesStartDateField];
+    return value is Timestamp ? value.toDate() : null;
+  }
+
+  /// 課金開始日を Firestore の値で更新する。
+  /// 未設定または取得失敗時は現在の値（初期値は既定の課金開始日）を維持する。
+  Future<void> refreshSalesStartDate() async {
+    try {
+      final date = await fetchSalesStartDate();
+      if (date == null) {
+        Log.warning(
+            '[$_logTag] 課金開始日が未設定のため既定値を使用: ${SubscriptionSalesConfig.firestoreDocPath}');
+        return;
+      }
+      _salesStartDate = date;
+      Log.info('[$_logTag] 課金開始日を取得: $date');
+    } catch (e) {
+      Log.warning('[$_logTag] 課金開始日の取得に失敗したため現在の値を使用: $e');
+    }
+  }
+
+  /// プレ公開期間中の新規購入を拒否する。拒否した場合は true を返す。
+  bool _rejectPurchaseBeforeSalesOpen() {
+    if (isSalesOpen) return false;
+    Log.info('[$_logTag] プレ公開期間中のため Premium 購入を中止');
+    _setStatus(
+      PurchaseFlowStatus.idle,
+      message: texts.subscriptionPreReleaseBlocked(
+        _salesStartDate.year,
+        _salesStartDate.month,
+      ),
+    );
+    return true;
+  }
 
   void _setStatus(PurchaseFlowStatus status, {String? message}) {
     _currentState = PurchaseFlowState(status, message: message);
@@ -241,6 +292,7 @@ class PurchaseService {
       Log.warning('[$_logTag] 課金機能は無効化されているため Premium 購入を中止');
       return;
     }
+    if (_rejectPurchaseBeforeSalesOpen()) return;
 
     try {
       final product = _products
@@ -284,6 +336,7 @@ class PurchaseService {
       Log.warning('[$_logTag] 課金機能は無効化されているため Premium 購入を中止');
       return;
     }
+    if (_rejectPurchaseBeforeSalesOpen()) return;
 
     try {
       final product = _products

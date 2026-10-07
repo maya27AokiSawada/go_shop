@@ -423,6 +423,36 @@ class AppTextsPt extends AppTextsEn {
       '• You can manage and cancel your subscriptions by going to your account settings on the App Store after purchase.';
 
   @override
+  String get subscriptionPreReleaseTitle => 'Pré-lançamento';
+
+  @override
+  String get subscriptionPreReleaseBody =>
+      'O app está em pré-lançamento, por isso as assinaturas Premium ainda não estão disponíveis.';
+
+  static const _monthNames = [
+    'janeiro',
+    'fevereiro',
+    'março',
+    'abril',
+    'maio',
+    'junho',
+    'julho',
+    'agosto',
+    'setembro',
+    'outubro',
+    'novembro',
+    'dezembro',
+  ];
+
+  @override
+  String subscriptionSalesStartNotice(int year, int month) =>
+      'Os planos pagos estão previstos para começar em ${_monthNames[month - 1]} de $year.';
+
+  @override
+  String subscriptionPreReleaseBlocked(int year, int month) =>
+      'Não é possível comprar o Premium durante o pré-lançamento. Os planos pagos estão previstos para começar em ${_monthNames[month - 1]} de $year.';
+
+  @override
   String get logout => 'Sair';
 
   @override

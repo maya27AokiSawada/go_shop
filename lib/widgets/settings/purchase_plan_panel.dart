@@ -46,6 +46,7 @@ class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
 
   Future<void> _initializePurchaseService() async {
     await _purchaseService.initialize();
+    await _purchaseService.refreshSalesStartDate();
     if (!mounted) return;
     setState(() {
       _isStoreAvailable = _purchaseService.isAvailable;
@@ -73,6 +74,7 @@ class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
     final isPremium = ref.watch(isPremiumActiveProvider);
     final isPurchasePending =
         _purchaseState.status == PurchaseFlowStatus.pending;
+    final isSalesOpen = _purchaseService.isSalesOpen;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -134,7 +136,10 @@ class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
               ),
             ],
           ),
-          if (!isPremium) ...[
+          if (!isPremium && !isSalesOpen) ...[
+            const SizedBox(height: 12),
+            _buildPreReleaseNotice(),
+          ] else if (!isPremium) ...[
             const SizedBox(height: 12),
             FilledButton.icon(
               onPressed: _isLoading ||
@@ -207,7 +212,7 @@ class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
             icon: const Icon(Icons.restore, size: 18),
             label: const Text('購入を復元'),
           ),
-          if (Platform.isIOS && !isPremium) ...[
+          if (Platform.isIOS && !isPremium && isSalesOpen) ...[
             const Divider(height: 24),
             Text(
               texts.subscriptionNotesTitle,
@@ -240,6 +245,57 @@ class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
               ],
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  /// プレ公開期間中に購入ボタンの代わりに表示する案内。
+  Widget _buildPreReleaseNotice() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.amber.shade400),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.schedule,
+                size: 18,
+                color: Colors.amber.shade900,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  texts.subscriptionPreReleaseTitle,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.amber.shade900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            texts.subscriptionPreReleaseBody,
+            style: TextStyle(fontSize: 13, color: Colors.grey.shade800),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            texts.subscriptionSalesStartNotice(
+              _purchaseService.salesStartDate.year,
+              _purchaseService.salesStartDate.month,
+            ),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
         ],
       ),
     );

@@ -369,6 +369,21 @@ class AppTextsJa extends AppTexts {
       '・購入後、お客様のアカウント設定からサブスクリプションの管理および自動更新をオフにすることができます。';
 
   @override
+  String get subscriptionPreReleaseTitle => 'プレ公開中';
+
+  @override
+  String get subscriptionPreReleaseBody =>
+      'プレ公開期間中のため、Premiumプランのお申し込みはまだ受け付けていません。';
+
+  @override
+  String subscriptionSalesStartNotice(int year, int month) =>
+      '課金は$year年$month月開始予定です。';
+
+  @override
+  String subscriptionPreReleaseBlocked(int year, int month) =>
+      '現在はプレ公開中のため、Premiumプランを購入できません。課金は$year年$month月開始予定です。';
+
+  @override
   String get logout => 'ログアウト';
 
   @override
