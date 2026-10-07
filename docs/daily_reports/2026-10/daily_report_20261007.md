@@ -64,11 +64,11 @@
 
 **仕様**:
 
-| 項目 | 値 |
-|---|---|
+| 項目             | 値                       |
+| ---------------- | ------------------------ |
 | ドキュメントパス | `appConfig/subscription` |
-| フィールド名 | `salesStartDate` |
-| 型 | timestamp |
+| フィールド名     | `salesStartDate`         |
+| 型               | timestamp                |
 
 - `PurchaseService.refreshSalesStartDate()` が読み出しを行い、`PurchasePlanPanel` の初期化時に呼び出す
 - ドキュメント・フィールドが未設定、または取得に失敗した場合は既定値の2027年1月1日（端末のローカル時刻）を使う
@@ -118,6 +118,36 @@
 
 ---
 
+### 6. macOSでのリモート同期とiOS依存確認 ✅ / ⚠️
+
+**Purpose**: Mac上のローカル依存変更を保持したまま、リモート同期とiOS CocoaPods依存の状態を確認する。
+
+**Problem / Root Cause**:
+
+- `git pull` が `pubspec.lock` のローカル変更を理由に中断したが、通常の `git status` では変更が表示されなかった
+- `pubspec.lock` に `skip-worktree` フラグが設定され、ローカル差分が状態表示から隠れていた
+
+**Solution**:
+
+- `skip-worktree` フラグを解除し、ローカルのロックファイル差分を退避してから `sumomo-planning` をリモートの8コミット先まで早送り
+- ローカル差分を同期後のロックファイルへ戻し、競合箇所を解消
+- `flutter pub get --enforce-lockfile` と `git diff --check` が成功。ローカルのロックファイル変更は未コミットで保持
+
+**iOS依存確認**:
+
+- `cd ios && pod install` は失敗
+- `Podfile.lock` の `Firebase/CoreOnly 12.18.0` に対し、解決された `firebase_core 4.15.0` と `firebase_app_check 0.4.8` は `12.19.0` を要求
+- CocoaPodsは最低iOS deployment target条件も報告。`ios/Podfile` は15.0を指定しており、原因の特定と解消は未完了
+
+**Modified Files**:
+
+- `pubspec.lock`（ローカル差分を保持。今回のコミット対象外）
+- `docs/daily_reports/2026-10/daily_report_20261007.md`
+
+**Status**: ✅ リモート同期・Pubロック検証完了。⚠️ CocoaPods依存解決は未完了。
+
+---
+
 ## 🐛 発見された問題
 
 ### 開発プロジェクトにverifyPurchaseが未デプロイ ⚠️
@@ -137,6 +167,13 @@
 
 - **症状**: グループ数・メンバー数の上限エラーに「Premium にアップグレードしてください」という文言があり、ヘルプページにもPremiumプランの説明がある。プレ公開中は購入できない
 - **状態**: 未対応
+
+### macOSでCocoaPodsのFirebase依存を解決できない ⚠️
+
+- **症状**: `pod install` が `Firebase/CoreOnly` の互換バージョンを解決できず失敗
+- **原因**: `Podfile.lock` は12.18.0を固定している一方、現在のFlutterFireプラグインは12.19.0を要求。CocoaPodsは最低deployment target条件も報告している
+- **確認事項**: `ios/Podfile` のdeployment targetは15.0。Pod仕様側の条件を含めた原因の切り分けが必要
+- **状態**: 未解決
 
 ---
 
@@ -162,13 +199,15 @@ Playストアからインストールしたアプリは、ローカルのデバ�
 2. `1.2.0+43` のAABをPlay Consoleのクローズドテストへリリースする
 3. 本番Functionsの `playRtdnHandler` の有無を確認する
 4. 上限エラー文言とヘルプページのPremium案内をプレ公開に合わせるか判断する
+5. MacでFirebase CocoaPods依存のバージョン・deployment target条件を調査し、`pod install` を復旧する
 
 ---
 
 ## 📝 ドキュメント更新
 
-| ドキュメント | 更新内容 |
-|---|---|
-| `AGENTS.md` | リリース目標バージョンと `sumomo-planning` プッシュ時のルールを追加、目標を `1.2.0+44` に更新 |
-| `instructions/50_user_and_settings.md` | プレ公開期間の新規受付ブロックと課金開始日のFirestore管理を追記 |
-| `docs/daily_reports/2026-10/daily_report_20261007.md` | 本日の作業・検証結果・未解決課題を記録 |
+| ドキュメント                                          | 更新内容                                                                                      |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `AGENTS.md`                                           | リリース目標バージョンと `sumomo-planning` プッシュ時のルールを追加、目標を `1.2.0+44` に更新 |
+| `instructions/50_user_and_settings.md`                | プレ公開期間の新規受付ブロックと課金開始日のFirestore管理を追記                               |
+| `docs/daily_reports/2026-10/daily_report_20261007.md` | 本日の作業・検証結果・未解決課題、Macでのリモート同期とiOS依存確認を記録                      |
+| （指示書更新なし）                                    | 理由: 今回は環境同期と依存解決の調査で、プロジェクト仕様の変更なし                            |
