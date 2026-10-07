@@ -8,7 +8,8 @@
 - [x] SH-54Dとエミュレーターへデプロイして確認する
 - [x] リリース用AAB（1.2.0+43）をビルドする
 - [x] Firestore Rulesを本番・開発の両プロジェクトへデプロイする
-- [ ] Firestoreに課金開始日ドキュメントを作成する
+- [x] 本番Firestoreに課金開始日ドキュメントを作成し、読み出しを確認する
+- [ ] 開発Firestoreに課金開始日ドキュメントを作成する
 
 ---
 
@@ -85,9 +86,10 @@
 
 - `flutter test test/services/purchase_service_test.dart test/config/subscription_sales_config_test.dart`: 16件すべて成功
 - `flutter analyze`（変更ファイル）: 新規の警告なし
-- 実際のFirestoreドキュメントからの読み出しは未確認（ドキュメント未作成のため）
+- 本番 `goshopping-48db9` に `appConfig/subscription` を作成（ユーザーがFirebase Consoleで実施）
+- SH-54D（prodデバッグ版）で設定ページを開き、logcatで `[PurchaseService] 課金開始日を取得: 2027-01-01 00:00:00.000` を確認。既定値ではなくFirestoreの値を読めている
 
-**Status**: ✅ 実装完了。ドキュメント作成は未実施。
+**Status**: ✅ 完了（本番）。開発 `gotoshop-572b7` のドキュメントは未作成で、devフレーバーは既定値で動く。
 
 ---
 
@@ -156,7 +158,7 @@ Playストアからインストールしたアプリは、ローカルのデバ�
 
 ## 🗓 次回の予定
 
-1. Firebase Consoleで本番・開発それぞれに `appConfig/subscription`（`salesStartDate`）を作成し、アプリでの読み出しを確認する
+1. 必要であれば開発側にも `appConfig/subscription`（`salesStartDate`）を作成する
 2. `1.2.0+43` のAABをPlay Consoleのクローズドテストへリリースする
 3. 本番Functionsの `playRtdnHandler` の有無を確認する
 4. 上限エラー文言とヘルプページのPremium案内をプレ公開に合わせるか判断する
