@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../config/app_ui_mode_config.dart';
+import '../../config/subscription_limits.dart';
 import '../../providers/app_ui_mode_provider.dart';
 import '../../providers/user_settings_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -71,8 +72,9 @@ class AppUIModeSwicherPanel extends ConsumerWidget {
     } else {
       // Multi → Single：Free 制限を満たすことを確認してから切り替える
       final groups = ref.read(allGroupsProvider).valueOrNull ?? [];
+      final freeLimits = SubscriptionLimits.free;
 
-      if (groups.length > 3) {
+      if (groups.length > freeLimits.maxGroups) {
         // グループが4個以上：切り替えをブロック
         if (!context.mounted) return;
         final t = texts;
@@ -84,10 +86,12 @@ class AppUIModeSwicherPanel extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Free プランは最大 3 グループまでです。\n現在: ${groups.length} グループ'),
+                Text(
+                  'Free プランは最大 ${freeLimits.maxGroups} グループまでです。\n現在: ${groups.length} グループ',
+                ),
                 const SizedBox(height: 12),
                 Text(
-                  '${groups.length - 3} グループを削除してから切り替えてください。',
+                  '${groups.length - freeLimits.maxGroups} グループを削除してから切り替えてください。',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ],
@@ -103,8 +107,10 @@ class AppUIModeSwicherPanel extends ConsumerWidget {
         return;
       }
 
-      final groupsOverMemberLimit =
-          groups.where((group) => (group.members?.length ?? 0) > 10).toList();
+      final groupsOverMemberLimit = groups
+          .where((group) =>
+              (group.members?.length ?? 0) > freeLimits.maxMembersPerGroup)
+          .toList();
       if (groupsOverMemberLimit.isNotEmpty) {
         if (!context.mounted) return;
         final t = texts;
@@ -120,14 +126,18 @@ class AppUIModeSwicherPanel extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Free プランは1グループにつき最大10人までです。'),
+                Text(
+                  'Free プランは1グループにつき最大 ${freeLimits.maxMembersPerGroup} 人までです。',
+                ),
                 const SizedBox(height: 12),
                 Text(
                   groupDetails,
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
-                const Text('メンバーを10人以下にしてから切り替えてください。'),
+                Text(
+                  'メンバーを${freeLimits.maxMembersPerGroup}人以下にしてから切り替えてください。',
+                ),
               ],
             ),
             actions: [

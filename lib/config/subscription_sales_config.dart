@@ -3,6 +3,10 @@
 /// 課金開始日より前はプレ公開期間として新規購入を受け付けない。
 /// 課金開始日は Firestore の [firestoreDocPath] ドキュメントで管理する。
 class SubscriptionSalesConfig {
+  /// Canonical public page for Premium plan features, pricing, and availability.
+  static const String premiumPlanDetailsUrl =
+      'https://maya27aokisawada.github.io/go_shop/specifications/premium_plan';
+
   /// 課金開始日を保存する Firestore ドキュメントのパス。
   static const String firestoreDocPath = 'appConfig/subscription';
 

@@ -200,22 +200,24 @@ deduplicatedGroups.sort((a, b) =>
 
 ### 課金タイプ（`lib/models/purchase_type.dart`）
 
-| enum 値                  | Firestore 値  | 広告制御                           | 価格               |
-| ------------------------ | ------------- | ---------------------------------- | ------------------ |
-| `PurchaseType.free`      | `'free'`      | バナー・インタースティシャルあり   | 無料               |
+| enum 値                  | Firestore 値  | 広告制御                           | 価格                                                  |
+| ------------------------ | ------------- | ---------------------------------- | ----------------------------------------------------- |
+| `PurchaseType.free`      | `'free'`      | バナー・インタースティシャルあり   | 無料                                                  |
 | `PurchaseType.subscribe` | `'subscribe'` | **全広告非表示**                   | Premium月額（日本: ¥200/月、その他: おおむねUS$2/月） |
-| `PurchaseType.purchase`  | `'purchase'`  | **インタースティシャルのみ非表示** | 旧買い切りプラン（新規販売なし） |
+| `PurchaseType.purchase`  | `'purchase'`  | **インタースティシャルのみ非表示** | 旧買い切りプラン（新規販売なし）                      |
 
 ### 有効なPremium商品ID
 
-| 商品ID (Android / iOS)                          | 種別     | 価格       |
-| ---------------------------------------------- | -------- | ---------- |
-| `goshopping_premium_monthly` / `goshopping2_premium_monthly` | 自動更新サブスクリプション（月額） | ストアのローカル価格を表示。未取得時は日本語で¥200/月、その他でUS$2/月 |
+| 商品ID (Android / iOS)                                       | 種別                               | 価格                                                                           |
+| ------------------------------------------------------------ | ---------------------------------- | ------------------------------------------------------------------------------ |
+| `goshopping_premium_monthly` / `goshopping2_premium_monthly` | 自動更新サブスクリプション（月額） | ストアのローカル価格を表示。未取得時は日本語で¥200/月、その他でUS$2/月         |
 | `goshopping-premium-annual` / `goshopping2_premium_annual`   | 自動更新サブスクリプション（年額） | ストアのローカル価格を表示。未取得時は日本語で¥1,500/年、その他でUS$14.99/year |
 
 - iOS の SKU は `goshopping2_` 接頭辞、Android は従来どおり。`_ProductIds` が `Platform.isIOS` で分岐し、サーバー検証（`functions/`）も両方の ID を許可リストに含める。
 - `PurchaseService` は現在、上記の月額・年額 SKU を商品情報取得の対象にする。
 - `goshopping_subscribe`、`goshopping_onetime_1000` はレガシー定義であり、新規購入UIには表示しない。
+- Free / Premium の特典、上限、価格、新規受付予定の公開上の正本は `docs/specifications/premium_plan.md` とする。アプリ内では `SubscriptionSalesConfig.premiumPlanDetailsUrl` を使って同ページへ誘導し、説明文や上限値を各画面へ重複定義しない。
+- 実際に強制するグループ数・メンバー数の上限は `lib/config/subscription_limits.dart` を正とする。公開ページの上限説明を変更するときは、この実装値との一致を確認する。
 
 ### Firestore スキーマ（`/users/{uid}`）
 

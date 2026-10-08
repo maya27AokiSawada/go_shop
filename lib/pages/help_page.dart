@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../config/subscription_sales_config.dart';
 
 /// ヘルプページ - ユーザーガイドと検索機能
 class HelpPage extends ConsumerStatefulWidget {
@@ -154,21 +155,9 @@ Go Shop は家族やグループで買い物リストを共有できるアプリ
 
 ## プランごとの利用上限
 
-### Freeプラン
-- 作成・参加できるグループは最大3個です
-- 1グループのメンバーは最大10人です
-- グループ一覧の下にバナー広告が表示されます
+Free/Premiumの特典、利用上限、価格、新規受付予定は[プラン内容・価格](${SubscriptionSalesConfig.premiumPlanDetailsUrl})をご確認ください。
 
-### Premiumプラン
-- 作成・参加できるグループは最大20個です
-- 1グループのメンバーは最大50人です
-- グループ一覧のバナー広告は表示されません
-
-### Businessプラン（導入予定）
-- グループ数と1グループあたりのメンバー数の上限をPremiumより緩和する予定です
-- 提供時期や利用条件は決まり次第お知らせします
-
-PremiumからFreeに切り替えるには、グループ数を3個以下にし、すべてのグループのメンバー数を10人以下にしてください。
+PremiumからFreeに切り替える場合は、Freeプランの利用上限内に収まるようグループやメンバーを整理してください。現在の上限は上記のプラン詳細で確認できます。
 
 ## カレントグループを選択する
 1. 「グループ」タブでグループ一覧を表示
@@ -435,8 +424,7 @@ PremiumからFreeに切り替えるには、グループ数を3個以下にし�
 ## メンバーが追加できない
 - オーナーまたは管理者権限が必要です
 - 役割を確認してください
-- Freeプランでは、1グループに10人まで追加できます
-- Premiumプランでは、1グループに50人まで追加できます
+- 現在のプランのメンバー上限に達していないか確認してください。プランごとの上限は[プラン内容・価格](${SubscriptionSalesConfig.premiumPlanDetailsUrl})に記載しています。
 
 ## 買い物アイテムが消えた
 1. グループが正しく選択されているか確認
@@ -456,10 +444,10 @@ PremiumからFreeに切り替えるには、グループ数を3個以下にし�
 A: はい。オフライン時もアプリは正常に動作し、オンライン復帰時に自動同期されます。
 
 **Q: 何人までメンバーを追加できますか？**
-A: Freeプランでは1グループにつき10人、Premiumプランでは50人までです。
+A: プランによって異なります。[プラン内容・価格](${SubscriptionSalesConfig.premiumPlanDetailsUrl})をご確認ください。
 
 **Q: Freeプランに切り替えられません。**
-A: グループ数を3個以下にし、すべてのグループのメンバー数を10人以下にしてください。
+A: 所属グループ数と各グループのメンバー数をFreeプランの上限内にしてください。上限は[プラン内容・価格](${SubscriptionSalesConfig.premiumPlanDetailsUrl})で確認できます。
 
 **Q: データは安全ですか？**
 A: はい。すべてのデータは暗号化されてクラウドに保存されます。

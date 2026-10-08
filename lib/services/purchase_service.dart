@@ -248,15 +248,12 @@ class PurchaseService {
 
   /// IAP_MOCK 用のダミー商品（現在プラットフォームの Premium SKU）。
   static List<ProductDetails> _mockProducts() {
-    final isJa =
-        PlatformDispatcher.instance.locale.languageCode == 'ja';
+    final isJa = PlatformDispatcher.instance.locale.languageCode == 'ja';
     return [
       ProductDetails(
         id: _ProductIds.premiumMonthly,
         title: isJa ? 'Premium（月額）' : 'Premium (Monthly)',
-        description: isJa
-            ? '広告なし・最大20グループ・1グループ50人'
-            : 'No ads, up to 20 groups, 50 members per group',
+        description: isJa ? 'Premiumサブスクリプション' : 'Premium subscription',
         price: isJa ? '¥200/月' : r'US$1.99/month',
         rawPrice: isJa ? 200 : 1.99,
         currencyCode: isJa ? 'JPY' : 'USD',
@@ -265,9 +262,7 @@ class PurchaseService {
       ProductDetails(
         id: _ProductIds.premiumYearly,
         title: isJa ? 'Premium（年額）' : 'Premium (Annual)',
-        description: isJa
-            ? '広告なし・最大20グループ・1グループ50人（年額）'
-            : 'No ads, up to 20 groups, 50 members per group (annual)',
+        description: isJa ? 'Premiumサブスクリプション' : 'Premium subscription',
         price: isJa ? '¥1,500/年' : r'US$14.99/year',
         rawPrice: isJa ? 1500 : 14.99,
         currencyCode: isJa ? 'JPY' : 'USD',
@@ -339,9 +334,8 @@ class PurchaseService {
     if (_rejectPurchaseBeforeSalesOpen()) return;
 
     try {
-      final product = _products
-          .where((p) => p.id == _ProductIds.premiumYearly)
-          .firstOrNull;
+      final product =
+          _products.where((p) => p.id == _ProductIds.premiumYearly).firstOrNull;
       if (product == null) {
         Log.error(
             '[$_logTag] Premium Yearly 商品が見つかりません（SKU: ${_ProductIds.premiumYearly}）');

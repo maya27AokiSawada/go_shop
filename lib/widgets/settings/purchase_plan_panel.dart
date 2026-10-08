@@ -8,6 +8,7 @@ import '../../providers/purchase_type_provider.dart';
 import '../../providers/subscription_provider.dart';
 import '../../services/purchase_service.dart';
 import '../../l10n/l10n.dart';
+import '../../config/subscription_sales_config.dart';
 
 /// Premium月額プランの購入・復元を行う設定パネル。
 class PurchasePlanPanel extends ConsumerStatefulWidget {
@@ -112,29 +113,12 @@ class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
             ],
           ),
           const SizedBox(height: 12),
-          Text(
-            isPremium
-                ? '広告なしで、最大20グループ、1グループ50人まで利用できます。'
-                : '広告なし、最大20グループ、1グループ50人まで利用できます。',
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade800),
-          ),
           const SizedBox(height: 8),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                Icons.business_outlined,
-                size: 16,
-                color: Colors.grey.shade700,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  'グループ数・メンバー数の上限を緩和したBusinessプランを今後導入予定です。',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
-                ),
-              ),
-            ],
+          _buildLegalLink(
+            AppLocalizations.currentLanguageCode == 'en'
+                ? 'Plan details and pricing'
+                : 'プラン内容・価格',
+            SubscriptionSalesConfig.premiumPlanDetailsUrl,
           ),
           if (!isPremium && !isSalesOpen) ...[
             const SizedBox(height: 12),

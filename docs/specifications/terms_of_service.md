@@ -1,6 +1,6 @@
 # 利用規約
 
-**最終更新日: 2026年7月1日**
+**最終更新日: 2026年10月8日**
 
 GoShopping（以下「本アプリ」）をご利用いただきありがとうございます。本利用規約（以下「本規約」）は、木之本すもも企画（以下「運営者」）が提供する本アプリの利用条件を定めるものです。
 
@@ -39,8 +39,8 @@ GoShopping（以下「本アプリ」）をご利用いただきありがとう�
 
 ## 第5条（利用料金）
 
-1. 本アプリは無料でご利用いただけます。
-2. 将来的に有料プランを導入する場合は、事前に通知します。広告付き無料プランも残します。
+1. 本アプリには、広告付きのFreeプランと、広告を非表示にして利用上限を緩和するPremiumプランがあります。Freeプランは無料で利用できます。
+2. Premiumプランは月額・年額の自動更新サブスクリプションとして提供予定です。特典、利用上限、価格および新規受付予定は[プラン内容・価格](https://maya27aokisawada.github.io/go_shop/specifications/premium_plan)をご確認ください。購入時には App Store または Google Play に表示される価格が適用されます。
 3. 通信料はユーザーの負担となります。
 
 ## 第6条（広告表示）
@@ -120,9 +120,9 @@ GoShopping（以下「本アプリ」）をご利用いただきありがとう�
 本規約に関するご質問は、以下の連絡先までお願いします。
 
 **運営者**: 木之本すもも企画
-**メールアドレス**: info@sumomo-planning.net
+**メールアドレス**: <info@sumomo-planning.net>
 **開発責任者**: maya27AokiSawada
-**開発者メール**: support@sumomo-planning.net
+**開発者メール**: <support@sumomo-planning.net>
 **GitHub**: <https://github.com/maya27AokiSawada/go_shop>
 
 ---
@@ -133,7 +133,7 @@ GoShopping（以下「本アプリ」）をご利用いただきありがとう�
 
 # Terms of Service
 
-**Last Updated: July 1, 2026**
+**Last Updated: October 8, 2026**
 
 Thank you for using GoShopping (hereinafter "the App"). These Terms of Service (hereinafter "the Terms") set forth the conditions for using the App provided by Kinomoto Sumomo Planning (hereinafter "the Operator").
 
@@ -172,8 +172,8 @@ The App provides the following features:
 
 ## Article 5 (Usage Fees)
 
-1. The App is available free of charge.
-2. If paid plans are introduced in the future, advance notice will be provided. A free plan with ads will also continue.
+1. The App offers an ad-supported Free plan and a Premium plan that removes ads and raises usage limits. The Free plan is available at no charge.
+2. The Premium plan is planned as an automatically renewing monthly or annual subscription. See [Plan details and pricing](https://maya27aokisawada.github.io/go_shop/specifications/premium_plan#english-version) for its benefits, limits, prices, and scheduled availability. The price shown by the App Store or Google Play at purchase applies.
 3. Communication fees are the user's responsibility.
 
 ## Article 6 (Advertising)
@@ -253,7 +253,7 @@ The Developer may suspend or delete accounts without prior notice if users:
 For questions about these Terms, please contact:
 
 **Operator**: Kinomoto Sumomo Planning
-**Email**: info@sumomo-planning.net
+**Email**: <info@sumomo-planning.net>
 **Lead Developer**: maya27AokiSawada
-**Developer Email**: support@sumomo-planning.net
+**Developer Email**: <support@sumomo-planning.net>
 **GitHub**: <https://github.com/maya27AokiSawada/go_shop>
