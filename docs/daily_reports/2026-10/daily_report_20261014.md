@@ -5,6 +5,7 @@
 - [x] 早期ダウンロード特典（`goshopping_onetime_1000`）用の Play ストア商品アイコンを作成する
 - [x] 特典コードの引き換えを検証し、1年間の権限を付与・失効させる実装を入れる
 - [x] Android のビルド時に出る KGP のメッセージを確認する
+- [x] Functions を dev / prod にデプロイし、Play の RTDN（テスト通知）を prod で疎通させる
 - [ ] ビルド44を Play ストアコンソールにリリースする
 - [ ] Mac で iOS 版を確認し、App Store にリリースする
 
@@ -82,9 +83,36 @@
 
 ---
 
+### 4. Functions の dev / prod デプロイと RTDN の疎通 ✅
+
+**Purpose**: 早期ダウンロード特典の変更（`verifyPurchase`、`expireEarlyDownloadBenefits`）と、Play の RTDN 受信関数 `playRtdnHandler` を dev・prod にデプロイする。
+
+**Problem / Root Cause**:
+
+- `playRtdnHandler` はリトライポリシー付きの新規関数のため、`--force` なしではデプロイが止まった。ソースに無い関数の削除は発生しないことを、先に dev / prod の関数一覧とソースを突き合わせて確認した。
+- dev（`gotoshop-572b7`）は Cloud Functions の初回デプロイで、Cloud Build のサービスアカウントの権限不足により7関数すべてのビルドが失敗した。権限を直したあとの再実行で、失敗時に残った `playRtdnHandler`（https 型）が「HTTPS 関数からバックグラウンド関数への変更は不可」で拒否された。
+- prod（`goshopping-48db9`）は `playRtdnHandler` だけが `Unexpected error creating Pub/Sub topic` で失敗した。`--debug` で、デプロイ用アカウントに `pubsub.topics.create` の権限が無い（403）ことが原因と分かった。
+- トピック `play-rtdn` に `google-play-developer-notifications@system.gserviceaccount.com` を追加しようとしたところ、組織ポリシー `constraints/iam.allowedPolicyMemberDomains`（ドメインで制限された共有）に拒否された。
+
+**Solution**:
+
+- dev: 作りかけの `playRtdnHandler` を削除してから再デプロイし、7関数が作成・更新された。
+- prod: トピック `play-rtdn` を作成して再デプロイし、7関数がそろった。`playRtdnHandler` は Pub/Sub トリガー型で作成された。
+- 組織ポリシーを、このプロジェクトだけ一時的に緩めて、Play のサービスアカウントを「Pub/Sub パブリッシャー」として追加した。
+- Play Console の「収益化の設定」でトピックを `projects/goshopping-48db9/topics/play-rtdn` に設定し、テスト通知を送信した。prod の関数ログで `テスト通知を受信`、`handled: test` を確認した。
+- 環境変数をプロジェクト別名ごとに分けた。`functions/.env.dev` と `functions/.env.prod` を追加し、dev の `GOOGLE_PLAY_PACKAGE_NAME` を `net.sumomo_planning.goshopping.dev`、prod を `net.sumomo_planning.goshopping` にした。dev の `ADMIN_RESTORE_SECRET` は prod と別の値にした。`.env.*` は `.gitignore` 対象でコミットしていない。
+- `functions/index.js` が `dotenv` で `.env.production` を直接読んでいるため、dev の別名ファイルの値が優先される（dotenv は設定済みの値を上書きしない）。
+
+**Status**: ✅ デプロイ完了。実際の購入・更新・解約の通知は未確認（テスト通知のみ）。dev は新しい `.env.dev` を未反映（次回の dev デプロイで反映される）。
+
+---
+
 ## 🔄 継続・確認事項
 
-- **Functions のデプロイ**: `verifyPurchase` の変更と `expireEarlyDownloadBenefits` は未デプロイ。デプロイするまで、特典コードを引き換えてもアプリには反映されない。
+- **Functions のデプロイ**: dev・prod ともデプロイ済み。特典コードの引き換えは、prod の Play テストトラックで確認する。
+- **GCP の権限を元に戻す（要対応）**: 組織ポリシー `iam.allowedPolicyMemberDomains` を、プロジェクト `goshopping-48db9` で一時的に緩めたままになっている。「親のポリシーを継承する」に戻す。追加済みの IAM は戻しても残る。
+- **dev の再デプロイ**: `.env.dev` の変更（パッケージ名・`ADMIN_RESTORE_SECRET`）を反映するには、dev を再デプロイする。
+- **RTDN の本番通知**: テスト通知のみ確認済み。初回の購入・更新・解約の通知が来たら `firebase functions:log --only playRtdnHandler --project prod` で確認する。
 - **実機での引き換え確認**: prod package を Play ストアのテストトラックから入れ、プロモーションコードを引き換えて反映を確認する。
 - **アプリを閉じた状態で引き換えた場合**: 設定画面の「購入を復元」を押すまで反映されない。起動時の自動確認は入れていない。
 - **広告の範囲**: 商品名は「全画面広告オフ」だが、実装ではバナー広告も非表示になる。全画面広告だけにする場合は変更が必要。
