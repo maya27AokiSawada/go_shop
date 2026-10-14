@@ -11,14 +11,18 @@ const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
 const {
+  EARLY_DOWNLOAD_BENEFIT_PRODUCT_ID,
   PREMIUM_PRODUCT_ID,
   PREMIUM_MONTHLY_IOS_ID,
   PREMIUM_ANNUAL_PRODUCT_ID,
   PREMIUM_ANNUAL_IOS_ID,
   ReceiptValidationError,
+  acknowledgeGoogleProductPurchase,
   acknowledgeGooglePurchase,
+  expireEarlyDownloadBenefits,
   persistVerifiedEntitlement,
   verifyApplePurchase,
+  verifyGoogleOneTimePurchase,
   verifyGooglePurchase,
 } = require("./receipt_verification");
 const { handlePlayRtdn } = require("./play_rtdn");
@@ -59,13 +63,24 @@ exports.verifyPurchase = onCall(
     const platform = request.data?.platform;
     const productId = request.data?.productId;
     const verificationData = request.data?.verificationData;
-    if (!SUPPORTED_PREMIUM_PRODUCT_IDS.has(productId)) {
+    // 早期ダウンロード特典は Google Play の1回限りのアイテムとしてのみ存在する。
+    const isEarlyDownloadBenefit =
+      productId === EARLY_DOWNLOAD_BENEFIT_PRODUCT_ID &&
+      platform === "google_play";
+    if (!isEarlyDownloadBenefit &&
+      !SUPPORTED_PREMIUM_PRODUCT_IDS.has(productId)) {
       throw new HttpsError("invalid-argument", "未対応の商品IDです");
     }
 
     try {
       let verification;
-      if (platform === "google_play") {
+      if (isEarlyDownloadBenefit) {
+        verification = await verifyGoogleOneTimePurchase({
+          packageName: GOOGLE_PLAY_PACKAGE_NAME,
+          productId,
+          purchaseToken: verificationData,
+        });
+      } else if (platform === "google_play") {
         verification = await verifyGooglePurchase({
           packageName: GOOGLE_PLAY_PACKAGE_NAME,
           productId,
@@ -99,7 +114,10 @@ exports.verifyPurchase = onCall(
 
       if (platform === "google_play" &&
         verification.needsAcknowledgement) {
-        await acknowledgeGooglePurchase({
+        const acknowledge = isEarlyDownloadBenefit
+          ? acknowledgeGoogleProductPurchase
+          : acknowledgeGooglePurchase;
+        await acknowledge({
           packageName: GOOGLE_PLAY_PACKAGE_NAME,
           productId,
           purchaseToken: verificationData,
@@ -113,7 +131,7 @@ exports.verifyPurchase = onCall(
       );
       return {
         verified: true,
-        purchaseType: "subscribe",
+        purchaseType: verification.purchaseType || "subscribe",
         expiresAt: verification.expiresAt.toISOString(),
         storeAcknowledged: verification.storeAcknowledged,
       };
@@ -170,6 +188,24 @@ exports.playRtdnHandler = onMessagePublished(
       });
       throw error;
     }
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 0.6 早期ダウンロード特典の失効
+//     毎日 JST 03:00 に、引き換えから1年を過ぎた特典を free に戻す
+// ─────────────────────────────────────────────────────────────────────────────
+exports.expireEarlyDownloadBenefits = onSchedule(
+  {
+    schedule: "0 3 * * *",
+    timeZone: "Asia/Tokyo",
+    region: REGION,
+    timeoutSeconds: 120,
+    memory: "256MiB",
+  },
+  async () => {
+    const result = await expireEarlyDownloadBenefits({ db: getFirestore() });
+    console.log("[early-download-benefit] expired", result);
   },
 );
 

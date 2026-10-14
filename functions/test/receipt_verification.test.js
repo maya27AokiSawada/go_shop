@@ -3,12 +3,17 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const {
+    EARLY_DOWNLOAD_BENEFIT_PRODUCT_ID,
     ReceiptValidationError,
+    acknowledgeGoogleProductPurchase,
     acknowledgeGooglePurchase,
     evaluateAppleTransaction,
+    evaluateGoogleOneTimeProduct,
     evaluateGoogleSubscription,
+    expireEarlyDownloadBenefits,
     fingerprint,
     persistVerifiedEntitlement,
+    verifyGoogleOneTimePurchase,
     verifyGooglePurchase,
 } = require("../receipt_verification");
 
@@ -249,6 +254,174 @@ test("verified entitlement stores only receipt fingerprint", async () => {
     const serializedWrites = JSON.stringify(db.writes);
     assert.equal(serializedWrites.includes(rawToken), false);
     assert.equal(serializedWrites.includes(receiptKey), true);
+});
+
+test("early download benefit is valid for one year from redemption", () => {
+    const result = evaluateGoogleOneTimeProduct(
+        {
+            purchaseState: 0,
+            acknowledgementState: 0,
+            purchaseTimeMillis: String(Date.parse("2026-08-01T00:00:00.000Z")),
+        },
+        NOW,
+    );
+
+    assert.equal(result.purchaseType, "purchase");
+    assert.equal(result.needsAcknowledgement, true);
+    assert.equal(result.expiresAt.toISOString(), "2027-08-01T00:00:00.000Z");
+});
+
+test("early download benefit is rejected when pending or past one year", () => {
+    assert.throws(
+        () => evaluateGoogleOneTimeProduct(
+            { purchaseState: 2, purchaseTimeMillis: String(NOW.getTime()) },
+            NOW,
+        ),
+        ReceiptValidationError,
+    );
+    assert.throws(
+        () => evaluateGoogleOneTimeProduct(
+            {
+                purchaseState: 0,
+                purchaseTimeMillis: String(Date.parse("2025-08-29T00:00:00.000Z")),
+            },
+            NOW,
+        ),
+        ReceiptValidationError,
+    );
+});
+
+test("early download benefit uses the one-time products API", async () => {
+    const requests = [];
+    const authClient = {
+        async request(request) {
+            requests.push(request);
+            if (request.method === "GET") {
+                return {
+                    data: {
+                        purchaseState: 0,
+                        acknowledgementState: 1,
+                        purchaseTimeMillis: String(NOW.getTime()),
+                    },
+                };
+            }
+            return { data: {} };
+        },
+    };
+
+    const result = await verifyGoogleOneTimePurchase({
+        packageName: "example.package",
+        productId: EARLY_DOWNLOAD_BENEFIT_PRODUCT_ID,
+        purchaseToken: "promo-token",
+        now: NOW,
+        authClient,
+    });
+    await acknowledgeGoogleProductPurchase({
+        packageName: "example.package",
+        productId: EARLY_DOWNLOAD_BENEFIT_PRODUCT_ID,
+        purchaseToken: "promo-token",
+        authClient,
+    });
+
+    assert.match(
+        requests[0].url,
+        /purchases\/products\/goshopping_onetime_1000\/tokens\/promo-token$/,
+    );
+    assert.equal(result.storeAcknowledged, true);
+    assert.equal(result.receiptKey, fingerprint("google_play:promo-token"));
+    assert.equal(requests[1].method, "POST");
+    assert.match(
+        requests[1].url,
+        /purchases\/products\/goshopping_onetime_1000\/tokens\/promo-token:acknowledge$/,
+    );
+});
+
+test("early download benefit is stored as purchase entitlement", async () => {
+    const db = createFakeFirestore();
+
+    await persistVerifiedEntitlement({
+        db,
+        uid: "current-user",
+        platform: "google_play",
+        productId: EARLY_DOWNLOAD_BENEFIT_PRODUCT_ID,
+        verification: {
+            receiptKey: fingerprint("google_play:promo-token"),
+            purchaseType: "purchase",
+            expiresAt: new Date("2027-08-29T00:00:00.000Z"),
+            storeStatus: "PURCHASED",
+        },
+    });
+
+    const userWrite = db.writes.find(
+        (write) => write.path === "users/current-user",
+    );
+    assert.equal(userWrite.data.purchaseType, "purchase");
+});
+
+test("only expired early download benefits are reset to free", async () => {
+    const timestamp = (iso) => ({ toMillis: () => Date.parse(iso) });
+    const writes = [];
+    const userDoc = (id, data) => ({
+        data: () => data,
+        ref: {
+            async set(value, options) {
+                writes.push({ path: `users/${id}`, data: value, options });
+            },
+        },
+    });
+    const db = {
+        collection(collectionName) {
+            return {
+                where() {
+                    return {
+                        async get() {
+                            return {
+                                docs: [
+                                    userDoc("expired", {
+                                        purchaseType: "purchase",
+                                        purchaseVerification: {
+                                            productId: EARLY_DOWNLOAD_BENEFIT_PRODUCT_ID,
+                                            expiresAt: timestamp("2026-08-28T00:00:00.000Z"),
+                                            receiptFingerprint: "receipt-1",
+                                        },
+                                    }),
+                                    userDoc("active", {
+                                        purchaseType: "purchase",
+                                        purchaseVerification: {
+                                            productId: EARLY_DOWNLOAD_BENEFIT_PRODUCT_ID,
+                                            expiresAt: timestamp("2026-12-01T00:00:00.000Z"),
+                                        },
+                                    }),
+                                    userDoc("legacy", { purchaseType: "purchase" }),
+                                ],
+                            };
+                        },
+                    };
+                },
+                doc(documentId) {
+                    return {
+                        async set(value, options) {
+                            writes.push({
+                                path: `${collectionName}/${documentId}`,
+                                data: value,
+                                options,
+                            });
+                        },
+                    };
+                },
+            };
+        },
+    };
+
+    const result = await expireEarlyDownloadBenefits({ db, now: NOW });
+
+    assert.deepEqual(result, { expired: 1 });
+    assert.deepEqual(
+        writes.map((write) => write.path),
+        ["users/expired", "purchaseReceipts/receipt-1"],
+    );
+    assert.equal(writes[0].data.purchaseType, "free");
+    assert.equal(writes[0].data.purchaseVerification.status, "expired");
 });
 
 function createFakeFirestore(initialDocuments = {}) {

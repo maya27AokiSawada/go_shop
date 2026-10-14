@@ -74,7 +74,7 @@ class SubscriptionState {
       case SubscriptionPlan.monthly:
         return 'Premiumプラン（月額）';
       case SubscriptionPlan.legacyPurchase:
-        return '買い切り（旧プラン）';
+        return '早期ダウンロード特典';
     }
   }
 
@@ -241,7 +241,8 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
   /// Firestore `purchaseType` が `subscribe` または `purchase` の場合に、
   /// Hive の SubscriptionState をプレミアム相当に更新する。
   /// 月額サブスクは35日間のオフライン猶予を持たせ、Firestoreから有料状態を
-  /// 受信するたびに更新する。旧買い切りは実質無期限として扱う。
+  /// 受信するたびに更新する。早期ダウンロード特典（`purchase`）の1年間の期限は
+  /// Functions が Firestore を `free` に戻して反映するため、ローカルでは期限を切らない。
   Future<void> syncFromGooglePlay(PurchaseType purchaseType) async {
     final now = DateTime.now();
     final expiryDuration = purchaseType == PurchaseType.subscribe

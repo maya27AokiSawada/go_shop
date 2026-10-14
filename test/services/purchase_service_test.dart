@@ -114,6 +114,25 @@ void main() {
     expect(fakePlatform.completedProductIds, isEmpty);
   });
 
+  test('早期ダウンロード特典の復元はサーバー検証して特典として反映する', () async {
+    service.storeAcknowledged = true;
+    await service.initialize();
+    final restored = service.statusStream.firstWhere(
+      (state) => state.status == PurchaseFlowStatus.restored,
+    );
+
+    fakePlatform.emit([
+      createPurchase(
+        PurchaseStatus.restored,
+        productId: 'goshopping_onetime_1000',
+      ),
+    ]);
+    final state = await restored;
+
+    expect(service.verifyCallCount, 1);
+    expect(state.message, contains('早期ダウンロード特典'));
+  });
+
   test('復元対象がない場合は処理中状態を解除する', () async {
     await service.initialize();
 

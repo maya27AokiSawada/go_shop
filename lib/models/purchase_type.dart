@@ -6,7 +6,8 @@ enum PurchaseType {
   /// Premiumプラン（月額）（全広告非表示）
   subscribe,
 
-  /// 買い切り：旧プラン（全広告非表示）
+  /// 早期ダウンロード特典（1年間・全広告非表示・Premium同等の上限）
+  /// 期限切れは Functions が Firestore を `free` に戻して反映する。
   purchase,
 }
 
@@ -31,7 +32,7 @@ extension PurchaseTypeExt on PurchaseType {
       case PurchaseType.subscribe:
         return 'Premiumプラン（月額）';
       case PurchaseType.purchase:
-        return '買い切り（旧プラン）';
+        return '早期ダウンロード特典';
     }
   }
 

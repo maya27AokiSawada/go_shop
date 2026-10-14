@@ -14,6 +14,11 @@ const PREMIUM_PRODUCT_ID = "goshopping_premium_monthly";
 const PREMIUM_MONTHLY_IOS_ID = "goshopping2_premium_monthly";
 const PREMIUM_ANNUAL_PRODUCT_ID = "goshopping-premium-annual";
 const PREMIUM_ANNUAL_IOS_ID = "goshopping2_premium_annual";
+// 早期ダウンロード特典（Google Play の1回限りのアイテム）。アプリ内では販売せず、
+// プロモーションコードの引き換えで付与する。有効期間は引き換えから1年間。
+const EARLY_DOWNLOAD_BENEFIT_PRODUCT_ID = "goshopping_onetime_1000";
+const GOOGLE_PRODUCT_PURCHASE_STATE_PURCHASED = 0;
+const GOOGLE_PRODUCT_ACKNOWLEDGED = 1;
 const ACTIVE_GOOGLE_STATES = new Set([
   "SUBSCRIPTION_STATE_ACTIVE",
   "SUBSCRIPTION_STATE_IN_GRACE_PERIOD",
@@ -203,6 +208,146 @@ async function acknowledgeGooglePurchase({
   });
 }
 
+/** 早期ダウンロード特典の失効日時（引き換え日時の1年後）。 */
+function earlyDownloadBenefitExpiry(purchaseTimeMillis) {
+  const expiresAt = new Date(purchaseTimeMillis);
+  expiresAt.setUTCFullYear(expiresAt.getUTCFullYear() + 1);
+  return expiresAt;
+}
+
+function evaluateGoogleOneTimeProduct(purchase, now) {
+  if (purchase.purchaseState !== GOOGLE_PRODUCT_PURCHASE_STATE_PURCHASED) {
+    throw new ReceiptValidationError(
+      "failed-precondition",
+      "Google Playの購入が完了していません",
+    );
+  }
+  const purchaseTimeMillis = Number(purchase.purchaseTimeMillis);
+  if (!Number.isFinite(purchaseTimeMillis) || purchaseTimeMillis <= 0) {
+    throw new ReceiptValidationError(
+      "failed-precondition",
+      "Google Playの購入日時を確認できません",
+    );
+  }
+  const expiresAt = earlyDownloadBenefitExpiry(purchaseTimeMillis);
+  if (expiresAt.getTime() <= now.getTime()) {
+    throw new ReceiptValidationError(
+      "failed-precondition",
+      "早期ダウンロード特典の有効期間は終了しています",
+    );
+  }
+
+  return {
+    active: true,
+    purchaseType: "purchase",
+    expiresAt,
+    storeStatus: "PURCHASED",
+    needsAcknowledgement:
+      purchase.acknowledgementState !== GOOGLE_PRODUCT_ACKNOWLEDGED,
+  };
+}
+
+/** 1回限りのアイテム（早期ダウンロード特典）を purchases.products API で検証する。 */
+async function verifyGoogleOneTimePurchase({
+  packageName,
+  productId,
+  purchaseToken,
+  now = new Date(),
+  authClient,
+}) {
+  const token = requireNonEmptyString(purchaseToken, "verificationData", 10000);
+  const client =
+    authClient ||
+    (await new GoogleAuth({ scopes: [ANDROID_PUBLISHER_SCOPE] }).getClient());
+  const getUrl =
+    "https://androidpublisher.googleapis.com/androidpublisher/v3/" +
+    `applications/${encodeURIComponent(packageName)}/purchases/` +
+    `products/${encodeURIComponent(productId)}/tokens/` +
+    `${encodeURIComponent(token)}`;
+  const response = await client.request({ url: getUrl, method: "GET" });
+  const evaluation = evaluateGoogleOneTimeProduct(response.data, now);
+
+  return {
+    ...evaluation,
+    receiptKey: fingerprint(`google_play:${token}`),
+    linkedReceiptKey: null,
+    storeAcknowledged: !evaluation.needsAcknowledgement,
+  };
+}
+
+async function acknowledgeGoogleProductPurchase({
+  packageName,
+  productId,
+  purchaseToken,
+  authClient,
+}) {
+  const token = requireNonEmptyString(purchaseToken, "verificationData", 10000);
+  const client =
+    authClient ||
+    (await new GoogleAuth({ scopes: [ANDROID_PUBLISHER_SCOPE] }).getClient());
+  const acknowledgeUrl =
+    "https://androidpublisher.googleapis.com/androidpublisher/v3/" +
+    `applications/${encodeURIComponent(packageName)}/purchases/` +
+    `products/${encodeURIComponent(productId)}/tokens/` +
+    `${encodeURIComponent(token)}:acknowledge`;
+  await client.request({
+    url: acknowledgeUrl,
+    method: "POST",
+    data: {},
+  });
+}
+
+/**
+ * 有効期間（1年間）を過ぎた早期ダウンロード特典を free に戻す。
+ * 1回限りのアイテムはストアから失効通知が届かないため、スケジュール実行で反映する。
+ */
+async function expireEarlyDownloadBenefits({ db, now = new Date() }) {
+  const snapshot = await db
+    .collection("users")
+    .where("purchaseType", "==", "purchase")
+    .get();
+
+  let expired = 0;
+  for (const doc of snapshot.docs) {
+    const verification = doc.data().purchaseVerification || {};
+    const expiresAtMillis =
+      typeof verification.expiresAt?.toMillis === "function"
+        ? verification.expiresAt.toMillis()
+        : 0;
+    if (
+      verification.productId !== EARLY_DOWNLOAD_BENEFIT_PRODUCT_ID ||
+      expiresAtMillis <= 0 ||
+      expiresAtMillis > now.getTime()
+    ) {
+      continue;
+    }
+
+    await doc.ref.set(
+      {
+        purchaseType: "free",
+        purchaseVerification: {
+          ...verification,
+          status: "expired",
+          downgradedAt: FieldValue.serverTimestamp(),
+        },
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+    if (verification.receiptFingerprint) {
+      await db
+        .collection("purchaseReceipts")
+        .doc(verification.receiptFingerprint)
+        .set(
+          { status: "expired", expiredAt: FieldValue.serverTimestamp() },
+          { merge: true },
+        );
+    }
+    expired++;
+  }
+  return { expired };
+}
+
 async function loadAppleRootCertificates(fetchImpl = fetch) {
   if (!appleRootCertificatesPromise) {
     appleRootCertificatesPromise = Promise.all(
@@ -328,7 +473,7 @@ async function persistVerifiedEntitlement({
     transaction.set(
       userRef,
       {
-        purchaseType: "subscribe",
+        purchaseType: verification.purchaseType || "subscribe",
         purchaseVerification: {
           platform,
           productId,
@@ -346,17 +491,22 @@ async function persistVerifiedEntitlement({
 
 module.exports = {
   ACTIVE_GOOGLE_STATES,
+  EARLY_DOWNLOAD_BENEFIT_PRODUCT_ID,
   PREMIUM_PRODUCT_ID,
   PREMIUM_MONTHLY_IOS_ID,
   PREMIUM_ANNUAL_PRODUCT_ID,
   PREMIUM_ANNUAL_IOS_ID,
   ReceiptValidationError,
+  acknowledgeGoogleProductPurchase,
   acknowledgeGooglePurchase,
   evaluateAppleTransaction,
+  evaluateGoogleOneTimeProduct,
   evaluateGoogleSubscription,
+  expireEarlyDownloadBenefits,
   fetchGoogleSubscriptionV2,
   fingerprint,
   persistVerifiedEntitlement,
   verifyApplePurchase,
+  verifyGoogleOneTimePurchase,
   verifyGooglePurchase,
 };

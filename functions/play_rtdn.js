@@ -415,7 +415,8 @@ async function handlePlayRtdn({
   }
 
   if (notification.oneTimeProductNotification) {
-    // 旧「買い切り」プラン。サーバー検証対象外なので記録のみ。
+    // 早期ダウンロード特典。通知には uid が無く、権限付与はクライアントの
+    // verifyPurchase で行うため記録のみ。
     logger.log("[play-rtdn] one-time product 通知は未対応のため無視", {
       type: notification.oneTimeProductNotification.notificationType,
     });

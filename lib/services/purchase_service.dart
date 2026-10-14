@@ -38,7 +38,8 @@ class _ProductIds {
   /// サブスク：¥200 / 3ヶ月（レガシー）
   static const String subscription = 'goshopping_subscribe';
 
-  /// 買い切り：¥1,000（非消費型）
+  /// 早期ダウンロード特典（Google Play の1回限りのアイテム）。
+  /// アプリ内では販売せず、プロモーションコードの引き換えで付与する。
   static const String oneTimePurchase = 'goshopping_onetime_1000';
 
   /// Premium プラン月額 (Android: goshopping_ 接頭辞, iOS: goshopping2_ 接頭辞)
@@ -443,9 +444,15 @@ class PurchaseService {
         }
 
         final restored = purchase.status == PurchaseStatus.restored;
+        final isEarlyDownloadBenefit =
+            purchase.productID == _ProductIds.oneTimePurchase;
         _setStatus(
           restored ? PurchaseFlowStatus.restored : PurchaseFlowStatus.purchased,
-          message: restored ? 'Premiumプランを復元しました。' : 'Premiumプランが有効になりました。',
+          message: isEarlyDownloadBenefit
+              ? '早期ダウンロード特典が有効になりました。'
+              : restored
+                  ? 'Premiumプランを復元しました。'
+                  : 'Premiumプランが有効になりました。',
         );
         return;
       case PurchaseStatus.error:
@@ -511,7 +518,9 @@ class PurchaseService {
       'verificationData': verificationData,
     });
     final data = response.data;
-    if (data['verified'] != true || data['purchaseType'] != 'subscribe') {
+    final expectedType =
+        _purchaseTypeForProduct(purchase.productID).firestoreValue;
+    if (data['verified'] != true || data['purchaseType'] != expectedType) {
       throw StateError('サーバーが購入を承認しませんでした');
     }
 
