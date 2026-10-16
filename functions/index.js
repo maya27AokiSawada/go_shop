@@ -4,7 +4,11 @@ const dotenv = require("dotenv");
 dotenv.config({ path: ".env.production" });
 
 const { onSchedule } = require("firebase-functions/v2/scheduler");
-const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const {
+  onCall,
+  onRequest,
+  HttpsError,
+} = require("firebase-functions/v2/https");
 const { onMessagePublished } = require("firebase-functions/v2/pubsub");
 const { defineString } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
@@ -26,6 +30,10 @@ const {
   verifyGooglePurchase,
 } = require("./receipt_verification");
 const { handlePlayRtdn } = require("./play_rtdn");
+const {
+  AppleNotificationError,
+  handleAppleNotification,
+} = require("./apple_notifications");
 
 const SUPPORTED_PREMIUM_PRODUCT_IDS = new Set([
   PREMIUM_PRODUCT_ID,
@@ -187,6 +195,53 @@ exports.playRtdnHandler = onMessagePublished(
         error: error?.message,
       });
       throw error;
+    }
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 0.55 App Store Server Notifications V2
+//      App Store Connect の「App情報」に本関数の URL を登録し、
+//      更新・解約・失効・返金を Firestore の権限へ反映する。
+// ─────────────────────────────────────────────────────────────────────────────
+exports.appStoreNotifications = onRequest(
+  {
+    region: REGION,
+    timeoutSeconds: 60,
+    memory: "256MiB",
+  },
+  async (req, res) => {
+    if (req.method !== "POST") {
+      res.status(405).send("Method Not Allowed");
+      return;
+    }
+
+    try {
+      const appAppleId = APPLE_APP_ID
+        ? Number.parseInt(APPLE_APP_ID, 10)
+        : undefined;
+      const result = await handleAppleNotification({
+        db: getFirestore(),
+        signedPayload: req.body?.signedPayload,
+        bundleId: APPLE_BUNDLE_ID,
+        appAppleId,
+      });
+      console.log("[apple-notify] handled", result);
+      res.status(200).send("OK");
+    } catch (error) {
+      // 署名・ペイロード不正は再送しても直らないので 400 で拒否する。
+      if (error instanceof AppleNotificationError) {
+        console.error("[apple-notify] permanent error, rejecting", {
+          error: error.message,
+        });
+        res.status(400).send("Bad Request");
+        return;
+      }
+      // Firestore の一時障害などは 500 を返して Apple の再送に委ねる。
+      console.error("[apple-notify] transient error, will retry", {
+        error: error?.message,
+      });
+      res.status(500).send("Internal Server Error");
     }
   },
 );

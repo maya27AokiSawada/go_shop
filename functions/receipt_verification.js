@@ -505,6 +505,7 @@ module.exports = {
   expireEarlyDownloadBenefits,
   fetchGoogleSubscriptionV2,
   fingerprint,
+  loadAppleRootCertificates,
   persistVerifiedEntitlement,
   verifyApplePurchase,
   verifyGoogleOneTimePurchase,
