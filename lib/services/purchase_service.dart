@@ -91,6 +91,12 @@ class PurchaseService {
   static const bool _iapMock =
       bool.fromEnvironment('IAP_MOCK', defaultValue: false);
 
+  /// --dart-define=IAP_SALES_OPEN=true で課金開始日前でも購入を受け付ける。
+  /// iOS は本番 Firebase を参照するため、Firestore の課金開始日を変えずに
+  /// Sandbox で購入テストをするための専用フラグ。リリースビルドでは指定しない。
+  static const bool _forceSalesOpen =
+      bool.fromEnvironment('IAP_SALES_OPEN', defaultValue: false);
+
   final InAppPurchase _iap = InAppPurchase.instance;
   StreamSubscription<List<PurchaseDetails>>? _subscription;
   Future<void>? _initializationFuture;
@@ -116,7 +122,8 @@ class PurchaseService {
   DateTime get salesStartDate => _salesStartDate;
 
   /// Premiumの新規受付が始まっているか（プレ公開期間中は false）。
-  bool get isSalesOpen => SubscriptionSalesConfig.isSalesOpen(_salesStartDate);
+  bool get isSalesOpen =>
+      _forceSalesOpen || SubscriptionSalesConfig.isSalesOpen(_salesStartDate);
 
   /// Firestore の `appConfig/subscription` から課金開始日を取得する。
   /// ドキュメントまたはフィールドが未設定の場合は null を返す。
@@ -180,6 +187,10 @@ class PurchaseService {
       Log.info('[$_logTag] 課金機能は無効化されているため初期化をスキップ');
       _isAvailable = false;
       return;
+    }
+
+    if (_forceSalesOpen) {
+      Log.warning('[$_logTag] ⚠️ IAP_SALES_OPEN 有効: 課金開始日前でも購入を受け付けます（テスト専用）');
     }
 
     if (_iapMock) {
