@@ -21,6 +21,10 @@ import '../providers/app_ui_mode_provider.dart';
 import '../providers/user_settings_provider.dart';
 import '../providers/shared_group_provider.dart'; // forceSyncProvider
 import '../datastore/group_field_cipher.dart'; // sharedGroupCodecProvider
+import '../datastore/hive_shared_group_repository.dart';
+import '../datastore/hive_shared_list_repository.dart';
+import '../services/group_key_exchange_service.dart';
+import '../services/hive_plaintext_migration_service.dart';
 import '../providers/hive_provider.dart';
 import '../providers/purchase_sync_provider.dart';
 import '../providers/purchase_type_provider.dart';
@@ -200,6 +204,13 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
       try {
         await UserSpecificHiveService.instance.initializeForDefaultUser();
         Log.info('✅ Hive Box初期化完了（デフォルトユーザー）');
+
+        // 旧バージョンで Hive に残った暗号文を平文へ移行（1回限り・バックグラウンド）
+        unawaited(HivePlaintextMigrationService.runIfNeeded(
+          hiveListRepository: ref.read(hiveSharedListRepositoryProvider),
+          hiveGroupRepository: ref.read(hiveSharedGroupRepositoryProvider),
+          keyService: ref.read(groupKeyExchangeServiceProvider),
+        ));
       } catch (e) {
         Log.error('❌ Hive Box初期化エラー: $e');
       }

@@ -129,9 +129,9 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
 
       // 復号のためグループ鍵をキャッシュへ prime してから変換する。
       final codec = _codec;
-      for (final doc in groupsSnapshot.docs) {
-        await codec.primeKey(doc.id);
-      }
+      await Future.wait(
+        groupsSnapshot.docs.map((doc) => codec.primeKey(doc.id)),
+      );
       final userGroups =
           groupsSnapshot.docs.map((doc) => _groupFromFirestore(doc)).toList();
 

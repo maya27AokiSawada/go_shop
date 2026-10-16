@@ -323,30 +323,48 @@ if (!currentGroups.any((g) => g.groupId == newGroup.groupId)) {
 
 ## 10. アイテム名暗号化ルール（2026-08 追加）
 
-SharedItem の `name` は、グループ鍵が存在する場合は **保存時に暗号化**、表示や編集前の読み出し時に **復号** する。
+SharedItem の `name` は、グループ鍵が存在する場合は **Firestore 上でのみ暗号文** とする。
+暗号化・復号は Firestore との境界（`FirestoreSharedListRepository`）だけで行い、
+それより上の層（`HybridSharedListRepository`・Hive・UI）は常に平文で扱う（2026-10 変更）。
+
+### 鍵の最新化（必須）
+
+- Firestore から読む直後・書く直前に、`GroupKeyExchangeService.ensureFreshGroupKey` でローカル鍵が
+  `SharedGroups.activeKeyVersion` と一致するかを確認し、未取得・旧世代なら `keyExchangeEvents` から解決する
+- グループ共有フィールド（members[].name/contact, ownerName/ownerEmail）も同様に、
+  `GroupKeyServiceFieldCipher.primeKey` が復号前に鍵を最新化する
+- 画面ごとに鍵解決を呼ばなくても復号できることを前提とする（鍵の作成・ローテーションは
+  オーナー処理として `ensureGroupKeyAvailable` に残す）
 
 ### 保存時（必須）
 
-- 対象: `addSingleItem` / `updateSingleItem`
-- 実装層: `HybridSharedListRepository`
+- 実装層: `FirestoreSharedListRepository`（全書き込み経路: `updateSharedList` / `saveSharedListWithId` /
+  `addSingleItem*` / `updateSingleItem*` / `addItemToList`）
 - ルール:
   - 鍵未設定: 平文のまま保存
-  - 鍵設定済み: `name` を暗号化して Firestore / Hive へ保存
+  - 鍵設定済み: `name` を暗号化して Firestore へ保存
   - 既に暗号化済みの値は二重暗号化しない
 
 ### 読み出し時（必須）
 
-- 対象: `getSharedListById` / `getSharedListsByGroup` / `watchSharedList`
-- 実装層: `HybridSharedListRepository`
+- 実装層: `FirestoreSharedListRepository`（`getSharedListById` / `getSharedListsByGroup` / `watchSharedList` など）
 - ルール:
-  - 鍵設定済みかつ暗号化形式の `name` を復号して UI へ返す
-  - 復号失敗時はクラッシュさせず、ログ出力して現値を維持
+  - 暗号化形式の `name` を現行鍵で復号し、失敗したら1世代前の鍵で復号する
+  - 復号失敗時はクラッシュさせず、ログ出力して暗号文のまま返す（書き戻し時に二重暗号化されない）
+  - 暗号文は毎回異なるため、名前の比較（権限判定など）は必ず復号した平文同士で行う
 
-### 鍵作成・変更時の再暗号化
+### Hive（ローカルキャッシュ）
 
-- グループ鍵のフィンガープリントを保持し、変更検出時にグループ配下の全アイテムを再暗号化する
-- さらに、鍵が変わっていなくても平文 `name` が残っていれば再暗号化を実行する
-- 再暗号化中は `keyReencryptionInProgress` / `keyRotationStatus=reencrypting` を更新し、完了時に解除する
+- Hive には平文を保存する（Firestore リポジトリで復号済みのデータをキャッシュする）
+- 旧バージョンで残った暗号文は `HivePlaintextMigrationService` が起動時に1回だけ平文化する
+
+### 平文・旧鍵アイテムの再暗号化
+
+- 読み込み時に「鍵設定済みなのに平文」「旧鍵でしか復号できない」アイテムを検出したら、
+  `FirestoreSharedListRepository` が現行鍵で暗号化し、`items.{itemId}.name` だけを書き戻す
+  （リスト全体を上書きしないため、他端末の同時編集を消さない）
+- 鍵ローテーション後の再暗号化は、グループ配下のリストを読み直すことで行う
+  （`reencryptSharedItemsForGroup` はこの読み直しを行う）
 
 ### 鍵ローテーション時のメンバー回復
 
@@ -359,7 +377,8 @@ SharedItem の `name` は、グループ鍵が存在する場合は **保存時�
 
 ### 禁止事項
 
-- UI 層でのみ暗号化し、Repository への保存時処理を省略する
+- UI 層・Hybrid 層で暗号化・復号する（Firestore リポジトリの境界以外で扱わない）
+- Hive や SharedPreferences にアイテム名の暗号文、または鍵と無関係な平文の写しを保存する
 - 暗号化判定なしで毎回暗号化し、二重暗号化を発生させる
-- 再暗号化中フラグを更新せず、並行処理で整合性を崩す
+- 再暗号化のためにリスト全体を上書きし、他端末の同時編集を消す
 - `status: confirmed` だけで鍵を利用可能と判定する（確認済み版数とグループ現行版の一致確認を省略する）

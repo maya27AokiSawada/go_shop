@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/shared_list.dart';
 import '../datastore/shared_list_repository.dart';
 import '../datastore/hive_shared_list_repository.dart';
@@ -33,7 +32,6 @@ class HybridSharedListRepository implements SharedListRepository {
   // 同期キューとタイマー管理
   final List<_SharedListSyncOperation> _syncQueue = [];
   Timer? _syncTimer;
-  static const String _keyFingerprintPrefix = 'group_key_fingerprint_v1:';
 
   HybridSharedListRepository(
     this._ref, {
@@ -83,10 +81,9 @@ class HybridSharedListRepository implements SharedListRepository {
       // 2. バックグラウンドでFirestoreから同期（非同期）
       _syncFromFirestoreBackground(groupId);
 
-      // 3. キャッシュデータを即座に返却
+      // 3. キャッシュデータ（平文）を即座に返却
       Log.info('⚡ Cache-first: SharedList取得 (groupId: $groupId)');
-      if (cachedList == null) return null;
-      return _decryptListForRead(cachedList);
+      return cachedList;
     } catch (e, stackTrace) {
       Log.error('❌ HybridSharedList.getSharedList error: $e', e, stackTrace);
       return null;
@@ -499,31 +496,24 @@ class HybridSharedListRepository implements SharedListRepository {
             Log.info(
                 '✅ [HYBRID_LIST] Firestore取得完了: ${firestoreList.listName}');
 
-            // 2. Hiveにキャッシュ
+            // 2. Hiveにキャッシュ（Firestoreリポジトリで復号済みの平文）
             await _hiveRepo.updateSharedList(firestoreList);
             Log.info('✅ [HYBRID_LIST] Hiveキャッシュ更新完了');
 
-            final decrypted = await _decryptListForRead(firestoreList);
-            return decrypted;
+            return firestoreList;
           } else {
             Log.info('⚠️ [HYBRID_LIST] Firestoreにリストなし - Hiveフォールバック');
-            final fallback = await _hiveRepo.getSharedListById(listId);
-            if (fallback == null) return null;
-            return _decryptListForRead(fallback);
+            return await _hiveRepo.getSharedListById(listId);
           }
         } catch (e, stackTrace) {
           Log.error('⚠️ [HYBRID_LIST] Firestore取得エラー - Hiveフォールバック: $e', e,
               stackTrace);
-          final fallback = await _hiveRepo.getSharedListById(listId);
-          if (fallback == null) return null;
-          return _decryptListForRead(fallback);
+          return await _hiveRepo.getSharedListById(listId);
         }
       } else {
         // dev環境またはFirestore未初期化の場合はHive
         Log.info('📝 [HYBRID_LIST] dev環境 - Hiveから取得');
-        final hiveList = await _hiveRepo.getSharedListById(listId);
-        if (hiveList == null) return null;
-        return _decryptListForRead(hiveList);
+        return await _hiveRepo.getSharedListById(listId);
       }
     } catch (e, stackTrace) {
       Log.error('❌ [HYBRID_LIST] リスト取得エラー: $e', e, stackTrace);
@@ -545,37 +535,24 @@ class HybridSharedListRepository implements SharedListRepository {
               .timeout(const Duration(seconds: 10));
           Log.info('✅ [HYBRID_LIST] Firestore取得完了: ${firestoreLists.length}件');
 
-          // 2. Hiveにキャッシュ（読み取り高速化のため）
+          // 2. Hiveにキャッシュ（Firestoreリポジトリで復号済みの平文）
+          //    旧鍵・平文アイテムの再暗号化もFirestoreリポジトリが行う。
           for (final list in firestoreLists) {
             await _hiveRepo.updateSharedList(list);
           }
           Log.info('✅ [HYBRID_LIST] Hiveキャッシュ保存完了: ${firestoreLists.length}件');
 
-          await _reencryptAllItemsIfKeyChanged(
-            groupId: groupId,
-            lists: firestoreLists,
-          );
-          return _decryptListsForRead(firestoreLists);
+          return firestoreLists;
         } catch (e, stackTrace) {
           // Firestoreエラー時のみHiveフォールバック
           Log.error('⚠️ [HYBRID_LIST] Firestore取得エラー - Hiveフォールバック: $e', e,
               stackTrace);
-          final fallback = await _hiveRepo.getSharedListsByGroup(groupId);
-          await _reencryptAllItemsIfKeyChanged(
-            groupId: groupId,
-            lists: fallback,
-          );
-          return _decryptListsForRead(fallback);
+          return await _hiveRepo.getSharedListsByGroup(groupId);
         }
       } else {
         // dev環境またはFirestore未初期化の場合はHive
         Log.info('📝 [HYBRID_LIST] dev環境 - Hiveから取得');
-        final hiveLists = await _hiveRepo.getSharedListsByGroup(groupId);
-        await _reencryptAllItemsIfKeyChanged(
-          groupId: groupId,
-          lists: hiveLists,
-        );
-        return _decryptListsForRead(hiveLists);
+        return await _hiveRepo.getSharedListsByGroup(groupId);
       }
     } catch (e, stackTrace) {
       Log.error('❌ [HYBRID_LIST] リスト一覧取得エラー: $e', e, stackTrace);
@@ -917,20 +894,16 @@ class HybridSharedListRepository implements SharedListRepository {
 
         Log.info('📋 [HYBRID_DIFF] GroupId取得: ${list.groupId}');
 
-        final encryptedItem = await _encryptItemForWrite(
-          groupId: list.groupId,
-          item: item,
-        );
-
         // 1. Firestoreに単一アイテムのみ追加（差分同期）
         // groupIdを使って直接パスでアクセス（パーミッションエラー回避）
+        // アイテム名の暗号化はFirestoreリポジトリが書き込み直前に行う。
         await _firestoreRepo!
-            .addSingleItemWithGroupId(listId, list.groupId, encryptedItem);
+            .addSingleItemWithGroupId(listId, list.groupId, item);
         Log.info('✅ [HYBRID_DIFF] Firestore: 単一アイテム追加完了 (${item.name})');
 
-        // 2. Hiveキャッシュを更新（読み取り高速化）
+        // 2. Hiveキャッシュを更新（平文のまま保存）
         final updatedItems = Map<String, SharedItem>.from(list.items);
-        updatedItems[encryptedItem.itemId] = encryptedItem;
+        updatedItems[item.itemId] = item;
         final updatedList = list.copyWith(
           items: updatedItems,
           updatedAt: DateTime.now(),
@@ -940,12 +913,8 @@ class HybridSharedListRepository implements SharedListRepository {
       } else {
         // dev環境またはFirestore未初期化の場合のみHive
         Log.info('📝 [HYBRID_DIFF] dev環境 - Hiveに追加');
-        final encryptedItem = await _encryptItemForWrite(
-          groupId: list.groupId,
-          item: item,
-        );
         final updatedItems = Map<String, SharedItem>.from(list.items);
-        updatedItems[encryptedItem.itemId] = encryptedItem;
+        updatedItems[item.itemId] = item;
         final updatedList = list.copyWith(
           items: updatedItems,
           updatedAt: DateTime.now(),
@@ -1041,19 +1010,15 @@ class HybridSharedListRepository implements SharedListRepository {
       if (_firestoreRepo != null) {
         Log.info('🔥 [HYBRID_DIFF] Firestore優先モード - アイテム更新');
 
-        final encryptedItem = await _encryptItemForWrite(
-          groupId: list.groupId,
-          item: item,
-        );
-
         // 1. Firestoreで単一アイテムのみ更新（差分同期）
+        // アイテム名の暗号化はFirestoreリポジトリが書き込み直前に行う。
         await _firestoreRepo!
-            .updateSingleItemWithGroupId(listId, list.groupId, encryptedItem);
+            .updateSingleItemWithGroupId(listId, list.groupId, item);
         Log.info('✅ [HYBRID_DIFF] Firestore: 単一アイテム更新完了 (${item.name})');
 
-        // 2. Hiveキャッシュを更新
+        // 2. Hiveキャッシュを更新（平文のまま保存）
         final updatedItems = Map<String, SharedItem>.from(list.items);
-        updatedItems[encryptedItem.itemId] = encryptedItem;
+        updatedItems[item.itemId] = item;
         final updatedList = list.copyWith(
           items: updatedItems,
           updatedAt: DateTime.now(),
@@ -1063,12 +1028,8 @@ class HybridSharedListRepository implements SharedListRepository {
       } else {
         // dev環境またはFirestore未初期化の場合のみHive
         Log.info('📝 [HYBRID_DIFF] dev環境 - Hiveに更新');
-        final encryptedItem = await _encryptItemForWrite(
-          groupId: list.groupId,
-          item: item,
-        );
         final updatedItems = Map<String, SharedItem>.from(list.items);
-        updatedItems[encryptedItem.itemId] = encryptedItem;
+        updatedItems[item.itemId] = item;
         final updatedList = list.copyWith(
           items: updatedItems,
           updatedAt: DateTime.now(),
@@ -1146,9 +1107,7 @@ class HybridSharedListRepository implements SharedListRepository {
 
       // 初回データ取得してからポーリング
       yield* Stream.periodic(const Duration(seconds: 30), (_) async {
-        final raw = await _hiveRepo.getSharedListById(listId);
-        if (raw == null) return null;
-        return _decryptListForRead(raw);
+        return _hiveRepo.getSharedListById(listId);
       }).asyncMap((future) => future);
       return;
     }
@@ -1158,14 +1117,14 @@ class HybridSharedListRepository implements SharedListRepository {
 
     yield* _firestoreRepo!.watchSharedList(groupId, listId).asyncMap(
       (firestoreList) async {
-        // Firestoreから取得したデータをHiveにキャッシュ（バックグラウンド）
+        // Firestoreから取得したデータ（復号済みの平文）をHiveにキャッシュ（バックグラウンド）
         if (firestoreList != null) {
           _hiveRepo.updateSharedList(firestoreList).catchError((e, stackTrace) {
             Log.error('⚠️ [HYBRID_REALTIME] Hiveキャッシュ保存エラー: $e', e, stackTrace);
           });
           Log.info(
               '✅ [HYBRID_REALTIME] Hiveにキャッシュ: ${firestoreList.listName} (${firestoreList.activeItemCount}件)');
-          return _decryptListForRead(firestoreList);
+          return firestoreList;
         }
         return null;
       },
@@ -1176,170 +1135,6 @@ class HybridSharedListRepository implements SharedListRepository {
       // エラー時はHiveキャッシュにフォールバック
       return _hiveRepo.getSharedListById(listId);
     });
-  }
-
-  Future<SharedItem> _encryptItemForWrite({
-    required String groupId,
-    required SharedItem item,
-  }) async {
-    final keyService = _ref.read(groupKeyExchangeServiceProvider);
-    final groupKey = await keyService.getPersistedGroupKey(groupId: groupId);
-    if (groupKey == null || groupKey.isEmpty) {
-      return item;
-    }
-
-    if (keyService.isEncryptedItemName(item.name)) {
-      return item;
-    }
-
-    final encryptedName = keyService.encryptItemName(
-      plaintextName: item.name,
-      memberUid: item.memberId,
-      groupId: groupId,
-    );
-    return item.copyWith(name: encryptedName);
-  }
-
-  Future<SharedList> _decryptListForRead(SharedList list) async {
-    final keyService = _ref.read(groupKeyExchangeServiceProvider);
-    final groupKey =
-        await keyService.getPersistedGroupKey(groupId: list.groupId);
-    if (groupKey == null || groupKey.isEmpty) {
-      return list;
-    }
-
-    var changed = false;
-    final decryptedItems = <String, SharedItem>{};
-
-    for (final entry in list.items.entries) {
-      final current = entry.value;
-      if (!keyService.isEncryptedItemName(current.name)) {
-        decryptedItems[entry.key] = current;
-        continue;
-      }
-
-      try {
-        final decryptedName = keyService.decryptItemName(
-          encryptedName: current.name,
-          groupKey: groupKey,
-          memberUid: current.memberId,
-          groupId: list.groupId,
-        );
-        decryptedItems[entry.key] = current.copyWith(name: decryptedName);
-        changed = true;
-      } catch (e) {
-        Log.warning('⚠️ [HYBRID_KEY] 復号失敗のため現値を維持: $e');
-        decryptedItems[entry.key] = current;
-      }
-    }
-
-    if (!changed) return list;
-    return list.copyWith(items: decryptedItems);
-  }
-
-  Future<List<SharedList>> _decryptListsForRead(List<SharedList> lists) async {
-    final result = <SharedList>[];
-    for (final list in lists) {
-      result.add(await _decryptListForRead(list));
-    }
-    return result;
-  }
-
-  Future<void> _reencryptAllItemsIfKeyChanged({
-    required String groupId,
-    required List<SharedList> lists,
-  }) async {
-    final keyService = _ref.read(groupKeyExchangeServiceProvider);
-    final groupKey = await keyService.getPersistedGroupKey(groupId: groupId);
-    if (groupKey == null || groupKey.isEmpty || lists.isEmpty) {
-      return;
-    }
-
-    final prefs = await SharedPreferences.getInstance();
-    final markerKey = '$_keyFingerprintPrefix$groupId';
-    final previousFingerprint = prefs.getString(markerKey);
-    final currentFingerprint = groupKey;
-    final hasPlaintextItem = lists.any(
-      (list) => list.items.values.any(
-        (item) => !keyService.isEncryptedItemName(item.name),
-      ),
-    );
-
-    final shouldRotateByKeyChange = previousFingerprint != currentFingerprint;
-    final shouldReencrypt = shouldRotateByKeyChange || hasPlaintextItem;
-
-    if (!shouldReencrypt) {
-      return;
-    }
-
-    if (shouldRotateByKeyChange) {
-      Log.info('🔐 [HYBRID_KEY] 鍵変更を検出したため全アイテム再暗号化を実行: $groupId');
-    } else {
-      Log.info('🔐 [HYBRID_KEY] 平文アイテムを検出したため全アイテム再暗号化を実行: $groupId');
-    }
-
-    await keyService.setReencryptionInProgress(
-      groupId: groupId,
-      inProgress: true,
-    );
-
-    try {
-      for (final list in lists) {
-        final updatedItems = <String, SharedItem>{};
-        var listChanged = false;
-
-        for (final entry in list.items.entries) {
-          final item = entry.value;
-          String plaintextName = item.name;
-
-          if (keyService.isEncryptedItemName(item.name)) {
-            try {
-              plaintextName = keyService.decryptItemName(
-                encryptedName: item.name,
-                groupKey: previousFingerprint ?? groupKey,
-                memberUid: item.memberId,
-                groupId: groupId,
-              );
-            } catch (_) {
-              updatedItems[entry.key] = item;
-              continue;
-            }
-          }
-
-          final encryptedName = keyService.encryptItemName(
-            plaintextName: plaintextName,
-            memberUid: item.memberId,
-            groupId: groupId,
-          );
-
-          if (encryptedName != item.name) {
-            listChanged = true;
-            updatedItems[entry.key] = item.copyWith(name: encryptedName);
-          } else {
-            updatedItems[entry.key] = item;
-          }
-        }
-
-        if (!listChanged) {
-          continue;
-        }
-
-        final encryptedList =
-            list.copyWith(items: updatedItems, updatedAt: DateTime.now());
-
-        if (_firestoreRepo != null) {
-          await _firestoreRepo!.updateSharedList(encryptedList);
-        }
-        await _hiveRepo.updateSharedList(encryptedList);
-      }
-
-      await prefs.setString(markerKey, currentFingerprint);
-    } finally {
-      await keyService.setReencryptionInProgress(
-        groupId: groupId,
-        inProgress: false,
-      );
-    }
   }
 }
 

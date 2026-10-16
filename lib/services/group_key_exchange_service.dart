@@ -27,6 +27,12 @@ class GroupKeyExchangeService {
   final GroupKeyEncryptionService _crypto = GroupKeyEncryptionService();
   final Map<String, String> _groupKeyCache = <String, String>{};
   final Map<String, String> _previousGroupKeyCache = <String, String>{};
+  final Map<String, DateTime> _freshKeyCheckedAt = <String, DateTime>{};
+  final Map<String, DateTime> _freshKeyResolveFailedAt = <String, DateTime>{};
+  final Map<String, Future<bool>> _freshKeyInFlight = <String, Future<bool>>{};
+
+  /// [ensureFreshGroupKey] で確認済みのグループを再確認しない期間。
+  static const Duration _freshKeyCheckTtl = Duration(seconds: 60);
 
   static const String _storagePrefix = 'group_key_v1:';
   static const String _localVersionPrefix = 'group_key_version_v1:';
@@ -334,65 +340,21 @@ class GroupKeyExchangeService {
     return null;
   }
 
-  /// 既存の共有アイテムを新しい鍵で再暗号化する。
-  /// ここでは最小実装として、各アイテム名を新しい鍵で暗号化した文字列を
-  /// アイテムの `name` フィールドの代わりに保持し、復号時に元に戻す。
+  /// 既存の共有アイテムを現行の鍵で再暗号化する。
+  ///
+  /// アイテム名の暗号化・復号・旧鍵からの移行は `FirestoreSharedListRepository`
+  /// が読み込み時に行う（平文・旧鍵の暗号文を検出したら現行鍵で書き戻す）。
+  /// ここではグループ配下のリストを読み直してその移行を走らせるだけで、
+  /// [items] は後方互換のために受け取るが使わない。
   Future<void> reencryptSharedItemsForGroup({
     required String groupId,
     required List<Map<String, dynamic>> items,
     SharedListRepository? repository,
   }) async {
+    if (repository == null) return;
     try {
-      final currentGroupKey = await getPersistedGroupKey(groupId: groupId);
-      if (currentGroupKey == null || currentGroupKey.isEmpty) {
-        return;
-      }
-
-      final encryptedItems = items.map((item) {
-        final itemName = item['name']?.toString() ?? '';
-        final encryptedName = _crypto.encryptGroupKey(
-          groupKey: currentGroupKey,
-          recipientSecret: _deriveRecipientSecret(
-            groupId: groupId,
-            memberUid: item['memberId']?.toString() ?? groupId,
-          ),
-        );
-
-        return {
-          ...item,
-          'name': encryptedName,
-          'encryptedName': true,
-          'originalName': itemName,
-        };
-      }).toList();
-
-      await _persistReencryptedItems(groupId: groupId, items: encryptedItems);
-
-      if (repository != null) {
-        final lists = await repository.getSharedListsByGroup(groupId);
-        for (final list in lists) {
-          final updatedItems = <String, dynamic>{};
-          for (final item in list.items.values) {
-            final matchingItem = encryptedItems.firstWhere(
-              (entry) =>
-                  entry['memberId'] == item.memberId &&
-                  entry['name'] == item.name,
-              orElse: () => <String, dynamic>{},
-            );
-            if (matchingItem.isNotEmpty) {
-              updatedItems[item.itemId] = item.copyWith(
-                name: matchingItem['name'].toString(),
-              );
-            } else {
-              updatedItems[item.itemId] = item;
-            }
-          }
-          final updatedList = list.copyWith(items: {
-            for (final entry in updatedItems.entries) entry.key: entry.value,
-          });
-          await repository.updateSharedList(updatedList);
-        }
-      }
+      await getPersistedGroupKey(groupId: groupId);
+      await repository.getSharedListsByGroup(groupId);
     } catch (e) {
       Log.error('❌ [KEY_EXCHANGE] アイテム再暗号化失敗: $e');
       rethrow;
@@ -661,6 +623,108 @@ class GroupKeyExchangeService {
     }
   }
 
+  /// Firestore から読んだグループデータを復号する前に、ローカルのグループ鍵が
+  /// 現行世代かを確認し、未取得・旧世代なら `keyExchangeEvents` から解決する。
+  ///
+  /// リポジトリ層の読み込み経路から呼ぶ（画面ごとに鍵解決を呼ぶ必要をなくすため）。
+  /// メンバー・オーナー共通の「鍵を受け取る」処理のみで、鍵の作成・ローテーション・
+  /// 再暗号化は行わない（それらは [ensureGroupKeyAvailable] の責務）。
+  ///
+  /// [activeKeyVersion] は読み込んだ `SharedGroups` ドキュメントの値を渡せば
+  /// 追加の Firestore 読み込みをしない。省略時は [_freshKeyCheckTtl] の間、
+  /// 確認結果を使い回す。
+  ///
+  /// 戻り値: 復号に使える鍵がローカルにあれば true（鍵未設定グループは false）。
+  Future<bool> ensureFreshGroupKey({
+    required String groupId,
+    int? activeKeyVersion,
+  }) {
+    if (activeKeyVersion == null) {
+      final checkedAt = _freshKeyCheckedAt[groupId];
+      if (checkedAt != null &&
+          DateTime.now().difference(checkedAt) < _freshKeyCheckTtl) {
+        return getPersistedGroupKey(groupId: groupId)
+            .then((key) => key != null && key.isNotEmpty);
+      }
+    }
+
+    final inFlight = _freshKeyInFlight[groupId];
+    if (inFlight != null) return inFlight;
+
+    final future = _ensureFreshGroupKey(
+      groupId: groupId,
+      activeKeyVersion: activeKeyVersion,
+    ).whenComplete(() {
+      // remove() は自分自身の Future を返すため、式本体にすると
+      // whenComplete がそれを待ち続けて完了しなくなる。
+      _freshKeyInFlight.remove(groupId);
+    });
+    _freshKeyInFlight[groupId] = future;
+    return future;
+  }
+
+  Future<bool> _ensureFreshGroupKey({
+    required String groupId,
+    int? activeKeyVersion,
+  }) async {
+    bool hasKey(String? key) => key != null && key.isNotEmpty;
+
+    try {
+      final localKey = await getPersistedGroupKey(groupId: groupId);
+      final localVersion = await getPersistedGroupKeyVersion(groupId: groupId);
+      final activeVersion =
+          activeKeyVersion ?? await _getGroupActiveKeyVersion(groupId: groupId);
+
+      // 鍵未設定のグループ、またはオフラインで版数を確認できない場合は手元の鍵を使う。
+      if (activeVersion == null) {
+        _freshKeyCheckedAt[groupId] = DateTime.now();
+        return hasKey(localKey);
+      }
+
+      final isCurrent = hasKey(localKey) &&
+          (localVersion == null
+              ? activeVersion <= 1
+              : localVersion >= activeVersion);
+      if (isCurrent) {
+        _freshKeyCheckedAt[groupId] = DateTime.now();
+        _freshKeyResolveFailedAt.remove(groupId);
+        return true;
+      }
+
+      // 配布待ちなどで解決できなかった直後は、スナップショットのたびに再試行しない。
+      final failedAt = _freshKeyResolveFailedAt[groupId];
+      if (failedAt != null &&
+          DateTime.now().difference(failedAt) < _freshKeyCheckTtl) {
+        return hasKey(localKey);
+      }
+
+      final uid = await _getCurrentUidSafely();
+      if (uid == null || uid.isEmpty) {
+        return hasKey(localKey);
+      }
+
+      Log.info(
+          '🔑 [KEY_EXCHANGE] 読み込み前にグループ鍵を解決: groupId=$groupId, localVersion=$localVersion, activeVersion=$activeVersion');
+      final resolved = await resolveGroupKeyForMember(
+        groupId: groupId,
+        memberUid: uid,
+      ).timeout(const Duration(seconds: 8));
+
+      if (hasKey(resolved)) {
+        _freshKeyCheckedAt[groupId] = DateTime.now();
+        _freshKeyResolveFailedAt.remove(groupId);
+        return true;
+      }
+
+      _freshKeyResolveFailedAt[groupId] = DateTime.now();
+      return hasKey(await getPersistedGroupKey(groupId: groupId));
+    } catch (e) {
+      Log.warning('⚠️ [KEY_EXCHANGE] 読み込み前の鍵確認に失敗: groupId=$groupId, error=$e');
+      _freshKeyResolveFailedAt[groupId] = DateTime.now();
+      return hasKey(await getPersistedGroupKey(groupId: groupId));
+    }
+  }
+
   Future<bool> waitForUsableGroupKey({
     required String groupId,
     Duration checkInterval = const Duration(seconds: 1),
@@ -911,6 +975,59 @@ class GroupKeyExchangeService {
       );
       return utf8.decode(base64.decode(normalizedPlaintext));
     }
+  }
+
+  /// メモリキャッシュ済みの鍵でアイテム名を復号する。
+  ///
+  /// 現行鍵で失敗した場合は1世代前の鍵で試し、その場合は
+  /// `needsReencrypt: true` を返す（呼び出し側で現行鍵へ再暗号化する）。
+  /// どちらでも復号できなければ null。事前に [getPersistedGroupKey] で
+  /// キャッシュを温めること。
+  ({String name, bool needsReencrypt})? tryDecryptItemName({
+    required String encryptedName,
+    required String memberUid,
+    required String groupId,
+  }) {
+    final currentKey = _groupKeyCache[groupId];
+    if (currentKey != null && currentKey.isNotEmpty) {
+      try {
+        return (
+          name: decryptItemName(
+            encryptedName: encryptedName,
+            groupKey: currentKey,
+            memberUid: memberUid,
+            groupId: groupId,
+          ),
+          needsReencrypt: false,
+        );
+      } catch (_) {
+        // 旧鍵で試す
+      }
+    }
+
+    final previousKey = _previousGroupKeyCache[groupId];
+    if (previousKey != null && previousKey.isNotEmpty) {
+      try {
+        return (
+          name: decryptItemName(
+            encryptedName: encryptedName,
+            groupKey: previousKey,
+            memberUid: memberUid,
+            groupId: groupId,
+          ),
+          needsReencrypt: true,
+        );
+      } catch (_) {
+        // 復号不可
+      }
+    }
+    return null;
+  }
+
+  /// メモリキャッシュに現行のグループ鍵があるか（同期判定）。
+  bool hasCachedGroupKey({required String groupId}) {
+    final key = _groupKeyCache[groupId];
+    return key != null && key.isNotEmpty;
   }
 
   /// アイテム名が本サービス形式で暗号化済みかを判定する。
@@ -1274,17 +1391,6 @@ class GroupKeyExchangeService {
       Log.warning('⚠️ [KEY_EXCHANGE] 再暗号化状態のFirestore確認に失敗。ローカル判定を使用: $e');
       return localInProgress;
     }
-  }
-
-  Future<void> _persistReencryptedItems({
-    required String groupId,
-    required List<Map<String, dynamic>> items,
-  }) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(
-      '$_storagePrefix${groupId}_items',
-      items.map((item) => jsonEncode(item)).toList(),
-    );
   }
 
   String _storageKey(String groupId) => '$_storagePrefix$groupId';

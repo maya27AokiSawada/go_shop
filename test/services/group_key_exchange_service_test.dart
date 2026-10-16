@@ -1,10 +1,23 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart' as auth_mocks;
+import 'package:goshopping/datastore/shared_list_repository.dart';
+import 'package:goshopping/models/shared_list.dart';
 import 'package:goshopping/services/group_key_exchange_service.dart';
 import 'package:mockito/mockito.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'invitation_key_exchange_test.mocks.dart';
+
+class _RecordingSharedListRepository extends Mock
+    implements SharedListRepository {
+  final List<String> requestedGroupIds = [];
+
+  @override
+  Future<List<SharedList>> getSharedListsByGroup(String groupId) async {
+    requestedGroupIds.add(groupId);
+    return [];
+  }
+}
 
 void main() {
   late GroupKeyExchangeService service;
@@ -175,17 +188,20 @@ void main() {
       forceRefresh: true,
     );
 
+    final repository = _RecordingSharedListRepository();
     await ownerService.reencryptSharedItemsForGroup(
       groupId: 'group-b',
       items: [
         {'memberId': 'member-b', 'name': 'milk'},
       ],
+      repository: repository,
     );
 
+    // 再暗号化はリポジトリの読み込み（Firestore 境界での移行）に委ね、
+    // 平文のアイテム名を端末に保存しない。
+    expect(repository.requestedGroupIds, ['group-b']);
     final prefs = await SharedPreferences.getInstance();
-    final stored = prefs.getStringList('group_key_v1:group-b_items');
-    expect(stored, isNotNull);
-    expect(stored, isNotEmpty);
+    expect(prefs.getStringList('group_key_v1:group-b_items'), isNull);
   });
 
   test('decrypts item names with the recipient secret', () async {

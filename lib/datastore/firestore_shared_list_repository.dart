@@ -6,6 +6,7 @@ import '../models/shared_list.dart';
 import '../services/notification_service.dart';
 import '../services/user_preferences_service.dart';
 import '../services/error_log_service.dart';
+import '../services/group_key_exchange_service.dart';
 import '../providers/auth_provider.dart';
 import '../utils/app_logger.dart';
 import 'shared_list_repository.dart';
@@ -13,18 +14,152 @@ import '../providers/firestore_provider.dart';
 
 class FirestoreSharedListRepository implements SharedListRepository {
   final FirebaseFirestore _firestore;
-  final FirebaseAuth _auth;
   final Ref _ref;
 
+  // 使用時に取得する（Firebase 未初期化のテスト環境でも生成できるように）
+  FirebaseAuth get _auth => FirebaseAuth.instance;
+
   FirestoreSharedListRepository(this._ref)
-      : _firestore = _ref.read(firestoreProvider),
-        _auth = FirebaseAuth.instance;
+      : _firestore = _ref.read(firestoreProvider);
 
   // サブコレクションへの参照を返すメソッド
   CollectionReference _collection(String groupId) => _firestore
       .collection('SharedGroups')
       .doc(groupId)
       .collection('sharedLists');
+
+  // =================================================================
+  // アイテム名の暗号化境界
+  //
+  // Firestore 上のアイテム名は暗号文、本リポジトリより上（Hybrid・Hive・UI）は
+  // すべて平文で扱う。暗号化は書き込み直前、復号は読み込み直後にここで行い、
+  // その前に必ずグループ鍵を最新化する（画面ごとの鍵解決に依存しない）。
+  // =================================================================
+
+  final Set<String> _reencryptingListIds = <String>{};
+
+  GroupKeyExchangeService get _keyService =>
+      _ref.read(groupKeyExchangeServiceProvider);
+
+  /// グループ鍵を最新化してメモリキャッシュへ載せる。
+  Future<void> _prepareGroupKey(String groupId) async {
+    await _keyService.ensureFreshGroupKey(groupId: groupId);
+    await _keyService.getPersistedGroupKey(groupId: groupId);
+  }
+
+  /// 書き込み前にアイテム名を暗号化する（鍵未設定グループ・暗号化済みはそのまま）。
+  /// 事前に [_prepareGroupKey] を呼ぶこと。
+  SharedItem _encryptItem(SharedItem item, String groupId) {
+    final keyService = _keyService;
+    if (!keyService.hasCachedGroupKey(groupId: groupId) ||
+        item.name.isEmpty ||
+        keyService.isEncryptedItemName(item.name)) {
+      return item;
+    }
+    return item.copyWith(
+      name: keyService.encryptItemName(
+        plaintextName: item.name,
+        memberUid: item.memberId,
+        groupId: groupId,
+      ),
+    );
+  }
+
+  SharedList _encryptList(SharedList list) {
+    return list.copyWith(items: {
+      for (final entry in list.items.entries)
+        entry.key: _encryptItem(entry.value, list.groupId),
+    });
+  }
+
+  /// 読み込んだアイテム名を平文に戻す。復号できなければ null。
+  String? _decryptItemName(SharedItem item, String groupId) {
+    final keyService = _keyService;
+    if (!keyService.isEncryptedItemName(item.name)) return item.name;
+    return keyService
+        .tryDecryptItemName(
+          encryptedName: item.name,
+          memberUid: item.memberId,
+          groupId: groupId,
+        )
+        ?.name;
+  }
+
+  /// 読み込んだリストのアイテム名を復号する。
+  ///
+  /// 旧鍵でしか復号できなかったアイテムと、鍵設定済みなのに平文のアイテムは、
+  /// 現行鍵で暗号化し直して Firestore へ書き戻す（バックグラウンド）。
+  /// 復号できないアイテムは暗号文のまま返す（書き戻し時に二重暗号化はされない）。
+  Future<SharedList> _decryptList(SharedList list) async {
+    await _prepareGroupKey(list.groupId);
+    final keyService = _keyService;
+    if (!keyService.hasCachedGroupKey(groupId: list.groupId)) {
+      return list;
+    }
+
+    final decryptedItems = <String, SharedItem>{};
+    final toReencrypt = <SharedItem>[];
+    for (final entry in list.items.entries) {
+      final item = entry.value;
+      if (item.name.isEmpty) {
+        decryptedItems[entry.key] = item;
+        continue;
+      }
+      if (!keyService.isEncryptedItemName(item.name)) {
+        decryptedItems[entry.key] = item;
+        toReencrypt.add(item);
+        continue;
+      }
+
+      final result = keyService.tryDecryptItemName(
+        encryptedName: item.name,
+        memberUid: item.memberId,
+        groupId: list.groupId,
+      );
+      if (result == null) {
+        Log.warning(
+            '⚠️ [LIST_KEY] アイテム名を復号できないため暗号文のまま返却: listId=${list.listId}, itemId=${item.itemId}');
+        decryptedItems[entry.key] = item;
+        continue;
+      }
+
+      final plainItem = item.copyWith(name: result.name);
+      decryptedItems[entry.key] = plainItem;
+      if (result.needsReencrypt) toReencrypt.add(plainItem);
+    }
+
+    if (toReencrypt.isNotEmpty) {
+      unawaited(_reencryptItemNames(list.groupId, list.listId, toReencrypt));
+    }
+    return list.copyWith(items: decryptedItems);
+  }
+
+  /// 平文・旧鍵のアイテム名を現行鍵で暗号化し、名前フィールドだけを書き戻す。
+  /// リスト全体を上書きしないため、他端末の同時編集を消さない。
+  Future<void> _reencryptItemNames(
+      String groupId, String listId, List<SharedItem> plainItems) async {
+    if (!_reencryptingListIds.add(listId)) return;
+    try {
+      final keyService = _keyService;
+      final updates = <String, dynamic>{};
+      for (final item in plainItems) {
+        if (item.itemId.isEmpty) continue;
+        updates['items.${item.itemId}.name'] = keyService.encryptItemName(
+          plaintextName: item.name,
+          memberUid: item.memberId,
+          groupId: groupId,
+        );
+      }
+      if (updates.isEmpty) return;
+      await _collection(groupId).doc(listId).update(updates);
+      Log.info(
+          '🔐 [LIST_KEY] 平文・旧鍵のアイテム名を現行鍵で再暗号化: listId=$listId, ${updates.length}件');
+    } catch (e) {
+      Log.warning('⚠️ [LIST_KEY] アイテム名の再暗号化に失敗（次回読み込みで再試行）: $e');
+    } finally {
+      _reencryptingListIds.remove(listId);
+    }
+  }
 
   @override
   Future<SharedList> createSharedList({
@@ -78,11 +213,12 @@ class FirestoreSharedListRepository implements SharedListRepository {
 
   /// 既存のSharedListオブジェクトをFirestoreに保存（IDはそのまま使用）
   Future<void> saveSharedListWithId(SharedList list) async {
+    await _prepareGroupKey(list.groupId);
     // Windows版Firestoreのスレッド問題を回避
     await Future.microtask(() async {
       await _collection(list.groupId)
           .doc(list.listId)
-          .set(_sharedListToFirestore(list));
+          .set(_sharedListToFirestore(_encryptList(list)));
     });
     Log.info('💾 Firestoreに既存IDでリスト保存: ${list.listName} (ID: ${list.listId})');
   }
@@ -97,7 +233,7 @@ class FirestoreSharedListRepository implements SharedListRepository {
         .get();
 
     if (querySnapshot.docs.isNotEmpty) {
-      return _sharedListFromFirestore(querySnapshot.docs.first);
+      return _decryptList(_sharedListFromFirestore(querySnapshot.docs.first));
     }
 
     Log.warning('⚠️ Firestoreにリストが見つからない (ID: $listId)');
@@ -107,8 +243,9 @@ class FirestoreSharedListRepository implements SharedListRepository {
   @override
   Future<List<SharedList>> getSharedListsByGroup(String groupId) async {
     final query = await _collection(groupId).get();
-    final lists =
-        query.docs.map((doc) => _sharedListFromFirestore(doc)).toList();
+    final lists = await Future.wait(
+      query.docs.map((doc) => _decryptList(_sharedListFromFirestore(doc))),
+    );
     Log.info('📋 Firestoreからグループ「$groupId」のリスト取得: ${lists.length}個');
     return lists;
   }
@@ -129,11 +266,12 @@ class FirestoreSharedListRepository implements SharedListRepository {
     }
 
     try {
+      await _prepareGroupKey(list.groupId);
       // Windows版Firestoreのスレッド問題を回避
       await Future.microtask(() async {
         await _collection(list.groupId)
             .doc(list.listId)
-            .set(_sharedListToFirestore(list));
+            .set(_sharedListToFirestore(_encryptList(list)));
       });
       Log.info('💾 Firestoreでリスト更新: ${list.listName} (ID: ${list.listId})');
 
@@ -223,8 +361,10 @@ class FirestoreSharedListRepository implements SharedListRepository {
     if (list == null) {
       throw Exception('リストが見つかりません (ID: $listId)');
     }
+    await _prepareGroupKey(list.groupId);
     await _collection(list.groupId).doc(listId).update({
-      'items': FieldValue.arrayUnion([_sharedItemToFirestore(item)])
+      'items': FieldValue.arrayUnion(
+          [_sharedItemToFirestore(_encryptItem(item, list.groupId))])
     });
     Log.info('➕ Firestoreにアイテム追加: ${item.name} → リストID「$listId」');
   }
@@ -504,7 +644,10 @@ class FirestoreSharedListRepository implements SharedListRepository {
   Stream<SharedList?> watchSharedList(String groupId, String listId) {
     Log.info('🔴 [REALTIME] Stream開始: groupId=$groupId, listId=$listId');
 
-    return _collection(groupId).doc(listId).snapshots().map((snapshot) {
+    return _collection(groupId)
+        .doc(listId)
+        .snapshots()
+        .asyncMap((snapshot) async {
       if (!snapshot.exists) {
         Log.warning('⚠️ [REALTIME] リストが存在しません: listId=$listId');
         return null;
@@ -517,7 +660,7 @@ class FirestoreSharedListRepository implements SharedListRepository {
       }
 
       try {
-        final list = _sharedListFromFirestore(snapshot);
+        final list = await _decryptList(_sharedListFromFirestore(snapshot));
         Log.info(
             '✅ [REALTIME] リスト更新: ${list.listName} (${list.activeItemCount}件)');
         return list;
@@ -539,8 +682,9 @@ class FirestoreSharedListRepository implements SharedListRepository {
         '🔄 [FIRESTORE_DIFF] Adding single item with groupId: ${item.name}');
     Log.info('📋 [FIRESTORE_DIFF] Target groupId: $groupId, listId: $listId');
 
+    await _prepareGroupKey(groupId);
     await _collection(groupId).doc(listId).update({
-      'items.${item.itemId}': _itemToFirestore(item),
+      'items.${item.itemId}': _itemToFirestore(_encryptItem(item, groupId)),
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
@@ -599,14 +743,17 @@ class FirestoreSharedListRepository implements SharedListRepository {
         throw Exception('List not found: $listId');
       }
 
-      list = _sharedListFromFirestore(querySnapshot.docs.first);
+      list = await _decryptList(
+          _sharedListFromFirestore(querySnapshot.docs.first));
     }
 
     if (list == null) throw Exception('List not found: $listId');
 
     Log.info('📋 [FIRESTORE_DIFF] Target groupId: ${list.groupId}');
+    await _prepareGroupKey(list.groupId);
     await _collection(list.groupId).doc(listId).update({
-      'items.${item.itemId}': _itemToFirestore(item),
+      'items.${item.itemId}':
+          _itemToFirestore(_encryptItem(item, list.groupId)),
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
@@ -682,7 +829,11 @@ class FirestoreSharedListRepository implements SharedListRepository {
         final listName = data['listName'] as String?;
         final itemsData = data['items'] as Map<String, dynamic>?;
         final itemData = itemsData?[itemId] as Map<String, dynamic>?;
-        final itemName = itemData?['name'] as String?;
+        // 通知には平文の名前を載せる（復号できなければ通知しない）
+        await _prepareGroupKey(groupId);
+        final itemName = itemData == null
+            ? null
+            : _decryptItemName(_sharedItemFromFirestore(itemData), groupId);
 
         if (listName != null && itemName != null) {
           final removerName = currentUser.displayName ??
@@ -727,7 +878,8 @@ class FirestoreSharedListRepository implements SharedListRepository {
         return;
       }
 
-      list = _sharedListFromFirestore(querySnapshot.docs.first);
+      list = await _decryptList(
+          _sharedListFromFirestore(querySnapshot.docs.first));
     }
 
     if (list == null) return;
@@ -807,7 +959,10 @@ class FirestoreSharedListRepository implements SharedListRepository {
     }
 
     // 購入状態のみの変更かチェック（簡易的に名前と数量を確認）
-    final existingName = existingItemData['name'] as String?;
+    // 暗号文は毎回異なるため、既存の名前は復号して平文同士で比べる。
+    await _prepareGroupKey(groupId);
+    final existingName =
+        _decryptItemName(_sharedItemFromFirestore(existingItemData), groupId);
     final existingQuantity = existingItemData['quantity'] as int?;
     final isOnlyPurchaseStatusChange =
         item.name == existingName && item.quantity == existingQuantity;
@@ -837,7 +992,7 @@ class FirestoreSharedListRepository implements SharedListRepository {
     }
 
     await _collection(groupId).doc(listId).update({
-      'items.${item.itemId}': _itemToFirestore(item),
+      'items.${item.itemId}': _itemToFirestore(_encryptItem(item, groupId)),
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
@@ -873,7 +1028,8 @@ class FirestoreSharedListRepository implements SharedListRepository {
         return;
       }
 
-      list = _sharedListFromFirestore(querySnapshot.docs.first);
+      list = await _decryptList(
+          _sharedListFromFirestore(querySnapshot.docs.first));
     }
 
     if (list == null) return;
@@ -918,8 +1074,10 @@ class FirestoreSharedListRepository implements SharedListRepository {
     }
 
     Log.info('📋 [FIRESTORE_DIFF] Target groupId: ${list.groupId}');
+    await _prepareGroupKey(list.groupId);
     await _collection(list.groupId).doc(listId).update({
-      'items.${item.itemId}': _itemToFirestore(item),
+      'items.${item.itemId}':
+          _itemToFirestore(_encryptItem(item, list.groupId)),
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
@@ -949,7 +1107,8 @@ class FirestoreSharedListRepository implements SharedListRepository {
         return;
       }
 
-      list = _sharedListFromFirestore(querySnapshot.docs.first);
+      list = await _decryptList(
+          _sharedListFromFirestore(querySnapshot.docs.first));
     }
 
     if (list == null) return;

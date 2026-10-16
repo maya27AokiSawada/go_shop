@@ -234,9 +234,7 @@ class FirestoreGroupSyncService {
         .asyncMap((snapshot) async {
       final codec = sharedGroupFirestoreCodec();
       // 復号のためグループ鍵をキャッシュへ prime してから変換する。
-      for (final doc in snapshot.docs) {
-        await codec.primeKey(doc.id);
-      }
+      await Future.wait(snapshot.docs.map((doc) => codec.primeKey(doc.id)));
       return snapshot.docs
           .map((doc) {
             final groupData = doc.data();

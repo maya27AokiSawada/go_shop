@@ -5,7 +5,6 @@ import '../utils/app_logger.dart';
 import '../providers/security_provider.dart';
 import '../providers/app_ui_mode_provider.dart';
 import '../providers/shared_group_provider.dart';
-import '../services/group_key_access_coordinator.dart';
 import '../config/app_ui_mode_config.dart';
 import '../widgets/group_list_widget.dart';
 import '../widgets/group_creation_with_copy_dialog.dart';
@@ -21,31 +20,7 @@ class SharedGroupPage extends ConsumerStatefulWidget {
 
 class _SharedGroupPageState extends ConsumerState<SharedGroupPage> {
   @override
-  void initState() {
-    super.initState();
-    // リスト画面を開かなくても、グループ画面の表示時点で鍵を解決し、
-    // オーナー名などの暗号化フィールドを復号できる状態にする。
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final groupId = ref.read(selectedGroupIdProvider);
-      if (groupId != null) _ensureGroupKey(groupId);
-    });
-  }
-
-  Future<void> _ensureGroupKey(String groupId) async {
-    await ensureGroupKeyAvailable(
-      ref: ref,
-      groupId: groupId,
-      isMounted: () => mounted,
-    );
-  }
-
-  @override
   Widget build(BuildContext context) {
-    // アクティブグループが変わったら、変更元に関わらず鍵を確認・取得する。
-    ref.listen<String?>(selectedGroupIdProvider, (previous, next) {
-      if (next != null && next != previous) _ensureGroupKey(next);
-    });
-
     // セキュリティチェック
     final canViewData = ref.watch(dataVisibilityProvider);
     final authRequired = ref.watch(authRequiredProvider);
