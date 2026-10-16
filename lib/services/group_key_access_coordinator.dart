@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../providers/shared_group_provider.dart';
 import '../providers/shared_list_provider.dart';
 import '../utils/app_logger.dart';
 import 'group_key_exchange_service.dart';
+import 'group_key_rotation_service.dart';
 
 /// グループ画面（買い物リスト画面・メンバー管理画面など）を表示した際に、
 /// 鍵ローテーション後の鍵解決・再配布・再暗号化を行う共通処理。
@@ -20,6 +23,12 @@ Future<void> ensureGroupKeyAvailable({
   required bool Function() isMounted,
   void Function(String groupId)? resetKeyWait,
 }) async {
+  // 自主退出・アカウント削除などで抜けたメンバーがいれば、オーナー端末で
+  // 鍵をローテーションする（オーナー以外では何もしない。5分に1回まで）。
+  unawaited(ref
+      .read(groupKeyRotationServiceProvider)
+      .rotateIfMembersDeparted(groupId: groupId));
+
   try {
     final service = ref.read(groupKeyExchangeServiceProvider);
     final persistedKey = await service.getPersistedGroupKey(groupId: groupId);

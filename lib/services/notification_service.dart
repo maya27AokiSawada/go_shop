@@ -15,6 +15,7 @@ import '../datastore/firestore_shared_group_repository.dart';
 import '../datastore/shared_group_firestore_codec.dart';
 import '../models/shared_group.dart';
 import 'group_key_exchange_service.dart';
+import 'group_key_rotation_service.dart';
 
 /// 通知サービスプロバイダー
 final notificationServiceProvider = Provider<NotificationService>((ref) {
@@ -723,6 +724,13 @@ class NotificationService {
 
     _ref.invalidate(allGroupsProvider);
     _ref.invalidate(selectedGroupProvider);
+
+    // 退出したメンバーが以後のデータを旧鍵で読めないよう、鍵をローテーションする
+    unawaited(_ref.read(groupKeyRotationServiceProvider).rotateIfMembersDeparted(
+          groupId: updatedGroup.groupId,
+          removedUids: {requesterUid},
+          force: true,
+        ));
 
     await sendNotification(
       targetUserId: requesterUid,

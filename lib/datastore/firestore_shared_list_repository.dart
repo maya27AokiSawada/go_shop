@@ -92,11 +92,43 @@ class FirestoreSharedListRepository implements SharedListRepository {
   /// 復号できないアイテムは暗号文のまま返す（書き戻し時に二重暗号化はされない）。
   Future<SharedList> _decryptList(SharedList list) async {
     await _prepareGroupKey(list.groupId);
-    final keyService = _keyService;
-    if (!keyService.hasCachedGroupKey(groupId: list.groupId)) {
+    if (!_keyService.hasCachedGroupKey(groupId: list.groupId)) {
       return list;
     }
 
+    final (decrypted, toReencrypt) = _decryptItems(list);
+    if (toReencrypt.isNotEmpty) {
+      unawaited(_reencryptItemNames(list.groupId, list.listId, toReencrypt));
+    }
+    return decrypted;
+  }
+
+  /// グループ配下の全リストで、平文・旧鍵のアイテム名を現行鍵へ揃える（書き戻し完了を待つ）。
+  ///
+  /// 鍵ローテーションの前後に呼ぶ。端末は1世代前の鍵までしか保持しないため、
+  /// 旧鍵の暗号文を残したままローテーションすると復号できなくなる。
+  /// 書き戻しに失敗した（または他の処理が同じリストを書き戻し中の）場合は false。
+  /// どの鍵でも復号できないアイテムは、ローテーションしても状況が変わらないため対象外。
+  Future<bool> reencryptItemsToCurrentKey(String groupId) async {
+    await _prepareGroupKey(groupId);
+    if (!_keyService.hasCachedGroupKey(groupId: groupId)) return true;
+
+    final query = await _collection(groupId).get();
+    var allDone = true;
+    for (final doc in query.docs) {
+      final list = _sharedListFromFirestore(doc);
+      final (_, toReencrypt) = _decryptItems(list);
+      if (toReencrypt.isEmpty) continue;
+      final done = await _reencryptItemNames(groupId, list.listId, toReencrypt);
+      allDone = allDone && done;
+    }
+    return allDone;
+  }
+
+  /// アイテム名を復号したリストと、現行鍵で書き戻すべきアイテム（平文・旧鍵）を返す。
+  /// 事前に [_prepareGroupKey] を呼ぶこと。
+  (SharedList, List<SharedItem>) _decryptItems(SharedList list) {
+    final keyService = _keyService;
     final decryptedItems = <String, SharedItem>{};
     final toReencrypt = <SharedItem>[];
     for (final entry in list.items.entries) {
@@ -128,17 +160,15 @@ class FirestoreSharedListRepository implements SharedListRepository {
       if (result.needsReencrypt) toReencrypt.add(plainItem);
     }
 
-    if (toReencrypt.isNotEmpty) {
-      unawaited(_reencryptItemNames(list.groupId, list.listId, toReencrypt));
-    }
-    return list.copyWith(items: decryptedItems);
+    return (list.copyWith(items: decryptedItems), toReencrypt);
   }
 
   /// 平文・旧鍵のアイテム名を現行鍵で暗号化し、名前フィールドだけを書き戻す。
   /// リスト全体を上書きしないため、他端末の同時編集を消さない。
-  Future<void> _reencryptItemNames(
+  /// 書き戻せたら true（同じリストを書き戻し中・失敗時は false）。
+  Future<bool> _reencryptItemNames(
       String groupId, String listId, List<SharedItem> plainItems) async {
-    if (!_reencryptingListIds.add(listId)) return;
+    if (!_reencryptingListIds.add(listId)) return false;
     try {
       final keyService = _keyService;
       final updates = <String, dynamic>{};
@@ -150,12 +180,14 @@ class FirestoreSharedListRepository implements SharedListRepository {
           groupId: groupId,
         );
       }
-      if (updates.isEmpty) return;
+      if (updates.isEmpty) return true;
       await _collection(groupId).doc(listId).update(updates);
       Log.info(
           '🔐 [LIST_KEY] 平文・旧鍵のアイテム名を現行鍵で再暗号化: listId=$listId, ${updates.length}件');
+      return true;
     } catch (e) {
       Log.warning('⚠️ [LIST_KEY] アイテム名の再暗号化に失敗（次回読み込みで再試行）: $e');
+      return false;
     } finally {
       _reencryptingListIds.remove(listId);
     }

@@ -18,6 +18,7 @@ import '../services/user_preferences_service.dart';
 import '../services/user_initialization_service.dart';
 import '../services/device_id_service.dart'; // 🆕 デバイスID生成用
 import '../services/firestore_group_sync_service.dart';
+import '../services/group_key_rotation_service.dart';
 // 🔥 REMOVED: import '../services/firestore_user_name_service.dart'; デフォルトグループ機能削除
 import '../services/notification_service.dart';
 import '../services/network_monitor_service.dart';
@@ -307,6 +308,13 @@ class SelectedGroupNotifier extends AsyncNotifier<SharedGroup?> {
       // バックグラウンドでデータベースから削除
       await repository.removeMember(currentGroup.groupId, memberToDelete);
       Log.info('👥 [DELETE MEMBER] データベース削除完了');
+
+      // 削除したメンバーが以後のデータを旧鍵で読めないよう、鍵をローテーションする
+      unawaited(ref.read(groupKeyRotationServiceProvider).rotateIfMembersDeparted(
+            groupId: currentGroup.groupId,
+            removedUids: {memberToDelete.memberId},
+            force: true,
+          ));
 
       // 念のため最新データを取得（同期エラー防止）
       final updatedGroup = await repository.getGroupById(currentGroup.groupId);

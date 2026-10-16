@@ -13,9 +13,8 @@ import '../widgets/member_selection_dialog.dart';
 import '../pages/group_invitation_page.dart';
 import '../widgets/member_tile_with_whiteboard.dart';
 import '../widgets/group_creation_with_copy_dialog.dart';
-import '../services/group_key_exchange_service.dart';
 import '../services/group_key_access_coordinator.dart';
-import '../providers/shared_list_provider.dart';
+import '../services/group_key_rotation_service.dart';
 import '../providers/subscription_provider.dart';
 import '../l10n/l10n.dart';
 
@@ -494,61 +493,22 @@ class _GroupMemberManagementPageState
         return;
       }
 
-      final service = ref.read(groupKeyExchangeServiceProvider);
-      final blockedByReencryption =
-          await service.isRotationBlockedByPendingReencryption(
-        groupId: group.groupId,
-      );
-      if (blockedByReencryption) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('再暗号化が完了するまで鍵ローテーションは実行できません'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
-
-      final memberUids = group.members
-              ?.where((member) => member.memberId.isNotEmpty)
-              .map((member) => member.memberId)
-              .toList() ??
-          <String>[];
-      final created = await service.ensureGroupKeyForOwner(
-        groupId: group.groupId,
-        ownerUid: group.ownerUid ?? '',
-        memberUids: memberUids,
-        forceRefresh: true,
-      );
-
-      if (created) {
-        final repository = ref.read(sharedListRepositoryProvider);
-        final lists = await repository.getSharedListsByGroup(group.groupId);
-        final listItems = <Map<String, dynamic>>[];
-
-        for (final list in lists) {
-          for (final item in list.items.values) {
-            listItems.add({
-              'memberId': item.memberId,
-              'name': item.name,
-            });
-          }
-        }
-
-        await service.reencryptSharedItemsForGroup(
-          groupId: group.groupId,
-          items: listItems,
-          repository: repository,
-        );
-      }
+      // 旧鍵の暗号文が残っていないことを確認してからローテーションし、
+      // データを新しい鍵へ揃える。
+      await ref
+          .read(groupKeyRotationServiceProvider)
+          .rotateSafely(groupId: group.groupId);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('新しい鍵を作成して配布しました')),
+      );
+    } on GroupKeyRotationBlockedException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            created ? '新しい鍵を作成して配布しました' : '鍵はすでに設定済みです',
-          ),
+          content: Text(e.message),
+          backgroundColor: Colors.red,
         ),
       );
     } catch (e) {

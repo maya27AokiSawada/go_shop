@@ -1338,6 +1338,61 @@ class GroupKeyExchangeService {
     }
   }
 
+  /// グループ共有フィールドに「旧鍵でしか復号できない暗号文」が残っていないかを返す。
+  ///
+  /// 鍵ローテーション前の確認用。端末は1世代前の鍵までしか保持しないため、
+  /// 旧鍵の暗号文を残したままローテーションすると、そのフィールドは復号できなくなる。
+  /// どの鍵でも復号できない値は、ローテーションしても状況が変わらないため対象外。
+  Future<bool> areGroupFieldsOnCurrentKey({required String groupId}) async {
+    final currentKey = await getPersistedGroupKey(groupId: groupId);
+    if (currentKey == null || currentKey.isEmpty) return true;
+    final previousKey = await getPreviousPersistedGroupKey(groupId: groupId);
+
+    final snapshot = await (_firestore ?? FirebaseFirestore.instance)
+        .collection('SharedGroups')
+        .doc(groupId)
+        .get();
+    final data = snapshot.data();
+    if (data == null) return true;
+
+    bool onlyPreviousKeyWorks(Object? value) {
+      if (value is! String || value.isEmpty || !isEncryptedGroupField(value)) {
+        return false;
+      }
+      try {
+        decryptGroupField(
+            ciphertext: value, groupId: groupId, groupKey: currentKey);
+        return false;
+      } catch (_) {
+        // 現行鍵で復号できない
+      }
+      if (previousKey == null || previousKey.isEmpty) return false;
+      try {
+        decryptGroupField(
+            ciphertext: value, groupId: groupId, groupKey: previousKey);
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    if (onlyPreviousKeyWorks(data['ownerName']) ||
+        onlyPreviousKeyWorks(data['ownerEmail'])) {
+      return false;
+    }
+    final members = data['members'];
+    if (members is List) {
+      for (final m in members) {
+        if (m is Map &&
+            (onlyPreviousKeyWorks(m['name'] ?? m['displayName']) ||
+                onlyPreviousKeyWorks(m['contact']))) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
   Future<void> setReencryptionInProgress({
     required String groupId,
     required bool inProgress,
