@@ -79,6 +79,18 @@ class SharedGroupFirestoreCodec {
   Future<SharedGroup> decryptGroupPrimed(SharedGroup group) async {
     if (_cipher == null) return group;
     await _cipher.primeKey(group.groupId);
+    return retryDecryptWithFreshKey(decryptGroup(group));
+  }
+
+  /// 復号済みのグループに暗号文が残っていれば、鍵を確認し直して1回だけ復号をやり直す。
+  ///
+  /// 鍵ローテーション直後は手元の鍵が古く復号に失敗する。失敗時に cipher が
+  /// 鍵の確認結果を無効化するため、ここで prime し直すと新しい鍵を取りに行く。
+  /// 画面遷移などで読み直さなくても、同じ読み込みの中で平文に戻すための処理。
+  Future<SharedGroup> retryDecryptWithFreshKey(SharedGroup group) async {
+    final cipher = _cipher;
+    if (cipher == null || !groupHasEncryptedFields(group)) return group;
+    await cipher.primeKey(group.groupId);
     return decryptGroup(group);
   }
 

@@ -19,8 +19,16 @@ class GroupKeyServiceFieldCipher implements GroupFieldCipher {
       _service.encryptGroupField(plaintext: plaintext, groupId: groupId);
 
   @override
-  String decrypt({required String ciphertext, required String groupId}) =>
-      _service.decryptGroupField(ciphertext: ciphertext, groupId: groupId);
+  String decrypt({required String ciphertext, required String groupId}) {
+    try {
+      return _service.decryptGroupField(
+          ciphertext: ciphertext, groupId: groupId);
+    } catch (_) {
+      // ローテーション直後で手元の鍵が古い可能性がある。次の primeKey で確認し直す。
+      _service.markGroupKeyStale(groupId: groupId);
+      rethrow;
+    }
+  }
 
   @override
   bool isEncrypted(String value) => _service.isEncryptedGroupField(value);

@@ -96,7 +96,19 @@ class FirestoreSharedListRepository implements SharedListRepository {
       return list;
     }
 
-    final (decrypted, toReencrypt) = _decryptItems(list);
+    var (decrypted, toReencrypt, undecryptable) = _decryptItems(list);
+    if (undecryptable > 0) {
+      // 鍵ローテーション直後は手元の鍵が古い。確認結果の使い回しをやめて
+      // 新しい鍵を取りに行き、同じ読み込みの中で復号をやり直す
+      // （画面遷移などで読み直さなくても平文で表示されるように）。
+      _keyService.markGroupKeyStale(groupId: list.groupId);
+      await _prepareGroupKey(list.groupId);
+      (decrypted, toReencrypt, undecryptable) = _decryptItems(list);
+      if (undecryptable > 0) {
+        Log.warning(
+            '⚠️ [LIST_KEY] アイテム名を復号できないため暗号文のまま返却: listId=${list.listId}, $undecryptable件');
+      }
+    }
     if (toReencrypt.isNotEmpty) {
       unawaited(_reencryptItemNames(list.groupId, list.listId, toReencrypt));
     }
@@ -117,7 +129,7 @@ class FirestoreSharedListRepository implements SharedListRepository {
     var allDone = true;
     for (final doc in query.docs) {
       final list = _sharedListFromFirestore(doc);
-      final (_, toReencrypt) = _decryptItems(list);
+      final (_, toReencrypt, _) = _decryptItems(list);
       if (toReencrypt.isEmpty) continue;
       final done = await _reencryptItemNames(groupId, list.listId, toReencrypt);
       allDone = allDone && done;
@@ -125,12 +137,14 @@ class FirestoreSharedListRepository implements SharedListRepository {
     return allDone;
   }
 
-  /// アイテム名を復号したリストと、現行鍵で書き戻すべきアイテム（平文・旧鍵）を返す。
+  /// アイテム名を復号したリスト、現行鍵で書き戻すべきアイテム（平文・旧鍵）、
+  /// どの鍵でも復号できなかったアイテム数を返す。
   /// 事前に [_prepareGroupKey] を呼ぶこと。
-  (SharedList, List<SharedItem>) _decryptItems(SharedList list) {
+  (SharedList, List<SharedItem>, int) _decryptItems(SharedList list) {
     final keyService = _keyService;
     final decryptedItems = <String, SharedItem>{};
     final toReencrypt = <SharedItem>[];
+    var undecryptable = 0;
     for (final entry in list.items.entries) {
       final item = entry.value;
       if (item.name.isEmpty) {
@@ -149,9 +163,8 @@ class FirestoreSharedListRepository implements SharedListRepository {
         groupId: list.groupId,
       );
       if (result == null) {
-        Log.warning(
-            '⚠️ [LIST_KEY] アイテム名を復号できないため暗号文のまま返却: listId=${list.listId}, itemId=${item.itemId}');
         decryptedItems[entry.key] = item;
+        undecryptable++;
         continue;
       }
 
@@ -160,7 +173,7 @@ class FirestoreSharedListRepository implements SharedListRepository {
       if (result.needsReencrypt) toReencrypt.add(plainItem);
     }
 
-    return (list.copyWith(items: decryptedItems), toReencrypt);
+    return (list.copyWith(items: decryptedItems), toReencrypt, undecryptable);
   }
 
   /// 平文・旧鍵のアイテム名を現行鍵で暗号化し、名前フィールドだけを書き戻す。

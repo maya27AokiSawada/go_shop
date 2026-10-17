@@ -235,7 +235,7 @@ class FirestoreGroupSyncService {
       final codec = sharedGroupFirestoreCodec();
       // 復号のためグループ鍵をキャッシュへ prime してから変換する。
       await Future.wait(snapshot.docs.map((doc) => codec.primeKey(doc.id)));
-      return snapshot.docs
+      final groups = snapshot.docs
           .map((doc) {
             final groupData = doc.data();
             final group = SharedGroup(
@@ -271,6 +271,8 @@ class FirestoreGroupSyncService {
           })
           .where((g) => !g.isDeleted)
           .toList();
+      // 鍵ローテーション直後で復号できなかったグループは、鍵を確認し直して再復号する。
+      return Future.wait(groups.map(codec.retryDecryptWithFreshKey));
     });
   }
 

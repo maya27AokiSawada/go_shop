@@ -663,6 +663,12 @@ class GroupKeyExchangeService {
     return future;
   }
 
+  /// 復号に失敗したときに呼ぶ。次の [ensureFreshGroupKey] で確認結果の使い回しをやめ、
+  /// グループの現行版数を確認し直す（ローテーション直後に新しい鍵を取りに行くため）。
+  void markGroupKeyStale({required String groupId}) {
+    _freshKeyCheckedAt.remove(groupId);
+  }
+
   Future<bool> _ensureFreshGroupKey({
     required String groupId,
     int? activeKeyVersion,

@@ -132,8 +132,9 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
       await Future.wait(
         groupsSnapshot.docs.map((doc) => codec.primeKey(doc.id)),
       );
-      final userGroups =
-          groupsSnapshot.docs.map((doc) => _groupFromFirestore(doc)).toList();
+      // 鍵ローテーション直後で復号できなかったグループは、鍵を確認し直して再復号する。
+      final userGroups = await Future.wait(groupsSnapshot.docs.map(
+          (doc) => codec.retryDecryptWithFreshKey(_groupFromFirestore(doc))));
 
       return userGroups;
     } catch (e, st) {
@@ -151,7 +152,7 @@ class FirestoreSharedGroupRepository implements SharedGroupRepository {
       }
 
       await _codec.primeKey(groupId); // 復号のため鍵をキャッシュへ
-      return _groupFromFirestore(doc);
+      return await _codec.retryDecryptWithFreshKey(_groupFromFirestore(doc));
     } catch (e, stackTrace) {
       Log.error('❌ Firestore getGroupById error: $e', e, stackTrace);
       rethrow;
