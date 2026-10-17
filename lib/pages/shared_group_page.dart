@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/app_logger.dart';
 import '../providers/security_provider.dart';
 import '../providers/app_ui_mode_provider.dart';
+import '../providers/page_index_provider.dart';
 import '../providers/shared_group_provider.dart';
 import '../config/app_ui_mode_config.dart';
 import '../widgets/group_list_widget.dart';
@@ -19,6 +21,50 @@ class SharedGroupPage extends ConsumerStatefulWidget {
 }
 
 class _SharedGroupPageState extends ConsumerState<SharedGroupPage> {
+  /// シングルモードでマルチモードの案内を表示した回数を保存するキー。
+  static const String _multiModeHintCountKey = 'multi_mode_hint_shown_count';
+
+  /// マルチモードの案内を表示する回数（グループ画面を開いた最初のN回）。
+  static const int _multiModeHintMaxCount = 3;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showMultiModeHint());
+  }
+
+  /// シングルモードの間、グループ画面を開いた最初の数回だけ、
+  /// 複数グループを使うにはマルチモードへ切り替える必要があることを案内する。
+  Future<void> _showMultiModeHint() async {
+    if (ref.read(appUIModeProvider) != AppUIMode.single) return;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final shownCount = prefs.getInt(_multiModeHintCountKey) ?? 0;
+      if (shownCount >= _multiModeHintMaxCount) return;
+      await prefs.setInt(_multiModeHintCountKey, shownCount + 1);
+    } catch (e) {
+      Log.warning('⚠️ [GROUP_PAGE] マルチモード案内の表示回数を記録できません: $e');
+      return;
+    }
+
+    if (!mounted) return;
+    // スナックバーはタブを移っても表示が残る一方、この画面は破棄されるため、
+    // ボタンを押した時点で ref を使わないよう、先に notifier を取得しておく。
+    final pageIndexNotifier = ref.read(pageIndexProvider.notifier);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(texts.multiModeHint),
+        duration: const Duration(seconds: 5),
+        action: SnackBarAction(
+          label: texts.openSettings,
+          // 下部ナビゲーションの設定タブ（index 3）へ移動する
+          onPressed: () => pageIndexNotifier.setPageIndex(3),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // セキュリティチェック

@@ -789,6 +789,10 @@ class AppTextsZhHans extends AppTextsEn {
 
   @override
   String get switchedToMultiMode => '已切换到多模式';
+  @override
+  String get multiModeHint => '如需使用多个群组和列表，请在设置中切换到多模式';
+  @override
+  String get openSettings => '打开设置';
 
   @override
   String get selectGroupBeforeSwitch => '切换前请先选择群组';

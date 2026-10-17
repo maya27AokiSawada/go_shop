@@ -714,6 +714,11 @@ class AppTextsJa extends AppTexts {
   @override
   String get switchedToMultiMode => 'マルチモードに切り替えました';
   @override
+  String get multiModeHint =>
+      'グループとリストを複数使いたい場合は、設定から「マルチ」モードに切り替えてください';
+  @override
+  String get openSettings => '設定を開く';
+  @override
   String get selectGroupBeforeSwitch => 'グループを選択してからシングルモードに切り替えてください';
   @override
   String get selectListBeforeSwitch => 'カレントリストを選択してからシングルモードに切り替えてください';

@@ -324,6 +324,8 @@ abstract class AppTexts {
   String get selectGroupBeforeSwitch;
   String get selectListBeforeSwitch;
   String get doSwitch;
+  String get multiModeHint;
+  String get openSettings;
 
   // ========================================
   // グループメンバー管理

@@ -819,6 +819,11 @@ class AppTextsPt extends AppTextsEn {
 
   @override
   String get switchedToMultiMode => 'Alternado para modo múltiplo';
+  @override
+  String get multiModeHint =>
+      'Para usar vários grupos e listas, mude para o modo Múltiplo nas Configurações';
+  @override
+  String get openSettings => 'Abrir configurações';
 
   @override
   String get selectGroupBeforeSwitch => 'Selecione um grupo antes de alternar';

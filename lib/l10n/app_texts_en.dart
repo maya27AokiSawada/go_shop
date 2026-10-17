@@ -739,6 +739,11 @@ class AppTextsEn extends AppTexts {
   @override
   String get switchedToMultiMode => 'Switched to Multi Mode';
   @override
+  String get multiModeHint =>
+      'To use multiple groups and lists, switch to Multi mode in Settings';
+  @override
+  String get openSettings => 'Open Settings';
+  @override
   String get selectGroupBeforeSwitch =>
       'Please select a group before switching to Single Mode';
   @override
