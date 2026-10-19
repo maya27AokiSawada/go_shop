@@ -1458,6 +1458,59 @@ class AppTextsEn extends AppTexts {
   @override
   String get adConsentAgainButton => 'Give consent to ads';
   @override
+  String get familyCouponTitle => 'Family Benefit Coupon';
+  @override
+  String familyCouponSponsorDesc(int limit) =>
+      'Share this coupon with your family. Up to $limit family members in your groups can use the same features as Premium (including no ads) while your Premium is active.';
+  @override
+  String get familyCouponCopy => 'Copy';
+  @override
+  String get familyCouponCopied => 'Coupon copied';
+  @override
+  String familyCouponMembers(int count, int limit) =>
+      'Family members using the benefit ($count/$limit)';
+  @override
+  String get familyCouponNoMembers => 'No family members are using the benefit yet';
+  @override
+  String get familyCouponRemove => 'Remove';
+  @override
+  String get familyCouponRemoveConfirmTitle => 'Remove the family benefit?';
+  @override
+  String familyCouponRemoveConfirmBody(String name) =>
+      'The family benefit for $name will be removed. This frees up one slot.';
+  @override
+  String get familyCouponRemoved => 'Family benefit removed';
+  @override
+  String get familyCouponRedeemDesc =>
+      'If a family member has Premium, enter the coupon they gave you to use the same features as Premium. You must be in one of their groups to enter it.';
+  @override
+  String get familyCouponInputHint => 'Coupon (e.g. ABCD-EFGH)';
+  @override
+  String get familyCouponRedeemButton => 'Get the benefit';
+  @override
+  String familyCouponRedeemed(String name) =>
+      'Family benefit from $name is now active';
+  @override
+  String familyBenefitActive(String name) =>
+      'You are using Premium features through the family benefit from $name';
+  @override
+  String familyBenefitSuspended(String name) =>
+      'The family benefit is paused because Premium for $name is not active. It resumes automatically when their Premium resumes.';
+  @override
+  String get familyNameUnknown => 'your family member';
+  @override
+  String familyCouponError(String reason) => switch (reason) {
+      'invalid-code' => 'The coupon is not valid',
+      'own-coupon' => 'You cannot use your own coupon',
+      'not-family' => 'You are not in any group of the person who issued this coupon',
+      'sponsor-inactive' => 'Premium of the person who issued this coupon is not active',
+      'limit-reached' => 'This coupon has reached its member limit',
+      'already-member' => 'You are already using this coupon',
+      'other-benefit-active' => 'You are already using another family benefit',
+      'not-premium' => 'Coupons can be issued only while Premium is active',
+      _ => 'Could not process the coupon. Please try again later',
+    };
+  @override
   String get whiteboardSettingsTitle => 'Whiteboard Settings';
   @override
   String get customColorSettingsTitle => 'Custom Color Settings';

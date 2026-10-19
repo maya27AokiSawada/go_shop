@@ -245,12 +245,15 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
   /// Functions が Firestore を `free` に戻して反映するため、ローカルでは期限を切らない。
   Future<void> syncFromGooglePlay(PurchaseType purchaseType) async {
     final now = DateTime.now();
-    final expiryDuration = purchaseType == PurchaseType.subscribe
+    // 家族特典は発行者の月額 Premium に連動するため、月額と同じ猶予にする
+    final isMonthlyLinked = purchaseType == PurchaseType.subscribe ||
+        purchaseType == PurchaseType.family;
+    final expiryDuration = isMonthlyLinked
         ? const Duration(days: 35)
         : const Duration(days: 365 * 100);
 
     state = state.copyWith(
-      plan: purchaseType == PurchaseType.subscribe
+      plan: isMonthlyLinked
           ? SubscriptionPlan.monthly
           : SubscriptionPlan.legacyPurchase,
       purchaseDate: now,

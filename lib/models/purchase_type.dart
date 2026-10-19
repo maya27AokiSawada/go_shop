@@ -9,6 +9,10 @@ enum PurchaseType {
   /// 早期ダウンロード特典（1年間・全広告非表示・Premium同等の上限）
   /// 期限切れは Functions が Firestore を `free` に戻して反映する。
   purchase,
+
+  /// 家族特典（Premium 利用者のクーポンで付与・全広告非表示・Premium同等の上限）
+  /// 発行者の Premium が無効になると Functions が Firestore を `free` に戻す。
+  family,
 }
 
 extension PurchaseTypeExt on PurchaseType {
@@ -21,6 +25,8 @@ extension PurchaseTypeExt on PurchaseType {
         return 'subscribe';
       case PurchaseType.purchase:
         return 'purchase';
+      case PurchaseType.family:
+        return 'family';
     }
   }
 
@@ -33,6 +39,8 @@ extension PurchaseTypeExt on PurchaseType {
         return 'Premiumプラン（月額）';
       case PurchaseType.purchase:
         return '早期ダウンロード特典';
+      case PurchaseType.family:
+        return '家族特典';
     }
   }
 
@@ -43,14 +51,15 @@ extension PurchaseTypeExt on PurchaseType {
         return PurchaseType.subscribe;
       case 'purchase':
         return PurchaseType.purchase;
+      case 'family':
+        return PurchaseType.family;
       default:
         return PurchaseType.free;
     }
   }
 
   /// インタースティシャル広告を非表示にするか
-  bool get hidesInterstitialAds =>
-      this == PurchaseType.subscribe || this == PurchaseType.purchase;
+  bool get hidesInterstitialAds => this != PurchaseType.free;
 
   /// バナー広告を非表示にするか
   bool get hidesBannerAds => this != PurchaseType.free;

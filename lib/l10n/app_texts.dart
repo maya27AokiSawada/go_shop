@@ -748,6 +748,28 @@ abstract class AppTexts {
   String get adConsentAgainButton;
 
   // ========================================
+  // 家族特典クーポンパネル
+  // ========================================
+  String get familyCouponTitle;
+  String familyCouponSponsorDesc(int limit);
+  String get familyCouponCopy;
+  String get familyCouponCopied;
+  String familyCouponMembers(int count, int limit);
+  String get familyCouponNoMembers;
+  String get familyCouponRemove;
+  String get familyCouponRemoveConfirmTitle;
+  String familyCouponRemoveConfirmBody(String name);
+  String get familyCouponRemoved;
+  String get familyCouponRedeemDesc;
+  String get familyCouponInputHint;
+  String get familyCouponRedeemButton;
+  String familyCouponRedeemed(String name);
+  String familyBenefitActive(String name);
+  String familyBenefitSuspended(String name);
+  String get familyNameUnknown;
+  String familyCouponError(String reason);
+
+  // ========================================
   // フィードバックセクション
   // ========================================
   String get feedbackSectionTitle;

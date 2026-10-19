@@ -119,13 +119,18 @@ service cloud.firestore {
         return request.auth != null && request.auth.uid == userId;
       }
 
+      // 課金権限と家族特典（familyCoupon / familyBenefit）はFunctionsのみが更新する
+      function protectedPurchaseFields() {
+        return ['purchaseType', 'purchaseVerification', 'familyCoupon', 'familyBenefit'];
+      }
+
       function hasProtectedPurchaseFields(data) {
-        return data.keys().hasAny(['purchaseType', 'purchaseVerification']);
+        return data.keys().hasAny(protectedPurchaseFields());
       }
 
       function changesProtectedPurchaseFields() {
         return request.resource.data.diff(resource.data).affectedKeys()
-          .hasAny(['purchaseType', 'purchaseVerification']);
+          .hasAny(protectedPurchaseFields());
       }
 
       // 課金権限はレシート検証済みFunctions（Admin SDK）のみ更新可能。

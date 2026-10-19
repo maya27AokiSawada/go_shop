@@ -10,9 +10,14 @@ const {
   HttpsError,
 } = require("firebase-functions/v2/https");
 const { onMessagePublished } = require("firebase-functions/v2/pubsub");
+const { onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { defineString } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
-const { getFirestore, Timestamp } = require("firebase-admin/firestore");
+const {
+  FieldValue,
+  getFirestore,
+  Timestamp,
+} = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
 const {
   EARLY_DOWNLOAD_BENEFIT_PRODUCT_ID,
@@ -34,6 +39,13 @@ const {
   AppleNotificationError,
   handleAppleNotification,
 } = require("./apple_notifications");
+const {
+  FamilyCouponError,
+  issueFamilyCoupon,
+  redeemFamilyCoupon,
+  removeFamilyMember,
+  syncFamilyBenefitsOnUserWrite,
+} = require("./family_coupon");
 
 const SUPPORTED_PREMIUM_PRODUCT_IDS = new Set([
   PREMIUM_PRODUCT_ID,
@@ -250,6 +262,88 @@ exports.appStoreNotifications = onRequest(
 // 0.6 早期ダウンロード特典の失効
 //     毎日 JST 03:00 に、引き換えから1年を過ぎた特典を free に戻す
 // ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// 0-2. 家族特典クーポン（Callable + users トリガー）
+//      Premium ユーザー固有のクーポンで、グループに参加している家族5人までを
+//      Premium 同等（purchaseType: family）にする。詳細は family_coupon.js。
+// ─────────────────────────────────────────────────────────────────────────────
+const FAMILY_CALLABLE_OPTIONS = {
+  region: REGION,
+  enforceAppCheck: true,
+  timeoutSeconds: 30,
+  memory: "256MiB",
+};
+
+function toFamilyHttpsError(error) {
+  if (error instanceof FamilyCouponError) {
+    return new HttpsError(error.code, error.reason, { reason: error.reason });
+  }
+  console.error("[family-coupon] unexpected error", error);
+  return new HttpsError("internal", "family-coupon-failed", {
+    reason: "unknown",
+  });
+}
+
+function requireAuthUid(request) {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "認証が必要です");
+  }
+  return request.auth.uid;
+}
+
+exports.issueFamilyCoupon = onCall(FAMILY_CALLABLE_OPTIONS, async (request) => {
+  const uid = requireAuthUid(request);
+  try {
+    return await issueFamilyCoupon({ db: getFirestore(), uid });
+  } catch (error) {
+    throw toFamilyHttpsError(error);
+  }
+});
+
+exports.redeemFamilyCoupon = onCall(FAMILY_CALLABLE_OPTIONS, async (request) => {
+  const uid = requireAuthUid(request);
+  try {
+    return await redeemFamilyCoupon({
+      db: getFirestore(),
+      uid,
+      code: request.data?.code,
+    });
+  } catch (error) {
+    throw toFamilyHttpsError(error);
+  }
+});
+
+exports.removeFamilyMember = onCall(FAMILY_CALLABLE_OPTIONS, async (request) => {
+  const uid = requireAuthUid(request);
+  try {
+    await removeFamilyMember({
+      db: getFirestore(),
+      sponsorUid: uid,
+      memberUid: request.data?.memberUid,
+      deleteField: () => FieldValue.delete(),
+    });
+    return { removed: true };
+  } catch (error) {
+    throw toFamilyHttpsError(error);
+  }
+});
+
+// Firestore のロケーションと同じリージョンで動かす
+exports.syncFamilyBenefits = onDocumentWritten(
+  { document: "users/{uid}", region: REGION },
+  async (event) => {
+    const before = event.data?.before?.exists ? event.data.before.data() : null;
+    const after = event.data?.after?.exists ? event.data.after.data() : null;
+    await syncFamilyBenefitsOnUserWrite({
+      db: getFirestore(),
+      uid: event.params.uid,
+      before,
+      after,
+      deleteField: () => FieldValue.delete(),
+    });
+  },
+);
+
 exports.expireEarlyDownloadBenefits = onSchedule(
   {
     schedule: "0 3 * * *",

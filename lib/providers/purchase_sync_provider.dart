@@ -25,6 +25,7 @@ final purchaseSyncProvider = Provider<void>((ref) {
     switch (purchaseType) {
       case PurchaseType.subscribe:
       case PurchaseType.purchase:
+      case PurchaseType.family:
         // Firestoreの更新ごとにローカル猶予期限も更新する。
         notifier.syncFromGooglePlay(purchaseType);
         break;

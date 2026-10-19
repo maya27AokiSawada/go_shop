@@ -819,6 +819,59 @@ class AppTextsZhHans extends AppTextsEn {
   @override
   String get adConsentAgainButton => '同意广告';
   @override
+  String get familyCouponTitle => '家庭优惠券';
+  @override
+  String familyCouponSponsorDesc(int limit) =>
+      '将此优惠券告诉家人后，加入您群组的最多 $limit 位家人可以使用与 Premium 相同的功能（包括无广告）。仅在您的 Premium 有效期间可用。';
+  @override
+  String get familyCouponCopy => '复制';
+  @override
+  String get familyCouponCopied => '已复制优惠券';
+  @override
+  String familyCouponMembers(int count, int limit) =>
+      '正在使用优惠的家人（$count/$limit 人）';
+  @override
+  String get familyCouponNoMembers => '还没有家人使用此优惠';
+  @override
+  String get familyCouponRemove => '解除';
+  @override
+  String get familyCouponRemoveConfirmTitle => '要解除家庭优惠吗？';
+  @override
+  String familyCouponRemoveConfirmBody(String name) =>
+      '将解除 $name 的家庭优惠。解除后会空出 1 个名额。';
+  @override
+  String get familyCouponRemoved => '已解除家庭优惠';
+  @override
+  String get familyCouponRedeemDesc =>
+      '如果家人在使用 Premium，输入从该家人处获得的优惠券即可使用与 Premium 相同的功能。输入前需要已加入该家人的群组。';
+  @override
+  String get familyCouponInputHint => '优惠券（例：ABCD-EFGH）';
+  @override
+  String get familyCouponRedeemButton => '领取优惠';
+  @override
+  String familyCouponRedeemed(String name) =>
+      '已启用来自 $name 的家庭优惠';
+  @override
+  String familyBenefitActive(String name) =>
+      '正在通过 $name 的家庭优惠使用 Premium 功能';
+  @override
+  String familyBenefitSuspended(String name) =>
+      '由于 $name 的 Premium 无效，家庭优惠已暂停。$name 的 Premium 恢复后会自动恢复。';
+  @override
+  String get familyNameUnknown => '您的家人';
+  @override
+  String familyCouponError(String reason) => switch (reason) {
+      'invalid-code' => '优惠券无效',
+      'own-coupon' => '不能使用自己的优惠券',
+      'not-family' => '您未加入发行此优惠券的人的群组，无法使用',
+      'sponsor-inactive' => '发行此优惠券的人的 Premium 未生效',
+      'limit-reached' => '此优惠券的使用人数已达上限',
+      'already-member' => '您已在使用此优惠券',
+      'other-benefit-active' => '您已在使用其他家庭优惠',
+      'not-premium' => '仅在 Premium 有效期间可以发行优惠券',
+      _ => '无法处理优惠券，请稍后再试',
+    };
+  @override
   String get whiteboardSettingsTitle => '白板设置';
 
   @override

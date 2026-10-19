@@ -207,6 +207,7 @@ deduplicatedGroups.sort((a, b) =>
 | `PurchaseType.free`      | `'free'`      | バナー・インタースティシャルあり   | 無料                                                  |
 | `PurchaseType.subscribe` | `'subscribe'` | **全広告非表示**                   | Premium月額（日本: ¥200/月、その他: おおむねUS$2/月） |
 | `PurchaseType.purchase`  | `'purchase'`  | **全広告非表示**                   | 早期ダウンロード特典（1年間・アプリ内販売なし）       |
+| `PurchaseType.family`    | `'family'`    | **全広告非表示**                   | 家族特典（Premium 利用者のクーポンで付与・無料）       |
 
 ### 有効なPremium商品ID
 
@@ -229,10 +230,27 @@ deduplicatedGroups.sort((a, b) =>
 - Free / Premium の特典、上限、価格、新規受付予定の公開上の正本は `docs/specifications/premium_plan.md` とする。アプリ内では `SubscriptionSalesConfig.premiumPlanDetailsUrl` を使って同ページへ誘導し、説明文や上限値を各画面へ重複定義しない。
 - 実際に強制するグループ数・メンバー数の上限は `lib/config/subscription_limits.dart` を正とする。公開ページの上限説明を変更するときは、この実装値との一致を確認する。
 
+### 家族特典クーポン（`functions/family_coupon.js`）
+
+- Premium（`purchaseType: subscribe`）のユーザーに固有のクーポン（`XXXX-XXXX`）を1つ発行する。早期ダウンロード特典（`purchase`）と家族特典（`family`）のユーザーには発行しない。
+- クーポンを入力したユーザーが、発行者が参加しているグループのどれかに参加していれば（**入力時のみ確認**）、`purchaseType: family`（Premium 同等・全広告非表示）になる。入力後にグループを抜けても、発行者の Premium が有効な間は特典が続く。
+- 同時に特典を受けられるのは5人まで。発行者は設定画面から家族を解除でき、解除すると枠が空く。
+- 自分で課金している（`subscribe` / `purchase`）ユーザーが入力した場合は `purchaseType` を上書きせず、`familyBenefit` だけ記録する。自分の課金が切れて `free` になったら `family` に戻す。
+- 有効な別の家族特典を利用中のユーザーは入力できない。停止中（発行者の Premium が無効）なら新しいクーポンに乗り換えられる。
+- 発行・入力・解除は Callable（`issueFamilyCoupon` / `redeemFamilyCoupon` / `removeFamilyMember`、App Check 必須）だけで行う。クライアントは `familyCoupon` / `familyBenefit` / `purchaseType` を書き込めない（Security Rules で保護）。`familyCoupons` コレクションはクライアントから読み書き不可。
+- Firestore トリガー `syncFamilyBenefits`（`users/{uid}` の書き込み）が、発行者の Premium の有効/無効に合わせて家族の `purchaseType` を `family` / `free` に切り替える。アカウント削除時はクーポンと特典のつながりを片付ける。トリガーのリージョンは Firestore のロケーションと同じにする。
+- 設定画面の `FamilyCouponPanel` に表示する。iOS は課金パネルと同じく既定で非表示（`FamilyCouponPanel.isAvailable` = `PurchasePlanPanel.isAvailable`）。
+
+```
+familyCoupons/{code}: { sponsorUid, createdAt }
+users/{sponsorUid}.familyCoupon: { code, members: { <uid>: { displayName, grantedAt } }, createdAt }
+users/{memberUid}.familyBenefit: { sponsorUid, sponsorDisplayName, grantedAt }  // 誰の家族として特典を受けているか
+```
+
 ### Firestore スキーマ（`/users/{uid}`）
 
 ```
-purchaseType: 'free' | 'subscribe' | 'purchase'  // 課金タイプ（デフォルト: omitted → free）
+purchaseType: 'free' | 'subscribe' | 'purchase' | 'family'  // 課金タイプ（デフォルト: omitted → free）
 ```
 
 ### プレ公開期間（2026年中）の新規受付ブロック
@@ -305,7 +323,7 @@ adConsent: {
 
 ### セキュリティ注意事項
 
-- `purchaseType` / `purchaseVerification` はSecurity Rulesでクライアント書き込みを禁止し、検証済みFunctionsのAdmin SDKだけが更新する。
+- `purchaseType` / `purchaseVerification` / `familyCoupon` / `familyBenefit` はSecurity Rulesでクライアント書き込みを禁止し、Functionsの Admin SDK だけが更新する。
 - raw purchase token / StoreKit JWSはFirestoreへ保存しない。SHA-256指紋だけを保存し、同じ購入の別Firebaseユーザーへの使い回しを拒否する。
 - `verifyPurchase` CallableはFirebase AuthとApp Checkを必須とする。
 - Functions側では初回検証だけでなく、Google Play RTDN / App Store Server Notificationsによる更新、解約、返金、猶予期間、保留、失効の反映も行う。

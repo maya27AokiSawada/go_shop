@@ -850,6 +850,59 @@ class AppTextsPt extends AppTextsEn {
   @override
   String get adConsentAgainButton => 'Consentir com os anúncios';
   @override
+  String get familyCouponTitle => 'Cupom de benefício familiar';
+  @override
+  String familyCouponSponsorDesc(int limit) =>
+      'Compartilhe este cupom com sua família. Até $limit familiares que participam dos seus grupos podem usar os mesmos recursos do Premium (incluindo sem anúncios) enquanto seu Premium estiver ativo.';
+  @override
+  String get familyCouponCopy => 'Copiar';
+  @override
+  String get familyCouponCopied => 'Cupom copiado';
+  @override
+  String familyCouponMembers(int count, int limit) =>
+      'Familiares usando o benefício ($count/$limit)';
+  @override
+  String get familyCouponNoMembers => 'Nenhum familiar está usando o benefício ainda';
+  @override
+  String get familyCouponRemove => 'Remover';
+  @override
+  String get familyCouponRemoveConfirmTitle => 'Remover o benefício familiar?';
+  @override
+  String familyCouponRemoveConfirmBody(String name) =>
+      'O benefício familiar de $name será removido. Isso libera uma vaga.';
+  @override
+  String get familyCouponRemoved => 'Benefício familiar removido';
+  @override
+  String get familyCouponRedeemDesc =>
+      'Se um familiar tem Premium, digite o cupom recebido dele para usar os mesmos recursos do Premium. Você precisa participar de um dos grupos dessa pessoa.';
+  @override
+  String get familyCouponInputHint => 'Cupom (ex.: ABCD-EFGH)';
+  @override
+  String get familyCouponRedeemButton => 'Receber o benefício';
+  @override
+  String familyCouponRedeemed(String name) =>
+      'Benefício familiar de $name ativado';
+  @override
+  String familyBenefitActive(String name) =>
+      'Você está usando os recursos Premium pelo benefício familiar de $name';
+  @override
+  String familyBenefitSuspended(String name) =>
+      'O benefício familiar está pausado porque o Premium de $name não está ativo. Ele volta automaticamente quando o Premium for retomado.';
+  @override
+  String get familyNameUnknown => 'seu familiar';
+  @override
+  String familyCouponError(String reason) => switch (reason) {
+      'invalid-code' => 'O cupom não é válido',
+      'own-coupon' => 'Você não pode usar seu próprio cupom',
+      'not-family' => 'Você não participa de nenhum grupo de quem emitiu este cupom',
+      'sponsor-inactive' => 'O Premium de quem emitiu este cupom não está ativo',
+      'limit-reached' => 'Este cupom atingiu o limite de pessoas',
+      'already-member' => 'Você já está usando este cupom',
+      'other-benefit-active' => 'Você já está usando outro benefício familiar',
+      'not-premium' => 'Os cupons só podem ser emitidos com o Premium ativo',
+      _ => 'Não foi possível processar o cupom. Tente novamente mais tarde',
+    };
+  @override
   String get whiteboardSettingsTitle => 'Configurações do quadro branco';
 
   @override

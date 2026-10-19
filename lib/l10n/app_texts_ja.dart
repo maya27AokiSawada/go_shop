@@ -1404,6 +1404,59 @@ class AppTextsJa extends AppTexts {
   @override
   String get adConsentAgainButton => '広告への同意を行う';
   @override
+  String get familyCouponTitle => '家族特典クーポン';
+  @override
+  String familyCouponSponsorDesc(int limit) =>
+      'このクーポンを家族に伝えると、あなたのグループに参加している家族$limit人までが Premium と同じ機能（広告非表示を含む）を使えます。特典はあなたの Premium が有効な間だけ利用できます。';
+  @override
+  String get familyCouponCopy => 'コピー';
+  @override
+  String get familyCouponCopied => 'クーポンをコピーしました';
+  @override
+  String familyCouponMembers(int count, int limit) =>
+      '特典を利用中の家族（$count/$limit人）';
+  @override
+  String get familyCouponNoMembers => 'まだ特典を利用している家族はいません';
+  @override
+  String get familyCouponRemove => '解除';
+  @override
+  String get familyCouponRemoveConfirmTitle => '家族特典を解除しますか？';
+  @override
+  String familyCouponRemoveConfirmBody(String name) =>
+      '$name さんの家族特典を解除します。解除すると枠が1人分空きます。';
+  @override
+  String get familyCouponRemoved => '家族特典を解除しました';
+  @override
+  String get familyCouponRedeemDesc =>
+      '家族が Premium を利用している場合、その家族から受け取ったクーポンを入力すると Premium と同じ機能を使えます。入力するには、その家族のグループに参加している必要があります。';
+  @override
+  String get familyCouponInputHint => 'クーポン（例: ABCD-EFGH）';
+  @override
+  String get familyCouponRedeemButton => '特典を受け取る';
+  @override
+  String familyCouponRedeemed(String name) =>
+      '$name さんの家族特典を有効にしました';
+  @override
+  String familyBenefitActive(String name) =>
+      '$name さんの家族特典で Premium と同じ機能を利用中です';
+  @override
+  String familyBenefitSuspended(String name) =>
+      '$name さんの Premium が無効のため、家族特典は停止中です。$name さんの Premium が再開すると自動で再開します。';
+  @override
+  String get familyNameUnknown => 'ご家族';
+  @override
+  String familyCouponError(String reason) => switch (reason) {
+      'invalid-code' => 'クーポンが正しくありません',
+      'own-coupon' => '自分のクーポンは使えません',
+      'not-family' => 'クーポンを発行した人のグループに参加していないため使えません',
+      'sponsor-inactive' => 'クーポンを発行した人の Premium が有効ではありません',
+      'limit-reached' => 'このクーポンの利用人数が上限に達しています',
+      'already-member' => 'すでにこのクーポンの特典を利用中です',
+      'other-benefit-active' => 'すでに別の家族特典を利用中です',
+      'not-premium' => 'クーポンは Premium 利用中のみ発行できます',
+      _ => 'クーポンの処理に失敗しました。時間をおいて再度お試しください',
+    };
+  @override
   String get whiteboardSettingsTitle => 'ホワイトボード設定';
   @override
   String get customColorSettingsTitle => 'カスタム色設定';
