@@ -9,6 +9,8 @@
 - [x] 米国の州規制（CCPA 等）への対応状況を確認し、dev で確認する地域を切り替えられるようにする
 - [x] 広告同意がないユーザーのマルチモード切り替えを禁止し、注意を表示する
 - [x] 広告同意の状況を Firestore の `users/{uid}` に保存する
+- [x] Premium ユーザーの家族特典クーポンを実装する
+- [ ] 家族特典の Functions と Security Rules をデプロイする
 - [ ] AdMob コンソールで GDPR メッセージを公開する
 - [ ] SH 54D で同意ダイアログと取り消し入口の動作を確認する
 
@@ -156,12 +158,51 @@
 
 ---
 
+### 9. 家族特典クーポン ✅
+
+**Purpose**: Premium の課金ユーザーにクーポンを発行し、入力した家族5人までが Premium と同じ機能を使えるようにする。
+
+**決めた仕様**:
+
+- 対象は月額・年額 Premium（`subscribe`）のみ。早期ダウンロード特典は対象外。
+- 家族は広告非表示も含めて Premium 同等（`purchaseType: family`）。
+- 家族の範囲は「発行者が参加しているグループのどれかに参加していること」で、入力時のみ確認する。後でグループを抜けても、発行者の Premium が有効な間は特典が続く。
+- 同時に5人まで。発行者は家族を解除して枠を空けられる。
+- 特典を受けている家族の `users/{uid}.familyBenefit.sponsorUid` に発行者の uid を保存する（表示用に `sponsorDisplayName` も保存）。
+- iOS は App Store ガイドライン 3.1.1（アプリ内課金以外での機能解放）への配慮から、課金パネルと同じく既定で非表示（`IOS_PURCHASE_PANEL=true` で表示）。
+
+**Solution**:
+
+- 不正を防ぐため、発行・入力・解除は Functions の Callable で行い、5人の上限とグループ参加の確認はサーバー側でトランザクション内に行う。
+- 発行者の Premium が切れたら家族を `free` に、再開したら `family` に戻す処理は、`users/{uid}` の Firestore トリガー1か所にまとめた（購入検証・RTDN・App Store 通知・早期特典の失効など、どこで `purchaseType` が変わっても反映される）。
+- アカウント削除時は、発行者なら家族の特典とクーポンを、家族なら発行者側の枠を片付ける。
+- `familyCoupon` / `familyBenefit` を Security Rules の保護対象に追加した。
+- クライアントに `PurchaseType.family` を追加した（広告非表示、Hive の猶予は月額と同じ35日）。設定画面に `FamilyCouponPanel` を追加し、Premium ならクーポンと家族一覧（解除ボタン付き）、家族特典中なら発行者名、無料なら入力欄を表示する。文言は4言語。
+
+**Modified Files**:
+
+- `functions/family_coupon.js`（新規）、`functions/index.js`、`functions/test/family_coupon.test.js`（新規、19件）
+- `firestore.rules`
+- `lib/models/purchase_type.dart`、`lib/providers/purchase_sync_provider.dart`、`lib/providers/subscription_provider.dart`
+- `lib/services/family_coupon_service.dart`（新規）、`lib/providers/family_coupon_provider.dart`（新規）
+- `lib/widgets/settings/family_coupon_panel.dart`（新規）、`lib/pages/settings_page.dart`
+- `lib/l10n/app_texts*.dart`、`test/services/family_coupon_service_test.dart`（新規、5件）
+- `instructions/50_user_and_settings.md`
+
+**Test Results**: Functions `npm test` 63件すべて成功。`flutter test` 420件成功、3件失敗（`test/auth/` の既知のモック再生成待ち）
+
+**Status**: ✅ 実装完了（Functions・Security Rules は未デプロイ。実機確認は未実施）
+
+---
+
 ## 🔄 継続・確認事項
 
 - **AdMob コンソール**: 「プライバシーとメッセージ」→「欧州の規制」で GDPR メッセージを作成・公開する。公開しないと同意ダイアログも取り消し入口も表示されない。
 - **実機確認（SH 54D）**: dev を再起動して同意ダイアログが出ること、設定画面に「広告のプライバシー設定」が出てフォームを開けることを確認する。最初のダイアログをもう一度試すときはアプリのデータを消去する。
 - **iOS（2027年1月提出）**: 提出ビルドは `--dart-define=IOS_PURCHASE_PANEL=true` を付けて作成する。
 - **Play ストア**: ビルド46の AAB を作成してリリースする（ビルド45は未リリース）。
+- **家族特典のデプロイ**: `firebase deploy --only functions:issueFamilyCoupon,functions:redeemFamilyCoupon,functions:removeFamilyMember,functions:syncFamilyBenefits,firestore:rules`。トリガーのリージョン（`asia-northeast1`）が Firestore のロケーションと一致しているか確認する。アプリより先にデプロイする。
+- **家族特典の実機確認**: Premium のアカウントでクーポン発行 → 同じグループの別アカウントで入力 → 広告が消え上限が上がること、発行者の解除で戻ること。
 - **テスト**: `test/auth/` の3ファイルのモック（`*.mocks.dart`）を再生成する。
 
 ---
