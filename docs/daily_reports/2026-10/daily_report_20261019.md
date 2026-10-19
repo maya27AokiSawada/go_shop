@@ -216,6 +216,8 @@
 
 - Firebase コンソールで `firestoreNews` コレクションを作り、`current_news` / `current_news_eng` を作り直した（ユーザー対応）。アプリでニュースが表示されることを確認済み。
 
+- 不要になった綴り違いの `furestorenews`（prod・dev）と、prod の大文字の `Notifications`（現在のコードでは未使用）を削除した（ユーザー対応）。
+
 **Status**: ✅ 完了
 
 **参考（dev にコレクションが少ない理由）**: Firestore のコレクションはドキュメントができて初めて表示される。dev に無い `appConfig`（課金開始日、未設定時は既定値）、`testingStatus`（広告テスト用、未設定時はオフ）、`purchaseReceipts`（購入検証で作成）は、無くても動作に影響しない。
@@ -233,7 +235,6 @@
 - **ホーム画面のバナー**: 同意なしの状態で、ホーム画面にもバナーが出ないことを SH 54D で確認する。
 - **紛らわしいログ**: 同意がなく SDK を初期化しなかった場合も、`app_initialize_widget.dart` が「✅ AdMob SDK 初期化完了」と出力する。必要なら修正する。
 - **App Check（dev）**: dev の Cloud Firestore の App Check 適用はオフにした。再びオンにする場合は、SH 54D の新しいデバッグトークンを登録する。9/24 登録の古い SH 54D 用トークンは不要なら削除する。
-- **Firestore の不要なコレクション**: 綴り違いの `furestorenews`（prod・dev）と、prod の大文字の `Notifications`（現在のコードでは未使用）の中身を確認し、不要なら削除する。
 - **テスト**: `test/auth/` の3ファイルのモック（`*.mocks.dart`）を再生成する。
 
 ---
