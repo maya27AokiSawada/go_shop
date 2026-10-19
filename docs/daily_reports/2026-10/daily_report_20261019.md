@@ -6,6 +6,8 @@
 - [x] SH 54D の UMP テストデバイスIDを取得し、dev で EEA 向けの同意フローを確認できるようにする
 - [x] iOS 版で課金パネルを既定で非表示にし、ビルドオプションで表示できるようにする
 - [x] ビルド番号を 46 に上げる
+- [x] 米国の州規制（CCPA 等）への対応状況を確認し、dev で確認する地域を切り替えられるようにする
+- [x] 広告同意がないユーザーのマルチモード切り替えを禁止し、注意を表示する
 - [ ] AdMob コンソールで GDPR メッセージを公開する
 - [ ] SH 54D で同意ダイアログと取り消し入口の動作を確認する
 
@@ -79,6 +81,48 @@
 - `pubspec.yaml` を `1.2.0+46` に、`AGENTS.md` のビルド目標バージョンも `1.2.0+46` に更新した。
 
 **Test Results**: `flutter test` 415件成功、3件失敗（`test/auth/` の3ファイル。モックの再生成が必要な既知の問題で、今回の変更とは無関係）
+
+---
+
+### 5. 米国の州規制への対応確認と dev の確認地域の切り替え ✅
+
+**Purpose**: 米国州規制（CCPA 等）でのデータ利用同意にも対応しているか確認する。
+
+**Solution**:
+
+- 米国州規制は起動時の同意ではなく、ユーザーが自分でオプトアウトできる入口が必要。これは項目1の「広告のプライバシー設定」が兼ねる（AdMob コンソールで「米国の州規制」メッセージを公開すると対象州で表示される）。`google_mobile_ads` 9.0.0 は Android の UMP 4.0.0 を含み対応済み。
+- dev の確認地域を `.env` の `ADMOB_UMP_DEBUG_GEOGRAPHY=eea` / `us` / `other` で切り替えられるようにした（旧設定 `ADMOB_UMP_DEBUG_EEA=true` は `eea` と同じ扱い）。ローカルの `.env` は `eea` に変更済み。
+
+**Modified Files**:
+
+- `lib/services/ad_service.dart`
+- `instructions/50_user_and_settings.md`
+
+**Status**: ✅ 完了（AdMob コンソールでのメッセージ公開と実機確認は未実施）
+
+---
+
+### 6. 広告同意がないユーザーのマルチモード切り替えを禁止 ✅
+
+**Purpose**: 広告を表示できない無料ユーザーには、マルチモードを使わせない。
+
+**Solution**:
+
+- 対象は UMP の `canRequestAds()` が `false` の無料ユーザー（同意フォームを未回答のまま閉じた、エラーなど）。同意を拒否した EEA ユーザーや米国州でオプトアウトしたユーザーは制限付き広告が配信されるため対象外とした（GDPR の「自由な同意」との関係もあり、拒否まで対象にするのは見送り）。課金ユーザーは広告が出ないため対象外。
+- `multiModeBlockedByAdConsentProvider` を追加した。管理モード切替パネルは、シングルモードかつ対象のときスイッチを無効にし、注意文と「広告への同意を行う」ボタンを表示する。ボタンは `AdService.requestConsentAgain()` で同意フォームを再表示する。
+- マルチ → シングルの切り替えは同意に関係なく可能。
+- 文言を4言語に追加した。
+
+**Modified Files**:
+
+- `lib/providers/ad_consent_provider.dart`（新規）
+- `lib/services/ad_service.dart`
+- `lib/widgets/settings/app_ui_mode_switcher_panel.dart`
+- `lib/widgets/settings/ad_privacy_options_panel.dart`
+- `lib/l10n/app_texts*.dart`
+- `instructions/50_user_and_settings.md`
+
+**Status**: ✅ 実装完了（実機確認は未実施。リリース前のためビルド46に含める）
 
 ---
 
