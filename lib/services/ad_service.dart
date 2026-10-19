@@ -97,27 +97,60 @@ class AdService {
     return completer.future;
   }
 
-  /// dev では .env の設定で EEA 向けの同意フローを日本から確認できる
-  /// - ADMOB_UMP_DEBUG_EEA=true
+  /// dev では .env の設定で規制地域向けの同意フローを日本から確認できる
+  /// - ADMOB_UMP_DEBUG_GEOGRAPHY=eea（EEA・英国） / us（米国の規制対象州）
+  ///   （旧設定の ADMOB_UMP_DEBUG_EEA=true は eea と同じ扱い）
   /// - ADMOB_UMP_TEST_DEVICE_IDS=xxxx,yyyy（ログに出るテストデバイスID）
   ConsentDebugSettings? get _consentDebugSettings {
     if (F.appFlavor != Flavor.dev) return null;
-    if (dotenv.env['ADMOB_UMP_DEBUG_EEA'] != 'true') return null;
+    final geography = _debugGeography;
+    if (geography == null) return null;
     final ids = (dotenv.env['ADMOB_UMP_TEST_DEVICE_IDS'] ?? '')
         .split(',')
         .map((id) => id.trim())
         .where((id) => id.isNotEmpty)
         .toList();
+    Log.info('🧪 UMP デバッグ地域: $geography');
     return ConsentDebugSettings(
-      debugGeography: DebugGeography.debugGeographyEea,
+      debugGeography: geography,
       testIdentifiers: ids,
     );
+  }
+
+  DebugGeography? get _debugGeography {
+    switch (dotenv.env['ADMOB_UMP_DEBUG_GEOGRAPHY']?.trim().toLowerCase()) {
+      case 'eea':
+        return DebugGeography.debugGeographyEea;
+      case 'us':
+        return DebugGeography.debugGeographyRegulatedUsState;
+      case 'other':
+        return DebugGeography.debugGeographyOther;
+    }
+    if (dotenv.env['ADMOB_UMP_DEBUG_EEA'] == 'true') {
+      return DebugGeography.debugGeographyEea;
+    }
+    return null;
   }
 
   /// 同意確認の完了を待ってから、広告リクエストが許可されているか返す
   Future<bool> _canRequestAds() async {
     await _consentFuture;
     return ConsentInformation.instance.canRequestAds();
+  }
+
+  /// 広告同意が得られておらず広告を表示できない状態か（広告非対応プラットフォームは false）
+  Future<bool> isAdConsentMissing() async {
+    if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) return false;
+    return !await _canRequestAds();
+  }
+
+  /// 同意フォームを再表示して同意を取り直す（未回答のまま閉じた場合など）
+  Future<void> requestConsentAgain() async {
+    _consentFuture = _gatherConsent();
+    await _consentFuture;
+    if (await ConsentInformation.instance.canRequestAds()) {
+      await _initializeSdkIfNeeded();
+    }
   }
 
   /// 設定画面に「広告のプライバシー設定」（同意の変更・取り消し）を表示すべきか

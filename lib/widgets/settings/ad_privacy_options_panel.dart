@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/ad_consent_provider.dart';
 import '../../services/ad_service.dart';
 import '../../l10n/l10n.dart';
 
@@ -39,6 +40,8 @@ class _AdPrivacyOptionsPanelState extends ConsumerState<AdPrivacyOptionsPanel> {
     try {
       await ref.read(adServiceProvider).showPrivacyOptionsForm();
     } finally {
+      // 同意状態が変わるとマルチモード切り替え可否も変わる
+      ref.invalidate(multiModeBlockedByAdConsentProvider);
       if (mounted) setState(() => _isShowingForm = false);
     }
   }

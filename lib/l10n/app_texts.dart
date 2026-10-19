@@ -743,6 +743,8 @@ abstract class AppTexts {
   String get adPrivacyOptionsTitle;
   String get adPrivacyOptionsDesc;
   String get adPrivacyOptionsButton;
+  String get multiModeAdConsentRequired;
+  String get adConsentAgainButton;
 
   // ========================================
   // フィードバックセクション

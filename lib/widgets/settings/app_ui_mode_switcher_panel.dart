@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../config/app_ui_mode_config.dart';
 import '../../config/subscription_limits.dart';
+import '../../providers/ad_consent_provider.dart';
 import '../../providers/app_ui_mode_provider.dart';
+import '../../services/ad_service.dart';
 import '../../providers/user_settings_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/shared_group_provider.dart';
@@ -60,6 +62,21 @@ class AppUIModeSwicherPanel extends ConsumerWidget {
   ) async {
     if (currentMode == AppUIMode.single) {
       // Free / Premium に関係なく Multi モードを選択できる。
+      // ただし広告同意がなく広告を表示できない無料ユーザーは切り替え不可。
+      final blocked =
+          await ref.read(multiModeBlockedByAdConsentProvider.future);
+      if (blocked) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(texts.multiModeAdConsentRequired),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+        return;
+      }
       await _saveMode(ref, AppUIMode.multi);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -247,6 +264,9 @@ class AppUIModeSwicherPanel extends ConsumerWidget {
     final currentMode = ref.watch(appUIModeProvider);
     final isMulti = currentMode == AppUIMode.multi;
     final t = texts;
+    // マルチ → シングルは同意に関係なく可能なので、シングル時のみ制限する
+    final isBlockedByAdConsent = !isMulti &&
+        (ref.watch(multiModeBlockedByAdConsentProvider).valueOrNull ?? false);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -293,9 +313,73 @@ class AppUIModeSwicherPanel extends ConsumerWidget {
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
               ),
               value: isMulti,
-              onChanged: (_) => _onToggle(context, ref, currentMode),
+              onChanged: isBlockedByAdConsent
+                  ? null
+                  : (_) => _onToggle(context, ref, currentMode),
               activeThumbColor: Colors.green.shade600,
             ),
+          ),
+          if (isBlockedByAdConsent) const _AdConsentRequiredNotice(),
+        ],
+      ),
+    );
+  }
+}
+
+/// 広告同意がないためマルチモードに切り替えられないことの注意表示
+class _AdConsentRequiredNotice extends ConsumerStatefulWidget {
+  const _AdConsentRequiredNotice();
+
+  @override
+  ConsumerState<_AdConsentRequiredNotice> createState() =>
+      _AdConsentRequiredNoticeState();
+}
+
+class _AdConsentRequiredNoticeState
+    extends ConsumerState<_AdConsentRequiredNotice> {
+  bool _isRequesting = false;
+
+  Future<void> _requestConsent() async {
+    setState(() => _isRequesting = true);
+    try {
+      await ref.read(adServiceProvider).requestConsentAgain();
+    } finally {
+      ref.invalidate(multiModeBlockedByAdConsentProvider);
+      if (mounted) setState(() => _isRequesting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.orange.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.info_outline, color: Colors.orange.shade800, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  texts.multiModeAdConsentRequired,
+                  style: TextStyle(fontSize: 12, color: Colors.orange.shade900),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: _isRequesting ? null : _requestConsent,
+            icon: const Icon(Icons.privacy_tip_outlined, size: 18),
+            label: Text(texts.adConsentAgainButton),
           ),
         ],
       ),

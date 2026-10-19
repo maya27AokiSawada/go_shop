@@ -1396,6 +1396,11 @@ class AppTextsJa extends AppTexts {
   @override
   String get adPrivacyOptionsButton => '同意設定を変更する';
   @override
+  String get multiModeAdConsentRequired =>
+      '広告の利用に同意いただけていないため、マルチモードに切り替えられません。広告への同意を行うとマルチモードを利用できます。';
+  @override
+  String get adConsentAgainButton => '広告への同意を行う';
+  @override
   String get whiteboardSettingsTitle => 'ホワイトボード設定';
   @override
   String get customColorSettingsTitle => 'カスタム色設定';

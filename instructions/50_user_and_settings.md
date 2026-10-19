@@ -113,6 +113,7 @@ batch2.update(group.reference, {
 - モード判定は `ref.watch(appUIModeProvider) == AppUIMode.single` を使う
 - `isSingle` が true のとき、グループ追加 FAB・リストDropdown・add/deleteボタンを非表示にする
 - single → multi 変更は Free / Premium 共通で利用可能。Free プランのグループ数・メンバー数上限は各操作側で適用する
+- ただし広告同意がなく広告を表示できない無料ユーザー（UMP の `canRequestAds()` が `false`）は single → multi を禁止する。判定は `multiModeBlockedByAdConsentProvider`（`lib/providers/ad_consent_provider.dart`）。`AppUIModeSwicherPanel` はスイッチを無効化し、注意文と「広告への同意を行う」ボタン（`AdService.requestConsentAgain()`）を表示する。同意を拒否した EEA ユーザーや米国州でオプトアウトしたユーザーは制限付き広告が配信されるため対象外。multi → single は常に可能。同意状態を変える操作の後は provider を `invalidate` する
 - multi → single 変更は確認ダイアログを必ず表示する
 - **Hive に新フィールドを追加したら `UserSettingsAdapterOverride` の `read()` と `write()` を必ず更新する**（null安全のため `(fields[N] as Type?) ?? defaultValue` パターンを使う）
 - **新規ユーザーのデフォルトは `appUIMode: 0`（シングルモード）**。`firestore_user_name_service.dart` の `saveUserName()` で新規ドキュメント作成時に `appUIMode: 0` を明示設定すること。SharedPreferences に前ユーザーの stale な値（`1` = multi）が残っていても上書きされる。
@@ -280,7 +281,9 @@ purchaseType: 'free' | 'subscribe' | 'purchase'  // 課金タイプ（デフォ�
 - `shouldShowBannerAd()` も `canRequestAds()` が `false` ならバナーを出さない
 - 同意の変更・取り消し入口は設定画面の `AdPrivacyOptionsPanel`。`getPrivacyOptionsRequirementStatus()` が `required` のときだけ表示する（AdMob の要件のため削除しない）
 - AdMob コンソールの「プライバシーとメッセージ」→「欧州の規制」で GDPR メッセージを公開しておく必要がある
-- dev では `.env` に `ADMOB_UMP_DEBUG_EEA=true` と `ADMOB_UMP_TEST_DEVICE_IDS=<ログに出るID>` を設定すると、日本から EEA 向けの同意フローを確認できる
+- 米国の州規制（CCPA 等）も同じ入口で対応する。AdMob コンソールの「米国の州規制」メッセージを公開すると、対象州のユーザーに `AdPrivacyOptionsPanel` が表示され、オプトアウトフォームが開く（起動時の同意フォームは出ない）
+- dev では `.env` に `ADMOB_UMP_DEBUG_GEOGRAPHY=eea`（EEA・英国）/ `us`（米国の規制対象州）/ `other` と `ADMOB_UMP_TEST_DEVICE_IDS=<ログに出るID>` を設定すると、日本から各地域の同意フローを確認できる（旧設定の `ADMOB_UMP_DEBUG_EEA=true` は `eea` と同じ扱い）
+- デバッグ地域を切り替えた後は、アプリのデータを消去するか `ConsentInformation.instance.reset()` で同意状態を初期化してから確認する
 
 ### 広告テストバイパスの手順
 
