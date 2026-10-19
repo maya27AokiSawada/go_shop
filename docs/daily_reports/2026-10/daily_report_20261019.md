@@ -13,6 +13,7 @@
 - [x] 家族特典の Functions と Security Rules をデプロイする（prod・dev）
 - [x] SH 54D の dev で同期アイコンが赤のままになる問題を解消する
 - [x] 広告同意がないのにホーム画面にバナーが出る問題を修正する
+- [x] アプリ内ニュースのコレクション名の綴り違いを直す（prod・dev）
 - [ ] AdMob コンソールで GDPR メッセージを公開する
 - [ ] SH 54D で同意ダイアログと取り消し入口の動作を確認する
 
@@ -205,6 +206,22 @@
 
 ---
 
+### 11. アプリ内ニュースのコレクション名の綴り違い ✅
+
+**Problem / Root Cause**:
+
+- アプリ（`FirestoreNewsService`）と Security Rules は `firestoreNews` を参照しているが、prod・dev とも Firestore 上のコレクション名が `furestorenews`（綴り違い）になっていた。ルールでも許可されていない名前のため、ニュースがアプリに表示されていなかった（10/17 掲載の「iOS版は2027年1月公開予定」も未表示だった）。
+
+**Solution**:
+
+- Firebase コンソールで `firestoreNews` コレクションを作り、`current_news` / `current_news_eng` を作り直した（ユーザー対応）。アプリでニュースが表示されることを確認済み。
+
+**Status**: ✅ 完了
+
+**参考（dev にコレクションが少ない理由）**: Firestore のコレクションはドキュメントができて初めて表示される。dev に無い `appConfig`（課金開始日、未設定時は既定値）、`testingStatus`（広告テスト用、未設定時はオフ）、`purchaseReceipts`（購入検証で作成）は、無くても動作に影響しない。
+
+---
+
 ## 🔄 継続・確認事項
 
 - **AdMob コンソール**: 「プライバシーとメッセージ」→「欧州の規制」で GDPR メッセージを作成・公開する。公開しないと同意ダイアログも取り消し入口も表示されない。
@@ -216,6 +233,7 @@
 - **ホーム画面のバナー**: 同意なしの状態で、ホーム画面にもバナーが出ないことを SH 54D で確認する。
 - **紛らわしいログ**: 同意がなく SDK を初期化しなかった場合も、`app_initialize_widget.dart` が「✅ AdMob SDK 初期化完了」と出力する。必要なら修正する。
 - **App Check（dev）**: dev の Cloud Firestore の App Check 適用はオフにした。再びオンにする場合は、SH 54D の新しいデバッグトークンを登録する。9/24 登録の古い SH 54D 用トークンは不要なら削除する。
+- **Firestore の不要なコレクション**: 綴り違いの `furestorenews`（prod・dev）と、prod の大文字の `Notifications`（現在のコードでは未使用）の中身を確認し、不要なら削除する。
 - **テスト**: `test/auth/` の3ファイルのモック（`*.mocks.dart`）を再生成する。
 
 ---
