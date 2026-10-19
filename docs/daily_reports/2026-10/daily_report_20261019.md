@@ -8,6 +8,7 @@
 - [x] ビルド番号を 46 に上げる
 - [x] 米国の州規制（CCPA 等）への対応状況を確認し、dev で確認する地域を切り替えられるようにする
 - [x] 広告同意がないユーザーのマルチモード切り替えを禁止し、注意を表示する
+- [x] 広告同意の状況を Firestore の `users/{uid}` に保存する
 - [ ] AdMob コンソールで GDPR メッセージを公開する
 - [ ] SH 54D で同意ダイアログと取り消し入口の動作を確認する
 
@@ -123,6 +124,35 @@
 - `instructions/50_user_and_settings.md`
 
 **Status**: ✅ 実装完了（実機確認は未実施。リリース前のためビルド46に含める）
+
+---
+
+### 7. 課金ユーザーの案内と、広告同意の状況の Firestore 保存 ✅
+
+**Solution**:
+
+- 管理モード切替パネルの注意文に「Premiumプランに加入してもマルチモードを利用できる」旨を追加した。課金パネルを表示できる環境（`PurchasePlanPanel.isAvailable`）でのみこの文言にし、課金パネル非表示中の iOS では従来の文言のままにした。4言語に追加。
+- 同意状況を `users/{uid}.adConsent`（`consentStatus` / `canRequestAds` / `privacyOptionsRequired` / `platform` / `updatedAt`）に保存するようにした。起動時の同意確認後、同意フォームの再表示後、プライバシー設定フォームの後、サインイン・ユーザー切替時に保存する。前回から変化がなければ書き込まない。
+- ユーザードキュメントが未作成のときは `update()` が `not-found` になるため保存をスキップする（新規作成時の `appUIMode: 0` などの初期値を飛ばさないため）。Security Rules は自分のドキュメントの更新を許可済みのため変更不要。
+
+**Modified Files**:
+
+- `lib/services/ad_service.dart`
+- `lib/services/firestore_user_name_service.dart`
+- `lib/widgets/app_initialize_widget.dart`
+- `lib/widgets/settings/app_ui_mode_switcher_panel.dart`
+- `lib/l10n/app_texts*.dart`
+- `instructions/50_user_and_settings.md`
+
+**Status**: ✅ 実装完了（実機での保存確認は未実施）
+
+---
+
+### 8. EEA・米国以外でのデータ提供同意（検討メモ） 📝
+
+- 当面は実装しない。将来、利用データを他社や自社の他アプリ（木之本すもも企画）に提供する場合は、UMP（広告パートナー向け）とは別に、アプリ独自の同意ダイアログを全地域で表示できる。
+- 日本の個人情報保護法では、個人データの第三者提供に原則本人の同意が必要。同意の文言の版・日時・結果を `users/{uid}` に保存し、プライバシーポリシーと Google Play のデータセーフティも更新する。
+- iOS では、他社のアプリやデータと結び付けて使う場合は ATT（App Tracking Transparency）の許可も必要になる。
 
 ---
 
