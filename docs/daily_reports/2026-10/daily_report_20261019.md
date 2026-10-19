@@ -10,7 +10,7 @@
 - [x] 広告同意がないユーザーのマルチモード切り替えを禁止し、注意を表示する
 - [x] 広告同意の状況を Firestore の `users/{uid}` に保存する
 - [x] Premium ユーザーの家族特典クーポンを実装する
-- [ ] 家族特典の Functions と Security Rules をデプロイする
+- [x] 家族特典の Functions と Security Rules をデプロイする（prod・dev）
 - [ ] AdMob コンソールで GDPR メッセージを公開する
 - [ ] SH 54D で同意ダイアログと取り消し入口の動作を確認する
 
@@ -191,7 +191,7 @@
 
 **Test Results**: Functions `npm test` 63件すべて成功。`flutter test` 420件成功、3件失敗（`test/auth/` の既知のモック再生成待ち）
 
-**Status**: ✅ 実装完了（Functions・Security Rules は未デプロイ。実機確認は未実施）
+**Status**: ✅ 実装・デプロイ完了（prod `goshopping-48db9` は Claude が、dev `gotoshop-572b7` は手動でデプロイ。いずれも Firestore と同じ `asia-northeast1`。実機確認は未実施）
 
 ---
 
@@ -201,7 +201,6 @@
 - **実機確認（SH 54D）**: dev を再起動して同意ダイアログが出ること、設定画面に「広告のプライバシー設定」が出てフォームを開けることを確認する。最初のダイアログをもう一度試すときはアプリのデータを消去する。
 - **iOS（2027年1月提出）**: 提出ビルドは `--dart-define=IOS_PURCHASE_PANEL=true` を付けて作成する。
 - **Play ストア**: ビルド46の AAB を作成してリリースする（ビルド45は未リリース）。
-- **家族特典のデプロイ**: `firebase deploy --only functions:issueFamilyCoupon,functions:redeemFamilyCoupon,functions:removeFamilyMember,functions:syncFamilyBenefits,firestore:rules`。トリガーのリージョン（`asia-northeast1`）が Firestore のロケーションと一致しているか確認する。アプリより先にデプロイする。
 - **家族特典の実機確認**: Premium のアカウントでクーポン発行 → 同じグループの別アカウントで入力 → 広告が消え上限が上がること、発行者の解除で戻ること。
 - **テスト**: `test/auth/` の3ファイルのモック（`*.mocks.dart`）を再生成する。
 
