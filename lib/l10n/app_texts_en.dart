@@ -1453,6 +1453,9 @@ class AppTextsEn extends AppTexts {
   String get multiModeAdConsentRequired =>
       'Multi Mode is unavailable because you have not consented to ads. Please give consent to ads to use Multi Mode.';
   @override
+  String get multiModeAdConsentRequiredWithPremium =>
+      'Multi Mode is unavailable because you have not consented to ads. Give consent to ads or subscribe to the Premium plan to use Multi Mode.';
+  @override
   String get adConsentAgainButton => 'Give consent to ads';
   @override
   String get whiteboardSettingsTitle => 'Whiteboard Settings';

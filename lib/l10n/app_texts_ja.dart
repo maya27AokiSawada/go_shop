@@ -1399,6 +1399,9 @@ class AppTextsJa extends AppTexts {
   String get multiModeAdConsentRequired =>
       '広告の利用に同意いただけていないため、マルチモードに切り替えられません。広告への同意を行うとマルチモードを利用できます。';
   @override
+  String get multiModeAdConsentRequiredWithPremium =>
+      '広告の利用に同意いただけていないため、マルチモードに切り替えられません。広告への同意を行うか、Premiumプランに加入するとマルチモードを利用できます。';
+  @override
   String get adConsentAgainButton => '広告への同意を行う';
   @override
   String get whiteboardSettingsTitle => 'ホワイトボード設定';

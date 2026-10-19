@@ -115,6 +115,11 @@ class _AppInitializeWidgetState extends ConsumerState<AppInitializeWidget> {
           mounted: mounted,
         );
         Log.info('✅ [UID_WATCH] ユーザーコンテキスト確認完了: $currentUid');
+
+        // 広告同意状況を users/{uid}.adConsent に保存（サインイン・ユーザー切替時）
+        if (mounted && (Platform.isAndroid || Platform.isIOS)) {
+          unawaited(ref.read(adServiceProvider).syncAdConsentToFirestore());
+        }
       },
       onError: (Object e, StackTrace s) {
         Log.error('❌ [UID_WATCH] authStateChanges エラー: $e');

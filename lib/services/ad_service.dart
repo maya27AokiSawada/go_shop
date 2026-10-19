@@ -3,6 +3,7 @@ import 'dart:io';
 
 // Logger instance
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -58,6 +59,7 @@ class AdService {
   Future<void> initialize() async {
     _consentFuture ??= _gatherConsent();
     await _consentFuture;
+    unawaited(syncAdConsentToFirestore());
     await recordInstallDateIfNeeded();
     if (await ConsentInformation.instance.canRequestAds()) {
       await _initializeSdkIfNeeded();
@@ -138,6 +140,34 @@ class AdService {
     return ConsentInformation.instance.canRequestAds();
   }
 
+  String? _lastSavedConsentKey;
+
+  /// 現在の同意状況を Firestore の users/{uid}.adConsent に保存する
+  /// （サインイン中のみ。前回保存時から変化がなければ書き込まない）
+  Future<void> syncAdConsentToFirestore() async {
+    if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) return;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    try {
+      final info = ConsentInformation.instance;
+      final consent = <String, dynamic>{
+        'consentStatus': (await info.getConsentStatus()).name,
+        'canRequestAds': await info.canRequestAds(),
+        'privacyOptionsRequired':
+            await info.getPrivacyOptionsRequirementStatus() ==
+                PrivacyOptionsRequirementStatus.required,
+        'platform': Platform.isIOS ? 'ios' : 'android',
+      };
+      final key = '$uid:$consent';
+      if (key == _lastSavedConsentKey) return;
+      if (await FirestoreUserNameService.saveAdConsent(consent)) {
+        _lastSavedConsentKey = key;
+      }
+    } catch (e) {
+      Log.warning('⚠️ 広告同意状況の同期エラー: $e');
+    }
+  }
+
   /// 広告同意が得られておらず広告を表示できない状態か（広告非対応プラットフォームは false）
   Future<bool> isAdConsentMissing() async {
     if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) return false;
@@ -148,6 +178,7 @@ class AdService {
   Future<void> requestConsentAgain() async {
     _consentFuture = _gatherConsent();
     await _consentFuture;
+    unawaited(syncAdConsentToFirestore());
     if (await ConsentInformation.instance.canRequestAds()) {
       await _initializeSdkIfNeeded();
     }
@@ -172,6 +203,7 @@ class AdService {
       if (!completer.isCompleted) completer.complete();
     });
     await completer.future;
+    unawaited(syncAdConsentToFirestore());
     if (await ConsentInformation.instance.canRequestAds()) {
       await _initializeSdkIfNeeded();
     }

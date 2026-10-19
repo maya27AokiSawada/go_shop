@@ -845,6 +845,9 @@ class AppTextsPt extends AppTextsEn {
   String get multiModeAdConsentRequired =>
       'O modo múltiplo não está disponível porque você não consentiu com os anúncios. Dê seu consentimento aos anúncios para usar o modo múltiplo.';
   @override
+  String get multiModeAdConsentRequiredWithPremium =>
+      'O modo múltiplo não está disponível porque você não consentiu com os anúncios. Dê seu consentimento aos anúncios ou assine o plano Premium para usar o modo múltiplo.';
+  @override
   String get adConsentAgainButton => 'Consentir com os anúncios';
   @override
   String get whiteboardSettingsTitle => 'Configurações do quadro branco';

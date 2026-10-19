@@ -814,6 +814,9 @@ class AppTextsZhHans extends AppTextsEn {
   String get multiModeAdConsentRequired =>
       '由于您尚未同意广告，无法切换到多模式。同意广告后即可使用多模式。';
   @override
+  String get multiModeAdConsentRequiredWithPremium =>
+      '由于您尚未同意广告，无法切换到多模式。同意广告或订阅 Premium 方案后即可使用多模式。';
+  @override
   String get adConsentAgainButton => '同意广告';
   @override
   String get whiteboardSettingsTitle => '白板设置';

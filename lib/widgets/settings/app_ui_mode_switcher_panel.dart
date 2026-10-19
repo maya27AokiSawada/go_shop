@@ -16,6 +16,7 @@ import '../../datastore/user_settings_repository.dart';
 import '../../services/user_preferences_service.dart';
 import '../../utils/app_logger.dart';
 import '../../l10n/l10n.dart';
+import 'purchase_plan_panel.dart';
 
 /// AppUIモード切り替えパネル（シングル ↔ マルチ）
 class AppUIModeSwicherPanel extends ConsumerWidget {
@@ -369,7 +370,10 @@ class _AdConsentRequiredNoticeState
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  texts.multiModeAdConsentRequired,
+                  // 課金パネルを表示できる環境では Premium 加入でも解除できることを案内する
+                  PurchasePlanPanel.isAvailable
+                      ? texts.multiModeAdConsentRequiredWithPremium
+                      : texts.multiModeAdConsentRequired,
                   style: TextStyle(fontSize: 12, color: Colors.orange.shade900),
                 ),
               ),

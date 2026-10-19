@@ -323,6 +323,36 @@ class FirestoreUserNameService {
     }
   }
 
+  /// 広告同意（UMP）の状況を users/{uid}.adConsent に保存する
+  ///
+  /// プロフィール作成時の初期値（appUIMode など）を飛ばさないよう、
+  /// ドキュメントが未作成の場合は作成せずにスキップする（次回の同期で保存）。
+  /// 保存できた場合のみ true を返す。
+  static Future<bool> saveAdConsent(Map<String, dynamic> adConsent) async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+    try {
+      await _firestore.collection('users').doc(user.uid).update({
+        'adConsent': {
+          ...adConsent,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+      });
+      Log.info('✅ 広告同意状況を保存: $adConsent');
+      return true;
+    } on FirebaseException catch (e) {
+      if (e.code == 'not-found') {
+        Log.info('ℹ️ ユーザードキュメント未作成のため広告同意状況の保存をスキップ');
+        return false;
+      }
+      Log.warning('⚠️ 広告同意状況の保存エラー: $e');
+      return false;
+    } catch (e) {
+      Log.warning('⚠️ 広告同意状況の保存エラー: $e');
+      return false;
+    }
+  }
+
   /// 課金タイプのリアルタイム監視
   static Stream<PurchaseType> watchPurchaseType() {
     final user = _auth.currentUser;
