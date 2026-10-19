@@ -165,6 +165,7 @@ deduplicatedGroups.sort((a, b) =>
 | `notification_settings_panel.dart` | 通知設定                                                       | `ConsumerWidget`         |
 | `privacy_settings_panel.dart`      | プライバシー設定（プライバシーポリシー/利用規約リンク）        | `StatelessWidget`        |
 | `whiteboard_settings_panel.dart`   | ホワイトボードカラー設定                                       | `ConsumerWidget`         |
+| `ad_privacy_options_panel.dart`    | 広告の同意変更・取り消し（UMP、EEA等で必要な場合のみ表示）     | `ConsumerStatefulWidget` |
 | `feedback_section.dart`            | フィードバックフォームリンク                                   | `StatefulWidget`         |
 | `feedback_debug_section.dart`      | フィードバックデバッグ情報（dev のみ）                         | `StatefulWidget`         |
 | `developer_tools_section.dart`     | 開発者ツールパネル（dev のみ）                                 | `ConsumerWidget`         |
@@ -246,7 +247,7 @@ purchaseType: 'free' | 'subscribe' | 'purchase'  // 課金タイプ（デフォ�
 ### 課金フロー
 
 1. Android / iOSではアプリ起動直後に `PurchaseService.initialize()` を実行し、購入ストリームを購読する。設定画面を開くまで購読を遅延させない。
-2. 認証済みユーザーの設定画面に `PurchasePlanPanel` を表示し、ストア利用可否と月額SKUの商品情報を反映する。
+2. 認証済みユーザーの設定画面に `PurchasePlanPanel` を表示し、ストア利用可否と月額SKUの商品情報を反映する。 iOS は `PurchasePlanPanel.isAvailable` が `false` となり既定で非表示。`--dart-define=IOS_PURCHASE_PANEL=true`（2027年1月の提出ビルド用）または `--dart-define=IAP_SALES_OPEN=true`（Sandbox テスト用）を付けたビルドのみ表示する。
 3. 「Premiumを有効化」で `PurchaseService.buyPremiumMonthly()` が `PurchaseParam` を使ってストア購入UIを開く。購入開始だけではMultiモードへ切り替えない。
 4. 購入または復元の完了後、`_handlePurchase()` がストアの検証データを `verifyPurchase` Callableへ送る。
 5. FunctionsがGoogle Play Developer APIまたはApple署名済みStoreKit 2取引を検証し、成功時だけAdmin SDKで `purchaseType: subscribe` を保存する。
@@ -272,6 +273,14 @@ purchaseType: 'free' | 'subscribe' | 'purchase'  // 課金タイプ（デフォ�
 - `hidesInterstitialAds` が `true`（subscribe/purchase）→ インタースティシャルをスキップ
 - `hidesBannerAds` が `true`（subscribe のみ）→ バナーをスキップ
 - **`FeedbackPromptService.isTestingActive()` が `true`（Firestore `testingStatus/active.isTestingActive`）のとき、90日猶予チェックをスキップする**（開発・テスト用バイパス）
+
+### 広告の同意（UMP / 欧州の規制）
+
+- `AdService.initialize()` は UMP の同意確認（必要なら同意フォーム表示）を先に行い、`canRequestAds()` が `true` のときだけ `MobileAds.instance.initialize()` と広告読み込みを行う
+- `shouldShowBannerAd()` も `canRequestAds()` が `false` ならバナーを出さない
+- 同意の変更・取り消し入口は設定画面の `AdPrivacyOptionsPanel`。`getPrivacyOptionsRequirementStatus()` が `required` のときだけ表示する（AdMob の要件のため削除しない）
+- AdMob コンソールの「プライバシーとメッセージ」→「欧州の規制」で GDPR メッセージを公開しておく必要がある
+- dev では `.env` に `ADMOB_UMP_DEBUG_EEA=true` と `ADMOB_UMP_TEST_DEVICE_IDS=<ログに出るID>` を設定すると、日本から EEA 向けの同意フローを確認できる
 
 ### 広告テストバイパスの手順
 

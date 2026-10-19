@@ -14,6 +14,14 @@ import '../../config/subscription_sales_config.dart';
 class PurchasePlanPanel extends ConsumerStatefulWidget {
   const PurchasePlanPanel({super.key});
 
+  /// iOS は課金パネルを既定で表示しない（2027年1月の課金開始まで）。
+  /// - --dart-define=IOS_PURCHASE_PANEL=true: 表示する（2027年1月の提出ビルド用）
+  /// - --dart-define=IAP_SALES_OPEN=true: Sandbox テスト用。こちらでも表示する
+  static bool get isAvailable =>
+      !Platform.isIOS ||
+      const bool.fromEnvironment('IOS_PURCHASE_PANEL', defaultValue: false) ||
+      const bool.fromEnvironment('IAP_SALES_OPEN', defaultValue: false);
+
   @override
   ConsumerState<PurchasePlanPanel> createState() => _PurchasePlanPanelState();
 }

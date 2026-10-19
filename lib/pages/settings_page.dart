@@ -80,7 +80,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 const SizedBox(height: 20),
                 const AppUIModeSwicherPanel(),
                 const SizedBox(height: 20),
-                if (isAuthenticated) ...[
+                if (isAuthenticated && PurchasePlanPanel.isAvailable) ...[
                   const PurchasePlanPanel(),
                   const SizedBox(height: 20),
                 ],
