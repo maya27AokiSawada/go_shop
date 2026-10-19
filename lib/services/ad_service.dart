@@ -135,7 +135,11 @@ class AdService {
   }
 
   /// 同意確認の完了を待ってから、広告リクエストが許可されているか返す
+  ///
+  /// ホーム画面のバナーは initialize() より先に作られることがあるため、
+  /// 同意確認が未開始ならここで開始する（前回起動時の同意状態で判定しない）。
   Future<bool> _canRequestAds() async {
+    _consentFuture ??= _gatherConsent();
     await _consentFuture;
     return ConsentInformation.instance.canRequestAds();
   }
