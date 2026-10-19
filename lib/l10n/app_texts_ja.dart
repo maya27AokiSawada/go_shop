@@ -1389,6 +1389,13 @@ class AppTextsJa extends AppTexts {
 
   // ホワイトボード設定パネル
   @override
+  String get adPrivacyOptionsTitle => '広告のプライバシー設定';
+  @override
+  String get adPrivacyOptionsDesc =>
+      '広告のパーソナライズやデータ利用への同意は、いつでも変更・取り消しできます。';
+  @override
+  String get adPrivacyOptionsButton => '同意設定を変更する';
+  @override
   String get whiteboardSettingsTitle => 'ホワイトボード設定';
   @override
   String get customColorSettingsTitle => 'カスタム色設定';

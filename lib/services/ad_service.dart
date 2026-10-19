@@ -52,10 +52,96 @@ class AdService {
   }
 
   /// 広告SDK初期化
+  ///
+  /// UMP で同意を確認（EEA・英国・スイスでは同意フォームを表示）してから、
+  /// 広告リクエストが許可されている場合のみ SDK を初期化する。
   Future<void> initialize() async {
-    await MobileAds.instance.initialize();
+    _consentFuture ??= _gatherConsent();
+    await _consentFuture;
     await recordInstallDateIfNeeded();
+    if (await ConsentInformation.instance.canRequestAds()) {
+      await _initializeSdkIfNeeded();
+    } else {
+      Log.info('🚫 広告同意が得られていないため AdMob SDK を初期化しません');
+    }
+  }
+
+  Future<void>? _consentFuture;
+  bool _isSdkInitialized = false;
+
+  Future<void> _initializeSdkIfNeeded() async {
+    if (_isSdkInitialized) return;
+    _isSdkInitialized = true;
+    await MobileAds.instance.initialize();
     _loadInterstitialAd();
+  }
+
+  /// UMP 同意情報を更新し、必要なら同意フォームを表示する
+  Future<void> _gatherConsent() {
+    final completer = Completer<void>();
+    ConsentInformation.instance.requestConsentInfoUpdate(
+      ConsentRequestParameters(consentDebugSettings: _consentDebugSettings),
+      () {
+        ConsentForm.loadAndShowConsentFormIfRequired((FormError? error) {
+          if (error != null) {
+            Log.warning('⚠️ 広告同意フォームエラー: ${error.message}');
+          }
+          if (!completer.isCompleted) completer.complete();
+        });
+      },
+      (FormError error) {
+        Log.warning('⚠️ 広告同意情報の更新に失敗: ${error.message}');
+        if (!completer.isCompleted) completer.complete();
+      },
+    );
+    return completer.future;
+  }
+
+  /// dev では .env の設定で EEA 向けの同意フローを日本から確認できる
+  /// - ADMOB_UMP_DEBUG_EEA=true
+  /// - ADMOB_UMP_TEST_DEVICE_IDS=xxxx,yyyy（ログに出るテストデバイスID）
+  ConsentDebugSettings? get _consentDebugSettings {
+    if (F.appFlavor != Flavor.dev) return null;
+    if (dotenv.env['ADMOB_UMP_DEBUG_EEA'] != 'true') return null;
+    final ids = (dotenv.env['ADMOB_UMP_TEST_DEVICE_IDS'] ?? '')
+        .split(',')
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toList();
+    return ConsentDebugSettings(
+      debugGeography: DebugGeography.debugGeographyEea,
+      testIdentifiers: ids,
+    );
+  }
+
+  /// 同意確認の完了を待ってから、広告リクエストが許可されているか返す
+  Future<bool> _canRequestAds() async {
+    await _consentFuture;
+    return ConsentInformation.instance.canRequestAds();
+  }
+
+  /// 設定画面に「広告のプライバシー設定」（同意の変更・取り消し）を表示すべきか
+  Future<bool> isPrivacyOptionsRequired() async {
+    if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) return false;
+    await _consentFuture;
+    final status =
+        await ConsentInformation.instance.getPrivacyOptionsRequirementStatus();
+    return status == PrivacyOptionsRequirementStatus.required;
+  }
+
+  /// 同意の変更・取り消しフォームを表示する
+  Future<void> showPrivacyOptionsForm() async {
+    final completer = Completer<void>();
+    await ConsentForm.showPrivacyOptionsForm((FormError? error) {
+      if (error != null) {
+        Log.warning('⚠️ 広告プライバシー設定フォームエラー: ${error.message}');
+      }
+      if (!completer.isCompleted) completer.complete();
+    });
+    await completer.future;
+    if (await ConsentInformation.instance.canRequestAds()) {
+      await _initializeSdkIfNeeded();
+    }
   }
 
   /// インタースティシャル広告の読み込み
@@ -135,7 +221,7 @@ class AdService {
   /// サインイン広告を表示
   Future<void> showSignInAd() async {
     if (!_isAdLoaded || _interstitialAd == null) {
-      _loadInterstitialAd(); // 次回用に読み込み
+      if (_isSdkInitialized) _loadInterstitialAd(); // 次回用に読み込み
       return;
     }
 
@@ -174,6 +260,10 @@ class AdService {
     final purchaseType = await FirestoreUserNameService.getPurchaseType();
     if (purchaseType.hidesBannerAds) {
       Log.info('🚫 バナー広告スキップ（課金: ${purchaseType.firestoreValue}）');
+      return false;
+    }
+    if (!await _canRequestAds()) {
+      Log.info('🚫 バナー広告スキップ（広告同意なし）');
       return false;
     }
     return true;

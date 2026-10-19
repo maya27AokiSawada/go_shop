@@ -804,6 +804,13 @@ class AppTextsZhHans extends AppTextsEn {
   String get switchedToSingleMode => '已切换到单模式';
 
   @override
+  String get adPrivacyOptionsTitle => '广告隐私设置';
+  @override
+  String get adPrivacyOptionsDesc =>
+      '您可以随时更改或撤回对广告个性化和数据使用的同意。';
+  @override
+  String get adPrivacyOptionsButton => '管理同意设置';
+  @override
   String get whiteboardSettingsTitle => '白板设置';
 
   @override

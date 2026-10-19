@@ -12,6 +12,7 @@ import '../widgets/settings/app_mode_switcher_panel.dart';
 import '../widgets/settings/purchase_plan_panel.dart';
 import '../widgets/settings/language_settings_panel.dart';
 import '../widgets/settings/whiteboard_settings_panel.dart';
+import '../widgets/settings/ad_privacy_options_panel.dart';
 import '../widgets/settings/developer_tools_section.dart';
 import '../widgets/settings/feedback_debug_section.dart';
 import '../widgets/settings/data_maintenance_section.dart';
@@ -89,6 +90,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 const SizedBox(height: 20),
                 const WhiteboardSettingsPanel(),
                 const SizedBox(height: 20),
+                // EEA等のユーザーのみ表示（下余白はパネル側で持つ）
+                const AdPrivacyOptionsPanel(),
                 if (F.appFlavor == Flavor.dev) ...[
                   DeveloperToolsSection(user: user),
                   const SizedBox(height: 20),

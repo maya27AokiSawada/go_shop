@@ -1443,6 +1443,13 @@ class AppTextsEn extends AppTexts {
 
   // Whiteboard settings panel
   @override
+  String get adPrivacyOptionsTitle => 'Ad Privacy Settings';
+  @override
+  String get adPrivacyOptionsDesc =>
+      'You can change or withdraw your consent to ad personalization and data use at any time.';
+  @override
+  String get adPrivacyOptionsButton => 'Manage consent';
+  @override
   String get whiteboardSettingsTitle => 'Whiteboard Settings';
   @override
   String get customColorSettingsTitle => 'Custom Color Settings';

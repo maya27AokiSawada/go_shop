@@ -738,6 +738,13 @@ abstract class AppTexts {
   String get errorWithPrefix;
 
   // ========================================
+  // 広告のプライバシー設定パネル（UMP）
+  // ========================================
+  String get adPrivacyOptionsTitle;
+  String get adPrivacyOptionsDesc;
+  String get adPrivacyOptionsButton;
+
+  // ========================================
   // フィードバックセクション
   // ========================================
   String get feedbackSectionTitle;

@@ -835,6 +835,13 @@ class AppTextsPt extends AppTextsEn {
   String get switchedToSingleMode => 'Alternado para modo único';
 
   @override
+  String get adPrivacyOptionsTitle => 'Privacidade dos anúncios';
+  @override
+  String get adPrivacyOptionsDesc =>
+      'Você pode alterar ou retirar seu consentimento para personalização de anúncios e uso de dados a qualquer momento.';
+  @override
+  String get adPrivacyOptionsButton => 'Gerenciar consentimento';
+  @override
   String get whiteboardSettingsTitle => 'Configurações do quadro branco';
 
   @override
