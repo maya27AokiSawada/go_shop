@@ -6,7 +6,8 @@ import '../../l10n/l10n.dart';
 
 /// 広告のプライバシー設定パネル（UMP の同意変更・取り消し入口）
 ///
-/// EEA・英国・スイスなど、UMP が同意変更の入口を必要とするユーザーにのみ表示する。
+/// EEA・英国・スイス（GDPR）や米国の規制対象州（CCPA など）のように、
+/// UMP が同意変更・オプトアウトの入口を必要とするユーザーにのみ表示する。
 class AdPrivacyOptionsPanel extends ConsumerStatefulWidget {
   const AdPrivacyOptionsPanel({super.key});
 

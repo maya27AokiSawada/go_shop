@@ -380,6 +380,36 @@ class AppTextsJa extends AppTexts {
       '課金は$year年$month月開始予定です。';
 
   @override
+  String get premiumPlanTitle => 'Premiumプラン';
+
+  @override
+  String get premiumPlanActiveTitle => 'Premiumプランを利用中';
+
+  @override
+  String get premiumPlanDetailsLink => 'プラン内容・価格';
+
+  @override
+  String get purchaseProcessing => '処理中';
+
+  @override
+  String purchaseEnablePremium(String price) => 'Premiumを有効化 ($price)';
+
+  @override
+  String purchaseEnablePremiumYearly(String price) =>
+      '年払いでPremiumを有効化 ($price)';
+
+  @override
+  String get purchaseStoreUnavailable =>
+      'ストアに接続できません。ストアアプリのあるAndroidまたはiOS端末でお試しください。';
+
+  @override
+  String get purchaseProductUnavailable =>
+      'Premium商品をストアから取得できませんでした。購入に使用するストアアカウントとアプリの配布元を確認してください。';
+
+  @override
+  String get purchaseRestoreButton => '購入を復元';
+
+  @override
   String subscriptionPreReleaseBlocked(int year, int month) =>
       '現在はプレ公開中のため、Premiumプランを購入できません。課金は$year年$month月開始予定です。';
 
@@ -1392,9 +1422,9 @@ class AppTextsJa extends AppTexts {
   String get adPrivacyOptionsTitle => '広告のプライバシー設定';
   @override
   String get adPrivacyOptionsDesc =>
-      '広告のパーソナライズやデータ利用への同意は、いつでも変更・取り消しできます。';
+      'お住まいの国・地域の規制に基づき、広告のパーソナライズや個人データの利用について、同意の変更や拒否（オプトアウト）をいつでも行えます。';
   @override
-  String get adPrivacyOptionsButton => '同意設定を変更する';
+  String get adPrivacyOptionsButton => 'プライバシーの選択を管理する';
   @override
   String get multiModeAdConsentRequired =>
       '広告の利用に同意いただけていないため、マルチモードに切り替えられません。広告への同意を行うとマルチモードを利用できます。';

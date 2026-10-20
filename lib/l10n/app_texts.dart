@@ -154,6 +154,15 @@ abstract class AppTexts {
   String get subscriptionPreReleaseTitle;
   String get subscriptionPreReleaseBody;
   String subscriptionSalesStartNotice(int year, int month);
+  String get premiumPlanTitle;
+  String get premiumPlanActiveTitle;
+  String get premiumPlanDetailsLink;
+  String get purchaseProcessing;
+  String purchaseEnablePremium(String price);
+  String purchaseEnablePremiumYearly(String price);
+  String get purchaseStoreUnavailable;
+  String get purchaseProductUnavailable;
+  String get purchaseRestoreButton;
   String subscriptionPreReleaseBlocked(int year, int month);
   String get logout;
   String get deleteAccount;

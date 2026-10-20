@@ -449,6 +449,36 @@ class AppTextsPt extends AppTextsEn {
       'Os planos pagos estão previstos para começar em ${_monthNames[month - 1]} de $year.';
 
   @override
+  String get premiumPlanTitle => 'Plano Premium';
+
+  @override
+  String get premiumPlanActiveTitle => 'Plano Premium ativo';
+
+  @override
+  String get premiumPlanDetailsLink => 'Detalhes e preços do plano';
+
+  @override
+  String get purchaseProcessing => 'Processando';
+
+  @override
+  String purchaseEnablePremium(String price) => 'Ativar Premium ($price)';
+
+  @override
+  String purchaseEnablePremiumYearly(String price) =>
+      'Ativar Premium anual ($price)';
+
+  @override
+  String get purchaseStoreUnavailable =>
+      'Não foi possível conectar à loja. Tente em um dispositivo Android ou iOS com aplicativo de loja.';
+
+  @override
+  String get purchaseProductUnavailable =>
+      'Não foi possível obter o produto Premium da loja. Verifique a conta da loja usada para a compra e a origem de instalação do app.';
+
+  @override
+  String get purchaseRestoreButton => 'Restaurar compras';
+
+  @override
   String subscriptionPreReleaseBlocked(int year, int month) =>
       'Não é possível comprar o Premium durante o pré-lançamento. Os planos pagos estão previstos para começar em ${_monthNames[month - 1]} de $year.';
 
@@ -838,9 +868,9 @@ class AppTextsPt extends AppTextsEn {
   String get adPrivacyOptionsTitle => 'Privacidade dos anúncios';
   @override
   String get adPrivacyOptionsDesc =>
-      'Você pode alterar ou retirar seu consentimento para personalização de anúncios e uso de dados a qualquer momento.';
+      'Com base nas regulamentações do país ou da região onde você mora, você pode alterar seu consentimento ou optar por não participar da personalização de anúncios e do uso de seus dados pessoais a qualquer momento.';
   @override
-  String get adPrivacyOptionsButton => 'Gerenciar consentimento';
+  String get adPrivacyOptionsButton => 'Gerenciar opções de privacidade';
   @override
   String get multiModeAdConsentRequired =>
       'O modo múltiplo não está disponível porque você não consentiu com os anúncios. Dê seu consentimento aos anúncios para usar o modo múltiplo.';

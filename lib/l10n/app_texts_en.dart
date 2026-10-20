@@ -397,6 +397,36 @@ class AppTextsEn extends AppTexts {
       'Paid plans are scheduled to start in ${_monthNames[month - 1]} $year.';
 
   @override
+  String get premiumPlanTitle => 'Premium Plan';
+
+  @override
+  String get premiumPlanActiveTitle => 'Premium Plan active';
+
+  @override
+  String get premiumPlanDetailsLink => 'Plan details and pricing';
+
+  @override
+  String get purchaseProcessing => 'Processing';
+
+  @override
+  String purchaseEnablePremium(String price) => 'Enable Premium ($price)';
+
+  @override
+  String purchaseEnablePremiumYearly(String price) =>
+      'Enable Premium yearly ($price)';
+
+  @override
+  String get purchaseStoreUnavailable =>
+      'Cannot connect to the store. Please try on an Android or iOS device with a store app.';
+
+  @override
+  String get purchaseProductUnavailable =>
+      'Could not load the Premium product from the store. Please check the store account used for purchases and where the app was installed from.';
+
+  @override
+  String get purchaseRestoreButton => 'Restore purchases';
+
+  @override
   String subscriptionPreReleaseBlocked(int year, int month) =>
       'Premium cannot be purchased during the pre-release period. Paid plans are scheduled to start in ${_monthNames[month - 1]} $year.';
 
@@ -1446,9 +1476,9 @@ class AppTextsEn extends AppTexts {
   String get adPrivacyOptionsTitle => 'Ad Privacy Settings';
   @override
   String get adPrivacyOptionsDesc =>
-      'You can change or withdraw your consent to ad personalization and data use at any time.';
+      'Based on the regulations of the country or region where you live, you can change your consent or opt out of ad personalization and the use of your personal data at any time.';
   @override
-  String get adPrivacyOptionsButton => 'Manage consent';
+  String get adPrivacyOptionsButton => 'Manage privacy choices';
   @override
   String get multiModeAdConsentRequired =>
       'Multi Mode is unavailable because you have not consented to ads. Please give consent to ads to use Multi Mode.';

@@ -108,7 +108,9 @@ class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  isPremium ? 'Premiumプランを利用中' : 'Premiumプラン',
+                  isPremium
+                      ? texts.premiumPlanActiveTitle
+                      : texts.premiumPlanTitle,
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -123,9 +125,7 @@ class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
           const SizedBox(height: 12),
           const SizedBox(height: 8),
           _buildLegalLink(
-            AppLocalizations.currentLanguageCode == 'en'
-                ? 'Plan details and pricing'
-                : 'プラン内容・価格',
+            texts.premiumPlanDetailsLink,
             SubscriptionSalesConfig.premiumPlanDetailsUrl,
           ),
           if (!isPremium && !isSalesOpen) ...[
@@ -149,20 +149,21 @@ class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
                   : const Icon(Icons.workspace_premium),
               label: Text(
                 isPurchasePending
-                    ? '処理中'
-                    : 'Premiumを有効化 (${_purchaseService.premiumMonthlyPrice})',
+                    ? texts.purchaseProcessing
+                    : texts.purchaseEnablePremium(
+                        _purchaseService.premiumMonthlyPrice),
               ),
             ),
             if (!_isLoading && !_isStoreAvailable) ...[
               const SizedBox(height: 8),
               Text(
-                'ストアに接続できません。ストアアプリのあるAndroidまたはiOS端末でお試しください。',
+                texts.purchaseStoreUnavailable,
                 style: TextStyle(fontSize: 12, color: Colors.red.shade700),
               ),
             ] else if (!_isLoading && !_isPremiumProductAvailable) ...[
               const SizedBox(height: 8),
               Text(
-                'Premium商品をストアから取得できませんでした。購入に使用するストアアカウントとアプリの配布元を確認してください。',
+                texts.purchaseProductUnavailable,
                 style: TextStyle(fontSize: 12, color: Colors.red.shade700),
               ),
             ],
@@ -175,8 +176,9 @@ class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
                 icon: const Icon(Icons.workspace_premium_outlined),
                 label: Text(
                   isPurchasePending
-                      ? '処理中'
-                      : '年払いでPremiumを有効化 (${_purchaseService.premiumYearlyPrice})',
+                      ? texts.purchaseProcessing
+                      : texts.purchaseEnablePremiumYearly(
+                          _purchaseService.premiumYearlyPrice),
                 ),
               ),
             ],
@@ -202,7 +204,7 @@ class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
                 ? null
                 : _restorePurchases,
             icon: const Icon(Icons.restore, size: 18),
-            label: const Text('購入を復元'),
+            label: Text(texts.purchaseRestoreButton),
           ),
           if (Platform.isIOS && !isPremium && isSalesOpen) ...[
             const Divider(height: 24),

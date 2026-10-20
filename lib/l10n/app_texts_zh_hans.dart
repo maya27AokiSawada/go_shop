@@ -428,6 +428,35 @@ class AppTextsZhHans extends AppTextsEn {
       '付费功能预计于$year年$month月开放。';
 
   @override
+  String get premiumPlanTitle => 'Premium 套餐';
+
+  @override
+  String get premiumPlanActiveTitle => 'Premium 套餐使用中';
+
+  @override
+  String get premiumPlanDetailsLink => '套餐内容与价格';
+
+  @override
+  String get purchaseProcessing => '处理中';
+
+  @override
+  String purchaseEnablePremium(String price) => '开通 Premium ($price)';
+
+  @override
+  String purchaseEnablePremiumYearly(String price) => '开通年付 Premium ($price)';
+
+  @override
+  String get purchaseStoreUnavailable =>
+      '无法连接到应用商店。请在装有应用商店的 Android 或 iOS 设备上重试。';
+
+  @override
+  String get purchaseProductUnavailable =>
+      '无法从应用商店获取 Premium 商品。请确认用于购买的商店账号和应用安装来源。';
+
+  @override
+  String get purchaseRestoreButton => '恢复购买';
+
+  @override
   String subscriptionPreReleaseBlocked(int year, int month) =>
       '目前处于预发布阶段，无法购买 Premium 套餐。付费功能预计于$year年$month月开放。';
 
@@ -807,9 +836,9 @@ class AppTextsZhHans extends AppTextsEn {
   String get adPrivacyOptionsTitle => '广告隐私设置';
   @override
   String get adPrivacyOptionsDesc =>
-      '您可以随时更改或撤回对广告个性化和数据使用的同意。';
+      '根据您所在国家或地区的法规，您可以随时更改同意设置，或选择退出广告个性化及个人数据的使用。';
   @override
-  String get adPrivacyOptionsButton => '管理同意设置';
+  String get adPrivacyOptionsButton => '管理隐私选项';
   @override
   String get multiModeAdConsentRequired =>
       '由于您尚未同意广告，无法切换到多模式。同意广告后即可使用多模式。';
