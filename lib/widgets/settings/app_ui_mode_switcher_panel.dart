@@ -342,10 +342,12 @@ class _AdConsentRequiredNoticeState
 
   Future<void> _requestConsent() async {
     setState(() => _isRequesting = true);
+    // 同意が取れるとこの注意表示自体が破棄されるため、await 前にコンテナを取得しておく
+    final container = ProviderScope.containerOf(context, listen: false);
     try {
-      await ref.read(adServiceProvider).requestConsentAgain();
+      await container.read(adServiceProvider).requestConsentAgain();
     } finally {
-      ref.invalidate(multiModeBlockedByAdConsentProvider);
+      container.invalidate(multiModeBlockedByAdConsentProvider);
       if (mounted) setState(() => _isRequesting = false);
     }
   }
