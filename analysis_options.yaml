@@ -11,6 +11,7 @@ analyzer:
     - web/**
     - windows/**
     - linux/**
+    - macos/**
 
   errors:
     missing_required_param: error
