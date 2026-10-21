@@ -164,6 +164,20 @@ abstract class AppTexts {
   String get purchaseProductUnavailable;
   String get purchaseRestoreButton;
   String subscriptionPreReleaseBlocked(int year, int month);
+  // 購入・復元の結果メッセージ（PurchaseService）
+  String get purchaseStatusCheckFailed;
+  String get purchaseInProgressAtStore;
+  String get purchaseFailed;
+  String get purchaseRestoreChecking;
+  String get purchaseRestoreChecked;
+  String get purchaseRestoreFailed;
+  String get purchaseApplyFailed;
+  String get purchasePendingConfirmation;
+  String get purchaseEarlyBenefitActivated;
+  String get purchasePremiumRestored;
+  String get purchasePremiumActivated;
+  String get purchaseErrorFallback;
+  String get purchaseCanceled;
   String get logout;
   String get deleteAccount;
   String get confirmDeleteAccount;
@@ -902,6 +916,8 @@ abstract class AppTexts {
   String get opSaveWhiteboard;
   String get opClearWhiteboard;
   String get opUpdatePurchaseStatus;
+  String get opPremiumPurchase;
+  String get opRestorePurchases;
   String get opUpdateGroupMember;
   String get opSendNotification;
   String get opLoadUserName;

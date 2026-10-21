@@ -431,6 +431,51 @@ class AppTextsEn extends AppTexts {
       'Premium cannot be purchased during the pre-release period. Paid plans are scheduled to start in ${_monthNames[month - 1]} $year.';
 
   @override
+  String get purchaseStatusCheckFailed =>
+      'Could not check your purchase status. Please try again later.';
+
+  @override
+  String get purchaseInProgressAtStore =>
+      'Continuing the purchase in the store.';
+
+  @override
+  String get purchaseFailed => 'An error occurred during the purchase.';
+
+  @override
+  String get purchaseRestoreChecking => 'Checking your purchase history.';
+
+  @override
+  String get purchaseRestoreChecked =>
+      'Your purchase history has been checked. Any purchases to restore will be applied automatically.';
+
+  @override
+  String get purchaseRestoreFailed => 'Could not restore your purchases.';
+
+  @override
+  String get purchaseApplyFailed =>
+      'Could not apply your purchase. Please try restoring your purchases.';
+
+  @override
+  String get purchasePendingConfirmation => 'Confirming your purchase.';
+
+  @override
+  String get purchaseEarlyBenefitActivated =>
+      'Your early download benefit is now active.';
+
+  @override
+  String get purchasePremiumRestored => 'Your Premium plan has been restored.';
+
+  @override
+  String get purchasePremiumActivated => 'Your Premium plan is now active.';
+
+  @override
+  String get purchaseErrorFallback =>
+      'An error occurred while processing your purchase.';
+
+  @override
+  String get purchaseCanceled => 'The purchase was canceled.';
+
+  @override
   String get logout => 'Logout';
 
   @override
@@ -1755,6 +1800,10 @@ class AppTextsEn extends AppTexts {
   String get opClearWhiteboard => 'Clear Whiteboard';
   @override
   String get opUpdatePurchaseStatus => 'Update Purchase Status';
+  @override
+  String get opPremiumPurchase => 'Premium Purchase';
+  @override
+  String get opRestorePurchases => 'Restore Purchases';
   @override
   String get opUpdateGroupMember => 'Update Group Member';
   @override

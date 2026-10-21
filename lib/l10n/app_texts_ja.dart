@@ -414,6 +414,48 @@ class AppTextsJa extends AppTexts {
       '現在はプレ公開中のため、Premiumプランを購入できません。課金は$year年$month月開始予定です。';
 
   @override
+  String get purchaseStatusCheckFailed =>
+      '購入状態の確認に失敗しました。時間をおいて再度お試しください。';
+
+  @override
+  String get purchaseInProgressAtStore => 'ストアで購入手続きを進めています。';
+
+  @override
+  String get purchaseFailed => '購入手続きでエラーが発生しました。';
+
+  @override
+  String get purchaseRestoreChecking => '購入履歴を確認しています。';
+
+  @override
+  String get purchaseRestoreChecked =>
+      '購入履歴を確認しました。復元対象がある場合は自動的に反映されます。';
+
+  @override
+  String get purchaseRestoreFailed => '購入履歴の復元に失敗しました。';
+
+  @override
+  String get purchaseApplyFailed =>
+      '購入状態を反映できませんでした。購入の復元をお試しください。';
+
+  @override
+  String get purchasePendingConfirmation => '購入処理を確認しています。';
+
+  @override
+  String get purchaseEarlyBenefitActivated => '早期ダウンロード特典が有効になりました。';
+
+  @override
+  String get purchasePremiumRestored => 'Premiumプランを復元しました。';
+
+  @override
+  String get purchasePremiumActivated => 'Premiumプランが有効になりました。';
+
+  @override
+  String get purchaseErrorFallback => '購入処理でエラーが発生しました。';
+
+  @override
+  String get purchaseCanceled => '購入はキャンセルされました。';
+
+  @override
   String get logout => 'ログアウト';
 
   @override
@@ -1694,6 +1736,10 @@ class AppTextsJa extends AppTexts {
   String get opClearWhiteboard => 'ホワイトボード全消去';
   @override
   String get opUpdatePurchaseStatus => '購入状態更新';
+  @override
+  String get opPremiumPurchase => 'Premium購入';
+  @override
+  String get opRestorePurchases => '購入の復元';
   @override
   String get opUpdateGroupMember => 'グループメンバー更新';
   @override

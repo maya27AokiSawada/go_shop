@@ -461,6 +461,45 @@ class AppTextsZhHans extends AppTextsEn {
       '目前处于预发布阶段，无法购买 Premium 套餐。付费功能预计于$year年$month月开放。';
 
   @override
+  String get purchaseStatusCheckFailed => '无法确认购买状态。请稍后再试。';
+
+  @override
+  String get purchaseInProgressAtStore => '正在应用商店中进行购买。';
+
+  @override
+  String get purchaseFailed => '购买过程中发生错误。';
+
+  @override
+  String get purchaseRestoreChecking => '正在确认购买记录。';
+
+  @override
+  String get purchaseRestoreChecked => '已确认购买记录。如有可恢复的购买，将自动生效。';
+
+  @override
+  String get purchaseRestoreFailed => '无法恢复购买。';
+
+  @override
+  String get purchaseApplyFailed => '无法应用购买状态。请尝试恢复购买。';
+
+  @override
+  String get purchasePendingConfirmation => '正在确认购买。';
+
+  @override
+  String get purchaseEarlyBenefitActivated => '提前下载特典已生效。';
+
+  @override
+  String get purchasePremiumRestored => '已恢复 Premium 套餐。';
+
+  @override
+  String get purchasePremiumActivated => 'Premium 套餐已生效。';
+
+  @override
+  String get purchaseErrorFallback => '处理购买时发生错误。';
+
+  @override
+  String get purchaseCanceled => '购买已取消。';
+
+  @override
   String get logout => '退出';
 
   @override
@@ -1089,6 +1128,10 @@ class AppTextsZhHans extends AppTextsEn {
 
   @override
   String get opUpdatePurchaseStatus => '更新购买状态';
+  @override
+  String get opPremiumPurchase => '购买 Premium';
+  @override
+  String get opRestorePurchases => '恢复购买';
 
   @override
   String get opUpdateGroupMember => '更新群组成员';

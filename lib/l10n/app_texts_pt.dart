@@ -483,6 +483,49 @@ class AppTextsPt extends AppTextsEn {
       'Não é possível comprar o Premium durante o pré-lançamento. Os planos pagos estão previstos para começar em ${_monthNames[month - 1]} de $year.';
 
   @override
+  String get purchaseStatusCheckFailed =>
+      'Não foi possível verificar o status da compra. Tente novamente mais tarde.';
+
+  @override
+  String get purchaseInProgressAtStore => 'Continuando a compra na loja.';
+
+  @override
+  String get purchaseFailed => 'Ocorreu um erro durante a compra.';
+
+  @override
+  String get purchaseRestoreChecking => 'Verificando o histórico de compras.';
+
+  @override
+  String get purchaseRestoreChecked =>
+      'O histórico de compras foi verificado. As compras a restaurar serão aplicadas automaticamente.';
+
+  @override
+  String get purchaseRestoreFailed => 'Não foi possível restaurar as compras.';
+
+  @override
+  String get purchaseApplyFailed =>
+      'Não foi possível aplicar a compra. Tente restaurar as compras.';
+
+  @override
+  String get purchasePendingConfirmation => 'Confirmando a compra.';
+
+  @override
+  String get purchaseEarlyBenefitActivated =>
+      'O benefício de download antecipado foi ativado.';
+
+  @override
+  String get purchasePremiumRestored => 'O plano Premium foi restaurado.';
+
+  @override
+  String get purchasePremiumActivated => 'O plano Premium foi ativado.';
+
+  @override
+  String get purchaseErrorFallback => 'Ocorreu um erro ao processar a compra.';
+
+  @override
+  String get purchaseCanceled => 'A compra foi cancelada.';
+
+  @override
   String get logout => 'Sair';
 
   @override
@@ -1134,6 +1177,10 @@ class AppTextsPt extends AppTextsEn {
 
   @override
   String get opUpdatePurchaseStatus => 'Atualizar status de compra';
+  @override
+  String get opPremiumPurchase => 'Compra do Premium';
+  @override
+  String get opRestorePurchases => 'Restaurar compras';
 
   @override
   String get opUpdateGroupMember => 'Atualizar membro do grupo';

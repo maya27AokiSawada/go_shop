@@ -214,7 +214,7 @@ class PurchaseService {
           Log.error('[$_logTag] 購入ストリームエラー: $error');
           _setStatus(
             PurchaseFlowStatus.error,
-            message: '購入状態の確認に失敗しました。時間をおいて再度お試しください。',
+            message: texts.purchaseStatusCheckFailed,
           );
         },
         cancelOnError: false,
@@ -310,7 +310,7 @@ class PurchaseService {
             '[$_logTag] Premium Monthly 商品が見つかりません（SKU: ${_ProductIds.premiumMonthly}）');
         _setStatus(
           PurchaseFlowStatus.error,
-          message: 'Premium商品を取得できませんでした。',
+          message: texts.purchaseProductUnavailable,
         );
         return;
       }
@@ -318,7 +318,7 @@ class PurchaseService {
       Log.info('[$_logTag] Premium Monthly の購入フローを開始');
       _setStatus(
         PurchaseFlowStatus.pending,
-        message: 'ストアで購入手続きを進めています。',
+        message: texts.purchaseInProgressAtStore,
       );
       final started = await _iap.buyNonConsumable(
         purchaseParam: PurchaseParam(productDetails: product),
@@ -332,7 +332,7 @@ class PurchaseService {
       await ErrorLogService.logOperationError('Premium購入', '$e');
       _setStatus(
         PurchaseFlowStatus.error,
-        message: '購入手続きでエラーが発生しました。',
+        message: texts.purchaseFailed,
       );
     }
   }
@@ -353,7 +353,7 @@ class PurchaseService {
             '[$_logTag] Premium Yearly 商品が見つかりません（SKU: ${_ProductIds.premiumYearly}）');
         _setStatus(
           PurchaseFlowStatus.error,
-          message: 'Premium商品を取得できませんでした。',
+          message: texts.purchaseProductUnavailable,
         );
         return;
       }
@@ -361,7 +361,7 @@ class PurchaseService {
       Log.info('[$_logTag] Premium Yearly の購入フローを開始');
       _setStatus(
         PurchaseFlowStatus.pending,
-        message: 'ストアで購入手続きを進めています。',
+        message: texts.purchaseInProgressAtStore,
       );
       final started = await _iap.buyNonConsumable(
         purchaseParam: PurchaseParam(productDetails: product),
@@ -375,7 +375,7 @@ class PurchaseService {
       await ErrorLogService.logOperationError('Premium購入', '$e');
       _setStatus(
         PurchaseFlowStatus.error,
-        message: '購入手続きでエラーが発生しました。',
+        message: texts.purchaseFailed,
       );
     }
   }
@@ -391,14 +391,14 @@ class PurchaseService {
       Log.info('[$_logTag] 購入履歴を復元中...');
       _setStatus(
         PurchaseFlowStatus.pending,
-        message: '購入履歴を確認しています。',
+        message: texts.purchaseRestoreChecking,
       );
       await _iap.restorePurchases();
       Log.info('[$_logTag] 購入履歴の復元が完了しました');
       if (_currentState.status == PurchaseFlowStatus.pending) {
         _setStatus(
           PurchaseFlowStatus.idle,
-          message: '購入履歴を確認しました。復元対象がある場合は自動的に反映されます。',
+          message: texts.purchaseRestoreChecked,
         );
       }
     } catch (e) {
@@ -406,7 +406,7 @@ class PurchaseService {
       await ErrorLogService.logOperationError('購入の復元', '$e');
       _setStatus(
         PurchaseFlowStatus.error,
-        message: '購入履歴の復元に失敗しました。',
+        message: texts.purchaseRestoreFailed,
       );
     }
   }
@@ -422,7 +422,7 @@ class PurchaseService {
         await ErrorLogService.logOperationError('購入状態更新', '$e', stackTrace);
         _setStatus(
           PurchaseFlowStatus.error,
-          message: '購入状態を反映できませんでした。購入の復元をお試しください。',
+          message: texts.purchaseApplyFailed,
         );
       }
     }
@@ -436,7 +436,7 @@ class PurchaseService {
       case PurchaseStatus.pending:
         _setStatus(
           PurchaseFlowStatus.pending,
-          message: '購入処理を確認しています。',
+          message: texts.purchasePendingConfirmation,
         );
         return;
       case PurchaseStatus.purchased:
@@ -460,14 +460,14 @@ class PurchaseService {
         _setStatus(
           restored ? PurchaseFlowStatus.restored : PurchaseFlowStatus.purchased,
           message: isEarlyDownloadBenefit
-              ? '早期ダウンロード特典が有効になりました。'
+              ? texts.purchaseEarlyBenefitActivated
               : restored
-                  ? 'Premiumプランを復元しました。'
-                  : 'Premiumプランが有効になりました。',
+                  ? texts.purchasePremiumRestored
+                  : texts.purchasePremiumActivated,
         );
         return;
       case PurchaseStatus.error:
-        final message = purchase.error?.message ?? '購入処理でエラーが発生しました。';
+        final message = purchase.error?.message ?? texts.purchaseErrorFallback;
         Log.error('[$_logTag] 購入エラー: ${purchase.error}');
         await ErrorLogService.logOperationError('Premium購入', message);
         _setStatus(PurchaseFlowStatus.error, message: message);
@@ -475,7 +475,7 @@ class PurchaseService {
       case PurchaseStatus.canceled:
         _setStatus(
           PurchaseFlowStatus.canceled,
-          message: '購入はキャンセルされました。',
+          message: texts.purchaseCanceled,
         );
         return;
     }

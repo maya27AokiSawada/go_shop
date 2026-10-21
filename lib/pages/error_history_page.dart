@@ -184,6 +184,10 @@ class _ErrorHistoryPageState extends ConsumerState<ErrorHistoryPage> {
         return texts.opClearWhiteboard;
       case '購入状態更新':
         return texts.opUpdatePurchaseStatus;
+      case 'Premium購入':
+        return texts.opPremiumPurchase;
+      case '購入の復元':
+        return texts.opRestorePurchases;
       case 'グループメンバー更新':
         return texts.opUpdateGroupMember;
       case '通知送信':
