@@ -69,8 +69,8 @@
 - [ ] **`test/auth/` のモックを再生成する**（10/17, 10/19）
   - 3ファイルの `*.mocks.dart`。
 - [ ] **Windows の Flutter 3.47.7 で `pubspec.lock` の差分が出ないことを確認する**（10/20）
-- [ ] **dev の `scheduledFirestoreBackup` の結果を確認する**（10/21）
-  - 実行サービスアカウントへのロール付与後の実行（JST 0:00）が成功したか。失敗していれば Storage バケットへの書き込み権限を付ける。
+- [ ] **dev の `scheduledFirestoreBackup` のバケット**（10/21）
+  - 権限エラーは解消したが、既定のバケット `gotoshop-572b7.firebasestorage.app` が存在せず 404 で失敗する（dev で Firebase の Cloud Storage が未設定）。dev でもバックアップを取るなら Console で Storage を有効にする。不要なら dev では関数を無効にすることも検討する。
 - [ ] **dev の App Check のトークンを整理する**（10/19）
   - 9/24 登録の古い SH 54D 用トークンが不要なら削除する。
 - [ ] **KGP 移行**（10/14）

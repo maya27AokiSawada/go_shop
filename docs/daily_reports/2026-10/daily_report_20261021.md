@@ -112,8 +112,18 @@
 
 > 全体の未完了項目は [`docs/todo.md`](../../todo.md) にまとめた。
 
-- **`scheduledFirestoreBackup`（dev）**: ロール付与後の実行（JST 0:00）が成功したかログで確認する。
-- **Firestore リスナーが止まったまま戻らない**: App Check の失敗などで Firestore のリスナーがエラーになると再開しない。SH 54D の課金状態が切り替わらない、AIWA で招待の通知を受け取れない、という現象が起き、どちらもアプリの再起動で解消した。本番で Play Integrity の判定が一時的に失敗した場合も同じことが起きうるため、影響を調べる。
+- **`scheduledFirestoreBackup`（dev）**: ロール付与後の 10/21 0:00（JST）の実行で権限エラーは解消したが、`The specified bucket does not exist.`（404）で失敗した。dev では Firebase の Cloud Storage が未設定で、既定のバケット `gotoshop-572b7.firebasestorage.app` が存在しない。dev でもバックアップを取るなら Console で Storage を有効にする。
+- **Firestore の監視の再接続**: 課金状態と家族特典には適用済み。ほかの監視箇所への適用が残っている。AIWA で招待の通知を受け取れなかった件は原因未特定。
+
+---
+
+## 🕐 午前のまとめ
+
+- 家族特典クーポンの実機確認（発行・入力・グループ未参加時の拒否・解除・Premium との連動）をすべて完了。
+- `SubscriptionNotifier` の例外を修正し、2台の実機で確認。
+- Firestore の監視の再接続を課金状態と家族特典に適用。
+- GCP の組織ポリシーを元に戻した。
+- ToDo を `docs/todo.md` に独立させた。
 
 ---
 
