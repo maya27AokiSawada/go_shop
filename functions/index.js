@@ -46,6 +46,7 @@ const {
   removeFamilyMember,
   syncFamilyBenefitsOnUserWrite,
 } = require("./family_coupon");
+const { DevToolError, setDevPurchaseType } = require("./dev_tools");
 
 const SUPPORTED_PREMIUM_PRODUCT_IDS = new Set([
   PREMIUM_PRODUCT_ID,
@@ -343,6 +344,28 @@ exports.syncFamilyBenefits = onDocumentWritten(
     });
   },
 );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 0-3. 開発用ツール（dev プロジェクトでのみ動く。本番では常に拒否）
+//      ストアで購入せずに自分の purchaseType を subscribe / free に切り替える。
+// ─────────────────────────────────────────────────────────────────────────────
+exports.setDevPurchaseType = onCall(FAMILY_CALLABLE_OPTIONS, async (request) => {
+  const uid = requireAuthUid(request);
+  try {
+    return await setDevPurchaseType({
+      db: getFirestore(),
+      uid,
+      projectId: process.env.GCLOUD_PROJECT,
+      purchaseType: request.data?.purchaseType,
+    });
+  } catch (error) {
+    if (error instanceof DevToolError) {
+      throw new HttpsError(error.code, error.message);
+    }
+    console.error("[dev-tools] unexpected error", error);
+    throw new HttpsError("internal", "dev-tools-failed");
+  }
+});
 
 exports.expireEarlyDownloadBenefits = onSchedule(
   {

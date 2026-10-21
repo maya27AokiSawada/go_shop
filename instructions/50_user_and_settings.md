@@ -240,6 +240,7 @@ deduplicatedGroups.sort((a, b) =>
 - 発行・入力・解除は Callable（`issueFamilyCoupon` / `redeemFamilyCoupon` / `removeFamilyMember`、App Check 必須）だけで行う。クライアントは `familyCoupon` / `familyBenefit` / `purchaseType` を書き込めない（Security Rules で保護）。`familyCoupons` コレクションはクライアントから読み書き不可。
 - Firestore トリガー `syncFamilyBenefits`（`users/{uid}` の書き込み）が、発行者の Premium の有効/無効に合わせて家族の `purchaseType` を `family` / `free` に切り替える。アカウント削除時はクーポンと特典のつながりを片付ける。トリガーのリージョンは Firestore のロケーションと同じにする。
 - 設定画面の `FamilyCouponPanel` に表示する。iOS は課金パネルと同じく既定で非表示（`FamilyCouponPanel.isAvailable` = `PurchasePlanPanel.isAvailable`）。
+- dev でのテスト: dev ビルドの設定画面にある「課金状態の切替（開発用）」（`DevPurchaseTypeSwitcher`）で、ストアで購入せずに自分の `purchaseType` を `subscribe` / `free` に切り替えられる。書き込みは Callable `setDevPurchaseType`（`functions/dev_tools.js`）で行い、dev プロジェクト（`gotoshop-572b7`）以外では常に拒否する。本番と同じ `purchaseType` を書き換えるので、発行・入力・解除と、Premium が切れたときに家族を `free` に戻すトリガーまで本番と同じ流れで確認できる。
 
 ```
 familyCoupons/{code}: { sponsorUid, createdAt }

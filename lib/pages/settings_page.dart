@@ -15,6 +15,7 @@ import '../widgets/settings/language_settings_panel.dart';
 import '../widgets/settings/whiteboard_settings_panel.dart';
 import '../widgets/settings/ad_privacy_options_panel.dart';
 import '../widgets/settings/developer_tools_section.dart';
+import '../widgets/settings/dev_purchase_type_switcher.dart';
 import '../widgets/settings/feedback_debug_section.dart';
 import '../widgets/settings/data_maintenance_section.dart';
 import '../widgets/settings/feedback_section.dart';
@@ -99,6 +100,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 if (F.appFlavor == Flavor.dev) ...[
                   DeveloperToolsSection(user: user),
                   const SizedBox(height: 20),
+                  if (isAuthenticated) ...[
+                    const DevPurchaseTypeSwitcher(),
+                    const SizedBox(height: 20),
+                  ],
                   const FeedbackDebugSection(),
                   const SizedBox(height: 20),
                   DataMaintenanceSection(user: user),
