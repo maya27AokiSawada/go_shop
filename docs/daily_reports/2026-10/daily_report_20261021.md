@@ -89,6 +89,25 @@
 
 ---
 
+### 7. Firestore の監視がエラーで止まったら再接続する ✅
+
+- Firestore の `snapshots()` はエラーが1回起きると終わり、再接続しない。本番も App Check を強制しているため、Play Integrity の判定が一時的に失敗すると課金状態の変化が反映されなくなる。
+- エラー時に間隔を空けて購読し直す `retryingSnapshots`（`lib/utils/retrying_snapshots.dart`）を追加し、課金状態（`watchPurchaseType`）と家族特典（`FamilyCouponService.watchStatus`）に適用した。ほかの監視箇所への適用は ToDo に残した。
+
+**Status**: ✅ 完了（ユニットテストのみ。実機での再現方法は未確立）
+
+---
+
+### 8. GCP の組織ポリシーを元に戻す ✅
+
+- `goshopping-48db9` に 10/14 に設定したプロジェクト個別のポリシー（`iam.allowedPolicyMemberDomains` を `allValues: ALLOW`）を `gcloud resource-manager org-policies delete` で削除し、親のポリシーの継承に戻した（ユーザー実行）。
+- 実効ポリシーは自組織（`C03gq7hp3`）のみ許可。Pub/Sub トピック `play-rtdn` の Play サービスアカウント（Pub/Sub パブリッシャー）は残っている。
+- 新しい `gcloud org-policies` は Organization Policy API が無効のため使えず、旧来の `gcloud resource-manager org-policies` を使った。
+
+**Status**: ✅ 完了
+
+---
+
 ## 🔄 継続・確認事項
 
 > 全体の未完了項目は [`docs/todo.md`](../../todo.md) にまとめた。

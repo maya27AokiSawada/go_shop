@@ -11,8 +11,6 @@
   - 共通の再接続ヘルパー `retryingSnapshots`（`lib/utils/retrying_snapshots.dart`）を追加し、課金状態（`watchPurchaseType`）と家族特典（`FamilyCouponService.watchStatus`）に適用した。
   - 残り: ほかの監視箇所（グループ同期、共有リスト、ホワイトボード、招待受諾、ユーザー名、ニュース、通知履歴）への適用。
   - AIWA で招待の通知を受け取れなかった件は原因未特定（通知リスナーには30秒後の再起動がある）。再発したら起動直後からのログを取る。
-- [ ] **GCP の組織ポリシーを元に戻す**（10/14）
-  - `goshopping-48db9` の `iam.allowedPolicyMemberDomains` を一時的に緩めたまま。「親のポリシーを継承する」に戻す。
 
 ## 📦 コミット・デプロイ
 
