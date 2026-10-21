@@ -90,11 +90,11 @@ fire-and-forget 保存後のストロークは **pending write 状態**（サー
 `.where(!hasPendingWrites)` でフィルターすると**保存したばかりのストロークが表示されない**。
 
 ```dart
-// ✅ 正しい — hasPendingWrites フィルターなし、クライアントソート
-return _strokesCollection(groupId, whiteboardId)
-    .snapshots()                       // orderBy は使わない（インデックス不要、FAILED_PRECONDITION回避）
-    .handleError((e, stack) { AppLogger.error('Stream error: $e'); })
-    .map((snapshot) => snapshot.docs
+// ✅ 正しい — hasPendingWrites フィルターなし、クライアントソート、エラー時は再接続
+return retryingSnapshots(
+  () => _strokesCollection(groupId, whiteboardId).snapshots(), // orderBy は使わない（インデックス不要、FAILED_PRECONDITION回避）
+  label: 'WATCH_STROKES',
+).map((snapshot) => snapshot.docs
         .map((d) => DrawingStroke.fromFirestore(d.data()))
         .toList()
       ..sort((a, b) => a.createdAt.compareTo(b.createdAt))); // クライアントソート
@@ -106,16 +106,26 @@ return _strokesCollection(groupId, whiteboardId)
 .orderBy('createdAt')
 ```
 
-### 3-2. リスナーの onError と cancelOnError
+### 3-2. リスナーの onError と再接続
+
+Firestore の `snapshots()` は、エラー（App Check の判定失敗による permission-denied など）が1回起きるとストリーム自体が終わり、自動では再接続しない。
+`cancelOnError: false` や `handleError` だけでは監視は続かないため、リポジトリ側の監視ストリームは `retryingSnapshots`（`lib/utils/retrying_snapshots.dart`）で包み、エラー時に間隔を空けて購読し直す。
 
 ```dart
-// ✅ 必須 — onError + cancelOnError: false でリスナーを継続させる
+// ✅ 必須 — リポジトリ側: retryingSnapshots で包む（エラーは購読側に流れず、ログを出して再接続する）
+return retryingSnapshots(
+  () => _collection(groupId).doc(whiteboardId).snapshots(),
+  label: 'WATCH_WB',
+).map(...);
+
+// ✅ 必須 — 購読側: onError を付ける（retryingSnapshots 以外のエラーで無音終了しないように）
 stream.listen(
   (data) { /* 処理 */ },
   onError: (e, stack) { AppLogger.error('リスナーエラー: $e'); },
-  cancelOnError: false, // エラーが起きてもリスナーを継続
+  cancelOnError: false,
 );
-// ❌ 禁止 — onError なしの .listen() はエラーで無音終了する
+// ❌ 禁止 — Firestore の snapshots() をそのまま返す（エラー1回で監視が止まったままになる）
+// ❌ 禁止 — onError なしの .listen()
 ```
 
 > **注意**: `StreamSubscription<T>` 型を変数として宣言する場合は `import 'dart:async';` が必要。リスナー追加・修正時にセットで確認すること。

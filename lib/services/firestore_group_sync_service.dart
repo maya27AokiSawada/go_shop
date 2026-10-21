@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/app_logger.dart';
+import '../utils/retrying_snapshots.dart';
 import '../models/shared_group.dart';
 import '../datastore/shared_group_firestore_codec.dart';
 import '../flavors.dart';
@@ -227,11 +228,14 @@ class FirestoreGroupSyncService {
     }
 
     // 🔥 FIX: 'groups'(旧コレクション)ではなく'SharedGroups'(現行コレクション)を監視
-    return _firestore
-        .collection('SharedGroups')
-        .where('allowedUid', arrayContains: user.uid)
-        .snapshots()
-        .asyncMap((snapshot) async {
+    // エラーで止まっても再接続する（Firestore のストリームはエラー1回で終わるため）
+    return retryingSnapshots(
+      () => _firestore
+          .collection('SharedGroups')
+          .where('allowedUid', arrayContains: user.uid)
+          .snapshots(),
+      label: 'WATCH_GROUPS',
+    ).asyncMap((snapshot) async {
       final codec = sharedGroupFirestoreCodec();
       // 復号のためグループ鍵をキャッシュへ prime してから変換する。
       await Future.wait(snapshot.docs.map((doc) => codec.primeKey(doc.id)));

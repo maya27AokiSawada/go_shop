@@ -8,9 +8,9 @@
 
 - [ ] **Firestore リスナーが止まったまま戻らない**（10/21）
   - Firestore の `snapshots()` はエラーが1回起きると終わり、再接続しない。本番も App Check を強制しているため、Play Integrity の判定が一時的に失敗すると止まる。
-  - 共通の再接続ヘルパー `retryingSnapshots`（`lib/utils/retrying_snapshots.dart`）を追加し、課金状態（`watchPurchaseType`）と家族特典（`FamilyCouponService.watchStatus`）に適用した。
-  - 残り: ほかの監視箇所（グループ同期、共有リスト、ホワイトボード、招待受諾、ユーザー名、ニュース、通知履歴）への適用。
-  - AIWA で招待の通知を受け取れなかった件は原因未特定（通知リスナーには30秒後の再起動がある）。再発したら起動直後からのログを取る。
+  - 共通の再接続ヘルパー `retryingSnapshots`（`lib/utils/retrying_snapshots.dart`）を追加し、課金状態・家族特典・グループ一覧・招待受諾・通知履歴・ホワイトボード（4か所）に適用した。ルールは `instructions/00_project_common.md` の Anti-12。
+  - 対象外にしたもの: 共有リスト（エラー時に Hive へフォールバックする独自処理あり）、ニュース（30秒で既定値に切り替え）、同期確認の待機（タイマーで打ち切り）、`watchUserName`（未使用）。
+  - 残り: 実機での確認（再現方法が未確立）。AIWA で招待の通知を受け取れなかった件は原因未特定（通知リスナーには30秒後の再起動がある）。再発したら起動直後からのログを取る。
 
 ## 📦 コミット・デプロイ
 

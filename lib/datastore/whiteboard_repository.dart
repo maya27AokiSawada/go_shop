@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 import '../models/whiteboard.dart';
 import '../utils/app_logger.dart';
+import '../utils/retrying_snapshots.dart';
 
 const _uuid = Uuid();
 
@@ -80,11 +81,11 @@ class WhiteboardRepository {
     // orderBy をクエリから除去 → クライアントソートで代替。
     // Firestore auto-index の遅延や FAILED_PRECONDITION でクエリが
     // 無音でエラー終了するのを防ぐ。
-    return _strokesCollection(groupId, whiteboardId)
-        .snapshots()
-        .handleError((Object error, StackTrace stack) {
-      Log.error('❌ [WATCH_STROKES] ストリームエラー: $error', error, stack);
-    }).map((snapshot) {
+    // エラーで止まっても再接続する（Firestore のストリームはエラー1回で終わるため）
+    return retryingSnapshots(
+      () => _strokesCollection(groupId, whiteboardId).snapshots(),
+      label: 'WATCH_STROKES',
+    ).map((snapshot) {
       try {
         Log.info(
             '📡 [WATCH_STROKES] スナップショット受信: ${snapshot.docs.length}件 pending=${snapshot.metadata.hasPendingWrites}');
@@ -247,10 +248,10 @@ class WhiteboardRepository {
     String groupId,
     String userId,
   ) {
-    return _collection(groupId)
-        .where('ownerId', isEqualTo: userId)
-        .snapshots()
-        .map((snapshot) {
+    return retryingSnapshots(
+      () => _collection(groupId).where('ownerId', isEqualTo: userId).snapshots(),
+      label: 'WATCH_PERSONAL_WB',
+    ).map((snapshot) {
       if (snapshot.docs.isEmpty) {
         Log.info(
             '📡 [WATCH_PERSONAL_WB] 個人用ホワイトボード未作成: ${Log.maskUserId(userId)}');
@@ -550,7 +551,10 @@ class WhiteboardRepository {
   /// コレクション全体を監視してownerIdがnullのものをフィルタリング
   /// ホワイトボードの新規作成も自動的に検知できる
   Stream<Whiteboard?> watchGroupWhiteboard(String groupId) {
-    return _collection(groupId).snapshots().map((snapshot) {
+    return retryingSnapshots(
+      () => _collection(groupId).snapshots(),
+      label: 'WATCH_GROUP_WB',
+    ).map((snapshot) {
       Log.info('📡 [WATCH_GROUP_WB] スナップショット受信: ${snapshot.docs.length}件');
 
       // ownerIdがnullのドキュメントを探す
@@ -572,9 +576,10 @@ class WhiteboardRepository {
 
   /// ホワイトボードをリアルタイム監視
   Stream<Whiteboard?> watchWhiteboard(String groupId, String whiteboardId) {
-    return _collection(groupId)
-        .doc(whiteboardId)
-        .snapshots()
+    return retryingSnapshots(
+      () => _collection(groupId).doc(whiteboardId).snapshots(),
+      label: 'WATCH_WB',
+    )
         .where((snapshot) => !snapshot.metadata.hasPendingWrites)
         .map((snapshot) {
       if (!snapshot.exists) return null;

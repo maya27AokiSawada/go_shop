@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../utils/app_logger.dart';
+import '../utils/retrying_snapshots.dart';
 import 'error_log_service.dart';
 import '../models/accepted_invitation.dart';
 
@@ -133,14 +134,17 @@ class AcceptedInvitationService {
       return Stream.value([]);
     }
 
-    return _firestore
-        .collection('users')
-        .doc(currentUser.uid)
-        .collection('acceptedInvitations')
-        .where('isProcessed', isEqualTo: false)
-        .orderBy('acceptedAt', descending: true)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
+    // エラーで止まっても再接続する（Firestore のストリームはエラー1回で終わるため）
+    return retryingSnapshots(
+      () => _firestore
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('acceptedInvitations')
+          .where('isProcessed', isEqualTo: false)
+          .orderBy('acceptedAt', descending: true)
+          .snapshots(),
+      label: 'ACCEPTED_INVITATIONS',
+    ).map((snapshot) => snapshot.docs
             .map((doc) => FirestoreAcceptedInvitation.fromFirestore(doc))
             .toList());
   }

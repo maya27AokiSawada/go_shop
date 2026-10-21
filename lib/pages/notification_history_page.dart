@@ -5,6 +5,7 @@ import '../providers/auth_provider.dart';
 import '../providers/shared_group_provider.dart';
 import '../services/notification_service.dart';
 import '../utils/app_logger.dart';
+import '../utils/retrying_snapshots.dart';
 import '../l10n/l10n.dart';
 
 /// 通知履歴画面
@@ -29,12 +30,16 @@ class _NotificationHistoryPageState
   void _initStreamIfNeeded(String userId) {
     if (_streamUserId == userId && _notificationStream != null) return;
     _streamUserId = userId;
-    _notificationStream = _firestore
-        .collection('notifications')
-        .where('userId', isEqualTo: userId)
-        .orderBy('timestamp', descending: true)
-        .limit(100)
-        .snapshots();
+    // エラーで止まっても再接続する（Firestore のストリームはエラー1回で終わるため）
+    _notificationStream = retryingSnapshots(
+      () => _firestore
+          .collection('notifications')
+          .where('userId', isEqualTo: userId)
+          .orderBy('timestamp', descending: true)
+          .limit(100)
+          .snapshots(),
+      label: 'NOTIFICATION_HISTORY',
+    );
   }
 
   @override

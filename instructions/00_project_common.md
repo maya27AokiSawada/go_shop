@@ -301,6 +301,27 @@ return groups.where((g) => g.groupId == selectedGroupId).firstOrNull;
 頻度の低い整合性修正（legacy role fix 等）は `build()` 外のメソッドに分離し、
 起動時の Firestore 同期完了後に 1 回だけ呼び出す。
 
+### ❌ Anti-12: Firestore の `snapshots()` をそのまま監視に使う
+
+`snapshots()` はエラーが1回起きるとストリームが終わり、自動では再接続しない。
+本番も App Check を強制しているため、Play Integrity の判定が一時的に失敗しただけで、
+アプリを再起動するまで課金状態やグループの変化が反映されなくなる。
+`handleError` や `cancelOnError: false` では監視は続かない。
+
+```dart
+// ❌ 間違い — エラー1回で止まったままになる
+return _firestore.collection('users').doc(uid).snapshots().map(...);
+
+// ✅ 正しい — エラー時に間隔を空けて購読し直す（lib/utils/retrying_snapshots.dart）
+return retryingSnapshots(
+  () => _firestore.collection('users').doc(uid).snapshots(),
+  label: 'PURCHASE_TYPE',
+).map(...);
+```
+
+例外: 短時間だけ待つ監視（同期確認の待機など、タイマーで打ち切るもの）や、
+エラー時に独自のフォールバックを持つ監視（共有リストの Hive フォールバック、ニュースの既定値）は対象外。
+
 ---
 
 ## 5. プラットフォーム固有ルール
