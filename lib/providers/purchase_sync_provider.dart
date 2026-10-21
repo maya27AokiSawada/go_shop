@@ -16,9 +16,7 @@ bool shouldResetSubscriptionToFree(SubscriptionState currentState) {
 /// - `subscribe`/`purchase` → SubscriptionNotifier を年間プラン相当に更新
 /// - `free` → 試用期間が残っていない場合のみ subscriptionProvider を無料状態にリセット
 final purchaseSyncProvider = Provider<void>((ref) {
-  final purchaseTypeAsync = ref.watch(purchaseTypeProvider);
-
-  purchaseTypeAsync.whenData((purchaseType) {
+  void sync(PurchaseType purchaseType) {
     final notifier = ref.read(subscriptionProvider.notifier);
     final currentState = ref.read(subscriptionProvider);
 
@@ -37,5 +35,13 @@ final purchaseSyncProvider = Provider<void>((ref) {
         }
         break;
     }
-  });
+  }
+
+  // プロバイダーの build 中に別のプロバイダー（subscriptionProvider）を書き換えると
+  // Riverpod が例外にするため、ref.watch で再ビルドせず、変化を受け取ったら build の外で反映する
+  ref.listen<AsyncValue<PurchaseType>>(
+    purchaseTypeProvider,
+    (_, next) => Future.microtask(() => next.whenData(sync)),
+    fireImmediately: true,
+  );
 });
