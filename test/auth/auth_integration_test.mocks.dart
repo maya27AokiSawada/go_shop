@@ -3,6 +3,7 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
+
 import 'dart:async' as _i5;
 
 import 'package:firebase_auth/firebase_auth.dart' as _i4;
@@ -360,6 +361,7 @@ class MockFirebaseAuth extends _i1.Mock implements _i4.FirebaseAuth {
   _i5.Future<void> setSettings({
     bool? appVerificationDisabledForTesting = false,
     String? userAccessGroup,
+    bool? migrateCurrentUser = false,
     String? phoneNumber,
     String? smsCode,
     bool? forceRecaptchaFlow,
@@ -372,6 +374,7 @@ class MockFirebaseAuth extends _i1.Mock implements _i4.FirebaseAuth {
             #appVerificationDisabledForTesting:
                 appVerificationDisabledForTesting,
             #userAccessGroup: userAccessGroup,
+            #migrateCurrentUser: migrateCurrentUser,
             #phoneNumber: phoneNumber,
             #smsCode: smsCode,
             #forceRecaptchaFlow: forceRecaptchaFlow,
@@ -621,6 +624,17 @@ class MockFirebaseAuth extends _i1.Mock implements _i4.FirebaseAuth {
         Invocation.method(
           #revokeTokenWithAuthorizationCode,
           [authorizationCode],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<void> revokeAccessToken(String? accessToken) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #revokeAccessToken,
+          [accessToken],
         ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
