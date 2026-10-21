@@ -144,6 +144,15 @@
 - firebase_auth の更新で `FirebaseAuth.setSettings` に `migrateCurrentUser` などの引数が増え、古いモックがコンパイルエラーになっていた。
 - `--build-filter="test/auth/*.mocks.dart"` で再生成した。全テスト 472 件成功。
 
+### 12. 購入・復元の結果メッセージの多言語化 ✅
+
+- `PurchaseService` の結果メッセージ（14種・17か所）を `texts` に移し、`AppTexts` に13個のキーを追加して日・英・葡・中を実装した。「Premium商品を取得できませんでした。」は課金パネル用の既存キー `purchaseProductUnavailable` を流用。
+- エラー履歴は操作名を日本語のキーで保存し、表示時に翻訳する作りのため、`logOperationError` の引数は日本語のまま残した。未登録だった「Premium購入」「購入の復元」を `error_history_page.dart` の対応表と `opPremiumPurchase` / `opRestorePurchases` に追加した。
+- 価格のフォールバック（`¥200/月` など）は言語ではなく端末の地域で通貨を切り替えているため対象外。開発用の IAP_MOCK 商品も対象外。
+- 全テスト 472 件成功。実機の確認は未実施（ToDo の課金パネルの英語表示の確認とあわせて行う）。
+
+**注意（dart format）**: l10n のファイルは既存の行が `dart format` の結果と一致していないため、ファイルごと整形すると無関係な差分が大量に出る。整形はせず、追加分だけを書式に合わせて書く。
+
 **注意（build_runner）**:
 
 - `--delete-conflicting-outputs` は `--build-filter` を付けても、対象外の生成済みファイル（`lib/models/*.freezed.dart` / `*.g.dart` など）まで削除する。実行後は `git ls-files --deleted` で消えたファイルを確認し、`git checkout` で戻す。
