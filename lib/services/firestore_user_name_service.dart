@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/app_logger.dart';
+import '../utils/retrying_snapshots.dart';
 import '../models/purchase_type.dart';
 import 'error_log_service.dart';
 import 'user_preferences_service.dart';
@@ -358,11 +359,11 @@ class FirestoreUserNameService {
     final user = _auth.currentUser;
     if (user == null) return Stream.value(PurchaseType.free);
 
-    return _firestore
-        .collection('users')
-        .doc(user.uid)
-        .snapshots()
-        .map((snapshot) {
+    // App Check の判定失敗などで止まっても再接続する（止まると課金状態の変化が反映されない）
+    return retryingSnapshots(
+      () => _firestore.collection('users').doc(user.uid).snapshots(),
+      label: 'PURCHASE_TYPE',
+    ).map((snapshot) {
       if (!snapshot.exists) return PurchaseType.free;
       final data = snapshot.data() as Map<String, dynamic>;
       return PurchaseTypeExt.fromFirestoreValue(

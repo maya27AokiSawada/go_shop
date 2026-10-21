@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/app_logger.dart';
+import '../utils/retrying_snapshots.dart';
 
 /// 家族特典を受けている家族（発行者側から見た一覧の1人）
 class FamilyMember {
@@ -86,11 +87,11 @@ class FamilyCouponService {
   Stream<FamilyCouponStatus> watchStatus() {
     final user = _auth.currentUser;
     if (user == null) return Stream.value(const FamilyCouponStatus());
-    return _firestore
-        .collection('users')
-        .doc(user.uid)
-        .snapshots()
-        .map((snapshot) => FamilyCouponStatus.fromUserData(snapshot.data()));
+    // App Check の判定失敗などで止まっても再接続する
+    return retryingSnapshots(
+      () => _firestore.collection('users').doc(user.uid).snapshots(),
+      label: 'FAMILY_COUPON',
+    ).map((snapshot) => FamilyCouponStatus.fromUserData(snapshot.data()));
   }
 
   /// Premium ユーザーのクーポンを取得する（未発行なら発行する）
