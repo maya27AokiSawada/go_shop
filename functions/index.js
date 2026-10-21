@@ -46,7 +46,11 @@ const {
   removeFamilyMember,
   syncFamilyBenefitsOnUserWrite,
 } = require("./family_coupon");
-const { DevToolError, setDevPurchaseType } = require("./dev_tools");
+const {
+  DevToolError,
+  isDevProject,
+  setDevPurchaseType,
+} = require("./dev_tools");
 
 const SUPPORTED_PREMIUM_PRODUCT_IDS = new Set([
   PREMIUM_PRODUCT_ID,
@@ -394,6 +398,11 @@ exports.scheduledFirestoreBackup = onSchedule(
     memory: "512MiB",
   },
   async () => {
+    // dev ではバックアップしない（バックアップ先の Storage を設定していない）
+    if (isDevProject(process.env.GCLOUD_PROJECT)) {
+      console.log("⏭️ dev プロジェクトのため Firestore バックアップをスキップします");
+      return;
+    }
     await runBackup();
   },
 );
