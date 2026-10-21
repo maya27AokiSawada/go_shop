@@ -112,8 +112,7 @@
 
 > 全体の未完了項目は [`docs/todo.md`](../../todo.md) にまとめた。
 
-- **`scheduledFirestoreBackup`（dev）**: ロール付与後の 10/21 0:00（JST）の実行で権限エラーは解消したが、`The specified bucket does not exist.`（404）で失敗した。dev では Firebase の Cloud Storage が未設定で、既定のバケット `gotoshop-572b7.firebasestorage.app` が存在しない。dev でもバックアップを取るなら Console で Storage を有効にする。
-- **Firestore の監視の再接続**: 課金状態と家族特典には適用済み。ほかの監視箇所への適用が残っている。AIWA で招待の通知を受け取れなかった件は原因未特定。
+- **Firestore の監視の再接続**: 実機でエラーからの復帰を確かめる方法が未確立。AIWA で招待の通知を受け取れなかった件は原因未特定。
 
 ---
 
@@ -124,6 +123,31 @@
 - Firestore の監視の再接続を課金状態と家族特典に適用。
 - GCP の組織ポリシーを元に戻した。
 - ToDo を `docs/todo.md` に独立させた。
+
+---
+
+## 🕐 午後の作業
+
+### 9. Firestore の監視の再接続をほかの箇所にも適用 ✅
+
+- `retryingSnapshots` をグループ一覧、招待受諾、通知履歴の画面、ホワイトボード（ストローク・メタデータ・グループ共通・個人用）に適用した。共有リスト（Hive へのフォールバックあり）、ニュース、同期確認の待機、未使用の `watchUserName` は対象外。
+- `instructions/00_project_common.md` に Anti-12 を追加し、`instructions/30_whiteboard.md` の 3-1・3-2 を直した（`cancelOnError: false` だけでは Firestore の監視は続かない）。
+- 2台でグループ退出の即時反映、ホワイトボードの保存での反映（従来どおり）を確認した。
+
+### 10. dev の Firestore バックアップを止める ✅
+
+- dev ではバックアップは不要と判断。`scheduledFirestoreBackup` を、dev プロジェクトでは何もせず終わるようにした（Cloud Scheduler の一時停止ではなく、デプロイし直しても戻らないようコードで判定）。
+- dev にデプロイし、ジョブを手動実行して「dev プロジェクトのため Firestore バックアップをスキップします」のログを確認した。
+
+### 11. `test/auth/` のモックの再生成 ✅
+
+- firebase_auth の更新で `FirebaseAuth.setSettings` に `migrateCurrentUser` などの引数が増え、古いモックがコンパイルエラーになっていた。
+- `--build-filter="test/auth/*.mocks.dart"` で再生成した。全テスト 472 件成功。
+
+**注意（build_runner）**:
+
+- `--delete-conflicting-outputs` は `--build-filter` を付けても、対象外の生成済みファイル（`lib/models/*.freezed.dart` / `*.g.dart` など）まで削除する。実行後は `git ls-files --deleted` で消えたファイルを確認し、`git checkout` で戻す。
+- Claude Code のサンドボックス内では Dart VM がスタック領域の取得に失敗してクラッシュした。サンドボックス外で実行すると成功した。
 
 ---
 
