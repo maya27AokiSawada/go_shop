@@ -762,7 +762,11 @@ class AllGroupsNotifier extends AsyncNotifier<List<SharedGroup>> {
         Log.info(
             '🆕 [CREATE GROUP] 認証済みユーザー: ${Log.maskEmail(currentUser.email)}');
       } else {
-        Log.info('🔧 [CREATE GROUP] DEV環境 - 認証チェックをスキップ');
+        // DEV でも Firestore ルールは ownerUid == auth.uid を要求するため、
+        // サインイン済みならその uid でオーナーを作る（未サインインのみチェックをスキップ）
+        currentUser = FirebaseAuth.instance.currentUser;
+        Log.info('🔧 [CREATE GROUP] DEV環境 - 認証チェックをスキップ'
+            '（サインイン: ${currentUser != null}）');
       }
     } catch (e) {
       if (F.appFlavor == Flavor.prod) {
