@@ -819,6 +819,19 @@ class AppTextsEn extends AppTexts {
   @override
   String get openSettings => 'Open Settings';
   @override
+  String get groupLimitExceededTitle =>
+      'You have more groups than your plan allows';
+  @override
+  String groupLimitExceededMessage(int groupCount, int maxGroups) =>
+      'Your current plan allows up to $maxGroups groups (you have $groupCount). '
+      'To use lists, delete ${groupCount - maxGroups} group(s) '
+      '(you can leave groups you joined as a member).';
+  @override
+  String get listBlockedByGroupLimit =>
+      'Lists are unavailable because you have too many groups';
+  @override
+  String get openGroupPage => 'Open Groups';
+  @override
   String get selectGroupBeforeSwitch =>
       'Please select a group before switching to Single Mode';
   @override

@@ -897,6 +897,19 @@ class AppTextsPt extends AppTextsEn {
       'Para usar vários grupos e listas, mude para o modo Múltiplo nas Configurações';
   @override
   String get openSettings => 'Abrir configurações';
+  @override
+  String get groupLimitExceededTitle =>
+      'Você tem mais grupos do que seu plano permite';
+  @override
+  String groupLimitExceededMessage(int groupCount, int maxGroups) =>
+      'Seu plano atual permite até $maxGroups grupos (você tem $groupCount). '
+      'Para usar as listas, exclua ${groupCount - maxGroups} grupo(s) '
+      '(você pode sair dos grupos em que participa como membro).';
+  @override
+  String get listBlockedByGroupLimit =>
+      'As listas estão indisponíveis porque você tem grupos demais';
+  @override
+  String get openGroupPage => 'Abrir grupos';
 
   @override
   String get selectGroupBeforeSwitch => 'Selecione um grupo antes de alternar';

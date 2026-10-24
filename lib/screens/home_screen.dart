@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../providers/app_mode_notifier_provider.dart';
 import '../providers/app_ui_mode_provider.dart';
 import '../providers/shared_group_provider.dart';
+import '../providers/group_limit_provider.dart';
 import '../services/network_monitor_service.dart';
 import '../pages/home_page.dart';
 import '../pages/shared_group_page.dart';
@@ -16,6 +17,7 @@ import '../config/app_mode_config.dart';
 import '../utils/app_logger.dart';
 import '../widgets/common_app_bar.dart';
 import '../widgets/network_status_banner.dart';
+import '../widgets/group_limit_warning_banner.dart';
 import '../services/user_initialization_service.dart';
 import '../l10n/l10n.dart';
 import '../providers/shared_list_provider.dart';
@@ -89,10 +91,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // 現在のグループを取得
     final selectedGroup = ref.watch(selectedGroupProvider).value;
 
+    // グループ数がプラン上限を超えている間はリスト画面を使わせない
+    final isGroupLimitExceeded = ref.watch(groupLimitStatusProvider).isExceeded;
+
     final List<Widget> pages = [
       const HomePage(),
       const SharedGroupPage(),
-      const SharedListPage(),
+      // リスト画面を開いたまま上限超過になった場合も、リストの代わりに警告を出す
+      isGroupLimitExceeded
+          ? const SingleChildScrollView(
+              padding: EdgeInsets.all(16.0),
+              child: GroupLimitWarningBanner(showOpenGroupButton: true),
+            )
+          : const SharedListPage(),
       const SettingsPage(),
     ];
 
@@ -169,6 +180,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               );
               return;
             }
+          }
+
+          // リスト画面 (index == 2) はグループ数がプラン上限内のときだけ開ける
+          if (index == 2 && ref.read(groupLimitStatusProvider).isExceeded) {
+            AppLogger.info(
+                '🔍 [HomeScreen] Group limit exceeded - list page blocked');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(texts.listBlockedByGroupLimit),
+                backgroundColor: Colors.orange,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+            return;
           }
 
           AppLogger.info('🔍 [HomeScreen] Setting pageIndex to: $index');

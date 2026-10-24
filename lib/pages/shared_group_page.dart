@@ -9,6 +9,7 @@ import '../providers/page_index_provider.dart';
 import '../providers/shared_group_provider.dart';
 import '../config/app_ui_mode_config.dart';
 import '../widgets/group_list_widget.dart';
+import '../widgets/group_limit_warning_banner.dart';
 import '../widgets/group_creation_with_copy_dialog.dart';
 import '../widgets/accept_invitation_widget.dart';
 import '../l10n/l10n.dart';
@@ -110,7 +111,13 @@ class _SharedGroupPageState extends ConsumerState<SharedGroupPage> {
       body: const SafeArea(
         child: Padding(
           padding: EdgeInsets.all(16.0),
-          child: GroupListWidget(),
+          child: Column(
+            children: [
+              // グループ数がプラン上限を超えているときの警告（上限内なら非表示）
+              GroupLimitWarningBanner(),
+              Expanded(child: GroupListWidget()),
+            ],
+          ),
         ),
       ),
       floatingActionButton: Column(

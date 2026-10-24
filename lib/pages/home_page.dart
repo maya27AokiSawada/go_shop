@@ -17,6 +17,7 @@ import '../config/app_ui_mode_config.dart';
 
 import '../widgets/user_name_panel_widget.dart';
 import '../widgets/news_and_ads_panel_widget.dart';
+import '../widgets/group_limit_warning_banner.dart';
 import '../utils/app_logger.dart';
 import '../l10n/l10n.dart';
 
@@ -844,6 +845,9 @@ class _HomePageState extends ConsumerState<HomePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // ステータス表示を削除（AppBarに統合済み）
+
+                // グループ数がプラン上限を超えているときの警告（上限内なら非表示）
+                const GroupLimitWarningBanner(showOpenGroupButton: true),
 
                 // ニュース＆広告パネル
                 const NewsAndAdsPanelWidget(),

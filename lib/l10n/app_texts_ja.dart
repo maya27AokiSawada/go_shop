@@ -791,6 +791,18 @@ class AppTextsJa extends AppTexts {
   @override
   String get openSettings => '設定を開く';
   @override
+  String get groupLimitExceededTitle => 'グループ数がプランの上限を超えています';
+  @override
+  String groupLimitExceededMessage(int groupCount, int maxGroups) =>
+      '現在のプランで使えるグループは$maxGroups個までです（現在$groupCount個）。'
+      'リストを使うには、グループを${groupCount - maxGroups}個削除してください'
+      '（メンバーとして参加しているグループは退出できます）。';
+  @override
+  String get listBlockedByGroupLimit =>
+      'グループ数が上限を超えているため、リスト画面を開けません';
+  @override
+  String get openGroupPage => 'グループ画面を開く';
+  @override
   String get selectGroupBeforeSwitch => 'グループを選択してからシングルモードに切り替えてください';
   @override
   String get selectListBeforeSwitch => 'カレントリストを選択してからシングルモードに切り替えてください';

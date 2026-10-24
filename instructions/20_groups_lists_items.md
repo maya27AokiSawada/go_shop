@@ -32,6 +32,7 @@ await _hiveRepo.createGroup(...);
 - グループ作成時は `AllGroupsNotifier.createNewGroup()` でプラン上限を確認し、Freeプランの4個目またはPremiumプランの21個目を拒否する。
 - メンバー追加時は、管理画面の直接リポジトリ呼び出しと `SelectedGroupNotifier.addMember()` の両方でプラン上限を確認する。片方だけの検証では別経路から制限を回避できる。
 - PremiumからFreeへ切り替える前に、グループ数が3個以下であり、すべてのグループのメンバー数が10人以下であることを確認する。
+- 家族特典の解除・解約などでグループ数が上限を超えた場合（`groupLimitStatusProvider.isExceeded`）は、リスト画面（下部ナビ index 2）を開けなくし、ホーム画面とグループ画面に `GroupLimitWarningBanner` を表示して削除・退出を促す。グループ一覧の読み込み中は超過扱いにしない。
 
 ## 2. ID 生成
 

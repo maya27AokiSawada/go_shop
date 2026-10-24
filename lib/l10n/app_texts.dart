@@ -351,6 +351,14 @@ abstract class AppTexts {
   String get openSettings;
 
   // ========================================
+  // グループ数の上限超過（Premium 解除後など）
+  // ========================================
+  String get groupLimitExceededTitle;
+  String groupLimitExceededMessage(int groupCount, int maxGroups);
+  String get listBlockedByGroupLimit;
+  String get openGroupPage;
+
+  // ========================================
   // グループメンバー管理
   // ========================================
   String get groupInfo;

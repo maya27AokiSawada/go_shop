@@ -861,6 +861,17 @@ class AppTextsZhHans extends AppTextsEn {
   String get multiModeHint => '如需使用多个群组和列表，请在设置中切换到多模式';
   @override
   String get openSettings => '打开设置';
+  @override
+  String get groupLimitExceededTitle => '群组数量超出了当前方案的上限';
+  @override
+  String groupLimitExceededMessage(int groupCount, int maxGroups) =>
+      '当前方案最多可使用$maxGroups个群组（现有$groupCount个）。'
+      '如需使用列表，请删除${groupCount - maxGroups}个群组'
+      '（以成员身份加入的群组可以退出）。';
+  @override
+  String get listBlockedByGroupLimit => '群组数量超出上限，无法打开列表页面';
+  @override
+  String get openGroupPage => '打开群组页面';
 
   @override
   String get selectGroupBeforeSwitch => '切换前请先选择群组';
