@@ -7,10 +7,10 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../providers/pre_open_benefit_provider.dart';
 import '../../providers/purchase_type_provider.dart';
 import '../../providers/subscription_provider.dart';
-import '../../services/pre_open_benefit_service.dart';
 import '../../services/purchase_service.dart';
 import '../../l10n/l10n.dart';
 import '../../config/subscription_sales_config.dart';
+import 'pre_open_benefit_notice.dart';
 
 /// Premium月額プランの購入・復元を行う設定パネル。
 class PurchasePlanPanel extends ConsumerStatefulWidget {
@@ -136,7 +136,7 @@ class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
               preOpenBenefit != null &&
               preOpenBenefit.isActive) ...[
             const SizedBox(height: 12),
-            _buildPreOpenBenefitNotice(preOpenBenefit),
+            PreOpenBenefitNotice(status: preOpenBenefit),
           ],
           if (!isPremium && !isSalesOpen) ...[
             const SizedBox(height: 12),
@@ -249,51 +249,6 @@ class _PurchasePlanPanelState extends ConsumerState<PurchasePlanPanel> {
               ],
             ),
           ],
-        ],
-      ),
-    );
-  }
-
-  /// プレオープン特典で Premium 相当の機能を利用中であることの案内。
-  Widget _buildPreOpenBenefitNotice(PreOpenBenefitStatus status) {
-    // 終了日時の直前の日を「〜まで」として表示する
-    final lastDay = status.endDate!.subtract(const Duration(seconds: 1));
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.green.shade300),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.card_giftcard,
-                size: 18,
-                color: Colors.green.shade700,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  texts.preOpenBenefitTitle,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.green.shade800,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            texts.preOpenBenefitBody(lastDay.year, lastDay.month, lastDay.day),
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade800),
-          ),
         ],
       ),
     );

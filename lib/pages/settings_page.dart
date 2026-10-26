@@ -10,6 +10,7 @@ import '../widgets/settings/firestore_sync_status_panel.dart';
 import '../widgets/settings/app_ui_mode_switcher_panel.dart';
 import '../widgets/settings/app_mode_switcher_panel.dart';
 import '../widgets/settings/purchase_plan_panel.dart';
+import '../widgets/settings/pre_open_benefit_notice.dart';
 import '../widgets/settings/family_coupon_panel.dart';
 import '../widgets/settings/language_settings_panel.dart';
 import '../widgets/settings/whiteboard_settings_panel.dart';
@@ -86,6 +87,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   const PurchasePlanPanel(),
                   const SizedBox(height: 20),
                 ],
+                // 課金パネル非表示の環境（iOS）でもプレオープン特典の案内は出す
+                if (isAuthenticated && !PurchasePlanPanel.isAvailable)
+                  const PreOpenBenefitPanel(),
                 // 家族特典クーポン（下余白はパネル側で持つ）
                 if (isAuthenticated && FamilyCouponPanel.isAvailable)
                   const FamilyCouponPanel(),

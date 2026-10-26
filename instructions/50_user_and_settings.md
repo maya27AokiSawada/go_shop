@@ -271,6 +271,7 @@ purchaseType: 'free' | 'subscribe' | 'purchase' | 'family'  // 課金タイプ�
 - `isPremiumActiveProvider` は `subscriptionProvider` の Premium と `isPreOpenBenefitActiveProvider` の OR。Riverpod 外の広告判定（`AdService.shouldShowSignInAd()` / `shouldShowBannerAd()`）は `PreOpenBenefitService.isActiveForCurrentUser()` を見る。`multiModeBlockedByAdConsentProvider` も特典中は禁止しない。
 - `preOpenBenefitProvider` は終了日時に再評価する（最大1日ごとのタイマー）。読み込み中は `groupLimitStatusProvider` で超過扱いにしない。
 - `PurchasePlanPanel` は特典中でも購入ボタンを表示し（特典終了前に加入できるように）、「プレオープン特典を利用中」と終了日を案内する。購入ボタンの表示判定は `subscriptionProvider` の Premium（課金・無料体験）だけで行う。
+- 特典の案内は `PreOpenBenefitNotice`（`lib/widgets/settings/pre_open_benefit_notice.dart`）に共通化している。`PurchasePlanPanel.isAvailable` が `false` の環境（iOS の課金開始前。TestFlight を含む）では、設定画面に `PreOpenBenefitPanel` で案内だけを表示し、購入ボタンなど課金関連の UI は出さない。
 - 期間を変えるときは `SubscriptionSalesConfig.preOpenBenefitMonths` と `docs/specifications/premium_plan.md` を一緒に更新する。
 
 ### 課金フロー
