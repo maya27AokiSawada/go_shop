@@ -380,6 +380,13 @@ class AppTextsJa extends AppTexts {
       '課金は$year年$month月開始予定です。';
 
   @override
+  String get preOpenBenefitTitle => 'プレオープン特典を利用中';
+
+  @override
+  String preOpenBenefitBody(int year, int month, int day) =>
+      'プレオープン期間中にご登録いただいた特典として、$year年$month月$day日までPremium相当の機能（広告非表示・グループ数とメンバー数の上限拡大）をご利用いただけます。';
+
+  @override
   String get premiumPlanTitle => 'Premiumプラン';
 
   @override

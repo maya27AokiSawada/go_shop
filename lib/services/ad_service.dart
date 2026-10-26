@@ -15,6 +15,7 @@ import '../flavors.dart';
 import '../models/purchase_type.dart';
 import 'firestore_user_name_service.dart';
 import 'feedback_prompt_service.dart';
+import 'pre_open_benefit_service.dart';
 
 // プロバイダー
 final adServiceProvider = Provider<AdService>((ref) => AdService());
@@ -250,6 +251,10 @@ class AdService {
       Log.info('🚫 インタースティシャル広告スキップ（課金: ${purchaseType.firestoreValue}）');
       return false;
     }
+    if (await PreOpenBenefitService.isActiveForCurrentUser()) {
+      Log.info('🚫 インタースティシャル広告スキップ（プレオープン特典）');
+      return false;
+    }
 
     final prefs = await SharedPreferences.getInstance();
 
@@ -329,6 +334,10 @@ class AdService {
     final purchaseType = await FirestoreUserNameService.getPurchaseType();
     if (purchaseType.hidesBannerAds) {
       Log.info('🚫 バナー広告スキップ（課金: ${purchaseType.firestoreValue}）');
+      return false;
+    }
+    if (await PreOpenBenefitService.isActiveForCurrentUser()) {
+      Log.info('🚫 バナー広告スキップ（プレオープン特典）');
       return false;
     }
     if (!await _canRequestAds()) {

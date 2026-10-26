@@ -2,13 +2,13 @@ import 'dart:async';
 import 'dart:io' show Platform;
 import 'dart:ui' show PlatformDispatcher;
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import '../config/subscription_sales_config.dart';
 import '../l10n/l10n.dart';
 import '../models/purchase_type.dart';
 import '../services/error_log_service.dart';
+import '../services/pre_open_benefit_service.dart';
 import '../utils/app_logger.dart';
 
 enum PurchaseFlowStatus {
@@ -127,13 +127,8 @@ class PurchaseService {
 
   /// Firestore の `appConfig/subscription` から課金開始日を取得する。
   /// ドキュメントまたはフィールドが未設定の場合は null を返す。
-  Future<DateTime?> fetchSalesStartDate() async {
-    final doc = await FirebaseFirestore.instance
-        .doc(SubscriptionSalesConfig.firestoreDocPath)
-        .get();
-    final value = doc.data()?[SubscriptionSalesConfig.salesStartDateField];
-    return value is Timestamp ? value.toDate() : null;
-  }
+  Future<DateTime?> fetchSalesStartDate() =>
+      PreOpenBenefitService.fetchSalesStartDate();
 
   /// 課金開始日を Firestore の値で更新する。
   /// 未設定または取得失敗時は現在の値（初期値は既定の課金開始日）を維持する。

@@ -449,6 +449,13 @@ class AppTextsPt extends AppTextsEn {
       'Os planos pagos estão previstos para começar em ${_monthNames[month - 1]} de $year.';
 
   @override
+  String get preOpenBenefitTitle => 'Benefício de pré-lançamento ativo';
+
+  @override
+  String preOpenBenefitBody(int year, int month, int day) =>
+      'Como agradecimento por se cadastrar antes do lançamento, os recursos Premium (sem anúncios, limites maiores de grupos e membros) estão disponíveis até $day de ${_monthNames[month - 1]} de $year.';
+
+  @override
   String get premiumPlanTitle => 'Plano Premium';
 
   @override

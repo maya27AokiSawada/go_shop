@@ -428,6 +428,13 @@ class AppTextsZhHans extends AppTextsEn {
       '付费功能预计于$year年$month月开放。';
 
   @override
+  String get preOpenBenefitTitle => '预发布特典使用中';
+
+  @override
+  String preOpenBenefitBody(int year, int month, int day) =>
+      '感谢您在预发布期间注册，$year年$month月$day日前可使用相当于 Premium 的功能（无广告、更多群组和成员）。';
+
+  @override
   String get premiumPlanTitle => 'Premium 套餐';
 
   @override

@@ -264,6 +264,15 @@ purchaseType: 'free' | 'subscribe' | 'purchase' | 'family'  // 課金タイプ�
 - `PurchasePlanPanel` は購入ボタンの代わりに「プレ公開中」「課金はyyyy年M月開始予定」の案内を表示する（年月は課金開始日から生成）。
 - 「購入を復元」と、購入ストリームで届いた取引の検証は期間中も止めない（既存のPremium利用者を維持するため）。
 
+### プレオープン特典（`lib/services/pre_open_benefit_service.dart`）
+
+- 課金開始日（`appConfig/subscription.salesStartDate`）より前に**アカウントを作成した**ユーザーを、課金開始日の1か月後（`SubscriptionSalesConfig.preOpenBenefitEndDate()`）まで Premium 相当（広告非表示・Premium の上限）にする。特典はアカウント作成直後から有効。
+- 判定はクライアントで行い、クライアントから書き換えられない値だけを使う: アカウント作成日時は Firebase Auth の `user.metadata.creationTime`、課金開始日は Firestore の値（取得失敗時は既定値）。Firestore の `purchaseType` は変更しない（課金・家族特典の Functions の処理と干渉させないため）。
+- `isPremiumActiveProvider` は `subscriptionProvider` の Premium と `isPreOpenBenefitActiveProvider` の OR。Riverpod 外の広告判定（`AdService.shouldShowSignInAd()` / `shouldShowBannerAd()`）は `PreOpenBenefitService.isActiveForCurrentUser()` を見る。`multiModeBlockedByAdConsentProvider` も特典中は禁止しない。
+- `preOpenBenefitProvider` は終了日時に再評価する（最大1日ごとのタイマー）。読み込み中は `groupLimitStatusProvider` で超過扱いにしない。
+- `PurchasePlanPanel` は特典中でも購入ボタンを表示し（特典終了前に加入できるように）、「プレオープン特典を利用中」と終了日を案内する。購入ボタンの表示判定は `subscriptionProvider` の Premium（課金・無料体験）だけで行う。
+- 期間を変えるときは `SubscriptionSalesConfig.preOpenBenefitMonths` と `docs/specifications/premium_plan.md` を一緒に更新する。
+
 ### 課金フロー
 
 1. Android / iOSではアプリ起動直後に `PurchaseService.initialize()` を実行し、購入ストリームを購読する。設定画面を開くまで購読を遅延させない。

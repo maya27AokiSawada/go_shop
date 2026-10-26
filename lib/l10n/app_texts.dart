@@ -154,6 +154,9 @@ abstract class AppTexts {
   String get subscriptionPreReleaseTitle;
   String get subscriptionPreReleaseBody;
   String subscriptionSalesStartNotice(int year, int month);
+  // プレオープン特典（課金開始日より前に作成したアカウント向け）
+  String get preOpenBenefitTitle;
+  String preOpenBenefitBody(int year, int month, int day);
   String get premiumPlanTitle;
   String get premiumPlanActiveTitle;
   String get premiumPlanDetailsLink;

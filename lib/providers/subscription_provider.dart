@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import '../providers/auth_provider.dart';
+import '../providers/pre_open_benefit_provider.dart';
 import '../models/purchase_type.dart';
 
 /// 課金プランの種類
@@ -298,9 +299,12 @@ final subscriptionProvider =
 );
 
 /// プレミアム機能が利用可能かどうかのプロバイダー
+///
+/// 課金・無料体験に加えて、プレオープン特典の利用中も Premium 相当とする。
 final isPremiumActiveProvider = Provider<bool>((ref) {
   final subscription = ref.watch(subscriptionProvider);
-  return subscription.isPremiumActive;
+  return subscription.isPremiumActive ||
+      ref.watch(isPreOpenBenefitActiveProvider);
 });
 
 /// 広告表示が必要かどうかのプロバイダー（認証状態考慮）

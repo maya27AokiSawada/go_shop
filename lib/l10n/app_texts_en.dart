@@ -397,6 +397,13 @@ class AppTextsEn extends AppTexts {
       'Paid plans are scheduled to start in ${_monthNames[month - 1]} $year.';
 
   @override
+  String get preOpenBenefitTitle => 'Pre-launch benefit active';
+
+  @override
+  String preOpenBenefitBody(int year, int month, int day) =>
+      'As a thank-you for signing up before launch, Premium features (no ads, higher group and member limits) are available until ${_monthNames[month - 1]} $day, $year.';
+
+  @override
   String get premiumPlanTitle => 'Premium Plan';
 
   @override
