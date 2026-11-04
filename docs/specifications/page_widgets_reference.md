@@ -132,7 +132,7 @@
 - **Firestore同期状態パネル**: FirestoreSyncStatusPanel（同期状態表示）
 - **アプリUIモード切り替え**: AppUiModeSwitcherPanel
 - **アプリモード切り替え**: AppModeSwitcherPanel（買い物リスト ⇄ TODOタスク管理）
-- **言語設定**: LanguageSettingsPanel（日本語 / English 切り替え）
+- **言語設定**: LanguageSettingsPanel（日本語 / English / Português / 中文（简体） / 中文（繁體） 切り替え）
 - **ホワイトボード設定**: WhiteboardSettingsPanel（カスタム色等）
 - **フィードバック**: FeedbackSection
 - **開発者ツール**: DeveloperToolsSection、FeedbackDebugSection
@@ -152,7 +152,7 @@
 **特徴**:
 
 - ✅ セクション分割により本体ファイルが軽量（173行）
-- ✅ 言語設定（日本語/英語）
+- ✅ 言語設定（日本語 / 英語 / ポルトガル語 / 中国語簡体字 / 中国語繁体字）
 - ✅ ホワイトボード描画色のカスタム設定
 - ✅ アカウント削除の完全実装（再認証、サブコレクション削除、親グループ削除）
 

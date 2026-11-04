@@ -356,6 +356,9 @@ AI が独断でシグネチャを変更することは **禁止**。
 | `lib/l10n/app_texts.dart`         | `AppTexts` 抽象クラス（全キー定義）             |
 | `lib/l10n/app_texts_ja.dart`      | `AppTextsJa` — 日本語実装                       |
 | `lib/l10n/app_texts_en.dart`      | `AppTextsEn` — 英語実装                         |
+| `lib/l10n/app_texts_pt.dart`      | `AppTextsPt` — ポルトガル語実装（`AppTextsEn` 継承） |
+| `lib/l10n/app_texts_zh_hans.dart` | `AppTextsZhHans` — 中国語簡体字実装（`AppTextsEn` 継承） |
+| `lib/l10n/app_texts_zh_hant.dart` | `AppTextsZhHant` — 中国語繁体字（台湾）実装（`AppTextsEn` 継承） |
 | `lib/l10n/app_localizations.dart` | `AppLocalizations` シングルトン（言語切替管理） |
 | `lib/l10n/l10n.dart`              | エクスポート + `texts` グローバルゲッター       |
 
@@ -377,7 +380,35 @@ Text(AppLocalizations.current.createGroup)
 1. `app_texts.dart` の `AppTexts` 抽象クラスにキーを追加
 2. `app_texts_ja.dart` の `AppTextsJa` に日本語実装を追加
 3. `app_texts_en.dart` の `AppTextsEn` に英語実装を追加
+   - pt / zh / zh_Hant は `AppTextsEn` を継承しているため、未翻訳のキーは英語で表示される。翻訳できるときは `app_texts_pt.dart` / `app_texts_zh_hans.dart` / `app_texts_zh_hant.dart` にも追加する
 4. **ARB ファイルは使用しない**（このプロジェクト独自の実装）
+
+### 対応言語と言語コード
+
+| 言語コード（SharedPreferences `language_code`） | 言語 | 実装クラス |
+| ---- | ---- | ---- |
+| `ja` | 日本語（既定） | `AppTextsJa` |
+| `en` | English | `AppTextsEn` |
+| `pt` | Português | `AppTextsPt` |
+| `zh` | 中文（简体） | `AppTextsZhHans` |
+| `zh_Hant` | 中文（繁體）※台湾の用語 | `AppTextsZhHant` |
+
+- `zh` は従来どおり簡体字のコード。保存済みの設定を壊さないため変更しない
+- `AppLocalizations.currentLanguageCode` は `AppTextsEn` のサブクラス（pt / zh / zh_Hant）を `AppTextsEn` より**先に**判定すること（逆にすると全部 `'en'` になる）
+- 新しい言語を追加したら `setLanguage()` / `currentLanguageCode` / `supportedLanguages` / `getLanguageName()` と `l10n.dart` の export を更新し、`test/l10n/app_localizations_test.dart` を実行する
+
+### 日本語版・英語版しかないコンテンツ
+
+ニュース（`firestoreNews/current_news` / `current_news_eng`）、法的文書へのリンク、日付書式など、日本語版と英語版しか用意していないコンテンツは、**日本語以外の言語ではすべて英語版**を使う。
+
+```dart
+// ✅ 正しい
+final useJa = AppLocalizations.isJapaneseContent;            // 現在の言語
+final useJa = AppLocalizations.usesJapaneseContent(langCode); // 言語コードを受け取る場合
+
+// ❌ 禁止 — pt / zh / zh_Hant が日本語版になる
+final isEn = AppLocalizations.currentLanguageCode == 'en';
+```
 
 ### ❌ Anti: UI テキストをハードコードする
 
