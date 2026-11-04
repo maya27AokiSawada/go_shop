@@ -289,7 +289,8 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
 
   /// 法的リンクセクションを構築
   Widget _buildLegalLinksSection(BuildContext context) {
-    final isEn = AppLocalizations.currentLanguageCode == 'en';
+    // 法的文書は日本語版と英語版のみ。日本語以外は英語版へリンクする
+    final isEn = !AppLocalizations.isJapaneseContent;
     final links = isEn
         ? [
             (

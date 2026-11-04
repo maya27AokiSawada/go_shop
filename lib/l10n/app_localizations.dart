@@ -55,15 +55,28 @@ class AppLocalizations {
   }
 
   /// 現在の言語コードを取得
+  ///
+  /// pt / zh / zh_Hant の各クラスは [AppTextsEn] を継承しているため、
+  /// [AppTextsEn] の判定より先にサブクラスを判定すること。
   static String get currentLanguageCode {
     if (_currentTexts is AppTextsJa) return 'ja';
-    if (_currentTexts is AppTextsEn) return 'en';
     if (_currentTexts is AppTextsPt) return 'pt';
     if (_currentTexts is AppTextsZhHans) return 'zh';
     if (_currentTexts is AppTextsZhHant) return 'zh_Hant';
     // if (_currentTexts is AppTextsEs) return 'es';
+    if (_currentTexts is AppTextsEn) return 'en';
     return 'ja';
   }
+
+  /// 日本語以外のコンテンツ（ニュース・法的文書・日付書式など）は英語版を使う
+  ///
+  /// 翻訳済みのアプリ内テキスト（[AppTexts]）とは別に、日本語版と英語版しか
+  /// 用意していないコンテンツで使う。
+  static bool usesJapaneseContent(String languageCode) => languageCode == 'ja';
+
+  /// 現在の言語で日本語版のコンテンツを使うか
+  static bool get isJapaneseContent =>
+      usesJapaneseContent(currentLanguageCode);
 
   /// サポートされている言語一覧
   static const List<String> supportedLanguages = [

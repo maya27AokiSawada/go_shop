@@ -637,7 +637,7 @@ class NewsWidget extends ConsumerWidget {
   }
 
   String _formatDate(DateTime date) {
-    if (AppLocalizations.currentLanguageCode == 'en') {
+    if (!AppLocalizations.isJapaneseContent) {
       final monthStr = _getMonthName(date.month);
       return '$monthStr ${date.day}, ${date.year}';
     }

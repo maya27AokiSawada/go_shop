@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/app_logger.dart';
 import '../models/app_news.dart';
 import '../flavors.dart';
+import '../l10n/app_localizations.dart';
 
 /// Firestoreからアプリニュースを取得するサービス
 class FirestoreNewsService {
@@ -9,9 +10,12 @@ class FirestoreNewsService {
   static const String _documentName = 'current_news';
   static const String _documentNameEn = 'current_news_eng';
 
-  /// 言語コードからドキュメント名を返す
+  /// 言語コードからドキュメント名を返す（日本語以外は英語版）
   static String _docName(String languageCode) =>
-      languageCode == 'en' ? _documentNameEn : _documentName;
+      _isJa(languageCode) ? _documentName : _documentNameEn;
+
+  static bool _isJa(String languageCode) =>
+      AppLocalizations.usesJapaneseContent(languageCode);
 
   /// 現在のニュースを取得
   static Future<AppNews> getCurrentNews({String languageCode = 'ja'}) async {
@@ -30,11 +34,11 @@ class FirestoreNewsService {
         return AppNews.fromMap(data);
       } else {
         Log.warning('📰 ニュースドキュメントが存在しません');
-        return _getDefaultNews();
+        return _getDefaultNews(languageCode: languageCode);
       }
     } catch (e) {
       Log.error('📰 ニュース取得エラー: $e');
-      return _getDefaultNews();
+      return _getDefaultNews(languageCode: languageCode);
     }
   }
 
@@ -46,10 +50,10 @@ class FirestoreNewsService {
       if (F.appFlavor == Flavor.dev) {
         Log.info('📰 DEV環境: 固定ニュースを返します');
         return Stream.value(AppNews(
-          title: languageCode == 'en' ? 'Dev Environment Test' : '開発環境でのテスト',
-          content: languageCode == 'en'
-              ? 'This is a test message for the dev environment. In production, this is fetched from Firestore.'
-              : 'これは開発環境でのテストメッセージです。本番環境ではFirestoreから取得されます。',
+          title: _isJa(languageCode) ? '開発環境でのテスト' : 'Dev Environment Test',
+          content: _isJa(languageCode)
+              ? 'これは開発環境でのテストメッセージです。本番環境ではFirestoreから取得されます。'
+              : 'This is a test message for the dev environment. In production, this is fetched from Firestore.',
           createdAt: DateTime.now(),
         ));
       }
@@ -101,7 +105,7 @@ class FirestoreNewsService {
 
   /// デフォルトニュースを取得
   static AppNews _getDefaultNews({String languageCode = 'ja'}) {
-    if (languageCode == 'en') {
+    if (!_isJa(languageCode)) {
       return AppNews(
         title: 'Welcome to GoShopping!',
         content:
