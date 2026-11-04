@@ -24,7 +24,7 @@ class UserPreferencesService {
   static const String _keyAppUIMode = 'app_ui_mode'; // 0=single, 1=multi
   static const String _keyEnableListNotifications = 'enable_list_notifications';
   static const String _keyLanguageCode =
-      'language_code'; // 'ja' / 'en' / 'pt' / 'zh'
+      'language_code'; // 'ja' / 'en' / 'pt' / 'zh' / 'zh_Hant'
 
   // 課金タイプキャッシュ（最終確認値の記録用）
   static const String _keyPurchaseTypeCache = 'purchase_type_cache';

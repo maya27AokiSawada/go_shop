@@ -3,6 +3,7 @@ import 'app_texts_en.dart';
 import 'app_texts_ja.dart';
 import 'app_texts_pt.dart';
 import 'app_texts_zh_hans.dart';
+import 'app_texts_zh_hant.dart';
 
 /// アプリ全体のローカライゼーション管理
 ///
@@ -25,6 +26,7 @@ class AppLocalizations {
   /// - 'en': 英語
   /// - 'pt': ポルトガル語
   /// - 'zh': 中国語簡体字
+  /// - 'zh_Hant': 中国語繁体字（台湾）
   /// - 'es': スペイン語 (未実装)
   static void setLanguage(String languageCode) {
     switch (languageCode) {
@@ -39,6 +41,9 @@ class AppLocalizations {
         break;
       case 'zh':
         _currentTexts = AppTextsZhHans();
+        break;
+      case 'zh_Hant':
+        _currentTexts = AppTextsZhHant();
         break;
       case 'es':
         // TODO: スペイン語実装
@@ -55,6 +60,7 @@ class AppLocalizations {
     if (_currentTexts is AppTextsEn) return 'en';
     if (_currentTexts is AppTextsPt) return 'pt';
     if (_currentTexts is AppTextsZhHans) return 'zh';
+    if (_currentTexts is AppTextsZhHant) return 'zh_Hant';
     // if (_currentTexts is AppTextsEs) return 'es';
     return 'ja';
   }
@@ -65,6 +71,7 @@ class AppLocalizations {
     'en', // 英語
     'pt', // Português
     'zh', // 中文（简体）
+    'zh_Hant', // 中文（繁體）
     // 'es', // スペイン語 (未実装)
   ];
 
@@ -79,6 +86,8 @@ class AppLocalizations {
         return 'Português';
       case 'zh':
         return '中文（简体）';
+      case 'zh_Hant':
+        return '中文（繁體）';
       case 'es':
         return 'Español';
       default:
