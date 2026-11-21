@@ -226,6 +226,9 @@ exports.appStoreNotifications = onRequest(
     region: REGION,
     timeoutSeconds: 60,
     memory: "256MiB",
+    // Apple からの通知は認証ヘッダーを持たないため公開する。
+    // 正当性は signedPayload の署名検証（Apple ルート証明書）で担保する。
+    invoker: "public",
   },
   async (req, res) => {
     if (req.method !== "POST") {
