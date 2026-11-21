@@ -17,7 +17,7 @@ import 'purchase_plan_panel.dart';
 class FamilyCouponPanel extends ConsumerStatefulWidget {
   const FamilyCouponPanel({super.key});
 
-  /// iOS では課金パネルと同じく既定で非表示（ビルドオプションで表示）
+  /// 課金パネルと同じ条件で表示する
   static bool get isAvailable => PurchasePlanPanel.isAvailable;
 
   @override

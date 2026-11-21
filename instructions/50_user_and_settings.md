@@ -277,7 +277,7 @@ purchaseType: 'free' | 'subscribe' | 'purchase' | 'family'  // 課金タイプ�
 ### 課金フロー
 
 1. Android / iOSではアプリ起動直後に `PurchaseService.initialize()` を実行し、購入ストリームを購読する。設定画面を開くまで購読を遅延させない。
-2. 認証済みユーザーの設定画面に `PurchasePlanPanel` を表示し、ストア利用可否と月額SKUの商品情報を反映する。 iOS は `PurchasePlanPanel.isAvailable` が `false` となり既定で非表示。`--dart-define=IOS_PURCHASE_PANEL=true`（2027年1月の提出ビルド用）または `--dart-define=IAP_SALES_OPEN=true`（Sandbox テスト用）を付けたビルドのみ表示する。
+2. 認証済みユーザーの設定画面に `PurchasePlanPanel` を表示し、ストア利用可否と月額SKUの商品情報を反映する。 ビルド49から iOS でも `PurchasePlanPanel.isAvailable` は常に `true` で、課金パネルを表示する（`IOS_PURCHASE_PANEL` は廃止）。
 3. 「Premiumを有効化」で `PurchaseService.buyPremiumMonthly()` が `PurchaseParam` を使ってストア購入UIを開く。購入開始だけではMultiモードへ切り替えない。
 4. 購入または復元の完了後、`_handlePurchase()` がストアの検証データを `verifyPurchase` Callableへ送る。
 5. FunctionsがGoogle Play Developer APIまたはApple署名済みStoreKit 2取引を検証し、成功時だけAdmin SDKで `purchaseType: subscribe` を保存する。
