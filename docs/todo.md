@@ -37,9 +37,14 @@
 
 - [ ] **Xcode へのサインイン後に IPA を再ビルドする**（10/15）
 - [ ] **Mac で iOS 版を確認し、App Store にリリースする**（10/14, 10/15）
-- [ ] **Sandbox で購入・復元・解約→失効を確認する**（10/17）
+- [ ] **Sandbox で解約→失効を確認する**（10/17）
+  - 購入・復元は 11/21 に確認済み。解約→失効は `appStoreNotifications` の受信待ち。年額プランの購入も未確認。
   - サブスク2つとビルドを一緒に提出する。審査メモに購入画面への手順を書く。
-  - 提出ビルドは `--dart-define=IOS_PURCHASE_PANEL=true` を付けて作成する。
+  - iOS の課金パネルは 1.2.0+49 から常に表示する（`IOS_PURCHASE_PANEL` は廃止）。提出ビルドに `IAP_SALES_OPEN` を付けない。
+- [ ] **Firebase の App Check デバッグトークンを削除する**（11/21）
+  - テスト用に prod へ登録したトークンを、テスト後に削除する。
+- [ ] **iOS の Swift Package Manager 移行の扱いを決める**（11/21）
+  - `flutter run` が `Podfile.lock` と `project.pbxproj` を自動で書き換えた。コミットせず作業ツリーに残している。
 
 ## 📢 広告・同意（UMP / AdMob）
 
